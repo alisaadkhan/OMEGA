@@ -256,7 +256,7 @@ Is there a monthly Apify (and Serper) spend limit I should respect while testing
 
 **Q17. Deployment.** Is deploying part of this work, or is local running enough for now (e.g. for the FYP demo)? If deploying: Railway (per the diagrams) or Vercel (per the SRS) for the API?
 
-> Answer:
+> Answer: Local only for now, but deploy-ready (env-based config, no hardcoded localhost, health-check endpoint). Target later: frontend on Vercel, API + worker on Railway.
 
 ---
 
