@@ -1,0 +1,5511 @@
+Volume 14 — Notifications, Feedback, System States & User Communication
+
+Purpose: Define every notification, toast, banner, alert, feedback state, and system communication pattern across MUSHIN. This ensures users always understand what is happening, what happened, why it happened, and what to do next.
+
+14.1 Design Philosophy
+
+Notifications should:
+
+Never interrupt primary workflows unnecessarily.
+Be informative before being decorative.
+Prioritize clarity over cleverness.
+Always provide a recovery path when possible.
+Scale from micro feedback (button clicked) to critical system incidents.
+Maintain trust by explaining failures honestly.
+
+Every notification must answer:
+
+What happened?
+Why did it happen?
+What should the user do next?
+14.2 Notification Hierarchy
+Level 1 — Micro Feedback
+
+Appears instantly.
+
+Examples:
+
+Saved
+Deleted
+Copied
+Updated
+Added to List
+Removed from Campaign
+
+Duration:
+
+2–3 seconds
+
+Dismiss automatically.
+
+Level 2 — Success Toasts
+
+Examples:
+
+Workspace created
+
+Search completed
+
+Credits purchased
+
+Invitation sent
+
+Campaign launched
+
+Dismiss after 4 seconds.
+
+Include:
+
+✓ icon
+
+Short title
+
+Optional Undo
+
+Level 3 — Warning
+
+Examples:
+
+Credits running low
+
+Workspace nearly full
+
+Search may take longer
+
+Rate limit approaching
+
+Dismiss manually.
+
+Yellow styling.
+
+Level 4 — Error
+
+Examples:
+
+API unavailable
+
+Payment failed
+
+Provider timeout
+
+Validation error
+
+Persistent until user dismisses.
+
+Level 5 — Critical
+
+Requires immediate attention.
+
+Examples:
+
+Subscription expired
+
+Workspace suspended
+
+Authentication compromised
+
+Admin action required
+
+Rendered as:
+
+Banner
+
+Modal
+
+or Full-page state.
+
+14.3 Toast System
+
+Every toast includes:
+
+Icon
+
+Title
+
+Optional description
+
+Close button
+
+Auto dismiss timer
+
+Animation
+
+Maximum:
+
+3 simultaneous
+
+Stack:
+
+Bottom-right desktop
+
+Bottom mobile
+
+Success Examples
+
+✓ Search Saved
+
+"Search added to Saved Searches."
+
+✓ Campaign Created
+
+"Campaign is ready."
+
+✓ Creator Added
+
+"Creator added to Summer Campaign."
+
+✓ Credits Purchased
+
+"1,000 credits successfully added."
+
+✓ Workspace Updated
+
+"Workspace settings saved."
+
+14.4 Error Toast Examples
+
+❌ Search Failed
+
+Unable to retrieve creators.
+
+Retry
+
+❌ Payment Failed
+
+Your payment could not be processed.
+
+Retry Checkout
+
+❌ Invitation Failed
+
+Could not invite member.
+
+Check email.
+
+❌ Network Error
+
+Connection lost.
+
+Reconnect
+
+14.5 Warning Toast Examples
+
+⚠ Low Credits
+
+Only 50 credits remaining.
+
+Buy Credits
+
+⚠ Search Delayed
+
+Provider responding slowly.
+
+Continue waiting.
+
+⚠ Duplicate Creator
+
+Already exists in this campaign.
+
+⚠ Expiring Subscription
+
+Renews tomorrow.
+
+Manage Billing
+
+14.6 Information Toasts
+
+Examples:
+
+New features available
+
+System maintenance scheduled
+
+Workspace upgraded
+
+Search indexing complete
+
+Import finished
+
+14.7 Notification Center
+
+Dedicated panel.
+
+Contains:
+
+Unread count
+
+Read history
+
+Filters
+
+Mark all read
+
+Delete notification
+
+Search notifications
+
+Infinite scroll
+
+Notification Categories:
+
+Billing
+
+Search
+
+Campaigns
+
+Workspace
+
+Admin
+
+Support
+
+Security
+
+System
+
+Announcements
+
+14.8 Notification Cards
+
+Each notification contains:
+
+Category icon
+
+Title
+
+Description
+
+Timestamp
+
+Action button
+
+Status
+
+Unread indicator
+
+Example:
+
+Search Finished
+
+523 creators found
+
+View Results
+
+2 minutes ago
+
+Unread dot
+
+14.9 Search Notifications
+
+Search Started
+
+Search Running
+
+Provider Switched
+
+Credits Reserved
+
+Credits Released
+
+Search Completed
+
+Search Failed
+
+No Results
+
+Live Search Started
+
+Streaming Enabled
+
+Streaming Finished
+
+14.10 Billing Notifications
+
+Subscription renewed
+
+Payment failed
+
+Credits added
+
+Credits refunded
+
+Invoice available
+
+Card expiring
+
+Subscription cancelled
+
+Plan upgraded
+
+Plan downgraded
+
+14.11 Workspace Notifications
+
+Invitation accepted
+
+Invitation declined
+
+Member joined
+
+Member removed
+
+Ownership transferred
+
+Workspace renamed
+
+Role updated
+
+14.12 Campaign Notifications
+
+Creator replied
+
+Campaign completed
+
+New creator added
+
+Campaign archived
+
+Outreach scheduled
+
+Task overdue
+
+14.13 Admin Notifications
+
+System alert
+
+Queue backlog
+
+Provider offline
+
+High API spend
+
+Database latency
+
+Webhook failures
+
+Security incident
+
+Abnormal search spike
+
+14.14 Security Notifications
+
+New login
+
+Password changed
+
+MFA enabled
+
+MFA disabled
+
+Session revoked
+
+Suspicious login detected
+
+API key created
+
+API key revoked
+
+14.15 Empty Notification State
+
+Illustration
+
+"You have no notifications."
+
+CTA:
+
+Return to Dashboard
+
+14.16 Loading Notification State
+
+Skeleton cards
+
+Animated placeholders
+
+Unread indicators hidden
+
+14.17 Notification Preferences
+
+Per user:
+
+Email
+
+In-app
+
+Push (future)
+
+Slack (workspace)
+
+Frequency
+
+Immediate
+
+Hourly
+
+Daily Digest
+
+Weekly Digest
+
+14.18 Email Notification Mapping
+
+Every major notification defines:
+
+Email version
+
+Subject
+
+Preview text
+
+CTA button
+
+Footer
+
+Workspace branding
+
+Examples:
+
+Search Complete
+
+Invoice Ready
+
+Campaign Reply
+
+Invitation
+
+Password Reset
+
+Security Alert
+
+14.19 System Banners
+
+Persistent banners.
+
+Examples:
+
+Maintenance tonight
+
+Provider degraded
+
+New feature available
+
+Subscription expiring
+
+Workspace suspended
+
+Dismiss rules configurable.
+
+14.20 Inline Validation Messages
+
+Every form field supports:
+
+Success
+
+Error
+
+Helper text
+
+Examples:
+
+✓ Username available
+
+⚠ Must contain 8 characters
+
+✕ Invalid email address
+
+14.21 Confirmation Dialogs
+
+Used before destructive actions.
+
+Delete List
+
+Delete Campaign
+
+Remove Member
+
+Cancel Subscription
+
+Reset Workspace
+
+Archive Campaign
+
+Delete API Key
+
+Buttons:
+
+Cancel
+
+Confirm
+
+Danger styling
+
+14.22 Progress Feedback
+
+Operations >2 seconds show progress.
+
+Examples:
+
+Uploading CSV
+
+Importing creators
+
+Refreshing profile
+
+Exporting report
+
+Generating analytics
+
+Progress includes:
+
+Percentage
+
+Estimated time
+
+Cancel button
+
+Status message
+
+14.23 Offline State
+
+Banner:
+
+You're offline.
+
+Retry
+
+Cached mode
+
+Reconnect animation
+
+14.24 Reconnection Feedback
+
+Connection restored.
+
+Realtime syncing...
+
+Sync complete.
+
+14.25 Global Error Handler
+
+Unhandled errors display:
+
+Friendly explanation
+
+Technical ID
+
+Retry
+
+Contact Support
+
+Go Dashboard
+
+14.26 Session Expiration
+
+Toast
+
+↓
+
+Modal
+
+↓
+
+Logout
+
+Countdown
+
+Save work
+
+Re-login
+
+14.27 Rate Limit Feedback
+
+Too many requests.
+
+Retry in:
+
+29 seconds
+
+Countdown
+
+Retry button
+
+14.28 Credit Warning Flow
+
+100 credits
+
+↓
+
+50 credits
+
+↓
+
+10 credits
+
+↓
+
+0 credits
+
+Each threshold increases urgency.
+
+14.29 Success Animations
+
+Micro interactions only.
+
+Examples:
+
+Checkmark draw
+
+Card pulse
+
+Toast slide
+
+Button ripple
+
+Confetti only for major milestones:
+
+Workspace created
+
+Subscription upgraded
+
+Enterprise activated
+
+14.30 UX Principles Summary
+
+Every notification must be:
+
+Actionable
+Context-aware
+Non-disruptive
+Recoverable
+Consistent
+Accessible
+Keyboard navigable
+Screen-reader friendly
+Timestamped
+Fully localized-ready
+Volume 15 — Error Pages, Empty States, Loading States & Recovery UX
+
+This volume defines every non-happy-path experience in MUSHIN. A failed interaction should never leave the user confused or stranded. Every error state should explain what happened, why it happened (when appropriate), and provide a clear next action.
+
+15.1 Error Design Principles
+
+Every error page or component must include:
+
+Clear title
+Human-readable explanation
+Relevant illustration or abstract graphic
+Primary recovery action
+Secondary navigation option
+Optional technical reference ID
+Automatic logging for diagnostics
+Responsive layout
+Keyboard accessibility
+
+Errors should never expose sensitive system information.
+
+15.2 Error Categories
+Client Errors (4xx)
+400 Bad Request
+401 Unauthorized
+403 Forbidden
+404 Not Found
+409 Conflict
+422 Validation Failed
+429 Too Many Requests
+Server Errors (5xx)
+500 Internal Server Error
+502 Bad Gateway
+503 Maintenance
+504 Gateway Timeout
+Application Errors
+Workspace Missing
+Search Failed
+Credits Exhausted
+Provider Offline
+Realtime Disconnected
+Subscription Expired
+Session Expired
+15.3 404 — Not Found
+
+Theme: Lost in the Noise
+
+The page reflects MUSHIN's purpose of discovering signal through noise.
+
+Hero
+
+Large animated 404
+
+Subtle scanning grid or abstract data distortion.
+
+Heading
+
+Lost in the Noise
+
+Description
+
+"The page you're looking for couldn't be found. It may have been moved, deleted, or never existed."
+
+Primary Actions
+Return to Dashboard
+Search Creators
+Go Home
+Secondary
+
+Back
+
+Contact Support
+
+Report Broken Link
+
+15.4 400 — Bad Request
+
+Heading:
+
+Request couldn't be processed.
+
+Description:
+
+One or more parameters are invalid.
+
+Actions:
+
+Retry
+
+Return
+
+15.5 401 — Unauthorized
+
+Large lock illustration.
+
+Heading:
+
+Please sign in.
+
+Actions:
+
+Login
+
+Reset Password
+
+15.6 403 — Forbidden
+
+Heading:
+
+Access Restricted
+
+Description:
+
+Your account doesn't have permission.
+
+Buttons:
+
+Return
+
+Request Access
+
+15.7 409 — Conflict
+
+Examples:
+
+Duplicate workspace
+
+Creator already exists
+
+Campaign conflict
+
+Actions:
+
+Refresh
+
+Resolve Conflict
+
+15.8 422 Validation Failed
+
+Displayed inline.
+
+Examples:
+
+Invalid URL
+
+Invalid Email
+
+Missing Field
+
+Duplicate Workspace Name
+
+Password Too Weak
+
+Each field highlights with explanation.
+
+15.9 429 — Too Many Requests
+
+Heading:
+
+Slow down.
+
+Animated countdown.
+
+Display:
+
+Retry in 27 seconds.
+
+Actions:
+
+Retry
+
+Dashboard
+
+15.10 500 — Internal Server Error
+
+Heading:
+
+Something went wrong.
+
+Description:
+
+An unexpected server error occurred.
+
+Actions:
+
+Retry
+
+Return Dashboard
+
+Contact Support
+
+Include optional error reference ID.
+
+15.11 502 Gateway Error
+
+Provider unavailable.
+
+Show provider health.
+
+Retry after countdown.
+
+15.12 503 Maintenance Mode
+
+Heading:
+
+Scheduled Maintenance
+
+Display:
+
+Expected completion time.
+
+System status.
+
+Actions:
+
+Status Page
+
+Notifications
+
+15.13 Offline Mode
+
+Full-width banner:
+
+You're offline.
+
+Cached functionality remains available where possible.
+
+Buttons:
+
+Retry
+
+Reload
+
+15.14 Session Expired
+
+Modal:
+
+Your session has expired.
+
+Buttons:
+
+Sign In Again
+
+Save Work (if possible)
+
+Logout
+
+15.15 Workspace Missing
+
+Illustration.
+
+Heading:
+
+Workspace Not Found
+
+Possible reasons:
+
+Deleted
+
+Permission removed
+
+Wrong URL
+
+Buttons:
+
+Create Workspace
+
+Switch Workspace
+
+15.16 Subscription Expired
+
+Display:
+
+Current plan
+
+Expired date
+
+Lost features
+
+Buttons:
+
+Renew
+
+Change Plan
+
+15.17 Credits Exhausted
+
+Large credit counter.
+
+Heading:
+
+No Credits Remaining
+
+Explain:
+
+Search requires credits.
+
+Buttons:
+
+Purchase Credits
+
+Compare Plans
+
+15.18 Search Failed
+
+Illustration:
+
+Broken search pulse.
+
+Possible causes:
+
+Provider timeout
+
+API unavailable
+
+Network issue
+
+Rate limited
+
+Buttons:
+
+Retry Search
+
+Change Provider
+
+Dashboard
+
+15.19 Search Returned No Results
+
+Heading:
+
+No creators matched your filters.
+
+Suggestions:
+
+Broaden filters
+
+Remove audience restriction
+
+Lower authenticity threshold
+
+Increase follower range
+
+Buttons:
+
+Reset Filters
+
+Edit Search
+
+15.20 Provider Offline
+
+Display provider status.
+
+Alternative providers listed.
+
+Buttons:
+
+Retry
+
+Switch Provider
+
+15.21 Loading Principles
+
+Every page loads progressively.
+
+Priority:
+
+Layout
+Navigation
+Critical metrics
+Main content
+Secondary widgets
+
+Avoid blank screens.
+
+15.22 Skeleton Loaders
+
+Provide dedicated skeletons for:
+
+Dashboard cards
+Creator cards
+Tables
+Analytics charts
+Search results
+Profile header
+Billing history
+Campaign board
+Notification list
+
+Skeleton dimensions match final layout exactly.
+
+15.23 Empty States
+
+Every major module requires an intentional empty state.
+
+Examples:
+
+Dashboard
+
+"You haven't searched yet."
+
+CTA:
+
+Start Searching
+
+Lists
+
+"No saved lists."
+
+CTA:
+
+Create List
+
+Campaigns
+
+"No campaigns created."
+
+CTA:
+
+New Campaign
+
+Notifications
+
+"You're all caught up."
+
+Workspace Members
+
+"No teammates yet."
+
+CTA:
+
+Invite Members
+
+Billing History
+
+"No transactions available."
+
+Saved Searches
+
+"No saved searches."
+
+Audit Logs
+
+"No activity recorded."
+
+Support Tickets
+
+"No support history."
+
+15.24 Partial Data States
+
+If only some widgets fail:
+
+Failed widgets display retry buttons.
+
+Remaining dashboard continues functioning.
+
+15.25 Progressive Recovery
+
+System attempts:
+
+Silent retry
+Visible retry
+User prompt
+Fallback provider
+Manual recovery
+15.26 Retry UX
+
+Retry buttons display:
+
+Spinner
+
+Attempt number
+
+Estimated wait
+
+Cancel option
+
+15.27 Error Logging
+
+Every critical error records:
+
+Timestamp
+User ID
+Workspace ID
+Route
+Browser
+Device
+Request ID
+API endpoint
+Error code
+Stack trace (server-side only)
+15.28 Recovery Checklist
+
+Every recoverable error should offer at least one of:
+
+Retry
+Refresh
+Go Back
+Dashboard
+Contact Support
+Documentation
+Purchase Credits
+Upgrade Plan
+Switch Workspace
+15.29 Accessibility
+
+Error messages must:
+
+Be announced by screen readers.
+Receive keyboard focus.
+Avoid color-only communication.
+Include descriptive icons.
+Maintain sufficient contrast.
+15.30 UX Standards
+
+Every loading, empty, and error state should feel like a designed part of the product—not an afterthought. Even failure should reinforce MUSHIN's core identity: calm, intelligent, and always guiding the user toward the next best action.
+LISTS
+Purpose
+
+Lists are the user's workspace for organizing creators discovered through search. They function like folders combined with lightweight databases. Every action should reduce friction between discovery and campaign execution.
+
+Lists Home
+Header
+Page title
+Workspace breadcrumb
+Search Lists
+Sort dropdown
+Filter button
+New List button
+Statistics Row
+
+Cards displaying:
+
+Total Lists
+Total Creators
+Average Authenticity
+Total Estimated Reach
+Recently Updated
+Active Campaign Lists
+Main Grid
+
+Each list card contains:
+
+Cover image (creator collage)
+List name
+Description
+Number of creators
+Last updated
+Owner
+Shared indicator
+Favorite icon
+Tags
+Average Authenticity Score
+Total audience estimate
+
+Actions
+
+Open
+Rename
+Duplicate
+Export
+Share
+Delete
+List Detail
+
+Header
+
+List title
+Description
+Tags
+Favorite
+Share
+Export
+Delete
+Duplicate
+Statistics
+Creators
+Total Followers
+Authenticity Average
+Engagement Average
+Audience Quality
+Fake Audience %
+Estimated Campaign Cost
+Toolbar
+
+Search creators inside list
+
+Filters
+
+Sort
+
+Bulk Select
+
+Move
+
+Copy
+
+Remove
+
+Export CSV
+
+Export Excel
+
+Export PDF
+
+Creator Table
+
+Columns
+
+Avatar
+
+Name
+
+Platform
+
+Followers
+
+Authenticity
+
+Engagement
+
+Audience Quality
+
+Country
+
+Email
+
+Phone
+
+Added Date
+
+Campaign Status
+
+Notes
+
+Actions
+
+Bulk Actions
+
+Select All
+
+Deselect
+
+Move
+
+Copy
+
+Delete
+
+Add Tag
+
+Assign Campaign
+
+Export
+
+Empty State
+
+Illustration
+
+"No creators yet."
+
+CTA
+
+Go Search
+
+Import CSV
+
+Loading
+
+Skeleton rows
+
+Animated placeholders
+
+Error
+
+Unable to load list
+
+Retry
+
+CAMPAIGNS
+
+Purpose
+
+Campaigns manage influencer outreach from beginning to completion.
+
+Campaign Dashboard
+
+Statistics
+
+Total Campaigns
+
+Active
+
+Completed
+
+Draft
+
+Paused
+
+Total Spend
+
+Average ROAS
+
+Creators Contacted
+
+Response Rate
+
+Campaign Cards
+
+Campaign Name
+
+Status
+
+Budget
+
+Platform
+
+Creators
+
+Progress Bar
+
+Owner
+
+Start Date
+
+End Date
+
+Actions
+
+Open
+
+Duplicate
+
+Archive
+
+Delete
+
+Campaign Detail
+
+Header
+
+Campaign Name
+
+Status Badge
+
+Edit
+
+Share
+
+Export
+
+Archive
+
+Delete
+
+Tabs
+
+Overview
+
+Creators
+
+Pipeline
+
+Timeline
+
+Messages
+
+Files
+
+Analytics
+
+Settings
+
+Overview
+
+Campaign Goal
+
+Budget
+
+KPIs
+
+Timeline
+
+Target Audience
+
+Platform Mix
+
+Creator Count
+
+Spend
+
+Performance
+
+Creator Management
+
+Search Creator
+
+Add Creator
+
+Bulk Add
+
+Import
+
+Each Creator
+
+Avatar
+
+Platform
+
+Authenticity
+
+Followers
+
+Fee
+
+Status
+
+Owner
+
+Notes
+
+Kanban Pipeline
+
+Columns
+
+Prospect
+
+Contacted
+
+Negotiating
+
+Accepted
+
+Content Pending
+
+Posted
+
+Completed
+
+Rejected
+
+Cards
+
+Creator
+
+Platform
+
+Fee
+
+Due Date
+
+Notes Preview
+
+Drag Handle
+
+Priority
+
+Timeline
+
+Calendar
+
+Milestones
+
+Deadlines
+
+Deliverables
+
+Reminders
+
+Outreach
+
+Conversation history
+
+Templates
+
+Send Email
+
+Copy Message
+
+Status
+
+Last Contact
+
+Next Follow-up
+
+Analytics
+
+Reach
+
+Impressions
+
+Clicks
+
+Conversions
+
+ROAS
+
+Spend
+
+CPM
+
+CPC
+
+CPA
+
+Revenue
+
+Charts
+
+Performance
+
+Timeline
+
+Creator Ranking
+
+Audience Distribution
+
+Empty State
+
+No campaign yet
+
+Create Campaign
+
+SETTINGS
+
+Purpose
+
+Everything related to user preferences, workspace configuration, integrations, billing preferences, security, and account management.
+
+Sidebar
+
+Profile
+
+Workspace
+
+Members
+
+Billing
+
+Notifications
+
+Security
+
+Sessions
+
+API Keys
+
+Integrations
+
+Appearance
+
+Danger Zone
+
+Profile
+
+Avatar
+
+Name
+
+Username
+
+Bio
+
+Timezone
+
+Language
+
+Country
+
+Company
+
+Website
+
+Save
+
+Discard
+
+Workspace
+
+Workspace Name
+
+Logo
+
+Slug
+
+Default Currency
+
+Industry
+
+Region
+
+Delete Workspace
+
+Transfer Ownership
+
+Members
+
+Invite Member
+
+Pending Invites
+
+Search Members
+
+Role Filter
+
+Member Card
+
+Avatar
+
+Role
+
+Email
+
+Status
+
+Last Active
+
+Permissions
+
+Remove
+
+Transfer Ownership
+
+Billing
+
+Current Plan
+
+Credits
+
+Subscription
+
+Invoices
+
+Payment Methods
+
+Purchase Credits
+
+Upgrade
+
+Cancel
+
+Notifications
+
+Email
+
+Push
+
+Search Complete
+
+Campaign Updates
+
+Security Alerts
+
+Billing Alerts
+
+Weekly Digest
+
+Marketing
+
+Security
+
+Password
+
+MFA
+
+Recovery Codes
+
+Trusted Devices
+
+Login History
+
+Sessions
+
+Terminate Session
+
+API Keys
+
+Generate
+
+Revoke
+
+Copy
+
+Permissions
+
+Last Used
+
+Usage
+
+Rate Limit
+
+Integrations
+
+HubSpot
+
+Slack
+
+Discord
+
+Zapier
+
+Webhook
+
+Custom API
+
+Each card
+
+Status
+
+Configure
+
+Disconnect
+
+Reconnect
+
+Appearance
+
+Theme
+
+Density
+
+Animations
+
+Sidebar
+
+Date Format
+
+Time Format
+
+Danger Zone
+
+Delete Account
+
+Delete Workspace
+
+Export Data
+
+Remove Personal Data
+
+SUPPORT STAFF PANEL
+
+Purpose
+
+Internal tools for support agents.
+
+Not visible to normal users.
+
+Support Dashboard
+
+Statistics
+
+Open Tickets
+
+Active Users
+
+Failed Searches
+
+Credit Issues
+
+Billing Issues
+
+Security Alerts
+
+Search User
+
+Email
+
+ID
+
+Workspace
+
+Creator
+
+Invoice
+
+Campaign
+
+User Profile
+
+Everything support needs
+
+Account
+
+Workspace
+
+Credits
+
+Subscription
+
+Search History
+
+Lists
+
+Campaigns
+
+Activity
+
+Sessions
+
+Audit Logs
+
+Support Actions
+
+Grant Credits
+
+Remove Credits
+
+Reset Search
+
+Resend Verification
+
+Unlock Account
+
+Reset MFA
+
+Reset Session
+
+Suspend User
+
+Unsuspend
+
+Impersonation
+
+Enter Read Only
+
+Enter Full Support
+
+Exit
+
+Banner always visible
+
+Every action logged
+
+Support Timeline
+
+Every event
+
+Login
+
+Payment
+
+Search
+
+Credit
+
+Campaign
+
+Security
+
+Activity Logs
+
+Filters
+
+Date
+
+Severity
+
+User
+
+Action
+
+Export
+
+Alerts
+
+Fraud
+
+Spam
+
+Failed Billing
+
+Webhook Failure
+
+Provider Outage
+
+Rate Limit Abuse
+
+Escalation
+
+Assign Engineer
+
+Assign Finance
+
+Assign Security
+
+Internal Notes
+
+Priority
+
+Resolution
+
+These specifications are intended specifically for Figma. They define what each screen contains, how components are organized, user actions, states (loading, empty, error), and interactions. A designer can translate them into frames, Auto Layout components, variants, and prototypes without needing to inspect the codebase. Together with the previous volumes, they form a comprehensive UI/UX blueprint for MUSHIN.
+MUSHIN Product Design Specification (PDS)
+Volume 16 — Accessibility, Responsive Design, Performance, QA & Final Figma Handoff
+
+This final volume transforms the completed interface into a production-grade SaaS product. It defines how every screen behaves across devices, ensures accessibility compliance, establishes design quality standards, and provides the rules required for developers and designers to maintain consistency long after the initial launch.
+
+1. Accessibility (WCAG 2.2 AA)
+
+Every interface must be fully navigable without a mouse.
+
+The platform should feel equally usable for keyboard users, screen reader users, and users with visual, motor, or cognitive impairments.
+
+Keyboard Navigation
+
+Every interactive element must be reachable using the Tab key.
+
+Logical tab order:
+
+Sidebar
+Top Navigation
+Page Header
+Filters
+Primary Actions
+Main Content
+Tables
+Footer
+
+Never trap keyboard focus.
+
+Modals:
+
+Focus enters modal automatically
+ESC closes modal
+Focus returns to triggering element
+
+Dropdowns:
+
+Arrow Keys → Navigate
+
+Enter → Select
+
+ESC → Close
+
+Search:
+
+"/" shortcut focuses global search.
+
+ESC clears search.
+
+Focus States
+
+Every clickable element has:
+
+Visible focus ring
+
+Never rely solely on color.
+
+Focus remains visible while navigating.
+
+Screen Reader Support
+
+Every button requires:
+
+Accessible Name
+
+Role
+
+State
+
+Example:
+
+"Save Search"
+
+"Delete List"
+
+"Start Search"
+
+"Pause Campaign"
+
+"Retry"
+
+Charts
+
+Charts require textual summaries.
+
+Never communicate analytics solely through color.
+
+Tables
+
+Headers announced.
+
+Sorting announced.
+
+Selection count announced.
+
+Pagination announced.
+
+Forms
+
+Errors announced immediately.
+
+Example:
+
+"Workspace Name is required."
+
+"Email is invalid."
+
+Password requirements read automatically.
+
+Color Independence
+
+Success
+
+Warning
+
+Error
+
+Never rely only on colors.
+
+Always include:
+
+Icons
+
+Labels
+
+Messages
+
+2. Responsive Design
+
+Desktop-first.
+
+Desktop
+
+Sidebar expanded.
+
+Full analytics.
+
+Multi-column layout.
+
+Persistent filters.
+
+Tables visible.
+
+Laptop
+
+Sidebar collapses.
+
+Cards resize.
+
+Charts compress.
+
+Sticky filters remain.
+
+Tablet
+
+Navigation becomes icon rail.
+
+Cards stack.
+
+Tables become horizontal scroll.
+
+Kanban becomes swipeable.
+
+Charts reduce detail.
+
+Mobile
+
+Bottom navigation replaces sidebar.
+
+Filters open in drawer.
+
+Cards become vertical.
+
+Tables convert into cards.
+
+Charts simplified.
+
+Buttons full width.
+
+Search Mobile
+
+Search always visible.
+
+Filters slide from bottom.
+
+Results single column.
+
+Creator cards simplified.
+
+Bulk actions hidden until selection.
+
+Dashboard Mobile
+
+Widgets reorder automatically.
+
+Analytics compress.
+
+Charts become sparklines.
+
+Quick Actions become carousel.
+
+Admin Mobile
+
+Read-only mode.
+
+Critical actions disabled.
+
+Monitoring simplified.
+
+3. Performance Guidelines
+
+Every interaction must feel instant.
+
+Target Performance
+
+Initial load:
+
+<2 seconds
+
+Search:
+
+Results appear immediately.
+
+Worker updates stream continuously.
+
+Charts:
+
+Lazy loaded.
+
+Large tables:
+
+Virtualized.
+
+Images:
+
+Lazy loading.
+
+Infinite scrolling where applicable.
+
+Loading Strategy
+
+Skeleton first.
+
+Real content replaces skeleton.
+
+Never show blank pages.
+
+Pagination
+
+Default:
+
+25 rows
+
+Options:
+
+25
+
+50
+
+100
+
+Infinite scrolling only where appropriate.
+
+Caching
+
+Search history cached.
+
+Creator profiles cached.
+
+Lists cached.
+
+Workspace cached.
+
+Billing cached.
+
+Realtime
+
+Only update changed components.
+
+Avoid page refreshes.
+
+4. Error Handling
+
+Errors should be informative, calm, and actionable.
+
+API Errors
+
+Display:
+
+Reason
+
+Suggested action
+
+Retry button
+
+Network Failure
+
+Banner:
+
+Connection Lost
+
+Reconnect automatically.
+
+Retry manually.
+
+Timeout
+
+Show progress.
+
+Offer retry.
+
+Never lose search progress.
+
+Authentication Errors
+
+Session expired.
+
+Return to login.
+
+Preserve intended destination.
+
+Credit Errors
+
+Display remaining credits.
+
+Explain required credits.
+
+Provide Upgrade button.
+
+Permission Errors
+
+403 page:
+
+Explain restriction.
+
+Offer Return Dashboard.
+
+5. Empty States
+
+Every page requires a designed empty state.
+
+Examples:
+
+Lists
+
+Campaigns
+
+Notifications
+
+Saved Searches
+
+Billing History
+
+Workspace Members
+
+API Keys
+
+Support Tickets
+
+Analytics
+
+Recent Activity
+
+No page should ever appear unfinished.
+
+6. Animation Principles
+
+Animations should communicate state—not decoration.
+
+Duration:
+
+150–250 ms
+
+Use for:
+
+Dropdowns
+
+Modals
+
+Cards
+
+Search progress
+
+Loading
+
+Hover
+
+Selection
+
+Never animate layout excessively.
+
+7. Design QA Checklist
+
+Before a screen is approved:
+
+✓ Alignment correct
+
+✓ Consistent spacing
+
+✓ Responsive
+
+✓ Keyboard accessible
+
+✓ Loading state
+
+✓ Empty state
+
+✓ Error state
+
+✓ Success state
+
+✓ Dark Mode
+
+✓ Light Mode
+
+✓ Screen Reader labels
+
+✓ No clipped text
+
+✓ No overflow
+
+✓ Proper icon sizing
+
+✓ Proper button hierarchy
+
+✓ Consistent typography
+
+✓ Accessible contrast
+
+8. Component Inventory
+
+The Figma library should contain reusable components for:
+
+Buttons
+
+Inputs
+
+Search Bars
+
+Dropdowns
+
+Checkboxes
+
+Radio Buttons
+
+Switches
+
+Tabs
+
+Badges
+
+Tags
+
+Avatars
+
+Cards
+
+Tables
+
+Charts
+
+Pagination
+
+Sidebar
+
+Navbar
+
+Dialogs
+
+Drawers
+
+Alerts
+
+Toasts
+
+Snackbars
+
+Tooltips
+
+Context Menus
+
+Date Pickers
+
+Skeletons
+
+Progress Bars
+
+Empty States
+
+Error States
+
+404 Pages
+
+500 Pages
+
+Loading Screens
+
+Search Cards
+
+Creator Cards
+
+Campaign Cards
+
+Workspace Cards
+
+Notification Items
+
+Admin Widgets
+
+Health Status Cards
+
+Analytics Tiles
+
+Everything should exist only once as a master component, with variants for different states.
+
+9. Prototype Connections
+
+Every major workflow should be fully linked in Figma.
+
+Authentication
+
+Dashboard
+
+Search
+
+Creator Profile
+
+Lists
+
+Campaigns
+
+Billing
+
+Workspace
+
+Settings
+
+Admin Panel
+
+Support
+
+Notifications
+
+Error Pages
+
+404
+
+500
+
+Maintenance
+
+Session Expired
+
+Offline
+
+10. File Organization
+
+Recommended Figma page structure:
+
+Cover
+Foundations
+Variables
+Design Tokens
+Components
+Patterns
+Templates
+Authentication
+Dashboard
+Search
+Creator Profiles
+Lists
+Campaigns
+Billing
+Workspace
+Settings
+Notifications
+Admin
+Support
+Error Pages
+Responsive Views
+Prototypes
+Archive
+11. Handoff Requirements
+
+Every frame must include:
+
+Auto Layout
+Constraints
+Variables
+Component instances
+Variant properties
+Developer notes
+Interaction annotations
+
+No detached components should remain in the final file.
+
+12. Final Acceptance Criteria
+
+The MUSHIN design system is considered complete only when:
+
+Every route has a corresponding Figma frame.
+Every user role (User, Admin, Support) has complete navigation.
+Every interaction includes loading, success, empty, and error states.
+Every reusable UI element is componentized.
+Accessibility meets WCAG 2.2 AA standards.
+Responsive layouts are defined for desktop, laptop, tablet, and mobile.
+Prototype flows cover all primary user journeys.
+Design tokens and variables are consistently applied.
+Developer handoff annotations are complete.
+The Figma file can serve as the single source of truth for design, engineering, QA, documentation, and future product evolution.
+Complete PDS Overview
+
+Across Volumes 1–16, the Product Design Specification defines:
+
+Product Vision & UX Principles
+Information Architecture & Navigation
+Design System & Component Library
+Authentication & Security
+Dashboard Experience
+Search System
+Creator Profiles
+Lists & Collections
+Campaign Management
+Credits, Billing & Workspace
+Settings & Integrations
+Admin Platform
+Support & Moderation Tools
+Notifications, Monitoring & System Health
+User Flows, Micro-interactions & Error Experiences
+Accessibility, Responsive Design, QA & Figma Handoff
+
+Together, these volumes form a comprehensive blueprint from which the complete MUSHIN interface can be recreated and maintained in Figma without referencing the implementation codebase.
+
+Volume 13 — Notifications, Communication, Feedback & User Assistance
+
+Purpose:
+This volume defines every notification, feedback mechanism, communication surface, help system, onboarding experience, and user guidance flow throughout MUSHIN. Every interaction should reduce uncertainty, build trust, and keep users informed without interrupting their workflow.
+
+1. Notification Architecture
+
+Notifications are divided into four layers:
+
+Layer 1 — Inline Feedback
+
+Immediate responses within the current component.
+
+Examples:
+
+Input validation
+Success message beneath a form
+Table update confirmation
+Search filter applied
+Creator added to list
+Layer 2 — Toast Notifications
+
+Transient messages appearing in the viewport.
+
+Categories:
+
+Success
+Error
+Warning
+Information
+
+Each toast includes:
+
+Status icon
+Title
+Description
+Timestamp (optional)
+Close button
+Auto-dismiss timer
+Persistent mode for critical failures
+Layer 3 — Notification Center
+
+Persistent inbox accessible from the header.
+
+Sections:
+
+All
+Billing
+Search
+Campaigns
+Workspace
+Security
+System
+Announcements
+
+Each notification displays:
+
+Icon
+Category
+Title
+Description
+Time
+Read state
+Action button (if applicable)
+Layer 4 — Email & External Communication
+
+Triggered for major events:
+
+Invoice generated
+Subscription updated
+Credits purchased
+Password reset
+MFA enabled
+Workspace invitation
+Search completed (optional)
+Campaign reminders
+Security alerts
+2. Toast Specifications
+Success
+
+Examples:
+
+Search completed.
+List saved successfully.
+Creator added.
+Credits purchased.
+Workspace updated.
+
+Actions:
+
+View
+Undo (where applicable)
+Error
+
+Examples:
+
+Search failed.
+Payment declined.
+Network unavailable.
+Session expired.
+Upload failed.
+
+Actions:
+
+Retry
+Contact Support
+Warning
+
+Examples:
+
+Credits running low.
+Subscription expires soon.
+Workspace limit reached.
+Large export may take time.
+Information
+
+Examples:
+
+Search still processing.
+Maintenance scheduled.
+New feature available.
+Team member joined.
+3. Notification Center
+Header
+
+Search notifications
+
+Filter
+
+Mark all read
+
+Settings
+
+Notification Card
+
+Contains:
+
+Category Icon
+
+Title
+
+Description
+
+Timestamp
+
+Read indicator
+
+Primary Action
+
+Dismiss button
+
+Empty State
+
+Illustration
+
+"No notifications yet."
+
+Action:
+Return to Dashboard
+
+4. Search Notifications
+
+Search Started
+
+Search Queued
+
+Credits Reserved
+
+Worker Started
+
+Worker Delayed
+
+Provider Slow
+
+Partial Results Available
+
+Search Completed
+
+Search Failed
+
+Credits Refunded
+
+5. Billing Notifications
+
+Payment Successful
+
+Subscription Activated
+
+Subscription Renewed
+
+Subscription Expiring
+
+Payment Failed
+
+Refund Issued
+
+Credits Added
+
+Credits Refunded
+
+Invoice Ready
+
+6. Workspace Notifications
+
+Invitation Sent
+
+Invitation Accepted
+
+Invitation Declined
+
+Member Joined
+
+Member Removed
+
+Ownership Transferred
+
+Role Updated
+
+Workspace Limit Reached
+
+7. Security Notifications
+
+New Login
+
+Unknown Device
+
+Password Changed
+
+MFA Enabled
+
+MFA Disabled
+
+API Key Created
+
+API Key Deleted
+
+Suspicious Activity
+
+Admin Access Granted
+
+Admin Access Removed
+
+8. Campaign Notifications
+
+Campaign Created
+
+Creator Added
+
+Creator Responded
+
+Campaign Completed
+
+Deadline Approaching
+
+Message Failed
+
+Campaign Archived
+
+9. Creator Notifications
+
+Profile Updated
+
+Audience Changed
+
+Authenticity Score Changed
+
+Fake Followers Increased
+
+Contact Information Added
+
+Verification Complete
+
+Profile Refresh Finished
+
+10. System Notifications
+
+Maintenance
+
+Outage
+
+API Provider Issues
+
+Performance Improvements
+
+Version Release
+
+Incident Resolved
+
+11. User Assistance
+
+Help button available globally.
+
+Opens:
+
+Documentation
+
+FAQs
+
+Video Tutorials
+
+Keyboard Shortcuts
+
+Support
+
+Report Bug
+
+Feature Request
+
+Release Notes
+
+12. Help Center
+
+Sections:
+
+Getting Started
+
+Search
+
+Credits
+
+Billing
+
+Campaigns
+
+Lists
+
+Workspace
+
+Security
+
+Admin
+
+API
+
+Each article contains:
+
+Title
+
+Reading time
+
+Related articles
+
+Video (optional)
+
+Last updated
+
+Feedback ("Was this helpful?")
+
+13. Guided Product Tours
+
+Tours:
+
+First Login
+
+Dashboard Tour
+
+First Search
+
+Creator Profile Tour
+
+Lists Tour
+
+Campaign Tour
+
+Billing Tour
+
+Admin Tour
+
+Each tour includes:
+
+Highlight target
+
+Explanation
+
+Progress indicator
+
+Skip button
+
+Next
+
+Previous
+
+Finish
+
+14. Empty States
+
+Design meaningful empty experiences.
+
+Examples:
+
+No Searches Yet
+
+No Lists
+
+No Campaigns
+
+No Notifications
+
+No Billing History
+
+No Team Members
+
+No Integrations
+
+No Creator Results
+
+Each empty state includes:
+
+Illustration
+
+Explanation
+
+Primary CTA
+
+Secondary Help Link
+
+15. Confirmation Dialogs
+
+Required before:
+
+Delete List
+
+Delete Campaign
+
+Remove Workspace Member
+
+Transfer Ownership
+
+Cancel Subscription
+
+Refund Payment
+
+Delete Creator
+
+Clear Notifications
+
+Reset Settings
+
+Dialog contains:
+
+Title
+
+Explanation
+
+Impact
+
+Cancel
+
+Confirm
+
+Danger styling (existing design system)
+
+16. Progress Indicators
+
+Linear Progress
+
+Circular Progress
+
+Determinate
+
+Indeterminate
+
+Streaming Search Progress
+
+Upload Progress
+
+Export Progress
+
+Queue Position
+
+Estimated Remaining Time
+
+17. User Feedback Components
+
+Feedback Form
+
+Fields:
+
+Category
+
+Description
+
+Screenshot Upload
+
+Email
+
+Priority
+
+Submit
+
+Confirmation after submission.
+
+18. Release Notes
+
+Accessible from notification center.
+
+Displays:
+
+Version
+
+Release Date
+
+New Features
+
+Bug Fixes
+
+Performance Improvements
+
+Known Issues
+
+19. Keyboard Shortcuts
+
+Provide searchable shortcut overlay.
+
+Examples:
+
+Search
+
+Open Notifications
+
+Open Dashboard
+
+Save List
+
+New Campaign
+
+Command Palette
+
+Escape
+
+Navigation
+
+20. Command Palette
+
+Accessible via keyboard shortcut.
+
+Searches:
+
+Pages
+
+Creators
+
+Lists
+
+Campaigns
+
+Settings
+
+Commands
+
+Help
+
+Documentation
+
+Recent Pages
+
+21. Global Search Assistance
+
+Autocomplete
+
+Recent Searches
+
+Saved Searches
+
+Popular Searches
+
+Suggested Filters
+
+Search Tips
+
+Examples
+
+22. Error Recovery
+
+Every failure state should provide:
+
+What happened
+
+Why it happened (when known)
+
+Recovery steps
+
+Retry action
+
+Contact support
+
+Relevant request ID (for technical issues)
+
+23. Offline Experience
+
+Banner indicating offline mode.
+
+Capabilities:
+
+View cached content
+
+Prevent new searches
+
+Queue actions (where possible)
+
+Reconnect automatically
+
+Refresh button
+
+24. Accessibility Feedback
+
+All notifications must:
+
+Be screen-reader compatible.
+Announce critical alerts.
+Support keyboard dismissal.
+Preserve focus after closing dialogs.
+Meet WCAG timing recommendations.
+25. Figma Build Instructions
+
+Structure the Figma file with dedicated pages for:
+
+Notification Components
+Toast Variants
+Notification Center
+Empty States
+Confirmation Dialogs
+Help Center
+Guided Tours
+Command Palette
+Progress Indicators
+Feedback Forms
+Error Recovery Screens
+Offline States
+
+Each component should use Auto Layout, variants, reusable instances, interactive prototype connections, and standardized naming so they integrate seamlessly with the existing MUSHIN design system.
+MUSHIN Product Design Specification
+Volume 12 — Admin Platform (Complete)
+Purpose
+
+The Admin Platform is the internal operating system of MUSHIN.
+
+Unlike the user dashboard, every page is designed around:
+
+Monitoring
+Moderation
+Billing
+Support
+Security
+Infrastructure
+Platform Intelligence
+
+The interface should feel like an enterprise control center rather than a customer dashboard.
+
+Admin Navigation
+
+The sidebar should contain grouped sections.
+
+Overview
+
+Dashboard
+
+Platform Overview
+
+Live Activity
+
+Alerts
+
+System Status
+
+Users
+
+All Users
+
+User Details
+
+Subscriptions
+
+Credits
+
+Activity
+
+Sessions
+
+Search History
+
+Support History
+
+Workspace Ownership
+
+Billing
+
+Revenue
+
+Transactions
+
+Subscriptions
+
+Invoices
+
+Refunds
+
+Credit Grants
+
+Provider Costs
+
+Webhook Logs
+
+Search
+
+Search Jobs
+
+Worker Queue
+
+Failed Jobs
+
+Credits
+
+Providers
+
+API Usage
+
+Caching
+
+Performance
+
+Content
+
+Creators
+
+Creator Reports
+
+Verification Queue
+
+Profile Refresh Queue
+
+Duplicates
+
+Blocked Profiles
+
+Workspace
+
+Organizations
+
+Members
+
+Invitations
+
+Roles
+
+Permissions
+
+Storage Usage
+
+Security
+
+Security Dashboard
+
+Audit Logs
+
+Authentication
+
+MFA
+
+Admin Sessions
+
+Permission Changes
+
+API Keys
+
+Security Flags
+
+Support
+
+Tickets
+
+Live Chats
+
+User Lookup
+
+Impersonation
+
+Credit Adjustments
+
+Manual Actions
+
+Monitoring
+
+Health
+
+Edge Functions
+
+Database
+
+Realtime
+
+Cron Jobs
+
+Queue
+
+Latency
+
+Errors
+
+Platform
+
+Feature Flags
+
+System Settings
+
+Announcements
+
+Email Templates
+
+API Providers
+
+Background Jobs
+
+Logs
+
+Admin Dashboard
+
+Landing page.
+
+Purpose:
+
+Immediate understanding of platform health.
+
+Top Metrics
+
+Registered Users
+
+Active Users
+
+MRR
+
+ARR
+
+Revenue Today
+
+Credits Purchased
+
+Credits Used
+
+Searches Today
+
+Failed Searches
+
+API Cost
+
+Average Search Time
+
+Success Rate
+
+Worker Queue Length
+
+Provider Status
+
+Webhook Failures
+
+Open Support Tickets
+
+Alerts
+
+Quick Actions
+
+Adjust Credits
+
+Suspend User
+
+Grant Admin
+
+Create Announcement
+
+Create Alert
+
+Restart Worker
+
+Retry Webhooks
+
+Export Logs
+
+Platform Health Card
+
+Database
+
+Realtime
+
+Storage
+
+Functions
+
+Redis
+
+Queue
+
+Workers
+
+Billing
+
+Analytics
+
+Each:
+
+Healthy
+
+Warning
+
+Critical
+
+Offline
+
+Recent Activity
+
+Live stream.
+
+New users.
+
+Payments.
+
+Searches.
+
+Errors.
+
+Alerts.
+
+Permission changes.
+
+Users
+
+Master user management.
+
+Filters
+
+Search
+
+Workspace
+
+Subscription
+
+Credits
+
+Country
+
+Status
+
+Role
+
+Created
+
+Last Active
+
+Table Columns
+
+Avatar
+
+Name
+
+Email
+
+Workspace
+
+Plan
+
+Credits
+
+Search Count
+
+Status
+
+Last Login
+
+Created
+
+Actions
+
+Row Actions
+
+View
+
+Edit
+
+Credits
+
+Suspend
+
+Delete
+
+Reset Password
+
+View Activity
+
+Support History
+
+Bulk Actions
+
+Suspend
+
+Delete
+
+Grant Credits
+
+Export
+
+Change Plan
+
+User Detail
+
+Complete user profile.
+
+Sections:
+
+Overview
+
+Subscription
+
+Credits
+
+Search History
+
+Activity Timeline
+
+Sessions
+
+Workspace
+
+Support
+
+Notes
+
+Security
+
+Overview
+
+Avatar
+
+Name
+
+Email
+
+Workspace
+
+Joined
+
+Plan
+
+MRR Contribution
+
+Status
+
+Verification
+
+Subscription
+
+Plan
+
+Renewal
+
+Invoices
+
+Paddle Customer
+
+Cancellation
+
+Payment History
+
+Credits
+
+Current Balance
+
+Lifetime Purchased
+
+Lifetime Used
+
+Manual Grants
+
+Refunds
+
+History
+
+Search History
+
+Recent Searches
+
+Duration
+
+Credits Used
+
+Results
+
+Provider
+
+Status
+
+Sessions
+
+Browser
+
+OS
+
+Country
+
+IP
+
+Device
+
+Created
+
+Expires
+
+Terminate button
+
+Support
+
+Tickets
+
+Chat
+
+Email History
+
+Notes
+
+Revenue
+
+Finance dashboard.
+
+Cards:
+
+MRR
+
+ARR
+
+Revenue Today
+
+Revenue Month
+
+Average Order
+
+LTV
+
+Churn
+
+Conversion
+
+Charts
+
+Revenue Over Time
+
+Subscription Growth
+
+Credit Purchases
+
+Provider Costs
+
+Refunds
+
+Net Profit
+
+Tables
+
+Transactions
+
+Invoices
+
+Refunds
+
+Failed Payments
+
+Credit Management
+
+Purpose:
+
+Control credit economy.
+
+Metrics
+
+Credits Issued
+
+Credits Used
+
+Credits Remaining
+
+Average Usage
+
+Top Consumers
+
+Credit Cost
+
+Grant Credits Modal
+
+User
+
+Amount
+
+Reason
+
+Expiration
+
+Notes
+
+Confirm
+
+History
+
+Timestamp
+
+Admin
+
+Reason
+
+User
+
+Balance Before
+
+After
+
+Search Monitoring
+
+Entire search infrastructure.
+
+Metrics
+
+Jobs Running
+
+Completed
+
+Failed
+
+Queued
+
+Average Runtime
+
+Average Cost
+
+Worker Count
+
+Provider Health
+
+Live Queue
+
+Job ID
+
+User
+
+Credits
+
+Provider
+
+Progress
+
+Status
+
+Started
+
+ETA
+
+Job Detail
+
+Timeline
+
+Logs
+
+Provider Responses
+
+Retry Count
+
+Credits
+
+Cost
+
+Actions
+
+Retry
+
+Cancel
+
+Requeue
+
+Delete
+
+Creator Moderation
+
+Purpose:
+
+Maintain creator quality.
+
+Filters
+
+Fake Score
+
+Followers
+
+Country
+
+Verification
+
+Duplicates
+
+Updated
+
+Actions
+
+Verify
+
+Reject
+
+Merge
+
+Refresh
+
+Hide
+
+Delete
+
+Detail
+
+Profile
+
+Metrics
+
+Reports
+
+History
+
+Notes
+
+Evidence
+
+Workspace Management
+
+Shows every workspace.
+
+Columns
+
+Name
+
+Owner
+
+Plan
+
+Members
+
+Credits
+
+Created
+
+Status
+
+Storage
+
+Workspace Detail
+
+Overview
+
+Members
+
+Invites
+
+Activity
+
+Searches
+
+Campaigns
+
+Billing
+
+Audit
+
+Storage
+
+Security Dashboard
+
+Cards
+
+Failed Logins
+
+Blocked IPs
+
+Permission Changes
+
+Admin Logins
+
+Expired Sessions
+
+MFA Coverage
+
+Open Risks
+
+Security Flags
+
+Live Feed
+
+Permission edits
+
+Failed MFA
+
+Token refresh
+
+API misuse
+
+Impersonation
+
+Audit Logs
+
+Filters
+
+Admin
+
+Date
+
+Entity
+
+Action
+
+Severity
+
+Table
+
+Time
+
+Admin
+
+Object
+
+Action
+
+Old Value
+
+New Value
+
+IP
+
+Detail Drawer
+
+Metadata
+
+Changes
+
+JSON
+
+Timeline
+
+API Providers
+
+Purpose:
+
+Monitor provider usage.
+
+Cards
+
+Serper
+
+Apify
+
+OpenAI
+
+Google
+
+Internal
+
+Each shows:
+
+Latency
+
+Requests
+
+Errors
+
+Availability
+
+Daily Cost
+
+Monthly Cost
+
+Charts
+
+Usage
+
+Errors
+
+Latency
+
+Cost
+
+Health Dashboard
+
+Enterprise monitoring.
+
+Services
+
+Database
+
+Realtime
+
+Storage
+
+Functions
+
+Workers
+
+Billing
+
+Analytics
+
+Queue
+
+Search
+
+Authentication
+
+Each card
+
+Latency
+
+Status
+
+Last Checked
+
+Uptime
+
+Errors
+
+Restart Button
+
+Edge Functions
+
+Table
+
+Function
+
+Version
+
+Latency
+
+Errors
+
+Invocations
+
+Last Deploy
+
+Status
+
+Actions
+
+Logs
+
+Redeploy
+
+Disable
+
+View Metrics
+
+Alerts
+
+System alerts.
+
+Types
+
+Billing
+
+Security
+
+Queue
+
+Database
+
+Workers
+
+API
+
+Performance
+
+Support
+
+States
+
+Active
+
+Resolved
+
+Muted
+
+Escalated
+
+Actions
+
+Assign
+
+Resolve
+
+Mute
+
+Delete
+
+Feature Flags
+
+Purpose:
+
+Enable controlled releases.
+
+Columns
+
+Name
+
+Description
+
+Environment
+
+Status
+
+Owner
+
+Rollout
+
+Detail
+
+Rules
+
+Percentage
+
+Workspaces
+
+Users
+
+Created
+
+Updated
+
+History
+
+Announcements
+
+Internal CMS.
+
+Table
+
+Title
+
+Audience
+
+Status
+
+Published
+
+Author
+
+Editor
+
+Title
+
+Body
+
+Markdown
+
+Audience
+
+Schedule
+
+Publish
+
+Email Templates
+
+Table
+
+Template
+
+Subject
+
+Variables
+
+Last Updated
+
+Editor
+
+Rich text
+
+Preview
+
+Variables
+
+Test Send
+
+Version History
+
+Background Jobs
+
+Monitor scheduled work.
+
+Columns
+
+Job
+
+Frequency
+
+Next Run
+
+Last Run
+
+Duration
+
+Status
+
+Retries
+
+Actions
+
+Run Now
+
+Pause
+
+Resume
+
+Logs
+
+Logs Explorer
+
+Universal logging interface.
+
+Filters
+
+Service
+
+Severity
+
+User
+
+Workspace
+
+Time
+
+Request ID
+
+Columns
+
+Timestamp
+
+Service
+
+Level
+
+Message
+
+Request ID
+
+Duration
+
+Click row
+
+Opens full log viewer with:
+
+Stack trace
+
+Headers
+
+Metadata
+
+Payload
+
+Linked entities
+
+Support Tools
+User Lookup
+
+Search by:
+
+Email
+
+User ID
+
+Workspace
+
+Paddle ID
+
+Search Job ID
+
+Invoice
+
+Result
+
+Instant profile card.
+
+Quick actions.
+
+Impersonation
+
+Banner always visible.
+
+Displays:
+
+Current user
+
+Started by
+
+Start time
+
+Exit button
+
+Every action logged.
+
+Credit Adjustment
+
+Fields
+
+User
+
+Amount
+
+Reason
+
+Admin Notes
+
+Confirmation
+
+Audit entry
+
+Empty States
+
+No Users
+
+No Revenue
+
+No Alerts
+
+No Jobs
+
+No Tickets
+
+No Logs
+
+Each state should explain why it's empty and provide the primary action to populate or resolve it.
+
+Loading States
+
+Every page uses:
+
+Skeleton cards for metrics
+Skeleton rows for tables
+Progressive chart placeholders
+Spinner only for short actions (<1–2 seconds)
+Non-blocking background refresh indicators for live dashboards
+Error States
+
+Design dedicated admin error views for:
+
+Permission denied
+Service unavailable
+Database connection lost
+Edge Function timeout
+Webhook processing failure
+Queue overload
+API provider unavailable
+Failed deployment
+Unknown system error
+
+Each error should include:
+
+A clear explanation of what failed.
+The affected subsystem.
+Suggested recovery action.
+Relevant logs or request ID (where applicable).
+Retry button if the action is safe to retry.
+
+This completes Volume 12, covering the entire internal administration, operations, monitoring, finance, security, and support platform in sufficient detail for Figma implementation.
+Volume 11 — Advanced Figma Design System & Component Engineering
+
+This volume would not describe pages. Instead, it defines how every Figma file must be built, ensuring scalability, consistency, and maintainability.
+
+It would include:
+
+1. Complete Figma File Architecture
+Team project structure
+Libraries
+Local vs shared components
+Branching strategy
+Version history
+Archive strategy
+Naming conventions
+2. Variable System
+Primitive variables
+Semantic variables
+Alias variables
+Component variables
+Density variables
+Motion variables
+Border variables
+Radius variables
+Elevation variables
+Opacity variables
+3. Auto Layout Standards
+Padding rules
+Gap rules
+Hug/Fill/Fixed behavior
+Nested Auto Layout
+Constraints
+Resizing rules
+Responsive containers
+4. Component Engineering
+
+Every component documented with:
+
+Purpose
+Anatomy
+Variants
+Properties
+States
+Slots
+Nested components
+Overrides
+Responsive behavior
+Accessibility behavior
+5. Variant Architecture
+
+Examples:
+
+Button
+Input
+Badge
+Card
+Dialog
+Drawer
+Table
+Search Bar
+Creator Card
+Filter Chip
+Navigation Item
+Sidebar
+Topbar
+
+Each includes:
+
+Default
+Hover
+Focus
+Active
+Loading
+Disabled
+Success
+Error
+Warning
+Selected
+6. Token Mapping
+
+How every design token maps to frontend code:
+
+CSS variables
+Tailwind classes
+shadcn/ui tokens
+Design token JSON
+Component props
+7. Grid System
+12-column desktop
+Tablet grids
+Mobile grids
+Dashboard spacing
+Table layouts
+Modal widths
+Drawer widths
+Sidebar sizing
+8. Icon System
+Icon sizing
+Stroke widths
+Alignment
+Usage rules
+Filled vs outlined
+Status icons
+Navigation icons
+9. Illustration System
+Empty states
+Error illustrations
+Success illustrations
+Search illustrations
+404 ("Lost in the Noise")
+Maintenance
+Offline
+Billing failures
+10. Motion Specification
+Hover animations
+Search progress
+Card expansion
+Loading shimmer
+Sidebar collapse
+Modal transitions
+Toast animations
+Realtime updates
+Skeleton transitions
+11. Prototype Logic
+Navigation connections
+Overlay interactions
+Smart Animate
+Variables in prototypes
+Conditional flows
+Search simulations
+Billing flow
+Admin flow
+12. Component Inventory
+
+A master catalog of every component in MUSHIN, including:
+
+Buttons
+Inputs
+Dropdowns
+Tables
+Charts
+Cards
+Badges
+Avatars
+Modals
+Drawers
+Toasts
+Tooltips
+Search Results
+Creator Cards
+Campaign Cards
+Analytics Widgets
+Admin Widgets
+13. Design QA
+
+A checklist ensuring every frame has:
+
+Auto Layout
+Variables
+Constraints
+Components
+Variants
+Accessibility
+Responsive behavior
+Pixel-perfect spacing
+Correct naming
+Prototype links
+14. Handoff Standards
+
+Rules for developer handoff:
+
+Layer naming
+Component names
+Frame names
+Asset export
+SVG rules
+Icon export
+Image optimization
+Dev Mode annotations
+15. AI Design Rules
+
+Guidelines for using AI tools (such as Figma AI, GPT, Claude, Gemini, etc.) so generated designs remain consistent with the MUSHIN design system.
+Volume 10 — Frontend Architecture, Quality Assurance, Documentation & Design Handoff (Final Volume)
+
+This volume defines how MUSHIN is maintained, scaled, tested, documented, and evolved. It is the operating manual for designers, frontend engineers, backend engineers, QA, DevOps, and future contributors. Every feature built in Volumes 1–9 is governed by the standards in this volume.
+
+Chapter 1 — Frontend Architecture
+
+The frontend follows a modular, domain-driven architecture. Every feature owns its components, hooks, services, types, and utilities. Cross-feature dependencies are minimized to reduce coupling and simplify long-term maintenance.
+
+src/
+ ├── app/
+ ├── pages/
+ ├── features/
+ │    ├── auth/
+ │    ├── dashboard/
+ │    ├── search/
+ │    ├── creators/
+ │    ├── campaigns/
+ │    ├── billing/
+ │    ├── settings/
+ │    ├── workspace/
+ │    ├── notifications/
+ │    └── admin/
+ ├── components/
+ ├── hooks/
+ ├── services/
+ ├── lib/
+ ├── types/
+ ├── utils/
+ └── assets/
+
+Each feature contains:
+
+Pages
+Components
+API service
+React Query hooks
+Types
+Validation
+Feature-specific utilities
+
+No feature imports another feature directly. Shared functionality belongs only in the shared layer.
+
+Chapter 2 — Routing Architecture
+
+Every route is lazy-loaded.
+
+Protected routes:
+
+Dashboard
+Search
+Lists
+Campaigns
+Creator Profiles
+Billing
+Settings
+
+Admin routes require RBAC verification before rendering.
+
+Unauthorized users are redirected before page mount.
+
+Nested routes preserve layout state.
+
+Navigation history survives refreshes.
+
+Chapter 3 — State Management
+
+State hierarchy:
+
+Global
+
+Authentication
+Workspace
+Theme
+Notifications
+
+Server
+
+React Query only
+
+Local
+
+Component state
+
+Temporary
+
+URL state
+Dialog state
+Search draft state
+
+Never duplicate server state into local state.
+
+Chapter 4 — API Layer
+
+Every request flows through:
+
+UI
+
+↓
+
+Hook
+
+↓
+
+Service
+
+↓
+
+Edge Function
+
+↓
+
+Database
+
+UI components never call Supabase directly.
+
+Every request returns
+
+loading
+success
+error
+retry metadata
+Chapter 5 — React Query Standards
+
+Every endpoint defines
+
+Query key
+
+Caching strategy
+
+Retry policy
+
+Invalidation rules
+
+Background refresh interval
+
+Optimistic updates
+
+Cancellation behavior
+
+Dependent queries
+
+Placeholder data
+
+Prefetching strategy
+
+Chapter 6 — Component Standards
+
+Every component documents
+
+Purpose
+
+Props
+
+States
+
+Loading
+
+Empty
+
+Error
+
+Accessibility
+
+Keyboard support
+
+Responsive behavior
+
+Animation behavior
+
+Performance expectations
+
+Example:
+
+CreatorCard
+
+States
+
+Loading
+
+Loaded
+
+Selected
+
+Hovered
+
+Compared
+
+Saving
+
+Removing
+
+Disabled
+
+Error
+Chapter 7 — Design Tokens
+
+Design tokens are centralized.
+
+Spacing
+
+Radius
+
+Elevation
+
+Opacity
+
+Transitions
+
+Animation durations
+
+Breakpoints
+
+Shadow presets
+
+Border presets
+
+Typography hierarchy
+
+Never hardcode values.
+
+Chapter 8 — Animation Standards
+
+Animation philosophy:
+
+Fast
+
+Subtle
+
+Purposeful
+
+No decorative motion.
+
+Standard timings:
+
+Hover
+
+Focus
+
+Dropdown
+
+Dialog
+
+Toast
+
+Search progress
+
+Realtime updates
+
+Page transitions
+
+Card expansion
+
+Loading shimmer
+
+Chapter 9 — Responsive Rules
+
+Desktop
+
+≥1440px
+
+Laptop
+
+1280–1439
+
+Tablet
+
+768–1279
+
+Mobile
+
+<768
+
+Every component specifies:
+
+Collapsed behavior
+
+Wrapped behavior
+
+Scrollable behavior
+
+Priority hiding
+
+Adaptive tables
+
+Adaptive filters
+
+Drawer replacements
+
+Chapter 10 — Accessibility Standards
+
+Every screen supports
+
+Keyboard navigation
+
+Focus traps
+
+Visible focus rings
+
+Screen readers
+
+ARIA labels
+
+Semantic HTML
+
+Color independence
+
+Reduced motion
+
+High contrast
+
+Form error announcements
+
+Accessible tables
+
+Accessible dialogs
+
+Accessible charts
+
+Chapter 11 — Error Handling
+
+Every API request returns structured errors.
+
+Example
+
+{
+ success:false,
+ code:"NO_CREDITS",
+ title:"Insufficient Credits",
+ message:"Purchase additional credits to continue.",
+ action:"Upgrade"
+}
+
+The frontend never parses raw backend strings.
+
+Everything uses standardized error codes.
+
+Chapter 12 — Logging Standards
+
+Client logs
+
+Warnings
+
+Performance
+
+Search latency
+
+Realtime disconnects
+
+Unexpected UI failures
+
+Server logs
+
+Edge Function execution
+
+Provider latency
+
+Webhook status
+
+Queue processing
+
+Billing
+
+Credits
+
+Security
+
+Admin activity
+
+Chapter 13 — Feature Flags
+
+Every major feature supports flags.
+
+Examples
+
+Live Search
+
+Database Search
+
+Campaigns
+
+Outreach
+
+Workspace
+
+Admin
+
+Billing
+
+Experimental Ranking
+
+Analytics
+
+Flags enable
+
+Canary releases
+
+A/B testing
+
+Gradual rollout
+
+Emergency disable
+
+Chapter 14 — Performance Targets
+
+Dashboard
+
+<2 seconds
+
+Search page
+
+<1 second initial render
+
+Search start
+
+<500ms
+
+Creator page
+
+<1 second
+
+Settings
+
+Instant
+
+Navigation
+
+<150ms
+
+Edge Functions
+
+Target
+
+<300ms
+
+Worker completion
+
+Provider dependent
+
+Chapter 15 — Security Standards
+
+JWT validation
+
+Workspace validation
+
+Role validation
+
+Credit validation
+
+Rate limiting
+
+Replay protection
+
+Webhook verification
+
+Input validation
+
+Output sanitization
+
+Signed URLs
+
+CSP
+
+Security headers
+
+Audit logging
+
+Secrets never exposed.
+
+Chapter 16 — Quality Assurance
+
+Every feature requires:
+
+Unit tests
+
+Integration tests
+
+E2E tests
+
+Accessibility tests
+
+Performance tests
+
+Regression tests
+
+Visual regression
+
+Mobile validation
+
+Dark mode validation
+
+Offline validation
+
+Chapter 17 — Testing Matrix
+
+Every page validates:
+
+Loading
+
+Success
+
+Error
+
+Offline
+
+Unauthorized
+
+Expired session
+
+Workspace removed
+
+Subscription expired
+
+Credits exhausted
+
+API timeout
+
+Server error
+
+Network loss
+
+Realtime disconnect
+
+Chapter 18 — Release Checklist
+
+Before release
+
+✓ TypeScript passes
+
+✓ Lint passes
+
+✓ Unit tests
+
+✓ Integration tests
+
+✓ E2E tests
+
+✓ Build succeeds
+
+✓ Bundle analysis
+
+✓ Accessibility audit
+
+✓ Lighthouse audit
+
+✓ Security scan
+
+✓ Schema validation
+
+✓ Edge Function validation
+
+✓ Migration validation
+
+✓ Feature flag review
+
+✓ Documentation updated
+
+Chapter 19 — Monitoring
+
+Metrics collected
+
+Active users
+
+Searches
+
+Credits consumed
+
+Search latency
+
+Worker failures
+
+API costs
+
+Webhook failures
+
+Realtime failures
+
+Billing failures
+
+Revenue
+
+Conversion
+
+Retention
+
+Error rate
+
+Crash rate
+
+Chapter 20 — Incident Response
+
+Severity levels
+
+P0
+
+Platform unavailable
+
+Billing broken
+
+Credits broken
+
+Authentication broken
+
+P1
+
+Search degraded
+
+Admin unavailable
+
+Notifications broken
+
+P2
+
+Visual issues
+
+Analytics delay
+
+Minor bugs
+
+Every incident documents
+
+Timeline
+
+Impact
+
+Root cause
+
+Fix
+
+Prevention
+
+Owner
+
+Chapter 21 — Documentation Standards
+
+Every feature documents
+
+Purpose
+
+Architecture
+
+Dependencies
+
+API contracts
+
+Database schema
+
+Edge Functions
+
+Permissions
+
+Error codes
+
+Future improvements
+
+Known limitations
+
+Chapter 22 — Figma File Architecture
+
+The Figma workspace mirrors the codebase exactly.
+
+01 Foundations
+
+02 Components
+
+03 Patterns
+
+04 Authentication
+
+05 Dashboard
+
+06 Search
+
+07 Creator Profile
+
+08 Lists
+
+09 Campaigns
+
+10 Billing
+
+11 Workspace
+
+12 Settings
+
+13 Notifications
+
+14 Admin
+
+15 Errors
+
+16 Mobile
+
+17 Prototype
+
+18 Assets
+
+Every page uses Auto Layout.
+
+Every component uses variants.
+
+Every token uses variables.
+
+No duplicated components.
+
+Chapter 23 — Component Library
+
+The library includes:
+
+Buttons
+
+Inputs
+
+Dropdowns
+
+Cards
+
+Tables
+
+Charts
+
+Badges
+
+Avatars
+
+Tags
+
+Progress bars
+
+Search bars
+
+Pagination
+
+Dialogs
+
+Drawers
+
+Modals
+
+Toasts
+
+Tooltips
+
+Tabs
+
+Accordions
+
+Breadcrumbs
+
+Kanban cards
+
+Timeline
+
+Data tables
+
+Skeletons
+
+Status indicators
+
+Everything is reusable.
+
+Chapter 24 — Prototype Specification
+
+Every user flow is connected.
+
+Authentication
+
+↓
+
+Dashboard
+
+↓
+
+Search
+
+↓
+
+Creator
+
+↓
+
+List
+
+↓
+
+Campaign
+
+↓
+
+Billing
+
+↓
+
+Settings
+
+↓
+
+Admin
+
+Every interaction is prototype-linked.
+
+Chapter 25 — Design QA Checklist
+
+Before a screen is approved:
+
+✓ Pixel-perfect spacing
+
+✓ Typography hierarchy
+
+✓ Accessibility verified
+
+✓ Responsive verified
+
+✓ Empty state exists
+
+✓ Loading state exists
+
+✓ Error state exists
+
+✓ Success state exists
+
+✓ Hover states
+
+✓ Focus states
+
+✓ Disabled states
+
+✓ Keyboard navigation
+
+✓ Animations
+
+✓ Performance reviewed
+
+✓ Component reused
+
+✓ Naming conventions correct
+
+Chapter 26 — Future Scalability
+
+The architecture supports:
+
+Multiple workspaces
+Internationalization
+Additional AI providers
+Enterprise RBAC
+White-label deployments
+Public API
+Plugin ecosystem
+Native mobile applications
+Advanced analytics
+Team collaboration
+AI copilots
+Marketplace integrations
+
+without requiring a frontend rewrite.
+
+Chapter 27 — Canonical Product Principle
+
+Every screen, interaction, component, workflow, and future feature must follow one guiding principle:
+
+Reduce complexity into clarity. Reveal signal from noise. Present intelligence without overwhelming the user. Every interaction should feel calm, intentional, and trustworthy, allowing users to make confident decisions with minimal effort.
+
+End of Product Design Specification
+
+With Volumes 1–10 combined, you have a complete blueprint covering product vision, UX, information architecture, every user-facing page, admin systems, billing, search, creator intelligence, responsive behavior, accessibility, engineering standards, testing, deployment, documentation, and long-term scalability. This specification is intended to serve as the canonical reference for designers, engineers, QA, AI-assisted development, and future contributors building or maintaining MUSHIN.
