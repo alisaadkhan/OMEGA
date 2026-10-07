@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 
 const path = ".env";
 let text = existsSync(path) ? readFileSync(path, "utf8") : "";
@@ -15,5 +15,7 @@ function ensure(key: string, value: string) {
 
 ensure("DATA_ENCRYPTION_KEY", randomBytes(32).toString("base64"));
 ensure("STAFF_JWT_SECRET", randomBytes(48).toString("base64url"));
-writeFileSync(path, text);
+// .env holds secrets: keep it owner-only (no effect on Windows ACLs).
+writeFileSync(path, text, { mode: 0o600 });
+chmodSync(path, 0o600);
 console.log(added.length ? `Added to .env: ${added.join(", ")}` : "Secrets already present; nothing changed.");
