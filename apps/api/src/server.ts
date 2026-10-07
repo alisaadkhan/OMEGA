@@ -1,10 +1,11 @@
-import { AppError, createLogger, loadApiConfig } from "@mushin/core";
+import { createLogger, loadApiConfig } from "@mushin/core";
 import { createDatabase, UNVERIFIED_TLS_WARNING } from "@mushin/db";
 import { buildApp } from "./app";
 import { createCustomerGuard } from "./auth/customer-guard";
 import { createCustomerTokenVerifier, remoteJwks } from "./auth/customer-token";
 import type { Guards, ReadinessCheck } from "./http/types";
 import { createIdentityModule } from "./modules/identity";
+import { createPlatformModule } from "./modules/platform";
 import { createStaffModule, createStaffTokens } from "./modules/staff";
 import { MemoryRateLimiter } from "./rate-limit/memory";
 import { ipRateLimitHook } from "./rate-limit/plugin";
@@ -31,23 +32,21 @@ if (config.rateLimit.upstash) {
 
 const identity = createIdentityModule({ db });
 const staff = createStaffModule({ db, tokens: createStaffTokens(config.staffJwtSecret), encryptionKey: config.dataEncryptionKey });
-const notYet = async () => {
-  throw new AppError("INTERNAL", "Idempotency is not configured yet");
-};
+const platform = createPlatformModule({ db, ttlHours: config.idempotencyTtlHours });
 const guards: Guards = {
   customer: createCustomerGuard({
     verify: createCustomerTokenVerifier({ issuer: config.auth.issuer, audience: config.auth.audience, keys: remoteJwks(config.auth.jwksUri) }),
     resolveTenant: identity.resolveTenant,
     limiter,
   }),
-  idempotent: notYet,
+  idempotent: platform.requireIdempotencyKey,
 };
 
 const app = await buildApp({
   logger,
   allowedOrigins: config.allowedOrigins,
   guards,
-  modules: [identity.module, staff.module],
+  modules: [platform.module, identity.module, staff.module],
   readiness,
   onRequestHooks: [ipRateLimitHook(limiter)],
 });
