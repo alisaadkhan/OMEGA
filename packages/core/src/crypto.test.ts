@@ -20,6 +20,12 @@ describe("crypto", () => {
     expect(() => decryptSecret("garbage", key)).toThrow(/malformed/);
   });
 
+  it("rejects truncated auth tags", () => {
+    const [version, iv, tag, ciphertext] = encryptSecret("secret", key).split(".");
+    const shortTag = Buffer.from(tag ?? "", "base64url").subarray(0, 4).toString("base64url");
+    expect(() => decryptSecret([version, iv, shortTag, ciphertext].join("."), key)).toThrow();
+  });
+
   it("rejects keys that are not 32 bytes", () => {
     expect(() => encryptSecret("x", Buffer.alloc(16))).toThrow(/32 bytes/);
   });
