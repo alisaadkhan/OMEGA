@@ -5,6 +5,7 @@ import { createCustomerGuard } from "./auth/customer-guard";
 import { createCustomerTokenVerifier, remoteJwks } from "./auth/customer-token";
 import type { Guards, ReadinessCheck } from "./http/types";
 import { createIdentityModule } from "./modules/identity";
+import { createStaffModule, createStaffTokens } from "./modules/staff";
 import { MemoryRateLimiter } from "./rate-limit/memory";
 import { ipRateLimitHook } from "./rate-limit/plugin";
 import { bucketsFromConfig, type RateLimiter } from "./rate-limit/types";
@@ -29,6 +30,7 @@ if (config.rateLimit.upstash) {
 }
 
 const identity = createIdentityModule({ db });
+const staff = createStaffModule({ db, tokens: createStaffTokens(config.staffJwtSecret), encryptionKey: config.dataEncryptionKey });
 const notYet = async () => {
   throw new AppError("INTERNAL", "Idempotency is not configured yet");
 };
@@ -45,7 +47,7 @@ const app = await buildApp({
   logger,
   allowedOrigins: config.allowedOrigins,
   guards,
-  modules: [identity.module],
+  modules: [identity.module, staff.module],
   readiness,
   onRequestHooks: [ipRateLimitHook(limiter)],
 });

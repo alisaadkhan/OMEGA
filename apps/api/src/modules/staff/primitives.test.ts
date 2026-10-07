@@ -5,7 +5,7 @@ import { createTestIssuer } from "../../test-support/keys";
 import { dummyHash, hashPassword, verifyPassword } from "./passwords";
 import { can } from "./permissions";
 import { createStaffTokens } from "./tokens";
-import { newTotpSecret, totpUri, verifyTotp } from "./totp";
+import { matchTotp, newTotpSecret, totpUri, verifyTotp } from "./totp";
 
 describe("staff passwords", () => {
   it("hashes with argon2id and verifies", async () => {
@@ -24,6 +24,16 @@ describe("staff TOTP", () => {
     expect(await verifyTotp(secret, "000000")).toBe(false);
     expect(await verifyTotp(secret, "12ab56")).toBe(false);
     expect(totpUri("admin@mushin.pk", secret)).toMatch(/^otpauth:\/\/totp\//);
+  });
+
+  it("reports the matched time step and refuses codes at or before a used step (replay)", async () => {
+    const secret = newTotpSecret();
+    const code = await generate({ secret });
+    const step = await matchTotp(secret, code, null);
+    expect(step).toEqual(expect.any(Number));
+    expect(await matchTotp(secret, code, step)).toBeNull();
+    expect(await matchTotp(secret, code, (step ?? 0) - 1)).toBe(step);
+    expect(await matchTotp(secret, "12ab56", null)).toBeNull();
   });
 });
 

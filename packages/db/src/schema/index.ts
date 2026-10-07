@@ -1,6 +1,7 @@
 import { users, workspaceMembers, workspaces } from "./identity";
+import { auditLog, staffSessions, staffUsers } from "./staff";
 
 export * from "./identity";
+export * from "./staff";
 
-/** Every Drizzle table; the drift test compares each one with the live database. */
-export const ALL_TABLES = [users, workspaces, workspaceMembers];
+export const ALL_TABLES = [users, workspaces, workspaceMembers, staffUsers, staffSessions, auditLog];
