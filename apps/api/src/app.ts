@@ -1,5 +1,6 @@
 import cookie from "@fastify/cookie";
 import Fastify, { type FastifyBaseLogger, type FastifyInstance } from "fastify";
+import "./auth/customer-guard";
 import type { Logger } from "@mushin/core";
 import { registerErrorHandling } from "./http/errors";
 import { registerHealth } from "./http/health";
@@ -25,6 +26,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     requestIdHeader: false,
     bodyLimit: 1_048_576,
   });
+  app.decorateRequest("customer", null);
+  app.decorateRequest("tenant", null);
 
   app.addHook("onRequest", async (req, reply) => {
     void reply.header("x-request-id", req.id);
