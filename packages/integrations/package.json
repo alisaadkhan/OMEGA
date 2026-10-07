@@ -1,1 +1,1 @@
-{ "name": "@mushin/integrations", "private": true, "type": "module", "exports": { ".": "./src/index.ts" } }
+{ "name": "@mushin/integrations", "private": true, "type": "module", "exports": { ".": "./src/index.ts" }, "dependencies": { "@mushin/core": "*" } }
