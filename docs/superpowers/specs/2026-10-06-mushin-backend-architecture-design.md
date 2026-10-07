@@ -94,9 +94,11 @@ docs/
 ### 4.2 Processes
 | Process | Entry | DB connection |
 |---|---|---|
-| API | `apps/api` | `DATABASE_URL` (transaction pooler, `prepare: false`) as `mushin_app` |
-| Worker | `apps/worker` | `DIRECT_URL` (session pooler; needed for `LISTEN/NOTIFY` and pg-boss) as `mushin_worker` |
+| API | `apps/api` | `DATABASE_URL` (transaction pooler, `prepare: false`); every transaction starts with `SET LOCAL ROLE mushin_app` |
+| Worker | `apps/worker` | `DIRECT_URL` (session pooler; needed for `LISTEN/NOTIFY` and pg-boss); every transaction starts with `SET LOCAL ROLE mushin_worker` |
 | Migrations | `npm run db:migrate` | `DIRECT_URL` as migration owner |
+
+Both processes log in with the project's pooler login and **switch role inside each transaction** (verified on Supabase 2026-10-06: role switch, fail-closed RLS and cross-tenant insert rejection all work through the pooler). `packages/db` never exports the raw client: code can only reach the database through `withTenant`, `withSystem` (role `mushin_worker`) or `withOwner` (scripts/migrations only), and dependency-cruiser forbids importing the client module from anywhere else. This avoids extra database passwords while keeping RLS enforced on every query.
 
 ### 4.3 Modules
 | Module | Owns (tables) | Notes |
@@ -368,7 +370,9 @@ erDiagram
 |---|---|---|
 | `mushin_app` | API | DML on `wp` (RLS forced), `SELECT` on `gcp` and `platform` config, insert on `platform.outbox`/`provider_calls`/`idempotency_keys`/`webhook_events`. No DDL, no `BYPASSRLS` |
 | `mushin_worker` | worker | as `mushin_app` plus DML on `gcp`, `platform`, `pgboss`. Tenant writes still via `withTenant` |
-| `mushin_admin` | `admin`/`staff` modules only | `BYPASSRLS`, read across tenants; writes only through audited service functions |
+| `mushin_admin` | `admin` module only (created in sub-project 8) | `BYPASSRLS`, read across tenants; writes only through audited service functions |
+
+`staff.*` tables have no tenant and are reached by the `staff` module with `withSystem` transactions (`SET LOCAL ROLE mushin_worker`); `mushin_app` has no grants on `staff`.
 | owner | migrations | DDL |
 
 Supabase's `anon` and `authenticated` roles get **no grants** on `gcp`, `wp`, `staff`, `platform`, and these schemas are not exposed through the Supabase Data API. The frontend uses supabase-js **only for auth**.

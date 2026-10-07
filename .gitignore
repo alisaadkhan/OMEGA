@@ -24,3 +24,6 @@ pnpm-debug.log*
 Thumbs.db
 .vscode/
 .idea/
+
+# Database CA certificates (downloaded from Supabase)
+certs/
