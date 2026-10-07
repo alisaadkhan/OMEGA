@@ -32,6 +32,19 @@ describe("logger", () => {
     expect(line.req.headers.cookie).toBe("[REDACTED]");
   });
 
+  it("redacts secrets nested at any depth without mutating the input", () => {
+    const { lines, stream } = capture();
+    const input = { data: { user: { email: "sara@mushin.pk", password: "pw" }, items: [{ refreshToken: "r" }] } };
+    const cyclic: Record<string, unknown> = { name: "loop" };
+    cyclic["self"] = cyclic;
+    createLogger({ level: "info" }, stream).info({ ...input, cyclic });
+    const line = lines[0] as { data: { user: { email: string; password: string }; items: { refreshToken: string }[] } };
+    expect(line.data.user.email).toBe("s***@mushin.pk");
+    expect(line.data.user.password).toBe("[REDACTED]");
+    expect(line.data.items[0]?.refreshToken).toBe("[REDACTED]");
+    expect(input.data.user.password).toBe("pw");
+  });
+
   it("maskEmail handles odd input", () => {
     expect(maskEmail("no-at-sign")).toBe("[REDACTED]");
   });
