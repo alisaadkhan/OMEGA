@@ -78,26 +78,26 @@ export function createStaffService(o: { db: Db; tokens: StaffTokens; encryptionK
     },
 
     async login(input: { email: string; password: string }, meta: RequestMeta): Promise<{ challengeToken: string }> {
-      // Check, verify and record the failure under one row lock: concurrent guesses cannot all slip past the lockout.
-      const staffId = await o.db.withSystem(async (tx): Promise<string | null> => {
-        const staff = await repo.findStaffByEmailForUpdate(tx, input.email);
-        const usable = staff && staff.status === "active" ? staff : null;
-        const locked = usable?.lockedUntil ? usable.lockedUntil > now() : false;
-        if (!usable || locked) {
-          // Same work and same answer as a wrong password, so responses do not reveal which emails exist or are locked.
-          await verifyPassword(await dummyHash(), input.password);
-          const reason = !staff ? "unknown_email" : !usable ? "disabled" : "locked";
+      // Charge the attempt in one short statement first; hash with no lock or connection held (no pool exhaustion).
+      const charged = await o.db.withSystem((tx) => repo.chargeLoginAttempt(tx, input.email, MAX_FAILURES, LOCK_MINUTES));
+      if (!charged) {
+        // Unknown, disabled or locked: same work and same answer as a wrong password, so nothing is revealed.
+        await verifyPassword(await dummyHash(), input.password);
+        await o.db.withSystem(async (tx) => {
+          const staff = await repo.findStaffByEmail(tx, input.email);
+          const reason = !staff ? "unknown_email" : staff.status !== "active" ? "disabled" : "locked";
           await repo.audit(tx, { staffId: staff?.id ?? null, action: "staff.login.failed", metadata: { reason }, ip: meta.ip, requestId: meta.requestId });
-          return null;
-        }
-        if (!(await verifyPassword(usable.passwordHash, input.password))) {
-          await recordFailure(tx, usable.id, "bad_password", meta);
-          return null;
-        }
-        return usable.id;
-      });
-      if (!staffId) throw invalidCredentials();
-      return { challengeToken: await o.tokens.signChallenge(staffId) };
+        });
+        throw invalidCredentials();
+      }
+      if (!(await verifyPassword(charged.passwordHash, input.password))) {
+        await o.db.withSystem((tx) =>
+          repo.audit(tx, { staffId: charged.id, action: "staff.login.failed", metadata: { reason: "bad_password" }, ip: meta.ip, requestId: meta.requestId }),
+        );
+        throw invalidCredentials();
+      }
+      await o.db.withSystem((tx) => repo.refundLoginAttempt(tx, charged.id, MAX_FAILURES));
+      return { challengeToken: await o.tokens.signChallenge(charged.id) };
     },
 
     async completeTotp(input: { challengeToken: string; code: string }, meta: RequestMeta): Promise<StaffSession> {

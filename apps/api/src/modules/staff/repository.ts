@@ -13,17 +13,6 @@ export async function findStaffById(tx: SystemTx, id: string): Promise<StaffRow 
   return rows[0] ?? null;
 }
 
-/** Row-locks the account so concurrent sign-in attempts are evaluated one at a time against the current lockout state. */
-export async function findStaffByEmailForUpdate(tx: SystemTx, email: string): Promise<StaffRow | null> {
-  const rows = await tx
-    .select()
-    .from(staffUsers)
-    .where(sql`lower(${staffUsers.email}) = ${email.toLowerCase()}`)
-    .for("update")
-    .limit(1);
-  return rows[0] ?? null;
-}
-
 export async function findStaffByIdForUpdate(tx: SystemTx, id: string): Promise<StaffRow | null> {
   const rows = await tx.select().from(staffUsers).where(eq(staffUsers.id, id)).for("update").limit(1);
   return rows[0] ?? null;
@@ -39,17 +28,47 @@ export async function insertStaff(
   return id;
 }
 
-/** Counts a failure; a lock that has already expired starts a fresh count instead of re-locking on the next typo. */
+// The failure count after one more failure; a lock that has already expired starts a fresh count
+// instead of re-locking on the next typo. SET expressions read the row's pre-update values, and
+// Postgres re-evaluates them on the newest row version when concurrent updates race, so no failure is lost.
+const nextFailureCount = sql.raw(`case when locked_until is not null and locked_until <= now() then 1 else failed_login_count + 1 end`);
+
 export async function registerFailure(tx: SystemTx, id: string, maxFailures: number, lockMinutes: number): Promise<void> {
   await tx.execute(sql`
-    update staff.staff_users s set
-      failed_login_count = v.count,
-      locked_until = case when v.count >= ${maxFailures} then now() + make_interval(mins => ${lockMinutes}) else null end
-    from (
-      select case when locked_until is not null and locked_until <= now() then 1 else failed_login_count + 1 end as count
-      from staff.staff_users where id = ${id}
-    ) v
-    where s.id = ${id}`);
+    update staff.staff_users set
+      failed_login_count = ${nextFailureCount},
+      locked_until = case when ${nextFailureCount} >= ${maxFailures} then now() + make_interval(mins => ${lockMinutes}) else null end
+    where id = ${id}`);
+}
+
+/**
+ * Charges a sign-in attempt as a failure before the (slow) password check, in one short statement.
+ * Returns the account only when it exists, is active and is not locked. Concurrent attempts each re-check
+ * the lock, so a burst cannot exceed the lockout, and no lock or connection is held while hashing.
+ */
+export async function chargeLoginAttempt(
+  tx: SystemTx,
+  email: string,
+  maxFailures: number,
+  lockMinutes: number,
+): Promise<{ id: string; passwordHash: string } | null> {
+  const rows = await tx.execute<{ id: string; password_hash: string }>(sql`
+    update staff.staff_users set
+      failed_login_count = ${nextFailureCount},
+      locked_until = case when ${nextFailureCount} >= ${maxFailures} then now() + make_interval(mins => ${lockMinutes}) else null end
+    where lower(email) = ${email.toLowerCase()} and status = 'active' and (locked_until is null or locked_until <= now())
+    returning id, password_hash`);
+  const row = rows[0];
+  return row ? { id: row.id, passwordHash: row.password_hash } : null;
+}
+
+/** Undoes the charge of a sign-in attempt whose password was correct (and lifts a lock that charge caused). */
+export async function refundLoginAttempt(tx: SystemTx, id: string, maxFailures: number): Promise<void> {
+  await tx.execute(sql`
+    update staff.staff_users set
+      failed_login_count = greatest(failed_login_count - 1, 0),
+      locked_until = case when greatest(failed_login_count - 1, 0) >= ${maxFailures} then locked_until else null end
+    where id = ${id}`);
 }
 
 /** Atomically records the TOTP step as used; false when that step (or a later one) was already used. */
