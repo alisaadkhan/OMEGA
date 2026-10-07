@@ -117,6 +117,36 @@ export function createStaffService(o: { db: Db; tokens: StaffTokens; encryptionK
       return profileOf(staff);
     },
 
+    async refresh(refreshToken: string, meta: RequestMeta): Promise<StaffSession> {
+      const hash = sha256Hex(refreshToken);
+      // Decide inside the transaction, throw after it commits, so reuse revocation is persisted.
+      const outcome = await o.db.withSystem(async (tx) => {
+        const session = await repo.findSessionByHashForUpdate(tx, hash);
+        if (!session) return { kind: "invalid" as const };
+        if (session.revokedAt) {
+          await repo.revokeFamily(tx, session.familyId);
+          await repo.audit(tx, { staffId: session.staffId, action: "staff.session.reuse_detected", ip: meta.ip, requestId: meta.requestId });
+          return { kind: "invalid" as const };
+        }
+        if (session.expiresAt <= now()) return { kind: "invalid" as const };
+        const staff = await repo.findStaffById(tx, session.staffId);
+        if (!staff || staff.status !== "active") return { kind: "invalid" as const };
+        await repo.revokeSession(tx, session.id);
+        return { kind: "ok" as const, staff, familyId: session.familyId };
+      });
+      if (outcome.kind === "invalid") throw invalidSession();
+      return issueSession(outcome.staff, outcome.familyId, meta);
+    },
+
+    async logout(refreshToken: string | undefined, meta: RequestMeta): Promise<void> {
+      if (!refreshToken) return;
+      await o.db.withSystem(async (tx) => {
+        const session = await repo.findSessionByHashForUpdate(tx, sha256Hex(refreshToken));
+        if (!session) return;
+        await repo.revokeSession(tx, session.id);
+        await repo.audit(tx, { staffId: session.staffId, action: "staff.logout", ip: meta.ip, requestId: meta.requestId });
+      });
+    },
     issueSession,
     invalidSession,
   };

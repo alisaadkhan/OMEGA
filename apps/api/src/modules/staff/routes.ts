@@ -68,6 +68,24 @@ export function registerStaffRoutes(app: FastifyInstance, service: StaffService,
     });
   });
 
+  app.post("/admin/v1/auth/refresh", async (req, reply) => {
+    const token = req.cookies[REFRESH_COOKIE];
+    if (!token) throw new AppError("UNAUTHENTICATED", "Your admin session has ended. Please sign in again.");
+    const session = await service.refresh(token, metaOf(req));
+    setRefreshCookie(reply, session.refreshToken);
+    return sendOk(reply, staffSessionResponseSchema, {
+      accessToken: session.accessToken,
+      expiresInSeconds: session.expiresInSeconds,
+      staff: session.staff,
+    });
+  });
+
+  app.post("/admin/v1/auth/logout", async (req, reply) => {
+    await service.logout(req.cookies[REFRESH_COOKIE], metaOf(req));
+    void reply.clearCookie(REFRESH_COOKIE, { path: COOKIE_PATH, httpOnly: true, secure: true, sameSite: "strict" });
+    return reply.status(204).send();
+  });
+
   app.get("/admin/v1/me", { preHandler: requireStaff("staff.me.read") }, async (req, reply) => {
     if (!req.staff) throw new AppError("UNAUTHENTICATED", "Admin authentication required");
     return sendOk(reply, staffMeResponseSchema, { staff: await service.getProfile(req.staff.staffId) });
