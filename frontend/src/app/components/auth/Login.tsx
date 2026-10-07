@@ -16,14 +16,19 @@ export function Login({ onSuccess, goSignup, goForgot }: Props) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     setSubmitting(true);
-    setTimeout(() => {
-      login(email, password);
+    try {
+      await login(email, password);
       onSuccess();
-    }, 550);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Sign-in failed. Please try again.");
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -82,6 +87,11 @@ export function Login({ onSuccess, goSignup, goForgot }: Props) {
           </div>
         </StaggerItem>
 
+        {error && (
+          <p role="alert" className="text-sm text-red-600">
+            {error}
+          </p>
+        )}
         <StaggerItem index={3}>
           <motion.div whileTap={{ scale: 0.98 }}>
             <Button

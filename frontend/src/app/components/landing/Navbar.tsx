@@ -109,7 +109,7 @@ export function Navbar({ onPrimary, onLogin }: Props) {
           {user ? (
             <>
               <button
-                onClick={logout}
+                onClick={() => void logout()}
                 className="ml-1 hidden rounded-full px-3 py-2 text-sm text-slate-600 transition-colors duration-150 hover:bg-slate-100/70 hover:text-slate-900 lg:inline-block"
               >
                 Sign out

@@ -19,13 +19,25 @@ export function Signup({ onSuccess, goLogin }: Props) {
 
   const strength = Math.min(100, Math.round((password.length / 12) * 100));
 
-  const submit = (e: React.FormEvent) => {
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     setSubmitting(true);
-    setTimeout(() => {
-      signup(name, email, password);
+    try {
+      const { needsConfirmation } = await signup(name, email, password);
+      if (needsConfirmation) {
+        setNotice(`We've sent a confirmation link to ${email}. Confirm your email, then sign in.`);
+        setSubmitting(false);
+        return;
+      }
       onSuccess();
-    }, 600);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Sign-up failed. Please try again.");
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -94,6 +106,16 @@ export function Signup({ onSuccess, goLogin }: Props) {
           </ul>
         </StaggerItem>
 
+        {error && (
+          <p role="alert" className="text-sm text-red-600">
+            {error}
+          </p>
+        )}
+        {notice && (
+          <p role="status" className="text-sm text-emerald-700">
+            {notice}
+          </p>
+        )}
         <StaggerItem index={4}>
           <motion.div whileTap={{ scale: 0.98 }}>
             <Button

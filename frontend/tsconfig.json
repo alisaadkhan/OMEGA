@@ -1,0 +1,20 @@
+{
+  // Vite's esbuild reads the nearest tsconfig. Without this file it inherits the backend's root config,
+  // whose verbatimModuleSyntax keeps type-only imports and breaks the dev server.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@mushin/contracts": ["../packages/contracts/src/index.ts"]
+    }
+  },
+  "include": ["src"]
+}

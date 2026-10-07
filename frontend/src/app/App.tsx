@@ -61,7 +61,7 @@ function useHashRoute(initial: Route): [Route, (r: Route) => void] {
 }
 
 function Shell() {
-  const { user } = useAuth();
+  const { user, status } = useAuth();
   const { admin, signOut: adminSignOut } = useAdminAuth();
   const [route, setRoute] = useHashRoute("landing");
 
@@ -74,8 +74,8 @@ function Shell() {
 
   // Session-problem handling: the dashboard needs a signed-in user.
   useEffect(() => {
-    if (route === "dashboard" && !user) setRoute("login");
-  }, [route, user, setRoute]);
+    if (route === "dashboard" && status === "signedOut") setRoute("login");
+  }, [route, status, setRoute]);
 
   return (
     <div

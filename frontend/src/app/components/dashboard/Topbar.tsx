@@ -119,7 +119,7 @@ export function Topbar({ credits, view, setView, onExit }: Props) {
                     <button
                       onClick={() => {
                         setOpen(false);
-                        logout();
+                        void logout();
                         onExit();
                       }}
                       role="menuitem"

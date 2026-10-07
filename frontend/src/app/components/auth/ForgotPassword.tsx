@@ -3,16 +3,25 @@ import { AnimatePresence, motion } from "motion/react";
 import { ArrowLeft, ArrowRight, MailCheck } from "lucide-react";
 import { Button } from "../ui/button";
 import { AuthShell, FormField, StaggerItem } from "./AuthShell";
+import { useAuth } from "../../auth/AuthContext";
 
 type Props = { goLogin: () => void };
 
 export function ForgotPassword({ goLogin }: Props) {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
+  const { requestPasswordReset } = useAuth();
+  const [error, setError] = useState<string | null>(null);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSent(true);
+    setError(null);
+    try {
+      await requestPasswordReset(email);
+      setSent(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not send the reset link. Please try again.");
+    }
   };
 
   return (
@@ -58,6 +67,7 @@ export function ForgotPassword({ goLogin }: Props) {
             <StaggerItem index={0}>
               <FormField label="Email" type="email" value={email} onChange={setEmail} placeholder="ahmed@mushin.pk" autoFocus />
             </StaggerItem>
+            {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
             <StaggerItem index={1}>
               <motion.div whileTap={{ scale: 0.98 }}>
                 <Button
