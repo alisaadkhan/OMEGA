@@ -12,8 +12,11 @@ async function appWithCounter() {
   let executions = 0;
   const platform = createPlatformModule({ db, ttlHours: 24 });
   const workspaceId = randomUUID();
-  const fakeCustomer = async (req: { tenant: unknown }) => {
-    req.tenant = { requestId: "r", userId: randomUUID(), workspaceId, role: "owner" };
+  const defaultUser = randomUUID();
+  // Stable user per app; a test can act as another member of the same workspace via x-test-user.
+  const fakeCustomer = async (req: { tenant: unknown; headers: Record<string, unknown> }) => {
+    const other = req.headers["x-test-user"];
+    req.tenant = { requestId: "r", userId: typeof other === "string" ? other : defaultUser, workspaceId, role: "owner" };
   };
   const app = await buildTestApp({
     guards: { ...noGuards(), customer: fakeCustomer, idempotent: platform.requireIdempotencyKey },
@@ -35,8 +38,13 @@ async function appWithCounter() {
   return { app, count: () => executions };
 }
 
-const post = (app: Awaited<ReturnType<typeof appWithCounter>>["app"], key: string | null, payload: object) =>
-  app.inject({ method: "POST", url: "/v1/spend", payload, headers: key ? { "idempotency-key": key } : {} });
+const post = (app: Awaited<ReturnType<typeof appWithCounter>>["app"], key: string | null, payload: object, asUser?: string) =>
+  app.inject({
+    method: "POST",
+    url: "/v1/spend",
+    payload,
+    headers: { ...(key ? { "idempotency-key": key } : {}), ...(asUser ? { "x-test-user": asUser } : {}) },
+  });
 
 describe("Idempotency-Key", () => {
   it("is required", async () => {
@@ -63,6 +71,16 @@ describe("Idempotency-Key", () => {
     const res = await post(app, "key-00000002", { amount: 6 });
     expect(res.statusCode).toBe(422);
     expect(res.json().error.code).toBe("IDEMPOTENCY_KEY_REUSED");
+  });
+
+  it("never replays one member's stored response to another member of the workspace", async () => {
+    const { app, count } = await appWithCounter();
+    await post(app, "key-00000004", { amount: 5 });
+    const other = await post(app, "key-00000004", { amount: 5 }, randomUUID());
+    expect(other.statusCode).toBe(422);
+    expect(other.json().error.code).toBe("IDEMPOTENCY_KEY_REUSED");
+    expect(other.headers["idempotent-replayed"]).toBeUndefined();
+    expect(count()).toBe(1);
   });
 
   it("lets a request retry after a server error", async () => {

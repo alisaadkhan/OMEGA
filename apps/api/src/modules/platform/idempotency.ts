@@ -13,6 +13,14 @@ declare module "fastify" {
 
 const KEY = /^[A-Za-z0-9._:-]{8,200}$/;
 
+/**
+ * Fingerprint of the request a key was first used for. It includes the user, so in a shared workspace another
+ * member reusing the key gets IDEMPOTENCY_KEY_REUSED instead of a replay of someone else's stored response.
+ */
+export function requestHash(r: { userId: string; method: string; route: string | undefined; body: unknown }): string {
+  return sha256Hex(JSON.stringify({ userId: r.userId, method: r.method, route: r.route ?? null, body: r.body }));
+}
+
 /** The serialized response body as JSON for replay, or `ok: false` when it is not JSON (text, buffers, streams). */
 export function storableBody(payload: unknown): { ok: true; body: unknown } | { ok: false } {
   if (payload === null || payload === undefined || payload === "") return { ok: true, body: null };
@@ -31,7 +39,7 @@ export function createIdempotency(db: Db, ttlHours: number) {
     if (typeof key !== "string" || !KEY.test(key)) {
       throw new AppError("VALIDATION_FAILED", "Idempotency-Key header is required (8-200 characters: letters, digits, . _ : -)");
     }
-    const hash = sha256Hex(JSON.stringify({ method: req.method, route: req.routeOptions.url, body: req.body ?? null }));
+    const hash = requestHash({ userId: tenant.userId, method: req.method, route: req.routeOptions.url, body: req.body ?? null });
     const outcome = await db.withSystem((tx) => repo.claimKey(tx, { workspaceId: tenant.workspaceId, key, hash, ttlHours }));
     if (outcome.kind === "mismatch") throw new AppError("IDEMPOTENCY_KEY_REUSED", "This Idempotency-Key was already used with a different request");
     if (outcome.kind === "in_progress") throw new AppError("CONFLICT", "A request with this Idempotency-Key is still being processed");
