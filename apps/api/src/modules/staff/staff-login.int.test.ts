@@ -68,9 +68,20 @@ describe("staff login + TOTP", () => {
     for (let i = 0; i < 5; i++) await login(a, "l@mushin.pk", "wrong");
     const locked = await login(a, "l@mushin.pk", acct.password);
     expect(locked.statusCode).toBe(401);
-    expect(locked.json().error.message).toMatch(/too many/i);
+    // A locked account answers exactly like an unknown email, so lockouts do not reveal which accounts exist.
+    expect(locked.json().error.message).toBe((await login(a, "nobody@mushin.pk", "x")).json().error.message);
+    expect(locked.json().error.message).toMatch(/paused for 15 minutes/);
     const rows = await ownerQuery<{ locked: boolean }>(`select locked_until > now() + interval '14 minutes' as locked from staff.staff_users`);
     expect(rows[0]?.locked).toBe(true);
+  });
+
+  it("counts concurrent wrong passwords one at a time, so a burst cannot exceed the lockout", async () => {
+    const acct = await staff.createStaffAccount({ email: "b@mushin.pk", name: "B", role: "support" });
+    const a = await app();
+    await Promise.all(Array.from({ length: 10 }, () => login(a, "b@mushin.pk", "wrong")));
+    const rows = await ownerQuery<{ n: number; locked: boolean }>(`select failed_login_count n, locked_until > now() locked from staff.staff_users`);
+    expect(rows[0]).toEqual({ n: 5, locked: true });
+    expect((await login(a, "b@mushin.pk", acct.password)).statusCode).toBe(401);
   });
 
   it("starts a fresh failure count once a lock has expired", async () => {

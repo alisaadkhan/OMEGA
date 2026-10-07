@@ -13,6 +13,22 @@ export async function findStaffById(tx: SystemTx, id: string): Promise<StaffRow 
   return rows[0] ?? null;
 }
 
+/** Row-locks the account so concurrent sign-in attempts are evaluated one at a time against the current lockout state. */
+export async function findStaffByEmailForUpdate(tx: SystemTx, email: string): Promise<StaffRow | null> {
+  const rows = await tx
+    .select()
+    .from(staffUsers)
+    .where(sql`lower(${staffUsers.email}) = ${email.toLowerCase()}`)
+    .for("update")
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function findStaffByIdForUpdate(tx: SystemTx, id: string): Promise<StaffRow | null> {
+  const rows = await tx.select().from(staffUsers).where(eq(staffUsers.id, id)).for("update").limit(1);
+  return rows[0] ?? null;
+}
+
 export async function insertStaff(
   tx: SystemTx,
   s: { email: string; name: string; passwordHash: string; totpSecretEncrypted: string; role: "admin" | "support" },

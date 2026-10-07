@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { AppError, decryptSecret, encryptSecret, randomToken, sha256Hex } from "@mushin/core";
-import type { Db } from "@mushin/db";
+import type { Db, SystemTx } from "@mushin/db";
 import { dummyHash, hashPassword, verifyPassword } from "./passwords";
 import * as repo from "./repository";
 import { ACCESS_TTL_SECONDS, type StaffRole, type StaffTokens } from "./tokens";
@@ -14,7 +14,9 @@ export type RequestMeta = { ip: string | null; userAgent: string | null; request
 export type StaffProfile = { id: string; email: string; name: string; role: StaffRole };
 export type StaffSession = { accessToken: string; expiresInSeconds: number; refreshToken: string; staff: StaffProfile };
 
-const invalidCredentials = () => new AppError("UNAUTHENTICATED", "Invalid email or password");
+// One message for every sign-in failure (unknown email, wrong password, locked account) so it reveals nothing.
+const invalidCredentials = () =>
+  new AppError("UNAUTHENTICATED", "Invalid email or password. After 5 failed attempts, sign-in is paused for 15 minutes.");
 const tooManyAttempts = () => new AppError("UNAUTHENTICATED", "Too many attempts. Try again in 15 minutes.");
 const invalidSession = () => new AppError("UNAUTHENTICATED", "Your admin session has ended. Please sign in again.");
 const invalidCode = () => new AppError("UNAUTHENTICATED", "Invalid verification code");
@@ -24,25 +26,30 @@ const profileOf = (s: repo.StaffRow): StaffProfile => ({ id: s.id, email: s.emai
 export function createStaffService(o: { db: Db; tokens: StaffTokens; encryptionKey: Buffer; now?: () => Date }) {
   const now = o.now ?? (() => new Date());
 
-  async function failure(staffId: string, reason: string, meta: RequestMeta) {
-    await o.db.withSystem(async (tx) => {
-      await repo.registerFailure(tx, staffId, MAX_FAILURES, LOCK_MINUTES);
-      await repo.audit(tx, { staffId, action: "staff.login.failed", metadata: { reason }, ip: meta.ip, requestId: meta.requestId });
-    });
+  async function recordFailure(tx: SystemTx, staffId: string, reason: string, meta: RequestMeta) {
+    await repo.registerFailure(tx, staffId, MAX_FAILURES, LOCK_MINUTES);
+    await repo.audit(tx, { staffId, action: "staff.login.failed", metadata: { reason }, ip: meta.ip, requestId: meta.requestId });
   }
 
-  async function issueSession(staff: repo.StaffRow, familyId: string, meta: RequestMeta): Promise<StaffSession> {
+  /**
+   * Inserts the new session row inside the caller's transaction and returns the raw refresh token.
+   * Callers revoke/verify and insert in that same transaction, so a concurrent reuse detection
+   * (which revokes the whole family) can never miss a session that is still being created.
+   */
+  async function insertNewSession(tx: SystemTx, staffId: string, familyId: string, meta: RequestMeta): Promise<string> {
     const refreshToken = randomToken(32);
-    await o.db.withSystem((tx) =>
-      repo.insertSession(tx, {
-        staffId: staff.id,
-        familyId,
-        refreshTokenHash: sha256Hex(refreshToken),
-        expiresAt: new Date(now().getTime() + SESSION_DAYS * 86_400_000),
-        ip: meta.ip,
-        userAgent: meta.userAgent,
-      }),
-    );
+    await repo.insertSession(tx, {
+      staffId,
+      familyId,
+      refreshTokenHash: sha256Hex(refreshToken),
+      expiresAt: new Date(now().getTime() + SESSION_DAYS * 86_400_000),
+      ip: meta.ip,
+      userAgent: meta.userAgent,
+    });
+    return refreshToken;
+  }
+
+  async function toSession(staff: repo.StaffRow, refreshToken: string): Promise<StaffSession> {
     return {
       accessToken: await o.tokens.signAccess({ staffId: staff.id, role: staff.role }),
       expiresInSeconds: ACCESS_TTL_SECONDS,
@@ -71,44 +78,49 @@ export function createStaffService(o: { db: Db; tokens: StaffTokens; encryptionK
     },
 
     async login(input: { email: string; password: string }, meta: RequestMeta): Promise<{ challengeToken: string }> {
-      const staff = await o.db.withSystem((tx) => repo.findStaffByEmail(tx, input.email));
-      if (!staff || staff.status !== "active") {
-        await verifyPassword(await dummyHash(), input.password);
-        await o.db.withSystem((tx) =>
-          repo.audit(tx, { staffId: null, action: "staff.login.failed", metadata: { reason: "unknown_or_disabled" }, ip: meta.ip, requestId: meta.requestId }),
-        );
-        throw invalidCredentials();
-      }
-      if (staff.lockedUntil && staff.lockedUntil > now()) throw tooManyAttempts();
-      if (!(await verifyPassword(staff.passwordHash, input.password))) {
-        await failure(staff.id, "bad_password", meta);
-        throw invalidCredentials();
-      }
-      return { challengeToken: await o.tokens.signChallenge(staff.id) };
+      // Check, verify and record the failure under one row lock: concurrent guesses cannot all slip past the lockout.
+      const staffId = await o.db.withSystem(async (tx): Promise<string | null> => {
+        const staff = await repo.findStaffByEmailForUpdate(tx, input.email);
+        const usable = staff && staff.status === "active" ? staff : null;
+        const locked = usable?.lockedUntil ? usable.lockedUntil > now() : false;
+        if (!usable || locked) {
+          // Same work and same answer as a wrong password, so responses do not reveal which emails exist or are locked.
+          await verifyPassword(await dummyHash(), input.password);
+          const reason = !staff ? "unknown_email" : !usable ? "disabled" : "locked";
+          await repo.audit(tx, { staffId: staff?.id ?? null, action: "staff.login.failed", metadata: { reason }, ip: meta.ip, requestId: meta.requestId });
+          return null;
+        }
+        if (!(await verifyPassword(usable.passwordHash, input.password))) {
+          await recordFailure(tx, usable.id, "bad_password", meta);
+          return null;
+        }
+        return usable.id;
+      });
+      if (!staffId) throw invalidCredentials();
+      return { challengeToken: await o.tokens.signChallenge(staffId) };
     },
 
     async completeTotp(input: { challengeToken: string; code: string }, meta: RequestMeta): Promise<StaffSession> {
       const staffId = await o.tokens.verifyChallenge(input.challengeToken);
-      const staff = await o.db.withSystem((tx) => repo.findStaffById(tx, staffId));
-      if (!staff || staff.status !== "active") throw invalidCredentials();
-      if (staff.lockedUntil && staff.lockedUntil > now()) throw tooManyAttempts();
-      const step = await matchTotp(decryptSecret(staff.totpSecretEncrypted, o.encryptionKey), input.code, staff.lastTotpStep);
-      if (step === null) {
-        await failure(staff.id, "bad_totp", meta);
-        throw invalidCode();
-      }
-      // Claiming the step in the same transaction as the login means a code is accepted at most once, even concurrently.
-      const claimed = await o.db.withSystem(async (tx) => {
-        if (!(await repo.claimTotpStep(tx, staff.id, step))) return false;
+      // One row lock covers the lockout check, the code check and claiming its time step, so codes cannot be
+      // guessed in parallel past the lockout and a code is accepted at most once (replay), even concurrently.
+      const outcome = await o.db.withSystem(async (tx) => {
+        const staff = await repo.findStaffByIdForUpdate(tx, staffId);
+        if (!staff || staff.status !== "active") return { kind: "invalid" as const };
+        if (staff.lockedUntil && staff.lockedUntil > now()) return { kind: "locked" as const };
+        const step = await matchTotp(decryptSecret(staff.totpSecretEncrypted, o.encryptionKey), input.code, staff.lastTotpStep);
+        if (step === null || !(await repo.claimTotpStep(tx, staff.id, step))) {
+          await recordFailure(tx, staff.id, "bad_totp", meta);
+          return { kind: "bad_code" as const };
+        }
         await repo.recordSuccessfulLogin(tx, staff.id);
         await repo.audit(tx, { staffId: staff.id, action: "staff.login.succeeded", ip: meta.ip, requestId: meta.requestId });
-        return true;
+        return { kind: "ok" as const, staff, refreshToken: await insertNewSession(tx, staff.id, randomUUID(), meta) };
       });
-      if (!claimed) {
-        await failure(staff.id, "totp_replayed", meta);
-        throw invalidCode();
-      }
-      return issueSession(staff, randomUUID(), meta);
+      if (outcome.kind === "invalid") throw invalidCredentials();
+      if (outcome.kind === "locked") throw tooManyAttempts();
+      if (outcome.kind === "bad_code") throw invalidCode();
+      return toSession(outcome.staff, outcome.refreshToken);
     },
 
     async getProfile(staffId: string): Promise<StaffProfile> {
@@ -132,10 +144,11 @@ export function createStaffService(o: { db: Db; tokens: StaffTokens; encryptionK
         const staff = await repo.findStaffById(tx, session.staffId);
         if (!staff || staff.status !== "active") return { kind: "invalid" as const };
         await repo.revokeSession(tx, session.id);
-        return { kind: "ok" as const, staff, familyId: session.familyId };
+        const next = await insertNewSession(tx, staff.id, session.familyId, meta);
+        return { kind: "ok" as const, staff, refreshToken: next };
       });
       if (outcome.kind === "invalid") throw invalidSession();
-      return issueSession(outcome.staff, outcome.familyId, meta);
+      return toSession(outcome.staff, outcome.refreshToken);
     },
 
     async logout(refreshToken: string | undefined, meta: RequestMeta): Promise<void> {
@@ -147,7 +160,7 @@ export function createStaffService(o: { db: Db; tokens: StaffTokens; encryptionK
         await repo.audit(tx, { staffId: session.staffId, action: "staff.logout", ip: meta.ip, requestId: meta.requestId });
       });
     },
-    issueSession,
+
     invalidSession,
   };
 }
