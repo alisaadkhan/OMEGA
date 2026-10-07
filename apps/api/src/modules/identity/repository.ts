@@ -1,0 +1,54 @@
+import { asc, eq, sql } from "drizzle-orm";
+import { users, workspaceMembers, workspaces, type TenantTx, type UserTx } from "@mushin/db";
+import type { WorkspaceRole } from "@mushin/core";
+
+export type Membership = { workspaceId: string; role: WorkspaceRole };
+
+export async function findMembership(tx: UserTx | TenantTx, userId: string): Promise<Membership | null> {
+  const rows = await tx
+    .select({ workspaceId: workspaceMembers.workspaceId, role: workspaceMembers.role })
+    .from(workspaceMembers)
+    .where(eq(workspaceMembers.userId, userId))
+    .orderBy(asc(workspaceMembers.createdAt))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+/** Serializes provisioning per user inside the current transaction. */
+export async function lockUser(tx: TenantTx, userId: string): Promise<void> {
+  await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${userId}, 0))`);
+}
+
+export async function upsertUser(tx: TenantTx, u: { id: string; email: string; displayName: string | null }): Promise<void> {
+  await tx
+    .insert(users)
+    .values({ id: u.id, email: u.email, displayName: u.displayName })
+    .onConflictDoUpdate({ target: users.id, set: { email: u.email } });
+}
+
+export async function insertWorkspace(tx: TenantTx, w: { id: string; name: string; ownerUserId: string }): Promise<void> {
+  await tx.insert(workspaces).values(w);
+}
+
+export async function insertMember(tx: TenantTx, m: { workspaceId: string; userId: string; role: WorkspaceRole }): Promise<void> {
+  await tx.insert(workspaceMembers).values(m);
+}
+
+export async function getMe(tx: TenantTx, ids: { userId: string; workspaceId: string }) {
+  const rows = await tx
+    .select({
+      userId: users.id,
+      email: users.email,
+      displayName: users.displayName,
+      avatarUrl: users.avatarUrl,
+      workspaceId: workspaces.id,
+      workspaceName: workspaces.name,
+      role: workspaceMembers.role,
+    })
+    .from(workspaceMembers)
+    .innerJoin(users, eq(users.id, workspaceMembers.userId))
+    .innerJoin(workspaces, eq(workspaces.id, workspaceMembers.workspaceId))
+    .where(sql`${workspaceMembers.userId} = ${ids.userId} and ${workspaceMembers.workspaceId} = ${ids.workspaceId}`)
+    .limit(1);
+  return rows[0] ?? null;
+}
