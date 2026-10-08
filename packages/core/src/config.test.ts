@@ -132,3 +132,29 @@ describe("payments config", () => {
     expect(c.appUrl).toBe("http://localhost:5173");
   });
 });
+
+describe("search and LLM settings", () => {
+  const worker = { DATABASE_URL: "postgresql://u:p@pooler.example.com:6543/postgres", DIRECT_URL: "postgresql://u:p@pooler.example.com:5432/postgres", MOCK_PADDLE_WEBHOOK_SECRET: MOCK };
+
+  it("gives the API the read-only search key and the worker the admin key", () => {
+    const meili = { MEILISEARCH_HOST: "http://127.0.0.1:7700/", MEILISEARCH_API_KEY: "admin", MEILISEARCH_SEARCH_KEY: "search", MEILISEARCH_INDEX_PREFIX: "dev_" };
+    expect(loadApiConfig({ ...valid, ...meili }).search).toEqual({ host: "http://127.0.0.1:7700", apiKey: "search", indexPrefix: "dev_" });
+    expect(loadWorkerConfig({ ...worker, ...meili }).search).toEqual({ host: "http://127.0.0.1:7700", apiKey: "admin", indexPrefix: "dev_" });
+  });
+
+  it("treats a missing Meilisearch as not configured outside production, and refuses it in production", () => {
+    expect(loadApiConfig(valid).search).toBeNull();
+    expect(() => loadApiConfig({ ...valid, NODE_ENV: "production", DATABASE_SSL_CA_FILE: undefined })).toThrow(/MEILISEARCH_HOST/);
+  });
+
+  it("orders LLM providers Groq first, then Ollama Cloud, with model and price defaults", () => {
+    const c = loadApiConfig({ ...valid, GROQ_API_KEY: "g", OLLAMA_API_KEY: "o" });
+    expect(c.llm.map((p) => [p.name, p.model, p.baseUrl])).toEqual([
+      ["groq", "openai/gpt-oss-20b", "https://api.groq.com/openai/v1"],
+      ["ollama", "gpt-oss:20b", "https://ollama.com/v1"],
+    ]);
+    expect(c.llm[0]?.priceInPerMTok).toBeGreaterThan(0);
+    expect(loadApiConfig(valid).llm).toEqual([]);
+    expect(loadWorkerConfig({ ...worker, OLLAMA_API_KEY: "o", OLLAMA_MODEL: "gemma4:31b" }).llm.map((p) => p.model)).toEqual(["gemma4:31b"]);
+  });
+});

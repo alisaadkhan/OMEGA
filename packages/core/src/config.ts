@@ -32,6 +32,19 @@ const sharedObject = z.object({
   PADDLE_WEBHOOK_SECRET: z.string().min(1).optional(),
   PADDLE_ENVIRONMENT: z.enum(["sandbox", "production"]).default("sandbox"),
   MOCK_PADDLE_WEBHOOK_SECRET: z.string().min(32, "must be at least 32 characters").optional(),
+  MEILISEARCH_HOST: z.url().optional(),
+  MEILISEARCH_API_KEY: z.string().min(1).optional(),
+  MEILISEARCH_SEARCH_KEY: z.string().min(1).optional(),
+  MEILISEARCH_INDEX_PREFIX: z.string().regex(/^[a-z0-9_]*$/, "lowercase letters, digits and _ only").default(""),
+  GROQ_API_KEY: z.string().min(1).optional(),
+  GROQ_MODEL: z.string().min(1).default("openai/gpt-oss-20b"),
+  GROQ_PRICE_IN_PER_MTOK: z.coerce.number().min(0).default(0.075),
+  GROQ_PRICE_OUT_PER_MTOK: z.coerce.number().min(0).default(0.3),
+  OLLAMA_API_KEY: z.string().min(1).optional(),
+  OLLAMA_BASE_URL: z.url().default("https://ollama.com/v1"),
+  OLLAMA_MODEL: z.string().min(1).default("gpt-oss:20b"),
+  OLLAMA_PRICE_IN_PER_MTOK: z.coerce.number().min(0).default(0),
+  OLLAMA_PRICE_OUT_PER_MTOK: z.coerce.number().min(0).default(0),
 });
 type SharedValues = z.output<typeof sharedObject>;
 
@@ -57,6 +70,9 @@ function checkShared(v: SharedValues, ctx: z.RefinementCtx) {
     } else if (!v.MOCK_PADDLE_WEBHOOK_SECRET) {
       ctx.addIssue({ code: "custom", path: ["MOCK_PADDLE_WEBHOOK_SECRET"], message: "is required while Paddle keys are not set (run npm run env:secrets)" });
     }
+  }
+  if (v.NODE_ENV === "production" && (!v.MEILISEARCH_HOST || !v.MEILISEARCH_API_KEY || !v.MEILISEARCH_SEARCH_KEY)) {
+    ctx.addIssue({ code: "custom", path: ["MEILISEARCH_HOST"], message: "is required in production with MEILISEARCH_API_KEY and MEILISEARCH_SEARCH_KEY" });
   }
 }
 
@@ -137,6 +153,47 @@ function upstashFrom(v: SharedValues): { url: string; token: string } | null {
   return v.UPSTASH_REDIS_REST_URL && v.UPSTASH_REDIS_REST_TOKEN ? { url: v.UPSTASH_REDIS_REST_URL, token: v.UPSTASH_REDIS_REST_TOKEN } : null;
 }
 
+export type SearchConfig = { host: string; apiKey: string; indexPrefix: string } | null;
+export type LlmProviderConfig = {
+  name: "groq" | "ollama";
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+  priceInPerMTok: number;
+  priceOutPerMTok: number;
+};
+
+function searchFrom(v: SharedValues, key: string | undefined): SearchConfig {
+  if (!v.MEILISEARCH_HOST || !key) return null;
+  return { host: v.MEILISEARCH_HOST.replace(/\/+$/, ""), apiKey: key, indexPrefix: v.MEILISEARCH_INDEX_PREFIX };
+}
+
+/** Groq first (cheap default), Ollama Cloud as the fallback when Groq fails (SRS §3.3, architecture Q8). */
+function llmFrom(v: SharedValues): LlmProviderConfig[] {
+  const out: LlmProviderConfig[] = [];
+  if (v.GROQ_API_KEY) {
+    out.push({
+      name: "groq",
+      baseUrl: "https://api.groq.com/openai/v1",
+      apiKey: v.GROQ_API_KEY,
+      model: v.GROQ_MODEL,
+      priceInPerMTok: v.GROQ_PRICE_IN_PER_MTOK,
+      priceOutPerMTok: v.GROQ_PRICE_OUT_PER_MTOK,
+    });
+  }
+  if (v.OLLAMA_API_KEY) {
+    out.push({
+      name: "ollama",
+      baseUrl: v.OLLAMA_BASE_URL.replace(/\/+$/, ""),
+      apiKey: v.OLLAMA_API_KEY,
+      model: v.OLLAMA_MODEL,
+      priceInPerMTok: v.OLLAMA_PRICE_IN_PER_MTOK,
+      priceOutPerMTok: v.OLLAMA_PRICE_OUT_PER_MTOK,
+    });
+  }
+  return out;
+}
+
 export type ApiConfig = {
   nodeEnv: "development" | "test" | "production";
   logLevel: LogLevel;
@@ -151,6 +208,8 @@ export type ApiConfig = {
   idempotencyTtlHours: number;
   databaseCaPem: string | null;
   payments: PaymentsConfig;
+  search: SearchConfig;
+  llm: LlmProviderConfig[];
 };
 
 export function loadApiConfig(env: Env): ApiConfig {
@@ -171,6 +230,8 @@ export function loadApiConfig(env: Env): ApiConfig {
     idempotencyTtlHours: v.IDEMPOTENCY_TTL_HOURS,
     databaseCaPem: readCaFile(v.DATABASE_SSL_CA_FILE),
     payments: paymentsFrom(v),
+    search: searchFrom(v, v.MEILISEARCH_SEARCH_KEY),
+    llm: llmFrom(v),
   };
 }
 
@@ -185,6 +246,8 @@ export type WorkerConfig = {
   appUrl: string;
   payments: PaymentsConfig;
   upstash: { url: string; token: string } | null;
+  search: SearchConfig;
+  llm: LlmProviderConfig[];
 };
 
 export function loadWorkerConfig(env: Env): WorkerConfig {
@@ -198,5 +261,7 @@ export function loadWorkerConfig(env: Env): WorkerConfig {
     appUrl: new URL(v.APP_URL).origin,
     payments: paymentsFrom(v),
     upstash: upstashFrom(v),
+    search: searchFrom(v, v.MEILISEARCH_API_KEY),
+    llm: llmFrom(v),
   };
 }
