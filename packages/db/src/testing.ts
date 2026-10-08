@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { readCaFile } from "@mushin/core";
 import { createDatabase, type Db } from "./database";
@@ -27,11 +28,26 @@ export async function ownerQuery<T extends Record<string, unknown>>(text: string
   }
 }
 
-/** Empties every app table (owner privilege; app roles cannot truncate append-only tables). */
+/** Config tables hold migration seeds; tests must not wipe them. */
+const KEEP = ["schema_migrations", "plans", "topup_packs", "credit_action_costs", "billing_settings"];
+
+/** Empties every app table except seeded config (owner privilege; app roles cannot truncate append-only tables). */
 export async function resetTables(): Promise<void> {
   const rows = await ownerQuery<{ t: string }>(
     `select format('%I.%I', schemaname, tablename) as t from pg_tables
-     where schemaname in ('wp','staff','platform') and tablename <> 'schema_migrations'`,
+     where schemaname in ('wp','staff','platform')
+       and not (schemaname = 'platform' and tablename in (${KEEP.map((k) => `'${k}'`).join(", ")}))`,
   );
   if (rows.length) await ownerQuery(`truncate ${rows.map((r) => r.t).join(", ")} restart identity cascade`);
+}
+
+/** A user + workspace + owner membership, created as the owner (bypassing the API). */
+export async function createTestWorkspace(): Promise<{ userId: string; workspaceId: string }> {
+  const userId = randomUUID();
+  const workspaceId = randomUUID();
+  await ownerQuery(`
+    insert into wp.users (id, email) values ('${userId}', '${userId}@test.mushin.pk');
+    insert into wp.workspaces (id, name, owner_user_id) values ('${workspaceId}', 'Test workspace', '${userId}');
+    insert into wp.workspace_members (workspace_id, user_id, role) values ('${workspaceId}', '${userId}', 'owner');`);
+  return { userId, workspaceId };
 }

@@ -15,6 +15,8 @@ export type Db = {
   withTenant<T>(ctx: { userId: string; workspaceId: string }, fn: (tx: TenantTx) => Promise<T>): Promise<T>;
   withUser<T>(userId: string, fn: (tx: UserTx) => Promise<T>): Promise<T>;
   withSystem<T>(fn: (tx: SystemTx) => Promise<T>): Promise<T>;
+  /** Worker/system code acting inside one workspace: role mushin_worker, workspace RLS context, no user. */
+  withWorkspace<T>(workspaceId: string, fn: (tx: TenantTx) => Promise<T>): Promise<T>;
   listen(channel: string, onNotify: () => void): Promise<() => Promise<void>>;
   ping(): Promise<"ok">;
   close(): Promise<void>;
@@ -52,6 +54,10 @@ export function createDatabase(url: string, opts: { max: number; applicationName
     },
     withSystem(fn) {
       return run("mushin_worker", {}, (tx) => fn(tx as SystemTx));
+    },
+    withWorkspace(workspaceId, fn) {
+      assertUuid("workspaceId", workspaceId);
+      return run("mushin_worker", { workspaceId }, (tx) => fn(tx as TenantTx));
     },
     async listen(channel, onNotify) {
       const sub = await client.listen(channel, () => onNotify());
