@@ -176,23 +176,24 @@ describe("webhook safety (Review Focus 2)", () => {
 });
 
 describe("plan changes", () => {
-  it("upgrades now: unused monthly credits end and the new plan's credits are granted", async () => {
+  it("upgrades to a new interval now: the period restarts and the new plan's full allowance replaces the old", async () => {
     const c = await trialCustomer();
     await subscribe(c, "growth");
-    clock = days(1); // the mock starts a new billing period at the change, as a full-price upgrade would
-    expect(await billing.requestPlanChange(c, { planId: "scale", interval: "month" })).toEqual({ change: "upgrade", effective: "now" });
+    clock = days(15);
+    expect(await billing.requestPlanChange(c, { planId: "scale", interval: "year" })).toEqual({ change: "upgrade", effective: "now" });
     await flush();
     const lots = await ownerQuery<{ amount: number; remaining: number }>(`select amount, remaining from wp.credit_lots where source = 'monthly' order by amount`);
     expect(lots).toEqual([
       { amount: 12_000, remaining: 0 },
       { amount: 35_000, remaining: 35_000 },
     ]);
+    expect((await billing.summary(c)).interval).toBe("year");
   });
 
-  it("adds only the difference for an upgrade that keeps the billing period (prorated)", async () => {
+  it("adds only the difference for an upgrade that keeps the billing period, and bills it prorated", async () => {
     const c = await trialCustomer();
     await subscribe(c, "growth");
-    // Same instant: the provider keeps the current billing period, as Paddle does for a prorated upgrade.
+    clock = days(15); // 16 of the period's 31 days remain; the provider keeps the period, as Paddle does
     await billing.requestPlanChange(c, { planId: "scale", interval: "month" });
     await flush();
     const lots = await ownerQuery<{ amount: number; remaining: number }>(`select amount, remaining from wp.credit_lots where source = 'monthly' order by amount`);
@@ -200,7 +201,23 @@ describe("plan changes", () => {
       { amount: 12_000, remaining: 12_000 },
       { amount: 23_000, remaining: 23_000 },
     ]);
-    expect((await billing.summary(c)).balance.available).toBe(35_200);
+    expect((await billing.summary(c)).balance.available).toBe(35_000); // the trial lot ended on day 14
+    expect((await billing.invoices(c)).invoices.map((i) => i.amount.amountMinor)).toEqual([2219, 4600]);
+  });
+
+  it("gives a mid-year upgrade's extra credits until the end of the current credit month", async () => {
+    const c = await trialCustomer();
+    await subscribe(c, "explorer", "year");
+    clock = new Date("2026-11-07T10:00:01Z");
+    await billing.runJob("monthly_grants"); // the second month's 2,500 credits, valid until Dec 7
+    clock = new Date("2026-11-20T10:00:00Z");
+    await billing.requestPlanChange(c, { planId: "growth", interval: "year" });
+    await flush();
+    const extra = await ownerQuery<{ amount: number; expires: string }>(`
+      select amount, to_char(expires_at at time zone 'UTC', 'YYYY-MM-DD') expires from wp.credit_lots
+      where source = 'monthly' and amount = 9500`);
+    expect(extra).toEqual([{ amount: 9500, expires: "2026-12-07" }]);
+    expect((await billing.summary(c)).balance.available).toBe(12_000);
   });
 
   it("ignores a second subscription for a workspace that already has one", async () => {
@@ -216,17 +233,41 @@ describe("plan changes", () => {
     expect(lots[0]?.n).toBe(1);
   });
 
-  it("schedules a downgrade for the period end and applies it then", async () => {
+  it("applies a downgrade just before the period ends, so the renewal bills the lower plan", async () => {
     const c = await trialCustomer();
     await subscribe(c, "scale");
     expect(await billing.requestPlanChange(c, { planId: "explorer", interval: "month" })).toEqual({ change: "downgrade", effective: "period_end" });
     expect((await billing.summary(c)).scheduledChange).toEqual({ planId: "explorer", interval: "month" });
-    clock = days(31);
+    clock = days(29);
     await billing.runJob("scheduled_changes");
+    expect(sent).toHaveLength(0); // too early
+    clock = new Date("2026-11-07T09:00:00Z"); // an hour before the period ends
+    await billing.runJob("scheduled_changes");
+    expect(sent.map((x) => (JSON.parse(x.raw) as { event_type: string }).event_type)).toEqual(["subscription.updated"]); // nothing billed now
     await flush();
-    const s = await billing.summary(c);
-    expect(s.plan?.id).toBe("explorer");
-    expect(s.scheduledChange).toBeNull();
+    const before = await billing.summary(c);
+    expect(before).toMatchObject({ plan: { id: "explorer" }, scheduledChange: null, balance: { available: 35_000 } }); // this period's allowance stays
+    clock = new Date("2026-11-07T10:00:01Z");
+    await billing.runJob("mock_renewals");
+    await flush();
+    expect((await billing.invoices(c)).invoices[0]?.amount).toEqual({ amountMinor: 1800, currency: "USD" });
+    expect((await billing.summary(c)).balance.available).toBe(2_500);
+  });
+
+  it("keeps a cancellation made while a downgrade is scheduled", async () => {
+    const c = await trialCustomer();
+    await subscribe(c, "scale");
+    await billing.requestPlanChange(c, { planId: "explorer", interval: "month" });
+    await billing.requestCancel(c);
+    await flush();
+    expect(await billing.summary(c)).toMatchObject({ scheduledChange: null, cancelAtPeriodEnd: true });
+    clock = new Date("2026-11-07T09:00:00Z");
+    await billing.runJob("scheduled_changes");
+    expect(sent).toHaveLength(0);
+    clock = new Date("2026-11-07T10:00:01Z");
+    await billing.runJob("mock_renewals");
+    await flush();
+    expect((await billing.summary(c)).status).toBe("canceled");
   });
 
   it("cancels at period end; afterwards only paid top-ups remain spendable", async () => {
@@ -287,6 +328,21 @@ describe("jobs", () => {
     expect(await billing.runJob("reconcile")).toEqual({ processed: 0 }); // first reconcile is due a day after the grant
     clock = days(2);
     expect(await billing.runJob("reconcile")).toEqual({ processed: 1 });
+  });
+});
+
+describe("history", () => {
+  it("pages through the ledger without skipping rows written in one transaction", async () => {
+    const c = await trialCustomer();
+    await billing.spendInstant(c, { action: "find_new", confirmedCost: 12, refType: "test", refId: "1" }); // reserve + spend share a timestamp
+    const kinds: string[] = [];
+    let cursor: string | undefined;
+    do {
+      const page = await billing.ledger(c, { cursor, limit: 1 });
+      kinds.push(...page.entries.map((e) => e.kind));
+      cursor = page.nextCursor ?? undefined;
+    } while (cursor);
+    expect(kinds.sort()).toEqual(["grant", "reserve", "spend"]);
   });
 });
 

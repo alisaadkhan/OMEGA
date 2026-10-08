@@ -95,16 +95,17 @@ export function monthStart(date: Date): string {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-01`;
 }
 
-export type LedgerCursor = { createdAt: Date; id: string };
+/** `at` is the row's exact created_at in UTC with microseconds: rows written in one transaction share it. */
+export type LedgerCursor = { at: string; id: string };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const MICRO_ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/;
 
 export function encodeCursor(c: LedgerCursor): string {
-  return Buffer.from(`${c.createdAt.toISOString()}|${c.id}`, "utf8").toString("base64url");
+  return Buffer.from(`${c.at}|${c.id}`, "utf8").toString("base64url");
 }
 
 export function decodeCursor(s: string): LedgerCursor | null {
-  const [iso, id] = Buffer.from(s, "base64url").toString("utf8").split("|");
-  if (!iso || !id || !UUID.test(id)) return null;
-  const createdAt = new Date(iso);
-  return Number.isNaN(createdAt.getTime()) ? null : { createdAt, id };
+  const [at, id] = Buffer.from(s, "base64url").toString("utf8").split("|");
+  if (!at || !id || !MICRO_ISO.test(at) || !UUID.test(id)) return null;
+  return Number.isNaN(new Date(at).getTime()) ? null : { at, id };
 }

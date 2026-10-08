@@ -2,7 +2,7 @@ import type { Logger, ProviderCallSink } from "@mushin/core";
 import { instrumented } from "../instrumented";
 import { parsePaddleEvent } from "./paddle-events";
 import { verifyPaddleSignature } from "./signature";
-import type { CheckoutInput, PaymentEvent, Payments, PriceRef, SubscriptionRef } from "./types";
+import type { CheckoutInput, PaymentEvent, Payments, PlanChangeInput, SubscriptionRef } from "./types";
 
 type PaddleOptions = {
   apiKey: string;
@@ -55,12 +55,15 @@ export class PaddlePayments implements Payments {
     return { providerCheckoutId: id, url };
   }
 
-  async changePlan(input: { subscription: SubscriptionRef; target: PriceRef }): Promise<void> {
+  async changePlan(input: PlanChangeInput): Promise<void> {
     await this.call(
       "change_plan",
       "PATCH",
       `/subscriptions/${encodeURIComponent(input.subscription.subscriptionId)}`,
-      { items: [{ price_id: input.target.priceId, quantity: 1 }], proration_billing_mode: "prorated_immediately" },
+      {
+        items: [{ price_id: input.target.priceId, quantity: 1 }],
+        proration_billing_mode: input.when === "now" ? "prorated_immediately" : "full_next_billing_period",
+      },
       input.subscription.workspaceId,
     );
   }

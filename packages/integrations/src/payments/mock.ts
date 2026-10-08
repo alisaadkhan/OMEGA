@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { parsePaddleEvent } from "./paddle-events";
 import { signPaddleWebhook, verifyPaddleSignature } from "./signature";
-import type { CheckoutInput, PaymentEvent, PaymentInterval, Payments, PriceRef, SubscriptionRef } from "./types";
+import type { CheckoutInput, PaymentEvent, PaymentInterval, Payments, PlanChangeInput, PriceRef, SubscriptionRef } from "./types";
 
 export type Deliver = (rawBody: string, signature: string) => Promise<void>;
 export type MockCheckout = { checkoutId: string; workspaceId: string; kind: "subscription" | "topup"; price: PriceRef };
@@ -47,9 +47,27 @@ export class MockPayments implements Payments {
     };
   }
 
-  async changePlan(input: { subscription: SubscriptionRef; target: PriceRef }): Promise<void> {
-    const start = this.now();
-    const next = { ...input.subscription, price: input.target, periodStart: start, periodEnd: addInterval(start, input.target.interval ?? "month") };
+  /**
+   * As Paddle: the plan changes at once. "now" bills the prorated difference immediately and keeps the billing
+   * period, unless the interval changes, which restarts the period at the new price less the unused part of the old.
+   * "next_period" bills nothing now; the next renewal charges the new price.
+   */
+  async changePlan(input: PlanChangeInput): Promise<void> {
+    const s = input.subscription;
+    const t = this.now();
+    const unused = Math.max(0, Math.min(1, (s.periodEnd.getTime() - t.getTime()) / (s.periodEnd.getTime() - s.periodStart.getTime())));
+    const restart = input.when === "now" && input.target.interval !== s.price.interval;
+    const next: SubscriptionRef = restart
+      ? { ...s, price: input.target, periodStart: t, periodEnd: addInterval(t, input.target.interval ?? "month") }
+      : { ...s, price: input.target };
+    if (input.when === "now") {
+      const charge = restart
+        ? input.target.amountMinor - Math.round(s.price.amountMinor * unused)
+        : Math.round((input.target.amountMinor - s.price.amountMinor) * unused);
+      if (charge > 0) {
+        await this.send(this.transactionEvent(`txn_mock_${randomUUID()}`, s.workspaceId, null, s.subscriptionId, { ...input.target, amountMinor: charge }));
+      }
+    }
     await this.send(this.subscriptionEvent("subscription.updated", next, "active", false, null));
   }
 

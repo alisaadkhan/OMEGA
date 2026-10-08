@@ -29,6 +29,13 @@ function requireBillingRole(ctx: TenantContext) {
 }
 
 const minDate = (a: Date, b: Date) => (a.getTime() <= b.getTime() ? a : b);
+/**
+ * A downgrade is sent to the provider this long before the period ends, billed from the next period: the provider
+ * renews at the period end, so a change sent after it would charge the old plan for another period. The
+ * scheduled_changes job runs hourly, so this leaves one retry before the boundary.
+ */
+const DOWNGRADE_LEAD_MS = 2 * 3_600_000;
+const downgradeDue = (periodEnd: Date) => new Date(periodEnd.getTime() - DOWNGRADE_LEAD_MS);
 const isPaying = (s: repo.SubscriptionRow | null) => s?.status === "active" || s?.status === "past_due";
 
 export function createBillingService(deps: BillingDeps) {
@@ -146,7 +153,7 @@ export function createBillingService(deps: BillingDeps) {
           note: r.note,
           createdAt: r.createdAt.toISOString(),
         })),
-        nextCursor: rows.length > q.limit && last ? encodeCursor({ createdAt: last.createdAt, id: last.id }) : null,
+        nextCursor: rows.length > q.limit && last ? encodeCursor({ at: last.cursorAt, id: last.id }) : null,
       };
     });
   }
@@ -263,13 +270,13 @@ export function createBillingService(deps: BillingDeps) {
       if (change === "same") throw new AppError("CONFLICT", "You are already on this plan");
       if (change === "downgrade") {
         await repo.updateSubscription(tx, c.workspaceId, { scheduledPlanId: target.id, scheduledInterval: req.interval });
-        if (sub.currentPeriodEnd) await repo.scheduleJob(tx, c.workspaceId, "scheduled_changes", sub.currentPeriodEnd);
+        if (sub.currentPeriodEnd) await repo.scheduleJob(tx, c.workspaceId, "scheduled_changes", downgradeDue(sub.currentPeriodEnd));
         return { change, ref: null, target };
       }
       await repo.updateSubscription(tx, c.workspaceId, { scheduledPlanId: null, scheduledInterval: null });
       return { change, ref: subscriptionRef(sub, current), target };
     });
-    if (decision.ref) await deps.payments.changePlan({ subscription: decision.ref, target: priceForPlan(decision.target, req.interval) });
+    if (decision.ref) await deps.payments.changePlan({ subscription: decision.ref, target: priceForPlan(decision.target, req.interval), when: "now" });
     await deps.cache.invalidate(c.workspaceId);
     return decision.change === "upgrade" ? { change: "upgrade", effective: "now" } : { change: "downgrade", effective: "period_end" };
   }
@@ -285,6 +292,9 @@ export function createBillingService(deps: BillingDeps) {
       return subscriptionRef(sub, plan);
     });
     await deps.payments.cancelAtPeriodEnd({ subscription: ref });
+    // Ending the subscription supersedes a scheduled downgrade, which would otherwise be sent at the period end.
+    await deps.db.withTenant(tenant(c), (tx) => repo.updateSubscription(tx, c.workspaceId, { scheduledPlanId: null, scheduledInterval: null }));
+    await deps.cache.invalidate(c.workspaceId);
     return { change: "cancel", effective: "period_end" };
   }
 
@@ -420,14 +430,16 @@ export function createBillingService(deps: BillingDeps) {
           patch.nextCreditGrantAt = creditEnd.getTime() < s.periodEnd.getTime() ? creditEnd : null;
         } else if (planChanged) {
           // Same period (a prorated mid-period change): add only the difference and keep the current allowance,
-          // so an upgrade never hands out a second full allowance for one period.
+          // so an upgrade never hands out a second full allowance for one period. The difference lasts as long as the
+          // current credit month: for a yearly plan that ends at the next monthly grant, not a month after the period start.
           const previous = sub?.planId ? await repo.getPlan(tx, sub.planId) : null;
           const extra = plan.monthlyCredits - (previous?.monthlyCredits ?? 0);
+          const monthEnd = interval === "year" ? (sub?.nextCreditGrantAt ?? s.periodEnd) : s.periodEnd;
           if (extra > 0) {
             await engine.grant(tx, e.workspaceId, {
               source: "monthly",
               amount: extra,
-              expiresAt: creditEnd,
+              expiresAt: monthEnd,
               sourceRef: `upgrade:${s.subscriptionId}:${s.periodStart.toISOString()}:${plan.id}:${interval}`,
               note: `Upgrade to ${plan.name}: additional monthly credits`,
             });
@@ -529,22 +541,31 @@ export function createBillingService(deps: BillingDeps) {
       case "scheduled_changes": {
         const work = await deps.db.withWorkspace(workspaceId, async (tx) => {
           const sub = await repo.getSubscription(tx, workspaceId);
-          if (!sub || !isPaying(sub) || !sub.planId || !sub.scheduledPlanId || !sub.scheduledInterval || !sub.currentPeriodEnd) {
+          if (
+            !sub ||
+            !isPaying(sub) ||
+            sub.cancelAtPeriodEnd ||
+            !sub.planId ||
+            !sub.scheduledPlanId ||
+            !sub.scheduledInterval ||
+            !sub.currentPeriodEnd
+          ) {
             await repo.setNextDue(tx, workspaceId, job, null);
             return null;
           }
-          if (sub.currentPeriodEnd.getTime() > t.getTime()) {
-            await repo.setNextDue(tx, workspaceId, job, sub.currentPeriodEnd);
+          const due = downgradeDue(sub.currentPeriodEnd);
+          if (due.getTime() > t.getTime()) {
+            await repo.setNextDue(tx, workspaceId, job, due);
             return null;
           }
           const current = await repo.getPlan(tx, sub.planId);
           const target = await repo.getPlan(tx, sub.scheduledPlanId);
           if (!current || !target) return null;
-          // Looked at again tomorrow until the provider's webhook confirms the change and clears it.
-          await repo.setNextDue(tx, workspaceId, job, later(DAY));
+          // Looked at again in an hour until the provider's webhook confirms the change and clears it.
+          await repo.setNextDue(tx, workspaceId, job, later(3_600_000));
           return { ref: subscriptionRef(sub, current), target: priceForPlan(target, sub.scheduledInterval) };
         });
-        if (work) await deps.payments.changePlan({ subscription: work.ref, target: work.target });
+        if (work) await deps.payments.changePlan({ subscription: work.ref, target: work.target, when: "next_period" });
         return;
       }
       case "mock_renewals": {
@@ -560,7 +581,6 @@ export function createBillingService(deps: BillingDeps) {
             return null;
           }
           await repo.setNextDue(tx, workspaceId, job, later(DAY));
-          if (sub.scheduledPlanId) return null; // the scheduled downgrade starts the next period instead
           const plan = await repo.getPlan(tx, sub.planId);
           return plan ? { ref: subscriptionRef(sub, plan), cancel: sub.cancelAtPeriodEnd } : null;
         });

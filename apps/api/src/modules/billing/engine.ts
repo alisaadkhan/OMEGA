@@ -110,6 +110,7 @@ export function createCreditEngine(o: { now?: () => Date } = {}) {
       action: req.action,
       confirmedCost: req.confirmedCost,
       status: "held",
+      spendScope: scope,
       expiresAt: new Date(t.getTime() + settings.reservationTtlMinutes * 60_000),
       refType: req.refType,
       refId: req.refId,
@@ -128,7 +129,7 @@ export function createCreditEngine(o: { now?: () => Date } = {}) {
     if (!r) throw new AppError("NOT_FOUND", "Reservation not found");
     if (r.status === "committed") return;
     if (r.status !== "held") throw new AppError("CONFLICT", "This reservation was already released");
-    const lots = await repo.lotsValidAt(tx, workspaceId, r.createdAt);
+    const lots = await repo.lotsValidAt(tx, workspaceId, r.createdAt, r.spendScope);
     let plan: Allocation[];
     try {
       plan = allocateLots(lots, r.amount);

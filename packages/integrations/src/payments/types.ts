@@ -44,11 +44,14 @@ export type PaymentEvent =
   | { kind: "ignored"; eventId: string; occurredAt: Date; eventType: string };
 
 export type CheckoutInput = { checkoutId: string; workspaceId: string; customerEmail: string; price: PriceRef };
+/** "now": change and bill the prorated difference immediately. "next_period": change now, bill the new price from the next renewal. */
+export type PlanChangeTiming = "now" | "next_period";
+export type PlanChangeInput = { subscription: SubscriptionRef; target: PriceRef; when: PlanChangeTiming };
 
 export interface Payments {
   readonly mode: "mock" | "paddle";
   createCheckout(input: CheckoutInput): Promise<{ providerCheckoutId: string; url: string }>;
-  changePlan(input: { subscription: SubscriptionRef; target: PriceRef }): Promise<void>;
+  changePlan(input: PlanChangeInput): Promise<void>;
   cancelAtPeriodEnd(input: { subscription: SubscriptionRef }): Promise<void>;
   verifyWebhook(rawBody: string, signatureHeader: string | undefined): PaymentEvent;
 }

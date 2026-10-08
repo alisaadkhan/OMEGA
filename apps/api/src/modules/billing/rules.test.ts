@@ -118,10 +118,13 @@ describe("dates and cursors", () => {
     expect(daysLeft(null, now)).toBeNull();
   });
 
-  it("round-trips ledger cursors and rejects garbage", () => {
-    const c = { createdAt: new Date("2026-10-07T01:02:03.456Z"), id: "6f1c2a4e-8a51-4c0e-9d0a-2b7f4f1e9a10" };
+  it("round-trips ledger cursors at microsecond precision and rejects garbage", () => {
+    // Postgres keeps microseconds; a millisecond cursor would skip rows written in the same transaction.
+    const c = { at: "2026-10-07T01:02:03.456789Z", id: "6f1c2a4e-8a51-4c0e-9d0a-2b7f4f1e9a10" };
     expect(decodeCursor(encodeCursor(c))).toEqual(c);
     expect(decodeCursor("not-a-cursor")).toBeNull();
     expect(decodeCursor(Buffer.from("2026-10-07T00:00:00Z|nope").toString("base64url"))).toBeNull();
+    expect(decodeCursor(Buffer.from(`2026-10-07T01:02:03.456Z|${c.id}`).toString("base64url"))).toBeNull();
+    expect(decodeCursor(Buffer.from(`2026-10-07T01:02:03.456789Z'--|${c.id}`).toString("base64url"))).toBeNull();
   });
 });

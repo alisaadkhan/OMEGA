@@ -91,8 +91,7 @@ describe("reserve, commit, release", () => {
     expect(held[0]?.n).toBe(0);
   });
 
-  // Latency-bound: twenty holds run one at a time under the workspace credit lock.
-  it("never overspends under 20 concurrent reserves", { timeout: 120_000 }, async () => {
+  it("never overspends under 20 concurrent reserves", async () => {
     const ws = await trialWorkspace();
     const results = await Promise.allSettled(
       Array.from({ length: 20 }, () => inWs(ws, (tx) => engine.reserve(tx, ws.workspaceId, findNew(), actor))),
@@ -103,6 +102,19 @@ describe("reserve, commit, release", () => {
 });
 
 describe("plans and access", () => {
+  it("spends only top-up credits from a hold placed without a plan, though other lots are unexpired", async () => {
+    const ws = await trialWorkspace(); // the trial lot stays valid until day 14
+    await inWorker(ws, (tx) => engine.grant(tx, ws.workspaceId, { source: "topup", amount: 100, expiresAt: minutes(60 * 24 * 365), sourceRef: "txn:scope" }));
+    await ownerQuery(`update wp.subscriptions set status = 'canceled' where workspace_id = '${ws.workspaceId}'`);
+    const { reservationId } = await inWs(ws, (tx) => engine.reserve(tx, ws.workspaceId, findNew(), actor));
+    await inWs(ws, (tx) => engine.commit(tx, ws.workspaceId, reservationId, actor));
+    const lots = await ownerQuery<{ source: string; remaining: number }>(`select source, remaining from wp.credit_lots order by source`);
+    expect(lots).toEqual([
+      { source: "topup", remaining: 88 },
+      { source: "trial", remaining: 200 },
+    ]);
+  });
+
   it("requires a plan, but lets an expired workspace spend paid top-ups only", async () => {
     const bare = await createTestWorkspace();
     await expect(inWs(bare, (tx) => engine.reserve(tx, bare.workspaceId, findNew(), actor))).rejects.toMatchObject({
@@ -176,8 +188,7 @@ describe("expiry and cleanup", () => {
 });
 
 describe("meter alerts", () => {
-  // Latency-bound: sixteen sequential holds against the remote test database.
-  it("writes low and very-low notifications once each as the balance falls", { timeout: 120_000 }, async () => {
+  it("writes low and very-low notifications once each as the balance falls", async () => {
     const ws = await trialWorkspace();
     for (let i = 0; i < 16; i++) await inWs(ws, (tx) => engine.reserve(tx, ws.workspaceId, findNew(), actor)); // 200 → 8
     const rows = await ownerQuery<{ event_type: string }>(`select event_type from platform.outbox order by created_at`);

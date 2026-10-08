@@ -133,11 +133,18 @@ export async function sumRemaining(tx: TenantTx, workspaceId: string, now: Date,
   return rows[0]?.total ?? 0;
 }
 
-export async function lotsValidAt(tx: TenantTx, workspaceId: string, at: Date): Promise<LotForSpend[]> {
+export async function lotsValidAt(tx: TenantTx, workspaceId: string, at: Date, scope: "all" | "topup_only"): Promise<LotForSpend[]> {
   return tx
     .select({ id: creditLots.id, remaining: creditLots.remaining, expiresAt: creditLots.expiresAt })
     .from(creditLots)
-    .where(and(eq(creditLots.workspaceId, workspaceId), gt(creditLots.remaining, 0), gt(creditLots.expiresAt, at)));
+    .where(
+      and(
+        eq(creditLots.workspaceId, workspaceId),
+        gt(creditLots.remaining, 0),
+        gt(creditLots.expiresAt, at),
+        scope === "topup_only" ? eq(creditLots.source, "topup") : undefined,
+      ),
+    );
 }
 
 export async function insertLot(
@@ -271,6 +278,7 @@ export function ledgerPage(tx: TenantTx, workspaceId: string, cursor: LedgerCurs
       action: creditLedger.action,
       note: creditLedger.note,
       createdAt: creditLedger.createdAt,
+      cursorAt: sql<string>`to_char(${creditLedger.createdAt} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
       lotSource: creditLots.source,
     })
     .from(creditLedger)
@@ -279,7 +287,7 @@ export function ledgerPage(tx: TenantTx, workspaceId: string, cursor: LedgerCurs
       and(
         eq(creditLedger.workspaceId, workspaceId),
         cursor
-          ? sql`(${creditLedger.createdAt}, ${creditLedger.id}) < (${cursor.createdAt.toISOString()}::timestamptz, ${cursor.id}::uuid)`
+          ? sql`(${creditLedger.createdAt}, ${creditLedger.id}) < (${cursor.at}::timestamptz, ${cursor.id}::uuid)`
           : undefined,
       ),
     )

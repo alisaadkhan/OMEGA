@@ -98,27 +98,51 @@ describe("MockPayments", () => {
     expect(sub.subscription.periodEnd?.toISOString()).toBe("2026-11-07T10:00:00.000Z");
   });
 
-  it("reports failed payments, plan changes, scheduled cancellation and renewals", async () => {
+  it("reports failed payments, scheduled cancellation and renewals", async () => {
     const { mock, events } = capture();
     await mock.completeCheckout({ checkoutId: CHECKOUT, workspaceId: WS, kind: "topup", price: { ...growthMonth, interval: null } }, "failed");
     const ref = { subscriptionId: "sub_mock_1", customerId: "ctm_1", workspaceId: WS, price: growthMonth, periodStart: at, periodEnd: new Date("2026-11-07T10:00:00Z") };
-    await mock.changePlan({ subscription: ref, target: { ...growthMonth, priceId: "pri_mock_scale_month" } });
     await mock.cancelAtPeriodEnd({ subscription: ref });
     await mock.renew(ref, false);
     await mock.renew(ref, true);
     expect(events().map((e) => e.kind)).toEqual([
       "transaction.payment_failed",
       "subscription.updated",
-      "subscription.updated",
       "transaction.completed",
       "subscription.updated",
       "subscription.canceled",
     ]);
-    const [, change, cancel, , renewal] = events();
-    expect(change).toMatchObject({ subscription: { priceId: "pri_mock_scale_month" } });
+    const [, cancel, , renewal] = events();
     expect(cancel).toMatchObject({ subscription: { cancelScheduled: true } });
     if (renewal?.kind !== "subscription.updated") throw new Error("expected a renewal");
     expect(renewal.subscription.periodStart?.toISOString()).toBe("2026-11-07T10:00:00.000Z");
+  });
+
+  it("changes plans the way Paddle does", async () => {
+    const mid = new Date("2026-10-22T10:00:00Z"); // 16 of the period's 31 days remain
+    const periodEnd = new Date("2026-11-07T10:00:00Z");
+    const ref = { subscriptionId: "sub_mock_1", customerId: "ctm_1", workspaceId: WS, price: growthMonth, periodStart: at, periodEnd };
+
+    // Same interval, now: the billing period is kept and the prorated difference is charged.
+    const now = capture(() => mid);
+    await now.mock.changePlan({ subscription: ref, target: { ...growthMonth, priceId: "pri_mock_scale_month", amountMinor: 8900 }, when: "now" });
+    const [charge, upgraded] = now.events();
+    expect(charge).toMatchObject({ kind: "transaction.completed", subscriptionId: "sub_mock_1", priceId: "pri_mock_scale_month", amountMinor: 2219 });
+    expect(upgraded).toMatchObject({ kind: "subscription.updated", subscription: { priceId: "pri_mock_scale_month", periodStart: at, periodEnd } });
+
+    // Next period: the plan changes now, nothing is charged now, the renewal bills the new price.
+    const next = capture(() => mid);
+    await next.mock.changePlan({ subscription: ref, target: { ...growthMonth, priceId: "pri_mock_explorer_month", amountMinor: 1800 }, when: "next_period" });
+    expect(next.events()).toEqual([
+      expect.objectContaining({ kind: "subscription.updated", subscription: expect.objectContaining({ priceId: "pri_mock_explorer_month", periodStart: at, periodEnd }) }),
+    ]);
+
+    // A different interval restarts the period: the new price, less the unused part of the old one.
+    const yearly = capture(() => mid);
+    await yearly.mock.changePlan({ subscription: ref, target: { priceId: "pri_mock_scale_year", interval: "year", amountMinor: 85_200, currency: "USD" }, when: "now" });
+    const [yearCharge, restarted] = yearly.events();
+    expect(yearCharge).toMatchObject({ kind: "transaction.completed", amountMinor: 85_200 - 2374 });
+    expect(restarted).toMatchObject({ subscription: { periodStart: mid, periodEnd: new Date("2027-10-22T10:00:00Z") } });
   });
 });
 
@@ -158,6 +182,21 @@ describe("PaddlePayments", () => {
       code: "PROVIDER_UNAVAILABLE",
     });
     expect(calls).toHaveLength(1);
+  });
+
+  it("changes the plan now with proration, or from the next billing period without charging now", async () => {
+    const { p, calls } = paddle(() => Response.json({ data: {} }));
+    const ref = { subscriptionId: "sub_1", customerId: null, workspaceId: WS, price: growthMonth, periodStart: at, periodEnd: at };
+    await p.changePlan({ subscription: ref, target: growthMonth, when: "now" });
+    await p.changePlan({ subscription: ref, target: growthMonth, when: "next_period" });
+    expect(calls.map((c) => [c.url, c.init.method])).toEqual([
+      ["https://sandbox-api.paddle.com/subscriptions/sub_1", "PATCH"],
+      ["https://sandbox-api.paddle.com/subscriptions/sub_1", "PATCH"],
+    ]);
+    expect(calls.map((c) => (JSON.parse(String(c.init.body)) as { proration_billing_mode: string }).proration_billing_mode)).toEqual([
+      "prorated_immediately",
+      "full_next_billing_period",
+    ]);
   });
 
   it("schedules cancellation at the next billing period", async () => {
