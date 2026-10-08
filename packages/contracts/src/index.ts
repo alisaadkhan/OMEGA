@@ -3,3 +3,4 @@ export * from "./health";
 export * from "./me";
 export * from "./staff";
 export * from "./billing";
+export * from "./search";
