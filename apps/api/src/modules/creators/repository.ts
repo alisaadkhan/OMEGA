@@ -1,0 +1,436 @@
+import { and, desc, eq, sql } from "drizzle-orm";
+import { encryptSecret, sha256Hex } from "@mushin/core";
+import {
+  audienceViews,
+  contactReveals,
+  creatorContacts,
+  creatorProfiles,
+  creators,
+  enrichmentSnapshots,
+  niches,
+  savedSearches,
+  searchSettings,
+  writeOutbox,
+  type AudienceRow,
+  type EvidenceRow,
+  type SystemTx,
+  type TenantTx,
+} from "@mushin/db";
+import { maskContact, type FitWeights, type FreshnessThresholds, type LabelThresholds, type SummarySource } from "./rules";
+
+type Tx = TenantTx | SystemTx;
+type Platform = "instagram" | "tiktok" | "youtube";
+
+/** Visible to customers: active, and not a possible minor without a staff override (SRS §5.2). */
+const VISIBLE = sql`c.status = 'active' and not (c.is_minor and c.minor_override_by_staff_id is null)`;
+
+// ── config ──────────────────────────────────────────────────────────────────
+export type SearchSettings = {
+  weights: FitWeights;
+  labels: LabelThresholds;
+  fresh: FreshnessThresholds;
+  candidatePool: number;
+  pageSize: number;
+  fewResults: number;
+};
+
+export async function getSearchSettings(tx: Tx): Promise<SearchSettings> {
+  const [s] = await tx.select().from(searchSettings).limit(1);
+  if (!s) throw new Error("platform.search_settings has no row");
+  return {
+    weights: { text: s.weightText, filters: s.weightFilters, engagement: s.weightEngagement, authenticity: s.weightAuthenticity, freshness: s.weightFreshness },
+    labels: { best: s.labelBest, strong: s.labelStrong, possible: s.labelPossible },
+    fresh: { currentDays: s.freshCurrentDays, agingDays: s.freshAgingDays },
+    candidatePool: s.candidatePool,
+    pageSize: s.pageSize,
+    fewResults: s.fewResults,
+  };
+}
+
+export async function activeNiches(tx: Tx): Promise<string[]> {
+  const rows = await tx.select({ label: niches.label }).from(niches).where(eq(niches.active, true)).orderBy(niches.sortOrder);
+  return rows.map((r) => r.label);
+}
+
+// ── search hydration ────────────────────────────────────────────────────────
+export type CardRow = {
+  id: string;
+  displayName: string;
+  primaryHandle: string;
+  primaryPlatform: Platform;
+  avatarUrl: string | null;
+  city: string | null;
+  country: string | null;
+  niches: string[];
+  tags: string[];
+  verified: boolean;
+  authenticityScore: number | null;
+  fakeFollowerPct: number | null;
+  followers: number;
+  engagementRate: number | null;
+  followersUpdatedAt: Date | null;
+  hasContact: boolean;
+};
+
+/** Card data straight from Postgres; creators the index still lists but Postgres now hides are dropped here. */
+export async function cardRows(tx: Tx, ids: string[]): Promise<CardRow[]> {
+  if (ids.length === 0) return [];
+  return tx.execute<CardRow>(sql`
+    select c.id, c.display_name as "displayName", c.primary_handle as "primaryHandle", c.primary_platform as "primaryPlatform",
+      c.avatar_url as "avatarUrl", c.city, c.country, c.niches, c.tags, c.verified,
+      c.authenticity_score as "authenticityScore", c.fake_follower_pct as "fakeFollowerPct",
+      coalesce(p.followers, 0) as followers, p.engagement_rate as "engagementRate", p.followers_updated_at as "followersUpdatedAt",
+      exists (select 1 from gcp.creator_contacts k where k.creator_id = c.id) as "hasContact"
+    from gcp.creators c
+    left join lateral (
+      select pr.followers, pr.engagement_rate, pr.followers_updated_at from gcp.creator_profiles pr
+      where pr.creator_id = c.id order by (pr.platform = c.primary_platform) desc, pr.followers desc limit 1
+    ) p on true
+    where c.id in ${ids} and ${VISIBLE}`);
+}
+
+export async function findIdByCanonicalUrl(tx: Tx, canonicalUrl: string): Promise<string | null> {
+  const rows = await tx.select({ id: creatorProfiles.creatorId }).from(creatorProfiles).where(eq(creatorProfiles.canonicalUrl, canonicalUrl)).limit(1);
+  return rows[0]?.id ?? null;
+}
+
+// ── profile ─────────────────────────────────────────────────────────────────
+export type CreatorRow = Pick<
+  typeof creators.$inferSelect,
+  | "id"
+  | "displayName"
+  | "primaryHandle"
+  | "primaryPlatform"
+  | "avatarUrl"
+  | "city"
+  | "country"
+  | "niches"
+  | "tags"
+  | "verified"
+  | "authenticityScore"
+  | "fakeFollowerPct"
+  | "aiSummary"
+  | "aiSummaryModel"
+  | "aiSummaryAt"
+  | "aiSummarySourceHash"
+  | "aiSummaryFailedAt"
+  | "isMinor"
+  | "minorOverrideByStaffId"
+  | "status"
+  | "mergedIntoId"
+>;
+
+export async function getCreator(tx: Tx, id: string): Promise<CreatorRow | null> {
+  const rows = await tx
+    .select({
+      id: creators.id,
+      displayName: creators.displayName,
+      primaryHandle: creators.primaryHandle,
+      primaryPlatform: creators.primaryPlatform,
+      avatarUrl: creators.avatarUrl,
+      city: creators.city,
+      country: creators.country,
+      niches: creators.niches,
+      tags: creators.tags,
+      verified: creators.verified,
+      authenticityScore: creators.authenticityScore,
+      fakeFollowerPct: creators.fakeFollowerPct,
+      aiSummary: creators.aiSummary,
+      aiSummaryModel: creators.aiSummaryModel,
+      aiSummaryAt: creators.aiSummaryAt,
+      aiSummarySourceHash: creators.aiSummarySourceHash,
+      aiSummaryFailedAt: creators.aiSummaryFailedAt,
+      isMinor: creators.isMinor,
+      minorOverrideByStaffId: creators.minorOverrideByStaffId,
+      status: creators.status,
+      mergedIntoId: creators.mergedIntoId,
+    })
+    .from(creators)
+    .where(eq(creators.id, id))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export type ProfileRow = typeof creatorProfiles.$inferSelect;
+export function getProfiles(tx: Tx, creatorId: string): Promise<ProfileRow[]> {
+  return tx.select().from(creatorProfiles).where(eq(creatorProfiles.creatorId, creatorId)).orderBy(desc(creatorProfiles.followers));
+}
+
+export type SnapshotRow = typeof enrichmentSnapshots.$inferSelect;
+export async function latestSnapshot(tx: Tx, creatorId: string): Promise<SnapshotRow | null> {
+  const rows = await tx.select().from(enrichmentSnapshots).where(eq(enrichmentSnapshots.creatorId, creatorId)).orderBy(desc(enrichmentSnapshots.createdAt)).limit(1);
+  return rows[0] ?? null;
+}
+
+/** Masked contact rows only: these columns are all the API role may read (migration 0009). */
+export function contactSummaries(tx: Tx, creatorId: string) {
+  return tx
+    .select({ id: creatorContacts.id, kind: creatorContacts.kind, masked: creatorContacts.masked, trust: creatorContacts.trust })
+    .from(creatorContacts)
+    .where(eq(creatorContacts.creatorId, creatorId));
+}
+
+export function revealedContacts(tx: TenantTx, creatorId: string) {
+  return tx.execute<{ id: string; kind: "email" | "phone"; value_encrypted: string; trust: string }>(
+    sql`select id, kind, value_encrypted, trust from gcp.revealed_contacts(${creatorId})`,
+  );
+}
+
+// ── reveals and audience views (workspace data: always filtered by workspace) ─
+export async function hasReveal(tx: TenantTx, workspaceId: string, creatorId: string): Promise<boolean> {
+  const rows = await tx
+    .select({ c: contactReveals.creatorId })
+    .from(contactReveals)
+    .where(and(eq(contactReveals.workspaceId, workspaceId), eq(contactReveals.creatorId, creatorId)))
+    .limit(1);
+  return rows.length === 1;
+}
+
+/** True when this call created the reveal. A concurrent duplicate waits on the primary key and then gets false. */
+export async function insertReveal(tx: TenantTx, workspaceId: string, creatorId: string, userId: string): Promise<boolean> {
+  const rows = await tx.insert(contactReveals).values({ workspaceId, creatorId, revealedBy: userId }).onConflictDoNothing().returning({ c: contactReveals.creatorId });
+  return rows.length === 1;
+}
+
+export async function setRevealReservation(tx: TenantTx, workspaceId: string, creatorId: string, reservationId: string): Promise<void> {
+  await tx
+    .update(contactReveals)
+    .set({ ledgerReservationId: reservationId })
+    .where(and(eq(contactReveals.workspaceId, workspaceId), eq(contactReveals.creatorId, creatorId)));
+}
+
+export async function insertAudienceView(tx: TenantTx, workspaceId: string, creatorId: string, month: string, userId: string): Promise<boolean> {
+  const rows = await tx.insert(audienceViews).values({ workspaceId, creatorId, month, viewedBy: userId }).onConflictDoNothing().returning({ c: audienceViews.creatorId });
+  return rows.length === 1;
+}
+
+// ── saved searches ──────────────────────────────────────────────────────────
+export type SavedSearchRow = typeof savedSearches.$inferSelect;
+export function listSavedSearches(tx: TenantTx, workspaceId: string): Promise<SavedSearchRow[]> {
+  return tx.select().from(savedSearches).where(eq(savedSearches.workspaceId, workspaceId)).orderBy(desc(savedSearches.createdAt)).limit(50);
+}
+
+export async function countSavedSearches(tx: TenantTx, workspaceId: string): Promise<number> {
+  const rows = await tx.select({ n: sql<number>`count(*)::int` }).from(savedSearches).where(eq(savedSearches.workspaceId, workspaceId));
+  return rows[0]?.n ?? 0;
+}
+
+export async function insertSavedSearch(tx: TenantTx, row: typeof savedSearches.$inferInsert): Promise<SavedSearchRow> {
+  const rows = await tx.insert(savedSearches).values(row).returning();
+  const saved = rows[0];
+  if (!saved) throw new Error("saved search insert returned no row");
+  return saved;
+}
+
+export async function deleteSavedSearch(tx: TenantTx, workspaceId: string, id: string): Promise<boolean> {
+  const rows = await tx.delete(savedSearches).where(and(eq(savedSearches.workspaceId, workspaceId), eq(savedSearches.id, id))).returning({ id: savedSearches.id });
+  return rows.length === 1;
+}
+
+// ── AI summaries ────────────────────────────────────────────────────────────
+/** True when a new request should be sent: first time for this version, or the last attempt is over an hour old. */
+export async function requestSummary(tx: Tx, creatorId: string, hash: string): Promise<boolean> {
+  const rows = await tx.execute<{ creator_id: string }>(sql`
+    insert into platform.summary_requests (creator_id, source_hash) values (${creatorId}, ${hash})
+    on conflict (creator_id, source_hash) do update set requested_at = now()
+      where platform.summary_requests.requested_at < now() - interval '1 hour'
+    returning creator_id`);
+  return rows.length === 1;
+}
+
+export async function summarySource(tx: Tx, creatorId: string): Promise<{ source: SummarySource; currentHash: string | null } | null> {
+  const c = await getCreator(tx, creatorId);
+  if (!c) return null;
+  const profiles = await getProfiles(tx, creatorId);
+  const snap = await latestSnapshot(tx, creatorId);
+  return {
+    currentHash: c.aiSummarySourceHash,
+    source: {
+      displayName: c.displayName,
+      niches: c.niches,
+      tags: c.tags,
+      city: c.city,
+      country: c.country,
+      verdict: snap?.verdict ?? null,
+      evidence: (snap?.evidenceBreakdown ?? []).map((e) => ({ signal: e.signal, detail: e.detail })),
+      profiles: profiles.map((p) => ({
+        platform: p.platform,
+        followers: p.followers,
+        engagementRate: p.engagementRate,
+        posts: p.posts,
+        avgLikes: p.avgLikes,
+        avgComments: p.avgComments,
+        avgViews: p.avgViews,
+        bio: p.bio,
+      })),
+    },
+  };
+}
+
+export async function saveSummary(tx: SystemTx, creatorId: string, text: string, model: string, hash: string): Promise<void> {
+  await tx
+    .update(creators)
+    .set({ aiSummary: text, aiSummaryModel: model, aiSummaryAt: sql`now()`, aiSummarySourceHash: hash, aiSummaryFailedAt: null })
+    .where(eq(creators.id, creatorId));
+}
+
+export async function markSummaryFailed(tx: SystemTx, creatorId: string): Promise<void> {
+  await tx.update(creators).set({ aiSummaryFailedAt: sql`now()` }).where(eq(creators.id, creatorId));
+}
+
+// ── index projection (worker) ───────────────────────────────────────────────
+export type IndexRow = {
+  id: string;
+  status: string;
+  isMinor: boolean;
+  minorOverrideByStaffId: string | null;
+  displayName: string;
+  nameVariants: string[];
+  primaryHandle: string;
+  primaryPlatform: Platform;
+  city: string | null;
+  country: string | null;
+  niches: string[];
+  tags: string[];
+  verified: boolean;
+  authenticityScore: number | null;
+  hasContact: boolean;
+  profiles: { platform: Platform; handle: string; followers: number; engagementRate: number | null; bio: string | null; followersUpdatedAt: string | null }[];
+  audience: AudienceRow | null;
+  updatedEpoch: number;
+};
+
+/** Last change to anything the index document is built from. */
+const UPDATED_EPOCH = sql`extract(epoch from greatest(
+  c.updated_at,
+  coalesce((select max(p.updated_at) from gcp.creator_profiles p where p.creator_id = c.id), c.updated_at),
+  coalesce((select max(s.created_at) from gcp.enrichment_snapshots s where s.creator_id = c.id), c.updated_at)
+))::int`;
+
+export async function indexRows(tx: SystemTx, ids: string[]): Promise<IndexRow[]> {
+  if (ids.length === 0) return [];
+  return tx.execute<IndexRow>(sql`
+    select c.id, c.status, c.is_minor as "isMinor", c.minor_override_by_staff_id as "minorOverrideByStaffId",
+      c.display_name as "displayName", c.name_variants as "nameVariants", c.primary_handle as "primaryHandle",
+      c.primary_platform as "primaryPlatform", c.city, c.country, c.niches, c.tags, c.verified,
+      c.authenticity_score as "authenticityScore",
+      exists (select 1 from gcp.creator_contacts k where k.creator_id = c.id) as "hasContact",
+      coalesce((
+        select jsonb_agg(jsonb_build_object('platform', p.platform, 'handle', p.handle, 'followers', p.followers,
+          'engagementRate', p.engagement_rate, 'bio', p.bio, 'followersUpdatedAt', p.followers_updated_at) order by p.followers desc)
+        from gcp.creator_profiles p where p.creator_id = c.id), '[]'::jsonb) as profiles,
+      (select s.audience from gcp.enrichment_snapshots s where s.creator_id = c.id and s.audience is not null order by s.created_at desc limit 1) as audience,
+      ${UPDATED_EPOCH} as "updatedEpoch"
+    from gcp.creators c where c.id in ${ids}`);
+}
+
+/** Every creator that belongs in the index, with its last-change time (nightly reconcile). */
+export function indexState(tx: SystemTx): Promise<{ id: string; updatedEpoch: number }[]> {
+  return tx.execute<{ id: string; updatedEpoch: number }>(sql`select c.id, ${UPDATED_EPOCH} as "updatedEpoch" from gcp.creators c where ${VISIBLE}`);
+}
+
+// ── writing creators (worker role: seed script, tests, sub-project 4) ───────
+export type NewProfile = {
+  platform: Platform;
+  handle: string;
+  followers: number;
+  engagementRate: number | null;
+  following?: number | null;
+  posts?: number | null;
+  avgLikes?: number | null;
+  avgComments?: number | null;
+  avgViews?: number | null;
+  bio?: string | null;
+  updatedAt?: Date;
+};
+
+export type NewCreator = {
+  displayName: string;
+  primaryHandle: string;
+  primaryPlatform: Platform;
+  avatarUrl?: string | null;
+  city?: string | null;
+  country?: string | null;
+  niches: string[];
+  tags: string[];
+  nameVariants?: string[];
+  verified?: boolean;
+  isMinor?: boolean;
+  profiles: NewProfile[];
+  contacts?: { kind: "email" | "phone"; value: string; trust: "verified" | "likely" | "unverified"; source: string }[];
+  snapshot?: { verdict: string; authenticityScore: number; fakeFollowerPct: number | null; evidence: EvidenceRow[]; audience: AudienceRow | null; modelVersion: string; confidence: number };
+};
+
+const PROFILE_URL: Record<Platform, (handle: string) => string> = {
+  instagram: (h) => `https://instagram.com/${h.toLowerCase()}`,
+  tiktok: (h) => `https://tiktok.com/@${h.toLowerCase()}`,
+  youtube: (h) => `https://youtube.com/@${h.toLowerCase()}`,
+};
+
+export async function insertCreator(tx: SystemTx, c: NewCreator, encryptionKey: Buffer): Promise<string> {
+  const [row] = await tx
+    .insert(creators)
+    .values({
+      displayName: c.displayName,
+      primaryHandle: c.primaryHandle,
+      primaryPlatform: c.primaryPlatform,
+      avatarUrl: c.avatarUrl ?? null,
+      city: c.city ?? null,
+      country: c.country ?? null,
+      niches: c.niches,
+      tags: c.tags,
+      nameVariants: c.nameVariants ?? [],
+      verified: c.verified ?? false,
+      isMinor: c.isMinor ?? false,
+      authenticityScore: c.snapshot?.authenticityScore ?? null,
+      fakeFollowerPct: c.snapshot?.fakeFollowerPct ?? null,
+      lastEnrichedAt: c.snapshot ? new Date() : null,
+    })
+    .returning({ id: creators.id });
+  if (!row) throw new Error("creator insert returned no row");
+  for (const p of c.profiles) {
+    const at = p.updatedAt ?? new Date();
+    await tx.insert(creatorProfiles).values({
+      creatorId: row.id,
+      platform: p.platform,
+      handle: p.handle,
+      canonicalUrl: PROFILE_URL[p.platform](p.handle),
+      followers: p.followers,
+      following: p.following ?? null,
+      posts: p.posts ?? null,
+      engagementRate: p.engagementRate,
+      avgLikes: p.avgLikes ?? null,
+      avgComments: p.avgComments ?? null,
+      avgViews: p.avgViews ?? null,
+      bio: p.bio ?? null,
+      followersUpdatedAt: at,
+      engagementUpdatedAt: at,
+      audienceUpdatedAt: c.snapshot?.audience ? at : null,
+      lastScrapedAt: at,
+    });
+  }
+  for (const k of c.contacts ?? []) {
+    await tx.insert(creatorContacts).values({
+      creatorId: row.id,
+      kind: k.kind,
+      valueEncrypted: encryptSecret(k.value, encryptionKey),
+      valueHash: sha256Hex(k.value.trim().toLowerCase()),
+      masked: maskContact(k.kind, k.value),
+      trust: k.trust,
+      source: k.source,
+    });
+  }
+  if (c.snapshot) {
+    await tx.insert(enrichmentSnapshots).values({
+      creatorId: row.id,
+      verdict: c.snapshot.verdict,
+      authenticityScore: c.snapshot.authenticityScore,
+      evidenceBreakdown: c.snapshot.evidence,
+      audience: c.snapshot.audience,
+      modelVersion: c.snapshot.modelVersion,
+      confidence: c.snapshot.confidence,
+    });
+  }
+  await writeOutbox(tx, { eventType: "creator.changed", aggregateType: "creator", aggregateId: row.id, workspaceId: null, payload: { creatorId: row.id }, requestId: null });
+  return row.id;
+}
