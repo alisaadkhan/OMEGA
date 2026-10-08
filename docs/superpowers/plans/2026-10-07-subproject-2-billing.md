@@ -21,7 +21,7 @@
 - Purchases and plan changes: Owner/Admin only, `Idempotency-Key` required.
 - Webhooks: `POST /webhooks/paddle`, header `Paddle-Signature: ts=<unix>;h1=<hex HMAC-SHA256(secret, ts + ":" + rawBody)>`, 300-second tolerance; invalid → 401, nothing stored.
 - Mock payments are refused when `NODE_ENV=production` (config error).
-- Worker-side workspace writes use `db.withWorkspace(workspaceId, fn)` (role `mushin_worker`, workspace RLS context). The worker may **read** `wp.subscriptions`, `wp.credit_lots`, `wp.credit_reservations`, `wp.checkouts` across workspaces only to find due work (`SELECT`-only RLS policies for `mushin_worker`).
+- **Every access to workspace data filters by workspace ID** (SRS §2.5, §5 security: middleware, repository and RLS). Worker-side work uses `db.withWorkspace(workspaceId, fn)` (role `mushin_worker`, workspace RLS context). Scheduled jobs find which workspaces to visit through `platform.billing_schedule` (workspace ids and due times only), never by reading `wp` tables across workspaces. Mock checkout URLs carry the workspace id so that lookup is workspace-scoped too.
 - Outbox event types: `billing.webhook_received` (billing queue); `notify.credits_low`, `notify.credits_very_low`, `notify.trial_ending`, `notify.trial_expired`, `notify.subscription_canceled`, `notify.payment_failed` (notify queue; handlers are no-ops until sub-project 7). Cron jobs are scheduled straight onto the `billing` queue as `billing.job` with `{ job }`.
 - Seed values (provisional) exactly as spec §3.
 - Frontend changes are wiring only, plus hiding the spend-caps section [D6].
@@ -581,7 +581,7 @@ git commit -m "feat(contracts): add billing schemas"
 - Modify: `packages/db/src/schema/index.ts`, `packages/db/src/database.ts`, `packages/db/src/testing.ts`
 
 **Interfaces:**
-- Produces (from `@mushin/db`): Drizzle tables `plans`, `topupPacks`, `creditActionCosts`, `billingSettings`, `subscriptions`, `creditLots`, `creditReservations`, `creditLedger`, `entitlementUsage`, `checkouts`, `billingPayments`, `webhookEvents`; `Db.withWorkspace<T>(workspaceId: string, fn: (tx: TenantTx) => Promise<T>): Promise<T>` (role `mushin_worker`, workspace context, no user).
+- Produces (from `@mushin/db`): Drizzle tables `plans`, `topupPacks`, `creditActionCosts`, `billingSettings`, `subscriptions`, `creditLots`, `creditReservations`, `creditLedger`, `entitlementUsage`, `checkouts`, `billingPayments`, `webhookEvents`, `billingSchedule` (and the `billingJobs` list); `Db.withWorkspace<T>(workspaceId: string, fn: (tx: TenantTx) => Promise<T>): Promise<T>` (role `mushin_worker`, workspace context, no user).
 - Produces (from `@mushin/db/testing`): `createTestWorkspace(): Promise<{ userId: string; workspaceId: string }>`; `resetTables()` now keeps `platform.plans`, `platform.topup_packs`, `platform.credit_action_costs`, `platform.billing_settings`.
 
 - [ ] **Step 1: Write the migration** — `packages/db/migrations/0005_billing.sql`
@@ -823,12 +823,19 @@ begin
       'create policy %I on wp.%I using (workspace_id = platform.current_workspace_id()) with check (workspace_id = platform.current_workspace_id())',
       t || '_tenant', t);
   end loop;
-  -- The worker may find due work across workspaces (read-only); every write still needs workspace context.
-  foreach t in array array['subscriptions', 'checkouts', 'credit_lots', 'credit_reservations']
-  loop
-    execute format('create policy %I on wp.%I for select to mushin_worker using (true)', t || '_worker_scan', t);
-  end loop;
 end $$;
+
+-- ── Due-work index for scheduled jobs ───────────────────────────────────────
+-- Only workspace ids and due times (no workspace data), so jobs find which workspaces to visit without reading
+-- workspace tables across tenants (SRS §2.5: every workspace-data access filters by workspace ID).
+create table platform.billing_schedule (
+  workspace_id uuid not null references wp.workspaces (id) on delete cascade,
+  job text not null check (job in ('release_abandoned', 'expire_lots', 'end_trials', 'trial_notices', 'monthly_grants',
+                                   'scheduled_changes', 'reconcile', 'mock_renewals')),
+  due_at timestamptz not null,
+  primary key (workspace_id, job)
+);
+create index billing_schedule_due_idx on platform.billing_schedule (job, due_at);
 
 -- ── Grants ──────────────────────────────────────────────────────────────────
 grant select on platform.plans, platform.topup_packs, platform.credit_action_costs, platform.billing_settings to mushin_app, mushin_worker;
@@ -837,6 +844,7 @@ grant select on wp.payments to mushin_app;
 grant select, insert, update on wp.payments to mushin_worker;
 grant select, insert on wp.credit_ledger to mushin_app, mushin_worker;
 grant select, insert, update on platform.webhook_events to mushin_worker;
+grant select, insert, update, delete on platform.billing_schedule to mushin_app, mushin_worker;
 ```
 
 - [ ] **Step 2: Write the Drizzle schema** — `packages/db/src/schema/billing.ts`
@@ -917,6 +925,28 @@ export const webhookEvents = platform.table("webhook_events", {
   processedAt: ts("processed_at"),
   error: text("error"),
 });
+
+export const billingJobs = [
+  "release_abandoned",
+  "expire_lots",
+  "end_trials",
+  "trial_notices",
+  "monthly_grants",
+  "scheduled_changes",
+  "reconcile",
+  "mock_renewals",
+] as const;
+
+/** Due-work index: workspace ids and due times only (SRS §2.5). */
+export const billingSchedule = platform.table(
+  "billing_schedule",
+  {
+    workspaceId: uuid("workspace_id").notNull(),
+    job: text("job", { enum: billingJobs }).notNull(),
+    dueAt: ts("due_at").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.workspaceId, t.job] })],
+);
 
 const statusEnum = ["trialing", "active", "past_due", "canceled", "expired"] as const;
 const intervalEnum = ["month", "year"] as const;
@@ -1036,6 +1066,7 @@ Replace `packages/db/src/schema/index.ts`:
 ```ts
 import {
   billingPayments,
+  billingSchedule,
   billingSettings,
   checkouts,
   creditActionCosts,
@@ -1073,6 +1104,7 @@ export const ALL_TABLES = [
   creditActionCosts,
   billingSettings,
   webhookEvents,
+  billingSchedule,
   subscriptions,
   checkouts,
   billingPayments,
@@ -1183,15 +1215,13 @@ describe("billing schema", () => {
     );
   });
 
-  it("lets the worker find lots across workspaces but change them only inside one workspace", async () => {
+  it("shows the worker no workspace data unless it works inside one workspace (SRS §2.5)", async () => {
     const a = await createTestWorkspace();
     const b = await createTestWorkspace();
     await lot(a.workspaceId, 5);
     await lot(b.workspaceId, 7);
-    const seen = await db.withSystem((tx) => tx.execute<{ n: number }>(sql`select count(*)::int as n from wp.credit_lots`));
-    expect(seen[0]?.n).toBe(2);
-    const blind = await db.withSystem((tx) => tx.execute(sql`update wp.credit_lots set remaining = 0 returning id`));
-    expect(blind.length).toBe(0);
+    const blind = await db.withSystem((tx) => tx.execute<{ n: number }>(sql`select count(*)::int as n from wp.credit_lots`));
+    expect(blind[0]?.n).toBe(0);
     const scoped = await db.withWorkspace(a.workspaceId, (tx) => tx.execute(sql`update wp.credit_lots set remaining = 0 returning id`));
     expect(scoped.length).toBe(1);
     await expect(db.withWorkspace("not-a-uuid", async () => 1)).rejects.toThrow(/uuid/);
@@ -1211,7 +1241,7 @@ describe("billing schema", () => {
 - [ ] **Step 6: Run the checks**
 
 Run: `npm run lint && npm run typecheck && npm run boundaries && npm run test:unit` → pass.
-Run: `npm run test:int` → expected PASS (billing schema 5 tests; RLS catalog guard now also covers the 7 new `wp` tables; drift test covers the 12 new tables). Without `TEST_DATABASE_URL` it stops with "TEST_DATABASE_URL is not set": record "integration tests not yet run" in the commit message.
+Run: `npm run test:int` → expected PASS (billing schema 5 tests; RLS catalog guard now also covers the 7 new `wp` tables; drift test covers the 13 new tables). Without `TEST_DATABASE_URL` it stops with "TEST_DATABASE_URL is not set": record "integration tests not yet run" in the commit message.
 
 - [ ] **Step 7: Commit**
 
@@ -1530,6 +1560,7 @@ git commit -m "feat(billing): add pure credit and plan rules"
   // LotSource, BillingJob and the functions listed in Step 3.
   // index.ts (for now): export { createCreditEngine } and types Actor, SpendRequest, GrantRequest, Balance, CreditEngine.
   ```
+- Note: every grant, reservation, trial and lot ending also writes `platform.billing_schedule` (`scheduleJob`), so scheduled jobs know which workspaces to visit without scanning workspace tables (SRS §2.5).
 - Note: meter alerts are written when a **reservation** lowers the available balance (commit does not change `available`, because the held amount was already subtracted). This satisfies spec §5 rule 10's intent; `spendInstant` reserves first, so it alerts too.
 
 - [ ] **Step 1: Write the failing integration test** — `apps/api/src/modules/billing/engine.int.test.ts`
@@ -1734,6 +1765,7 @@ import { and, asc, desc, eq, gt, inArray, lte, sql } from "drizzle-orm";
 import type { BillingInterval, CreditAction, PlanId } from "@mushin/contracts";
 import {
   billingPayments,
+  billingSchedule,
   billingSettings,
   checkouts,
   creditActionCosts,
@@ -1761,15 +1793,7 @@ export type ReservationRow = typeof creditReservations.$inferSelect;
 export type CheckoutRow = typeof checkouts.$inferSelect;
 export type PaymentRow = typeof billingPayments.$inferSelect;
 export type LedgerInsert = typeof creditLedger.$inferInsert;
-export type BillingJob =
-  | "release_abandoned"
-  | "expire_lots"
-  | "end_trials"
-  | "trial_notices"
-  | "monthly_grants"
-  | "scheduled_changes"
-  | "reconcile"
-  | "mock_renewals";
+export type BillingJob = (typeof billingSchedule.$inferSelect)["job"];
 
 /** Serializes every credit operation of one workspace until the transaction ends. */
 export async function lockCredits(tx: TenantTx, workspaceId: string): Promise<void> {
@@ -2059,9 +2083,9 @@ export async function setCheckoutStatus(tx: TenantTx, workspaceId: string, id: s
   return rows.length === 1;
 }
 
-/** Mock checkout pages run without a signed-in user; the worker role may read checkouts (SELECT-only policy). */
-export async function getCheckoutById(tx: SystemTx, id: string): Promise<CheckoutRow | null> {
-  const rows = await tx.select().from(checkouts).where(eq(checkouts.id, id)).limit(1);
+/** Mock checkout pages carry the workspace id in their URL, so this lookup stays workspace-scoped (SRS §2.5). */
+export async function getCheckout(tx: TenantTx, workspaceId: string, id: string): Promise<CheckoutRow | null> {
+  const rows = await tx.select().from(checkouts).where(and(eq(checkouts.workspaceId, workspaceId), eq(checkouts.id, id))).limit(1);
   return rows[0] ?? null;
 }
 
@@ -2090,25 +2114,53 @@ export async function markWebhook(tx: SystemTx, id: string, error: string | null
     .where(eq(webhookEvents.id, id));
 }
 
-// ── due work (worker scans across workspaces; SELECT-only policies) ─────────
-export async function dueWorkspaces(tx: SystemTx, job: BillingJob, now: Date, noticeDays: number): Promise<string[]> {
-  const queries: Record<BillingJob, ReturnType<typeof sql>> = {
-    release_abandoned: sql`select distinct workspace_id as id from wp.credit_reservations where status = 'held' and expires_at <= ${now}`,
-    expire_lots: sql`select distinct workspace_id as id from wp.credit_lots where remaining > 0 and expires_at <= ${now}`,
-    end_trials: sql`select workspace_id as id from wp.subscriptions where status = 'trialing' and trial_ends_at <= ${now}`,
-    trial_notices: sql`select workspace_id as id from wp.subscriptions
-      where status = 'trialing' and trial_ending_notified_at is null and trial_ends_at > ${now}
-        and trial_ends_at <= ${now}::timestamptz + make_interval(days => ${noticeDays})`,
-    monthly_grants: sql`select workspace_id as id from wp.subscriptions
-      where status in ('active', 'past_due') and billing_interval = 'year' and next_credit_grant_at <= ${now}`,
-    scheduled_changes: sql`select workspace_id as id from wp.subscriptions
-      where scheduled_plan_id is not null and status in ('active', 'past_due') and current_period_end <= ${now}`,
-    reconcile: sql`select distinct workspace_id as id from wp.credit_lots`,
-    mock_renewals: sql`select workspace_id as id from wp.subscriptions
-      where status in ('active', 'past_due') and current_period_end <= ${now} and paddle_subscription_id like 'sub_mock_%'`,
-  };
-  const rows = await tx.execute<{ id: string }>(queries[job]);
+// ── due-work index (platform.billing_schedule holds workspace ids and times only) ──
+/** Records that `job` should visit this workspace at `dueAt`; an earlier existing due time is kept. */
+export async function scheduleJob(tx: TenantTx, workspaceId: string, job: BillingJob, dueAt: Date): Promise<void> {
+  await tx.execute(sql`
+    insert into platform.billing_schedule (workspace_id, job, due_at) values (${workspaceId}, ${job}, ${dueAt})
+    on conflict (workspace_id, job) do update set due_at = least(platform.billing_schedule.due_at, excluded.due_at)`);
+}
+
+/** Replaces the next due time after a job has run; null means there is nothing left to do. */
+export async function setNextDue(tx: TenantTx, workspaceId: string, job: BillingJob, dueAt: Date | null): Promise<void> {
+  if (dueAt === null) {
+    await tx.delete(billingSchedule).where(and(eq(billingSchedule.workspaceId, workspaceId), eq(billingSchedule.job, job)));
+    return;
+  }
+  await tx
+    .insert(billingSchedule)
+    .values({ workspaceId, job, dueAt })
+    .onConflictDoUpdate({ target: [billingSchedule.workspaceId, billingSchedule.job], set: { dueAt } });
+}
+
+/** Workspaces a job must visit now. Reads only the platform index, never workspace tables. */
+export async function dueWorkspaces(tx: SystemTx, job: BillingJob, now: Date, limit = 500): Promise<string[]> {
+  const rows = await tx
+    .select({ id: billingSchedule.workspaceId })
+    .from(billingSchedule)
+    .where(and(eq(billingSchedule.job, job), lte(billingSchedule.dueAt, now)))
+    .orderBy(asc(billingSchedule.dueAt))
+    .limit(limit);
   return rows.map((r) => r.id);
+}
+
+export async function earliestHeldExpiry(tx: TenantTx, workspaceId: string): Promise<Date | null> {
+  const rows = await tx
+    .select({ at: sql<string | null>`min(${creditReservations.expiresAt})` })
+    .from(creditReservations)
+    .where(and(eq(creditReservations.workspaceId, workspaceId), eq(creditReservations.status, "held")));
+  const at = rows[0]?.at;
+  return at ? new Date(at) : null;
+}
+
+export async function earliestLotExpiry(tx: TenantTx, workspaceId: string): Promise<Date | null> {
+  const rows = await tx
+    .select({ at: sql<string | null>`min(${creditLots.expiresAt})` })
+    .from(creditLots)
+    .where(and(eq(creditLots.workspaceId, workspaceId), gt(creditLots.remaining, 0)));
+  const at = rows[0]?.at;
+  return at ? new Date(at) : null;
 }
 
 // ── plan limits ─────────────────────────────────────────────────────────────
@@ -2244,6 +2296,7 @@ export function createCreditEngine(o: { now?: () => Date } = {}) {
     await repo.insertLedger(tx, [
       { workspaceId, amount: cost, kind: "reserve", action: req.action, reservationId: reservation.id, actorUserId: actor.userId },
     ]);
+    await repo.scheduleJob(tx, workspaceId, "release_abandoned", reservation.expiresAt);
     await alertIfCrossed(tx, workspaceId, before, await balance(tx, workspaceId), actor);
     return { reservationId: reservation.id, amount: cost };
   }
@@ -2302,6 +2355,8 @@ export function createCreditEngine(o: { now?: () => Date } = {}) {
     if (await repo.hasGrant(tx, workspaceId, g.sourceRef)) return null;
     const lotId = await repo.insertLot(tx, { workspaceId, source: g.source, amount: g.amount, expiresAt: g.expiresAt, paymentId: g.paymentId ?? null });
     await repo.insertLedger(tx, [{ workspaceId, amount: g.amount, kind: "grant", lotId, sourceRef: g.sourceRef, note: g.note ?? null }]);
+    await repo.scheduleJob(tx, workspaceId, "expire_lots", g.expiresAt);
+    await repo.scheduleJob(tx, workspaceId, "reconcile", new Date(now().getTime() + 86_400_000));
     return lotId;
   }
 
@@ -2346,6 +2401,8 @@ export function createCreditEngine(o: { now?: () => Date } = {}) {
       const settings = await repo.getSettings(tx);
       const trialEndsAt = new Date(now().getTime() + settings.trialDays * 86_400_000);
       if (!(await repo.insertTrialSubscription(tx, workspaceId, trialEndsAt))) return;
+      await repo.scheduleJob(tx, workspaceId, "end_trials", trialEndsAt);
+      await repo.scheduleJob(tx, workspaceId, "trial_notices", new Date(trialEndsAt.getTime() - settings.trialEndingNoticeDays * 86_400_000));
       await grantLocked(tx, workspaceId, {
         source: "trial",
         amount: settings.trialCredits,
@@ -2357,6 +2414,7 @@ export function createCreditEngine(o: { now?: () => Date } = {}) {
     expireLots: locked(expireLocked),
     endLots: locked(async (tx, workspaceId, source: repo.LotSource) => {
       await repo.endLotsOfSource(tx, workspaceId, source, now());
+      await repo.scheduleJob(tx, workspaceId, "expire_lots", now()); // retried by the job if a hold blocks it now
       await expireLocked(tx, workspaceId);
     }),
     releaseAbandoned: locked(async (tx, workspaceId) => {
@@ -2607,7 +2665,7 @@ describe("MockPayments", () => {
     const { mock } = capture();
     expect(await mock.createCheckout({ checkoutId: CHECKOUT, workspaceId: WS, customerEmail: "a@b.pk", price: growthMonth })).toEqual({
       providerCheckoutId: `chk_mock_${CHECKOUT}`,
-      url: `http://api.test/mock-paddle/checkout/${CHECKOUT}`,
+      url: `http://api.test/mock-paddle/checkout/${WS}/${CHECKOUT}`,
     });
   });
 
@@ -2949,8 +3007,12 @@ export class MockPayments implements Payments {
     this.deliver = o.deliver ?? ((raw, sig) => postWebhook(`${o.publicApiUrl}/webhooks/paddle`, raw, sig));
   }
 
-  async createCheckout(input: { checkoutId: string }): Promise<{ providerCheckoutId: string; url: string }> {
-    return { providerCheckoutId: `chk_mock_${input.checkoutId}`, url: `${this.o.publicApiUrl}/mock-paddle/checkout/${input.checkoutId}` };
+  async createCheckout(input: { checkoutId: string; workspaceId: string }): Promise<{ providerCheckoutId: string; url: string }> {
+    // The workspace id in the URL keeps the page's lookup workspace-scoped (SRS §2.5).
+    return {
+      providerCheckoutId: `chk_mock_${input.checkoutId}`,
+      url: `${this.o.publicApiUrl}/mock-paddle/checkout/${input.workspaceId}/${input.checkoutId}`,
+    };
   }
 
   async changePlan(input: { subscription: SubscriptionRef; target: PriceRef }): Promise<void> {
@@ -3369,8 +3431,8 @@ git commit -m "feat(billing): add Redis-backed entitlement cache that fails open
     processStoredWebhook(webhookEventId: string): Promise<void>;
     applyEvent(event: PaymentEvent): Promise<void>;
     runJob(job: BillingJob): Promise<{ processed: number }>;
-    mockCheckout(checkoutId: string): Promise<CheckoutRow | null>;   // mock routes
-    completeMockCheckout(checkoutId: string, outcome: "paid" | "failed"): Promise<void>;
+    mockCheckout(workspaceId: string, checkoutId: string): Promise<CheckoutRow | null>;   // mock routes (workspace-scoped)
+    completeMockCheckout(workspaceId: string, checkoutId: string, outcome: "paid" | "failed"): Promise<void>;
   }
   ```
 
@@ -3416,7 +3478,7 @@ async function trialCustomer(role: TenantContext["role"] = "owner") {
 
 async function subscribe(c: Awaited<ReturnType<typeof trialCustomer>>, planId: "explorer" | "growth" | "scale", interval: "month" | "year" = "month") {
   const { checkoutId } = await billing.startCheckout(c, { kind: "subscription", planId, interval });
-  await billing.completeMockCheckout(checkoutId, "paid");
+  await billing.completeMockCheckout(c.workspaceId, checkoutId, "paid");
   await flush();
   return checkoutId;
 }
@@ -3463,8 +3525,8 @@ describe("checkout (Review Focus 3)", () => {
   it("subscribes through the hosted mock checkout and grants the plan's monthly credits", async () => {
     const c = await trialCustomer();
     const { checkoutId, url } = await billing.startCheckout(c, { kind: "subscription", planId: "growth", interval: "month" });
-    expect(url).toBe(`http://api.test/mock-paddle/checkout/${checkoutId}`);
-    await billing.completeMockCheckout(checkoutId, "paid");
+    expect(url).toBe(`http://api.test/mock-paddle/checkout/${c.workspaceId}/${checkoutId}`);
+    await billing.completeMockCheckout(c.workspaceId, checkoutId, "paid");
     await flush();
     const s = await billing.summary(c);
     expect(s).toMatchObject({ plan: { id: "growth" }, interval: "month", status: "active", balance: { available: 12_200, base: 12_000 } });
@@ -3478,7 +3540,7 @@ describe("checkout (Review Focus 3)", () => {
   it("marks a failed payment and notifies, granting nothing", async () => {
     const c = await trialCustomer();
     const { checkoutId } = await billing.startCheckout(c, { kind: "subscription", planId: "growth", interval: "month" });
-    await billing.completeMockCheckout(checkoutId, "failed");
+    await billing.completeMockCheckout(c.workspaceId, checkoutId, "failed");
     await flush();
     expect((await billing.summary(c)).status).toBe("trialing");
     const rows = await ownerQuery<{ status: string; n: number }>(`
@@ -3491,7 +3553,7 @@ describe("webhook safety (Review Focus 2)", () => {
   it("duplicate events grant once", async () => {
     const c = await trialCustomer();
     const { checkoutId } = await billing.startCheckout(c, { kind: "subscription", planId: "growth", interval: "month" });
-    await billing.completeMockCheckout(checkoutId, "paid");
+    await billing.completeMockCheckout(c.workspaceId, checkoutId, "paid");
     const copies = [...sent];
     await flush();
     for (const s of copies) await billing.applyEvent(payments.verifyWebhook(s.raw, s.sig));
@@ -3503,7 +3565,7 @@ describe("webhook safety (Review Focus 2)", () => {
   it("ignores an older event that arrives after a newer one", async () => {
     const c = await trialCustomer();
     const { checkoutId } = await billing.startCheckout(c, { kind: "subscription", planId: "growth", interval: "month" });
-    await billing.completeMockCheckout(checkoutId, "paid");
+    await billing.completeMockCheckout(c.workspaceId, checkoutId, "paid");
     // Verify while the clock is still at day 0 (signatures are only valid for 5 minutes).
     const [payment, created] = sent.splice(0).map((s) => payments.verifyWebhook(s.raw, s.sig));
     if (!payment || !created) throw new Error("expected a payment and a subscription event");
@@ -3519,7 +3581,7 @@ describe("webhook safety (Review Focus 2)", () => {
   it("records each delivery once and processes it from storage", async () => {
     const c = await trialCustomer();
     const { checkoutId } = await billing.startCheckout(c, { kind: "subscription", planId: "growth", interval: "month" });
-    await billing.completeMockCheckout(checkoutId, "paid");
+    await billing.completeMockCheckout(c.workspaceId, checkoutId, "paid");
     for (const s of sent) {
       const event = payments.verifyWebhook(s.raw, s.sig);
       await billing.recordWebhook(event, s.raw, "req-1");
@@ -3565,7 +3627,7 @@ describe("plan changes", () => {
     const c = await trialCustomer();
     await subscribe(c, "growth");
     const { checkoutId } = await billing.startCheckout(c, { kind: "topup", packId: "credits_1000" });
-    await billing.completeMockCheckout(checkoutId, "paid");
+    await billing.completeMockCheckout(c.workspaceId, checkoutId, "paid");
     await flush();
     expect(await billing.requestCancel(c)).toEqual({ change: "cancel", effective: "period_end" });
     await flush();
@@ -3616,6 +3678,8 @@ describe("jobs", () => {
     clock = new Date(clock.getTime() + 16 * 60_000);
     expect(await billing.runJob("release_abandoned")).toEqual({ processed: 1 });
     expect((await billing.summary(c)).balance.reserved).toBe(0);
+    expect(await billing.runJob("reconcile")).toEqual({ processed: 0 }); // first reconcile is due a day after the grant
+    clock = days(2);
     expect(await billing.runJob("reconcile")).toEqual({ processed: 1 });
   });
 });
@@ -3903,6 +3967,7 @@ export function createBillingService(deps: BillingDeps) {
       if (change === "same") throw new AppError("CONFLICT", "You are already on this plan");
       if (change === "downgrade") {
         await repo.updateSubscription(tx, c.workspaceId, { scheduledPlanId: target.id, scheduledInterval: req.interval });
+        if (sub.currentPeriodEnd) await repo.scheduleJob(tx, c.workspaceId, "scheduled_changes", sub.currentPeriodEnd);
         return { change, ref: null, target };
       }
       await repo.updateSubscription(tx, c.workspaceId, { scheduledPlanId: null, scheduledInterval: null });
@@ -4054,6 +4119,8 @@ export function createBillingService(deps: BillingDeps) {
         }
       }
       await repo.upsertSubscription(tx, e.workspaceId, patch);
+      if (patch.nextCreditGrantAt) await repo.scheduleJob(tx, e.workspaceId, "monthly_grants", patch.nextCreditGrantAt);
+      if (status !== "canceled" && s.periodEnd && isMockPayments(deps.payments)) await repo.scheduleJob(tx, e.workspaceId, "mock_renewals", s.periodEnd);
     });
   }
 
@@ -4066,45 +4133,69 @@ export function createBillingService(deps: BillingDeps) {
   }
 
   // ── jobs ─────────────────────────────────────────────────────────────────
+  // Each job reads the due-work index (platform) to find workspaces, then works inside one workspace at a time
+  // and records that workspace's next due time (SRS §2.5).
+  const DAY = 86_400_000;
+  const later = (ms: number) => new Date(now().getTime() + ms);
+
   async function runJobFor(job: repo.BillingJob, workspaceId: string): Promise<void> {
     const t = now();
     switch (job) {
       case "release_abandoned":
-        await deps.db.withWorkspace(workspaceId, (tx) => engine.releaseAbandoned(tx, workspaceId));
+        await deps.db.withWorkspace(workspaceId, async (tx) => {
+          await engine.releaseAbandoned(tx, workspaceId);
+          await repo.setNextDue(tx, workspaceId, job, await repo.earliestHeldExpiry(tx, workspaceId));
+        });
         return;
       case "expire_lots":
-        await deps.db.withWorkspace(workspaceId, (tx) => engine.expireLots(tx, workspaceId));
+        await deps.db.withWorkspace(workspaceId, async (tx) => {
+          await engine.expireLots(tx, workspaceId);
+          const next = await repo.earliestLotExpiry(tx, workspaceId);
+          // A lot still past its expiry was skipped because a hold exists: look again in five minutes.
+          await repo.setNextDue(tx, workspaceId, job, next && next.getTime() <= t.getTime() ? later(5 * 60_000) : next);
+        });
         return;
-      case "reconcile": {
-        const mismatches = await deps.db.withWorkspace(workspaceId, (tx) => engine.reconcile(tx, workspaceId));
-        if (mismatches.length > 0) deps.logger.error({ workspaceId, mismatches }, "credit lots do not match the ledger");
+      case "reconcile":
+        await deps.db.withWorkspace(workspaceId, async (tx) => {
+          const mismatches = await engine.reconcile(tx, workspaceId);
+          if (mismatches.length > 0) deps.logger.error({ workspaceId, mismatches }, "credit lots do not match the ledger");
+          await repo.setNextDue(tx, workspaceId, job, later(DAY));
+        });
         return;
-      }
       case "end_trials":
         await deps.db.withWorkspace(workspaceId, async (tx) => {
           const sub = await repo.getSubscription(tx, workspaceId, { forUpdate: true });
-          if (sub?.status !== "trialing" || !sub.trialEndsAt || sub.trialEndsAt.getTime() > t.getTime()) return;
+          if (sub?.status !== "trialing" || !sub.trialEndsAt) return repo.setNextDue(tx, workspaceId, job, null);
+          if (sub.trialEndsAt.getTime() > t.getTime()) return repo.setNextDue(tx, workspaceId, job, sub.trialEndsAt);
           await repo.updateSubscription(tx, workspaceId, { status: "expired" });
           await engine.expireLots(tx, workspaceId);
           await notify(tx, workspaceId, "trial_expired", {});
+          await repo.setNextDue(tx, workspaceId, job, null);
         });
         await deps.cache.invalidate(workspaceId);
         return;
       case "trial_notices":
         await deps.db.withWorkspace(workspaceId, async (tx) => {
           const sub = await repo.getSubscription(tx, workspaceId, { forUpdate: true });
-          if (sub?.status !== "trialing" || sub.trialEndingNotifiedAt || !sub.trialEndsAt) return;
+          if (sub?.status !== "trialing" || sub.trialEndingNotifiedAt || !sub.trialEndsAt) return repo.setNextDue(tx, workspaceId, job, null);
+          const settings = await repo.getSettings(tx);
+          const noticeAt = new Date(sub.trialEndsAt.getTime() - settings.trialEndingNoticeDays * DAY);
+          if (noticeAt.getTime() > t.getTime()) return repo.setNextDue(tx, workspaceId, job, noticeAt);
           await repo.updateSubscription(tx, workspaceId, { trialEndingNotifiedAt: t });
           await notify(tx, workspaceId, "trial_ending", { trialEndsAt: sub.trialEndsAt.toISOString() });
+          await repo.setNextDue(tx, workspaceId, job, null);
         });
         return;
       case "monthly_grants":
         await deps.db.withWorkspace(workspaceId, async (tx) => {
           const sub = await repo.getSubscription(tx, workspaceId, { forUpdate: true });
-          const start = sub?.nextCreditGrantAt;
-          if (!sub || !isPaying(sub) || !start || start.getTime() > t.getTime() || !sub.planId || !sub.currentPeriodEnd || !sub.paddleSubscriptionId) return;
+          const start = sub?.nextCreditGrantAt ?? null;
+          if (!sub || !isPaying(sub) || !start || !sub.planId || !sub.currentPeriodEnd || !sub.paddleSubscriptionId) {
+            return repo.setNextDue(tx, workspaceId, job, null);
+          }
+          if (start.getTime() > t.getTime()) return repo.setNextDue(tx, workspaceId, job, start);
           const plan = await repo.getPlan(tx, sub.planId);
-          if (!plan) return;
+          if (!plan) return repo.setNextDue(tx, workspaceId, job, null);
           const end = minDate(addMonths(start, 1), sub.currentPeriodEnd);
           await engine.endLots(tx, workspaceId, "monthly");
           await engine.grant(tx, workspaceId, {
@@ -4114,17 +4205,27 @@ export function createBillingService(deps: BillingDeps) {
             sourceRef: `monthly:${sub.paddleSubscriptionId}:${start.toISOString()}:${plan.id}:year`,
             note: `${plan.name} monthly credits`,
           });
-          await repo.updateSubscription(tx, workspaceId, { nextCreditGrantAt: end.getTime() < sub.currentPeriodEnd.getTime() ? end : null });
+          const next = end.getTime() < sub.currentPeriodEnd.getTime() ? end : null;
+          await repo.updateSubscription(tx, workspaceId, { nextCreditGrantAt: next });
+          await repo.setNextDue(tx, workspaceId, job, next);
         });
         return;
       case "scheduled_changes": {
         const work = await deps.db.withWorkspace(workspaceId, async (tx) => {
           const sub = await repo.getSubscription(tx, workspaceId);
-          if (!sub || !isPaying(sub) || !sub.planId || !sub.scheduledPlanId || !sub.scheduledInterval) return null;
-          if (!sub.currentPeriodEnd || sub.currentPeriodEnd.getTime() > t.getTime()) return null;
+          if (!sub || !isPaying(sub) || !sub.planId || !sub.scheduledPlanId || !sub.scheduledInterval || !sub.currentPeriodEnd) {
+            await repo.setNextDue(tx, workspaceId, job, null);
+            return null;
+          }
+          if (sub.currentPeriodEnd.getTime() > t.getTime()) {
+            await repo.setNextDue(tx, workspaceId, job, sub.currentPeriodEnd);
+            return null;
+          }
           const current = await repo.getPlan(tx, sub.planId);
           const target = await repo.getPlan(tx, sub.scheduledPlanId);
           if (!current || !target) return null;
+          // Looked at again tomorrow until the provider's webhook confirms the change and clears it.
+          await repo.setNextDue(tx, workspaceId, job, later(DAY));
           return { ref: subscriptionRef(sub, current), target: priceForPlan(target, sub.scheduledInterval) };
         });
         if (work) await deps.payments.changePlan({ subscription: work.ref, target: work.target });
@@ -4134,8 +4235,16 @@ export function createBillingService(deps: BillingDeps) {
         if (!isMockPayments(deps.payments)) return;
         const work = await deps.db.withWorkspace(workspaceId, async (tx) => {
           const sub = await repo.getSubscription(tx, workspaceId);
-          if (!sub || !isPaying(sub) || !sub.planId || sub.scheduledPlanId) return null;
-          if (!sub.currentPeriodEnd || sub.currentPeriodEnd.getTime() > t.getTime()) return null;
+          if (!sub || !isPaying(sub) || !sub.planId || !sub.currentPeriodEnd) {
+            await repo.setNextDue(tx, workspaceId, job, null);
+            return null;
+          }
+          if (sub.currentPeriodEnd.getTime() > t.getTime()) {
+            await repo.setNextDue(tx, workspaceId, job, sub.currentPeriodEnd);
+            return null;
+          }
+          await repo.setNextDue(tx, workspaceId, job, later(DAY));
+          if (sub.scheduledPlanId) return null; // the scheduled downgrade starts the next period instead
           const plan = await repo.getPlan(tx, sub.planId);
           return plan ? { ref: subscriptionRef(sub, plan), cancel: sub.cancelAtPeriodEnd } : null;
         });
@@ -4147,9 +4256,7 @@ export function createBillingService(deps: BillingDeps) {
 
   async function runJob(job: repo.BillingJob): Promise<{ processed: number }> {
     if (job === "mock_renewals" && !isMockPayments(deps.payments)) return { processed: 0 };
-    const t = now();
-    const settings = await deps.db.withSystem((tx) => repo.getSettings(tx));
-    const workspaceIds = await deps.db.withSystem((tx) => repo.dueWorkspaces(tx, job, t, settings.trialEndingNoticeDays));
+    const workspaceIds = await deps.db.withSystem((tx) => repo.dueWorkspaces(tx, job, now()));
     let failed = 0;
     for (const workspaceId of workspaceIds) {
       try {
@@ -4164,14 +4271,14 @@ export function createBillingService(deps: BillingDeps) {
   }
 
   // ── mock checkout pages ─────────────────────────────────────────────────
-  async function mockCheckout(checkoutId: string): Promise<repo.CheckoutRow | null> {
+  async function mockCheckout(workspaceId: string, checkoutId: string): Promise<repo.CheckoutRow | null> {
     if (!isMockPayments(deps.payments)) return null;
-    return deps.db.withSystem((tx) => repo.getCheckoutById(tx, checkoutId));
+    return deps.db.withWorkspace(workspaceId, (tx) => repo.getCheckout(tx, workspaceId, checkoutId));
   }
 
-  async function completeMockCheckout(checkoutId: string, outcome: "paid" | "failed"): Promise<void> {
+  async function completeMockCheckout(workspaceId: string, checkoutId: string, outcome: "paid" | "failed"): Promise<void> {
     if (!isMockPayments(deps.payments)) throw new AppError("NOT_FOUND", "Route not found");
-    const checkout = await deps.db.withSystem((tx) => repo.getCheckoutById(tx, checkoutId));
+    const checkout = await deps.db.withWorkspace(workspaceId, (tx) => repo.getCheckout(tx, workspaceId, checkoutId));
     if (!checkout) throw new AppError("NOT_FOUND", "Checkout not found");
     if (checkout.status !== "open") throw new AppError("CONFLICT", "This checkout is already finished");
     await deps.payments.completeCheckout(
@@ -4249,7 +4356,7 @@ git commit -m "feat(billing): add billing service for checkout, plan changes, we
 
 **Interfaces:**
 - Consumes: `BillingService` (Task 9), `Payments`, `isMockPayments`, `WebhookPayloadError` (Task 7), billing contracts (Task 2), `Guards`, `tenantOf`, `parseInput`, `sendOk` (sub-project 1).
-- Produces: `createBillingModule(o: { service: BillingService; payments: Payments; appUrl: string }): AppModule`; routes `GET /v1/billing/{summary,plans,ledger,invoices}`, `POST /v1/billing/{checkout,subscription/change,subscription/cancel}`, `POST /webhooks/paddle`, mock-only `GET /mock-paddle/checkout/:id`, `POST /mock-paddle/checkout/:id/{pay,fail}`.
+- Produces: `createBillingModule(o: { service: BillingService; payments: Payments; appUrl: string }): AppModule`; routes `GET /v1/billing/{summary,plans,ledger,invoices}`, `POST /v1/billing/{checkout,subscription/change,subscription/cancel}`, `POST /webhooks/paddle`, mock-only `GET /mock-paddle/checkout/:workspaceId/:id`, `POST /mock-paddle/checkout/:workspaceId/:id/{pay,fail}`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -4335,15 +4442,16 @@ describe("billing API", () => {
     const checkout = await app.inject({ method: "POST", url: "/v1/billing/checkout", headers: { ...auth, "idempotency-key": "checkout-0001" }, payload: body });
     expect(checkout.statusCode).toBe(201);
     const { checkoutId, url } = checkout.json() as { checkoutId: string; url: string };
-    expect(url).toBe(`http://api.test/mock-paddle/checkout/${checkoutId}`);
+    const path = new URL(url).pathname;
+    expect(path).toMatch(new RegExp(`^/mock-paddle/checkout/[0-9a-f-]{36}/${checkoutId}$`));
 
-    const page = await app.inject({ method: "GET", url: `/mock-paddle/checkout/${checkoutId}` });
+    const page = await app.inject({ method: "GET", url: path });
     expect(page.headers["content-type"]).toMatch(/text\/html/);
     expect(page.body).toContain("$46.00");
 
     const pay = await app.inject({
       method: "POST",
-      url: `/mock-paddle/checkout/${checkoutId}/pay`,
+      url: `${path}/pay`,
       headers: { "content-type": "application/x-www-form-urlencoded" },
       payload: "",
     });
@@ -4357,7 +4465,7 @@ describe("billing API", () => {
     expect(invoices.json().invoices).toHaveLength(1);
     const again = await app.inject({
       method: "POST",
-      url: `/mock-paddle/checkout/${checkoutId}/pay`,
+      url: `${path}/pay`,
       headers: { "content-type": "application/x-www-form-urlencoded" },
       payload: "",
     });
@@ -4487,7 +4595,7 @@ import { parseInput } from "../../http/validate";
 import type { CheckoutRow } from "./repository";
 import type { BillingService } from "./service";
 
-const params = z.object({ id: z.uuid() });
+const params = z.object({ workspaceId: z.uuid(), id: z.uuid() });
 const ENTITY: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => ENTITY[c] ?? c);
 
@@ -4499,7 +4607,7 @@ function describeItem(c: CheckoutRow): string {
 function checkoutPage(c: CheckoutRow): string {
   const amount = `$${(c.amountMinor / 100).toFixed(2)} ${c.currency}`;
   const open = c.status === "open";
-  const action = (outcome: "pay" | "fail") => `/mock-paddle/checkout/${encodeURIComponent(c.id)}/${outcome}`;
+  const action = (outcome: "pay" | "fail") => `/mock-paddle/checkout/${encodeURIComponent(c.workspaceId)}/${encodeURIComponent(c.id)}/${outcome}`;
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Test checkout · MUSHIN</title>
@@ -4530,16 +4638,16 @@ function checkoutPage(c: CheckoutRow): string {
 export function registerMockPaddleRoutes(app: FastifyInstance, service: BillingService, appUrl: string): void {
   void app.register(async (scope) => {
     scope.addContentTypeParser("application/x-www-form-urlencoded", { parseAs: "string" }, (_req, body, done) => done(null, body));
-    scope.get("/mock-paddle/checkout/:id", async (req, reply) => {
-      const { id } = parseInput(params, req.params);
-      const checkout = await service.mockCheckout(id);
+    scope.get("/mock-paddle/checkout/:workspaceId/:id", async (req, reply) => {
+      const { workspaceId, id } = parseInput(params, req.params);
+      const checkout = await service.mockCheckout(workspaceId, id);
       if (!checkout) throw new AppError("NOT_FOUND", "Checkout not found");
       return reply.type("text/html; charset=utf-8").header("cache-control", "no-store").send(checkoutPage(checkout));
     });
     for (const outcome of ["pay", "fail"] as const) {
-      scope.post(`/mock-paddle/checkout/:id/${outcome}`, async (req, reply) => {
-        const { id } = parseInput(params, req.params);
-        await service.completeMockCheckout(id, outcome === "pay" ? "paid" : "failed");
+      scope.post(`/mock-paddle/checkout/:workspaceId/:id/${outcome}`, async (req, reply) => {
+        const { workspaceId, id } = parseInput(params, req.params);
+        await service.completeMockCheckout(workspaceId, id, outcome === "pay" ? "paid" : "failed");
         return reply.redirect(`${appUrl}/?checkout=${outcome === "pay" ? "success" : "failed"}#/dashboard`, 303);
       });
     }
@@ -5433,7 +5541,7 @@ git commit -m "feat(frontend): real credit meter, billing screen, trial banner a
 ## Billing (sub-project 2)
 
 - Without Paddle keys the API uses a **mock payment provider**: purchases open a test-mode checkout page at
-  `PUBLIC_API_URL/mock-paddle/checkout/<id>` with **Pay** and **Simulate failed payment**. `npm run env:secrets` creates
+  `PUBLIC_API_URL/mock-paddle/checkout/<workspaceId>/<id>` with **Pay** and **Simulate failed payment**. `npm run env:secrets` creates
   `MOCK_PADDLE_WEBHOOK_SECRET`. Run both the API and the worker so webhooks are applied.
 - Switching to Paddle sandbox:
   1. Create a sandbox account (sandbox-vendors.paddle.com), products and prices for the three plans (monthly and yearly) and the three top-up packs.
@@ -5449,8 +5557,9 @@ git commit -m "feat(frontend): real credit meter, billing screen, trial banner a
 ```markdown
 ## 14. Implementation notes (from the plan)
 
-- Worker-side writes use `db.withWorkspace(workspaceId)` (role `mushin_worker` with workspace RLS context). To find due work across workspaces the worker has `SELECT`-only RLS policies on `wp.subscriptions`, `wp.credit_lots`, `wp.credit_reservations` and `wp.checkouts`; every write still requires workspace context.
+- Every access to workspace data filters by workspace ID (SRS §2.5). Worker-side work uses `db.withWorkspace(workspaceId)` (role `mushin_worker` with workspace RLS context). Scheduled jobs find which workspaces to visit through `platform.billing_schedule`, which holds only workspace ids and due times and is written whenever something becomes due; no role reads `wp` tables across workspaces.
 - `mushin_app` also has `UPDATE` on `wp.subscriptions` (scheduled downgrades are recorded by the API request) and on `wp.checkouts` (status after provider errors).
+- Mock checkout page URLs include the workspace id (`/mock-paddle/checkout/<workspaceId>/<id>`), so the page's lookup is workspace-scoped.
 - Meter alerts are written when a reservation lowers the available balance; a commit does not change `available` because the held amount was already subtracted.
 - Webhook intake runs as `mushin_worker` (`withSystem`), which owns `platform.webhook_events`.
 - Notification events use the `notify.` prefix so the existing outbox router sends them to the `notify` queue.
