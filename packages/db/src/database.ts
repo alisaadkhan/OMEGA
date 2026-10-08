@@ -43,19 +43,19 @@ export function createDatabase(url: string, opts: { max: number; applicationName
   }
 
   return {
-    withTenant(ctx, fn) {
+    async withTenant(ctx, fn) {
       assertUuid("userId", ctx.userId);
       assertUuid("workspaceId", ctx.workspaceId);
       return run("mushin_app", ctx, (tx) => fn(tx as TenantTx));
     },
-    withUser(userId, fn) {
+    async withUser(userId, fn) {
       assertUuid("userId", userId);
       return run("mushin_app", { userId }, (tx) => fn(tx as UserTx));
     },
     withSystem(fn) {
       return run("mushin_worker", {}, (tx) => fn(tx as SystemTx));
     },
-    withWorkspace(workspaceId, fn) {
+    async withWorkspace(workspaceId, fn) {
       assertUuid("workspaceId", workspaceId);
       return run("mushin_worker", { workspaceId }, (tx) => fn(tx as TenantTx));
     },
