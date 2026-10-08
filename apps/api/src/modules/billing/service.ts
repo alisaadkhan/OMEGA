@@ -429,12 +429,15 @@ export function createBillingService(deps: BillingDeps) {
           });
           patch.nextCreditGrantAt = creditEnd.getTime() < s.periodEnd.getTime() ? creditEnd : null;
         } else if (planChanged) {
-          // Same period (a prorated mid-period change): add only the difference and keep the current allowance,
-          // so an upgrade never hands out a second full allowance for one period. The difference lasts as long as the
-          // current credit month: for a yearly plan that ends at the next monthly grant, not a month after the period start.
+          // Same period (a prorated mid-period change): keep the current allowance and add the difference, prorated
+          // like the provider's charge by the share of the current credit month left, so an upgrade bought just before
+          // the period ends cannot buy a month's worth of credits for a few cents (SRS §4.8 "impossible to game").
+          // The extra lasts as long as the current credit month: for a yearly plan that ends at the next monthly grant.
           const previous = sub?.planId ? await repo.getPlan(tx, sub.planId) : null;
-          const extra = plan.monthlyCredits - (previous?.monthlyCredits ?? 0);
           const monthEnd = interval === "year" ? (sub?.nextCreditGrantAt ?? s.periodEnd) : s.periodEnd;
+          const monthStart = interval === "year" ? addMonths(monthEnd, -1) : s.periodStart;
+          const left = Math.min(1, Math.max(0, (monthEnd.getTime() - e.occurredAt.getTime()) / (monthEnd.getTime() - monthStart.getTime())));
+          const extra = Math.floor((plan.monthlyCredits - (previous?.monthlyCredits ?? 0)) * left);
           if (extra > 0) {
             await engine.grant(tx, e.workspaceId, {
               source: "monthly",

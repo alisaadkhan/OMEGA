@@ -190,7 +190,7 @@ describe("plan changes", () => {
     expect((await billing.summary(c)).interval).toBe("year");
   });
 
-  it("adds only the difference for an upgrade that keeps the billing period, and bills it prorated", async () => {
+  it("prorates both the charge and the extra credits for an upgrade that keeps the billing period", async () => {
     const c = await trialCustomer();
     await subscribe(c, "growth");
     clock = days(15); // 16 of the period's 31 days remain; the provider keeps the period, as Paddle does
@@ -198,11 +198,21 @@ describe("plan changes", () => {
     await flush();
     const lots = await ownerQuery<{ amount: number; remaining: number }>(`select amount, remaining from wp.credit_lots where source = 'monthly' order by amount`);
     expect(lots).toEqual([
+      { amount: 11_870, remaining: 11_870 }, // 23,000 more per month × 16/31 of the month left
       { amount: 12_000, remaining: 12_000 },
-      { amount: 23_000, remaining: 23_000 },
     ]);
-    expect((await billing.summary(c)).balance.available).toBe(35_000); // the trial lot ended on day 14
+    expect((await billing.summary(c)).balance.available).toBe(23_870); // the trial lot ended on day 14
     expect((await billing.invoices(c)).invoices.map((i) => i.amount.amountMinor)).toEqual([2219, 4600]);
+  });
+
+  it("gives almost nothing for an upgrade made just before the period ends (SRS §4.8: impossible to game)", async () => {
+    const c = await trialCustomer();
+    await subscribe(c, "growth");
+    clock = new Date("2026-11-07T09:00:00Z"); // one hour of the 744-hour period left
+    await billing.requestPlanChange(c, { planId: "scale", interval: "month" });
+    await flush();
+    const extra = await ownerQuery<{ amount: number }>(`select amount from wp.credit_lots where source = 'monthly' and amount <> 12000`);
+    expect(extra).toEqual([{ amount: 30 }]); // 23,000 × 1/744, rounded down
   });
 
   it("gives a mid-year upgrade's extra credits until the end of the current credit month", async () => {
@@ -215,9 +225,9 @@ describe("plan changes", () => {
     await flush();
     const extra = await ownerQuery<{ amount: number; expires: string }>(`
       select amount, to_char(expires_at at time zone 'UTC', 'YYYY-MM-DD') expires from wp.credit_lots
-      where source = 'monthly' and amount = 9500`);
-    expect(extra).toEqual([{ amount: 9500, expires: "2026-12-07" }]);
-    expect((await billing.summary(c)).balance.available).toBe(12_000);
+      where source = 'monthly' and amount not in (2500)`);
+    expect(extra).toEqual([{ amount: 5383, expires: "2026-12-07" }]); // 9,500 × 17/30 of the credit month left
+    expect((await billing.summary(c)).balance.available).toBe(7_883);
   });
 
   it("ignores a second subscription for a workspace that already has one", async () => {
