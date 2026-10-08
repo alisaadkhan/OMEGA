@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 import type { SystemTx, TenantTx } from "./database";
 import { outbox } from "./schema";
@@ -12,10 +13,10 @@ export type OutboxEvent = {
 };
 export type OutboxRow = OutboxEvent & { id: string; attempts: number };
 
+/** The id is made here, not returned by the insert: the API role may write the outbox but never read it. */
 export async function writeOutbox(tx: TenantTx | SystemTx, e: OutboxEvent): Promise<string> {
-  const rows = await tx.insert(outbox).values(e).returning({ id: outbox.id });
-  const id = rows[0]?.id;
-  if (!id) throw new Error("outbox insert returned no id");
+  const id = randomUUID();
+  await tx.insert(outbox).values({ ...e, id });
   return id;
 }
 
