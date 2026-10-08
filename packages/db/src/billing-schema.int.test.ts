@@ -63,6 +63,24 @@ describe("billing schema", () => {
     await expect(db.withWorkspace("not-a-uuid", async () => 1)).rejects.toThrow(/uuid/);
   });
 
+  it("keeps the due-work index workspace-scoped, except for the worker's read-only scan", async () => {
+    const a = await createTestWorkspace();
+    const b = await createTestWorkspace();
+    await ownerQuery(`insert into platform.billing_schedule (workspace_id, job, due_at) values ('${b.workspaceId}', 'expire_lots', now())`);
+    const seenByA = await db.withTenant(a, (tx) => tx.execute(sql`select workspace_id from platform.billing_schedule`));
+    expect(seenByA.length).toBe(0);
+    await expect(
+      db.withTenant(a, (tx) =>
+        tx.execute(sql`insert into platform.billing_schedule (workspace_id, job, due_at) values (${b.workspaceId}, 'reconcile', now())`),
+      ),
+    ).rejects.toThrow(/row-level security/);
+    await expect(db.withTenant(a, (tx) => tx.execute(sql`delete from platform.billing_schedule`))).rejects.toThrow(/permission denied/);
+    const scanned = await db.withSystem((tx) => tx.execute(sql`select workspace_id from platform.billing_schedule`));
+    expect(scanned.length).toBe(1);
+    const blindDelete = await db.withSystem((tx) => tx.execute(sql`delete from platform.billing_schedule returning workspace_id`));
+    expect(blindDelete.length).toBe(0);
+  });
+
   it("hides one workspace's billing rows from another", async () => {
     const a = await createTestWorkspace();
     const b = await createTestWorkspace();

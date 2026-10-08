@@ -247,6 +247,14 @@ create table platform.billing_schedule (
   primary key (workspace_id, job)
 );
 create index billing_schedule_due_idx on platform.billing_schedule (job, due_at);
+-- Per-workspace rows: tenant-scoped like every workspace table. The worker may read ids/times to find due work,
+-- but every write needs workspace context.
+alter table platform.billing_schedule enable row level security;
+alter table platform.billing_schedule force row level security;
+create policy billing_schedule_tenant on platform.billing_schedule
+  using (workspace_id = platform.current_workspace_id())
+  with check (workspace_id = platform.current_workspace_id());
+create policy billing_schedule_worker_scan on platform.billing_schedule for select to mushin_worker using (true);
 
 -- ── Grants ──────────────────────────────────────────────────────────────────
 grant select on platform.plans, platform.topup_packs, platform.credit_action_costs, platform.billing_settings to mushin_app, mushin_worker;
@@ -255,4 +263,5 @@ grant select on wp.payments to mushin_app;
 grant select, insert, update on wp.payments to mushin_worker;
 grant select, insert on wp.credit_ledger to mushin_app, mushin_worker;
 grant select, insert, update on platform.webhook_events to mushin_worker;
-grant select, insert, update, delete on platform.billing_schedule to mushin_app, mushin_worker;
+grant select, insert, update on platform.billing_schedule to mushin_app;
+grant select, insert, update, delete on platform.billing_schedule to mushin_worker;
