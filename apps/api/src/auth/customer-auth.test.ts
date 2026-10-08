@@ -65,6 +65,7 @@ describe("customer guard", () => {
         ip: { limit: 100, windowSeconds: 60 },
         user: { limit, windowSeconds: 60 },
         auth: { limit: 100, windowSeconds: 60 },
+        ai: { limit: 100, windowSeconds: 60 },
       }),
       resolveTenant: async (identity, requestId): Promise<TenantContext> => {
         resolved.push(identity.userId);

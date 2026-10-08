@@ -80,6 +80,7 @@ describe("GET /v1/me", () => {
         ip: { limit: 100, windowSeconds: 60 },
         user: { limit: 100, windowSeconds: 60 },
         auth: { limit: 100, windowSeconds: 60 },
+        ai: { limit: 100, windowSeconds: 60 },
       }),
     });
     const app = await buildTestApp({ guards: { ...noGuards(), customer: guard }, modules: [identity.module] });

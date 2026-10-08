@@ -1,7 +1,7 @@
 import { AppError } from "@mushin/core";
 
 export type Bucket = { limit: number; windowSeconds: number };
-export type RateLimitBuckets = { ip: Bucket; user: Bucket; auth: Bucket };
+export type RateLimitBuckets = { ip: Bucket; user: Bucket; auth: Bucket; ai: Bucket };
 export type BucketName = keyof RateLimitBuckets;
 export type LimitResult = { allowed: boolean; retryAfterSeconds: number };
 
@@ -15,6 +15,8 @@ export function bucketsFromConfig(c: { windowMs: number; maxRequests: number }):
     ip: { limit: c.maxRequests, windowSeconds },
     user: { limit: c.maxRequests, windowSeconds },
     auth: { limit: 10, windowSeconds: 60 },
+    // AI calls are free to users but cost MUSHIN money (spec §4.1).
+    ai: { limit: 20, windowSeconds: 60 },
   };
 }
 

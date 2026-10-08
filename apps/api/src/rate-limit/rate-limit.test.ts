@@ -9,6 +9,7 @@ const buckets: RateLimitBuckets = {
   ip: { limit: 3, windowSeconds: 60 },
   user: { limit: 2, windowSeconds: 60 },
   auth: { limit: 1, windowSeconds: 60 },
+  ai: { limit: 1, windowSeconds: 60 },
 };
 
 describe("MemoryRateLimiter", () => {
@@ -28,13 +29,13 @@ describe("MemoryRateLimiter", () => {
 describe("UpstashRateLimiter", () => {
   it("fails open when Redis is unreachable", async () => {
     const down = { limit: async () => Promise.reject(new Error("ENOTFOUND")) };
-    const rl = new UpstashRateLimiter({ ip: down, user: down, auth: down }, testLogger());
+    const rl = new UpstashRateLimiter({ ip: down, user: down, auth: down, ai: down }, testLogger());
     expect(await rl.limit("ip", "1.2.3.4")).toEqual({ allowed: true, retryAfterSeconds: 0 });
   });
 
   it("converts reset time to retry-after seconds", async () => {
     const full = { limit: async () => ({ success: false, reset: Date.now() + 4_500 }) };
-    const rl = new UpstashRateLimiter({ ip: full, user: full, auth: full }, testLogger());
+    const rl = new UpstashRateLimiter({ ip: full, user: full, auth: full, ai: full }, testLogger());
     const r = await rl.limit("ip", "k");
     expect(r.allowed).toBe(false);
     expect(r.retryAfterSeconds).toBeGreaterThanOrEqual(4);
@@ -80,11 +81,12 @@ describe("IP rate limit hook", () => {
 });
 
 describe("bucketsFromConfig", () => {
-  it("derives ip/user buckets from config and a fixed auth bucket", () => {
+  it("derives ip/user buckets from config and fixed auth and ai buckets", () => {
     expect(bucketsFromConfig({ windowMs: 30_000, maxRequests: 50 })).toEqual({
       ip: { limit: 50, windowSeconds: 30 },
       user: { limit: 50, windowSeconds: 30 },
       auth: { limit: 10, windowSeconds: 60 },
+      ai: { limit: 20, windowSeconds: 60 },
     });
   });
 });

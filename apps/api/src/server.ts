@@ -1,12 +1,13 @@
 import { Redis } from "@upstash/redis";
 import { createLogger, loadApiConfig } from "@mushin/core";
 import { createDatabase, createDbProviderCallSink, UNVERIFIED_TLS_WARNING } from "@mushin/db";
-import { createPayments } from "@mushin/integrations";
+import { createLlm, createPayments, createSearchIndex } from "@mushin/integrations";
 import { buildApp } from "./app";
 import { createCustomerGuard } from "./auth/customer-guard";
 import { createCustomerTokenVerifier, remoteJwks } from "./auth/customer-token";
 import type { Guards, ReadinessCheck } from "./http/types";
 import { createBillingModule, createBillingService, createRedisAccessCache, noAccessCache } from "./modules/billing";
+import { createCreatorsModule, createCreatorsService } from "./modules/creators";
 import { createIdentityModule } from "./modules/identity";
 import { createPlatformModule } from "./modules/platform";
 import { createStaffModule, createStaffTokens } from "./modules/staff";
@@ -38,6 +39,10 @@ const accessCache = config.rateLimit.upstash
   ? createRedisAccessCache(new Redis({ url: config.rateLimit.upstash.url, token: config.rateLimit.upstash.token }), logger)
   : noAccessCache;
 const billing = createBillingService({ db, payments, cache: accessCache, logger });
+const searchIndex = createSearchIndex(config.search, logger);
+readiness.push({ name: "search", check: config.search ? () => searchIndex.ping() : async () => "skipped" });
+const llm = createLlm(config.llm, { sink: createDbProviderCallSink(db), logger });
+const creators = createCreatorsService({ db, index: searchIndex, llm, billing, encryptionKey: config.dataEncryptionKey, logger });
 const identity = createIdentityModule({ db, startTrial: billing.startTrial });
 const staff = createStaffModule({ db, tokens: createStaffTokens(config.staffJwtSecret), encryptionKey: config.dataEncryptionKey });
 const platform = createPlatformModule({ db, ttlHours: config.idempotencyTtlHours });
@@ -54,7 +59,13 @@ const app = await buildApp({
   logger,
   allowedOrigins: config.allowedOrigins,
   guards,
-  modules: [platform.module, identity.module, staff.module, createBillingModule({ service: billing, payments, appUrl: config.appUrl })],
+  modules: [
+    platform.module,
+    identity.module,
+    staff.module,
+    createBillingModule({ service: billing, payments, appUrl: config.appUrl }),
+    createCreatorsModule({ service: creators, limiter }),
+  ],
   readiness,
   onRequestHooks: [ipRateLimitHook(limiter)],
 });
