@@ -18,6 +18,8 @@ export function ipRateLimitHook(limiter: RateLimiter): OnRequestHook {
     // Prefer the matched route template: encoded or dot-segment variants of a path must not pick a looser bucket.
     const path = req.routeOptions.url ?? normalizedPath(req.url);
     if (path.startsWith("/health/")) return;
+    // Signed provider callbacks: the provider retries on 429, and blocking it would delay payments.
+    if (path.startsWith("/webhooks/")) return;
     const bucket: BucketName = path.startsWith("/admin/v1/auth/") ? "auth" : "ip";
     const r = await limiter.limit(bucket, req.ip);
     if (!r.allowed) throw rateLimitError(r.retryAfterSeconds);

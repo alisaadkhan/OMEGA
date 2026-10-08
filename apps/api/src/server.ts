@@ -1,10 +1,12 @@
+import { Redis } from "@upstash/redis";
 import { createLogger, loadApiConfig } from "@mushin/core";
-import { createDatabase, UNVERIFIED_TLS_WARNING } from "@mushin/db";
+import { createDatabase, createDbProviderCallSink, UNVERIFIED_TLS_WARNING } from "@mushin/db";
+import { createPayments } from "@mushin/integrations";
 import { buildApp } from "./app";
 import { createCustomerGuard } from "./auth/customer-guard";
 import { createCustomerTokenVerifier, remoteJwks } from "./auth/customer-token";
 import type { Guards, ReadinessCheck } from "./http/types";
-import { createCreditEngine } from "./modules/billing";
+import { createBillingModule, createBillingService, createRedisAccessCache, noAccessCache } from "./modules/billing";
 import { createIdentityModule } from "./modules/identity";
 import { createPlatformModule } from "./modules/platform";
 import { createStaffModule, createStaffTokens } from "./modules/staff";
@@ -31,7 +33,12 @@ if (config.rateLimit.upstash) {
   readiness.push({ name: "redis", check: async () => "skipped" });
 }
 
-const identity = createIdentityModule({ db, startTrial: createCreditEngine().startTrial });
+const payments = createPayments(config.payments, { sink: createDbProviderCallSink(db), logger });
+const accessCache = config.rateLimit.upstash
+  ? createRedisAccessCache(new Redis({ url: config.rateLimit.upstash.url, token: config.rateLimit.upstash.token }), logger)
+  : noAccessCache;
+const billing = createBillingService({ db, payments, cache: accessCache, logger });
+const identity = createIdentityModule({ db, startTrial: billing.startTrial });
 const staff = createStaffModule({ db, tokens: createStaffTokens(config.staffJwtSecret), encryptionKey: config.dataEncryptionKey });
 const platform = createPlatformModule({ db, ttlHours: config.idempotencyTtlHours });
 const guards: Guards = {
@@ -47,7 +54,7 @@ const app = await buildApp({
   logger,
   allowedOrigins: config.allowedOrigins,
   guards,
-  modules: [platform.module, identity.module, staff.module],
+  modules: [platform.module, identity.module, staff.module, createBillingModule({ service: billing, payments, appUrl: config.appUrl })],
   readiness,
   onRequestHooks: [ipRateLimitHook(limiter)],
 });

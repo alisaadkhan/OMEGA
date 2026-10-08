@@ -59,6 +59,14 @@ describe("IP rate limit hook", () => {
     expect((await app.inject({ method: "POST", url: "/admin/v1/auth/login" })).statusCode).toBe(429);
   });
 
+  it("never rate-limits payment webhooks", async () => {
+    const app = await buildTestApp({
+      onRequestHooks: [ipRateLimitHook(new MemoryRateLimiter(buckets))],
+      modules: [{ name: "hook", register: (a) => void a.post("/webhooks/paddle", async () => ({ ok: true })) }],
+    });
+    for (let i = 0; i < 5; i++) expect((await app.inject({ method: "POST", url: "/webhooks/paddle" })).statusCode).toBe(200);
+  });
+
   it("cannot dodge the auth bucket with encoded or dot-segment paths", async () => {
     for (const variant of ["/admin/v1/%61uth/login", "/%61dmin/v1/auth/login", "/admin/v1/auth/./login"]) {
       const app = await buildTestApp({
