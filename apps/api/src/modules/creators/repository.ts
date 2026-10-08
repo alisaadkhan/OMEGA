@@ -75,7 +75,7 @@ export type CardRow = {
 /** Card data straight from Postgres; creators the index still lists but Postgres now hides are dropped here. */
 export async function cardRows(tx: Tx, ids: string[]): Promise<CardRow[]> {
   if (ids.length === 0) return [];
-  return tx.execute<CardRow>(sql`
+  const rows = await tx.execute<Omit<CardRow, "followersUpdatedAt"> & { followersUpdatedAt: string | Date | null }>(sql`
     select c.id, c.display_name as "displayName", c.primary_handle as "primaryHandle", c.primary_platform as "primaryPlatform",
       c.avatar_url as "avatarUrl", c.city, c.country, c.niches, c.tags, c.verified,
       c.authenticity_score as "authenticityScore", c.fake_follower_pct as "fakeFollowerPct",
@@ -87,6 +87,8 @@ export async function cardRows(tx: Tx, ids: string[]): Promise<CardRow[]> {
       where pr.creator_id = c.id order by (pr.platform = c.primary_platform) desc, pr.followers desc limit 1
     ) p on true
     where c.id in ${ids} and ${VISIBLE}`);
+  // Raw queries return timestamps as text.
+  return rows.map((r) => ({ ...r, followersUpdatedAt: r.followersUpdatedAt === null ? null : new Date(r.followersUpdatedAt) }));
 }
 
 export async function findIdByCanonicalUrl(tx: Tx, canonicalUrl: string): Promise<string | null> {
