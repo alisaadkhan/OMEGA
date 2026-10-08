@@ -240,33 +240,44 @@ export async function requestSummary(tx: Tx, creatorId: string, hash: string): P
   return rows.length === 1;
 }
 
+/** The public data a summary is written from (also used to tell when a summary is out of date). */
+export function buildSummarySource(c: CreatorRow, profiles: ProfileRow[], snap: SnapshotRow | null): SummarySource {
+  return {
+    displayName: c.displayName,
+    niches: c.niches,
+    tags: c.tags,
+    city: c.city,
+    country: c.country,
+    verdict: snap?.verdict ?? null,
+    evidence: (snap?.evidenceBreakdown ?? []).map((e) => ({ signal: e.signal, detail: e.detail })),
+    profiles: profiles.map((p) => ({
+      platform: p.platform,
+      followers: p.followers,
+      engagementRate: p.engagementRate,
+      posts: p.posts,
+      avgLikes: p.avgLikes,
+      avgComments: p.avgComments,
+      avgViews: p.avgViews,
+      bio: p.bio,
+    })),
+  };
+}
+
 export async function summarySource(tx: Tx, creatorId: string): Promise<{ source: SummarySource; currentHash: string | null } | null> {
   const c = await getCreator(tx, creatorId);
   if (!c) return null;
-  const profiles = await getProfiles(tx, creatorId);
-  const snap = await latestSnapshot(tx, creatorId);
-  return {
-    currentHash: c.aiSummarySourceHash,
-    source: {
-      displayName: c.displayName,
-      niches: c.niches,
-      tags: c.tags,
-      city: c.city,
-      country: c.country,
-      verdict: snap?.verdict ?? null,
-      evidence: (snap?.evidenceBreakdown ?? []).map((e) => ({ signal: e.signal, detail: e.detail })),
-      profiles: profiles.map((p) => ({
-        platform: p.platform,
-        followers: p.followers,
-        engagementRate: p.engagementRate,
-        posts: p.posts,
-        avgLikes: p.avgLikes,
-        avgComments: p.avgComments,
-        avgViews: p.avgViews,
-        bio: p.bio,
-      })),
-    },
-  };
+  return { currentHash: c.aiSummarySourceHash, source: buildSummarySource(c, await getProfiles(tx, creatorId), await latestSnapshot(tx, creatorId)) };
+}
+
+export async function latestAudience(tx: Tx, creatorId: string): Promise<{ audience: AudienceRow; at: Date } | null> {
+  const rows = await tx
+    .select({ audience: enrichmentSnapshots.audience, at: enrichmentSnapshots.createdAt })
+    .from(enrichmentSnapshots)
+    .where(and(eq(enrichmentSnapshots.creatorId, creatorId), sql`${enrichmentSnapshots.audience} is not null`))
+    .orderBy(desc(enrichmentSnapshots.createdAt))
+    .limit(1);
+  const r = rows[0];
+  return r?.audience ? { audience: r.audience, at: r.at } : null;
 }
 
 export async function saveSummary(tx: SystemTx, creatorId: string, text: string, model: string, hash: string): Promise<void> {

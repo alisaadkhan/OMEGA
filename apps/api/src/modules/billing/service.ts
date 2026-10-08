@@ -93,6 +93,11 @@ export function createBillingService(deps: BillingDeps) {
     });
   }
 
+  /** The current credit price of an action, for screens that show it before the user confirms (SRS §3.1). */
+  async function actionCost(ctx: TenantContext, action: CreditAction): Promise<number> {
+    return deps.db.withTenant(tenant(ctx), (tx) => repo.getActionCost(tx, action));
+  }
+
   async function plans(ctx: TenantContext): Promise<BillingPlans> {
     return deps.db.withTenant(tenant(ctx), async (tx) => {
       const planRows = await repo.listPlans(tx);
@@ -639,6 +644,7 @@ export function createBillingService(deps: BillingDeps) {
     startTrial: engine.startTrial,
     summary,
     plans,
+    actionCost,
     ledger,
     invoices,
     getAccess,

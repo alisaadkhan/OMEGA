@@ -1,25 +1,28 @@
 import {
   searchFiltersShape,
+  type AudienceResponse,
+  type CreatorProfile,
   type InterpretResponse,
   type LookupResponse,
+  type RevealResponse,
   type SavedSearch,
   type SearchFilters,
   type SearchRequest,
   type SearchResponse,
 } from "@mushin/contracts";
-import { AppError, type Logger, type TenantContext } from "@mushin/core";
-import type { Db } from "@mushin/db";
+import { AppError, decryptSecret, type Logger, type TenantContext } from "@mushin/core";
+import { writeOutbox, type Db, type TenantTx } from "@mushin/db";
 import type { Llm, SearchIndex } from "@mushin/integrations";
 import type { BillingService } from "../billing/index";
 import { interpretOutputSchema, interpretSystemPrompt } from "./prompts";
 import * as repo from "./repository";
-import { cleanInterpretation, fenced, fitLabel, fitScore, freshnessOf, meiliFilter, normalizeProfileUrl } from "./rules";
+import { cleanInterpretation, fenced, fitLabel, fitScore, freshnessOf, isMinorProtected, meiliFilter, monthKey, normalizeProfileUrl, sourceHash } from "./rules";
 
 export type CreatorsDeps = {
   db: Db;
   index: SearchIndex;
   llm: Llm;
-  billing: Pick<BillingService, "engine" | "getAccess">;
+  billing: Pick<BillingService, "engine" | "getAccess" | "actionCost">;
   encryptionKey: Buffer;
   logger: Logger;
   now?: () => Date;
@@ -31,13 +34,13 @@ const MAX_SAVED_SEARCHES = 50;
 export function createCreatorsService(deps: CreatorsDeps) {
   const now = deps.now ?? (() => new Date());
   const tenant = (ctx: TenantContext) => ({ userId: ctx.userId, workspaceId: ctx.workspaceId });
-  let cached: { at: number; settings: repo.SearchSettings; niches: string[] } | null = null;
+  let cached: { at: number; settings: repo.SearchSettings; niches: string[]; revealCost: number } | null = null;
 
-  /** Search settings and the niche list change rarely; reading them once a minute keeps search to one database query. */
+  /** Search settings, the niche list and the reveal price change rarely; reading them once a minute keeps search to one database query. */
   async function config(ctx: TenantContext) {
     if (cached && Date.now() - cached.at < SETTINGS_TTL_MS) return cached;
     const loaded = await deps.db.withTenant(tenant(ctx), async (tx) => ({ settings: await repo.getSearchSettings(tx), niches: await repo.activeNiches(tx) }));
-    cached = { at: Date.now(), ...loaded };
+    cached = { at: Date.now(), ...loaded, revealCost: await deps.billing.actionCost(ctx, "reveal_contact") };
     return cached;
   }
 
@@ -159,7 +162,137 @@ export function createCreatorsService(deps: CreatorsDeps) {
     if (!deleted) throw new AppError("NOT_FOUND", "Saved search not found");
   }
 
-  return { search, interpret, lookup, listSaved, createSaved, deleteSaved };
+  // ── profile (spec §5) ──────────────────────────────────────────────────────
+  async function summaryState(tx: TenantTx, ctx: TenantContext, c: repo.CreatorRow, hash: string): Promise<CreatorProfile["summary"]> {
+    if (c.aiSummary !== null && c.aiSummarySourceHash === hash) {
+      return { status: "ready", text: c.aiSummary, model: c.aiSummaryModel, generatedAt: c.aiSummaryAt?.toISOString() ?? null };
+    }
+    const requested = await repo.requestSummary(tx, c.id, hash);
+    if (requested) {
+      await writeOutbox(tx, {
+        eventType: "creator.summary_requested",
+        aggregateType: "creator",
+        aggregateId: c.id,
+        workspaceId: null,
+        payload: { creatorId: c.id, sourceHash: hash },
+        requestId: ctx.requestId,
+      });
+    }
+    const failedLast = !requested && c.aiSummaryFailedAt !== null && (c.aiSummaryAt === null || c.aiSummaryFailedAt > c.aiSummaryAt);
+    // While a new version is written, the previous text (if any) is still shown.
+    return { status: failedLast ? "unavailable" : "generating", text: c.aiSummary, model: c.aiSummaryModel, generatedAt: c.aiSummaryAt?.toISOString() ?? null };
+  }
+
+  async function profile(ctx: TenantContext, id: string): Promise<CreatorProfile> {
+    const t = now();
+    const { settings, revealCost } = await config(ctx);
+    return deps.db.withTenant(tenant(ctx), async (tx) => {
+      const c = await repo.getCreator(tx, id);
+      if (!c || c.status === "erased" || c.status === "removal_requested") throw new AppError("NOT_FOUND", "Creator not found");
+      const profiles = await repo.getProfiles(tx, id);
+      const snap = await repo.latestSnapshot(tx, id);
+      const contacts = await repo.contactSummaries(tx, id);
+      const revealed = await repo.hasReveal(tx, ctx.workspaceId, id);
+      const values = new Map<string, string>();
+      if (revealed) for (const v of await repo.revealedContacts(tx, id)) values.set(v.id, decryptSecret(v.value_encrypted, deps.encryptionKey));
+      const summary = await summaryState(tx, ctx, c, sourceHash(repo.buildSummarySource(c, profiles, snap)));
+      const evidence = snap?.evidenceBreakdown ?? [];
+      const iso = (d: Date | null) => d?.toISOString() ?? null;
+      return {
+        id: c.id,
+        displayName: c.displayName,
+        handle: c.primaryHandle,
+        platform: c.primaryPlatform,
+        avatarUrl: c.avatarUrl,
+        city: c.city,
+        country: c.country,
+        niches: c.niches,
+        tags: c.tags,
+        verified: c.verified,
+        profiles: profiles.map((p) => ({
+          platform: p.platform,
+          handle: p.handle,
+          url: p.canonicalUrl,
+          followers: p.followers,
+          following: p.following,
+          posts: p.posts,
+          engagementRate: p.engagementRate,
+          avgLikes: p.avgLikes,
+          avgComments: p.avgComments,
+          avgViews: p.avgViews,
+          bio: p.bio,
+          freshness: {
+            followers: freshnessOf(p.followersUpdatedAt, t, settings.fresh),
+            engagement: freshnessOf(p.engagementUpdatedAt, t, settings.fresh),
+            audience: freshnessOf(p.audienceUpdatedAt, t, settings.fresh),
+          },
+          updatedAt: { followers: iso(p.followersUpdatedAt), engagement: iso(p.engagementUpdatedAt), audience: iso(p.audienceUpdatedAt) },
+        })),
+        summary,
+        // Never a score without the evidence behind it (SRS REQ-01.02, §5.5).
+        authenticity:
+          snap && snap.authenticityScore !== null && evidence.length > 0
+            ? { status: "assessed" as const, score: snap.authenticityScore, fakeFollowerPct: c.fakeFollowerPct, evidence, assessedAt: snap.createdAt.toISOString() }
+            : { status: "not_assessed" as const },
+        contacts: contacts.map((k) => ({ id: k.id, kind: k.kind, masked: k.masked, trust: k.trust, value: values.get(k.id) ?? null })),
+        revealed,
+        revealCost,
+        minorProtected: isMinorProtected(c),
+        hasContacts: contacts.length > 0,
+        mergedInto: c.mergedIntoId,
+      };
+    });
+  }
+
+  // ── estimated audience (spec D5) ──────────────────────────────────────────
+  async function audience(ctx: TenantContext, id: string): Promise<AudienceResponse> {
+    const access = await deps.billing.getAccess(ctx);
+    return deps.db.withTenant(tenant(ctx), async (tx) => {
+      const c = await repo.getCreator(tx, id);
+      if (!c || c.status !== "active") throw new AppError("NOT_FOUND", "Creator not found");
+      const latest = await repo.latestAudience(tx, id);
+      if (!latest) return { status: "not_assessed" as const };
+      const firstThisMonth = await repo.insertAudienceView(tx, ctx.workspaceId, id, monthKey(now()), ctx.userId);
+      if (firstThisMonth && !(await deps.billing.engine.useEntitlement(tx, ctx.workspaceId, "audience_views", access.entitlements.audienceViewsPerMonth))) {
+        // Throwing rolls back the view row recorded above.
+        const reason = access.planId !== null || access.status === "trialing" ? "plan_limit" : "no_active_plan";
+        throw new AppError(
+          "ENTITLEMENT_REQUIRED",
+          reason === "plan_limit" ? "You've used this month's audience views on your plan." : "Choose a plan to see audience details.",
+          { reason, key: "audience_views" },
+        );
+      }
+      return { status: "estimated" as const, audience: latest.audience, updatedAt: latest.at.toISOString() };
+    });
+  }
+
+  // ── contact reveal (spec D4) ──────────────────────────────────────────────
+  async function reveal(ctx: TenantContext, id: string, confirmedCost: number): Promise<RevealResponse> {
+    return deps.db.withTenant(tenant(ctx), async (tx) => {
+      const c = await repo.getCreator(tx, id);
+      if (!c || c.status !== "active") throw new AppError("NOT_FOUND", "Creator not found");
+      if (isMinorProtected(c)) throw new AppError("FORBIDDEN", "Contact details of possible minors cannot be revealed.", { reason: "minor_protected" });
+      if ((await repo.contactSummaries(tx, id)).length === 0) {
+        throw new AppError("CONFLICT", "We have no contact details for this creator yet.", { reason: "no_contacts" });
+      }
+      // The reveal row comes first: a simultaneous duplicate waits on its key and then finds it, so only one request pays.
+      let charged = false;
+      if (await repo.insertReveal(tx, ctx.workspaceId, id, ctx.userId)) {
+        const held = await deps.billing.engine.spendInstant(
+          tx,
+          ctx.workspaceId,
+          { action: "reveal_contact", confirmedCost, refType: "creator", refId: id },
+          { userId: ctx.userId, requestId: ctx.requestId },
+        );
+        await repo.setRevealReservation(tx, ctx.workspaceId, id, held.reservationId);
+        charged = true;
+      }
+      const values = await repo.revealedContacts(tx, id);
+      return { contacts: values.map((v) => ({ id: v.id, kind: v.kind, value: decryptSecret(v.value_encrypted, deps.encryptionKey), trust: v.trust })), charged };
+    });
+  }
+
+  return { search, interpret, lookup, listSaved, createSaved, deleteSaved, profile, audience, reveal };
 }
 
 export type CreatorsService = ReturnType<typeof createCreatorsService>;
