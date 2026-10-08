@@ -5,6 +5,7 @@ import {
   classifyChange,
   daysLeft,
   decodeCursor,
+  effectiveStatus,
   encodeCursor,
   InsufficientLotsError,
   lostAccessFor,
@@ -65,6 +66,16 @@ describe("classifyChange", () => {
     expect(classifyChange(growthMonth, { planId: "growth", interval: "year", monthlyCredits: 12_000 })).toBe("upgrade");
     expect(classifyChange({ ...growthMonth, interval: "year" }, growthMonth)).toBe("downgrade");
     expect(classifyChange(growthMonth, growthMonth)).toBe("same");
+  });
+});
+
+describe("effectiveStatus", () => {
+  const now = new Date("2026-10-21T10:00:00Z");
+  it("treats a trial past its end as expired even before the trial-end job runs", () => {
+    expect(effectiveStatus("trialing", new Date("2026-10-21T09:59:59Z"), now)).toBe("expired");
+    expect(effectiveStatus("trialing", new Date("2026-10-21T10:00:01Z"), now)).toBe("trialing");
+    expect(effectiveStatus("active", new Date("2026-01-01T00:00:00Z"), now)).toBe("active");
+    expect(effectiveStatus(null, null, now)).toBeNull();
   });
 });
 

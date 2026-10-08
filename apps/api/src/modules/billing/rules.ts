@@ -55,6 +55,12 @@ export function classifyChange(current: PlanChoice, target: PlanChoice): "upgrad
   return target.interval === "year" ? "upgrade" : "downgrade";
 }
 
+/** A trial past its end is expired at read time, so a late or blocked trial-end job never extends it. */
+export function effectiveStatus(status: SubscriptionStatus | null, trialEndsAt: Date | null, now: Date): SubscriptionStatus | null {
+  if (status === "trialing" && trialEndsAt && trialEndsAt.getTime() <= now.getTime()) return "expired";
+  return status;
+}
+
 export type SpendScope = "all" | "topup_only" | "none";
 
 /** Spec D3/D14: without a plan only paid top-up credits stay spendable. */
