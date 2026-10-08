@@ -28,8 +28,17 @@ function assertUuid(name: string, value: string) {
   if (!UUID.test(value)) throw new Error(`${name} must be a uuid`);
 }
 
-export function createDatabase(url: string, opts: { max: number; applicationName: string; caPem?: string | null }): Db {
+/**
+ * `listenUrl`: LISTEN needs a connection the pooler keeps for one client (session mode). When `url` is the
+ * transaction pooler, pass the session URL here and LISTEN gets one dedicated connection of its own.
+ */
+export function createDatabase(url: string, opts: { max: number; applicationName: string; caPem?: string | null; listenUrl?: string }): Db {
   const client = createSql(url, { max: opts.max, applicationName: opts.applicationName, caPem: opts.caPem ?? null });
+  let listener: ReturnType<typeof createSql> | null = null;
+  const listenClient = () =>
+    opts.listenUrl
+      ? (listener ??= createSql(opts.listenUrl, { max: 1, applicationName: `${opts.applicationName}-listen`, caPem: opts.caPem ?? null }))
+      : client;
   const db = drizzle(client, { schema });
 
   function run<T>(role: "mushin_app" | "mushin_worker", settings: { workspaceId?: string; userId?: string }, fn: (tx: DbTx) => Promise<T>) {
@@ -60,7 +69,7 @@ export function createDatabase(url: string, opts: { max: number; applicationName
       return run("mushin_worker", { workspaceId }, (tx) => fn(tx as TenantTx));
     },
     async listen(channel, onNotify) {
-      const sub = await client.listen(channel, () => onNotify());
+      const sub = await listenClient().listen(channel, () => onNotify());
       return () => sub.unlisten();
     },
     async ping() {
@@ -69,6 +78,7 @@ export function createDatabase(url: string, opts: { max: number; applicationName
     },
     async close() {
       await client.end({ timeout: 5 });
+      if (listener) await listener.end({ timeout: 5 });
     },
   };
 }

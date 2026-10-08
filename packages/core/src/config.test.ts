@@ -57,8 +57,19 @@ describe("loadApiConfig", () => {
 
 describe("loadWorkerConfig", () => {
   it("needs DIRECT_URL and rejects the placeholder host", () => {
-    expect(loadWorkerConfig({ DIRECT_URL: "postgresql://u:p@pooler.example.com:5432/postgres", MOCK_PADDLE_WEBHOOK_SECRET: MOCK }).directUrl).toContain("pooler");
-    expect(() => loadWorkerConfig({ DIRECT_URL: "postgresql://user:password@host:5432/postgres" })).toThrow(/DIRECT_URL/);
+    const urls = { DATABASE_URL: "postgresql://u:p@pooler.example.com:6543/postgres", MOCK_PADDLE_WEBHOOK_SECRET: MOCK };
+    expect(loadWorkerConfig({ ...urls, DIRECT_URL: "postgresql://u:p@pooler.example.com:5432/postgres" }).directUrl).toContain(":5432");
+    expect(() => loadWorkerConfig({ ...urls, DIRECT_URL: "postgresql://user:password@host:5432/postgres" })).toThrow(/DIRECT_URL/);
+  });
+
+  it("queries through DATABASE_URL (transaction pooler) and keeps DIRECT_URL for pg-boss and LISTEN", () => {
+    const c = loadWorkerConfig({
+      DATABASE_URL: "postgresql://u:p@pooler.example.com:6543/postgres",
+      DIRECT_URL: "postgresql://u:p@pooler.example.com:5432/postgres",
+      MOCK_PADDLE_WEBHOOK_SECRET: MOCK,
+    });
+    expect([c.databaseUrl, c.directUrl]).toEqual(["postgresql://u:p@pooler.example.com:6543/postgres", "postgresql://u:p@pooler.example.com:5432/postgres"]);
+    expect(() => loadWorkerConfig({ DIRECT_URL: "postgresql://u:p@pooler.example.com:5432/postgres", MOCK_PADDLE_WEBHOOK_SECRET: MOCK })).toThrow(/DATABASE_URL/);
   });
 });
 
@@ -110,6 +121,7 @@ describe("payments config", () => {
 
   it("gives the worker payments and Upstash settings", () => {
     const c = loadWorkerConfig({
+      DATABASE_URL: "postgresql://u:p@pooler.example.com:6543/postgres",
       DIRECT_URL: "postgresql://u:p@pooler.example.com:5432/postgres",
       MOCK_PADDLE_WEBHOOK_SECRET: MOCK,
       UPSTASH_REDIS_REST_URL: "https://x.upstash.io",

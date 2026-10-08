@@ -41,6 +41,20 @@ describe("database scopes", () => {
     ).rejects.toSatisfy(dbError(/row-level security/));
   });
 
+  it("listens on its own session connection when given a listen URL, and closes it", async () => {
+    const d = createDatabase(testDatabaseUrl(), { max: 1, applicationName: "mushin-test-split", caPem: testCaPem(), listenUrl: testDatabaseUrl() });
+    try {
+      let heard = 0;
+      const stop = await d.listen("mushin_test_split", () => (heard += 1));
+      await ownerQuery(`notify mushin_test_split`);
+      for (let i = 0; i < 50 && heard === 0; i++) await new Promise((r) => setTimeout(r, 200));
+      expect(heard).toBe(1);
+      await stop();
+    } finally {
+      await d.close();
+    }
+  });
+
   it("returns zero rows without tenant context, even on a reused connection (Review Focus 1)", async () => {
     const single = createDatabase(testDatabaseUrl(), { max: 1, applicationName: "mushin-test-single", caPem: testCaPem() });
     try {

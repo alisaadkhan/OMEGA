@@ -11,7 +11,9 @@ import { startWorker } from "./worker";
 const config = loadWorkerConfig(process.env);
 const logger = createLogger({ level: config.logLevel, name: "worker" });
 if (!config.databaseCaPem) logger.warn(UNVERIFIED_TLS_WARNING);
-const db = createDatabase(config.directUrl, { max: 5, applicationName: "mushin-worker", caPem: config.databaseCaPem });
+// Queries share the transaction pooler; only pg-boss and LISTEN hold session connections (about 4 in all), so the
+// worker fits within the session pooler's small client limit next to the API and one-off scripts.
+const db = createDatabase(config.databaseUrl, { max: 5, applicationName: "mushin-worker", caPem: config.databaseCaPem, listenUrl: config.directUrl });
 const boss = await startBoss(config.directUrl, logger, config.databaseCaPem);
 const payments = createPayments(config.payments, { sink: createDbProviderCallSink(db), logger });
 const cache = config.upstash ? createRedisAccessCache(new Redis({ url: config.upstash.url, token: config.upstash.token }), logger) : noAccessCache;

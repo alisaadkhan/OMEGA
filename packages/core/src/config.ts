@@ -77,7 +77,7 @@ const apiSchema = sharedObject
   })
   .superRefine(checkShared);
 
-const workerSchema = sharedObject.extend({ DIRECT_URL: postgresUrl }).superRefine(checkShared);
+const workerSchema = sharedObject.extend({ DATABASE_URL: postgresUrl, DIRECT_URL: postgresUrl }).superRefine(checkShared);
 
 /** Reads the database CA certificate (PEM). Returns null when no path is configured. */
 export function readCaFile(path: string | undefined): string | null {
@@ -177,6 +177,9 @@ export function loadApiConfig(env: Env): ApiConfig {
 export type WorkerConfig = {
   nodeEnv: ApiConfig["nodeEnv"];
   logLevel: LogLevel;
+  /** Transaction pooler: the worker's queries, like the API's. */
+  databaseUrl: string;
+  /** Session pooler: pg-boss and LISTEN need a connection they keep. */
   directUrl: string;
   databaseCaPem: string | null;
   appUrl: string;
@@ -189,6 +192,7 @@ export function loadWorkerConfig(env: Env): WorkerConfig {
   return {
     nodeEnv: v.NODE_ENV,
     logLevel: v.LOG_LEVEL,
+    databaseUrl: v.DATABASE_URL,
     directUrl: v.DIRECT_URL,
     databaseCaPem: readCaFile(v.DATABASE_SSL_CA_FILE),
     appUrl: new URL(v.APP_URL).origin,

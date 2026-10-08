@@ -9,7 +9,7 @@ export async function startBoss(url: string, logger: Logger, caPem: string | nul
     schema: "pgboss",
     application_name: "mushin-worker",
     ssl: tlsOptions(caPem),
-    max: 5,
+    max: 3,
   });
   boss.on("error", (err: unknown) => logger.error({ err }, "pg-boss error"));
   await boss.start();

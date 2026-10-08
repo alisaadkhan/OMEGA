@@ -16,6 +16,9 @@ npm run db:migrate       # applies migrations using DIRECT_URL (session pooler, 
 ```bash
 npm run dev              # API on :4000, worker, and the web app on :5173
 ```
+The API and the worker's queries use `DATABASE_URL` (transaction pooler, port 6543). Only the worker's
+job queue (pg-boss, 3 connections) and its LISTEN connection use `DIRECT_URL` (session pooler), which on
+Supabase's free tier allows about 15 clients in all.
 
 ## Create the first staff admin
 ```bash
