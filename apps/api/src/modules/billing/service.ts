@@ -370,6 +370,14 @@ export function createBillingService(deps: BillingDeps) {
         deps.logger.info({ eventId: e.eventId, workspaceId: e.workspaceId }, "ignoring an older subscription event");
         return;
       }
+      if (isPaying(sub) && sub?.paddleSubscriptionId && sub.paddleSubscriptionId !== s.subscriptionId) {
+        // One workspace, one subscription: a second paid checkout must not add a second allowance.
+        deps.logger.error(
+          { eventId: e.eventId, workspaceId: e.workspaceId, existing: sub.paddleSubscriptionId, incoming: s.subscriptionId },
+          "ignoring events for a second subscription; refund or cancel it in the payment provider",
+        );
+        return;
+      }
       const status =
         e.kind === "subscription.canceled" || s.status === "canceled"
           ? "canceled"
@@ -396,14 +404,12 @@ export function createBillingService(deps: BillingDeps) {
         Object.assign(patch, { nextCreditGrantAt: null, scheduledPlanId: null, scheduledInterval: null });
         await notify(tx, e.workspaceId, "subscription_canceled", { planId: plan.id });
       } else if (status === "active" && s.periodStart && s.periodEnd) {
-        const newCreditPeriod =
-          !isPaying(sub) ||
-          sub?.planId !== plan.id ||
-          sub.billingInterval !== interval ||
-          sub.currentPeriodStart?.getTime() !== s.periodStart.getTime();
-        if (newCreditPeriod) {
+        const creditEnd = interval === "year" ? minDate(addMonths(s.periodStart, 1), s.periodEnd) : s.periodEnd;
+        const samePeriod = isPaying(sub) && sub?.currentPeriodStart?.getTime() === s.periodStart.getTime();
+        const planChanged = sub?.planId !== plan.id || sub?.billingInterval !== interval;
+        if (!samePeriod) {
+          // A new billing period (first payment, renewal, or a change that restarts the period): full allowance.
           await engine.endLots(tx, e.workspaceId, "monthly");
-          const creditEnd = interval === "year" ? minDate(addMonths(s.periodStart, 1), s.periodEnd) : s.periodEnd;
           await engine.grant(tx, e.workspaceId, {
             source: "monthly",
             amount: plan.monthlyCredits,
@@ -412,6 +418,20 @@ export function createBillingService(deps: BillingDeps) {
             note: `${plan.name} monthly credits`,
           });
           patch.nextCreditGrantAt = creditEnd.getTime() < s.periodEnd.getTime() ? creditEnd : null;
+        } else if (planChanged) {
+          // Same period (a prorated mid-period change): add only the difference and keep the current allowance,
+          // so an upgrade never hands out a second full allowance for one period.
+          const previous = sub?.planId ? await repo.getPlan(tx, sub.planId) : null;
+          const extra = plan.monthlyCredits - (previous?.monthlyCredits ?? 0);
+          if (extra > 0) {
+            await engine.grant(tx, e.workspaceId, {
+              source: "monthly",
+              amount: extra,
+              expiresAt: creditEnd,
+              sourceRef: `upgrade:${s.subscriptionId}:${s.periodStart.toISOString()}:${plan.id}:${interval}`,
+              note: `Upgrade to ${plan.name}: additional monthly credits`,
+            });
+          }
         }
       }
       await repo.upsertSubscription(tx, e.workspaceId, patch);

@@ -179,6 +179,7 @@ describe("plan changes", () => {
   it("upgrades now: unused monthly credits end and the new plan's credits are granted", async () => {
     const c = await trialCustomer();
     await subscribe(c, "growth");
+    clock = days(1); // the mock starts a new billing period at the change, as a full-price upgrade would
     expect(await billing.requestPlanChange(c, { planId: "scale", interval: "month" })).toEqual({ change: "upgrade", effective: "now" });
     await flush();
     const lots = await ownerQuery<{ amount: number; remaining: number }>(`select amount, remaining from wp.credit_lots where source = 'monthly' order by amount`);
@@ -186,6 +187,33 @@ describe("plan changes", () => {
       { amount: 12_000, remaining: 0 },
       { amount: 35_000, remaining: 35_000 },
     ]);
+  });
+
+  it("adds only the difference for an upgrade that keeps the billing period (prorated)", async () => {
+    const c = await trialCustomer();
+    await subscribe(c, "growth");
+    // Same instant: the provider keeps the current billing period, as Paddle does for a prorated upgrade.
+    await billing.requestPlanChange(c, { planId: "scale", interval: "month" });
+    await flush();
+    const lots = await ownerQuery<{ amount: number; remaining: number }>(`select amount, remaining from wp.credit_lots where source = 'monthly' order by amount`);
+    expect(lots).toEqual([
+      { amount: 12_000, remaining: 12_000 },
+      { amount: 23_000, remaining: 23_000 },
+    ]);
+    expect((await billing.summary(c)).balance.available).toBe(35_200);
+  });
+
+  it("ignores a second subscription for a workspace that already has one", async () => {
+    const c = await trialCustomer();
+    const first = await billing.startCheckout(c, { kind: "subscription", planId: "growth", interval: "month" });
+    const second = await billing.startCheckout(c, { kind: "subscription", planId: "scale", interval: "month" });
+    await billing.completeMockCheckout(c.workspaceId, first.checkoutId, "paid");
+    await flush();
+    await billing.completeMockCheckout(c.workspaceId, second.checkoutId, "paid");
+    await flush();
+    expect((await billing.summary(c)).plan?.id).toBe("growth");
+    const lots = await ownerQuery<{ n: number }>(`select count(*)::int n from wp.credit_lots where source = 'monthly'`);
+    expect(lots[0]?.n).toBe(1);
   });
 
   it("schedules a downgrade for the period end and applies it then", async () => {
