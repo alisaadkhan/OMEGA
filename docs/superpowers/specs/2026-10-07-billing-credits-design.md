@@ -200,3 +200,18 @@ Database tests require `TEST_DATABASE_URL` (pending, as for sub-project 1).
 ## 13. Out of scope
 
 Grace period for failed payments and the full usage dashboard (S2, REQ-08.05); staff credit adjustments and refunds UI (sub-project 8, which must audit them per SRS REQ-10.x); notification delivery (sub-project 7); removing EasyPaisa/JazzCash (sub-project 7); real credit-spending actions in search/discovery (sub-projects 3–4); customer spend caps.
+
+## 14. Implementation notes (from the plan)
+
+- Every access to workspace data filters by workspace ID (SRS §2.5). Worker-side work uses `db.withWorkspace(workspaceId)` (role `mushin_worker` with workspace RLS context). Scheduled jobs find which workspaces to visit through `platform.billing_schedule`, which holds only workspace ids and due times and is written whenever something becomes due; no role reads `wp` tables across workspaces.
+- `platform.billing_schedule` is tenant-scoped with RLS like a `wp` table; the worker has a `SELECT`-only scan policy to find due work and is the only role that may delete rows.
+- **Billing integrity for the API role (`mushin_app`)** (added after security review): column-level grants (subscriptions: insert `workspace_id, trial_ends_at` with status defaulting to `trialing`, update only the scheduled-downgrade columns; credit lots: update only `remaining`; reservations: update only status/expiry/timestamps; checkouts: update only status/provider ids), restrictive RLS policies (one trial lot per workspace up to the trial allowance; ledger rows limited to reserve/spend/release and the trial grant; a new hold must cost exactly the configured action cost; checkouts may only become `open`/`failed`), a sign check on every ledger kind, and a trigger that lets the API role only lower remaining credits, raise usage counters, change held reservations (extending by at most one reservation lifetime) and move due work earlier. Credits and plans otherwise change only through webhooks applied by the worker.
+- A trial past `trial_ends_at` counts as `expired` at read time (`effectiveStatus`), so a late trial-end job never extends a trial.
+- A plan change that keeps the billing period (Paddle bills upgrades pro rata) adds only the difference in monthly credits; a new billing period grants the full allowance. Events for a second subscription while one is active are ignored and logged for a refund.
+- The test-mode checkout charges the price from config, not the amount stored on the checkout row.
+- Mock checkout page URLs include the workspace id (`/mock-paddle/checkout/<workspaceId>/<id>`), so the page's lookup is workspace-scoped.
+- Meter alerts are written when a reservation lowers the available balance; a commit does not change `available` because the held amount was already subtracted.
+- Webhook intake runs as `mushin_worker` (`withSystem`), which owns `platform.webhook_events`.
+- Notification events use the `notify.` prefix so the existing outbox router sends them to the `notify` queue.
+- The mock provider's invoices have no URL; Paddle invoice links arrive with real Paddle.
+- The public landing pricing page (`frontend/src/app/components/landing/Pricing.tsx`) keeps its static marketing prices: it is shown before sign-in and `GET /v1/billing/plans` requires a customer token. The seeded values match it; signed-in screens read prices from the API.

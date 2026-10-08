@@ -28,3 +28,16 @@ Scan the printed QR code with an authenticator app. The temporary password is sh
 npm run verify           # lint + typecheck + module boundaries + all tests
 npm run test:int         # database tests only (uses TEST_DATABASE_URL)
 ```
+
+## Billing (sub-project 2)
+
+- Without Paddle keys the API uses a **mock payment provider**: purchases open a test-mode checkout page at
+  `PUBLIC_API_URL/mock-paddle/checkout/<workspaceId>/<id>` with **Pay** and **Simulate failed payment**. `npm run env:secrets` creates
+  `MOCK_PADDLE_WEBHOOK_SECRET`. Run both the API and the worker so webhooks are applied.
+- Switching to Paddle sandbox:
+  1. Create a sandbox account (sandbox-vendors.paddle.com), products and prices for the three plans (monthly and yearly) and the three top-up packs.
+  2. Put the sandbox price ids into `platform.plans.paddle_price_ids` and `platform.topup_packs.paddle_price_id` (replacing the `pri_mock_*` ids).
+  3. Set a default payment link, and a notification destination pointing to `<public API URL>/webhooks/paddle`.
+  4. Set `PADDLE_API_KEY`, `PADDLE_CLIENT_TOKEN`, `PADDLE_WEBHOOK_SECRET`, `PADDLE_ENVIRONMENT=sandbox` and restart the API and the worker.
+- Prices, credit costs, trial length and meter thresholds live in `platform.plans`, `platform.topup_packs`,
+  `platform.credit_action_costs` and `platform.billing_settings` and can be changed without a deploy.
