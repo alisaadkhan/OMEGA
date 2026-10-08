@@ -7,13 +7,24 @@ type Message = { role: "system" | "user" | "assistant"; content: string };
 type ChatResult = { content: string; tokensIn: number; tokensOut: number };
 type ChatResponse = { choices?: { message?: { content?: string | null } }[]; usage?: { prompt_tokens?: number; completion_tokens?: number } };
 
+/** Keeps only the provider's error code and type: the body can echo the prompt or the model's output (user input). */
 class HttpStatusError extends Error {
   constructor(
     readonly status: number,
     body: string,
   ) {
-    super(`LLM provider answered ${status}: ${body}`);
+    super(`LLM provider answered ${status}${errorLabel(body)}`);
     this.name = "HttpStatusError";
+  }
+}
+
+function errorLabel(body: string): string {
+  try {
+    const e = (JSON.parse(body) as { error?: { code?: unknown; type?: unknown } }).error;
+    const parts = [e?.code, e?.type].filter((v): v is string => typeof v === "string" && /^[\w.-]{1,64}$/.test(v));
+    return parts.length ? ` (${parts.join(", ")})` : "";
+  } catch {
+    return "";
   }
 }
 
@@ -123,7 +134,7 @@ export class OpenAiCompatibleLlm implements Llm {
           }),
         });
         const text = await res.text();
-        if (!res.ok) throw new HttpStatusError(res.status, text.slice(0, 300));
+        if (!res.ok) throw new HttpStatusError(res.status, text);
         const j = JSON.parse(text) as ChatResponse;
         return { content: j.choices?.[0]?.message?.content ?? "", tokensIn: j.usage?.prompt_tokens ?? 0, tokensOut: j.usage?.completion_tokens ?? 0 };
       },

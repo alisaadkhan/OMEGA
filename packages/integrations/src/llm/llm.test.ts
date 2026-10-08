@@ -63,6 +63,18 @@ describe("OpenAiCompatibleLlm", () => {
   });
 });
 
+describe("OpenAiCompatibleLlm error details", () => {
+  it("keeps the provider's error code but not its response body, which can echo the user's input", async () => {
+    const body = JSON.stringify({ error: { message: "Failed to validate JSON", type: "invalid_request_error", code: "json_validate_failed", failed_generation: "bridal makeup Lahore for Ayesha 0300-1234567" } });
+    const { client } = llm([groq], () => new Response(body, { status: 400 }));
+    const err = await client.complete({ feature: "search_interpret", system: "s", input: "i", schema }).catch((e: unknown) => e);
+    const messages: string[] = [];
+    for (let e: unknown = err; e instanceof Error; e = e.cause) messages.push(e.message);
+    expect(messages.join(" | ")).toContain("json_validate_failed");
+    expect(messages.join(" | ")).not.toContain("0300-1234567");
+  });
+});
+
 describe("MockLlm", () => {
   it("records calls and validates replies like the real adapter", async () => {
     const mock = new MockLlm(() => ({ ok: true }));
