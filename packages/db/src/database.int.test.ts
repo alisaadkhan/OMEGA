@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createDatabase } from "./database";
-import { createTestDatabase, ownerQuery, testCaPem, testDatabaseUrl } from "./testing";
+import { createTestDatabase, dbError, ownerQuery, testCaPem, testDatabaseUrl } from "./testing";
 
 const db = createTestDatabase();
 
@@ -38,7 +38,7 @@ describe("database scopes", () => {
     expect(seen).toEqual({ role: "mushin_app", values: [1] });
     await expect(
       db.withTenant(a, (tx) => tx.execute(sql`insert into wp.scope_probe values (${b.workspaceId}, 9)`)),
-    ).rejects.toThrow(/row-level security/);
+    ).rejects.toSatisfy(dbError(/row-level security/));
   });
 
   it("returns zero rows without tenant context, even on a reused connection (Review Focus 1)", async () => {

@@ -28,6 +28,17 @@ export async function ownerQuery<T extends Record<string, unknown>>(text: string
   }
 }
 
+/**
+ * For `expect(p).rejects.toSatisfy(dbError(/…/))`: drizzle wraps database errors as "Failed query: …" and keeps the
+ * Postgres message in `cause`, so this matches the error or anything in its cause chain.
+ */
+export function dbError(pattern: RegExp): (err: unknown) => boolean {
+  return (err) => {
+    for (let e: unknown = err; e instanceof Error; e = e.cause) if (pattern.test(e.message)) return true;
+    return false;
+  };
+}
+
 /** Config tables hold migration seeds; tests must not wipe them. */
 const KEEP = ["schema_migrations", "plans", "topup_packs", "credit_action_costs", "billing_settings"];
 

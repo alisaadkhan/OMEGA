@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { generate } from "otplib";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { createTestDatabase, ownerQuery, resetTables } from "@mushin/db/testing";
+import { createTestDatabase, dbError, ownerQuery, resetTables } from "@mushin/db/testing";
 import { buildTestApp } from "../../test-support/app";
 import { createStaffModule } from "./index";
 import { createStaffTokens } from "./tokens";
@@ -127,8 +127,8 @@ describe("staff login + TOTP", () => {
     const rows = await ownerQuery<{ s: string }>(`select totp_secret_encrypted s from staff.staff_users`);
     expect(rows[0]?.s.startsWith("v1.")).toBe(true);
     expect(rows[0]?.s).not.toContain(acct.totpSecret);
-    await expect(db.withSystem((tx) => tx.execute(sql`update staff.audit_log set action = 'x'`))).rejects.toThrow(/permission denied/);
-    await expect(db.withSystem((tx) => tx.execute(sql`delete from staff.audit_log`))).rejects.toThrow(/permission denied/);
+    await expect(db.withSystem((tx) => tx.execute(sql`update staff.audit_log set action = 'x'`))).rejects.toSatisfy(dbError(/permission denied/));
+    await expect(db.withSystem((tx) => tx.execute(sql`delete from staff.audit_log`))).rejects.toSatisfy(dbError(/permission denied/));
   });
 
   it("denies the customer API role any access to staff tables", async () => {
