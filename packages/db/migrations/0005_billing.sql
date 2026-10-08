@@ -281,6 +281,47 @@ create policy credit_ledger_app_insert on wp.credit_ledger as restrictive for in
 create policy checkouts_app_update on wp.checkouts as restrictive for update to mushin_app
   using (true) with check (status in ('open', 'failed'));
 
+-- A new hold must cost exactly what the action costs.
+create policy credit_reservations_app_insert on wp.credit_reservations as restrictive for insert to mushin_app
+  with check (
+    status = 'held'
+    and confirmed_cost = amount
+    and amount = (select c.credits from platform.credit_action_costs c where c.action = credit_reservations.action)
+  );
+
+create policy entitlement_usage_app_insert on wp.entitlement_usage as restrictive for insert to mushin_app
+  with check (count = 1);
+
+-- Row-to-row rules RLS cannot express: for the API role, credits only go down, usage only goes up,
+-- holds change only while held (and extend by at most one reservation lifetime), due times only move earlier.
+create or replace function platform.guard_app_billing_write() returns trigger
+  language plpgsql as $$
+begin
+  if current_user <> 'mushin_app' then
+    return new;
+  end if;
+  if tg_table_name = 'credit_lots' and new.remaining > old.remaining then
+    raise exception 'the API role may only lower a credit lot''s remaining credits' using errcode = '42501';
+  elsif tg_table_name = 'credit_reservations' then
+    if old.status <> 'held' then
+      raise exception 'only a held reservation can change' using errcode = '42501';
+    end if;
+    if new.expires_at > now() + make_interval(mins => (select reservation_ttl_minutes from platform.billing_settings)) then
+      raise exception 'a reservation can be extended by at most one reservation lifetime' using errcode = '42501';
+    end if;
+  elsif tg_table_name = 'entitlement_usage' and new.count < old.count then
+    raise exception 'the API role may only increase usage counters' using errcode = '42501';
+  elsif tg_table_name = 'billing_schedule' and new.due_at > old.due_at then
+    raise exception 'the API role may only move due work earlier' using errcode = '42501';
+  end if;
+  return new;
+end $$;
+
+create trigger credit_lots_guard_app before update on wp.credit_lots for each row execute function platform.guard_app_billing_write();
+create trigger credit_reservations_guard_app before update on wp.credit_reservations for each row execute function platform.guard_app_billing_write();
+create trigger entitlement_usage_guard_app before update on wp.entitlement_usage for each row execute function platform.guard_app_billing_write();
+create trigger billing_schedule_guard_app before update on platform.billing_schedule for each row execute function platform.guard_app_billing_write();
+
 -- ── Grants ──────────────────────────────────────────────────────────────────
 grant select on platform.plans, platform.topup_packs, platform.credit_action_costs, platform.billing_settings to mushin_app, mushin_worker;
 -- API role: column-level rights only where it has a legitimate write.

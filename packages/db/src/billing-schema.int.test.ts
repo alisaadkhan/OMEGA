@@ -58,6 +58,30 @@ describe("billing schema", () => {
     ).rejects.toThrow(/row-level security/);
   });
 
+  it("lets the API role only lower credits, raise usage, change held holds and move due work earlier", async () => {
+    const ws = await createTestWorkspace();
+    const inApi = (q: SQL) => db.withTenant(ws, (tx) => tx.execute(q));
+    await lot(ws.workspaceId, 10);
+    await inApi(sql`update wp.credit_lots set remaining = 4`);
+    await expect(inApi(sql`update wp.credit_lots set remaining = 10`)).rejects.toThrow(/only lower/);
+
+    await expect(
+      inApi(sql`insert into wp.credit_reservations (workspace_id, amount, action, confirmed_cost, status, expires_at, ref_type, ref_id)
+                values (${ws.workspaceId}, 1, 'find_new', 1, 'held', now() + interval '15 minutes', 't', '1')`),
+    ).rejects.toThrow(/row-level security/);
+    await inApi(sql`insert into wp.credit_reservations (workspace_id, amount, action, confirmed_cost, status, expires_at, ref_type, ref_id)
+                    values (${ws.workspaceId}, 12, 'find_new', 12, 'held', now() + interval '15 minutes', 't', '1')`);
+    await expect(inApi(sql`update wp.credit_reservations set expires_at = now() + interval '1 day'`)).rejects.toThrow(/at most one/);
+    await inApi(sql`update wp.credit_reservations set status = 'committed'`);
+    await expect(inApi(sql`update wp.credit_reservations set status = 'held'`)).rejects.toThrow(/only a held reservation/);
+
+    await inApi(sql`insert into wp.entitlement_usage (workspace_id, key, period_start, count) values (${ws.workspaceId}, 'audience_views', '2026-10-01', 1)`);
+    await expect(inApi(sql`update wp.entitlement_usage set count = 0`)).rejects.toThrow(/only increase/);
+
+    await inApi(sql`insert into platform.billing_schedule (workspace_id, job, due_at) values (${ws.workspaceId}, 'end_trials', now() + interval '1 day')`);
+    await expect(inApi(sql`update platform.billing_schedule set due_at = now() + interval '1 year'`)).rejects.toThrow(/only move due work earlier/);
+  });
+
   it("enforces the sign of every ledger row", async () => {
     const ws = await createTestWorkspace();
     const lotId = await lot(ws.workspaceId, 10);
