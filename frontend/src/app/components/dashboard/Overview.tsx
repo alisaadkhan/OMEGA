@@ -20,7 +20,7 @@ import { AnimatedNumber } from "./AnimatedNumber";
 import { useAuth } from "../../auth/AuthContext";
 import { profiles } from "../../auth/profiles";
 import type { DashView } from "./Sidebar";
-import { useCampaigns, progressRatio } from "../../lib/campaignStore";
+import { useCampaigns, progressRatio, type Campaign } from "../../lib/campaignStore";
 import { useBillingPlans, useBillingSummary } from "../../api/billing";
 import { COPY } from "../../lib/copy";
 
@@ -162,7 +162,7 @@ export function Overview({ credits, setView }: { credits: number; setView?: (v: 
       {/* Row 3: Saved lists (2/3) + Campaign summary (1/3) */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <SavedListsCard loading={loading} go={go} />
-        <CampaignSummaryCard loading={loading} go={go} />
+        <CampaignSummaryCard campaigns={campaigns} loading={loading} go={go} />
       </div>
 
       {/* Row 4: Activity feed */}
@@ -567,7 +567,7 @@ function SavedListsCard({ loading, go }: { loading: boolean; go: (v: DashView) =
 
 /* ─────────────────────── campaign summary ─────────────────────── */
 
-function CampaignSummaryCard({ loading, go }: { loading: boolean; go: (v: DashView) => void }) {
+function CampaignSummaryCard({ campaigns, loading, go }: { campaigns: readonly Campaign[]; loading: boolean; go: (v: DashView) => void }) {
   const statusMap = {
     live: { color: "bg-emerald-500", label: "Live" },
     review: { color: "bg-amber-500", label: "In review" },

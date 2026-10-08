@@ -23,7 +23,9 @@ export type DashView =
   | "billing"
   | "settings"
   | "support"
-  | "activity";
+  | "activity"
+  // Rendered by Dashboard but not in the sidebar yet; outreach (a later sub-project) links to it.
+  | "inbox";
 
 type NavItem = { id: DashView; label: string; icon: any };
 type NavGroup = { label: string; items: NavItem[] };
