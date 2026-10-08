@@ -52,6 +52,18 @@ describe("creator plane", () => {
     await expect(insert()).resolves.toBeDefined();
   });
 
+  it("stops returning contact values to a workspace that revealed them once the creator is flagged as a possible minor", async () => {
+    const id = await creator();
+    const a = await createTestWorkspace();
+    await db.withTenant(a, (tx) => tx.execute(sql`insert into wp.contact_reveals (workspace_id, creator_id, revealed_by) values (${a.workspaceId}, ${id}, ${a.userId})`));
+    const values = () => db.withTenant(a, (tx) => tx.execute(sql`select * from gcp.revealed_contacts(${id})`));
+    expect((await values()).length).toBe(1);
+    await ownerQuery(`update gcp.creators set is_minor = true where id = '${id}'`);
+    expect((await values()).length).toBe(0);
+    await ownerQuery(`update gcp.creators set is_minor = false, status = 'removal_requested' where id = '${id}'`);
+    expect((await values()).length).toBe(0);
+  });
+
   it("keeps enrichment snapshots append-only and never stores a score without evidence", async () => {
     const id = await creator();
     await expect(
