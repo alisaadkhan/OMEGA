@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { Db } from "@mushin/db";
+import type { Db, TenantTx } from "@mushin/db";
 import type { TenantContext } from "@mushin/core";
 import type { CustomerIdentity } from "../../auth/customer-token";
 import * as repo from "./repository";
@@ -9,7 +9,9 @@ export function workspaceNameFor(identity: CustomerIdentity): string {
   return `${base}'s workspace`.slice(0, 120);
 }
 
-export function createIdentityService(db: Db) {
+export type StartTrial = (tx: TenantTx, workspaceId: string) => Promise<void>;
+
+export function createIdentityService(db: Db, startTrial: StartTrial) {
   async function resolveTenant(identity: CustomerIdentity, requestId: string): Promise<TenantContext> {
     const existing = await db.withUser(identity.userId, (tx) => repo.findMembership(tx, identity.userId));
     if (existing) return { requestId, userId: identity.userId, ...existing };
@@ -22,6 +24,7 @@ export function createIdentityService(db: Db) {
       await repo.upsertUser(tx, { id: identity.userId, email: identity.email, displayName: identity.fullName });
       await repo.insertWorkspace(tx, { id: workspaceId, name: workspaceNameFor(identity), ownerUserId: identity.userId });
       await repo.insertMember(tx, { workspaceId, userId: identity.userId, role: "owner" });
+      await startTrial(tx, workspaceId);
       return { workspaceId, role: "owner" as const };
     });
     return { requestId, userId: identity.userId, ...membership };

@@ -4,6 +4,7 @@ import { buildApp } from "./app";
 import { createCustomerGuard } from "./auth/customer-guard";
 import { createCustomerTokenVerifier, remoteJwks } from "./auth/customer-token";
 import type { Guards, ReadinessCheck } from "./http/types";
+import { createCreditEngine } from "./modules/billing";
 import { createIdentityModule } from "./modules/identity";
 import { createPlatformModule } from "./modules/platform";
 import { createStaffModule, createStaffTokens } from "./modules/staff";
@@ -30,7 +31,7 @@ if (config.rateLimit.upstash) {
   readiness.push({ name: "redis", check: async () => "skipped" });
 }
 
-const identity = createIdentityModule({ db });
+const identity = createIdentityModule({ db, startTrial: createCreditEngine().startTrial });
 const staff = createStaffModule({ db, tokens: createStaffTokens(config.staffJwtSecret), encryptionKey: config.dataEncryptionKey });
 const platform = createPlatformModule({ db, ttlHours: config.idempotencyTtlHours });
 const guards: Guards = {

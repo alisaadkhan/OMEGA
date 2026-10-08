@@ -7,10 +7,11 @@ import { createCustomerTokenVerifier, type CustomerIdentity } from "../../auth/c
 import { MemoryRateLimiter } from "../../rate-limit/memory";
 import { buildTestApp, noGuards } from "../../test-support/app";
 import { createTestIssuer } from "../../test-support/keys";
+import { createCreditEngine } from "../billing/index";
 import { createIdentityModule } from "./index";
 
 const db = createTestDatabase();
-const identity = createIdentityModule({ db });
+const identity = createIdentityModule({ db, startTrial: createCreditEngine().startTrial });
 const person = (over: Partial<CustomerIdentity> = {}): CustomerIdentity => ({
   userId: randomUUID(),
   email: "ayesha@mushin.pk",
@@ -22,6 +23,16 @@ beforeEach(resetTables);
 afterAll(() => db.close());
 
 describe("identity provisioning", () => {
+  it("starts the 14-day, 200-credit trial in the same transaction, once", async () => {
+    const who = person();
+    await Promise.all([identity.resolveTenant(who, "a"), identity.resolveTenant(who, "b"), identity.resolveTenant(who, "c")]);
+    const rows = await ownerQuery<{ status: string; days: number; lots: number; credits: number }>(`
+      select s.status, round(extract(epoch from (s.trial_ends_at - s.created_at)) / 86400)::int as days,
+             (select count(*)::int from wp.credit_lots) as lots, (select sum(remaining)::int from wp.credit_lots) as credits
+      from wp.subscriptions s`);
+    expect(rows).toEqual([{ status: "trialing", days: 14, lots: 1, credits: 200 }]);
+  });
+
   it("creates user, workspace and owner membership on first request, then reuses them", async () => {
     const who = person();
     const first = await identity.resolveTenant(who, "req-1");
