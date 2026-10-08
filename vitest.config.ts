@@ -24,7 +24,8 @@ export default defineConfig({
           include: ["apps/*/src/**/*.int.test.ts", "packages/*/src/**/*.int.test.ts"],
           globalSetup: ["packages/db/test/global-setup.ts"],
           fileParallelism: false,
-          testTimeout: 30_000,
+          // The test database is remote (Supabase, ap-south-1): tests are bound by network round trips, not CPU.
+          testTimeout: 120_000,
           hookTimeout: 120_000,
         },
       },
