@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Sidebar, type DashView } from "./Sidebar";
 import { Topbar } from "./Topbar";
 import { Overview } from "./Overview";
 import { SearchModule } from "./SearchModule";
 import { Billing } from "./Billing";
+import { BillingStatusBanner } from "./BillingStatusBanner";
 import { Support } from "./Support";
 import { ActivityLog } from "./ActivityLog";
 import { Lists } from "./Lists";
@@ -17,6 +18,15 @@ import { useCredits } from "../../../app/lib/credits";
 export function Dashboard({ onExit }: { onExit: () => void }) {
   const [view, setView] = useState<DashView>("overview");
   const credits = useCredits();
+  // Returning from the hosted checkout: ?checkout=success|failed (query string before the hash route).
+  const [checkoutResult, setCheckoutResult] = useState<"success" | "failed" | null>(null);
+  useEffect(() => {
+    const value = new URLSearchParams(window.location.search).get("checkout");
+    if (value !== "success" && value !== "failed") return;
+    setCheckoutResult(value);
+    setView("billing");
+    window.history.replaceState(null, "", `${window.location.pathname}${window.location.hash}`);
+  }, []);
 
   return (
     <div className="flex h-screen bg-slate-50/40">
@@ -24,6 +34,7 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar credits={credits} view={view} setView={setView} onExit={onExit} />
         <main className="flex-1 overflow-y-auto px-6 py-6 sm:px-8 sm:py-8">
+          <BillingStatusBanner onChoosePlan={() => setView("billing")} />
           <AnimatePresence mode="wait">
             <motion.div
               key={view}
@@ -39,7 +50,7 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
               {view === "analytics" && <Analytics />}
               {view === "inbox" && <Inbox />}
               {view === "settings" && <Settings />}
-              {view === "billing" && <Billing credits={credits} />}
+              {view === "billing" && <Billing checkoutResult={checkoutResult} />}
               {view === "support" && <Support />}
               {view === "activity" && <ActivityLog />}
             </motion.div>

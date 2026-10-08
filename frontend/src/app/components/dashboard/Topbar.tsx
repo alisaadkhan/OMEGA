@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { Coins, BarChart3, Activity, Settings, LifeBuoy, LogOut, ChevronDown } from "lucide-react";
 import { AnimatedNumber } from "./AnimatedNumber";
 import { useAuth } from "../../auth/AuthContext";
+import { useBillingSummary } from "../../api/billing";
 import { NotificationCenter } from "./NotificationCenter";
 import type { DashView } from "./Sidebar";
 import { Logo } from "../landing/Logo";
@@ -21,6 +22,12 @@ const MENU: { id: DashView; label: string; icon: any }[] = [
   { id: "support", label: "Support", icon: LifeBuoy },
 ];
 
+const METER_STYLES = {
+  normal: { box: "border-slate-200 bg-white hover:bg-slate-50", icon: "text-emerald-600", value: "text-slate-900", title: "Credits" },
+  amber: { box: "border-amber-300 bg-amber-50 hover:bg-amber-100", icon: "text-amber-600", value: "text-amber-800", title: "Credits are running low" },
+  red: { box: "border-red-300 bg-red-50 hover:bg-red-100", icon: "text-red-600", value: "text-red-700", title: "Credits are very low" },
+} as const;
+
 export function Topbar({ credits, view, setView, onExit }: Props) {
   const { user, logout } = useAuth();
   const name = user?.name ?? "Ahmed Raza Khan";
@@ -28,6 +35,7 @@ export function Topbar({ credits, view, setView, onExit }: Props) {
   const initials = user?.initials ?? "AR";
   const avatar = user?.avatar;
   const [open, setOpen] = useState(false);
+  const meter = useBillingSummary().data?.balance.meter ?? "normal";
 
   const go = (v: DashView) => {
     setView(v);
@@ -42,13 +50,18 @@ export function Topbar({ credits, view, setView, onExit }: Props) {
       <div className="hidden sm:block" />
 
       <div className="flex items-center gap-3">
-        <div className="hidden items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 sm:flex">
-          <Coins className="h-3.5 w-3.5 text-emerald-600" strokeWidth={2} />
+        <button
+          onClick={() => go("billing")}
+          title={METER_STYLES[meter].title}
+          aria-label={`${METER_STYLES[meter].title}: ${credits} available`}
+          className={`hidden items-center gap-2 rounded-md border px-3 py-1.5 transition-colors sm:flex ${METER_STYLES[meter].box}`}
+        >
+          <Coins className={`h-3.5 w-3.5 ${METER_STYLES[meter].icon}`} strokeWidth={2} />
           <span className="text-xs text-slate-500">Credits</span>
-          <span className="text-sm text-slate-900 tabular-nums" style={{ fontWeight: 600 }}>
+          <span className={`text-sm tabular-nums ${METER_STYLES[meter].value}`} style={{ fontWeight: 600 }}>
             <AnimatedNumber value={credits} />
           </span>
-        </div>
+        </button>
         <NotificationCenter />
 
         {/* Profile menu — holds Analytics, Activity, Settings, Support */}

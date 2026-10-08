@@ -1,87 +1,93 @@
+import { useEffect, useState } from "react";
 import { motion } from "motion/react";
-import {
-  ArrowUpRight,
-  AlertCircle,
-  Search,
-  Radio,
-  Mail,
-  RefreshCw,
-  Lock,
-  Smartphone,
-  CreditCard,
-  Plus,
-  Check,
-} from "lucide-react";
+import { ArrowUpRight, Check, CheckCircle2, CreditCard, Lock, Mail, Plus, Radio, RefreshCw, Search, Smartphone, XCircle } from "lucide-react";
+import type { BillingInterval, CreditAction, PlanId } from "@mushin/contracts";
 import { AnimatedNumber } from "./AnimatedNumber";
-import { CURRENT_PLAN } from "../../lib/credits";
 import { COPY } from "../../lib/copy";
+import {
+  useBillingPlans,
+  useBillingSummary,
+  useCancelSubscription,
+  useChangePlan,
+  useInvoices,
+  useLedger,
+  useRefreshBilling,
+  useStartCheckout,
+} from "../../api/billing";
 
 /**
- * Credits & billing — spec §13.
- * All money is PKR (Rupees) — the product operates Pakistan-first.
- * Usage is shown as a credit-use log tied to the actual operation that spent
- * credits (bridges ActivityLog semantics), not an abstract bar chart. Reserved
- * credits (§13.2, §22) are held while a live search runs and released on
- * failure or partial completion.
+ * Credits & billing. Prices are shown in PKR and charged in USD by the payment provider (spec D1).
+ * Every purchase opens the provider's hosted checkout (REQ-08.01). The spend-caps section is hidden (spec D6).
  */
 
-type OpKind = "fast" | "live" | "reveal" | "update";
-
-const OP_META: Record<OpKind, { label: string; icon: any; tone: string }> = {
-  fast: { label: COPY.searchExisting, icon: Search, tone: "bg-slate-100 text-slate-600" },
-  live: { label: COPY.findNew, icon: Radio, tone: "bg-indigo-50 text-indigo-700" },
-  reveal: { label: COPY.revealContact, icon: Mail, tone: "bg-emerald-50 text-emerald-700" },
-  update: { label: COPY.refreshData, icon: RefreshCw, tone: "bg-amber-50 text-amber-700" },
+const ACTION_META: Record<CreditAction, { label: string; icon: typeof Search; tone: string }> = {
+  search_existing: { label: COPY.searchExisting, icon: Search, tone: "bg-slate-100 text-slate-600" },
+  find_new: { label: COPY.findNew, icon: Radio, tone: "bg-indigo-50 text-indigo-700" },
+  reveal_contact: { label: COPY.revealContact, icon: Mail, tone: "bg-emerald-50 text-emerald-700" },
+  refresh_data: { label: COPY.refreshData, icon: RefreshCw, tone: "bg-amber-50 text-amber-700" },
 };
 
-// Credit-use log — each row is one real operation, with the credits it cost.
-const usageLog: { kind: OpKind; detail: string; when: string; credits: number }[] = [
-  { kind: "live", detail: "\"bridal Lahore 50k+ 5%+\" · 24 creators enriched", when: "2h ago", credits: 480 },
-  { kind: "reveal", detail: "@ayeshamalik email revealed", when: "3h ago", credits: 40 },
-  { kind: "update", detail: "@sanaa.k profile refreshed", when: "5h ago", credits: 20 },
-  { kind: "reveal", detail: "@usmantariq email revealed", when: "Yesterday", credits: 40 },
-  { kind: "live", detail: "\"skincare Karachi micro\" · 18 creators enriched", when: "Yesterday", credits: 360 },
-  { kind: "fast", detail: "\"fashion Islamabad\" · database results", when: "2 days ago", credits: 0 },
-];
+const KIND_LABEL = {
+  grant: "Credits added",
+  spend: "Credits spent",
+  refund: "Refund",
+  expire: "Credits expired",
+  adjust: "Adjustment",
+  reserve: "Credits reserved",
+  release: "Reservation released",
+} as const;
 
-// Spend caps in PKR (§13).
-const caps = [
-  { label: "Monthly hard cap", value: "Rs. 1,400,000", pct: 56 },
-  { label: "Daily soft cap", value: "Rs. 70,000", pct: 32 },
-  { label: "Per-search cap", value: "Rs. 14,000 / run", pct: 80 },
-];
+const formatMoney = (m: { amountMinor: number; currency: string }) =>
+  m.currency === "PKR" ? `Rs. ${(m.amountMinor / 100).toLocaleString("en-PK")}` : `$${(m.amountMinor / 100).toFixed(2)}`;
+const formatDate = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
-// Invoices in PKR.
-const invoices = [
-  { month: "Apr 2026", amount: "Rs. 139,600", status: "Paid" },
-  { month: "Mar 2026", amount: "Rs. 139,600", status: "Paid" },
-  { month: "Feb 2026", amount: "Rs. 139,600", status: "Paid" },
-  { month: "Jan 2026", amount: "Rs. 69,800", status: "Paid" },
-];
-
-// Payment methods — Pakistan-first wallets plus card. Dummy saved data.
-type PayMethod = {
-  id: string;
-  kind: "easypaisa" | "jazzcash" | "card";
-  label: string;
-  detail: string;
-  badge: string;
-  tone: string;
-  primary: boolean;
-};
-
-const paymentMethods: PayMethod[] = [
+const paymentMethods = [
   { id: "pm-1", kind: "easypaisa", label: "EasyPaisa wallet", detail: "0300 •••• 4521", badge: "EP", tone: "bg-emerald-600", primary: true },
   { id: "pm-2", kind: "jazzcash", label: "JazzCash wallet", detail: "0321 •••• 8890", badge: "JC", tone: "bg-red-600", primary: false },
   { id: "pm-3", kind: "card", label: "Visa debit", detail: "•••• •••• •••• 6042", badge: "", tone: "bg-slate-800", primary: false },
-];
+] as const;
 
-export function Billing({ credits }: { credits: number }) {
-  const cap = CURRENT_PLAN.credits;
-  const reserved = 0; // No live search running right now → nothing held.
-  const available = Math.max(0, credits - reserved);
-  const used = cap - credits;
-  const pct = Math.min(100, (used / cap) * 100);
+export function Billing({ checkoutResult }: { checkoutResult?: "success" | "failed" | null }) {
+  const summary = useBillingSummary();
+  const plans = useBillingPlans();
+  const canManage = summary.data?.canPurchase ?? false;
+  const ledger = useLedger(canManage);
+  const invoices = useInvoices(canManage);
+  const checkout = useStartCheckout();
+  const changePlan = useChangePlan();
+  const cancel = useCancelSubscription();
+  const refresh = useRefreshBilling();
+  const [billingInterval, setBillingInterval] = useState<BillingInterval>("month");
+  const [showPlans, setShowPlans] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  // After the hosted checkout returns, the webhook lands within seconds: refresh a few times.
+  useEffect(() => {
+    if (checkoutResult !== "success") return;
+    const timers = [2000, 6000, 12000].map((ms) => window.setTimeout(() => void refresh(), ms));
+    return () => timers.forEach((t) => window.clearTimeout(t));
+  }, [checkoutResult, refresh]);
+
+  const s = summary.data;
+  const error = checkout.error ?? changePlan.error ?? cancel.error;
+  const busy = checkout.isPending || changePlan.isPending || cancel.isPending;
+  const hasPlan = Boolean(s?.plan);
+  const trialing = s?.status === "trialing";
+
+  const choosePlan = (planId: PlanId) => {
+    setNotice(null);
+    if (hasPlan) {
+      changePlan.mutate(
+        { planId, interval: billingInterval },
+        {
+          onSuccess: (r) =>
+            setNotice(r.effective === "now" ? "Upgrade requested. Your new credits appear in a few seconds." : "Downgrade scheduled for the end of this billing period."),
+        },
+      );
+    } else {
+      checkout.mutate({ kind: "subscription", planId, interval: billingInterval });
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -89,13 +95,32 @@ export function Billing({ credits }: { credits: number }) {
         <h1 className="tracking-tight text-slate-900" style={{ fontSize: "1.5rem", fontWeight: 600, letterSpacing: "-0.02em" }}>
           Credits &amp; billing
         </h1>
-        <p className="mt-1 text-sm text-slate-500">Track credit use per operation, manage spend caps, and review invoices.</p>
+        <p className="mt-1 text-sm text-slate-500">Your balance, plan, credit history and invoices.</p>
       </div>
+
+      {checkoutResult && (
+        <div
+          role="status"
+          className={`flex items-center gap-2 rounded-xl border px-4 py-3 text-sm ${checkoutResult === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-red-200 bg-red-50 text-red-800"}`}
+        >
+          {checkoutResult === "success" ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+          {checkoutResult === "success" ? "Payment received. Your plan and credits update within a few seconds." : "The payment did not go through. No credits were charged."}
+        </div>
+      )}
+      {(notice || error) && (
+        <div role={error ? "alert" : "status"} className={`rounded-xl border px-4 py-3 text-sm ${error ? "border-red-200 bg-red-50 text-red-800" : "border-indigo-100 bg-indigo-50 text-indigo-900"}`}>
+          {error ? error.message : notice}
+        </div>
+      )}
 
       {/* Balance row */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <BalanceTile label="Available credits" value={available} accent />
-        <BalanceTile label="Reserved (held for running searches)" value={reserved} sub={reserved === 0 ? "Nothing running — no credits held" : "Released automatically on failure or partial completion"} />
+        <BalanceTile label="Available credits" value={s?.balance.available ?? 0} accent />
+        <BalanceTile
+          label="Reserved (held for running searches)"
+          value={s?.balance.reserved ?? 0}
+          sub={(s?.balance.reserved ?? 0) === 0 ? "Nothing running: no credits held" : "Released automatically if a job fails or stops"}
+        />
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -103,144 +128,189 @@ export function Billing({ credits }: { credits: number }) {
           className="rounded-xl border border-slate-200 bg-slate-900 p-6 text-white shadow-sm"
         >
           <div className="text-xs uppercase tracking-wider text-slate-400">Current plan</div>
-          <div className="mt-1 text-white" style={{ fontSize: "1.25rem", fontWeight: 600 }}>{CURRENT_PLAN.name}</div>
-          <div className="mt-4 text-xs text-slate-400">Credits used this period</div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span style={{ fontSize: "1.75rem", fontWeight: 600, letterSpacing: "-0.02em" }}>
-              <AnimatedNumber value={used} />
-            </span>
-            <span className="text-sm text-slate-400">of {cap.toLocaleString()} credits</span>
+          <div className="mt-1 text-white" style={{ fontSize: "1.25rem", fontWeight: 600 }}>
+            {s?.plan ? `${s.plan.name} · ${s.interval === "year" ? "Yearly" : "Monthly"}` : trialing ? "Free trial" : "No active plan"}
           </div>
-          <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${pct}%` }}
-              transition={{ duration: 1, ease: "easeOut" }}
-              className="h-full rounded-full bg-gradient-to-r from-indigo-400 to-emerald-300"
-            />
+          <div className="mt-3 text-xs text-slate-400">
+            {s?.plan && s.currentPeriodEnd
+              ? s.cancelAtPeriodEnd
+                ? `Ends on ${formatDate(s.currentPeriodEnd)}`
+                : `Renews on ${formatDate(s.currentPeriodEnd)}`
+              : trialing && s?.trialDaysLeft !== null && s?.trialDaysLeft !== undefined
+                ? `${s.trialDaysLeft} days of trial left`
+                : "Choose a plan to get monthly credits"}
           </div>
-          <button className="mt-6 w-full rounded-md bg-white px-3 py-2 text-sm text-slate-900 transition-all hover:-translate-y-px hover:shadow-md">
-            Upgrade plan
-          </button>
+          {s?.scheduledChange && (
+            <div className="mt-2 text-xs text-amber-300">
+              Changes to {s.scheduledChange.planId} at the end of this period
+            </div>
+          )}
+          {canManage && (
+            <div className="mt-6 grid gap-2">
+              <button
+                onClick={() => setShowPlans((v) => !v)}
+                className="w-full rounded-md bg-white px-3 py-2 text-sm text-slate-900 transition-all hover:-translate-y-px hover:shadow-md"
+              >
+                {hasPlan ? "Change plan" : "Choose a plan"}
+              </button>
+              {hasPlan && !s?.cancelAtPeriodEnd && (
+                <button
+                  disabled={busy}
+                  onClick={() => cancel.mutate(undefined, { onSuccess: () => setNotice("Your subscription will end at the close of this billing period.") })}
+                  className="w-full rounded-md border border-white/20 px-3 py-2 text-xs text-slate-300 hover:bg-white/10 disabled:opacity-50"
+                >
+                  Cancel subscription
+                </button>
+              )}
+            </div>
+          )}
         </motion.div>
       </div>
+
+      {/* Plans and top-ups */}
+      {canManage && showPlans && plans.data && (
+        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Plans</div>
+            <div className="inline-flex rounded-md border border-slate-200 p-0.5 text-xs">
+              {(["month", "year"] as const).map((i) => (
+                <button key={i} onClick={() => setBillingInterval(i)} className={`rounded px-2.5 py-1 ${billingInterval === i ? "bg-slate-900 text-white" : "text-slate-600"}`}>
+                  {i === "month" ? "Monthly" : "Yearly"}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+            {plans.data.plans.map((p) => {
+              const current = s?.plan?.id === p.id && s.interval === billingInterval;
+              const price = billingInterval === "month" ? p.display.monthly : p.display.yearlyPerMonth;
+              return (
+                <div key={p.id} className={`rounded-lg border p-4 ${current ? "border-indigo-300 bg-indigo-50/40" : "border-slate-200"}`}>
+                  <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>{p.name}</div>
+                  <div className="mt-1 text-slate-900" style={{ fontSize: 22, fontWeight: 600 }}>
+                    {formatMoney(price)}
+                    <span className="text-xs text-slate-500"> / month{billingInterval === "year" ? ", billed yearly" : ""}</span>
+                  </div>
+                  <div className="mt-1 text-xs text-slate-500">
+                    {p.monthlyCredits.toLocaleString()} credits / month · charged {formatMoney(billingInterval === "month" ? p.charge.monthly : p.charge.yearly)}
+                  </div>
+                  <button
+                    disabled={busy || current}
+                    onClick={() => choosePlan(p.id)}
+                    className="mt-4 w-full rounded-md bg-slate-900 px-3 py-2 text-xs text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                    style={{ fontWeight: 600 }}
+                  >
+                    {current ? "Current plan" : hasPlan ? `Switch to ${p.name}` : `Choose ${p.name}`}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-6 text-sm text-slate-900" style={{ fontWeight: 600 }}>Credit top-ups</div>
+          <div className="mt-1 text-xs text-slate-500">
+            {trialing ? "Top-ups unlock once you choose a plan." : "Valid for 12 months. Spent after your monthly credits run out."}
+          </div>
+          <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
+            {plans.data.topupPacks.map((k) => (
+              <button
+                key={k.id}
+                disabled={busy || trialing}
+                onClick={() => checkout.mutate({ kind: "topup", packId: k.id })}
+                className="rounded-lg border border-slate-200 p-4 text-left hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>{k.credits.toLocaleString()} credits</div>
+                <div className="text-xs text-slate-500">
+                  {formatMoney(k.display)} · charged {formatMoney(k.charge)}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Reservation model explainer */}
       <div className="flex items-start gap-2.5 rounded-xl border border-indigo-100 bg-indigo-50/50 px-4 py-3 text-xs text-indigo-900">
         <Lock className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-indigo-500" strokeWidth={2} />
         <div style={{ lineHeight: 1.5 }}>
-          <span style={{ fontWeight: 600 }}>How live discovery is billed.</span>{" "}
-          When you start a live search we reserve the estimated credits up front. You're only charged
-          for creators actually enriched — if a search fails or completes partially, the unused reserve
-          is released back to your balance automatically.
+          <span style={{ fontWeight: 600 }}>How live discovery is billed.</span> When you start a live search we reserve its credits up front.
+          If the search fails, the reserved credits are released back to your balance automatically.
         </div>
       </div>
 
-      {/* Credit-use log */}
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-          <div>
-            <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Credit-use log</div>
-            <div className="text-xs text-slate-500">Every operation that spent credits</div>
+      {/* Credit history (the ledger) */}
+      {canManage && (
+        <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-100 px-5 py-4">
+            <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Credit history</div>
+            <div className="text-xs text-slate-500">Every credit added, reserved, spent, released and expired</div>
           </div>
-          <button className="text-xs text-indigo-600 hover:text-indigo-700" style={{ fontWeight: 500 }}>Export CSV</button>
-        </div>
-        <div className="divide-y divide-slate-100">
-          {usageLog.map((row, i) => {
-            const m = OP_META[row.kind];
-            return (
-              <div key={i} className="flex items-center gap-3 px-5 py-3">
-                <span className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg ${m.tone}`}>
-                  <m.icon className="h-4 w-4" strokeWidth={1.75} />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-slate-900" style={{ fontWeight: 500 }}>{m.label}</span>
-                    <span className="text-[11px] text-slate-400">{row.when}</span>
+          <div className="divide-y divide-slate-100">
+            {(ledger.data?.entries ?? []).map((e) => {
+              const meta = e.action ? ACTION_META[e.action] : null;
+              const Icon = meta?.icon ?? Plus;
+              // Reserve rows store the held amount as a positive number; show it as a deduction.
+              const signed = e.kind === "reserve" ? -e.amount : e.amount;
+              return (
+                <div key={e.id} className="flex items-center gap-3 px-5 py-3">
+                  <span className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg ${meta?.tone ?? "bg-slate-100 text-slate-600"}`}>
+                    <Icon className="h-4 w-4" strokeWidth={1.75} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-slate-900" style={{ fontWeight: 500 }}>{meta ? `${KIND_LABEL[e.kind]} · ${meta.label}` : KIND_LABEL[e.kind]}</span>
+                      <span className="text-[11px] text-slate-400">{formatDate(e.createdAt)}</span>
+                    </div>
+                    {e.note && <div className="truncate text-xs text-slate-500">{e.note}</div>}
                   </div>
-                  <div className="truncate text-xs text-slate-500">{row.detail}</div>
+                  <span className={`flex-shrink-0 tabular-nums text-sm ${signed < 0 ? "text-slate-900" : "text-emerald-700"}`} style={{ fontWeight: 600 }}>
+                    {signed > 0 ? `+${signed}` : signed}
+                  </span>
                 </div>
-                <span className={`flex-shrink-0 tabular-nums text-sm ${row.credits === 0 ? "text-slate-400" : "text-slate-900"}`} style={{ fontWeight: 600 }}>
-                  {row.credits === 0 ? "Free" : `−${row.credits}`}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {/* Spend caps */}
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Spend caps</div>
-            <button className="text-xs text-indigo-600 hover:text-indigo-700">Edit</button>
-          </div>
-          {caps.map((c) => (
-            <div key={c.label} className="mt-4 border-t border-slate-100 pt-4 first:border-0 first:pt-0">
-              <div className="flex items-baseline justify-between">
-                <span className="text-sm text-slate-700">{c.label}</span>
-                <span className="tabular-nums text-sm text-slate-900" style={{ fontWeight: 500 }}>{c.value}</span>
-              </div>
-              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${c.pct}%` }}
-                  transition={{ duration: 0.8 }}
-                  className={`h-full rounded-full ${c.pct > 75 ? "bg-amber-500" : "bg-emerald-500"}`}
-                />
-              </div>
-            </div>
-          ))}
-          <div className="mt-5 flex items-start gap-2 rounded-md bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
-            <AlertCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
-            The per-search cap is approaching its threshold. Review before your next live discovery.
+              );
+            })}
+            {ledger.data && ledger.data.entries.length === 0 && <div className="px-5 py-6 text-sm text-slate-500">No credit activity yet.</div>}
           </div>
         </div>
+      )}
 
-        {/* Invoices */}
+      {/* Invoices */}
+      {canManage && (
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Recent invoices</div>
+          <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Invoices</div>
           <div className="mt-4 space-y-3">
-            {invoices.map((i) => (
-              <div key={i.month} className="flex items-center justify-between border-b border-slate-100 pb-3 last:border-0">
+            {(invoices.data?.invoices ?? []).map((i) => (
+              <div key={i.id} className="flex items-center justify-between border-b border-slate-100 pb-3 last:border-0">
                 <div>
-                  <div className="text-sm text-slate-900" style={{ fontWeight: 500 }}>{i.month}</div>
-                  <div className="text-xs text-slate-500">Growth plan</div>
+                  <div className="text-sm text-slate-900" style={{ fontWeight: 500 }}>{formatDate(i.createdAt)}</div>
+                  <div className="text-xs text-slate-500">{i.kind === "topup" ? "Credit top-up" : "Subscription"}</div>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700">{i.status}</span>
-                  <span className="tabular-nums text-sm text-slate-900" style={{ fontWeight: 500 }}>{i.amount}</span>
-                  <button className="text-slate-400 hover:text-slate-700">
-                    <ArrowUpRight className="h-3.5 w-3.5" />
-                  </button>
+                  <span className="tabular-nums text-sm text-slate-900" style={{ fontWeight: 500 }}>{formatMoney(i.amount)}</span>
+                  {i.invoiceUrl ? (
+                    <a href={i.invoiceUrl} target="_blank" rel="noreferrer" className="text-slate-400 hover:text-slate-700" aria-label="Open invoice">
+                      <ArrowUpRight className="h-3.5 w-3.5" />
+                    </a>
+                  ) : null}
                 </div>
               </div>
             ))}
+            {invoices.data && invoices.data.invoices.length === 0 && <div className="text-sm text-slate-500">No payments yet.</div>}
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Payment methods — EasyPaisa / JazzCash / card */}
+      {/* Payment methods: unchanged sample data until sub-project 7 removes EasyPaisa/JazzCash. */}
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Payment methods</div>
-            <div className="text-xs text-slate-500">How you top up credits and pay invoices.</div>
-          </div>
-          <button className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-50" style={{ fontWeight: 500 }}>
-            <Plus className="h-3 w-3" strokeWidth={2} /> Add method
-          </button>
+        <div>
+          <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Payment methods</div>
+          <div className="text-xs text-slate-500">How you top up credits and pay invoices.</div>
         </div>
         <div className="mt-4 space-y-2.5">
           {paymentMethods.map((m) => (
             <div key={m.id} className="flex items-center gap-3 rounded-lg border border-slate-200 p-3">
               <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-white ${m.tone}`}>
-                {m.kind === "card" ? (
-                  <CreditCard className="h-4 w-4" strokeWidth={1.75} />
-                ) : (
-                  <span className="text-[11px]" style={{ fontWeight: 700 }}>{m.badge}</span>
-                )}
+                {m.kind === "card" ? <CreditCard className="h-4 w-4" strokeWidth={1.75} /> : <span className="text-[11px]" style={{ fontWeight: 700 }}>{m.badge}</span>}
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
@@ -254,15 +324,11 @@ export function Billing({ credits }: { credits: number }) {
                 <div className="tabular-nums text-xs text-slate-500">{m.detail}</div>
               </div>
               {m.kind !== "card" && <Smartphone className="h-4 w-4 flex-shrink-0 text-slate-300" strokeWidth={1.75} />}
-              <button className="flex-shrink-0 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-700 hover:bg-slate-50" style={{ fontWeight: 500 }}>
-                {m.primary ? "Edit" : "Make primary"}
-              </button>
             </div>
           ))}
         </div>
         <p className="mt-3 text-[11px] text-slate-400" style={{ lineHeight: 1.5 }}>
-          Sample data for demonstration. EasyPaisa and JazzCash top-ups settle instantly; card
-          payments may take a few minutes to reflect in your balance.
+          Sample data for demonstration.
         </p>
       </div>
     </div>
@@ -271,12 +337,7 @@ export function Billing({ credits }: { credits: number }) {
 
 function BalanceTile({ label, value, sub, accent }: { label: string; value: number; sub?: string; accent?: boolean }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
-    >
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="text-xs text-slate-500">{label}</div>
       <div className={`mt-2 tabular-nums ${accent ? "text-slate-900" : "text-slate-700"}`} style={{ fontSize: "1.75rem", fontWeight: 600, letterSpacing: "-0.02em" }}>
         <AnimatedNumber value={value} />

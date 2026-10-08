@@ -1,7 +1,6 @@
-import { useSyncExternalStore } from "react";
-import { PLANS } from "./plans";
+import { useBillingSummary } from "../api/billing";
 
-// Placeholder costs until final pricing is approved.
+/** Shown before confirming; the server enforces the real costs (and refuses a stale one). */
 export const CREDIT_COST = {
   searchExisting: 0,
   findNew: 12,
@@ -9,28 +8,15 @@ export const CREDIT_COST = {
   refreshData: 10,
 } as const;
 
-export const CURRENT_PLAN = PLANS.find((p) => p.id === "growth")!;
-export const PLAN_CREDITS = CURRENT_PLAN.credits;
-
-let balance = 8420;
-const listeners = new Set<() => void>();
-const emit = () => listeners.forEach((l) => l());
-
-export const getCredits = () => balance;
-
-export function spendCredits(n: number): boolean {
-  if (n > balance) return false;
-  balance -= n;
-  emit();
-  return true;
+/** Available credits from the billing API (0 while loading). */
+export function useCredits(): number {
+  return useBillingSummary().data?.balance.available ?? 0;
 }
 
-export function useCredits() {
-  return useSyncExternalStore(
-    (cb) => {
-      listeners.add(cb);
-      return () => listeners.delete(cb);
-    },
-    getCredits,
-  );
+/**
+ * Demo credit actions on other screens become real in sub-projects 3-4. Until then they no longer
+ * change the displayed balance, so the meter always shows real data.
+ */
+export function spendCredits(cost: number): boolean {
+  return Number.isInteger(cost) && cost >= 0;
 }

@@ -21,7 +21,7 @@ import { useAuth } from "../../auth/AuthContext";
 import { profiles } from "../../auth/profiles";
 import type { DashView } from "./Sidebar";
 import { useCampaigns, progressRatio } from "../../lib/campaignStore";
-import { CURRENT_PLAN } from "../../lib/credits";
+import { useBillingPlans, useBillingSummary } from "../../api/billing";
 import { COPY } from "../../lib/copy";
 
 /**
@@ -219,7 +219,13 @@ function Skeleton({ className = "" }: { className?: string }) {
 /* ─────────────────────── credit balance ─────────────────────── */
 
 function CreditBalanceCard({ credits, loading, go }: { credits: number; loading: boolean; go: (v: DashView) => void }) {
-  const max = CURRENT_PLAN.credits;
+  const summary = useBillingSummary().data;
+  const max = Math.max(1, summary?.balance.base ?? 1);
+  const renewal = summary?.currentPeriodEnd
+    ? `${summary.cancelAtPeriodEnd ? "Ends" : "Renews"} on ${new Date(summary.currentPeriodEnd).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`
+    : summary?.status === "trialing"
+      ? `Trial: ${summary.trialDaysLeft ?? 0} days left`
+      : "No active plan";
   const remainingPct = Math.max(0, Math.min(100, (credits / max) * 100));
   const bar =
     remainingPct > 50 ? "bg-emerald-500" : remainingPct >= 20 ? "bg-amber-500" : "bg-red-500";
@@ -246,7 +252,7 @@ function CreditBalanceCard({ credits, loading, go }: { credits: number; loading:
           <div className="mt-4 text-slate-900 tabular-nums" style={{ fontSize: 32, fontWeight: 600, letterSpacing: "-0.03em" }}>
             <AnimatedNumber value={credits} />
           </div>
-          <div className="mt-1 text-xs text-slate-500">of {max.toLocaleString()} monthly credits</div>
+          <div className="mt-1 text-xs text-slate-500">of {max.toLocaleString()} {summary?.status === "trialing" ? "trial" : "monthly"} credits</div>
           <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
             <motion.div
               initial={{ width: 0 }}
@@ -256,7 +262,7 @@ function CreditBalanceCard({ credits, loading, go }: { credits: number; loading:
             />
           </div>
           <div className="mt-4 flex items-center justify-between text-xs text-slate-500">
-            <span>Renews on Aug 3</span>
+            <span>{renewal}</span>
             <button onClick={() => go("billing")} className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-700" style={{ fontWeight: 500 }}>
               Top up <ArrowUpRight className="h-3 w-3" />
             </button>
@@ -270,14 +276,18 @@ function CreditBalanceCard({ credits, loading, go }: { credits: number; loading:
 /* ─────────────────────── subscription ─────────────────────── */
 
 function SubscriptionCard({ loading, go }: { loading: boolean; go: (v: DashView) => void }) {
+  const summary = useBillingSummary().data;
+  const plans = useBillingPlans().data;
+  const plan = plans?.plans.find((p) => p.id === summary?.plan?.id);
+  const price = plan ? (summary?.interval === "year" ? plan.display.yearlyPerMonth : plan.display.monthly) : null;
   return (
     <Card>
       <CardHead
         title="Subscription"
-        subtitle={`${CURRENT_PLAN.name} · Monthly`}
+        subtitle={summary?.plan ? `${summary.plan.name} · ${summary.interval === "year" ? "Yearly" : "Monthly"}` : summary?.status === "trialing" ? "Free trial" : "No active plan"}
         action={
           <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] text-indigo-700" style={{ fontWeight: 600 }}>
-            Active
+            {summary?.status === "active" ? "Active" : summary?.status === "trialing" ? "Trial" : "Inactive"}
           </span>
         }
       />
@@ -291,11 +301,11 @@ function SubscriptionCard({ loading, go }: { loading: boolean; go: (v: DashView)
         <>
           <div className="mt-4 flex items-baseline gap-1.5">
             <span className="text-slate-900" style={{ fontSize: 28, fontWeight: 600, letterSpacing: "-0.03em" }}>
-              Rs. {CURRENT_PLAN.monthly.toLocaleString()}
+              {price ? `Rs. ${(price.amountMinor / 100).toLocaleString("en-PK")}` : "—"}
             </span>
             <span className="text-xs text-slate-500">/ month</span>
           </div>
-          <div className="mt-1 text-xs text-slate-500">Renews Jul 04 · JazzCash •••• 8241</div>
+          <div className="mt-1 text-xs text-slate-500">{summary?.currentPeriodEnd ? `Renews ${new Date(summary.currentPeriodEnd).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}` : "Choose a plan in Credits & billing"}</div>
           <ul className="mt-4 space-y-1.5 text-xs text-slate-600">
             {["Multi-platform discovery", COPY.suspiciousActivity, COPY.priorityRefresh].map((f) => (
               <li key={f} className="inline-flex items-center gap-1.5">
