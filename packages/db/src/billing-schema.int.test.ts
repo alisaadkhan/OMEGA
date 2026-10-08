@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { sql } from "drizzle-orm";
+import { sql, type SQL } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { createTestDatabase, createTestWorkspace, ownerQuery, resetTables } from "./testing";
 
@@ -26,10 +26,7 @@ describe("billing schema", () => {
 
   it("keeps the ledger append-only for the API role", async () => {
     const ws = await createTestWorkspace();
-    const lotId = await lot(ws.workspaceId, 10);
-    await db.withTenant(ws, (tx) =>
-      tx.execute(sql`insert into wp.credit_ledger (workspace_id, amount, kind, lot_id) values (${ws.workspaceId}, 10, 'grant', ${lotId})`),
-    );
+    await db.withTenant(ws, (tx) => tx.execute(sql`insert into wp.credit_ledger (workspace_id, amount, kind) values (${ws.workspaceId}, 10, 'reserve')`));
     await expect(db.withTenant(ws, (tx) => tx.execute(sql`update wp.credit_ledger set amount = 99`))).rejects.toThrow(/permission denied/);
     await expect(db.withTenant(ws, (tx) => tx.execute(sql`delete from wp.credit_ledger`))).rejects.toThrow(/permission denied/);
     await expect(
@@ -38,6 +35,35 @@ describe("billing schema", () => {
                        values (${ws.workspaceId}, 'txn_x', 'topup', 100, 'USD', 'completed')`),
       ),
     ).rejects.toThrow(/permission denied/);
+  });
+
+  it("lets the API role start one trial but never grant credits or activate a plan", async () => {
+    const ws = await createTestWorkspace();
+    const inApi = (q: SQL) => db.withTenant(ws, (tx) => tx.execute(q));
+    await inApi(sql`insert into wp.subscriptions (workspace_id, trial_ends_at) values (${ws.workspaceId}, now() + interval '14 days')`);
+    expect((await ownerQuery<{ status: string }>(`select status from wp.subscriptions`))[0]?.status).toBe("trialing");
+    await expect(inApi(sql`update wp.subscriptions set status = 'active', plan_id = 'scale'`)).rejects.toThrow(/permission denied/);
+    await expect(inApi(sql`insert into wp.subscriptions (workspace_id, status) values (${ws.workspaceId}, 'active')`)).rejects.toThrow(/permission denied/);
+
+    await inApi(sql`insert into wp.credit_lots (workspace_id, source, amount, remaining, expires_at) values (${ws.workspaceId}, 'trial', 200, 200, now() + interval '14 days')`);
+    await expect(
+      inApi(sql`insert into wp.credit_lots (workspace_id, source, amount, remaining, expires_at) values (${ws.workspaceId}, 'trial', 200, 200, now() + interval '14 days')`),
+    ).rejects.toThrow(/duplicate key/);
+    await expect(
+      inApi(sql`insert into wp.credit_lots (workspace_id, source, amount, remaining, expires_at) values (${ws.workspaceId}, 'topup', 5000, 5000, now() + interval '1 year')`),
+    ).rejects.toThrow(/row-level security/);
+    await expect(inApi(sql`update wp.credit_lots set amount = 99999`)).rejects.toThrow(/permission denied/);
+    await expect(
+      inApi(sql`insert into wp.credit_ledger (workspace_id, amount, kind, source_ref, lot_id) select ${ws.workspaceId}, 500, 'grant', 'txn:fake', id from wp.credit_lots`),
+    ).rejects.toThrow(/row-level security/);
+  });
+
+  it("enforces the sign of every ledger row", async () => {
+    const ws = await createTestWorkspace();
+    const lotId = await lot(ws.workspaceId, 10);
+    await expect(ownerQuery(`insert into wp.credit_ledger (workspace_id, amount, kind, lot_id) values ('${ws.workspaceId}', 5, 'spend', '${lotId}')`)).rejects.toThrow(/check constraint/);
+    await expect(ownerQuery(`insert into wp.credit_ledger (workspace_id, amount, kind, lot_id) values ('${ws.workspaceId}', -5, 'grant', '${lotId}')`)).rejects.toThrow(/check constraint/);
+    await expect(ownerQuery(`insert into wp.credit_ledger (workspace_id, amount, kind) values ('${ws.workspaceId}', 0, 'adjust')`)).rejects.toThrow(/check constraint/);
   });
 
   it("rejects reserve rows that point at a lot and spend rows that do not", async () => {

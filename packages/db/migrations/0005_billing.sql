@@ -94,7 +94,7 @@ create table wp.subscriptions (
   workspace_id uuid primary key references wp.workspaces (id) on delete cascade,
   plan_id text references platform.plans (id),
   billing_interval text check (billing_interval in ('month', 'year')),
-  status text not null check (status in ('trialing', 'active', 'past_due', 'canceled', 'expired')),
+  status text not null default 'trialing' check (status in ('trialing', 'active', 'past_due', 'canceled', 'expired')),
   current_period_start timestamptz,
   current_period_end timestamptz,
   trial_ends_at timestamptz,
@@ -194,7 +194,13 @@ create table wp.credit_ledger (
   note text,
   created_at timestamptz not null default now(),
   check (kind not in ('reserve', 'release') or lot_id is null),
-  check (kind not in ('grant', 'spend', 'expire') or lot_id is not null)
+  check (kind not in ('grant', 'spend', 'expire') or lot_id is not null),
+  -- Sign rules: grants add, spends and expiries remove, reserve/release record the held amount.
+  check (
+    (kind in ('grant', 'reserve', 'release') and amount > 0)
+    or (kind in ('spend', 'expire') and amount < 0)
+    or (kind in ('refund', 'adjust') and amount <> 0)
+  )
 );
 create index credit_ledger_history_idx on wp.credit_ledger (workspace_id, created_at desc, id desc);
 create index credit_ledger_lot_idx on wp.credit_ledger (lot_id) where lot_id is not null;
@@ -256,12 +262,44 @@ create policy billing_schedule_tenant on platform.billing_schedule
   with check (workspace_id = platform.current_workspace_id());
 create policy billing_schedule_worker_scan on platform.billing_schedule for select to mushin_worker using (true);
 
+-- ── Billing integrity for the API role ─────────────────────────────────────
+-- Credits and plans change only through payment webhooks applied by the worker (mushin_worker). The API role
+-- (mushin_app) may start the one trial, hold/spend/release credits and record checkout attempts, nothing more,
+-- so a bug in any API path cannot grant credits or activate a plan.
+create unique index credit_lots_one_trial_key on wp.credit_lots (workspace_id) where source = 'trial';
+
+create policy credit_lots_app_insert on wp.credit_lots as restrictive for insert to mushin_app
+  with check (source = 'trial' and amount <= (select trial_credits from platform.billing_settings));
+
+create policy credit_ledger_app_insert on wp.credit_ledger as restrictive for insert to mushin_app
+  with check (
+    kind in ('reserve', 'spend', 'release')
+    or (kind = 'grant' and source_ref = 'trial:' || workspace_id::text
+        and amount <= (select trial_credits from platform.billing_settings))
+  );
+
+create policy checkouts_app_update on wp.checkouts as restrictive for update to mushin_app
+  using (true) with check (status in ('open', 'failed'));
+
 -- ── Grants ──────────────────────────────────────────────────────────────────
 grant select on platform.plans, platform.topup_packs, platform.credit_action_costs, platform.billing_settings to mushin_app, mushin_worker;
-grant select, insert, update on wp.subscriptions, wp.checkouts, wp.credit_lots, wp.credit_reservations, wp.entitlement_usage to mushin_app, mushin_worker;
+-- API role: column-level rights only where it has a legitimate write.
+grant select on wp.subscriptions to mushin_app;
+grant insert (workspace_id, trial_ends_at) on wp.subscriptions to mushin_app;
+grant update (scheduled_plan_id, scheduled_interval) on wp.subscriptions to mushin_app;
+grant select, insert on wp.credit_lots to mushin_app;
+grant update (remaining) on wp.credit_lots to mushin_app;
+grant select, insert on wp.credit_reservations to mushin_app;
+grant update (status, expires_at, committed_at, released_at) on wp.credit_reservations to mushin_app;
+grant select, insert on wp.checkouts to mushin_app;
+grant update (status, provider_checkout_id, hosted_url) on wp.checkouts to mushin_app;
+grant select, insert, update on wp.entitlement_usage to mushin_app;
 grant select on wp.payments to mushin_app;
-grant select, insert, update on wp.payments to mushin_worker;
-grant select, insert on wp.credit_ledger to mushin_app, mushin_worker;
+grant select, insert on wp.credit_ledger to mushin_app;
+-- Worker role: applies webhooks and runs jobs (always inside one workspace's context).
+grant select, insert, update on wp.subscriptions, wp.checkouts, wp.credit_lots, wp.credit_reservations, wp.entitlement_usage, wp.payments
+  to mushin_worker;
+grant select, insert on wp.credit_ledger to mushin_worker;
 grant select, insert, update on platform.webhook_events to mushin_worker;
 grant select, insert, update on platform.billing_schedule to mushin_app;
 grant select, insert, update, delete on platform.billing_schedule to mushin_worker;
