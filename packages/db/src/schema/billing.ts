@@ -172,6 +172,8 @@ export const creditReservations = wp.table("credit_reservations", {
   action: text("action", { enum: actionEnum }).notNull(),
   confirmedCost: integer("confirmed_cost").notNull(),
   status: text("status", { enum: ["held", "committed", "released", "expired"] }).notNull(),
+  /** Which lots the hold may be spent from, fixed when it is placed (migration 0007). */
+  spendScope: text("spend_scope", { enum: ["all", "topup_only"] }).notNull().default("all"),
   expiresAt: ts("expires_at").notNull(),
   refType: text("ref_type").notNull(),
   refId: text("ref_id").notNull(),

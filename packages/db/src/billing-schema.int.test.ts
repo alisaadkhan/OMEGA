@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { sql, type SQL } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { createTestDatabase, createTestWorkspace, dbError, ownerQuery, resetTables } from "./testing";
@@ -138,5 +139,18 @@ describe("billing schema", () => {
     const fromB = await db.withTenant(b, (tx) => tx.execute(sql`select id from wp.credit_lots`));
     expect(fromB.length).toBe(0);
     expect(randomUUID()).not.toBe(a.workspaceId);
+  });
+
+  it("gives workspaces created before billing a trial, once (migration 0008)", async () => {
+    const ws = await createTestWorkspace();
+    const backfill = readFileSync(new URL("../migrations/0008_trial_backfill.sql", import.meta.url), "utf8");
+    await ownerQuery(backfill);
+    await ownerQuery(backfill);
+    const rows = await ownerQuery<{ status: string; lots: number; grants: number; jobs: string }>(`
+      select (select status from wp.subscriptions where workspace_id = '${ws.workspaceId}') status,
+        (select count(*)::int from wp.credit_lots where workspace_id = '${ws.workspaceId}' and source = 'trial' and remaining = 200) lots,
+        (select count(*)::int from wp.credit_ledger where workspace_id = '${ws.workspaceId}' and kind = 'grant' and source_ref = 'trial:${ws.workspaceId}') grants,
+        (select string_agg(job, ',' order by job) from platform.billing_schedule where workspace_id = '${ws.workspaceId}') jobs`);
+    expect(rows[0]).toEqual({ status: "trialing", lots: 1, grants: 1, jobs: "end_trials,expire_lots,reconcile,trial_notices" });
   });
 });
