@@ -83,7 +83,7 @@ describe("database scopes", () => {
         has_schema_privilege('anon', s, 'usage') as anon,
         has_schema_privilege('authenticated', s, 'usage') as authed,
         has_schema_privilege('mushin_app', 'staff', 'usage') as app_staff
-      from unnest(array['wp','staff','platform']) as s`);
+      from unnest(array['wp','staff','platform','gcp']) as s`);
     for (const r of rows) {
       expect(r.anon).toBe(false);
       expect(r.authed).toBe(false);

@@ -1,0 +1,164 @@
+import { boolean, char, date, doublePrecision, integer, jsonb, pgSchema, primaryKey, smallint, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { wp } from "./identity";
+
+export const gcp = pgSchema("gcp");
+const platform = pgSchema("platform");
+const ts = (name: string) => timestamp(name, { withTimezone: true, mode: "date" });
+const platformEnum = ["instagram", "tiktok", "youtube"] as const;
+type Confidence = "low" | "medium" | "high";
+
+export type EvidenceRow = { signal: string; detail: string; weight: number };
+export type AudienceRow = {
+  age: { label: string; value: number; confidence: Confidence }[];
+  gender: { female: number; male: number; confidence: Confidence } | null;
+  cities: { label: string; value: number; confidence: Confidence }[];
+  countries: { code: string; value: number; confidence: Confidence }[];
+  source: string;
+};
+
+export const creators = gcp.table("creators", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  displayName: text("display_name").notNull(),
+  primaryHandle: text("primary_handle").notNull(),
+  primaryPlatform: text("primary_platform", { enum: platformEnum }).notNull(),
+  avatarUrl: text("avatar_url"),
+  city: text("city"),
+  country: char("country", { length: 2 }),
+  niches: text("niches").array().notNull().default([]),
+  tags: text("tags").array().notNull().default([]),
+  nameVariants: text("name_variants").array().notNull().default([]),
+  verified: boolean("verified").notNull().default(false),
+  authenticityScore: smallint("authenticity_score"),
+  fakeFollowerPct: doublePrecision("fake_follower_pct"),
+  aiSummary: text("ai_summary"),
+  aiSummaryModel: text("ai_summary_model"),
+  aiSummaryAt: ts("ai_summary_at"),
+  aiSummarySourceHash: text("ai_summary_source_hash"),
+  aiSummaryFailedAt: ts("ai_summary_failed_at"),
+  isMinor: boolean("is_minor").notNull().default(false),
+  minorOverrideByStaffId: uuid("minor_override_by_staff_id"),
+  minorOverrideReason: text("minor_override_reason"),
+  status: text("status", { enum: ["active", "merged", "removal_requested", "erased"] }).notNull().default("active"),
+  mergedIntoId: uuid("merged_into_id"),
+  lastEnrichedAt: ts("last_enriched_at"),
+  createdAt: ts("created_at").notNull().defaultNow(),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+});
+
+export const creatorProfiles = gcp.table("creator_profiles", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  creatorId: uuid("creator_id").notNull(),
+  platform: text("platform", { enum: platformEnum }).notNull(),
+  handle: text("handle").notNull(),
+  canonicalUrl: text("canonical_url").notNull(),
+  followers: integer("followers").notNull().default(0),
+  following: integer("following"),
+  posts: integer("posts"),
+  engagementRate: doublePrecision("engagement_rate"),
+  avgLikes: integer("avg_likes"),
+  avgComments: integer("avg_comments"),
+  avgViews: integer("avg_views"),
+  bio: text("bio"),
+  followersUpdatedAt: ts("followers_updated_at"),
+  engagementUpdatedAt: ts("engagement_updated_at"),
+  audienceUpdatedAt: ts("audience_updated_at"),
+  lastScrapedAt: ts("last_scraped_at"),
+  createdAt: ts("created_at").notNull().defaultNow(),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+});
+
+export const creatorContacts = gcp.table("creator_contacts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  creatorId: uuid("creator_id").notNull(),
+  kind: text("kind", { enum: ["email", "phone"] }).notNull(),
+  valueEncrypted: text("value_encrypted").notNull(),
+  valueHash: text("value_hash").notNull(),
+  masked: text("masked").notNull(),
+  trust: text("trust", { enum: ["verified", "likely", "unverified"] }).notNull().default("unverified"),
+  source: text("source").notNull(),
+  firstSeenAt: ts("first_seen_at").notNull().defaultNow(),
+  lastSeenAt: ts("last_seen_at").notNull().defaultNow(),
+  lastVerifiedAt: ts("last_verified_at"),
+});
+
+export const enrichmentSnapshots = gcp.table("enrichment_snapshots", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  creatorId: uuid("creator_id").notNull(),
+  verdict: text("verdict").notNull(),
+  authenticityScore: smallint("authenticity_score"),
+  evidenceBreakdown: jsonb("evidence_breakdown").$type<EvidenceRow[]>().notNull().default([]),
+  audience: jsonb("audience").$type<AudienceRow>(),
+  modelVersion: text("model_version").notNull(),
+  confidence: doublePrecision("confidence"),
+  createdAt: ts("created_at").notNull().defaultNow(),
+});
+
+export const niches = platform.table("niches", {
+  id: text("id").primaryKey(),
+  label: text("label").notNull(),
+  sortOrder: integer("sort_order").notNull(),
+  active: boolean("active").notNull().default(true),
+});
+
+export const searchSettings = platform.table("search_settings", {
+  id: boolean("id").primaryKey().default(true),
+  weightText: integer("weight_text").notNull(),
+  weightFilters: integer("weight_filters").notNull(),
+  weightEngagement: integer("weight_engagement").notNull(),
+  weightAuthenticity: integer("weight_authenticity").notNull(),
+  weightFreshness: integer("weight_freshness").notNull(),
+  labelBest: integer("label_best").notNull(),
+  labelStrong: integer("label_strong").notNull(),
+  labelPossible: integer("label_possible").notNull(),
+  freshCurrentDays: integer("fresh_current_days").notNull(),
+  freshAgingDays: integer("fresh_aging_days").notNull(),
+  candidatePool: integer("candidate_pool").notNull(),
+  pageSize: integer("page_size").notNull(),
+  fewResults: integer("few_results").notNull(),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+});
+
+export const summaryRequests = platform.table(
+  "summary_requests",
+  {
+    creatorId: uuid("creator_id").notNull(),
+    sourceHash: text("source_hash").notNull(),
+    requestedAt: ts("requested_at").notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.creatorId, t.sourceHash] })],
+);
+
+export const contactReveals = wp.table(
+  "contact_reveals",
+  {
+    workspaceId: uuid("workspace_id").notNull(),
+    creatorId: uuid("creator_id").notNull(),
+    revealedBy: uuid("revealed_by").notNull(),
+    ledgerReservationId: uuid("ledger_reservation_id"),
+    createdAt: ts("created_at").notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.workspaceId, t.creatorId] })],
+);
+
+export const audienceViews = wp.table(
+  "audience_views",
+  {
+    workspaceId: uuid("workspace_id").notNull(),
+    creatorId: uuid("creator_id").notNull(),
+    month: date("month", { mode: "string" }).notNull(),
+    viewedBy: uuid("viewed_by").notNull(),
+    createdAt: ts("created_at").notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.workspaceId, t.creatorId, t.month] })],
+);
+
+export const savedSearches = wp.table("saved_searches", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").notNull(),
+  name: text("name").notNull(),
+  queryText: text("query_text").notNull().default(""),
+  filters: jsonb("filters").$type<Record<string, unknown>>().notNull(),
+  createdBy: uuid("created_by").notNull(),
+  createdAt: ts("created_at").notNull().defaultNow(),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+});

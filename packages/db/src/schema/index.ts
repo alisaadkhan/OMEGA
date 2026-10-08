@@ -13,11 +13,24 @@ import {
   topupPacks,
   webhookEvents,
 } from "./billing";
+import {
+  audienceViews,
+  contactReveals,
+  creatorContacts,
+  creatorProfiles,
+  creators,
+  enrichmentSnapshots,
+  niches,
+  savedSearches,
+  searchSettings,
+  summaryRequests,
+} from "./creators";
 import { users, workspaceMembers, workspaces } from "./identity";
 import { idempotencyKeys, outbox, providerCalls } from "./platform";
 import { auditLog, staffSessions, staffUsers } from "./staff";
 
 export * from "./billing";
+export * from "./creators";
 export * from "./identity";
 export * from "./platform";
 export * from "./staff";
@@ -46,4 +59,14 @@ export const ALL_TABLES = [
   creditReservations,
   creditLedger,
   entitlementUsage,
+  creators,
+  creatorProfiles,
+  creatorContacts,
+  enrichmentSnapshots,
+  niches,
+  searchSettings,
+  summaryRequests,
+  contactReveals,
+  audienceViews,
+  savedSearches,
 ];

@@ -40,13 +40,13 @@ export function dbError(pattern: RegExp): (err: unknown) => boolean {
 }
 
 /** Config tables hold migration seeds; tests must not wipe them. */
-const KEEP = ["schema_migrations", "plans", "topup_packs", "credit_action_costs", "billing_settings"];
+const KEEP = ["schema_migrations", "plans", "topup_packs", "credit_action_costs", "billing_settings", "niches", "search_settings"];
 
 /** Empties every app table except seeded config (owner privilege; app roles cannot truncate append-only tables). */
 export async function resetTables(): Promise<void> {
   const rows = await ownerQuery<{ t: string }>(
     `select format('%I.%I', schemaname, tablename) as t from pg_tables
-     where schemaname in ('wp','staff','platform')
+     where schemaname in ('wp','staff','platform','gcp')
        and not (schemaname = 'platform' and tablename in (${KEEP.map((k) => `'${k}'`).join(", ")}))`,
   );
   if (rows.length) await ownerQuery(`truncate ${rows.map((r) => r.t).join(", ")} restart identity cascade`);
