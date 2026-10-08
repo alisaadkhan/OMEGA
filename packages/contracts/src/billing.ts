@@ -1,0 +1,127 @@
+import { z } from "zod";
+
+export const creditActionSchema = z.enum(["search_existing", "find_new", "reveal_contact", "refresh_data"]);
+export type CreditAction = z.infer<typeof creditActionSchema>;
+
+export const planIdSchema = z.enum(["explorer", "growth", "scale"]);
+export type PlanId = z.infer<typeof planIdSchema>;
+
+export const billingIntervalSchema = z.enum(["month", "year"]);
+export type BillingInterval = z.infer<typeof billingIntervalSchema>;
+
+export const subscriptionStatusSchema = z.enum(["trialing", "active", "past_due", "canceled", "expired"]);
+export type SubscriptionStatus = z.infer<typeof subscriptionStatusSchema>;
+
+export const meterStateSchema = z.enum(["normal", "amber", "red"]);
+export type MeterState = z.infer<typeof meterStateSchema>;
+
+export const lostAccessItemSchema = z.enum([
+  "find_new",
+  "reveal_contact",
+  "refresh_data",
+  "monthly_credits",
+  "outreach",
+  "audience_details",
+  "export",
+]);
+export type LostAccessItem = z.infer<typeof lostAccessItemSchema>;
+
+export const entitlementsSchema = z.object({
+  audienceViewsPerMonth: z.number().int().nonnegative().nullable(),
+  outreachEmailsPerMonth: z.number().int().nonnegative().nullable(),
+  campaignLimit: z.number().int().nonnegative().nullable(),
+  export: z.boolean(),
+});
+export type Entitlements = z.infer<typeof entitlementsSchema>;
+
+export const moneySchema = z.object({ amountMinor: z.number().int().nonnegative(), currency: z.string().length(3) });
+
+export const billingSummarySchema = z.object({
+  plan: z.object({ id: planIdSchema, name: z.string(), monthlyCredits: z.number().int().positive() }).nullable(),
+  interval: billingIntervalSchema.nullable(),
+  status: subscriptionStatusSchema,
+  currentPeriodEnd: z.iso.datetime().nullable(),
+  trialEndsAt: z.iso.datetime().nullable(),
+  trialDaysLeft: z.number().int().nonnegative().nullable(),
+  cancelAtPeriodEnd: z.boolean(),
+  scheduledChange: z.object({ planId: planIdSchema, interval: billingIntervalSchema }).nullable(),
+  balance: z.object({
+    available: z.number().int().nonnegative(),
+    reserved: z.number().int().nonnegative(),
+    base: z.number().int().nonnegative(),
+    meter: meterStateSchema,
+  }),
+  canPurchase: z.boolean(),
+  lostAccess: z.array(lostAccessItemSchema),
+});
+export type BillingSummary = z.infer<typeof billingSummarySchema>;
+
+export const billingPlansSchema = z.object({
+  plans: z.array(
+    z.object({
+      id: planIdSchema,
+      name: z.string(),
+      monthlyCredits: z.number().int().positive(),
+      display: z.object({ monthly: moneySchema, yearlyPerMonth: moneySchema }),
+      charge: z.object({ monthly: moneySchema, yearly: moneySchema }),
+      entitlements: entitlementsSchema,
+    }),
+  ),
+  topupPacks: z.array(
+    z.object({
+      id: z.string(),
+      credits: z.number().int().positive(),
+      display: moneySchema,
+      charge: moneySchema,
+      validityMonths: z.number().int().positive(),
+    }),
+  ),
+  actionCosts: z.record(creditActionSchema, z.number().int().nonnegative()),
+});
+export type BillingPlans = z.infer<typeof billingPlansSchema>;
+
+export const ledgerKindSchema = z.enum(["grant", "spend", "refund", "expire", "adjust", "reserve", "release"]);
+export const ledgerEntrySchema = z.object({
+  id: z.uuid(),
+  kind: ledgerKindSchema,
+  amount: z.number().int(),
+  action: creditActionSchema.nullable(),
+  lotSource: z.enum(["trial", "monthly", "topup", "adjustment"]).nullable(),
+  note: z.string().nullable(),
+  createdAt: z.iso.datetime(),
+});
+export const ledgerPageSchema = z.object({ entries: z.array(ledgerEntrySchema), nextCursor: z.string().nullable() });
+export type LedgerPage = z.infer<typeof ledgerPageSchema>;
+export const ledgerQuerySchema = z.object({
+  cursor: z.string().min(1).max(200).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+
+export const invoicesResponseSchema = z.object({
+  invoices: z.array(
+    z.object({
+      id: z.uuid(),
+      kind: z.enum(["subscription", "topup"]),
+      amount: moneySchema,
+      status: z.string(),
+      invoiceUrl: z.string().nullable(),
+      createdAt: z.iso.datetime(),
+    }),
+  ),
+});
+export type InvoicesResponse = z.infer<typeof invoicesResponseSchema>;
+
+export const checkoutRequestSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("subscription"), planId: planIdSchema, interval: billingIntervalSchema }),
+  z.object({ kind: z.literal("topup"), packId: z.string().min(1).max(50) }),
+]);
+export type CheckoutRequest = z.infer<typeof checkoutRequestSchema>;
+export const checkoutResponseSchema = z.object({ checkoutId: z.uuid(), url: z.url() });
+
+export const planChangeRequestSchema = z.object({ planId: planIdSchema, interval: billingIntervalSchema });
+export type PlanChangeRequest = z.infer<typeof planChangeRequestSchema>;
+export const planChangeResponseSchema = z.object({
+  change: z.enum(["upgrade", "downgrade", "cancel"]),
+  effective: z.enum(["now", "period_end"]),
+});
+export type PlanChangeResponse = z.infer<typeof planChangeResponseSchema>;
