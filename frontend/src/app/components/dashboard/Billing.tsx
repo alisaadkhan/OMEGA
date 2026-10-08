@@ -89,8 +89,29 @@ export function Billing({ checkoutResult }: { checkoutResult?: "success" | "fail
     if (checkoutResult === "success" && hasPlan) setWaitedOut(true);
   }, [checkoutResult, hasPlan]);
 
+  // A cancellation or an upgrade is accepted at once (202) but shows up only when the worker applies the payment
+  // provider's webhook. Until then keep refreshing and hold the buttons, so the screen never invites a second click.
+  const [awaiting, setAwaiting] = useState<{ kind: "cancel" } | { kind: "upgrade"; planId: PlanId; interval: BillingInterval } | null>(null);
+  const applied =
+    awaiting === null ||
+    (awaiting.kind === "cancel" ? Boolean(s?.cancelAtPeriodEnd) : s?.plan?.id === awaiting.planId && s?.interval === awaiting.interval);
+  const confirming = awaiting !== null && !applied;
+  useEffect(() => {
+    if (awaiting === null) return;
+    if (applied) {
+      setAwaiting(null);
+      return;
+    }
+    const poll = window.setInterval(() => void refresh(), 2000);
+    const stop = window.setTimeout(() => setAwaiting(null), 90_000);
+    return () => {
+      window.clearInterval(poll);
+      window.clearTimeout(stop);
+    };
+  }, [awaiting, applied, refresh]);
+
   const error = checkout.error ?? changePlan.error ?? cancel.error;
-  const busy = checkout.isPending || changePlan.isPending || cancel.isPending || activating;
+  const busy = checkout.isPending || changePlan.isPending || cancel.isPending || activating || confirming;
 
   const choosePlan = (planId: PlanId) => {
     setNotice(null);
@@ -98,8 +119,10 @@ export function Billing({ checkoutResult }: { checkoutResult?: "success" | "fail
       changePlan.mutate(
         { planId, interval: billingInterval },
         {
-          onSuccess: (r) =>
-            setNotice(r.effective === "now" ? "Upgrade requested. Your new credits appear in a few seconds." : "Downgrade scheduled for the end of this billing period."),
+          onSuccess: (r) => {
+            if (r.effective === "now") setAwaiting({ kind: "upgrade", planId, interval: billingInterval });
+            setNotice(r.effective === "now" ? "Your upgrade is active." : "Downgrade scheduled for the end of this billing period.");
+          },
         },
       );
     } else {
@@ -131,7 +154,13 @@ export function Billing({ checkoutResult }: { checkoutResult?: "success" | "fail
       )}
       {(notice || error) && (
         <div role={error ? "alert" : "status"} className={`rounded-xl border px-4 py-3 text-sm ${error ? "border-red-200 bg-red-50 text-red-800" : "border-indigo-100 bg-indigo-50 text-indigo-900"}`}>
-          {error ? error.message : notice}
+          {error
+            ? error.message
+            : confirming
+              ? awaiting?.kind === "cancel"
+                ? "Cancelling your subscription… confirming with the payment provider."
+                : "Upgrading your plan… confirming with the payment provider."
+              : notice}
         </div>
       )}
 
@@ -186,7 +215,14 @@ export function Billing({ checkoutResult }: { checkoutResult?: "success" | "fail
                       cancelLabel: "Keep my plan",
                       destructive: true,
                     });
-                    if (ok) cancel.mutate(undefined, { onSuccess: () => setNotice("Your subscription will end at the close of this billing period.") });
+                    if (ok) {
+                      cancel.mutate(undefined, {
+                        onSuccess: () => {
+                          setAwaiting({ kind: "cancel" });
+                          setNotice("Your subscription will end at the close of this billing period.");
+                        },
+                      });
+                    }
                   }}
                   className="w-full rounded-md border border-white/20 px-3 py-2 text-xs text-slate-300 hover:bg-white/10 disabled:opacity-50"
                 >
