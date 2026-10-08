@@ -2,7 +2,7 @@ import type { Logger, ProviderCallSink } from "@mushin/core";
 import { instrumented } from "../instrumented";
 import { parsePaddleEvent } from "./paddle-events";
 import { verifyPaddleSignature } from "./signature";
-import type { PaymentEvent, Payments, PriceRef, SubscriptionRef } from "./types";
+import type { CheckoutInput, PaymentEvent, Payments, PriceRef, SubscriptionRef } from "./types";
 
 type PaddleOptions = {
   apiKey: string;
@@ -41,7 +41,7 @@ export class PaddlePayments implements Payments {
     );
   }
 
-  async createCheckout(input: { checkoutId: string; workspaceId: string; price: PriceRef }): Promise<{ providerCheckoutId: string; url: string }> {
+  async createCheckout(input: CheckoutInput): Promise<{ providerCheckoutId: string; url: string }> {
     const res = await this.call<{ data?: { id?: string; checkout?: { url?: string | null } | null } }>(
       "create_checkout",
       "POST",

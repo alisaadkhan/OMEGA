@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { parsePaddleEvent } from "./paddle-events";
 import { signPaddleWebhook, verifyPaddleSignature } from "./signature";
-import type { PaymentEvent, PaymentInterval, Payments, PriceRef, SubscriptionRef } from "./types";
+import type { CheckoutInput, PaymentEvent, PaymentInterval, Payments, PriceRef, SubscriptionRef } from "./types";
 
 export type Deliver = (rawBody: string, signature: string) => Promise<void>;
 export type MockCheckout = { checkoutId: string; workspaceId: string; kind: "subscription" | "topup"; price: PriceRef };
@@ -39,7 +39,7 @@ export class MockPayments implements Payments {
     this.deliver = o.deliver ?? ((raw, sig) => postWebhook(`${o.publicApiUrl}/webhooks/paddle`, raw, sig));
   }
 
-  async createCheckout(input: { checkoutId: string; workspaceId: string }): Promise<{ providerCheckoutId: string; url: string }> {
+  async createCheckout(input: CheckoutInput): Promise<{ providerCheckoutId: string; url: string }> {
     // The workspace id in the URL keeps the page's lookup workspace-scoped (SRS §2.5).
     return {
       providerCheckoutId: `chk_mock_${input.checkoutId}`,

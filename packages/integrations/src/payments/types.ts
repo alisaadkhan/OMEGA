@@ -43,9 +43,11 @@ export type PaymentEvent =
   | (EventBase & { kind: SubscriptionEventType; subscription: SubscriptionSnapshot })
   | { kind: "ignored"; eventId: string; occurredAt: Date; eventType: string };
 
+export type CheckoutInput = { checkoutId: string; workspaceId: string; customerEmail: string; price: PriceRef };
+
 export interface Payments {
   readonly mode: "mock" | "paddle";
-  createCheckout(input: { checkoutId: string; workspaceId: string; customerEmail: string; price: PriceRef }): Promise<{ providerCheckoutId: string; url: string }>;
+  createCheckout(input: CheckoutInput): Promise<{ providerCheckoutId: string; url: string }>;
   changePlan(input: { subscription: SubscriptionRef; target: PriceRef }): Promise<void>;
   cancelAtPeriodEnd(input: { subscription: SubscriptionRef }): Promise<void>;
   verifyWebhook(rawBody: string, signatureHeader: string | undefined): PaymentEvent;
