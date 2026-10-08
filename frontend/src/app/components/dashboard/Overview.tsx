@@ -20,7 +20,7 @@ import { AnimatedNumber } from "./AnimatedNumber";
 import { useAuth } from "../../auth/AuthContext";
 import { profiles } from "../../auth/profiles";
 import type { DashView } from "./Sidebar";
-import { useCampaigns, progressRatio, type Campaign } from "../../lib/campaignStore";
+import { useCampaigns, progressRatio, type Campaign, type CampaignStatus } from "../../lib/campaignStore";
 import { useBillingPlans, useBillingSummary } from "../../api/billing";
 import { COPY } from "../../lib/copy";
 
@@ -568,10 +568,13 @@ function SavedListsCard({ loading, go }: { loading: boolean; go: (v: DashView) =
 /* ─────────────────────── campaign summary ─────────────────────── */
 
 function CampaignSummaryCard({ campaigns, loading, go }: { campaigns: readonly Campaign[]; loading: boolean; go: (v: DashView) => void }) {
-  const statusMap = {
-    live: { color: "bg-emerald-500", label: "Live" },
-    review: { color: "bg-amber-500", label: "In review" },
-  } as const;
+  // Same labels and dot colours as the Campaigns screen.
+  const statusMap: Record<CampaignStatus, { color: string; label: string }> = {
+    active: { color: "bg-emerald-500", label: "Active" },
+    draft: { color: "bg-slate-400", label: "Draft" },
+    paused: { color: "bg-amber-500", label: "Paused" },
+    completed: { color: "bg-indigo-500", label: "Completed" },
+  };
   return (
     <Card>
       <CardHead
