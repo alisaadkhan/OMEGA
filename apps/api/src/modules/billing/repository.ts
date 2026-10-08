@@ -100,7 +100,7 @@ export async function getSubscription(tx: TenantTx, workspaceId: string, opts: {
 /** The API role may insert only these two columns; status defaults to 'trialing' (migration 0005). */
 export async function insertTrialSubscription(tx: TenantTx, workspaceId: string, trialEndsAt: Date): Promise<boolean> {
   const rows = await tx.execute<{ workspace_id: string }>(sql`
-    insert into wp.subscriptions (workspace_id, trial_ends_at) values (${workspaceId}, ${trialEndsAt})
+    insert into wp.subscriptions (workspace_id, trial_ends_at) values (${workspaceId}, ${trialEndsAt.toISOString()}::timestamptz)
     on conflict (workspace_id) do nothing
     returning workspace_id`);
   return rows.length === 1;
@@ -355,7 +355,7 @@ export async function markWebhook(tx: SystemTx, id: string, error: string | null
 /** Records that `job` should visit this workspace at `dueAt`; an earlier existing due time is kept. */
 export async function scheduleJob(tx: TenantTx, workspaceId: string, job: BillingJob, dueAt: Date): Promise<void> {
   await tx.execute(sql`
-    insert into platform.billing_schedule (workspace_id, job, due_at) values (${workspaceId}, ${job}, ${dueAt})
+    insert into platform.billing_schedule (workspace_id, job, due_at) values (${workspaceId}, ${job}, ${dueAt.toISOString()}::timestamptz)
     on conflict (workspace_id, job) do update set due_at = least(platform.billing_schedule.due_at, excluded.due_at)`);
 }
 
