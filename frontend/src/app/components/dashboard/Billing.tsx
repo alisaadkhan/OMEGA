@@ -4,6 +4,7 @@ import { ArrowUpRight, Check, CheckCircle2, CreditCard, Lock, Mail, Plus, Radio,
 import type { BillingInterval, CreditAction, PlanId } from "@mushin/contracts";
 import { AnimatedNumber } from "./AnimatedNumber";
 import { COPY } from "../../lib/copy";
+import { useConfirm } from "../../lib/toast";
 import {
   useBillingPlans,
   useBillingSummary,
@@ -57,6 +58,7 @@ export function Billing({ checkoutResult }: { checkoutResult?: "success" | "fail
   const changePlan = useChangePlan();
   const cancel = useCancelSubscription();
   const refresh = useRefreshBilling();
+  const confirm = useConfirm();
   const [billingInterval, setBillingInterval] = useState<BillingInterval>("month");
   const [showPlans, setShowPlans] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -176,7 +178,16 @@ export function Billing({ checkoutResult }: { checkoutResult?: "success" | "fail
               {hasPlan && !s?.cancelAtPeriodEnd && (
                 <button
                   disabled={busy}
-                  onClick={() => cancel.mutate(undefined, { onSuccess: () => setNotice("Your subscription will end at the close of this billing period.") })}
+                  onClick={async () => {
+                    const ok = await confirm({
+                      title: "Cancel your subscription?",
+                      body: `Your plan stays active until ${s?.currentPeriodEnd ? new Date(s.currentPeriodEnd).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "the end of this billing period"}. After that, its monthly credits and features end; paid top-up credits stay usable until they expire.`,
+                      confirmLabel: "Cancel subscription",
+                      cancelLabel: "Keep my plan",
+                      destructive: true,
+                    });
+                    if (ok) cancel.mutate(undefined, { onSuccess: () => setNotice("Your subscription will end at the close of this billing period.") });
+                  }}
                   className="w-full rounded-md border border-white/20 px-3 py-2 text-xs text-slate-300 hover:bg-white/10 disabled:opacity-50"
                 >
                   Cancel subscription
