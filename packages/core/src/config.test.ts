@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { ConfigError, loadApiConfig, loadWorkerConfig } from "./config";
 
 const KEY = Buffer.alloc(32, 7).toString("base64");
+const MOCK = "m".repeat(40);
 const valid = {
   NODE_ENV: "development",
   PORT: "4000",
@@ -17,6 +18,7 @@ const valid = {
   JWKS_URI: "https://abc.supabase.co/auth/v1/.well-known/jwks.json",
   STAFF_JWT_SECRET: "s".repeat(40),
   DATA_ENCRYPTION_KEY: KEY,
+  MOCK_PADDLE_WEBHOOK_SECRET: MOCK,
 };
 
 describe("loadApiConfig", () => {
@@ -55,7 +57,7 @@ describe("loadApiConfig", () => {
 
 describe("loadWorkerConfig", () => {
   it("needs DIRECT_URL and rejects the placeholder host", () => {
-    expect(loadWorkerConfig({ DIRECT_URL: "postgresql://u:p@pooler.example.com:5432/postgres" }).directUrl).toContain("pooler");
+    expect(loadWorkerConfig({ DIRECT_URL: "postgresql://u:p@pooler.example.com:5432/postgres", MOCK_PADDLE_WEBHOOK_SECRET: MOCK }).directUrl).toContain("pooler");
     expect(() => loadWorkerConfig({ DIRECT_URL: "postgresql://user:password@host:5432/postgres" })).toThrow(/DIRECT_URL/);
   });
 });
@@ -72,5 +74,49 @@ describe("database CA certificate", () => {
   it("is required in production and must be readable", () => {
     expect(() => loadApiConfig({ ...valid, NODE_ENV: "production" })).toThrow(/DATABASE_SSL_CA_FILE/);
     expect(() => loadApiConfig({ ...valid, DATABASE_SSL_CA_FILE: "/definitely/missing.crt" })).toThrow(/DATABASE_SSL_CA_FILE/);
+  });
+});
+
+function caFile(): string {
+  const dir = mkdtempSync(join(tmpdir(), "mushin-ca-"));
+  const file = join(dir, "ca.crt");
+  writeFileSync(file, "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\n");
+  return file;
+}
+
+describe("payments config", () => {
+  it("uses the mock provider when no Paddle keys are set", () => {
+    expect(loadApiConfig(valid).payments).toEqual({
+      mode: "mock",
+      webhookSecret: MOCK,
+      appUrl: "http://localhost:5173",
+      publicApiUrl: "http://localhost:4000",
+    });
+  });
+
+  it("uses Paddle when all three keys are set", () => {
+    const c = loadApiConfig({ ...valid, PADDLE_API_KEY: "k", PADDLE_CLIENT_TOKEN: "t", PADDLE_WEBHOOK_SECRET: "s", PADDLE_ENVIRONMENT: "sandbox" });
+    expect(c.payments).toMatchObject({ mode: "paddle", apiKey: "k", clientToken: "t", webhookSecret: "s", environment: "sandbox" });
+  });
+
+  it("rejects partial Paddle keys and a missing mock secret", () => {
+    expect(() => loadApiConfig({ ...valid, PADDLE_API_KEY: "k" })).toThrow(/PADDLE_CLIENT_TOKEN/);
+    expect(() => loadApiConfig({ ...valid, MOCK_PADDLE_WEBHOOK_SECRET: undefined })).toThrow(/MOCK_PADDLE_WEBHOOK_SECRET/);
+  });
+
+  it("refuses the mock provider in production", () => {
+    expect(() => loadApiConfig({ ...valid, NODE_ENV: "production", DATABASE_SSL_CA_FILE: caFile() })).toThrow(/PADDLE_API_KEY/);
+  });
+
+  it("gives the worker payments and Upstash settings", () => {
+    const c = loadWorkerConfig({
+      DIRECT_URL: "postgresql://u:p@pooler.example.com:5432/postgres",
+      MOCK_PADDLE_WEBHOOK_SECRET: MOCK,
+      UPSTASH_REDIS_REST_URL: "https://x.upstash.io",
+      UPSTASH_REDIS_REST_TOKEN: "t",
+    });
+    expect(c.payments.mode).toBe("mock");
+    expect(c.upstash).toEqual({ url: "https://x.upstash.io", token: "t" });
+    expect(c.appUrl).toBe("http://localhost:5173");
   });
 });

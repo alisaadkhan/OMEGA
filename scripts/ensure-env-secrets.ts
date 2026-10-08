@@ -15,6 +15,7 @@ function ensure(key: string, value: string) {
 
 ensure("DATA_ENCRYPTION_KEY", randomBytes(32).toString("base64"));
 ensure("STAFF_JWT_SECRET", randomBytes(48).toString("base64url"));
+ensure("MOCK_PADDLE_WEBHOOK_SECRET", randomBytes(32).toString("base64url"));
 // .env holds secrets: keep it owner-only (no effect on Windows ACLs).
 writeFileSync(path, text, { mode: 0o600 });
 chmodSync(path, 0o600);
