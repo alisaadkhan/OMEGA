@@ -51,10 +51,13 @@ export function useInvoices(enabled: boolean) {
 
 /** Opens the payment provider's hosted checkout (mock or Paddle) in this tab. */
 export function useStartCheckout() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (req: CheckoutRequest) =>
       apiRequest("/v1/billing/checkout", checkoutResponseSchema, { method: "POST", body: req, idempotencyKey: crypto.randomUUID() }),
     onSuccess: ({ url }) => window.location.assign(url),
+    // A refused checkout (e.g. a plan became active meanwhile) means this screen's billing data is out of date.
+    onError: () => qc.invalidateQueries({ queryKey: keys.all }),
   });
 }
 

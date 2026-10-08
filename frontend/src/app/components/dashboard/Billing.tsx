@@ -61,18 +61,34 @@ export function Billing({ checkoutResult }: { checkoutResult?: "success" | "fail
   const [showPlans, setShowPlans] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
-  // After the hosted checkout returns, the webhook lands within seconds: refresh a few times.
-  useEffect(() => {
-    if (checkoutResult !== "success") return;
-    const timers = [2000, 6000, 12000].map((ms) => window.setTimeout(() => void refresh(), ms));
-    return () => timers.forEach((t) => window.clearTimeout(t));
-  }, [checkoutResult, refresh]);
-
   const s = summary.data;
-  const error = checkout.error ?? changePlan.error ?? cancel.error;
-  const busy = checkout.isPending || changePlan.isPending || cancel.isPending;
   const hasPlan = Boolean(s?.plan);
   const trialing = s?.status === "trialing";
+
+  // After the hosted checkout returns, the payment webhook is applied by the worker, which can take tens of
+  // seconds on a slow connection. Until the plan shows up, keep refreshing and hold the plan buttons: a click
+  // made while the screen still shows "no plan" would start a second checkout instead of a plan change.
+  const [waitedOut, setWaitedOut] = useState(false);
+  const activating = checkoutResult === "success" && summary.isSuccess && !hasPlan && !waitedOut;
+  useEffect(() => {
+    if (checkoutResult !== "success") return;
+    const poll = window.setInterval(() => void refresh(), 2000);
+    const stop = window.setTimeout(() => {
+      window.clearInterval(poll);
+      setWaitedOut(true);
+    }, 90_000);
+    return () => {
+      window.clearInterval(poll);
+      window.clearTimeout(stop);
+    };
+  }, [checkoutResult, refresh]);
+  useEffect(() => {
+    // A top-up return already has a plan: a few refreshes pick up its credits.
+    if (checkoutResult === "success" && hasPlan) setWaitedOut(true);
+  }, [checkoutResult, hasPlan]);
+
+  const error = checkout.error ?? changePlan.error ?? cancel.error;
+  const busy = checkout.isPending || changePlan.isPending || cancel.isPending || activating;
 
   const choosePlan = (planId: PlanId) => {
     setNotice(null);
@@ -104,7 +120,11 @@ export function Billing({ checkoutResult }: { checkoutResult?: "success" | "fail
           className={`flex items-center gap-2 rounded-xl border px-4 py-3 text-sm ${checkoutResult === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-red-200 bg-red-50 text-red-800"}`}
         >
           {checkoutResult === "success" ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
-          {checkoutResult === "success" ? "Payment received. Your plan and credits update within a few seconds." : "The payment did not go through. No credits were charged."}
+          {checkoutResult === "success"
+            ? activating
+              ? "Payment received. Activating your plan…"
+              : "Payment received. Your plan and credits update within a few seconds."
+            : "The payment did not go through. No credits were charged."}
         </div>
       )}
       {(notice || error) && (
