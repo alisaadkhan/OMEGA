@@ -4,6 +4,7 @@ import type { Db } from "@mushin/db";
 import { createDispatcher, type HandlerRegistry, type JobData } from "./dispatcher";
 import { QUEUES } from "./queues";
 import { createOutboxRelay } from "./relay";
+import { SCHEDULES } from "./schedules";
 
 export async function startWorker(o: { db: Db; boss: PgBoss; logger: Logger; handlers: HandlerRegistry }) {
   const dispatch = createDispatcher(o.handlers, o.logger);
@@ -12,15 +13,9 @@ export async function startWorker(o: { db: Db; boss: PgBoss; logger: Logger; han
       await dispatch(jobs.map((j) => ({ id: j.id, data: j.data })));
     });
   }
-  await o.boss.schedule("system", "15 3 * * *", {
-    eventId: "cron-purge-expired",
-    eventType: "system.purge_expired",
-    aggregateType: "system",
-    aggregateId: "purge",
-    workspaceId: null,
-    requestId: null,
-    payload: {},
-  });
+  // Older builds created a key-less schedule on "system"; keyed schedules replace it.
+  await o.boss.unschedule("system");
+  for (const s of SCHEDULES) await o.boss.schedule(s.queue, s.cron, s.data, { key: s.key });
 
   const relay = createOutboxRelay({
     db: o.db,
