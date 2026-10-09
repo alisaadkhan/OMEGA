@@ -70,6 +70,17 @@ describe("standardize", () => {
     expect(standardize("instagram", "coke_studio", broken, { maxPosts: 12 })).toEqual({ kind: "not_found" });
   });
 
+  it("keeps long signed photo links but still caps website links (live check: Instagram photo links exceed 300 characters)", () => {
+    const raw = igRaw();
+    const signed = `https://scontent.cdninstagram.com/v/t51.2885-19/1234_n.jpg?stp=dst-jpg_s320x320&_nc_ht=scontent.cdninstagram.com&oh=${"a".repeat(300)}&oe=6720F1A2`;
+    raw[0] = { ...raw[0], profilePicUrlHD: signed, externalUrl: `https://example.com/${"b".repeat(320)}` };
+    const p = ok(standardize("instagram", "coke_studio", raw, { maxPosts: 12 }));
+    expect(p.avatarUrl).toBe(signed);
+    expect(p.websiteUrls.some((u) => u.includes("bbbb"))).toBe(false);
+    raw[0] = { ...raw[0], profilePicUrlHD: `https://scontent.cdninstagram.com/${"c".repeat(2100)}` };
+    expect(ok(standardize("instagram", "coke_studio", raw, { maxPosts: 12 })).avatarUrl).toBeNull();
+  });
+
   it("cleans text consistently", () => {
     expect(cleanText("  a\t\tb\n\n\n\nc  ", 100)).toBe("a b\n\nc");
     expect(cleanText(42, 10)).toBe("");

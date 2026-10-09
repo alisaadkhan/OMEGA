@@ -31,7 +31,8 @@ export type StandardProfile = {
 
 export type StandardizeResult = { kind: "ok"; profile: StandardProfile } | { kind: "not_found" } | { kind: "private" };
 
-const LIMITS = { name: 200, bio: 2000, caption: 500, hashtag: 60, url: 300, hashtags: 15, links: 5 };
+// Photo links are only fetched (never stored or shown) and the platforms sign them with long query strings.
+const LIMITS = { name: 200, bio: 2000, caption: 500, hashtag: 60, url: 300, photoUrl: 2000, hashtags: 15, links: 5 };
 const record = z.record(z.string(), z.unknown());
 const records = z.array(record);
 type Rec = z.output<typeof record>;
@@ -59,8 +60,8 @@ const count = (v: unknown): number | null => {
   return null;
 };
 
-const httpUrl = (v: unknown): string | null => {
-  if (typeof v !== "string" || v.length > LIMITS.url) return null;
+const httpUrl = (v: unknown, max: number = LIMITS.url): string | null => {
+  if (typeof v !== "string" || v.length > max) return null;
   try {
     const u = new URL(v.trim());
     return u.protocol === "https:" || u.protocol === "http:" ? u.toString().replace(/\/$/, "") : null;
@@ -91,7 +92,7 @@ const tags = (v: unknown): string[] => {
   ].slice(0, LIMITS.hashtags);
 };
 
-const links = (values: unknown[]): string[] => [...new Set(values.map(httpUrl).filter((u): u is string => u !== null))].slice(0, LIMITS.links);
+const links = (values: unknown[]): string[] => [...new Set(values.map((v) => httpUrl(v)).filter((u): u is string => u !== null))].slice(0, LIMITS.links);
 const urlsIn = (text: string): string[] => text.match(/https?:\/\/[^\s<>"')]+/g) ?? [];
 const email = (v: unknown): string | null => (typeof v === "string" && /^[^\s@]{1,64}@[^\s@]{1,190}\.[a-z]{2,}$/i.test(v.trim()) ? v.trim().toLowerCase() : null);
 const phone = (v: unknown): string | null => (typeof v === "string" && /^\+?[\d\s().-]{7,20}$/.test(v.trim()) ? v.trim() : null);
@@ -134,7 +135,7 @@ function instagram(handle: string, raw: unknown, maxPosts: number): StandardizeR
       businessEmail: email(first["businessEmail"] ?? first["publicEmail"]),
       businessPhone: phone(first["businessPhoneNumber"] ?? first["publicPhoneNumber"]),
       country: null,
-      avatarUrl: httpUrl(first["profilePicUrlHD"] ?? first["profilePicUrl"]),
+      avatarUrl: httpUrl(first["profilePicUrlHD"] ?? first["profilePicUrl"], LIMITS.photoUrl),
       recentPosts: newestFirst(posts, maxPosts),
     },
   };
@@ -177,7 +178,7 @@ function tiktok(handle: string, raw: unknown, maxPosts: number): StandardizeResu
       businessEmail: null,
       businessPhone: null,
       country: null,
-      avatarUrl: httpUrl(author["originalAvatarUrl"] ?? author["avatar"]),
+      avatarUrl: httpUrl(author["originalAvatarUrl"] ?? author["avatar"], LIMITS.photoUrl),
       recentPosts: newestFirst(posts, maxPosts),
     },
   };
@@ -223,7 +224,7 @@ function youtube(handle: string, raw: unknown, maxPosts: number): StandardizeRes
       businessEmail: null,
       businessPhone: null,
       country,
-      avatarUrl: httpUrl(sub(thumbs["high"])["url"] ?? sub(thumbs["medium"])["url"] ?? sub(thumbs["default"])["url"]),
+      avatarUrl: httpUrl(sub(thumbs["high"])["url"] ?? sub(thumbs["medium"])["url"] ?? sub(thumbs["default"])["url"], LIMITS.photoUrl),
       recentPosts: newestFirst(videos, maxPosts),
     },
   };
