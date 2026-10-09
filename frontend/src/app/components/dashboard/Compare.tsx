@@ -1,8 +1,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { X, ArrowUpRight, Info } from "lucide-react";
 import type { Creator } from "./CreatorProfilePanel";
-import { getCreatorIntel } from "./data";
-import { FreshnessBadge, ContactTrustBadge } from "./states";
+import { FreshnessBadge } from "./states";
 
 /**
  * Compare creators — spec §9.
@@ -30,8 +29,8 @@ const ROWS: Row[] = [
   { label: "Niche", get: (c) => c.niche },
   { label: "Followers", get: (c) => c.followers, best: bestByMax((c) => c.followersNum) },
   { label: "Engagement", get: (c) => `${c.engagement.toFixed(1)}%`, best: bestByMax((c) => c.engagement) },
-  { label: "Authenticity", get: (c) => `${c.authenticity}`, best: bestByMax((c) => c.authenticity) },
-  { label: "Flagged interactions", get: (c) => `${c.fake}%`, best: bestByMax((c) => -c.fake) },
+  { label: "Authenticity", get: (c) => (c.authenticity === null ? "Not yet assessed" : `${c.authenticity}`), best: bestByMax((c) => c.authenticity ?? -1) },
+  { label: "Flagged interactions", get: (c) => (c.fake === null ? "—" : `${c.fake}%`), best: bestByMax((c) => -(c.fake ?? 100)) },
   { label: "Creator Fit", get: (c) => `${c.score}`, best: bestByMax((c) => c.score) },
 ];
 
@@ -132,39 +131,30 @@ export function Compare({
                   {/* Freshness row */}
                   <tr className="border-b border-slate-50">
                     <td className="px-6 py-2.5 text-xs text-slate-500" style={{ fontWeight: 500 }}>Data freshness</td>
-                    {list.map((c) => {
-                      const intel = getCreatorIntel(c);
-                      return (
-                        <td key={c.handle} className="border-l border-slate-100 px-4 py-2.5">
-                          <FreshnessBadge value={intel.followersFreshness.value} updated={intel.lastUpdated} />
-                        </td>
-                      );
-                    })}
+                    {list.map((c) => (
+                      <td key={c.handle} className="border-l border-slate-100 px-4 py-2.5">
+                        <FreshnessBadge value={c.followersFreshness} />
+                      </td>
+                    ))}
                   </tr>
 
                   {/* Contact trust row */}
                   <tr className="border-b border-slate-50">
-                    <td className="px-6 py-2.5 text-xs text-slate-500" style={{ fontWeight: 500 }}>Contact (email)</td>
-                    {list.map((c) => {
-                      const intel = getCreatorIntel(c);
-                      const email = intel.contacts.find((x) => x.kind === "email");
-                      return (
-                        <td key={c.handle} className="border-l border-slate-100 px-4 py-2.5">
-                          {email ? <ContactTrustBadge state={email.trust} /> : "—"}
-                        </td>
-                      );
-                    })}
+                    <td className="px-6 py-2.5 text-xs text-slate-500" style={{ fontWeight: 500 }}>Contact</td>
+                    {list.map((c) => (
+                      <td key={c.handle} className="border-l border-slate-100 px-4 py-2.5 text-xs text-slate-700">
+                        {c.hasContact ? "On file" : "—"}
+                      </td>
+                    ))}
                   </tr>
 
                   {/* Recommendation row */}
                   <tr>
                     <td className="px-6 py-3 text-xs text-slate-500 align-top" style={{ fontWeight: 500 }}>Best-fit note</td>
                     {list.map((c) => {
-                      const intel = getCreatorIntel(c);
                       return (
                         <td key={c.handle} className="border-l border-slate-100 px-4 py-3 align-top">
-                          <div className="text-[11px] text-slate-700" style={{ fontWeight: 600 }}>{intel.recommendation.label}</div>
-                          <p className="mt-0.5 text-[10px] text-slate-500" style={{ lineHeight: 1.4 }}>{intel.recommendation.pros[0]}</p>
+                          <div className="text-[11px] text-slate-700" style={{ fontWeight: 600 }}>{c.fitLabel || "—"}</div>
                           {onOpen && (
                             <button
                               onClick={() => onOpen(c.handle)}

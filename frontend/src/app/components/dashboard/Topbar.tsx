@@ -7,12 +7,15 @@ import { useBillingSummary } from "../../api/billing";
 import { NotificationCenter } from "./NotificationCenter";
 import type { DashView } from "./Sidebar";
 import { Logo } from "../landing/Logo";
+import type { LookupResponse } from "@mushin/contracts";
+import { Omnibar } from "./Omnibar";
 
 type Props = {
   credits: number;
   view: DashView;
   setView: (v: DashView) => void;
   onExit: () => void;
+  onOpenCreator: (m: LookupResponse["matches"][number]) => void;
 };
 
 const MENU: { id: DashView; label: string; icon: any }[] = [
@@ -28,7 +31,7 @@ const METER_STYLES = {
   red: { box: "border-red-300 bg-red-50 hover:bg-red-100", icon: "text-red-600", value: "text-red-700", title: "Credits are very low" },
 } as const;
 
-export function Topbar({ credits, view, setView, onExit }: Props) {
+export function Topbar({ credits, view, setView, onExit, onOpenCreator }: Props) {
   const { user, logout } = useAuth();
   const name = user?.name ?? "Ahmed Raza Khan";
   const email = user?.email ?? "ahmed@mushin.pk";
@@ -47,7 +50,7 @@ export function Topbar({ credits, view, setView, onExit }: Props) {
       <div className="flex items-center gap-2 sm:hidden">
         <Logo />
       </div>
-      <div className="hidden sm:block" />
+      <div className="hidden sm:block"><Omnibar onOpen={onOpenCreator} /></div>
 
       <div className="flex items-center gap-3">
         <button

@@ -28,10 +28,11 @@ import {
   Mail,
   Clock,
 } from "lucide-react";
-import { profiles } from "../../auth/profiles";
 import { CreatorProfilePanel, type Creator } from "./CreatorProfilePanel";
 import { Compare } from "./Compare";
-import { getCreatorIntel, fitSentence } from "./data";
+import type { SearchFilters, SearchRequest } from "@mushin/contracts";
+import { useCreateSavedSearch, useCreatorSearch, useInterpret, useSavedSearches } from "../../api/search";
+import { fromChips, toCreator, toFilters, type ChipState } from "../../api/search-mapping";
 import { FreshnessBadge } from "./states";
 import { useToast } from "../../lib/toast";
 import { CreditConfirm } from "../shared/CreditConfirm";
@@ -42,161 +43,6 @@ import { CREDIT_COST } from "../../lib/credits";
  * Entry, filters, execution, results grid/table, bulk actions,
  * compare, states (loading/empty/no-results/error).
  */
-
-const creators: Creator[] = [
-  {
-    handle: "sanaa.k",
-    name: "Sana Riaz",
-    avatar: profiles.sana.avatar,
-    platform: "instagram",
-    city: "Karachi",
-    niche: "Lifestyle · Bridal",
-    followers: "412K",
-    followersNum: 412000,
-    engagement: 5.2,
-    authenticity: 92,
-    fake: 4,
-    score: 89,
-    verified: true,
-    posts: 428,
-    avgLikes: "18.4K",
-    avgComments: "620",
-    tags: ["#bridal", "#karachi", "#urdu"],
-  },
-  {
-    handle: "ayeshamalik",
-    name: "Ayesha Malik",
-    avatar: profiles.ayesha.avatar,
-    platform: "instagram",
-    city: "Lahore",
-    niche: "Fashion · Beauty",
-    followers: "684K",
-    followersNum: 684000,
-    engagement: 6.1,
-    authenticity: 88,
-    fake: 8,
-    score: 91,
-    verified: true,
-    posts: 612,
-    avgLikes: "31.2K",
-    avgComments: "1.1K",
-    tags: ["#fashion", "#lahore", "#pk"],
-  },
-  {
-    handle: "fahad.q",
-    name: "Fahad Qureshi",
-    avatar: profiles.fahad.avatar,
-    platform: "youtube",
-    city: "Islamabad",
-    niche: "Tech · Reviews",
-    followers: "1.2M",
-    followersNum: 1200000,
-    engagement: 4.4,
-    authenticity: 94,
-    fake: 3,
-    score: 92,
-    verified: true,
-    posts: 214,
-    avgLikes: "42K",
-    avgComments: "1.8K",
-    tags: ["#tech", "#urdu", "#reviews"],
-  },
-  {
-    handle: "hira.sheikh",
-    name: "Hira Sheikh",
-    avatar: profiles.hira.avatar,
-    platform: "instagram",
-    city: "Lahore",
-    niche: "Bridal · Wedding",
-    followers: "228K",
-    followersNum: 228000,
-    engagement: 7.8,
-    authenticity: 90,
-    fake: 5,
-    score: 87,
-    verified: false,
-    posts: 318,
-    avgLikes: "14.2K",
-    avgComments: "540",
-    tags: ["#bridal", "#lahore", "#wedding"],
-  },
-  {
-    handle: "usmantariq",
-    name: "Usman Tariq",
-    avatar: profiles.usman.avatar,
-    platform: "tiktok",
-    city: "Karachi",
-    niche: "Comedy · Urdu",
-    followers: "2.4M",
-    followersNum: 2400000,
-    engagement: 8.9,
-    authenticity: 82,
-    fake: 12,
-    score: 84,
-    verified: true,
-    posts: 1240,
-    avgLikes: "180K",
-    avgComments: "6.2K",
-    tags: ["#comedy", "#urdu", "#viral"],
-  },
-  {
-    handle: "bilalhussain",
-    name: "Bilal Hussain",
-    avatar: profiles.bilal.avatar,
-    platform: "youtube",
-    city: "Karachi",
-    niche: "Food · Travel",
-    followers: "512K",
-    followersNum: 512000,
-    engagement: 5.5,
-    authenticity: 91,
-    fake: 4,
-    score: 88,
-    verified: false,
-    posts: 186,
-    avgLikes: "22K",
-    avgComments: "830",
-    tags: ["#food", "#karachi", "#travel"],
-  },
-  {
-    handle: "zainab.iqbal",
-    name: "Zainab Iqbal",
-    avatar: profiles.zainab.avatar,
-    platform: "instagram",
-    city: "Islamabad",
-    niche: "Wellness · Yoga",
-    followers: "184K",
-    followersNum: 184000,
-    engagement: 4.9,
-    authenticity: 93,
-    fake: 3,
-    score: 86,
-    verified: false,
-    posts: 402,
-    avgLikes: "8.9K",
-    avgComments: "310",
-    tags: ["#wellness", "#yoga", "#islamabad"],
-  },
-  {
-    handle: "ahmed.raza",
-    name: "Ahmed Raza",
-    avatar: profiles.ahmed.avatar,
-    platform: "tiktok",
-    city: "Lahore",
-    niche: "Finance · Urdu",
-    followers: "318K",
-    followersNum: 318000,
-    engagement: 7.1,
-    authenticity: 89,
-    fake: 6,
-    score: 85,
-    verified: false,
-    posts: 526,
-    avgLikes: "24K",
-    avgComments: "980",
-    tags: ["#finance", "#urdu", "#pk"],
-  },
-];
 
 type Platform = "all" | "instagram" | "tiktok" | "youtube";
 type ViewMode = "grid" | "table";
@@ -215,77 +61,18 @@ const FRESH_RANK: Record<string, number> = { current: 0, aging: 1, stale: 2, una
 const CITIES = ["Karachi", "Lahore", "Islamabad", "Faisalabad", "Peshawar"];
 const NICHES = ["Bridal", "Fashion", "Beauty", "Tech", "Food", "Travel", "Comedy", "Finance", "Wellness", "Lifestyle"];
 
-type SavedPreset = {
-  name: string;
-  query: string;
-  platform: Platform;
-  city: string | null;
-  niche: string | null;
-  followerBand: string | null;
-  minEng: string | null;
-  minScore: string | null;
-  verifiedOnly: boolean;
-  contactOnly: boolean;
-  freshOnly: boolean;
-};
-
-/**
- * Lightweight natural-language interpretation (§7.2). The prototype has no LLM,
- * so we deterministically parse the query into the same filter state the user can
- * edit — the interpreted chips ARE the filters, shown transparently before applying.
- */
-function interpretQuery(q: string): {
-  platform?: Platform;
-  city?: string;
-  niche?: string;
-  followerBand?: string;
-  minEng?: string;
-  verifiedOnly?: boolean;
-} {
-  const s = q.toLowerCase();
-  const out: ReturnType<typeof interpretQuery> = {};
-  if (/instagram|insta|ig\b/.test(s)) out.platform = "instagram";
-  else if (/tiktok|tik tok/.test(s)) out.platform = "tiktok";
-  else if (/youtube|yt\b/.test(s)) out.platform = "youtube";
-
-  const city = CITIES.find((c) => s.includes(c.toLowerCase()));
-  if (city) out.city = city;
-
-  const niche = NICHES.find((n) => s.includes(n.toLowerCase()));
-  if (niche) out.niche = niche;
-
-  // Follower magnitude, e.g. "50k+", "100k", "1m"
-  const m = s.match(/(\d+(?:\.\d+)?)\s*([km])\+?/);
-  if (m) {
-    const n = parseFloat(m[1]) * (m[2] === "m" ? 1_000_000 : 1_000);
-    out.followerBand = n >= 1_000_000 ? "1M+" : n >= 100_000 ? "100K–1M" : "10K–100K";
-  }
-
-  const eng = s.match(/(?:engagement|er)\D*(\d+)\s*%|(\d+)\s*%\+?/);
-  if (eng) {
-    const v = parseInt(eng[1] || eng[2], 10);
-    out.minEng = v >= 8 ? "8%+" : v >= 5 ? "5%+" : "2%+";
-  }
-  if (/verified/.test(s)) out.verifiedOnly = true;
-  return out;
-}
-
 export function SearchModule() {
   const toast = useToast();
-  const [query, setQuery] = useState("bridal Lahore 50k+ engagement 5%+");
+  const [query, setQuery] = useState("");
   const [platform, setPlatform] = useState<Platform>("all");
-  const [city, setCity] = useState<string | null>("Lahore");
-  const [niche, setNiche] = useState<string | null>("Bridal");
-  const [followerBand, setFollowerBand] = useState<string | null>("10K–100K");
-  const [minEng, setMinEng] = useState<string | null>("5%+");
+  const [city, setCity] = useState<string | null>(null);
+  const [niche, setNiche] = useState<string | null>(null);
+  const [followerBand, setFollowerBand] = useState<string | null>(null);
+  const [minEng, setMinEng] = useState<string | null>(null);
   const [minScore, setMinScore] = useState<string | null>(null);
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [contactOnly, setContactOnly] = useState(false);
   const [freshOnly, setFreshOnly] = useState(false);
-  const [status, setStatus] = useState<Status>("idle");
-  const [progress, setProgress] = useState(0);
-  const [revealed, setRevealed] = useState(0);
-  const [partialFail, setPartialFail] = useState(0);
   const [view, setView] = useState<ViewMode>("grid");
   const [sortKey, setSortKey] = useState<SortKey>("relevance");
   const [sortOpen, setSortOpen] = useState(false);
@@ -296,160 +83,109 @@ export function SearchModule() {
   const [creditConfirmOpen, setCreditConfirmOpen] = useState(false);
   const [showInterpret, setShowInterpret] = useState(true);
   const [compareOpen, setCompareOpen] = useState(false);
-  const [presets, setPresets] = useState<SavedPreset[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem("mushin.presets") || "[]");
-    } catch {
-      return [];
-    }
-  });
-
-  const activeProfile = creators.find((c) => c.handle === profileHandle) ?? null;
-
-  const interpreted = useMemo(() => interpretQuery(query), [query]);
+  const [request, setRequest] = useState<SearchRequest | null>(null);
+  const [extra, setExtra] = useState<Partial<SearchFilters>>({});
+  const [suggested, setSuggested] = useState<ChipState | null>(null);
+  const search = useCreatorSearch(request);
+  const interpret = useInterpret();
+  const saved = useSavedSearches();
+  const createSaved = useCreateSavedSearch();
+  const uiFilters = () => ({ platform, city, niche, followerBand, minEng, minScore, verifiedOnly, contactOnly, freshOnly, extra });
 
   const filtered = useMemo(() => {
-    const q = query.toLowerCase().trim();
-    const terms = q.split(/\s+/).filter((t) => t.length > 2 && !/^\d/.test(t) && !t.includes("%"));
-    const list = creators.filter((c) => {
-      if (platform !== "all" && c.platform !== platform) return false;
-      if (city && c.city !== city) return false;
-      if (niche && !c.niche.toLowerCase().includes(niche.toLowerCase())) return false;
-      if (verifiedOnly && !c.verified) return false;
-      if (minEng === "2%+" && c.engagement < 2) return false;
-      if (minEng === "5%+" && c.engagement < 5) return false;
-      if (minEng === "8%+" && c.engagement < 8) return false;
-      if (followerBand === "10K–100K" && !(c.followersNum >= 10000 && c.followersNum < 100000)) return false;
-      if (followerBand === "100K–1M" && !(c.followersNum >= 100000 && c.followersNum < 1_000_000)) return false;
-      if (followerBand === "1M+" && !(c.followersNum >= 1_000_000)) return false;
-      if (minScore === "70+" && c.score < 70) return false;
-      if (minScore === "85+" && c.score < 85) return false;
-      if (minScore === "90+" && c.score < 90) return false;
-      if (contactOnly) {
-        const email = getCreatorIntel(c).contacts.find((x) => x.kind === "email");
-        if (!email || email.trust === "invalid") return false;
-      }
-      if (freshOnly && getCreatorIntel(c).followersFreshness.value !== "current") return false;
-      // Free-text terms (niche/city keywords) narrow further when present.
-      if (terms.length) {
-        const hay = `${c.name} ${c.handle} ${c.niche} ${c.city} ${c.tags.join(" ")}`.toLowerCase();
-        const known = new Set([...CITIES, ...NICHES].map((x) => x.toLowerCase()));
-        const meaningful = terms.filter((t) => known.has(t));
-        if (meaningful.length && !meaningful.some((t) => hay.includes(t))) return false;
-      }
-      return true;
-    });
-
-    const sorted = [...list].sort((a, b) => {
-      if (sortKey === "followers") return b.followersNum - a.followersNum;
-      if (sortKey === "engagement") return b.engagement - a.engagement;
-      if (sortKey === "freshness") {
-        return (
-          FRESH_RANK[getCreatorIntel(a).followersFreshness.value] -
-          FRESH_RANK[getCreatorIntel(b).followersFreshness.value]
-        );
-      }
-      return b.score - a.score;
-    });
-    return sorted;
-  }, [platform, city, niche, verifiedOnly, minEng, followerBand, minScore, contactOnly, freshOnly, query, sortKey]);
-
-  const visible = status === "streaming" ? filtered.slice(0, revealed) : filtered;
+    const list = (search.data?.results ?? []).map(toCreator);
+    if (sortKey === "followers") return [...list].sort((a, b) => b.followersNum - a.followersNum);
+    if (sortKey === "engagement") return [...list].sort((a, b) => b.engagement - a.engagement);
+    if (sortKey === "freshness") return [...list].sort((a, b) => FRESH_RANK[a.followersFreshness] - FRESH_RANK[b.followersFreshness]);
+    return list; // relevance: the API's fit order
+  }, [search.data, sortKey]);
+  const visible = filtered;
+  // "streaming" returns with live discovery (sub-project 4); the screen keeps that state.
+  const status = (request === null ? "idle" : search.isFetching ? "loading" : search.isError ? "error" : filtered.length === 0 ? "empty" : "results") as Status;
+  const progress = search.isFetching ? 60 : 100;
+  const revealed = 0;
+  const partialFail = 0;
+  const activeProfile = filtered.find((c) => c.handle === profileHandle) ?? null;
+  const interpreted = suggested
+    ? Object.fromEntries(
+        Object.entries({
+          platform: suggested.platform === "all" ? undefined : suggested.platform,
+          city: suggested.city ?? undefined,
+          niche: suggested.niche ?? undefined,
+          followerBand: suggested.followerBand ?? undefined,
+          minEng: suggested.minEng ?? undefined,
+          verifiedOnly: suggested.verifiedOnly || undefined,
+        }).filter(([, v]) => v !== undefined),
+      )
+    : {};
+  const presets = (saved.data?.searches ?? []).map((s) => ({ id: s.id, name: s.name, query: s.queryText, filters: s.filters }));
 
   const runSearch = (searchMode: "fast" | "live" = mode) => {
     setMode(searchMode);
     setSelected(new Set());
-    setPartialFail(0);
-    if (searchMode === "live") {
-      // Live discovery streams results in one at a time (§7.3).
-      setStatus("streaming");
-      setRevealed(0);
-      let shown = 0;
-      const total = filtered.length;
-      const interval = setInterval(() => {
-        shown += 1;
-        setRevealed(shown);
-        if (shown >= total) {
-          clearInterval(interval);
-          // Simulate partial enrichment failure on the last live batch.
-          const fails = total > 3 ? (total % 2) + 1 : 0;
-          setPartialFail(fails);
-          setTimeout(() => setStatus(total ? "results" : "empty"), 350);
-        }
-      }, 420);
-      return;
-    }
-    // Fast path — cached graph, quick progress bar.
-    setStatus("loading");
-    setProgress(0);
-    const interval = setInterval(() => {
-      setProgress((p) => {
-        const next = p + 8 + Math.random() * 12;
-        if (next >= 100) {
-          clearInterval(interval);
-          setTimeout(() => setStatus(filtered.length ? "results" : "empty"), 200);
-          return 100;
-        }
-        return next;
+    if (searchMode === "live") toast.info("Finding new creators live arrives in the next update. Showing creators MUSHIN already knows.");
+    setRequest({ text: query.trim(), filters: toFilters(uiFilters()), page: 1 });
+    if (query.trim()) {
+      interpret.mutate(query.trim(), {
+        onSuccess: (r) => {
+          setSuggested(fromChips(r.chips));
+          setShowInterpret(true);
+        },
+        onError: () => setSuggested(null),
       });
-    }, 90);
+    }
   };
 
+  /** The AI's reading is a suggestion: it changes the filters only when the user applies it (SRS REQ-02.02, REQ-03.06). */
   const applyInterpreted = () => {
-    if (interpreted.platform) setPlatform(interpreted.platform);
-    if (interpreted.city) setCity(interpreted.city);
-    if (interpreted.niche) setNiche(interpreted.niche);
-    if (interpreted.followerBand) setFollowerBand(interpreted.followerBand);
-    if (interpreted.minEng) setMinEng(interpreted.minEng);
-    if (interpreted.verifiedOnly) setVerifiedOnly(true);
+    if (!suggested) return;
+    setPlatform(suggested.platform);
+    setCity(suggested.city);
+    setNiche(suggested.niche);
+    setFollowerBand(suggested.followerBand);
+    setMinEng(suggested.minEng);
+    setVerifiedOnly(suggested.verifiedOnly);
+    setExtra(suggested.extra);
     toast.info("Applied MUSHIN's reading of your search. Edit the chips anytime.");
-    setTimeout(() => runSearch("fast"), 0);
+    setRequest({ text: query.trim(), filters: toFilters({ ...uiFilters(), ...suggested }), page: 1 });
   };
 
   const savePreset = () => {
     const name = query.trim().slice(0, 40) || "Untitled search";
-    const preset: SavedPreset = {
-      name, query, platform, city, niche, followerBand, minEng, minScore,
-      verifiedOnly, contactOnly, freshOnly,
-    };
-    const next = [preset, ...presets.filter((p) => p.name !== name)].slice(0, 8);
-    setPresets(next);
-    try {
-      localStorage.setItem("mushin.presets", JSON.stringify(next));
-    } catch {
-      /* storage unavailable — preset kept in memory only */
-    }
-    toast.success(`Saved search "${name}".`);
+    createSaved.mutate(
+      { name, queryText: query.trim(), filters: toFilters(uiFilters()) },
+      { onSuccess: () => toast.success(`Saved search "${name}".`), onError: (err) => toast.error("Couldn't save the search", err instanceof Error ? err.message : undefined) },
+    );
   };
 
-  const loadPreset = (p: SavedPreset) => {
+  const loadPreset = (p: { query: string; filters: SearchFilters }) => {
+    const s = fromChips(p.filters);
     setQuery(p.query);
-    setPlatform(p.platform);
-    setCity(p.city);
-    setNiche(p.niche);
-    setFollowerBand(p.followerBand);
-    setMinEng(p.minEng);
-    setMinScore(p.minScore);
-    setVerifiedOnly(p.verifiedOnly);
-    setContactOnly(p.contactOnly);
-    setFreshOnly(p.freshOnly);
-    setTimeout(() => runSearch("fast"), 0);
+    setPlatform(s.platform);
+    setCity(s.city);
+    setNiche(s.niche);
+    setFollowerBand(s.followerBand);
+    setMinEng(s.minEng);
+    setVerifiedOnly(s.verifiedOnly);
+    setExtra(s.extra);
+    setMinScore(p.filters.minAuthenticity !== undefined ? `${p.filters.minAuthenticity}+` : null);
+    setContactOnly(p.filters.hasContact);
+    setFreshOnly(p.filters.freshOnly);
+    setRequest({ text: p.query, filters: p.filters, page: 1 });
   };
 
-  const compareList = creators.filter((c) => selected.has(c.handle)).slice(0, 5);
+  const compareList = filtered.filter((c) => selected.has(c.handle)).slice(0, 5);
 
   useEffect(() => {
+    let pending: string | null = null;
     try {
-      const pending = sessionStorage.getItem("mushin.pendingQuery");
-      if (pending) {
-        sessionStorage.removeItem("mushin.pendingQuery");
-        setQuery(pending);
-        setShowInterpret(true);
-      }
+      pending = sessionStorage.getItem("mushin.pendingQuery");
+      if (pending) sessionStorage.removeItem("mushin.pendingQuery");
     } catch {
       /* storage unavailable */
     }
-    runSearch("fast");
+    if (pending) setQuery(pending);
+    setRequest({ text: pending ?? "", filters: toFilters(uiFilters()), page: 1 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -468,10 +204,12 @@ export function SearchModule() {
     niche && { label: niche, onRemove: () => setNiche(null) },
     followerBand && { label: followerBand, onRemove: () => setFollowerBand(null) },
     minEng && { label: `ER ${minEng}`, onRemove: () => setMinEng(null) },
-    minScore && { label: `Fit ${minScore}`, onRemove: () => setMinScore(null) },
+    minScore && { label: `Authenticity ${minScore}`, onRemove: () => setMinScore(null) },
     verifiedOnly && { label: "Verified", onRemove: () => setVerifiedOnly(false) },
     contactOnly && { label: "Has contact", onRemove: () => setContactOnly(false) },
     freshOnly && { label: "Fresh only", onRemove: () => setFreshOnly(false) },
+    ...(extra.creatorCountry ? [{ label: extra.creatorCountry, onRemove: () => setExtra(({ creatorCountry: _c, ...rest }) => rest) }] : []),
+    ...(extra.audienceCountry ? [{ label: `Audience ${extra.audienceCountry}`, onRemove: () => setExtra(({ audienceCountry: _a, ...rest }) => rest) }] : []),
   ].filter(Boolean) as { label: string; onRemove: () => void }[];
 
   const clearAll = () => {
@@ -484,6 +222,13 @@ export function SearchModule() {
     setVerifiedOnly(false);
     setContactOnly(false);
     setFreshOnly(false);
+    setExtra({});
+  };
+
+  const resetSearch = () => {
+    clearAll();
+    const cleared = { platform: "all" as const, city: null, niche: null, followerBand: null, minEng: null, minScore: null, verifiedOnly: false, contactOnly: false, freshOnly: false, extra: {} };
+    setRequest({ text: query.trim(), filters: toFilters(cleared), page: 1 });
   };
 
   return (
@@ -606,7 +351,7 @@ export function SearchModule() {
           </span>
           {presets.map((p) => (
             <button
-              key={p.name}
+              key={p.id}
               onClick={() => loadPreset(p)}
               className="max-w-[180px] truncate rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] text-slate-600 transition-colors hover:border-indigo-300 hover:text-indigo-700"
               style={{ fontWeight: 500 }}
@@ -784,10 +529,15 @@ export function SearchModule() {
       <div className="min-h-[420px]">
         {status === "loading" && <ResultsSkeleton view={view} />}
         {status === "error" && <ErrorState onRetry={() => runSearch()} />}
-        {status === "empty" && <EmptyResults onReset={() => { clearAll(); runSearch("fast"); }} />}
+        {status === "empty" && <EmptyResults onReset={resetSearch} />}
 
         {(status === "results" || status === "streaming") && (
           <div className="space-y-3">
+            {search.data?.fewResults && (
+              <p className="text-xs text-slate-500">
+                Only a few creators match. Try widening the filters — finding new creators live and adding a creator by profile link arrive in the next update.
+              </p>
+            )}
             <div className="flex items-center justify-between text-xs text-slate-500">
               <span>
                 <span className="text-slate-900" style={{ fontWeight: 600 }}>
@@ -967,9 +717,7 @@ function CreatorCard({
   onSelect: () => void;
   onOpen: () => void;
 }) {
-  const intel = getCreatorIntel(creator);
-  const email = intel.contacts.find((c) => c.kind === "email");
-  const hasContact = email && email.trust !== "invalid";
+  const hasContact = creator.hasContact;
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -1022,7 +770,7 @@ function CreatorCard({
         <div className="mt-3 grid grid-cols-3 gap-2 text-center">
           <Metric label="Followers" value={creator.followers} />
           <Metric label="ER" value={`${creator.engagement.toFixed(1)}%`} />
-          <Metric label="Auth." value={`${creator.authenticity}`} />
+          <Metric label="Auth." value={creator.authenticity === null ? "—" : String(creator.authenticity)} />
         </div>
 
         <div className="mt-3 flex items-center justify-between">
@@ -1042,10 +790,10 @@ function CreatorCard({
 
       {/* Fit sentence + honesty markers (§7.4) */}
       <p className="mt-2.5 text-[11px] text-slate-500" style={{ lineHeight: 1.5 }}>
-        {fitSentence(creator, query)}
+        {creator.fitLabel}
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
-        <FreshnessBadge value={intel.followersFreshness.value} updated={intel.lastUpdated} />
+        <FreshnessBadge value={creator.followersFreshness} />
         <span
           className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] ${
             hasContact
@@ -1150,7 +898,7 @@ function ResultsTable({
               </td>
               <td className="py-3 text-right tabular-nums text-slate-700">{c.followers}</td>
               <td className="py-3 text-right tabular-nums text-slate-700">{c.engagement.toFixed(1)}%</td>
-              <td className="py-3 text-right tabular-nums text-slate-700">{c.authenticity}</td>
+              <td className="py-3 text-right tabular-nums text-slate-700">{c.authenticity ?? "—"}</td>
               <td className="py-3 pr-4 text-right">
                 <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] ${scoreBg(c.score)}`} style={{ fontWeight: 600 }}>
                   {c.score}
@@ -1225,7 +973,7 @@ function EmptyResults({ onReset }: { onReset: () => void }) {
         No creators match your filters
       </div>
       <p className="mt-1 max-w-sm text-sm text-slate-500">
-        Try broadening your niche, city, or engagement thresholds. Or start from a saved template.
+        No creators match these filters yet. Widen the filters, or check back soon: finding new creators live and adding a creator by profile link arrive in the next update.
       </p>
       <div className="mt-4 flex gap-2">
         <button onClick={onReset} className="rounded-md bg-slate-900 px-3 py-1.5 text-xs text-white hover:bg-slate-800" style={{ fontWeight: 500 }}>
@@ -1365,10 +1113,10 @@ function AdvancedFilterDrawer(props: {
                 ))}
               </FilterGroup>
 
-              <FilterGroup label="Creator Fit score" icon={Star}>
+              <FilterGroup label="Authenticity score" icon={Star}>
                 {["70+", "85+", "90+"].map((s) => (
                   <Chip key={s} active={props.minScore === s} onClick={() => props.setMinScore(props.minScore === s ? null : s)}>
-                    Fit {s}
+                    {s}
                   </Chip>
                 ))}
               </FilterGroup>
