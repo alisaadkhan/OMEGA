@@ -59,8 +59,9 @@ export function assessmentSchema(report: SignalReport): z.ZodType<RawAssessment>
       ...v.audience.cities.map((c, i): [string, (string | number)[]] => [c.label, ["audience", "cities", i, "label"]]),
       ...v.audience.age.map((c, i): [string, (string | number)[]] => [c.label, ["audience", "age", i, "label"]]),
     ];
+    // Checked on the cleaned text that will be shown, so markup or invisible characters cannot split a contact past the check.
     for (const [text, path] of texts) {
-      if (text && hasContactOrLink(text)) ctx.addIssue({ code: "custom", path, message: "must not contain links, emails or phone numbers" });
+      if (text && hasContactOrLink(cleanText(text, 300))) ctx.addIssue({ code: "custom", path, message: "must not contain links, emails or phone numbers" });
     }
     if (report.kind === "insufficient") {
       if (v.score !== null || v.verdict !== null) ctx.addIssue({ code: "custom", path: ["score"], message: "must be null: there is not enough data to score" });

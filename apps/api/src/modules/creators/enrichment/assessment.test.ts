@@ -83,6 +83,9 @@ describe("assessment rules", () => {
     expect(schema.safeParse({ ...good, watchOuts: ["WhatsApp 0300-1234567 to negotiate"] }).success).toBe(false);
     expect(schema.safeParse({ ...good, minorSigns: { likely: true, reason: "visit https://evil.example" } }).success).toBe(false);
     expect(schema.safeParse({ ...good, creatorCity: "Lahore, call +92 300 1234567" }).success).toBe(false);
+    // Checked after cleaning: markup or invisible characters cannot hide a contact that cleaning would reveal.
+    expect(schema.safeParse(withDetail("Engagement is normal. Call 0300<i></i>1234567 now.")).success).toBe(false);
+    expect(schema.safeParse(withDetail(`Engagement is normal. Mail sana${String.fromCharCode(0x200b)}@x.com today.`)).success).toBe(false);
     expect(schema.safeParse(good).success).toBe(true);
   });
 
