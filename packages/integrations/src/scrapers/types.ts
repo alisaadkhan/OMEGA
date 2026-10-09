@@ -6,8 +6,14 @@ export type ScrapeRequest = { platform: ScrapePlatform; handle: string; ctx?: Ca
 /** `raw` is archived as-is and parsed by the creators module (hostile input). YouTube: `{ channel, videos }`. */
 export type ScrapeResult = { provider: "apify" | "youtube"; raw: unknown; costUsd: number };
 
+export type BatchScrapeRequest = { platform: ScrapePlatform; handles: string[]; ctx?: CallContext };
+/** One raw response per requested handle, in the shape `fetchProfile` returns for that platform (archived per profile). */
+export type BatchScrapeResult = { provider: "apify" | "youtube"; profiles: { handle: string; raw: unknown }[]; costUsd: number };
+
 export interface ProfileScraper {
   fetchProfile(req: ScrapeRequest): Promise<ScrapeResult>;
+  /** Live discovery: many profiles of one platform in one Apify run (YouTube: one API read each, free). */
+  fetchProfiles(req: BatchScrapeRequest): Promise<BatchScrapeResult>;
 }
 
 export type ProviderErrorReason = "spend_cap" | "quota" | "not_configured" | "provider";
@@ -26,5 +32,5 @@ export class ProviderError extends Error {
   }
 }
 
-/** Admits one paid run, or throws spend_cap; call the returned function once the run's cost is recorded. */
-export type SpendGuard = { begin(): Promise<() => void> };
+/** Admits paid work (`units` runs, default 1), or throws spend_cap; call the returned function once its cost is recorded. */
+export type SpendGuard = { begin(units?: number): Promise<() => void> };

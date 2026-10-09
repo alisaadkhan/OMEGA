@@ -26,4 +26,12 @@ describe("Apify budget guard", () => {
     await expect(guard.begin()).resolves.toBeTypeOf("function");
     await expect(guard.begin()).rejects.toMatchObject({ reason: "spend_cap" });
   });
+
+  it("counts a batch as several runs", async () => {
+    const guard = createBudgetGuard({ budgetUsd: 1, perRunUsd: 0.05, spentSince: async () => 0.5 });
+    const batch = await guard.begin(9);
+    await expect(guard.begin()).resolves.toBeTypeOf("function");
+    await expect(guard.begin()).rejects.toMatchObject({ reason: "spend_cap" });
+    batch();
+  });
 });

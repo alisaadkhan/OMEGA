@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import type { ProfileScraper, ScrapePlatform, ScrapeRequest, ScrapeResult } from "./types";
+import type { BatchScrapeRequest, BatchScrapeResult, ProfileScraper, ScrapePlatform, ScrapeRequest, ScrapeResult } from "./types";
 
 /** A recorded real response (fixtures/, recorded 2026-10-09 from public brand accounts). */
 export function scraperFixture(name: string): unknown {
@@ -19,6 +19,25 @@ export class FixtureScraper implements ProfileScraper {
     if (!r) throw new Error(`FixtureScraper has no reply for ${req.platform}`);
     if (r instanceof Error) throw r;
     return typeof r === "function" ? r(req) : r;
+  }
+
+  readonly batchCalls: BatchScrapeRequest[] = [];
+
+  async fetchProfiles(req: BatchScrapeRequest): Promise<BatchScrapeResult> {
+    this.batchCalls.push(req);
+    const profiles: { handle: string; raw: unknown }[] = [];
+    let costUsd = 0;
+    let provider: "apify" | "youtube" = req.platform === "youtube" ? "youtube" : "apify";
+    for (const handle of req.handles.map((h) => h.replace(/^@/, "").toLowerCase())) {
+      const r = this.replies[req.platform];
+      if (!r) throw new Error(`FixtureScraper has no reply for ${req.platform}`);
+      if (r instanceof Error) throw r;
+      const one = typeof r === "function" ? await r({ platform: req.platform, handle }) : r;
+      profiles.push({ handle, raw: one.raw });
+      costUsd += one.costUsd;
+      provider = one.provider;
+    }
+    return { provider, profiles, costUsd };
   }
 
   static defaults(): FixtureScraper {

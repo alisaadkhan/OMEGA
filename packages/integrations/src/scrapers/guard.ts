@@ -13,7 +13,7 @@ export function createBudgetGuard(o: { spentSince: (since: Date) => Promise<numb
   const perRun = o.perRunUsd ?? DEFAULT_PER_RUN_USD;
   let inFlight = 0;
   return {
-    async begin() {
+    async begin(units = 1) {
       const t = (o.now ?? (() => new Date()))();
       const monthStart = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth(), 1));
       const spent = await o.spentSince(monthStart);
@@ -22,12 +22,12 @@ export function createBudgetGuard(o: { spentSince: (since: Date) => Promise<numb
       if (committed >= o.budgetUsd) {
         throw new ProviderError(false, "spend_cap", `Monthly Apify budget of $${o.budgetUsd} reached ($${spent.toFixed(4)} spent, ${inFlight} run(s) in progress)`);
       }
-      inFlight += 1;
+      inFlight += units;
       let released = false;
       return () => {
         if (released) return;
         released = true;
-        inFlight -= 1;
+        inFlight -= units;
       };
     },
   };

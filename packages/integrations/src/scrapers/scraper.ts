@@ -18,6 +18,31 @@ type Options = {
   apifyMaxWaitMs?: number;
 };
 
+const NO_DOWNLOADS = { shouldDownloadVideos: false, shouldDownloadCovers: false, shouldDownloadAvatars: false, shouldDownloadSubtitles: false };
+
+/** Apify returns one list for a batch: Instagram items carry `username`, TikTok video items carry `input` (the requested profile). */
+export function splitByHandle(platform: "instagram" | "tiktok", items: unknown, handles: string[]): { handle: string; raw: unknown[] }[] {
+  const keyOf = (it: unknown): string | null => {
+    if (typeof it !== "object" || it === null) return null;
+    const r = it as Record<string, unknown>;
+    if (platform === "instagram") {
+      if (typeof r["username"] === "string") return r["username"].toLowerCase();
+      const url = r["inputUrl"] ?? r["url"];
+      return typeof url === "string" ? (url.replace(/\/+$/, "").split("/").pop() ?? "").toLowerCase() : null;
+    }
+    if (typeof r["input"] === "string") return r["input"].replace(/^@/, "").toLowerCase();
+    const author = r["authorMeta"];
+    const name = typeof author === "object" && author !== null ? (author as Record<string, unknown>)["name"] : undefined;
+    return typeof name === "string" ? name.toLowerCase() : null;
+  };
+  const groups = new Map<string, unknown[]>(handles.map((h) => [h, []]));
+  for (const it of Array.isArray(items) ? items : []) {
+    const k = keyOf(it);
+    if (k !== null) groups.get(k)?.push(it);
+  }
+  return handles.map((h) => ({ handle: h, raw: groups.get(h) ?? [] }));
+}
+
 /** Job-level retries decide whether to try again (spec §5.2), so the adapter itself makes one attempt. */
 export function createProfileScraper(o: Options): ProfileScraper {
   const apify = o.apify
@@ -29,29 +54,29 @@ export function createProfileScraper(o: Options): ProfileScraper {
       })
     : null;
 
-  async function viaApify(req: ScrapeRequest, actor: string, input: unknown): Promise<ScrapeResult> {
+  async function viaApify(req: ScrapeRequest, actor: string, input: unknown, units = 1, maxWaitMs?: number): Promise<ScrapeResult> {
     if (!apify) throw new ProviderError(false, "not_configured", "APIFY_TOKEN is not set");
-    const done = await o.spendGuard.begin();
+    const done = await o.spendGuard.begin(units);
     try {
-      return await runApify(req, actor, input, apify);
+      return await runApify(req, actor, input, apify, maxWaitMs);
     } finally {
       done();
     }
   }
 
-  async function runApify(req: ScrapeRequest, actor: string, input: unknown, apify: ReturnType<typeof createApifyClient>): Promise<ScrapeResult> {
+  async function runApify(req: ScrapeRequest, actor: string, input: unknown, apify: ReturnType<typeof createApifyClient>, maxWaitMs?: number): Promise<ScrapeResult> {
     const out = await instrumented(
       {
         provider: "apify",
         operation: `scrape_${req.platform}`,
-        timeoutMs: 240_000,
+        timeoutMs: (maxWaitMs ?? 180_000) + 60_000,
         retries: 0,
         sink: o.sink,
         logger: o.logger,
         ctx: req.ctx,
         usage: (r: { items: unknown[]; costUsd: number }) => ({ model: actor, units: r.items.length, costUsd: r.costUsd }),
       },
-      () => apify.runActor(actor, input),
+      () => apify.runActor(actor, input, maxWaitMs === undefined ? {} : { maxWaitMs }),
     ).catch(async (err: unknown) => {
       // A failed run can still have been charged; record it so the monthly spend cap counts it (spec §4).
       const pe = providerErrorOf(err);
@@ -79,6 +104,26 @@ export function createProfileScraper(o: Options): ProfileScraper {
     return { provider: "apify", raw: out.items, costUsd: out.costUsd };
   }
 
+  async function youtubeProfile(req: ScrapeRequest): Promise<ScrapeResult> {
+    const key = o.youtubeApiKey;
+    if (!key) throw new ProviderError(false, "not_configured", "YOUTUBE_API_KEY is not set");
+    const raw = await instrumented(
+      {
+        provider: "youtube",
+        operation: "scrape_youtube",
+        timeoutMs: 30_000,
+        retries: 0,
+        sink: o.sink,
+        logger: o.logger,
+        ctx: req.ctx,
+        usage: () => ({ model: "youtube-data-v3", units: 3, costUsd: 0 }),
+      },
+      // Jobs store handles without "@"; the API looks channels up by their @handle.
+      () => fetchYouTubeChannel({ apiKey: key, handle: req.handle.startsWith("@") ? req.handle : `@${req.handle}`, recentVideos: o.youtubeVideos ?? 12, ...(o.fetch ? { fetch: o.fetch } : {}) }),
+    ).catch(unwrap);
+    return { provider: "youtube", raw, costUsd: 0 };
+  }
+
   return {
     async fetchProfile(req) {
       if (req.platform === "instagram") return viaApify(req, o.apify?.instagramActor ?? "", { usernames: [req.handle] });
@@ -86,29 +131,28 @@ export function createProfileScraper(o: Options): ProfileScraper {
         return viaApify(req, o.apify?.tiktokActor ?? "", {
           profiles: [req.handle.replace(/^@/, "")],
           resultsPerPage: o.tiktokVideos,
-          shouldDownloadVideos: false,
-          shouldDownloadCovers: false,
-          shouldDownloadAvatars: false,
-          shouldDownloadSubtitles: false,
+          ...NO_DOWNLOADS,
         });
       }
-      const key = o.youtubeApiKey;
-      if (!key) throw new ProviderError(false, "not_configured", "YOUTUBE_API_KEY is not set");
-      const raw = await instrumented(
-        {
-          provider: "youtube",
-          operation: "scrape_youtube",
-          timeoutMs: 30_000,
-          retries: 0,
-          sink: o.sink,
-          logger: o.logger,
-          ctx: req.ctx,
-          usage: () => ({ model: "youtube-data-v3", units: 3, costUsd: 0 }),
-        },
-        // Jobs store handles without "@"; the API looks channels up by their @handle.
-        () => fetchYouTubeChannel({ apiKey: key, handle: req.handle.startsWith("@") ? req.handle : `@${req.handle}`, recentVideos: o.youtubeVideos ?? 12, ...(o.fetch ? { fetch: o.fetch } : {}) }),
-      ).catch(unwrap);
-      return { provider: "youtube", raw, costUsd: 0 };
+      return youtubeProfile(req);
+    },
+
+    async fetchProfiles(req) {
+      const handles = [...new Set(req.handles.map((h) => h.replace(/^@/, "").toLowerCase()))].slice(0, 20);
+      if (req.platform === "youtube") {
+        const profiles: { handle: string; raw: unknown }[] = [];
+        for (const handle of handles) profiles.push({ handle, raw: (await youtubeProfile({ platform: "youtube", handle, ...(req.ctx ? { ctx: req.ctx } : {}) })).raw });
+        return { provider: "youtube", profiles, costUsd: 0 };
+      }
+      if (handles.length === 0) return { provider: "apify", profiles: [], costUsd: 0 };
+      // A bigger batch takes longer on Apify: 3 minutes plus 15 s per extra profile, at most 8 minutes.
+      const maxWaitMs = Math.min(180_000 + 15_000 * (handles.length - 1), 480_000);
+      const one: ScrapeRequest = { platform: req.platform, handle: handles.join(","), ...(req.ctx ? { ctx: req.ctx } : {}) };
+      const out =
+        req.platform === "instagram"
+          ? await viaApify(one, o.apify?.instagramActor ?? "", { usernames: handles }, handles.length, maxWaitMs)
+          : await viaApify(one, o.apify?.tiktokActor ?? "", { profiles: handles, resultsPerPage: o.tiktokVideos, ...NO_DOWNLOADS }, handles.length, maxWaitMs);
+      return { provider: "apify", profiles: splitByHandle(req.platform, out.raw, handles), costUsd: out.costUsd };
     },
   };
 }

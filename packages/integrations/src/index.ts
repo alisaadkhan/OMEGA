@@ -5,3 +5,4 @@ export * from "./search";
 export * from "./llm";
 export * from "./storage";
 export * from "./scrapers";
+export * from "./websearch";

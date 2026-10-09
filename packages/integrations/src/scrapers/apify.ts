@@ -57,13 +57,13 @@ export function createApifyClient(o: ClientOptions) {
   }
 
   /** Starts an actor, waits for it (Apify waits at most 60 s per request), then reads its dataset. */
-  async function runActor(actorId: string, input: unknown): Promise<{ items: unknown[]; costUsd: number }> {
+  async function runActor(actorId: string, input: unknown, opts: { maxWaitMs?: number } = {}): Promise<{ items: unknown[]; costUsd: number }> {
     const started = await call<{ data: ApifyRun }>(`${base}/acts/${actorId.replace("/", "~")}/runs?waitForFinish=60`, {
       method: "POST",
       body: JSON.stringify(input),
     });
     let run = started.data;
-    const deadline = Date.now() + (o.maxWaitMs ?? 180_000);
+    const deadline = Date.now() + (opts.maxWaitMs ?? o.maxWaitMs ?? 180_000);
     while (!TERMINAL.has(run.status)) {
       if (Date.now() >= deadline) {
         // A run we stop waiting for keeps running (and charging) on Apify: stop it, then count what it cost.

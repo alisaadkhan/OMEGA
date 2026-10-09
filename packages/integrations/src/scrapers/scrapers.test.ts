@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createLogger } from "@mushin/core";
 import { MemoryProviderCallSink } from "../memory-sink";
 import { apifyRunCost, type ApifyRun } from "./apify";
-import { createProfileScraper } from "./scraper";
+import { createProfileScraper, splitByHandle } from "./scraper";
 import { scraperFixture } from "./testing";
 import { ProviderError } from "./types";
 
@@ -161,6 +161,35 @@ describe("profile scraper", () => {
     expect(out.raw).toEqual({ channel: scraperFixture("youtube-notfound.json"), videos: null });
     const quota = fakeFetch(() => Response.json({ error: { code: 403, errors: [{ reason: "quotaExceeded" }] } }, { status: 403 }));
     await expect(scraper(quota.fetch).s.fetchProfile({ platform: "youtube", handle: "@x" })).rejects.toMatchObject({ reason: "quota", retryable: false });
+  });
+
+  it("fetches many Instagram profiles in one Apify run and splits the items by handle", async () => {
+    const one = (scraperFixture("instagram-profile.json") as Record<string, unknown>[])[0] ?? {};
+    const items = [{ ...one, username: "first_one" }, { ...one, username: "Second_One" }];
+    const { fetch, calls } = fakeFetch(apifyRoutes(items, "apify-run-instagram.json"));
+    const { s, sink } = scraper(fetch);
+    const out = await s.fetchProfiles({ platform: "instagram", handles: ["first_one", "second_one", "missing_one"] });
+    expect(calls[0]?.body).toEqual({ usernames: ["first_one", "second_one", "missing_one"] });
+    expect(out.profiles.map((p) => [p.handle, (p.raw as unknown[]).length])).toEqual([["first_one", 1], ["second_one", 1], ["missing_one", 0]]);
+    expect(sink.calls).toHaveLength(1);
+    expect(inFlight.n).toBe(0);
+  });
+
+  it("splits TikTok video items by the requested profile", () => {
+    const v = (scraperFixture("tiktok-videos.json") as Record<string, unknown>[])[0] ?? {};
+    const items = [{ ...v, input: "a_one" }, { ...v, input: "a_one" }, { ...v, input: "b_two" }];
+    expect(splitByHandle("tiktok", items, ["a_one", "b_two", "c_three"]).map((p) => (p.raw as unknown[]).length)).toEqual([2, 1, 0]);
+  });
+
+  it("reads YouTube channels one by one for free", async () => {
+    const { fetch } = fakeFetch((c) => {
+      if (c.url.includes("/channels?")) return Response.json(scraperFixture("youtube-channel.json"));
+      if (c.url.includes("/playlistItems?")) return Response.json(scraperFixture("youtube-playlist.json"));
+      return Response.json(scraperFixture("youtube-videos.json"));
+    });
+    const out = await scraper(fetch).s.fetchProfiles({ platform: "youtube", handles: ["@cokestudio", "other"] });
+    expect(out).toMatchObject({ provider: "youtube", costUsd: 0 });
+    expect(out.profiles.map((p) => p.handle)).toEqual(["cokestudio", "other"]);
   });
 
   it("refuses platforms whose keys are not configured", async () => {
