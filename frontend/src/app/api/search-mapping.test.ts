@@ -1,5 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { formatCount, fromChips, matchToCreator, toCreator, toFilters, uiTrust, type UiFilters } from "./search-mapping";
+import { ApiError } from "./http";
+import {
+  extraChips,
+  formatCount,
+  fromChips,
+  matchToCreator,
+  pageCount,
+  requestFor,
+  sameRequest,
+  searchErrorMessage,
+  shouldRetrySearch,
+  toCreator,
+  toFilters,
+  uiTrust,
+  withoutExtra,
+  type UiFilters,
+} from "./search-mapping";
 
 const ui: UiFilters = { platform: "instagram", city: "Lahore", niche: "Bridal", followerBand: "10K–100K", minEng: "5%+", minScore: "70+", verifiedOnly: true, contactOnly: true, freshOnly: false, extra: { creatorCountry: "PK" } };
 
@@ -27,10 +43,68 @@ describe("search mapping", () => {
     });
   });
 
-  it("turns AI chips into the screen's filters, keeping what the screen has no control for", () => {
+  it("turns AI chips into the screen's filters, keeping exact values the screen's presets cannot express", () => {
     expect(
       fromChips({ platform: "tiktok", creatorCity: "Karachi", creatorCountry: "PK", niches: ["Food", "Travel"], followersMin: 150_000, engagementMin: 6, verifiedOnly: false, hasContact: false, freshOnly: false }),
-    ).toEqual({ platform: "tiktok", city: "Karachi", niche: "Food", followerBand: "100K–1M", minEng: "5%+", verifiedOnly: false, extra: { creatorCountry: "PK", niches: ["Food", "Travel"] } });
+    ).toEqual({
+      platform: "tiktok",
+      city: "Karachi",
+      niche: null,
+      followerBand: null,
+      minEng: null,
+      verifiedOnly: false,
+      extra: { creatorCountry: "PK", niches: ["Food", "Travel"], followersMin: 150_000, engagementMin: 6 },
+    });
+    // Ranges that match a preset still use it.
+    expect(fromChips({ niches: ["Bridal"], followersMin: 100_000, followersMax: 999_999, engagementMin: 5, verifiedOnly: true, hasContact: false, freshOnly: false })).toMatchObject({
+      niche: "Bridal",
+      followerBand: "100K–1M",
+      minEng: "5%+",
+      extra: {},
+    });
+  });
+
+  it("never snaps an AI range onto a different one ('1k–10k', '500K–2M')", () => {
+    const small = fromChips({ niches: [], followersMin: 1_000, followersMax: 10_000, verifiedOnly: false, hasContact: false, freshOnly: false });
+    expect(small).toMatchObject({ followerBand: null, extra: { followersMin: 1_000, followersMax: 10_000 } });
+    const wide = fromChips({ niches: [], followersMin: 500_000, followersMax: 2_000_000, verifiedOnly: false, hasContact: false, freshOnly: false });
+    expect(toFilters({ ...ui, ...wide, minScore: null, contactOnly: false, freshOnly: false })).toMatchObject({ followersMin: 500_000, followersMax: 2_000_000 });
+  });
+
+  it("lets a preset the user picks replace a conflicting AI value instead of sending an impossible range", () => {
+    const f = toFilters({ ...ui, followerBand: "1M+", minEng: "8%+", niche: "Food", extra: { followersMax: 50_000, followersMin: 1_000, engagementMin: 3, niches: ["Bridal", "Beauty"] } });
+    expect(f).toMatchObject({ followersMin: 1_000_000, engagementMin: 8, niches: ["Food"] });
+    expect(f.followersMax).toBeUndefined();
+  });
+
+  it("labels every filter the screen has no control for, so nothing is applied silently", () => {
+    expect(extraChips({ creatorCountry: "PK", audienceCountry: "AE", followersMin: 1_000, followersMax: 10_000, engagementMin: 3, engagementMax: 9, niches: ["Food", "Travel"] }).map((c) => c.label)).toEqual([
+      "PK",
+      "Audience AE",
+      "Followers 1K–10K",
+      "ER 3–9%",
+      "Food + Travel",
+    ]);
+    expect(extraChips({ followersMax: 50_000 }).map((c) => c.label)).toEqual(["Followers up to 50K"]);
+    expect(extraChips({ engagementMin: 3 }).map((c) => c.label)).toEqual(["ER 3%+"]);
+    expect(withoutExtra({ followersMin: 1, followersMax: 2, creatorCountry: "PK" }, "followers")).toEqual({ creatorCountry: "PK" });
+  });
+
+  it("builds one request from the screen state, and tells when a search must be re-fetched rather than re-keyed", () => {
+    const r = requestFor("bridal", ui, 2);
+    expect(r).toEqual({ text: "bridal", filters: toFilters(ui), page: 2 });
+    expect(sameRequest(r, requestFor("bridal", { ...ui }, 2))).toBe(true);
+    expect(sameRequest(r, requestFor("bridal", { ...ui, platform: "tiktok" }, 2))).toBe(false);
+    expect(sameRequest(null, r)).toBe(false);
+  });
+
+  it("counts pages and only retries server-side failures", () => {
+    expect([pageCount(0, 24), pageCount(24, 24), pageCount(25, 24), pageCount(200, 24)]).toEqual([1, 1, 2, 9]);
+    expect(shouldRetrySearch(0, new ApiError("VALIDATION_FAILED", "bad", 400, null))).toBe(false);
+    expect(shouldRetrySearch(0, new ApiError("PROVIDER_UNAVAILABLE", "down", 503, null))).toBe(true);
+    expect(shouldRetrySearch(2, new ApiError("PROVIDER_UNAVAILABLE", "down", 503, null))).toBe(false);
+    expect(searchErrorMessage(new ApiError("PROVIDER_UNAVAILABLE", "Search is temporarily unavailable.", 503, null))).toBe("Search is temporarily unavailable.");
+    expect(searchErrorMessage(new Error("boom"))).toBe("Something went wrong while searching. Please try again.");
   });
 
   it("maps a search card to the screen's creator shape", () => {

@@ -1,4 +1,5 @@
-import type { CreatorCard, InterpretResponse, LookupResponse, SearchFilters } from "@mushin/contracts";
+import type { CreatorCard, InterpretResponse, LookupResponse, SearchFilters, SearchRequest } from "@mushin/contracts";
+import { ApiError } from "./http";
 import type { Creator } from "../components/dashboard/CreatorProfilePanel";
 import type { ContactTrust } from "../components/dashboard/states";
 
@@ -23,16 +24,79 @@ const BANDS: Record<string, { followersMin: number; followersMax?: number }> = {
   "1M+": { followersMin: 1_000_000 },
 };
 const PERCENT = (v: string | null) => (v ? Number.parseInt(v, 10) : undefined);
+const ENGAGEMENT_PRESETS = [2, 5, 8];
+
+type ExtraKey = "creatorCountry" | "audienceCountry" | "followers" | "engagementMin" | "engagement" | "niches";
+
+/** Removes one filter the screen has no control for (`followers` and `engagement` remove both ends of the range). */
+export function withoutExtra(extra: Partial<SearchFilters>, key: ExtraKey): Partial<SearchFilters> {
+  const { creatorCountry, audienceCountry, followersMin, followersMax, engagementMin, engagementMax, niches, ...rest } = extra;
+  return {
+    ...rest,
+    ...(key !== "creatorCountry" && creatorCountry !== undefined ? { creatorCountry } : {}),
+    ...(key !== "audienceCountry" && audienceCountry !== undefined ? { audienceCountry } : {}),
+    ...(key !== "followers" && followersMin !== undefined ? { followersMin } : {}),
+    ...(key !== "followers" && followersMax !== undefined ? { followersMax } : {}),
+    ...(key !== "engagement" && key !== "engagementMin" && engagementMin !== undefined ? { engagementMin } : {}),
+    ...(key !== "engagement" && engagementMax !== undefined ? { engagementMax } : {}),
+    ...(key !== "niches" && niches !== undefined ? { niches } : {}),
+  };
+}
+
+/** Labels for every filter the screen has no control for, so none is applied silently (SRS REQ-02.02). */
+export function extraChips(extra: Partial<SearchFilters>): { key: ExtraKey; label: string }[] {
+  const out: { key: ExtraKey; label: string }[] = [];
+  if (extra.creatorCountry) out.push({ key: "creatorCountry", label: extra.creatorCountry });
+  if (extra.audienceCountry) out.push({ key: "audienceCountry", label: `Audience ${extra.audienceCountry}` });
+  const { followersMin: fMin, followersMax: fMax } = extra;
+  if (fMin !== undefined && fMax !== undefined) out.push({ key: "followers", label: `Followers ${formatCount(fMin)}–${formatCount(fMax)}` });
+  else if (fMin !== undefined) out.push({ key: "followers", label: `Followers ${formatCount(fMin)}+` });
+  else if (fMax !== undefined) out.push({ key: "followers", label: `Followers up to ${formatCount(fMax)}` });
+  const { engagementMin: eMin, engagementMax: eMax } = extra;
+  if (eMin !== undefined && eMax !== undefined) out.push({ key: "engagement", label: `ER ${eMin}–${eMax}%` });
+  else if (eMin !== undefined) out.push({ key: "engagement", label: `ER ${eMin}%+` });
+  else if (eMax !== undefined) out.push({ key: "engagement", label: `ER up to ${eMax}%` });
+  if (extra.niches && extra.niches.length > 0) out.push({ key: "niches", label: extra.niches.join(" + ") });
+  return out;
+}
+
+/** The one place the screen's state becomes an API request. */
+export function requestFor(text: string, ui: UiFilters, page = 1): SearchRequest {
+  return { text: text.trim(), filters: toFilters(ui), page };
+}
+
+/** Same request = same query key: re-running it must re-fetch, since setting an equal key fetches nothing. */
+export function sameRequest(a: SearchRequest | null, b: SearchRequest | null): boolean {
+  return a !== null && b !== null && JSON.stringify(a) === JSON.stringify(b);
+}
+
+export function pageCount(total: number, pageSize: number): number {
+  return Math.max(1, Math.ceil(total / pageSize));
+}
+
+/** 4xx means the request itself is wrong; repeating it cannot help. */
+export function shouldRetrySearch(failures: number, err: unknown): boolean {
+  if (err instanceof ApiError && err.status >= 400 && err.status < 500) return false;
+  return failures < 2;
+}
+
+export function searchErrorMessage(err: unknown): string {
+  return err instanceof ApiError ? err.message : "Something went wrong while searching. Please try again.";
+}
 
 export function toFilters(s: UiFilters): SearchFilters {
   const band = s.followerBand ? BANDS[s.followerBand] : undefined;
   const engagementMin = PERCENT(s.minEng);
   const minAuthenticity = PERCENT(s.minScore);
+  // A preset the user picked replaces the matching exact value from the AI, so the two can never form an impossible range.
+  let extra = s.extra;
+  if (band) extra = withoutExtra(extra, "followers");
+  if (engagementMin !== undefined) extra = withoutExtra(extra, "engagementMin");
   return {
-    ...s.extra,
+    ...extra,
     ...(s.platform !== "all" ? { platform: s.platform } : {}),
     ...(s.city ? { creatorCity: s.city } : {}),
-    niches: s.niche ? [s.niche] : (s.extra.niches ?? []),
+    niches: s.niche ? [s.niche] : (extra.niches ?? []),
     ...(band ? band : {}),
     ...(engagementMin !== undefined ? { engagementMin } : {}),
     ...(minAuthenticity !== undefined ? { minAuthenticity } : {}),
@@ -50,16 +114,23 @@ export function fromChips(chips: InterpretResponse["chips"]): ChipState {
   if (chips.creatorCountry) extra.creatorCountry = chips.creatorCountry;
   if (chips.audienceCountry) extra.audienceCountry = chips.audienceCountry;
   if (chips.niches.length > 1) extra.niches = chips.niches;
-  if (chips.followersMax !== undefined && chips.followersMin === undefined) extra.followersMax = chips.followersMax;
-  if (chips.engagementMax !== undefined) extra.engagementMax = chips.engagementMax;
-  const f = chips.followersMin;
+  const band = Object.entries(BANDS).find(
+    ([, b]) => b.followersMin === chips.followersMin && (b.followersMax === chips.followersMax || (b.followersMax !== undefined && b.followersMax + 1 === chips.followersMax)),
+  )?.[0];
+  if (!band) {
+    if (chips.followersMin !== undefined) extra.followersMin = chips.followersMin;
+    if (chips.followersMax !== undefined) extra.followersMax = chips.followersMax;
+  }
   const e = chips.engagementMin;
+  const minEng = e !== undefined && ENGAGEMENT_PRESETS.includes(e) ? `${e}%+` : null;
+  if (e !== undefined && minEng === null) extra.engagementMin = e;
+  if (chips.engagementMax !== undefined) extra.engagementMax = chips.engagementMax;
   return {
     platform: chips.platform ?? "all",
     city: chips.creatorCity ?? null,
-    niche: chips.niches[0] ?? null,
-    followerBand: f === undefined ? null : f >= 1_000_000 ? "1M+" : f >= 100_000 ? "100K–1M" : "10K–100K",
-    minEng: e === undefined ? null : e >= 8 ? "8%+" : e >= 5 ? "5%+" : e >= 2 ? "2%+" : null,
+    niche: chips.niches.length === 1 ? (chips.niches[0] ?? null) : null,
+    followerBand: band ?? null,
+    minEng,
     verifiedOnly: chips.verifiedOnly,
     extra,
   };

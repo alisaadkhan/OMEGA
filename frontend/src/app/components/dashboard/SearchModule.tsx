@@ -32,7 +32,19 @@ import { CreatorProfilePanel, type Creator } from "./CreatorProfilePanel";
 import { Compare } from "./Compare";
 import type { SearchFilters, SearchRequest } from "@mushin/contracts";
 import { useCreateSavedSearch, useCreatorSearch, useInterpret, useSavedSearches } from "../../api/search";
-import { fromChips, toCreator, toFilters, type ChipState } from "../../api/search-mapping";
+import {
+  extraChips,
+  fromChips,
+  pageCount,
+  requestFor,
+  sameRequest,
+  searchErrorMessage,
+  toCreator,
+  toFilters,
+  withoutExtra,
+  type ChipState,
+  type UiFilters,
+} from "../../api/search-mapping";
 import { FreshnessBadge } from "./states";
 import { useToast } from "../../lib/toast";
 import { CreditConfirm } from "../shared/CreditConfirm";
@@ -78,7 +90,7 @@ export function SearchModule() {
   const [sortOpen, setSortOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [profileHandle, setProfileHandle] = useState<string | null>(null);
+  const [profileId, setProfileId] = useState<string | null>(null);
   const [mode, setMode] = useState<"fast" | "live">("fast");
   const [creditConfirmOpen, setCreditConfirmOpen] = useState(false);
   const [showInterpret, setShowInterpret] = useState(true);
@@ -90,7 +102,33 @@ export function SearchModule() {
   const interpret = useInterpret();
   const saved = useSavedSearches();
   const createSaved = useCreateSavedSearch();
-  const uiFilters = () => ({ platform, city, niche, followerBand, minEng, minScore, verifiedOnly, contactOnly, freshOnly, extra });
+  const uiFilters = (): UiFilters => ({ platform, city, niche, followerBand, minEng, minScore, verifiedOnly, contactOnly, freshOnly, extra });
+
+  // Every filter control re-runs the current search with page 1; the text changes only when the user searches.
+  useEffect(() => {
+    setRequest((r) => (r === null ? r : requestFor(r.text, uiFilters(), 1)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [platform, city, niche, followerBand, minEng, minScore, verifiedOnly, contactOnly, freshOnly, extra]);
+
+  // Picking a preset replaces the matching exact value the AI suggested, so the chips show what is really sent.
+  useEffect(() => {
+    if (followerBand) setExtra((e) => (e.followersMin === undefined && e.followersMax === undefined ? e : withoutExtra(e, "followers")));
+  }, [followerBand]);
+  useEffect(() => {
+    if (minEng) setExtra((e) => (e.engagementMin === undefined ? e : withoutExtra(e, "engagementMin")));
+  }, [minEng]);
+  useEffect(() => {
+    if (niche) setExtra((e) => (e.niches === undefined ? e : withoutExtra(e, "niches")));
+  }, [niche]);
+
+  /** Runs a search; the same request again (e.g. Retry) re-fetches, because an unchanged query key fetches nothing. */
+  const submit = (next: SearchRequest) => {
+    if (sameRequest(next, request)) void search.refetch();
+    else setRequest(next);
+  };
+  const goToPage = (page: number) => {
+    if (request) setRequest({ ...request, page });
+  };
 
   const filtered = useMemo(() => {
     const list = (search.data?.results ?? []).map(toCreator);
@@ -105,7 +143,7 @@ export function SearchModule() {
   const progress = search.isFetching ? 60 : 100;
   const revealed = 0;
   const partialFail = 0;
-  const activeProfile = filtered.find((c) => c.handle === profileHandle) ?? null;
+  const activeProfile = filtered.find((c) => c.id === profileId) ?? null;
   const interpreted = suggested
     ? Object.fromEntries(
         Object.entries({
@@ -124,7 +162,7 @@ export function SearchModule() {
     setMode(searchMode);
     setSelected(new Set());
     if (searchMode === "live") toast.info("Finding new creators live arrives in the next update. Showing creators MUSHIN already knows.");
-    setRequest({ text: query.trim(), filters: toFilters(uiFilters()), page: 1 });
+    submit(requestFor(query, uiFilters(), 1));
     if (query.trim()) {
       interpret.mutate(query.trim(), {
         onSuccess: (r) => {
@@ -147,7 +185,7 @@ export function SearchModule() {
     setVerifiedOnly(suggested.verifiedOnly);
     setExtra(suggested.extra);
     toast.info("Applied MUSHIN's reading of your search. Edit the chips anytime.");
-    setRequest({ text: query.trim(), filters: toFilters({ ...uiFilters(), ...suggested }), page: 1 });
+    submit(requestFor(query, { ...uiFilters(), ...suggested }, 1));
   };
 
   const savePreset = () => {
@@ -174,7 +212,7 @@ export function SearchModule() {
     setRequest({ text: p.query, filters: p.filters, page: 1 });
   };
 
-  const compareList = filtered.filter((c) => selected.has(c.handle)).slice(0, 5);
+  const compareList = filtered.filter((c) => selected.has(c.id)).slice(0, 5);
 
   useEffect(() => {
     let pending: string | null = null;
@@ -185,15 +223,15 @@ export function SearchModule() {
       /* storage unavailable */
     }
     if (pending) setQuery(pending);
-    setRequest({ text: pending ?? "", filters: toFilters(uiFilters()), page: 1 });
+    setRequest(requestFor(pending ?? "", uiFilters(), 1));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const toggleSelect = (handle: string) => {
+  const toggleSelect = (id: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(handle)) next.delete(handle);
-      else next.add(handle);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
@@ -208,8 +246,7 @@ export function SearchModule() {
     verifiedOnly && { label: "Verified", onRemove: () => setVerifiedOnly(false) },
     contactOnly && { label: "Has contact", onRemove: () => setContactOnly(false) },
     freshOnly && { label: "Fresh only", onRemove: () => setFreshOnly(false) },
-    ...(extra.creatorCountry ? [{ label: extra.creatorCountry, onRemove: () => setExtra(({ creatorCountry: _c, ...rest }) => rest) }] : []),
-    ...(extra.audienceCountry ? [{ label: `Audience ${extra.audienceCountry}`, onRemove: () => setExtra(({ audienceCountry: _a, ...rest }) => rest) }] : []),
+    ...extraChips(extra).map((c) => ({ label: c.label, onRemove: () => setExtra((e) => withoutExtra(e, c.key)) })),
   ].filter(Boolean) as { label: string; onRemove: () => void }[];
 
   const clearAll = () => {
@@ -228,7 +265,7 @@ export function SearchModule() {
   const resetSearch = () => {
     clearAll();
     const cleared = { platform: "all" as const, city: null, niche: null, followerBand: null, minEng: null, minScore: null, verifiedOnly: false, contactOnly: false, freshOnly: false, extra: {} };
-    setRequest({ text: query.trim(), filters: toFilters(cleared), page: 1 });
+    submit(requestFor(query, cleared, 1));
   };
 
   return (
@@ -290,7 +327,7 @@ export function SearchModule() {
 
       {/* AI interpretation (§7.2) — transparent, editable reading of the query */}
       <AnimatePresence>
-        {showInterpret && Object.keys(interpreted).length > 0 && (
+        {showInterpret && (Object.keys(interpreted).length > 0 || (suggested !== null && extraChips(suggested.extra).length > 0)) && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
@@ -316,6 +353,7 @@ export function SearchModule() {
                     {interpreted.followerBand && <InterpChip>Followers · {interpreted.followerBand}</InterpChip>}
                     {interpreted.minEng && <InterpChip>Engagement · {interpreted.minEng}</InterpChip>}
                     {interpreted.verifiedOnly && <InterpChip>Verified only</InterpChip>}
+                    {suggested && extraChips(suggested.extra).map((c) => <InterpChip key={c.key}>{c.label}</InterpChip>)}
                   </div>
                   <div className="mt-2.5 flex items-center gap-2">
                     <button
@@ -528,7 +566,7 @@ export function SearchModule() {
       {/* Results */}
       <div className="min-h-[420px]">
         {status === "loading" && <ResultsSkeleton view={view} />}
-        {status === "error" && <ErrorState onRetry={() => runSearch()} />}
+        {status === "error" && <ErrorState message={searchErrorMessage(search.error)} onRetry={() => void search.refetch()} />}
         {status === "empty" && <EmptyResults onReset={resetSearch} />}
 
         {(status === "results" || status === "streaming") && (
@@ -541,9 +579,9 @@ export function SearchModule() {
             <div className="flex items-center justify-between text-xs text-slate-500">
               <span>
                 <span className="text-slate-900" style={{ fontWeight: 600 }}>
-                  {status === "streaming" ? revealed : filtered.length}
+                  {status === "streaming" ? revealed : (search.data?.total ?? filtered.length)}
                 </span>{" "}
-                creator{filtered.length === 1 ? "" : "s"} {status === "streaming" ? "found so far" : "match"}
+                creator{(search.data?.total ?? filtered.length) === 1 ? "" : "s"} {status === "streaming" ? "found so far" : "match"}
                 {status === "results" && <> · sorted by {SORT_LABELS[sortKey].toLowerCase()}</>}
               </span>
 
@@ -606,13 +644,13 @@ export function SearchModule() {
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {visible.map((c, i) => (
                   <CreatorCard
-                    key={c.handle}
+                    key={c.id}
                     creator={c}
                     index={i}
                     query={query}
-                    selected={selected.has(c.handle)}
-                    onSelect={() => toggleSelect(c.handle)}
-                    onOpen={() => setProfileHandle(c.handle)}
+                    selected={selected.has(c.id)}
+                    onSelect={() => toggleSelect(c.id)}
+                    onOpen={() => setProfileId(c.id)}
                   />
                 ))}
               </div>
@@ -621,8 +659,32 @@ export function SearchModule() {
                 creators={visible}
                 selected={selected}
                 onSelect={toggleSelect}
-                onOpen={(h) => setProfileHandle(h)}
+                onOpen={(id) => setProfileId(id)}
               />
+            )}
+
+            {search.data && pageCount(search.data.total, search.data.pageSize) > 1 && (
+              <div className="flex items-center justify-center gap-2 pt-2 text-xs text-slate-600">
+                <button
+                  onClick={() => goToPage(search.data.page - 1)}
+                  disabled={search.data.page <= 1}
+                  className="rounded-md border border-slate-200 bg-white px-2.5 py-1 hover:bg-slate-50 disabled:opacity-40"
+                  style={{ fontWeight: 500 }}
+                >
+                  Previous
+                </button>
+                <span>
+                  Page {search.data.page} of {pageCount(search.data.total, search.data.pageSize)}
+                </span>
+                <button
+                  onClick={() => goToPage(search.data.page + 1)}
+                  disabled={search.data.page >= pageCount(search.data.total, search.data.pageSize)}
+                  className="rounded-md border border-slate-200 bg-white px-2.5 py-1 hover:bg-slate-50 disabled:opacity-40"
+                  style={{ fontWeight: 500 }}
+                >
+                  Next
+                </button>
+              </div>
             )}
           </div>
         )}
@@ -647,10 +709,10 @@ export function SearchModule() {
       {/* Creator profile panel (Vol 4B) */}
       <CreatorProfilePanel
         creator={activeProfile}
-        onClose={() => setProfileHandle(null)}
+        onClose={() => setProfileId(null)}
         onCompare={(c) => {
-          setSelected((prev) => new Set(prev).add(c.handle));
-          setProfileHandle(null);
+          setSelected((prev) => new Set(prev).add(c.id));
+          setProfileId(null);
           if (selected.size >= 1) setCompareOpen(true);
           else toast.info("Added to comparison — pick at least one more creator, then choose Compare.");
         }}
@@ -662,9 +724,9 @@ export function SearchModule() {
           creators={compareList}
           criteria={[niche, city, followerBand, minEng && `ER ${minEng}`].filter(Boolean).join(" · ") || undefined}
           onClose={() => setCompareOpen(false)}
-          onOpen={(h) => {
+          onOpen={(id) => {
             setCompareOpen(false);
-            setProfileHandle(h);
+            setProfileId(id);
           }}
         />
       )}
@@ -869,20 +931,20 @@ function ResultsTable({
         <tbody>
           {creators.map((c) => (
             <motion.tr
-              key={c.handle}
+              key={c.id}
               layout
-              className={`border-t border-slate-100 transition-colors ${selected.has(c.handle) ? "bg-indigo-50/40" : "hover:bg-slate-50/50"}`}
+              className={`border-t border-slate-100 transition-colors ${selected.has(c.id) ? "bg-indigo-50/40" : "hover:bg-slate-50/50"}`}
             >
               <td className="pl-4">
                 <input
                   type="checkbox"
-                  checked={selected.has(c.handle)}
-                  onChange={() => onSelect(c.handle)}
+                  checked={selected.has(c.id)}
+                  onChange={() => onSelect(c.id)}
                   className="h-3.5 w-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                 />
               </td>
               <td className="py-3">
-                <button onClick={() => onOpen(c.handle)} className="flex items-center gap-3">
+                <button onClick={() => onOpen(c.id)} className="flex items-center gap-3">
                   <img src={c.avatar} alt={c.name} className="h-8 w-8 rounded-full object-cover" />
                   <div className="text-left">
                     <div className="text-slate-900" style={{ fontWeight: 500 }}>{c.name}</div>
@@ -987,7 +1049,7 @@ function EmptyResults({ onReset }: { onReset: () => void }) {
   );
 }
 
-function ErrorState({ onRetry }: { onRetry: () => void }) {
+function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center rounded-xl border border-red-200 bg-red-50 px-6 py-16 text-center">
       <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-red-600 shadow-sm ring-1 ring-red-200">
@@ -997,7 +1059,7 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
         Search failed
       </div>
       <p className="mt-1 max-w-md text-sm text-slate-600">
-        A provider timed out while running your query. Your credits were not charged.
+        {message} Searching existing creators never uses credits.
       </p>
       <button onClick={onRetry} className="mt-4 rounded-md bg-slate-900 px-3 py-1.5 text-xs text-white hover:bg-slate-800" style={{ fontWeight: 500 }}>
         Retry search

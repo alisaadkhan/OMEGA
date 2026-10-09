@@ -12,14 +12,14 @@ import { FreshnessBadge } from "./states";
 type Row = {
   label: string;
   get: (c: Creator) => string;
-  /** Which creators hold the best value for this row (by handle) — highlighted. */
+  /** Which creators hold the best value for this row (by creator id) — highlighted. */
   best?: (list: Creator[]) => Set<string>;
 };
 
 function bestByMax(pick: (c: Creator) => number) {
   return (list: Creator[]) => {
     const max = Math.max(...list.map(pick));
-    return new Set(list.filter((c) => pick(c) === max).map((c) => c.handle));
+    return new Set(list.filter((c) => pick(c) === max).map((c) => c.id));
   };
 }
 
@@ -43,7 +43,7 @@ export function Compare({
   creators: Creator[];
   criteria?: string;
   onClose: () => void;
-  onOpen?: (handle: string) => void;
+  onOpen?: (id: string) => void;
 }) {
   const list = creators.slice(0, 5);
   const open = list.length >= 2;
@@ -92,7 +92,7 @@ export function Compare({
                       Creator
                     </th>
                     {list.map((c) => (
-                      <th key={c.handle} className="min-w-[160px] border-b border-l border-slate-100 px-4 py-3 text-left align-top">
+                      <th key={c.id} className="min-w-[160px] border-b border-l border-slate-100 px-4 py-3 text-left align-top">
                         <div className="flex items-center gap-2">
                           <img src={c.avatar} alt={c.name} className="h-9 w-9 rounded-full object-cover" />
                           <div className="min-w-0">
@@ -111,10 +111,10 @@ export function Compare({
                       <tr key={row.label} className="border-b border-slate-50">
                         <td className="px-6 py-2.5 text-xs text-slate-500" style={{ fontWeight: 500 }}>{row.label}</td>
                         {list.map((c) => {
-                          const isBest = best.has(c.handle) && list.length > 1;
+                          const isBest = best.has(c.id) && list.length > 1;
                           return (
                             <td
-                              key={c.handle}
+                              key={c.id}
                               className={`border-l border-slate-100 px-4 py-2.5 text-xs capitalize ${
                                 isBest ? "bg-emerald-50/60 text-emerald-800" : "text-slate-700"
                               }`}
@@ -132,7 +132,7 @@ export function Compare({
                   <tr className="border-b border-slate-50">
                     <td className="px-6 py-2.5 text-xs text-slate-500" style={{ fontWeight: 500 }}>Data freshness</td>
                     {list.map((c) => (
-                      <td key={c.handle} className="border-l border-slate-100 px-4 py-2.5">
+                      <td key={c.id} className="border-l border-slate-100 px-4 py-2.5">
                         <FreshnessBadge value={c.followersFreshness} />
                       </td>
                     ))}
@@ -142,7 +142,7 @@ export function Compare({
                   <tr className="border-b border-slate-50">
                     <td className="px-6 py-2.5 text-xs text-slate-500" style={{ fontWeight: 500 }}>Contact</td>
                     {list.map((c) => (
-                      <td key={c.handle} className="border-l border-slate-100 px-4 py-2.5 text-xs text-slate-700">
+                      <td key={c.id} className="border-l border-slate-100 px-4 py-2.5 text-xs text-slate-700">
                         {c.hasContact ? "On file" : "—"}
                       </td>
                     ))}
@@ -153,11 +153,11 @@ export function Compare({
                     <td className="px-6 py-3 text-xs text-slate-500 align-top" style={{ fontWeight: 500 }}>Best-fit note</td>
                     {list.map((c) => {
                       return (
-                        <td key={c.handle} className="border-l border-slate-100 px-4 py-3 align-top">
+                        <td key={c.id} className="border-l border-slate-100 px-4 py-3 align-top">
                           <div className="text-[11px] text-slate-700" style={{ fontWeight: 600 }}>{c.fitLabel || "—"}</div>
                           {onOpen && (
                             <button
-                              onClick={() => onOpen(c.handle)}
+                              onClick={() => onOpen(c.id)}
                               className="mt-1.5 inline-flex items-center gap-0.5 text-[10px] text-indigo-600 hover:text-indigo-700"
                               style={{ fontWeight: 600 }}
                             >
