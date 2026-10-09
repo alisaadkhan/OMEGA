@@ -1,3 +1,4 @@
+import { and, eq, gte, sql } from "drizzle-orm";
 import type { ProviderCallSink } from "@mushin/core";
 import type { Db } from "./database";
 import { providerCalls } from "./schema";
@@ -14,4 +15,15 @@ export function createDbProviderCallSink(db: Db): ProviderCallSink {
       );
     },
   };
+}
+
+/** Recorded spend for one provider since a moment (the Apify monthly spend cap, spec §4). Worker role only. */
+export async function providerSpendSince(db: Db, provider: string, since: Date): Promise<number> {
+  const rows = await db.withSystem((tx) =>
+    tx
+      .select({ total: sql<string>`coalesce(sum(${providerCalls.costUsd}), 0)` })
+      .from(providerCalls)
+      .where(and(eq(providerCalls.provider, provider), gte(providerCalls.createdAt, since))),
+  );
+  return Number(rows[0]?.total ?? 0);
 }

@@ -24,13 +24,19 @@ import {
   savedSearches,
   searchSettings,
   summaryRequests,
+  creatorLinks,
+  enrichmentSettings,
+  profileMetricSnapshots,
+  rawPayloads,
 } from "./creators";
+import { discoveryJobs } from "./discovery";
 import { users, workspaceMembers, workspaces } from "./identity";
 import { idempotencyKeys, outbox, providerCalls } from "./platform";
 import { auditLog, staffSessions, staffUsers } from "./staff";
 
 export * from "./billing";
 export * from "./creators";
+export * from "./discovery";
 export * from "./identity";
 export * from "./platform";
 export * from "./staff";
@@ -69,4 +75,9 @@ export const ALL_TABLES = [
   contactReveals,
   audienceViews,
   savedSearches,
+  discoveryJobs,
+  profileMetricSnapshots,
+  creatorLinks,
+  rawPayloads,
+  enrichmentSettings,
 ];

@@ -41,6 +41,10 @@ export const creators = gcp.table("creators", {
   status: text("status", { enum: ["active", "merged", "removal_requested", "erased"] }).notNull().default("active"),
   mergedIntoId: uuid("merged_into_id"),
   lastEnrichedAt: ts("last_enriched_at"),
+  minorReason: text("minor_reason"),
+  minorFlaggedAt: ts("minor_flagged_at"),
+  assessmentStatus: text("assessment_status", { enum: ["assessed", "pending", "insufficient_data"] }),
+  avatarKey: text("avatar_key"),
   createdAt: ts("created_at").notNull().defaultNow(),
   updatedAt: ts("updated_at").notNull().defaultNow(),
 });
@@ -160,5 +164,61 @@ export const savedSearches = wp.table("saved_searches", {
   filters: jsonb("filters").$type<Record<string, unknown>>().notNull(),
   createdBy: uuid("created_by").notNull(),
   createdAt: ts("created_at").notNull().defaultNow(),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+});
+
+export const profileMetricSnapshots = gcp.table("profile_metric_snapshots", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  profileId: uuid("profile_id").notNull(),
+  followers: integer("followers").notNull(),
+  following: integer("following"),
+  posts: integer("posts"),
+  engagementRate: doublePrecision("engagement_rate"),
+  avgLikes: integer("avg_likes"),
+  avgComments: integer("avg_comments"),
+  avgViews: integer("avg_views"),
+  rawPayloadId: uuid("raw_payload_id"),
+  capturedAt: ts("captured_at").notNull().defaultNow(),
+});
+
+export const creatorLinks = gcp.table("creator_links", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  creatorId: uuid("creator_id").notNull(),
+  platform: text("platform", { enum: ["instagram", "tiktok", "youtube", "website"] }).notNull(),
+  url: text("url").notNull(),
+  source: text("source", { enum: ["bio", "profile_link"] }).notNull(),
+  firstSeenAt: ts("first_seen_at").notNull().defaultNow(),
+  lastSeenAt: ts("last_seen_at").notNull().defaultNow(),
+});
+
+export const rawPayloads = platform.table("raw_payloads", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  provider: text("provider", { enum: ["apify", "youtube"] }).notNull(),
+  platform: text("platform", { enum: platformEnum }).notNull(),
+  canonicalUrl: text("canonical_url").notNull(),
+  creatorId: uuid("creator_id"),
+  jobId: uuid("job_id"),
+  storageKey: text("storage_key").notNull(),
+  bytes: integer("bytes").notNull(),
+  sha256: text("sha256").notNull(),
+  fetchedAt: ts("fetched_at").notNull().defaultNow(),
+  deleteAfter: ts("delete_after").notNull(),
+});
+
+export type EngagementBenchmarks = Record<"instagram" | "tiktok" | "youtube", { per: "followers" | "views"; viewsLow: number; tiers: [number, number, number][] }>;
+
+export const enrichmentSettings = platform.table("enrichment_settings", {
+  id: boolean("id").primaryKey().default(true),
+  rawRetentionDays: integer("raw_retention_days").notNull(),
+  refreshMinAgeHours: integer("refresh_min_age_hours").notNull(),
+  reuseWindowMinutes: integer("reuse_window_minutes").notNull(),
+  recentPosts: integer("recent_posts").notNull(),
+  tiktokRecentVideos: integer("tiktok_recent_videos").notNull(),
+  minPostsForScore: integer("min_posts_for_score").notNull(),
+  growthMinDays: integer("growth_min_days").notNull(),
+  scoreBand: integer("score_band").notNull(),
+  stuckJobMinutes: integer("stuck_job_minutes").notNull(),
+  engagementBenchmarks: jsonb("engagement_benchmarks").$type<EngagementBenchmarks>().notNull(),
+  modelVersion: text("model_version").notNull(),
   updatedAt: ts("updated_at").notNull().defaultNow(),
 });

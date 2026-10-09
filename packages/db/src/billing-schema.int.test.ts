@@ -22,7 +22,7 @@ describe("billing schema", () => {
       select (select count(*)::int from platform.plans) plans, (select count(*)::int from platform.topup_packs) packs,
              (select count(*)::int from platform.credit_action_costs) costs,
              (select trial_credits from platform.billing_settings) trial`);
-    expect(rows[0]).toEqual({ plans: 3, packs: 3, costs: 4, trial: 200 });
+    expect(rows[0]).toEqual({ plans: 3, packs: 3, costs: 5, trial: 200 });
   });
 
   it("keeps the ledger append-only for the API role", async () => {
