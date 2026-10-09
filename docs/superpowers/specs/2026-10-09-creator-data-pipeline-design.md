@@ -167,3 +167,28 @@ New: `APIFY_INSTAGRAM_ACTOR_ID=apify/instagram-profile-scraper`, `APIFY_TIKTOK_A
 ## 12. Out of scope
 
 **4B:** Find New Creators (Serper, candidate filtering, fit ranking, progressive results, `live` jobs), the Serper spend cap, erasure and removal requests. **Later:** creator merging (TBD-010); notification delivery (sub-project 7); staff minor override and cost dashboard (sub-project 8); bulk enrichment, growth charts, content insights (S2).
+
+## 13. Implementation notes
+
+Built on branch `feat/subproject-4a-creator-pipeline` (2026-10-09). Where the build departs from or adds to the sections above:
+
+**Decided during planning**
+- **TikTok price:** Apify bills TikTok per video, so 10 credits broke the SRS 3× rule. TikTok adds and refreshes use a new action `refresh_tiktok` at 30 credits with 6 recent videos; Instagram and YouTube stay on `refresh_data` at 10 (D4). `refreshActionFor(platform)` (creators `rules.ts`) picks the action for the lookup price, the profile's "Update info" price and the job reservation.
+- **No YouTube fallback actor:** YouTube uses only the Data API (D8); without `YOUTUBE_API_KEY` YouTube jobs fail and refund.
+- **`discovery_jobs.cost`** stores the reserved price, which the runner records as `credits_charged` when it commits.
+- **Job progress:** the website polls `GET /v1/discovery/jobs?active=true` (every 2 s while a job is open, otherwise 30 s); there is no `refreshJob` field on the profile (§7).
+- **Fixtures** were recorded on 2026-10-09 from Coke Studio Pakistan's public Instagram, TikTok and YouTube accounts; the private-account cases are derived from them.
+
+**Changes made while building**
+- **Post links are not profiles:** `normalizeProfileUrl` refuses Instagram post, reel, story and app paths (`/p/…`, `/reel/…`, `/explore/…` and similar), which it previously read as a profile named "p".
+- **Hidden creators stay hidden:** adding by link and refreshing answer `NOT_FOUND` for creators customers cannot see (possible minors without a staff override, removal requested, erased), using the same rule as search (`isVisibleCreator`). Lookup returns no match and no "add" offer for them.
+- **Possible minors:** their profile shows no linked accounts, as their contacts are hidden (SRS §5.5).
+- **AI text:** evidence, watch-outs, the minor reason, the city and audience labels are rejected if they carry links, emails or phone numbers (checked after markup and invisible characters are removed), and cleaned before saving.
+- **Profile photos:** copied only from the platforms' HTTPS image hosts, without following redirects, as JPEG, PNG or WebP up to 2 MB.
+- **Apify spend cap:** failed and timed-out runs record what Apify charged; runs past the deadline are aborted; runs still in progress count at a $0.05 worst case, so simultaneous jobs cannot all pass just under the budget. The count is per worker process; Apify's own account usage limit is the hard stop.
+- **Last updated** on a profile is the primary platform's last scrape.
+- **Tests:** a module's `test-fixtures.ts` may be imported by other modules' tests (never by running code; enforced by `.dependency-cruiser.cjs`).
+- **Smaller corrections to the plan:** `MemoryStorage.put` takes the content type; the plan's test data gained the reservation `status`, the new contract fields and 8-character Idempotency-Keys; the billing action enums moved into the contracts task so type-checking passes between tasks.
+
+**Evidence**
+- Live check (`LIVE_SCRAPE_TESTS=1`, 2026-10-09): one public profile per platform scraped and one object round-tripped through Supabase Storage. First evidence for TBD-004.

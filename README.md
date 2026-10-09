@@ -74,3 +74,22 @@ npm run seed:creators    # optional: 8 demo creators for development (refused in
 The worker indexes creators after any change and reconciles the index nightly. AI features (plain-English search,
 creator summaries) use Groq, falling back to Ollama Cloud; every call's cost is recorded in `platform.provider_calls`.
 Set `LIVE_LLM_TESTS=1` to run the one live AI check (`packages/integrations/src/llm/llm.live.int.test.ts`).
+
+## Creator data (sub-project 4A)
+
+Users add a creator by pasting a public profile link (top-bar lookup or the search page's "Add by profile link") and refresh a profile
+with "Update info". The worker fetches the profile (Apify for Instagram and TikTok, the YouTube Data API for YouTube), archives the raw
+response in Supabase Storage (`raw-payloads`, private; purged after `platform.enrichment_settings.raw_retention_days`), measures
+authenticity signals, asks the AI to explain them and estimate the audience, flags possible minors, and saves everything.
+
+| Variable | Purpose |
+|---|---|
+| `APIFY_TOKEN` | Apify API token (worker) |
+| `APIFY_INSTAGRAM_ACTOR_ID` / `APIFY_TIKTOK_ACTOR_ID` | default `apify/instagram-profile-scraper` / `clockworks/tiktok-profile-scraper` |
+| `APIFY_MONTHLY_BUDGET_USD` | monthly Apify spend cap (default 5); jobs fail and refund once it is reached |
+| `YOUTUBE_API_KEY` | YouTube Data API v3 key (free quota ≈ 3,300 creators/day) |
+| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | storage for raw payloads and profile photos (worker only) |
+| `LIVE_SCRAPE_TESTS=1` | runs the live scraper check (~$0.02 of Apify) |
+
+Prices (credits) live in `platform.credit_action_costs`: `refresh_data` 10 (Instagram, YouTube), `refresh_tiktok` 30 (TikTok is billed
+per video by Apify). The other pipeline settings live in `platform.enrichment_settings`.
