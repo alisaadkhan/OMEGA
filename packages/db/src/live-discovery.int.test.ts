@@ -50,9 +50,21 @@ describe("migration 0012", () => {
     for (const ws of [a, b]) {
       await ownerQuery(`insert into wp.audience_views (workspace_id, creator_id, month, viewed_by) values ('${ws.workspaceId}', '${c}', date_trunc('month', now())::date, '${ws.userId}')`);
     }
-    await db.withSystem((tx) => tx.execute(sql`select platform.erase_creator_workspace_rows(${c})`));
+    // Earlier add-by-link and refresh jobs name the creator's profile in every workspace that ran them.
+    await ownerQuery(`insert into wp.discovery_jobs (workspace_id, kind, requested_by, input_url, platform, handle, canonical_url, cost, status)
+      values ('${a.workspaceId}', 'add_by_url', '${a.userId}', 'https://www.instagram.com/Erase.Me/?hl=en', 'instagram', 'erase.me', 'https://instagram.com/erase.me', 10, 'completed'),
+             ('${b.workspaceId}', 'refresh', '${b.userId}', null, 'instagram', 'erase.me', 'https://instagram.com/erase.me', 10, 'failed')`);
+    const urls = sql`array[${sql.join(["https://instagram.com/erase.me"].map((u) => sql`${u}`), sql`, `)}]::text[]`;
+    await db.withSystem((tx) => tx.execute(sql`select platform.erase_creator_workspace_rows(${c}, ${urls})`));
     expect(await ownerQuery(`select 1 from wp.audience_views where creator_id = '${c}'`)).toEqual([]);
-    await expect(db.withTenant(a, (tx) => tx.execute(sql`select platform.erase_creator_workspace_rows(${c})`))).rejects.toSatisfy(dbError(/permission denied/));
+    const jobs = await ownerQuery<{ input_url: string | null; handle: string; canonical_url: string }>(`select input_url, handle, canonical_url from wp.discovery_jobs`);
+    expect(jobs).toHaveLength(2);
+    for (const j of jobs) {
+      expect(j.input_url).toBeNull();
+      expect(j.handle).toBe("erased");
+      expect(j.canonical_url).not.toContain("erase.me");
+    }
+    await expect(db.withTenant(a, (tx) => tx.execute(sql`select platform.erase_creator_workspace_rows(${c}, ${urls})`))).rejects.toSatisfy(dbError(/permission denied/));
   });
 
   it("lets a workspace delete its own contact reveal", async () => {
