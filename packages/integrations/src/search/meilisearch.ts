@@ -18,7 +18,7 @@ const SETTINGS = {
     "has_contact",
     "followers_updated_epoch",
   ],
-  sortableAttributes: ["followers", "engagement_rate"],
+  sortableAttributes: ["followers", "engagement_rate", "authenticity_score"],
   typoTolerance: { enabled: true, minWordSizeForTypos: { oneTypo: 4, twoTypos: 8 } },
   pagination: { maxTotalHits: 1000 },
 };
@@ -100,12 +100,13 @@ export class MeilisearchIndex implements SearchIndex {
     await this.waitForTask(t.taskUid);
   }
 
-  async search(q: { text: string; filter: string[]; limit: number }): Promise<{ hits: SearchHit[]; total: number }> {
+  async search(q: { text: string; filter: string[]; limit: number; sort?: string[] }): Promise<{ hits: SearchHit[]; total: number }> {
     try {
       const r = await this.call<{ hits: { id: string; _rankingScore?: number }[]; estimatedTotalHits?: number }>(`${this.base}/search`, "POST", {
         q: q.text,
         filter: q.filter,
         limit: q.limit,
+        ...(q.sort ? { sort: q.sort } : {}),
         attributesToRetrieve: ["id"],
         showRankingScore: true,
       });

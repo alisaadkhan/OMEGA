@@ -26,6 +26,12 @@ describe("MeilisearchIndex", () => {
     });
   });
 
+  it("passes a sort order when one is given (filter-only searches)", async () => {
+    const { index, calls } = fakeMeili(() => Response.json({ hits: [], estimatedTotalHits: 0 }));
+    await index.search({ text: "", filter: [], limit: 200, sort: ["engagement_rate:desc", "followers:desc"] });
+    expect(calls[0]?.body).toMatchObject({ q: "", sort: ["engagement_rate:desc", "followers:desc"] });
+  });
+
   it("treats a missing index as no results", async () => {
     const { index } = fakeMeili(() => Response.json({ code: "index_not_found", message: "x" }, { status: 404 }));
     expect(await index.search({ text: "", filter: [], limit: 10 })).toEqual({ hits: [], total: 0 });

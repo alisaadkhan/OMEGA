@@ -73,6 +73,23 @@ describe("search", () => {
     expect((await creators.search(await customer(), req(""))).results.map((r) => r.id)).toEqual([shown]);
   });
 
+  it("scores the strongest creators when more match a filter-only search than the scoring pool holds (REQ-02.03)", async () => {
+    // The pool's minimum is 10: ten weaker creators are stored first, the strongest last.
+    const ids: string[] = [];
+    for (let i = 0; i < 10; i++) ids.push(await addCreator(db, { profiles: [{ followers: 20_000, engagementRate: 1 + i / 10 }] }));
+    const strong = await addCreator(db, { profiles: [{ followers: 60_000, engagementRate: 9 }] });
+    await indexAll([...ids, strong]);
+    await ownerQuery(`update platform.search_settings set candidate_pool = 10`);
+    try {
+      const fresh = createCreatorsService({ db, index, llm, billing, encryptionKey: TEST_KEY, logger });
+      const out = await fresh.search(await customer(), req(""));
+      expect(out.results.map((r) => r.id)).toContain(strong);
+      expect(out.total).toBe(11);
+    } finally {
+      await ownerQuery(`update platform.search_settings set candidate_pool = 200`);
+    }
+  });
+
   it("pages results and says when there are few", async () => {
     const ids: string[] = [];
     for (let i = 0; i < 26; i++) ids.push(await addCreator(db, { profiles: [{ followers: 10_000 + i * 1000, engagementRate: 5 }] }));

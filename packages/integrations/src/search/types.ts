@@ -29,7 +29,8 @@ export interface SearchIndex {
   ensureSettings(): Promise<void>;
   upsert(docs: CreatorDocument[]): Promise<void>;
   remove(ids: string[]): Promise<void>;
-  search(q: { text: string; filter: string[]; limit: number }): Promise<{ hits: SearchHit[]; total: number }>;
+  /** `sort` orders a filter-only search (no text), so a capped candidate pool holds the strongest matches. */
+  search(q: { text: string; filter: string[]; limit: number; sort?: string[] }): Promise<{ hits: SearchHit[]; total: number }>;
   /** Every document id with its `updated_epoch` (nightly reconcile). */
   listIds(): Promise<Map<string, number>>;
   ping(): Promise<"ok">;

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { fenced, type SummarySource } from "./rules";
+import { fenced, redactContacts, type SummarySource } from "./rules";
 
 export const interpretOutputSchema = z.object({
   platform: z.string().nullish(),
@@ -52,7 +52,7 @@ export function summaryInput(s: SummarySource): string {
     ),
     `Authenticity verdict: ${s.verdict ?? "not yet assessed"}`,
   ].join("\n");
-  const bios = s.profiles.filter((p) => p.bio).map((p) => fenced("bio", `${p.platform}: ${p.bio ?? ""}`));
+  const bios = s.profiles.filter((p) => p.bio).map((p) => fenced("bio", `${p.platform}: ${redactContacts(p.bio ?? "")}`));
   const evidence = s.evidence.length > 0 ? [fenced("evidence", s.evidence.map((e) => `${e.signal}: ${e.detail}`).join("\n"))] : [];
   return [fenced("creator", facts), ...bios, ...evidence].join("\n");
 }

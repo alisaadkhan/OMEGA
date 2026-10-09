@@ -30,6 +30,7 @@ export type CreatorsDeps = {
 
 const SETTINGS_TTL_MS = 60_000;
 const MAX_SAVED_SEARCHES = 50;
+const FILTER_ONLY_SORT = ["engagement_rate:desc", "authenticity_score:desc", "followers:desc"];
 
 export function createCreatorsService(deps: CreatorsDeps) {
   const now = deps.now ?? (() => new Date());
@@ -48,7 +49,14 @@ export function createCreatorsService(deps: CreatorsDeps) {
   async function search(ctx: TenantContext, req: SearchRequest): Promise<SearchResponse> {
     const t = now();
     const { settings } = await config(ctx);
-    const { hits } = await deps.index.search({ text: req.text, filter: meiliFilter(req.filters, t, settings.fresh.currentDays), limit: settings.candidatePool });
+    // Without text, Meilisearch returns matches in storage order; sorting by the fit score's strongest signals keeps the
+    // capped candidate pool on the best creators when more match than it holds (SRS REQ-02.03).
+    const { hits, total: indexTotal } = await deps.index.search({
+      text: req.text,
+      filter: meiliFilter(req.filters, t, settings.fresh.currentDays),
+      limit: settings.candidatePool,
+      ...(req.text ? {} : { sort: FILTER_ONLY_SORT }),
+    });
     const relevance = new Map(hits.map((h) => [h.id, h.rankingScore]));
     const rows = await deps.db.withTenant(tenant(ctx), (tx) => repo.cardRows(tx, hits.map((h) => h.id)));
     const cards = rows
@@ -90,7 +98,8 @@ export function createCreatorsService(deps: CreatorsDeps) {
     const start = (req.page - 1) * settings.pageSize;
     return {
       results: cards.slice(start, start + settings.pageSize),
-      total: cards.length,
+      // A full pool means more creators matched than were scored; the index's estimate is then the better total.
+      total: hits.length >= settings.candidatePool ? Math.max(cards.length, indexTotal) : cards.length,
       page: req.page,
       pageSize: settings.pageSize,
       fewResults: cards.length < settings.fewResults,

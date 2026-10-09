@@ -153,6 +153,35 @@ describe("summaries and prompts", () => {
     expect(sourceHash(src)).toBe(sourceHash({ ...src }));
     expect(sourceHash(src)).not.toBe(sourceHash({ ...src, niches: ["Fashion"] }));
   });
+
+  it("rejects summaries with contact details in any common format, but not ordinary numbers", () => {
+    for (const leak of [
+      "Lahore bridal creator. Book her via linktr.ee/aisha for any wedding campaigns.",
+      "Lahore bridal creator with steady growth. WhatsApp (0300) 123-4567 for bookings.",
+      "Lahore bridal creator with steady growth. Call 0300.123.4567 to book her today.",
+      "Lahore bridal creator with steady growth. Write to aisha at gmail dot com for rates.",
+      "Lahore bridal creator. Her shop aisha.store sells the outfits she wears in posts.",
+    ]) {
+      expect(isSafeSummary(leak), leak).toBe(false);
+    }
+    expect(isSafeSummary("Lahore bridal creator with 412K followers and 5.2% engagement. Posts 3.5 times a week. Suits wedding brands.")).toBe(true);
+  });
+
+  it("strips links, emails and phone numbers from bios before they reach the AI", () => {
+    const src: SummarySource = {
+      displayName: "Aisha",
+      niches: ["Bridal"],
+      tags: [],
+      city: "Lahore",
+      country: "PK",
+      verdict: null,
+      evidence: [],
+      profiles: [{ platform: "instagram", followers: 50_000, engagementRate: 5, posts: 100, avgLikes: 2000, avgComments: 50, avgViews: null, bio: "Bridal looks ✨ aisha@gmail.com · (0300) 123-4567 · linktr.ee/aisha" }],
+    };
+    const input = summaryInput(src);
+    expect(input).toContain("Bridal looks");
+    expect(input).not.toMatch(/aisha@gmail|123-4567|linktr\.ee/);
+  });
 });
 
 describe("contacts, months, URLs and minors", () => {

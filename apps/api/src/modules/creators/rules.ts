@@ -138,14 +138,22 @@ export function cleanInterpretation(raw: RawInterpretation, nicheLabels: readonl
   return { chips, keywords };
 }
 
-const URL_RE = /(https?:\/\/|www\.|\b[a-z0-9-]+\.(com|pk|net|org|io|co|me|ly)\b)/i;
+// Any host-like word (name.tld, link shorteners), 9+ digits however they are separated, and "name at gmail dot com".
+const URL_RE = /(https?:\/\/|www\.|\b[a-z0-9-]+\.[a-z]{2,}(?:\/|\b))/i;
 const EMAIL_RE = /[^\s@]+@[^\s@]+\.[^\s@]+/;
-const PHONE_RE = /\+?\d[\d\s-]{8,}\d/;
+const PHONE_RE = /\+?\(?\d(?:[\s().-]{0,2}\d){8,}/;
+const SPELLED_EMAIL_RE = /\b[a-z0-9._-]+\s*(?:\(at\)|\[at\]|\sat\s)\s*[a-z0-9-]+\s*(?:\(dot\)|\[dot\]|\sdot\s)\s*[a-z]{2,}\b/i;
+const CONTACT_PATTERNS = [EMAIL_RE, SPELLED_EMAIL_RE, URL_RE, PHONE_RE];
+
+/** Removes contact details and links from scraped text before it is sent to the AI (defence in depth, SRS §5.2). */
+export function redactContacts(text: string): string {
+  return CONTACT_PATTERNS.reduce((t, re) => t.replace(new RegExp(re.source, "gi"), "[contact removed]"), text);
+}
 
 /** Summaries carry public facts only: no links, emails or phone numbers; at most 600 characters (spec §6). */
 export function isSafeSummary(text: string): boolean {
   const t = text.trim();
-  return t.length >= 20 && t.length <= 600 && !URL_RE.test(t) && !EMAIL_RE.test(t) && !PHONE_RE.test(t);
+  return t.length >= 20 && t.length <= 600 && !CONTACT_PATTERNS.some((re) => re.test(t));
 }
 
 /** Wraps scraped text as data; angle brackets are replaced so the text cannot close or open a block (SRS §5.3). */
