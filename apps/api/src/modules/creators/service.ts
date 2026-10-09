@@ -164,6 +164,8 @@ export function createCreatorsService(deps: CreatorsDeps) {
 
   // ── profile (spec §5) ──────────────────────────────────────────────────────
   async function summaryState(tx: TenantTx, ctx: TenantContext, c: repo.CreatorRow, hash: string): Promise<CreatorProfile["summary"]> {
+    // A possible minor's data is never sent to the AI, and no earlier summary is shown (SRS §5.2, §5.5).
+    if (isMinorProtected(c)) return { status: "unavailable", text: null, model: null, generatedAt: null };
     if (c.aiSummary !== null && c.aiSummarySourceHash === hash) {
       return { status: "ready", text: c.aiSummary, model: c.aiSummaryModel, generatedAt: c.aiSummaryAt?.toISOString() ?? null };
     }

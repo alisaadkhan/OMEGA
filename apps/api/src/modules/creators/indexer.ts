@@ -14,7 +14,10 @@ export function createCreatorIndexer(o: { db: Db; index: SearchIndex; logger: Lo
     const keep = rows.filter(isIndexable);
     const kept = new Set(keep.map((r) => r.id));
     await o.index.upsert(keep.map(toDocument));
-    await o.index.remove(creatorIds.filter((id) => !kept.has(id)));
+    // A creator hidden while we were writing may have had its own sync's removal applied before our upsert.
+    // The upsert has been applied by now, so re-checking closes that gap: a later hide syncs after this point.
+    const stillVisible = kept.size === 0 ? new Set<string>() : new Set(await o.db.withSystem((tx) => repo.visibleIds(tx, [...kept])));
+    await o.index.remove(creatorIds.filter((id) => !stillVisible.has(id)));
   }
 
   async function reconcile(): Promise<{ upserted: number; removed: number }> {

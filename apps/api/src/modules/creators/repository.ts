@@ -16,7 +16,7 @@ import {
   type SystemTx,
   type TenantTx,
 } from "@mushin/db";
-import { maskContact, type FitWeights, type FreshnessThresholds, type LabelThresholds, type SummarySource } from "./rules";
+import { isMinorProtected, maskContact, type FitWeights, type FreshnessThresholds, type LabelThresholds, type SummarySource } from "./rules";
 
 type Tx = TenantTx | SystemTx;
 type Platform = "instagram" | "tiktok" | "youtube";
@@ -263,9 +263,10 @@ export function buildSummarySource(c: CreatorRow, profiles: ProfileRow[], snap: 
   };
 }
 
+/** Null for creators customers cannot see: their data is never sent to the AI (SRS §5.2, §5.5). */
 export async function summarySource(tx: Tx, creatorId: string): Promise<{ source: SummarySource; currentHash: string | null } | null> {
   const c = await getCreator(tx, creatorId);
-  if (!c) return null;
+  if (!c || c.status !== "active" || isMinorProtected(c)) return null;
   return { currentHash: c.aiSummarySourceHash, source: buildSummarySource(c, await getProfiles(tx, creatorId), await latestSnapshot(tx, creatorId)) };
 }
 
@@ -340,6 +341,13 @@ export async function indexRows(tx: SystemTx, ids: string[]): Promise<IndexRow[]
 /** Every creator that belongs in the index, with its last-change time (nightly reconcile). */
 export function indexState(tx: SystemTx): Promise<{ id: string; updatedEpoch: number }[]> {
   return tx.execute<{ id: string; updatedEpoch: number }>(sql`select c.id, ${UPDATED_EPOCH} as "updatedEpoch" from gcp.creators c where ${VISIBLE}`);
+}
+
+/** Of the given creators, those customers can currently see. */
+export async function visibleIds(tx: SystemTx, ids: string[]): Promise<string[]> {
+  if (ids.length === 0) return [];
+  const rows = await tx.execute<{ id: string }>(sql`select c.id from gcp.creators c where c.id in ${ids} and ${VISIBLE}`);
+  return rows.map((r) => r.id);
 }
 
 // ── writing creators (worker role: seed script, tests, sub-project 4) ───────

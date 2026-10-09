@@ -86,6 +86,14 @@ describe("profile", () => {
     await expect(creators.profile(c, erased)).rejects.toMatchObject({ code: "NOT_FOUND" });
     expect((await creators.profile(c, minor)).minorProtected).toBe(true);
   });
+
+  it("does not ask the AI to summarise a possible minor", async () => {
+    const minor = await addCreator(db, { isMinor: true });
+    const p = await creators.profile(await trialCustomer(), minor);
+    expect(p.summary).toMatchObject({ status: "unavailable", text: null });
+    const events = await ownerQuery<{ n: number }>(`select count(*)::int n from platform.outbox where event_type = 'creator.summary_requested'`);
+    expect(events[0]?.n).toBe(0);
+  });
 });
 
 describe("estimated audience (spec D5)", () => {

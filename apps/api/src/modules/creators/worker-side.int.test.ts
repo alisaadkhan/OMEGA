@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createLogger } from "@mushin/core";
 import { createTestDatabase, ownerQuery, resetTables } from "@mushin/db/testing";
-import { MockLlm, testSearchIndex } from "@mushin/integrations";
+import { MockLlm, testSearchIndex, type SearchIndex } from "@mushin/integrations";
 import { createCreatorIndexer } from "./indexer";
 import { createSummaryWriter } from "./summaries";
 import { addCreator } from "./test-fixtures";
@@ -34,6 +34,25 @@ describe("index sync", () => {
     await ownerQuery(`update gcp.creators set is_minor = true where id = '${b}'`);
     await indexer.sync([b]);
     expect([...(await index.listIds()).keys()]).toEqual([a]);
+  });
+
+  it("does not leave a creator in the index who was hidden while the sync was writing", async () => {
+    const id = await addCreator(db);
+    // The hide commits between reading the rows and the upsert landing; its own sync may already have run.
+    const racing: SearchIndex = {
+      ensureSettings: () => index.ensureSettings(),
+      upsert: async (docs) => {
+        await ownerQuery(`update gcp.creators set is_minor = true where id = '${id}'`);
+        await index.upsert(docs);
+      },
+      remove: (ids) => index.remove(ids),
+      search: (q) => index.search(q),
+      listIds: () => index.listIds(),
+      ping: () => index.ping(),
+      drop: () => index.drop(),
+    };
+    await createCreatorIndexer({ db, index: racing, logger }).sync([id]);
+    expect([...(await index.listIds()).keys()]).toEqual([]);
   });
 
   it("repairs drift: missing, outdated and leftover documents", async () => {
@@ -93,6 +112,16 @@ describe("summary writer", () => {
     await expect(summaries.generate(id)).rejects.toThrow(/safety check/);
     const rows = await ownerQuery<{ ai_summary: string | null; failed: boolean }>(`select ai_summary, ai_summary_failed_at is not null as failed from gcp.creators where id = '${id}'`);
     expect(rows[0]).toEqual({ ai_summary: null, failed: true });
+  });
+
+  it("never sends a hidden creator's data to the AI (erased, removal requested, possible minor)", async () => {
+    const erased = await addCreator(db);
+    const removal = await addCreator(db);
+    const minor = await addCreator(db, { isMinor: true });
+    await ownerQuery(`update gcp.creators set status = 'erased' where id = '${erased}'; update gcp.creators set status = 'removal_requested' where id = '${removal}';`);
+    reply = { summary: "Lahore bridal creator with 50K followers. Engagement holds near 5%. A natural fit for wedding and beauty brands." };
+    for (const id of [erased, removal, minor]) expect(await summaries.generate(id)).toBe("missing");
+    expect(llm.calls).toHaveLength(0);
   });
 
   it("does nothing for a creator that no longer exists", async () => {
