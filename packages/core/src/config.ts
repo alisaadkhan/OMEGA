@@ -76,6 +76,8 @@ function checkShared(v: SharedValues, ctx: z.RefinementCtx) {
   }
 }
 
+const encryptionKey = z.string().refine((v) => Buffer.from(v, "base64").length === 32, "must be 32 random bytes, base64-encoded");
+
 const apiSchema = sharedObject
   .extend({
     PORT: z.coerce.number().int().min(1).max(65_535).default(4000),
@@ -86,14 +88,33 @@ const apiSchema = sharedObject
     JWT_AUDIENCE: z.string().min(1).default("authenticated"),
     JWKS_URI: z.url(),
     STAFF_JWT_SECRET: z.string().min(32, "must be at least 32 characters"),
-    DATA_ENCRYPTION_KEY: z.string().refine((v) => Buffer.from(v, "base64").length === 32, "must be 32 random bytes, base64-encoded"),
+    DATA_ENCRYPTION_KEY: encryptionKey,
     RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
     RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().positive().default(120),
     IDEMPOTENCY_TTL_HOURS: z.coerce.number().int().positive().default(24),
   })
   .superRefine(checkShared);
 
-const workerSchema = sharedObject.extend({ DATABASE_URL: postgresUrl, DIRECT_URL: postgresUrl }).superRefine(checkShared);
+const workerSchema = sharedObject
+  .extend({
+    DATABASE_URL: postgresUrl,
+    DIRECT_URL: postgresUrl,
+    DATA_ENCRYPTION_KEY: encryptionKey,
+    APIFY_TOKEN: z.string().min(1).optional(),
+    APIFY_INSTAGRAM_ACTOR_ID: z.string().min(1).default("apify/instagram-profile-scraper"),
+    APIFY_TIKTOK_ACTOR_ID: z.string().min(1).default("clockworks/tiktok-profile-scraper"),
+    APIFY_MONTHLY_BUDGET_USD: z.coerce.number().min(0).default(5),
+    YOUTUBE_API_KEY: z.string().min(1).optional(),
+    SUPABASE_URL: z.url().optional(),
+    SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
+  })
+  .superRefine((v, ctx) => {
+    checkShared(v, ctx);
+    if (v.NODE_ENV !== "production") return;
+    for (const key of ["APIFY_TOKEN", "YOUTUBE_API_KEY", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"] as const) {
+      if (!v[key]) ctx.addIssue({ code: "custom", path: [key], message: "is required in production (creator data pipeline)" });
+    }
+  });
 
 /** Reads the database CA certificate (PEM). Returns null when no path is configured. */
 export function readCaFile(path: string | undefined): string | null {
@@ -194,6 +215,15 @@ function llmFrom(v: SharedValues): LlmProviderConfig[] {
   return out;
 }
 
+export type ScrapingConfig = {
+  apifyToken: string | null;
+  instagramActor: string;
+  tiktokActor: string;
+  apifyMonthlyBudgetUsd: number;
+  youtubeApiKey: string | null;
+};
+export type StorageConfig = { url: string; serviceKey: string } | null;
+
 export type ApiConfig = {
   nodeEnv: "development" | "test" | "production";
   logLevel: LogLevel;
@@ -248,6 +278,9 @@ export type WorkerConfig = {
   upstash: { url: string; token: string } | null;
   search: SearchConfig;
   llm: LlmProviderConfig[];
+  scraping: ScrapingConfig;
+  storage: StorageConfig;
+  dataEncryptionKey: Buffer;
 };
 
 export function loadWorkerConfig(env: Env): WorkerConfig {
@@ -263,5 +296,14 @@ export function loadWorkerConfig(env: Env): WorkerConfig {
     upstash: upstashFrom(v),
     search: searchFrom(v, v.MEILISEARCH_API_KEY),
     llm: llmFrom(v),
+    dataEncryptionKey: Buffer.from(v.DATA_ENCRYPTION_KEY, "base64"),
+    scraping: {
+      apifyToken: v.APIFY_TOKEN ?? null,
+      instagramActor: v.APIFY_INSTAGRAM_ACTOR_ID,
+      tiktokActor: v.APIFY_TIKTOK_ACTOR_ID,
+      apifyMonthlyBudgetUsd: v.APIFY_MONTHLY_BUDGET_USD,
+      youtubeApiKey: v.YOUTUBE_API_KEY ?? null,
+    },
+    storage: v.SUPABASE_URL && v.SUPABASE_SERVICE_ROLE_KEY ? { url: v.SUPABASE_URL.replace(/\/+$/, ""), serviceKey: v.SUPABASE_SERVICE_ROLE_KEY } : null,
   };
 }

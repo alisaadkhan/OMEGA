@@ -57,7 +57,7 @@ describe("loadApiConfig", () => {
 
 describe("loadWorkerConfig", () => {
   it("needs DIRECT_URL and rejects the placeholder host", () => {
-    const urls = { DATABASE_URL: "postgresql://u:p@pooler.example.com:6543/postgres", MOCK_PADDLE_WEBHOOK_SECRET: MOCK };
+    const urls = { DATABASE_URL: "postgresql://u:p@pooler.example.com:6543/postgres", MOCK_PADDLE_WEBHOOK_SECRET: MOCK, DATA_ENCRYPTION_KEY: KEY };
     expect(loadWorkerConfig({ ...urls, DIRECT_URL: "postgresql://u:p@pooler.example.com:5432/postgres" }).directUrl).toContain(":5432");
     expect(() => loadWorkerConfig({ ...urls, DIRECT_URL: "postgresql://user:password@host:5432/postgres" })).toThrow(/DIRECT_URL/);
   });
@@ -67,6 +67,7 @@ describe("loadWorkerConfig", () => {
       DATABASE_URL: "postgresql://u:p@pooler.example.com:6543/postgres",
       DIRECT_URL: "postgresql://u:p@pooler.example.com:5432/postgres",
       MOCK_PADDLE_WEBHOOK_SECRET: MOCK,
+      DATA_ENCRYPTION_KEY: KEY,
     });
     expect([c.databaseUrl, c.directUrl]).toEqual(["postgresql://u:p@pooler.example.com:6543/postgres", "postgresql://u:p@pooler.example.com:5432/postgres"]);
     expect(() => loadWorkerConfig({ DIRECT_URL: "postgresql://u:p@pooler.example.com:5432/postgres", MOCK_PADDLE_WEBHOOK_SECRET: MOCK })).toThrow(/DATABASE_URL/);
@@ -124,6 +125,7 @@ describe("payments config", () => {
       DATABASE_URL: "postgresql://u:p@pooler.example.com:6543/postgres",
       DIRECT_URL: "postgresql://u:p@pooler.example.com:5432/postgres",
       MOCK_PADDLE_WEBHOOK_SECRET: MOCK,
+      DATA_ENCRYPTION_KEY: KEY,
       UPSTASH_REDIS_REST_URL: "https://x.upstash.io",
       UPSTASH_REDIS_REST_TOKEN: "t",
     });
@@ -134,7 +136,7 @@ describe("payments config", () => {
 });
 
 describe("search and LLM settings", () => {
-  const worker = { DATABASE_URL: "postgresql://u:p@pooler.example.com:6543/postgres", DIRECT_URL: "postgresql://u:p@pooler.example.com:5432/postgres", MOCK_PADDLE_WEBHOOK_SECRET: MOCK };
+  const worker = { DATABASE_URL: "postgresql://u:p@pooler.example.com:6543/postgres", DIRECT_URL: "postgresql://u:p@pooler.example.com:5432/postgres", MOCK_PADDLE_WEBHOOK_SECRET: MOCK, DATA_ENCRYPTION_KEY: KEY };
 
   it("gives the API the read-only search key and the worker the admin key", () => {
     const meili = { MEILISEARCH_HOST: "http://127.0.0.1:7700/", MEILISEARCH_API_KEY: "admin", MEILISEARCH_SEARCH_KEY: "search", MEILISEARCH_INDEX_PREFIX: "dev_" };
@@ -156,5 +158,45 @@ describe("search and LLM settings", () => {
     expect(c.llm[0]?.priceInPerMTok).toBeGreaterThan(0);
     expect(loadApiConfig(valid).llm).toEqual([]);
     expect(loadWorkerConfig({ ...worker, OLLAMA_API_KEY: "o", OLLAMA_MODEL: "gemma4:31b" }).llm.map((p) => p.model)).toEqual(["gemma4:31b"]);
+  });
+});
+
+describe("scraping and storage settings (worker only)", () => {
+  const worker = {
+    DATABASE_URL: "postgresql://u:p@pooler.example.com:6543/postgres",
+    DIRECT_URL: "postgresql://u:p@pooler.example.com:5432/postgres",
+    MOCK_PADDLE_WEBHOOK_SECRET: MOCK,
+    DATA_ENCRYPTION_KEY: Buffer.alloc(32, 1).toString("base64"),
+  };
+
+  it("reads Apify, YouTube and Supabase Storage settings with actor and budget defaults", () => {
+    const c = loadWorkerConfig({
+      ...worker,
+      APIFY_TOKEN: "apify",
+      YOUTUBE_API_KEY: "yt",
+      SUPABASE_URL: "https://ref.supabase.co/",
+      SUPABASE_SERVICE_ROLE_KEY: "service",
+    });
+    expect(c.scraping).toEqual({
+      apifyToken: "apify",
+      instagramActor: "apify/instagram-profile-scraper",
+      tiktokActor: "clockworks/tiktok-profile-scraper",
+      apifyMonthlyBudgetUsd: 5,
+      youtubeApiKey: "yt",
+    });
+    expect(c.storage).toEqual({ url: "https://ref.supabase.co", serviceKey: "service" });
+    expect(c.dataEncryptionKey.length).toBe(32);
+  });
+
+  it("treats missing scraper keys and storage as not configured outside production", () => {
+    const c = loadWorkerConfig(worker);
+    expect(c.scraping.apifyToken).toBeNull();
+    expect(c.scraping.youtubeApiKey).toBeNull();
+    expect(c.storage).toBeNull();
+  });
+
+  it("refuses production without the scraper keys, storage and encryption key", () => {
+    expect(() => loadWorkerConfig({ ...worker, NODE_ENV: "production", DATABASE_SSL_CA_FILE: undefined })).toThrow(/APIFY_TOKEN/);
+    expect(() => loadWorkerConfig({ ...worker, DATA_ENCRYPTION_KEY: "short" })).toThrow(/DATA_ENCRYPTION_KEY/);
   });
 });
