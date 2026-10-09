@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MockLlm } from "@mushin/integrations";
-import { assessCreator, assessmentSchema, cleanAssessment, verdictFor } from "./assessment";
+import { ASSESSMENT_REPLY_EXAMPLE, ASSESSMENT_SYSTEM_PROMPT, assessCreator, assessmentSchema, cleanAssessment, verdictFor } from "./assessment";
 import type { SignalReport } from "./signals";
 import type { StandardProfile } from "./standardize";
 
@@ -140,5 +140,20 @@ describe("assessCreator", () => {
 
   it("fails cleanly when the AI breaks the rules", async () => {
     await expect(assessCreator({ llm: new MockLlm(() => ({ ...good, score: 5 })), report, profile, nicheLabels: [] })).rejects.toMatchObject({ code: "PROVIDER_UNAVAILABLE" });
+  });
+});
+
+describe("assessment prompt", () => {
+  it("shows the AI the exact reply shape; filled with estimates it passes the same rules as a real reply", () => {
+    expect(ASSESSMENT_SYSTEM_PROMPT).toContain(JSON.stringify(ASSESSMENT_REPLY_EXAMPLE));
+    const scored: SignalReport = { ...report, range: { min: 70, max: 80 } };
+    const filled = assessmentSchema(scored).safeParse({ ...ASSESSMENT_REPLY_EXAMPLE, audience: good.audience });
+    expect(filled.error?.issues ?? []).toEqual([]);
+    // Echoing the example's zero placeholders is refused, which triggers the corrective retry.
+    expect(assessmentSchema(scored).safeParse(ASSESSMENT_REPLY_EXAMPLE).error?.issues.map((i) => i.path.join("."))).toEqual(
+      expect.arrayContaining(["audience.age", "audience.gender", "audience.cities", "audience.countries"]),
+    );
+    // The shape the live model returned before the example was added (2026-10-09 browser check) is still refused.
+    expect(assessmentSchema(scored).safeParse({ ...ASSESSMENT_REPLY_EXAMPLE, audience: { ...ASSESSMENT_REPLY_EXAMPLE.audience, age: [{ "18-24": 40 }] } }).success).toBe(false);
   });
 });
