@@ -1,0 +1,35 @@
+[
+  {
+    "inputUrl": "https://www.instagram.com/coke_studio",
+    "id": "1425997665",
+    "username": "coke_studio",
+    "url": "https://www.instagram.com/coke_studio",
+    "fullName": "Coke Studio Pakistan",
+    "biography": "Watch the full songs⬇️",
+    "externalUrls": [
+      {
+        "image_url": "",
+        "is_pinned": false,
+        "link_type": "external",
+        "lynx_url": "https://l.instagram.com/?u=https%3A%2F%2Fcokeurl.com%2FNu.WAV&e=AUCL7vW4r_qGQ_Z3yhYTe1qkXIwG7Tv8KPRTHjyXndbY11iM8tLSYO88O5UM-45_58b-MRTDEUObGnQO6_aD2n0xKkEd4ufhJOfXgd9rjsckVhnBgtaE5_AFFfLULgt2SzzR6W-DQ8oWhLuBS_SzQQ",
+        "media_accent_color_hex": "",
+        "media_type": "none",
+        "title": "",
+        "url": "https://cokeurl.com/Nu.WAV",
+        "creation_source": "NONE"
+      }
+    ],
+    "externalUrl": "https://cokeurl.com/Nu.WAV",
+    "followersCount": 946416,
+    "followsCount": 119,
+    "isBusinessAccount": true,
+    "businessCategoryName": "Musician/band",
+    "private": true,
+    "verified": true,
+    "profilePicUrl": "https://example.invalid/avatars/coke_studio.jpg",
+    "profilePicUrlHD": "https://example.invalid/avatars/coke_studio_hd.jpg",
+    "postsCount": 1381,
+    "latestPosts": [],
+    "_note": "derived from instagram-profile.json: private flag set and posts removed"
+  }
+]

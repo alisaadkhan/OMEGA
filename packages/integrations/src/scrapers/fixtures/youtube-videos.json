@@ -1,0 +1,604 @@
+{
+  "kind": "youtube#videoListResponse",
+  "etag": "_YDUwp0BRSHEZMKB1iK05Iv-J4E",
+  "items": [
+    {
+      "kind": "youtube#video",
+      "etag": "L-BwO7K6whpE0_E49zGpNz6Y774",
+      "id": "-gD5ocQWyjU",
+      "snippet": {
+        "publishedAt": "2026-10-09T09:42:09Z",
+        "channelId": "UCM1VesJtJ9vTXcMLLr_FfdQ",
+        "title": "Maheya | Rovalio",
+        "description": "Can I trust you? #CokeStudioNuWAV",
+        "thumbnails": {},
+        "channelTitle": "Coke Studio Pakistan",
+        "tags": [
+          "coke studio",
+          "cocacola pakistan",
+          "coke studio pakistan",
+          "SoundOfTheNation",
+          "Xulfi",
+          "FusionMusic",
+          "Coke Studio Season 14",
+          "Season 14",
+          "Real Magic",
+          "Music",
+          "Coke Studio 14"
+        ],
+        "categoryId": "10",
+        "liveBroadcastContent": "none",
+        "defaultLanguage": "en",
+        "localized": {
+          "title": "Maheya | Rovalio",
+          "description": "Can I trust you? #CokeStudioNuWAV"
+        },
+        "defaultAudioLanguage": "ur"
+      },
+      "contentDetails": {
+        "duration": "PT41S",
+        "dimension": "2d",
+        "definition": "hd",
+        "caption": "false",
+        "licensedContent": false,
+        "contentRating": {},
+        "projection": "rectangular"
+      },
+      "statistics": {
+        "viewCount": "1080",
+        "likeCount": "49",
+        "favoriteCount": "0",
+        "commentCount": "2"
+      }
+    },
+    {
+      "kind": "youtube#video",
+      "etag": "nCxI8KCuSTkS5jQL0fLOY9pteUs",
+      "id": "-FGmU0YwPaA",
+      "snippet": {
+        "publishedAt": "2026-10-08T08:42:57Z",
+        "channelId": "UCM1VesJtJ9vTXcMLLr_FfdQ",
+        "title": "Asim | Music Video",
+        "description": "Asim talks about the MV.\n#Maheya #CokeStudioNuWAV",
+        "thumbnails": {},
+        "channelTitle": "Coke Studio Pakistan",
+        "tags": [
+          "coke studio",
+          "cocacola pakistan",
+          "coke studio pakistan",
+          "SoundOfTheNation",
+          "Xulfi",
+          "FusionMusic",
+          "Coke Studio Season 14",
+          "Season 14",
+          "Real Magic",
+          "Music",
+          "Coke Studio 14"
+        ],
+        "categoryId": "10",
+        "liveBroadcastContent": "none",
+        "defaultLanguage": "en",
+        "localized": {
+          "title": "Asim | Music Video",
+          "description": "Asim talks about the MV.\n#Maheya #CokeStudioNuWAV"
+        },
+        "defaultAudioLanguage": "ur"
+      },
+      "contentDetails": {
+        "duration": "PT1M6S",
+        "dimension": "2d",
+        "definition": "hd",
+        "caption": "false",
+        "licensedContent": false,
+        "contentRating": {},
+        "projection": "rectangular"
+      },
+      "statistics": {
+        "viewCount": "13764",
+        "likeCount": "382",
+        "favoriteCount": "0",
+        "commentCount": "5"
+      }
+    },
+    {
+      "kind": "youtube#video",
+      "etag": "Nwxh9ud2Cd9pILDbGRGC8nJEuHM",
+      "id": "nV6780vzR08",
+      "snippet": {
+        "publishedAt": "2026-10-07T10:57:03Z",
+        "channelId": "UCM1VesJtJ9vTXcMLLr_FfdQ",
+        "title": "AARYAN x Coke Studio Nu.WAV",
+        "description": "From the demo to Coke Studio Nu.WAV. Meet AARYAN. #CokeStudioNuWAV",
+        "thumbnails": {},
+        "channelTitle": "Coke Studio Pakistan",
+        "tags": [
+          "coke studio",
+          "cocacola pakistan",
+          "coke studio pakistan",
+          "SoundOfTheNation",
+          "Xulfi",
+          "FusionMusic",
+          "Coke Studio Season 14",
+          "Season 14",
+          "Real Magic",
+          "Music",
+          "Coke Studio 14"
+        ],
+        "categoryId": "10",
+        "liveBroadcastContent": "none",
+        "defaultLanguage": "en",
+        "localized": {
+          "title": "AARYAN x Coke Studio Nu.WAV",
+          "description": "From the demo to Coke Studio Nu.WAV. Meet AARYAN. #CokeStudioNuWAV"
+        },
+        "defaultAudioLanguage": "ur"
+      },
+      "contentDetails": {
+        "duration": "PT52S",
+        "dimension": "2d",
+        "definition": "hd",
+        "caption": "false",
+        "licensedContent": false,
+        "contentRating": {},
+        "projection": "rectangular"
+      },
+      "statistics": {
+        "viewCount": "30958",
+        "likeCount": "744",
+        "favoriteCount": "0",
+        "commentCount": "18"
+      }
+    },
+    {
+      "kind": "youtube#video",
+      "etag": "CKk7NUcZUoeEcFrflntgG_fMEUo",
+      "id": "-ygfJNnGmNM",
+      "snippet": {
+        "publishedAt": "2026-10-06T10:00:14Z",
+        "channelId": "UCM1VesJtJ9vTXcMLLr_FfdQ",
+        "title": "Maheya | Off The Record | Coke Studio Nu.WAV",
+        "description": "The making of Maheya #CokeStudioNuWAV \n\nProducer & Director: Abdullah Naseem\nCo-Director: Asaad Bukhari\nAssistant director and DoP: Ahtisham Ahmed\nSecond unit DoP: Fawwad Hashmi\nEditor: Asaad Bukhari\nAssistant Editor: Talha Naseem\n\nSubtitle Editor: Hazka khan\n\nAdditional Recorded footage: Mohammad M",
+        "thumbnails": {},
+        "channelTitle": "Coke Studio Pakistan",
+        "tags": [
+          "coke studio",
+          "cocacola pakistan",
+          "coke studio pakistan",
+          "SoundOfTheNation",
+          "Xulfi",
+          "FusionMusic",
+          "Coke Studio Season 14",
+          "Season 14",
+          "Real Magic",
+          "Music",
+          "Coke Studio 14"
+        ],
+        "categoryId": "10",
+        "liveBroadcastContent": "none",
+        "defaultLanguage": "en",
+        "localized": {
+          "title": "Maheya | Off The Record | Coke Studio Nu.WAV",
+          "description": "The making of Maheya #CokeStudioNuWAV \n\nProducer & Director: Abdullah Naseem\nCo-Director: Asaad Bukhari\nAssistant director and DoP: Ahtisham Ahmed\nSecond unit DoP: Fawwad Hashmi\nEditor: Asaad Bukhari\nAssistant Editor: Talha Naseem\n\nSubtitle Editor: Hazka khan\n\nAdditional Recorded footage: Mohammad Mohtashim, smhunain"
+        },
+        "defaultAudioLanguage": "ur"
+      },
+      "contentDetails": {
+        "duration": "PT21M11S",
+        "dimension": "2d",
+        "definition": "hd",
+        "caption": "true",
+        "licensedContent": false,
+        "contentRating": {},
+        "projection": "rectangular"
+      },
+      "statistics": {
+        "viewCount": "40333",
+        "likeCount": "495",
+        "favoriteCount": "0",
+        "commentCount": "36"
+      }
+    },
+    {
+      "kind": "youtube#video",
+      "etag": "wPkMb0Yb7U5Eggzhdud79gDLGbc",
+      "id": "kjp6_5dJOBU",
+      "snippet": {
+        "publishedAt": "2026-10-04T12:00:03Z",
+        "channelId": "UCM1VesJtJ9vTXcMLLr_FfdQ",
+        "title": "Coke Studio Nu.WAV Session ft Asim Azhar",
+        "description": "Asim Azhar (@asimazhar) sits down with a group of young musicians for an honest conversation on chasing your own sound, staying rooted in where you come from, and writing unique melodies that stick.\n\nArtists: \nAmaan Kashif (@amaan.kashif47)\nZain Darban (@zaindarban)\nSameer Hamza (@imsameerhamza)\nWaj",
+        "thumbnails": {},
+        "channelTitle": "Coke Studio Pakistan",
+        "tags": [
+          "coke studio",
+          "cocacola pakistan",
+          "coke studio pakistan",
+          "SoundOfTheNation",
+          "Xulfi",
+          "FusionMusic",
+          "Coke Studio Season 14",
+          "Season 14",
+          "Real Magic",
+          "Music",
+          "Coke Studio 14"
+        ],
+        "categoryId": "10",
+        "liveBroadcastContent": "none",
+        "defaultLanguage": "en",
+        "localized": {
+          "title": "Coke Studio Nu.WAV Session ft Asim Azhar",
+          "description": "Asim Azhar (@asimazhar) sits down with a group of young musicians for an honest conversation on chasing your own sound, staying rooted in where you come from, and writing unique melodies that stick.\n\nArtists: \nAmaan Kashif (@amaan.kashif47)\nZain Darban (@zaindarban)\nSameer Hamza (@imsameerhamza)\nWajeeha Siddiqui (@wajeeha.si)\nHadeer (@hadeer.psd)\nNameer (@nameerbinasrar)\nShuja Hassan (@shujahassanmusic)\n\nChapters:\n00:00–00:09 Intro\n00:09–01:15 What Nu.WAV means to him\n01:15–02:00 Rovalio's beat & breakthrough\n02:00–02:28 Meet AARYAN\n02:28–03:49 First listen: Nu.WAV track\n03:49–04:12 Chasing a universal sound\n04:12–05:28 A melody from his father\n05:28–05:50 Sampling as an art form\n05:50–06:33 Start of Q&A\n06:33–07:13 Writing something real\n07:13–08:28 Then vs now: breaking in as an artist\n08:28–13:39 The cypher\n13:39–15:31 The unreleased track reveal\n15:31–16:13 Outro\n\nProduced By Gali Films\nCreative Direction: FT.WASTUDIO\n\nDirector: Abdullah Kasumbi\nDirector of Photography: Omer Khan\nCreative Producer: Taimur Aamir\nEdit & Colour Grade: Ali Khan Durrani\n\nProducer: Iman Khan\nAssociate Producer: Zarmeen Ali \nAssociate Producer: Jamal Haroon\nUPM: Nabeel Jaffri\nProduction Assistant: Sameer Nazim\n\nArt Director: Talha Islam\nProduction Sound Mixer: Faraz Qamar\nLocation Manager: Choudhary Mehmood\n\nCamera Operator: Ali Khan Durrani\nCamera Operator: Syed Taha Ali\nGaffer: Syed Ashiq Shah\nAssistant Camera: S M Kaleem\nAssistant Camera: Muhammad Faris Baig\nKey Grip: Shan Ali\n\nCamera & Lighting Equipment: Zahrsss Productions\nMusic Equipment Rental: Saad Hayat Music\nProps Rental: Perfect Set Creation\n\nProduction: Dada Production\nProduction Manager: Awais Rasool\nSpot Boys: Sattar Khan, Adeel Khokhar & Sharoon Yaseen\nTransport: Al Alam Transport"
+        },
+        "defaultAudioLanguage": "ur"
+      },
+      "contentDetails": {
+        "duration": "PT16M13S",
+        "dimension": "2d",
+        "definition": "hd",
+        "caption": "true",
+        "licensedContent": false,
+        "contentRating": {},
+        "projection": "rectangular"
+      },
+      "statistics": {
+        "viewCount": "44675",
+        "likeCount": "540",
+        "favoriteCount": "0",
+        "commentCount": "43"
+      }
+    },
+    {
+      "kind": "youtube#video",
+      "etag": "hqZXKmvfrafMjDYGmJ1AG8aj-Os",
+      "id": "ghajr4DFmSY",
+      "snippet": {
+        "publishedAt": "2026-10-02T12:59:58Z",
+        "channelId": "UCM1VesJtJ9vTXcMLLr_FfdQ",
+        "title": "Maheya | Coke Studio Nu.WAV | Asim Azhar x AARYAN x Rovalio",
+        "description": "Kya jaane bebas deewana #CokeStudioNuWAV\n\nListen on Spotify https://cokeurl.com/CSNu.WAV\n\nExecutive Producer: Kamal Khan\n\nArtist:\nAsim Azhar\nAARYAN\n\nProduced by: Rovalio\nLyrics: Asim Azhar, AARYAN, Kumail Abbas\nComposed by: Asim Azhar, Azhar Hussain, Rovalio\nArranged by: Rovalio, Asim Azhar\nAddition",
+        "thumbnails": {},
+        "channelTitle": "Coke Studio Pakistan",
+        "tags": [
+          "coke studio",
+          "cocacola pakistan",
+          "coke studio pakistan",
+          "SoundOfTheNation",
+          "Xulfi",
+          "FusionMusic",
+          "Coke Studio Season 14",
+          "Season 14",
+          "Real Magic",
+          "Music",
+          "Coke Studio 14"
+        ],
+        "categoryId": "10",
+        "liveBroadcastContent": "none",
+        "defaultLanguage": "en",
+        "localized": {
+          "title": "Maheya | Coke Studio Nu.WAV | Asim Azhar x AARYAN x Rovalio",
+          "description": "Kya jaane bebas deewana #CokeStudioNuWAV\n\nListen on Spotify https://cokeurl.com/CSNu.WAV\n\nExecutive Producer: Kamal Khan\n\nArtist:\nAsim Azhar\nAARYAN\n\nProduced by: Rovalio\nLyrics: Asim Azhar, AARYAN, Kumail Abbas\nComposed by: Asim Azhar, Azhar Hussain, Rovalio\nArranged by: Rovalio, Asim Azhar\nAdditional Composition & Guitars: Melvin Arthur\nAdditional Programming & Harmonium: Haider Ali\nChorus: Shahrukh Abbas Khan, Rizwan Mirza, Khurram Ali\n\nDirector: Kamal Khan\nDirector of Photography: Aamir Mughal\nProduction design & Art Direction: Hashim Ali \nWardrobe Design & Styling: Faraz Sheikh and Team\n\nProduced By Gali Films\nProducer: Iman Khan\nAssociate Producer: Jamal Haroon\nAssociate Producer: Zarmeen Ali\nUPM: Nabeel Jafri\n\nProduction Consultant: Umnia Iftikhar \n\nAssistant Director: Fariha Afzal\n2nd Assistant Director: Daim Raza, Shahan Rao\n\nAssistant Art Directors: Ayan Badar, Amrose \nSet and Prop design : Hashim Ali design studios (Irteza, Manahil, Ekrash, Ezza)  \nSet team : Aqeel ur Rehman - Set&Act\n\nFood Stylist: Yousaf Rajput - Youchef & Team\n\nActing Coach: Kashif Hussain\n\nProduction Sound Recording & Dialogue Edit: Anser Soomro\n\nHAIR & MAKE-UP (Female Artists): Tauseef Ahmed\nHAIR & MAKE-UP (Male Artists): Shetty\n\nHair & Makeup (Support Talent): Mubashir & Daniyal Raj \n\nSFX Team: Muhammad Ali, Ramiz khan and Najia Zoha\n(BloodyArtistry)\n\nTALENT:\nSaleem Mairaj\nMahad (Young Asim)\nHaider Shah\nArafat Afreeh (Aaryan's father)\n\nTalent Agency: Phoenix Talent\n\nMusic Consultant: Taha Malik\nDistributed by Warner Music MENA\n\nPOST\nEditing: Kamal Khan\nAssistant Editing: Qadir Khan\nPost: Studio Rokhan\nVFX / Post Producer: Zeeshan Parwez\nPost Team: Sohrab Awais, Qadir Khan, Salman Sheikh, Haider Balouch, Syed Shakir Ali, Sharukh Rais, Ubaid Saleem\nAnimation Producer: Shayan Agha\n\nColorist: Ivan Narozhnyi\n\nIdent Animation: Jarred Hageman (Chrome and Lightning)\nSound Design (logo animation): Hugh Wielenga \n\nSubtitles: Noor Zahra \n\nPhotography (Gali films): Nadir Firoz Khan\nEditorial Photography: Amna Zuberi\n\nBTS \n\nDirector (BTS): Abdullah Naseem \nCo-Director (BTS): Asaad Bukhari\nDOP (BTS): Ahtisham Ahmed\nSecond unit DOP (BTS): Fawwad Hashmi\nEditor (BTS): Asaad Bukhari\nAssistant Editor (BTS): Talha Naseem\n\nSocial Content Creation: Aqsa Manzoor & Saboor Akram (boorayy_)\n\nStudio: Kenneyz Media City\n\nFocus Pullers: Waqas Younus \nCamera: Kenneyz Rental Gear\nRonin Operator: Shahzad Ali\nRonin Asst. : Navaid & Hasan\n\nDIT : Khayyam Baig\nCamera Team: Michael Aziz, Shahood Ansari , Hassan Rajput, Ayaz baig, Mustafa\n\nFinance Head: Amin Ullah\nAssistant Accountant: Abdul Samad \nHR: Maria Ashraf\nProduction Assistant: Sameer Nazim\n\nProduction: Dada Production \nLine Producer: Ghaffar Khan\nProduction Manager: Awais Rasool\nSpot Boys: Sattar Khan, Adeel Khokhar, Malik Dad, Junaid Rasool, M. Anis, Mohsin Ali, Sameer, Sabeer, M. Isaq, Adam Sager, Naveed, Faysal, Sharoon\n\nLIGHTS & GRIPS\nGaffer: Asif Hasan\n\nLights Rental: The Light Box \nSenior Technician: M Nawaz \nLight Incharge: Jan Muhmmad \nLight Staff: Saad, Kashif, Imran, Ali Hassan, Aliyan, Zubair Jameel, Daniyal, Mansoor, Kamran, Faqeer M, Jameel\n\nJimmy Jib: Amjad Tanoli\n\nLIGHT OPERATIONS & Speakers (Live Sound): Shadab lighting Company\n\nTRANSPORT\nAl Alam Transport\n\nCATERING\nCafeela\n\nMarketing Agency Partners:\nWPP StudioX:\nSoho Square Pakistan\nWPP Media\nKinetic \nLotus PR"
+        },
+        "defaultAudioLanguage": "ur"
+      },
+      "contentDetails": {
+        "duration": "PT4M9S",
+        "dimension": "2d",
+        "definition": "hd",
+        "caption": "true",
+        "licensedContent": true,
+        "regionRestriction": {
+          "blocked": [
+            "BY",
+            "RU"
+          ]
+        },
+        "contentRating": {},
+        "projection": "rectangular"
+      },
+      "statistics": {
+        "viewCount": "17614087",
+        "likeCount": "14753",
+        "favoriteCount": "0",
+        "commentCount": "1139"
+      }
+    },
+    {
+      "kind": "youtube#video",
+      "etag": "mc8osChTvpzLQacni8oP1mKkiOI",
+      "id": "gMHRwu9Nd_U",
+      "snippet": {
+        "publishedAt": "2026-09-30T12:00:42Z",
+        "channelId": "UCM1VesJtJ9vTXcMLLr_FfdQ",
+        "title": "Coke Studio Nu.WAV | Maheya | Coming Soon",
+        "description": "Maheya tere pyaar main #CokeStudioNuWAV",
+        "thumbnails": {},
+        "channelTitle": "Coke Studio Pakistan",
+        "tags": [
+          "coke studio",
+          "cocacola pakistan",
+          "coke studio pakistan",
+          "SoundOfTheNation",
+          "Xulfi",
+          "FusionMusic",
+          "Coke Studio Season 14",
+          "Season 14",
+          "Real Magic",
+          "Music",
+          "Coke Studio 14"
+        ],
+        "categoryId": "10",
+        "liveBroadcastContent": "none",
+        "defaultLanguage": "en",
+        "localized": {
+          "title": "Coke Studio Nu.WAV | Maheya | Coming Soon",
+          "description": "Maheya tere pyaar main #CokeStudioNuWAV"
+        },
+        "defaultAudioLanguage": "ur"
+      },
+      "contentDetails": {
+        "duration": "PT11S",
+        "dimension": "2d",
+        "definition": "hd",
+        "caption": "false",
+        "licensedContent": false,
+        "contentRating": {},
+        "projection": "rectangular"
+      },
+      "statistics": {
+        "viewCount": "58920",
+        "likeCount": "817",
+        "favoriteCount": "0",
+        "commentCount": "24"
+      }
+    },
+    {
+      "kind": "youtube#video",
+      "etag": "tzNNEnxYH6E99t9M9gpncM0q1bg",
+      "id": "jC5M1WbdWyU",
+      "snippet": {
+        "publishedAt": "2026-09-30T11:59:56Z",
+        "channelId": "UCM1VesJtJ9vTXcMLLr_FfdQ",
+        "title": "Coke Studio Nu.WAV | Maheya | Coming Soon",
+        "description": "Maheya tere pyaar main #CokeStudioNuWAV",
+        "thumbnails": {},
+        "channelTitle": "Coke Studio Pakistan",
+        "tags": [
+          "coke studio",
+          "cocacola pakistan",
+          "coke studio pakistan",
+          "SoundOfTheNation",
+          "Xulfi",
+          "FusionMusic",
+          "Coke Studio Season 14",
+          "Season 14",
+          "Real Magic",
+          "Music",
+          "Coke Studio 14"
+        ],
+        "categoryId": "10",
+        "liveBroadcastContent": "none",
+        "defaultLanguage": "en",
+        "localized": {
+          "title": "Coke Studio Nu.WAV | Maheya | Coming Soon",
+          "description": "Maheya tere pyaar main #CokeStudioNuWAV"
+        },
+        "defaultAudioLanguage": "ur"
+      },
+      "contentDetails": {
+        "duration": "PT11S",
+        "dimension": "2d",
+        "definition": "hd",
+        "caption": "false",
+        "licensedContent": false,
+        "contentRating": {},
+        "projection": "rectangular"
+      },
+      "statistics": {
+        "viewCount": "1190271",
+        "likeCount": "1260",
+        "favoriteCount": "0",
+        "commentCount": "81"
+      }
+    },
+    {
+      "kind": "youtube#video",
+      "etag": "yvB3yilZeC2tgaaR3cy-m0zAVyA",
+      "id": "qjVxGwH-OnI",
+      "snippet": {
+        "publishedAt": "2026-09-29T11:56:21Z",
+        "channelId": "UCM1VesJtJ9vTXcMLLr_FfdQ",
+        "title": "Rangeen | Wardrobe",
+        "description": "Rangeen Wardrobe by Faraz #CokeStudioNuWAV",
+        "thumbnails": {},
+        "channelTitle": "Coke Studio Pakistan",
+        "tags": [
+          "coke studio",
+          "cocacola pakistan",
+          "coke studio pakistan",
+          "SoundOfTheNation",
+          "Xulfi",
+          "FusionMusic",
+          "Coke Studio Season 14",
+          "Season 14",
+          "Real Magic",
+          "Music",
+          "Coke Studio 14"
+        ],
+        "categoryId": "10",
+        "liveBroadcastContent": "none",
+        "defaultLanguage": "en",
+        "localized": {
+          "title": "Rangeen | Wardrobe",
+          "description": "Rangeen Wardrobe by Faraz #CokeStudioNuWAV"
+        },
+        "defaultAudioLanguage": "ur"
+      },
+      "contentDetails": {
+        "duration": "PT46S",
+        "dimension": "2d",
+        "definition": "hd",
+        "caption": "false",
+        "licensedContent": false,
+        "contentRating": {},
+        "projection": "rectangular"
+      },
+      "statistics": {
+        "viewCount": "33056",
+        "likeCount": "770",
+        "favoriteCount": "0",
+        "commentCount": "4"
+      }
+    },
+    {
+      "kind": "youtube#video",
+      "etag": "3AUTrclnZJ13bmAde-9meZhnWv4",
+      "id": "WuSb_981cqk",
+      "snippet": {
+        "publishedAt": "2026-09-29T11:56:03Z",
+        "channelId": "UCM1VesJtJ9vTXcMLLr_FfdQ",
+        "title": "Title: Rangeen | Set Design",
+        "description": "Rangeen Set Design by Hashim Ali  #CokeStudioNuWAV",
+        "thumbnails": {},
+        "channelTitle": "Coke Studio Pakistan",
+        "tags": [
+          "coke studio",
+          "cocacola pakistan",
+          "coke studio pakistan",
+          "SoundOfTheNation",
+          "Xulfi",
+          "FusionMusic",
+          "Coke Studio Season 14",
+          "Season 14",
+          "Real Magic",
+          "Music",
+          "Coke Studio 14"
+        ],
+        "categoryId": "10",
+        "liveBroadcastContent": "none",
+        "defaultLanguage": "en",
+        "localized": {
+          "title": "Title: Rangeen | Set Design",
+          "description": "Rangeen Set Design by Hashim Ali  #CokeStudioNuWAV"
+        },
+        "defaultAudioLanguage": "ur"
+      },
+      "contentDetails": {
+        "duration": "PT40S",
+        "dimension": "2d",
+        "definition": "hd",
+        "caption": "false",
+        "licensedContent": false,
+        "contentRating": {},
+        "projection": "rectangular"
+      },
+      "statistics": {
+        "viewCount": "15577",
+        "likeCount": "540",
+        "favoriteCount": "0",
+        "commentCount": "11"
+      }
+    },
+    {
+      "kind": "youtube#video",
+      "etag": "tYDyHWllDiEnE4lqvMMzOnPfmV8",
+      "id": "kXNsoYOumD0",
+      "snippet": {
+        "publishedAt": "2026-09-29T11:55:44Z",
+        "channelId": "UCM1VesJtJ9vTXcMLLr_FfdQ",
+        "title": "Rangeen | Lights",
+        "description": "Rangeen Lights by Aamir Mughal #CokeStudioNuWAV",
+        "thumbnails": {},
+        "channelTitle": "Coke Studio Pakistan",
+        "tags": [
+          "coke studio",
+          "cocacola pakistan",
+          "coke studio pakistan",
+          "SoundOfTheNation",
+          "Xulfi",
+          "FusionMusic",
+          "Coke Studio Season 14",
+          "Season 14",
+          "Real Magic",
+          "Music",
+          "Coke Studio 14"
+        ],
+        "categoryId": "10",
+        "liveBroadcastContent": "none",
+        "defaultLanguage": "en",
+        "localized": {
+          "title": "Rangeen | Lights",
+          "description": "Rangeen Lights by Aamir Mughal #CokeStudioNuWAV"
+        },
+        "defaultAudioLanguage": "ur"
+      },
+      "contentDetails": {
+        "duration": "PT43S",
+        "dimension": "2d",
+        "definition": "hd",
+        "caption": "false",
+        "licensedContent": false,
+        "contentRating": {},
+        "projection": "rectangular"
+      },
+      "statistics": {
+        "viewCount": "8948",
+        "likeCount": "142",
+        "favoriteCount": "0",
+        "commentCount": "3"
+      }
+    },
+    {
+      "kind": "youtube#video",
+      "etag": "rebpZLMUa8XegUb1n283IRuFcV8",
+      "id": "23m1hFcrT84",
+      "snippet": {
+        "publishedAt": "2026-09-28T12:11:52Z",
+        "channelId": "UCM1VesJtJ9vTXcMLLr_FfdQ",
+        "title": "Rangeen | Characters",
+        "description": "Kashif, Akbar & Shallu on Rangeen set.  #CokeStudioNuWAV",
+        "thumbnails": {},
+        "channelTitle": "Coke Studio Pakistan",
+        "tags": [
+          "coke studio",
+          "cocacola pakistan",
+          "coke studio pakistan",
+          "SoundOfTheNation",
+          "Xulfi",
+          "FusionMusic",
+          "Coke Studio Season 14",
+          "Season 14",
+          "Real Magic",
+          "Music",
+          "Coke Studio 14"
+        ],
+        "categoryId": "10",
+        "liveBroadcastContent": "none",
+        "defaultLanguage": "en",
+        "localized": {
+          "title": "Rangeen | Characters",
+          "description": "Kashif, Akbar & Shallu on Rangeen set.  #CokeStudioNuWAV"
+        },
+        "defaultAudioLanguage": "ur"
+      },
+      "contentDetails": {
+        "duration": "PT46S",
+        "dimension": "2d",
+        "definition": "hd",
+        "caption": "false",
+        "licensedContent": false,
+        "contentRating": {},
+        "projection": "rectangular"
+      },
+      "statistics": {
+        "viewCount": "18031",
+        "likeCount": "455",
+        "favoriteCount": "0",
+        "commentCount": "3"
+      }
+    }
+  ],
+  "pageInfo": {
+    "totalResults": 12,
+    "resultsPerPage": 12
+  }
+}

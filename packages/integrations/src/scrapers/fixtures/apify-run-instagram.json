@@ -1,0 +1,35 @@
+{
+  "status": "SUCCEEDED",
+  "usageTotalUsd": 0,
+  "chargedEventCounts": {
+    "profile": 1,
+    "about-account": 0
+  },
+  "pricingInfo": {
+    "minimalMaxTotalChargeUsd": 0.0026,
+    "pricingModel": "PAY_PER_EVENT",
+    "isPriceChangeNotificationSuppressed": true,
+    "createdAt": "2026-02-17T17:10:00.438Z",
+    "startedAt": "2026-02-17T17:10:00.438Z",
+    "apifyMarginPercentage": 0.2,
+    "pricingPerEvent": {
+      "actorChargeEvents": {
+        "profile": {
+          "eventTitle": "Profile",
+          "eventDescription": "Each profile written to the dataset.",
+          "isOneTimeEvent": false,
+          "isPrimaryEvent": true,
+          "eventPriceUsd": 0.0026
+        },
+        "about-account": {
+          "eventTitle": "Add-on: About account",
+          "eventDescription": "Extra cost per profile scraped with account information. This includes the date joined and the country of the account. Be aware that the county is scraped only if the user filled in this information.",
+          "isOneTimeEvent": false,
+          "eventPriceUsd": 0.007
+        }
+      }
+    }
+  },
+  "defaultDatasetId": "dataset-1",
+  "id": "run-1"
+}

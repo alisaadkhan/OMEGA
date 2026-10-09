@@ -131,7 +131,7 @@ Emails/phones from business-contact fields → trust `likely`; from the bio text
 | `GET /v1/discovery/jobs/:id` | `{ id, kind, status, step, outcome, creatorId, error: { code, message } | null, createdAt, finishedAt }`. |
 | `GET /v1/discovery/jobs?active=true` | This workspace's queued/running jobs and those finished in the last 10 minutes. |
 
-Changes to sub-project 3 routes: `GET /v1/creators/lookup` adds `addable: { platform, handle, url, cost }` (cost 30 for TikTok, 10 otherwise) when the query is a supported profile link with no match. `GET /v1/creators/:id` adds `refreshCost`, `refreshJob` (`{ id, step }` | null), `linkedAccounts[]`, `lastScrapedAt`, and authenticity statuses `pending` and `insufficient_data`.
+Changes to sub-project 3 routes: `GET /v1/creators/lookup` adds `addable: { platform, handle, url, cost }` (cost 30 for TikTok, 10 otherwise) when the query is a supported profile link with no match. `GET /v1/creators/:id` adds `refreshCost`, `linkedAccounts[]`, `lastScrapedAt`, and authenticity statuses `pending` and `insufficient_data`. A running refresh is found from `GET /v1/discovery/jobs?active=true` (the creators module may not read the discovery module's jobs table, SRS §5.4), so the profile carries no `refreshJob`.
 
 The `discovery` module owns `wp.discovery_jobs`; it calls the `creators` module only through `creators/index.ts` and billing only through `billing/index.ts` (SRS §5.4).
 

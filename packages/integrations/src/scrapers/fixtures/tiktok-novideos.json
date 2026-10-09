@@ -1,0 +1,32 @@
+[
+  {
+    "authorMeta": {
+      "id": "7238582066269520902",
+      "name": "cokestudio",
+      "profileUrl": "https://www.tiktok.com/@cokestudio",
+      "nickName": "cokestudio",
+      "verified": false,
+      "signature": "",
+      "bioLink": null,
+      "avatar": "https://example.invalid/avatars/empty.jpg",
+      "commerceUserInfo": {
+        "commerceUser": false
+      },
+      "privateAccount": false,
+      "roomId": "",
+      "ttSeller": false,
+      "createTime": 1685524872,
+      "hasActiveStory": false,
+      "following": 0,
+      "friends": 0,
+      "fans": 7,
+      "heart": 0,
+      "video": 0,
+      "digg": 0,
+      "followDatasetUrl": null,
+      "originalAvatarUrl": "https://example.invalid/avatars/empty.jpg"
+    },
+    "input": "cokestudio",
+    "note": "Profile has no videos (or is behind a login wall)"
+  }
+]

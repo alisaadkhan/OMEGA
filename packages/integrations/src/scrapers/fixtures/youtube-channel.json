@@ -1,0 +1,56 @@
+{
+  "kind": "youtube#channelListResponse",
+  "etag": "egBcoLI-sCfnoxt6M4AwrGNThQU",
+  "pageInfo": {
+    "totalResults": 1,
+    "resultsPerPage": 5
+  },
+  "items": [
+    {
+      "kind": "youtube#channel",
+      "etag": "wkMlL5gR059FMbcBf9QWjVy6uI4",
+      "id": "UCM1VesJtJ9vTXcMLLr_FfdQ",
+      "snippet": {
+        "title": "Coke Studio Pakistan",
+        "description": "Sound of the Nation (2008-Present)\nDiscover our stories at:\n",
+        "customUrl": "@cokestudio",
+        "publishedAt": "2014-08-07T12:57:10Z",
+        "thumbnails": {
+          "high": {
+            "url": "https://example.invalid/avatars/cokestudio-yt.jpg"
+          }
+        },
+        "localized": {
+          "title": "Coke Studio Pakistan",
+          "description": "Sound of the Nation (2008-Present)\nDiscover our stories at:\n"
+        },
+        "country": "PK"
+      },
+      "contentDetails": {
+        "relatedPlaylists": {
+          "likes": "",
+          "uploads": "UUM1VesJtJ9vTXcMLLr_FfdQ"
+        }
+      },
+      "statistics": {
+        "viewCount": "6922611128",
+        "subscriberCount": "17800000",
+        "hiddenSubscriberCount": false,
+        "videoCount": "804"
+      },
+      "brandingSettings": {
+        "channel": {
+          "title": "Coke Studio Pakistan",
+          "description": "Sound of the Nation (2008-Present)\nDiscover our stories at:\n",
+          "keywords": "\"coke studio\" \"coke studio explorer. coke songs\" \"pakistani music\" \"pakistani songs\" \"coke pakistan\" \"pakistan music\" \"pakistan top music\" \"pakistani top songs\" \"atif aslam\" \"momina mustehsan\" qb \"rahat fateh\" \"rahat fateh ali\" \"best songs pakistani\" \"best songs pakistan\" \"best music pakistan\" \"afreen afreen\" \"tajdar e haram\" \"coke ads\" \"coke music\" cs baazi \"asim azhar\" \"aima baig\" \"momina songs\" \"momina music\" \"atif alsam songs\" \"qb songs\" \"gul panra\" \"coke studio\" CS \"Coke studio 12\"",
+          "trackingAnalyticsAccountId": "UA-122929624-1",
+          "unsubscribedTrailer": "ghajr4DFmSY",
+          "country": "PK"
+        },
+        "image": {
+          "bannerExternalUrl": "https://yt3.googleusercontent.com/dKXTOyRx59TQQ8Arpwd2kq1h94Vfz2pMCpq5FuP41mXYuXhwevdRZM7VgQ4-NeueYkx_48iJ_g"
+        }
+      }
+    }
+  ]
+}
