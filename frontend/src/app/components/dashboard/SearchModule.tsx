@@ -29,6 +29,7 @@ import {
   Clock,
 } from "lucide-react";
 import { CreatorProfilePanel, type Creator } from "./CreatorProfilePanel";
+import { AddByLinkDialog } from "./AddByLinkDialog";
 import { Compare } from "./Compare";
 import type { SearchFilters, SearchRequest } from "@mushin/contracts";
 import { useCreateSavedSearch, useCreatorSearch, useInterpret, useSavedSearches } from "../../api/search";
@@ -91,6 +92,8 @@ export function SearchModule() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [profileId, setProfileId] = useState<string | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const [linkCreator, setLinkCreator] = useState<Creator | null>(null);
   const [mode, setMode] = useState<"fast" | "live">("fast");
   const [creditConfirmOpen, setCreditConfirmOpen] = useState(false);
   const [showInterpret, setShowInterpret] = useState(true);
@@ -567,13 +570,15 @@ export function SearchModule() {
       <div className="min-h-[420px]">
         {status === "loading" && <ResultsSkeleton view={view} />}
         {status === "error" && <ErrorState message={searchErrorMessage(search.error)} onRetry={() => void search.refetch()} />}
-        {status === "empty" && <EmptyResults onReset={resetSearch} />}
+        {status === "empty" && <EmptyResults onReset={resetSearch} onAddByLink={() => setAddOpen(true)} />}
 
         {(status === "results" || status === "streaming") && (
           <div className="space-y-3">
             {search.data?.fewResults && (
-              <p className="text-xs text-slate-500">
-                Only a few creators match. Try widening the filters — finding new creators live and adding a creator by profile link arrive in the next update.
+              <p className="flex flex-wrap items-center gap-1 text-xs text-slate-500">
+                Only a few creators match. Widen the filters or
+                <button onClick={() => setAddOpen(true)} className="text-indigo-600 hover:text-indigo-700" style={{ fontWeight: 600 }}>add a creator by profile link</button>.
+                Finding new creators live arrives in the next update.
               </p>
             )}
             <div className="flex items-center justify-between text-xs text-slate-500">
@@ -706,10 +711,15 @@ export function SearchModule() {
         onSavePreset={savePreset}
       />
 
+      <AddByLinkDialog open={addOpen} onClose={() => setAddOpen(false)} onOpenCreator={setLinkCreator} />
+
       {/* Creator profile panel (Vol 4B) */}
       <CreatorProfilePanel
-        creator={activeProfile}
-        onClose={() => setProfileId(null)}
+        creator={activeProfile ?? linkCreator}
+        onClose={() => {
+          setProfileId(null);
+          setLinkCreator(null);
+        }}
         onCompare={(c) => {
           setSelected((prev) => new Set(prev).add(c.id));
           setProfileId(null);
@@ -1025,7 +1035,7 @@ function ResultsSkeleton({ view }: { view: ViewMode }) {
   );
 }
 
-function EmptyResults({ onReset }: { onReset: () => void }) {
+function EmptyResults({ onReset, onAddByLink }: { onReset: () => void; onAddByLink: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/40 px-6 py-16 text-center">
       <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-slate-500 shadow-sm ring-1 ring-slate-200">
@@ -1035,14 +1045,14 @@ function EmptyResults({ onReset }: { onReset: () => void }) {
         No creators match your filters
       </div>
       <p className="mt-1 max-w-sm text-sm text-slate-500">
-        No creators match these filters yet. Widen the filters, or check back soon: finding new creators live and adding a creator by profile link arrive in the next update.
+        No creators match these filters yet. Widen the filters, or add a creator you know by their profile link. Finding new creators live arrives in the next update.
       </p>
       <div className="mt-4 flex gap-2">
         <button onClick={onReset} className="rounded-md bg-slate-900 px-3 py-1.5 text-xs text-white hover:bg-slate-800" style={{ fontWeight: 500 }}>
           Reset filters
         </button>
-        <button className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50" style={{ fontWeight: 500 }}>
-          Try suggested template
+        <button onClick={onAddByLink} className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50" style={{ fontWeight: 500 }}>
+          Add by profile link
         </button>
       </div>
     </div>

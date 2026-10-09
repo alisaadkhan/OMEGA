@@ -3,6 +3,8 @@ import { X, Instagram, Youtube, Music2, MapPin, Mail, Phone, Sparkles, ShieldChe
 import { useState } from "react";
 import type { AudienceData } from "@mushin/contracts";
 import { FreshnessBadge, SourceBadge, ContactTrustBadge, contactTrustNote, Unavailable, Spinner } from "./states";
+import { useActiveJobs, useStartJob } from "../../api/discovery";
+import { isOpenJob, jobStatusText } from "../../api/discovery-mapping";
 import { useCreatorAudience, useCreatorProfile, useRevealContact } from "../../api/search";
 import { formatCount, uiTrust } from "../../api/search-mapping";
 import { useConfirm, useToast } from "../../lib/toast";
@@ -80,6 +82,29 @@ export function CreatorProfilePanel({ creator, onClose, onCompare }: { creator: 
   const toast = useToast();
   const p = profile.data;
   const primary = p?.profiles[0];
+  const start = useStartJob();
+  const jobs = useActiveJobs();
+  const refreshing = jobs.data?.jobs.find((j) => j.kind === "refresh" && j.creatorId === id && isOpenJob(j)) ?? null;
+
+  async function onRefresh() {
+    if (!p || !id) return;
+    const ok = await confirm({
+      title: `Refresh @${p.handle}'s data for ${p.refreshCost} credits?`,
+      body: "MUSHIN fetches their latest public numbers and assesses them again. If it fails, the credits are returned.",
+      confirmLabel: `Refresh for ${p.refreshCost} credits`,
+      cancelLabel: "Not now",
+    });
+    if (!ok) return;
+    start.mutate(
+      { kind: "refresh", creatorId: id, confirmedCost: p.refreshCost },
+      {
+        onSuccess: (r) => {
+          if (r.status === "up_to_date") toast.info("Already up to date", `Updated ${relative(r.updatedAt)}. No credits used.`);
+        },
+        onError: (err) => toast.error("Couldn't refresh this creator", err instanceof Error ? err.message : undefined),
+      },
+    );
+  }
 
   async function onReveal() {
     if (!p) return;
@@ -162,6 +187,13 @@ export function CreatorProfilePanel({ creator, onClose, onCompare }: { creator: 
                       {p?.tags.map((t) => (
                         <span key={t} className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600">{t}</span>
                       ))}
+                      {p?.linkedAccounts
+                        .filter((l) => l.url.startsWith("https://") || l.url.startsWith("http://"))
+                        .map((l) => (
+                          <a key={l.url} href={l.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 rounded-full border border-slate-200 px-2 py-0.5 text-slate-600 hover:text-indigo-600">
+                            {l.platform === "website" ? "Website" : (l.platform[0]?.toUpperCase() ?? "") + l.platform.slice(1)} <ExternalLink className="h-2.5 w-2.5" />
+                          </a>
+                        ))}
                       {primary && <FreshnessBadge value={primary.freshness.followers} updated={relative(primary.updatedAt.followers)} />}
                     </div>
                   </div>
@@ -222,7 +254,11 @@ export function CreatorProfilePanel({ creator, onClose, onCompare }: { creator: 
                             </>
                           ) : (
                             <p className="text-[11px] text-slate-500">
-                              Not yet assessed. The authenticity score appears once MUSHIN has analysed this creator, always with the evidence behind it.
+                              {p.authenticity.status === "pending"
+                                ? "Assessment pending. MUSHIN is analysing this creator; check back in a few minutes."
+                                : p.authenticity.status === "insufficient_data"
+                                  ? "Not enough recent posts to assess. MUSHIN needs at least 3 recent posts with public likes."
+                                  : "Not yet assessed. The authenticity score appears once MUSHIN has analysed this creator, always with the evidence behind it."}
                             </p>
                           )}
                         </div>
@@ -322,13 +358,14 @@ export function CreatorProfilePanel({ creator, onClose, onCompare }: { creator: 
 
               <div className="border-t border-slate-100 px-6 py-3">
                 <div className="flex items-center justify-between text-xs text-slate-500">
-                  <span>Last updated {primary ? relative(primary.updatedAt.followers) : "—"}</span>
+                  <span>{refreshing ? jobStatusText(refreshing) : `Last updated ${relative(p?.lastScrapedAt ?? null)}`}</span>
                   <button
-                    onClick={() => toast.info("Refreshing creator data arrives in the next update.")}
-                    className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-indigo-600 transition-colors hover:bg-slate-50"
+                    onClick={() => void onRefresh()}
+                    disabled={!p || refreshing !== null || start.isPending}
+                    className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-indigo-600 transition-colors hover:bg-slate-50 disabled:opacity-60"
                     style={{ fontWeight: 500 }}
                   >
-                    <RefreshCw className="h-3 w-3" strokeWidth={2} /> Update info
+                    <RefreshCw className={`h-3 w-3 ${refreshing ? "animate-spin" : ""}`} strokeWidth={2} /> {refreshing ? "Refreshing…" : `Update info · ${p?.refreshCost ?? "—"} credits`}
                   </button>
                 </div>
               </div>

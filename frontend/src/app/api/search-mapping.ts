@@ -208,3 +208,8 @@ export function uiTrust(trust: string): ContactTrust {
   if (trust === "likely") return "contactable";
   return "unverified";
 }
+
+/** Opens the profile panel for a creator known only by id (job results, add-by-link); the panel loads the rest. */
+export function creatorStub(id: string, platform: Creator["platform"], handle: string): Creator {
+  return matchToCreator({ id, displayName: `@${handle}`, handle, platform, avatarUrl: null });
+}

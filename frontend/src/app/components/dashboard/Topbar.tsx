@@ -7,7 +7,8 @@ import { useBillingSummary } from "../../api/billing";
 import { NotificationCenter } from "./NotificationCenter";
 import type { DashView } from "./Sidebar";
 import { Logo } from "../landing/Logo";
-import type { LookupResponse } from "@mushin/contracts";
+import type { Creator } from "./CreatorProfilePanel";
+import { JobTray } from "./JobTray";
 import { Omnibar } from "./Omnibar";
 
 type Props = {
@@ -15,7 +16,7 @@ type Props = {
   view: DashView;
   setView: (v: DashView) => void;
   onExit: () => void;
-  onOpenCreator: (m: LookupResponse["matches"][number]) => void;
+  onOpenCreator: (c: Creator) => void;
 };
 
 const MENU: { id: DashView; label: string; icon: any }[] = [
@@ -53,6 +54,7 @@ export function Topbar({ credits, view, setView, onExit, onOpenCreator }: Props)
       <div className="hidden sm:block"><Omnibar onOpen={onOpenCreator} /></div>
 
       <div className="flex items-center gap-3">
+        <JobTray onOpenCreator={onOpenCreator} />
         <button
           onClick={() => go("billing")}
           title={METER_STYLES[meter].title}
