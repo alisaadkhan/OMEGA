@@ -8,8 +8,15 @@ module.exports = {
       from: { path: "^apps/api/src/modules/([^/]+)/" },
       to: {
         path: "^apps/api/src/modules/[^/]+/",
-        pathNot: ["^apps/api/src/modules/$1/", "^apps/api/src/modules/[^/]+/index\\.ts$"],
+        pathNot: ["^apps/api/src/modules/$1/", "^apps/api/src/modules/[^/]+/index\\.ts$", "^apps/api/src/modules/[^/]+/test-fixtures\\.ts$"],
       },
+    },
+    {
+      name: "test-fixtures-only-in-tests",
+      comment: "A module's test-fixtures.ts may be shared with other modules' tests, never with running code.",
+      severity: "error",
+      from: { pathNot: ["\\.test\\.ts$", "test-fixtures\\.ts$"] },
+      to: { path: "^apps/api/src/modules/[^/]+/test-fixtures\\.ts$" },
     },
     {
       name: "no-module-internals-from-outside",

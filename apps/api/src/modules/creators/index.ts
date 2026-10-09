@@ -18,5 +18,5 @@ export function createCreatorsModule(o: { service: CreatorsService; limiter: Rat
 export { createEnrichmentPipeline } from "./enrichment/pipeline";
 export type { EnrichHooks, EnrichJob, EnrichmentPipeline, EnrichResult, SavedResult } from "./enrichment/pipeline";
 export { findProfileByUrl, getEnrichmentSettings, profileTarget } from "./enrichment/repository";
-export { normalizeProfileUrl } from "./rules";
+export { normalizeProfileUrl, refreshActionFor } from "./rules";
 export type { CreatorPlatform } from "./rules";

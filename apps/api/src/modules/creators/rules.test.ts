@@ -201,6 +201,10 @@ describe("contacts, months, URLs and minors", () => {
     expect(normalizeProfileUrl("https://m.youtube.com/@TechUrdu/videos")).toEqual({ platform: "youtube", canonicalUrl: "https://youtube.com/@techurdu" });
     expect(normalizeProfileUrl("Ayesha Khan")).toBeNull();
     expect(normalizeProfileUrl("https://example.com/ayesha")).toBeNull();
+    // Post, reel and app pages are not profiles: adding one would charge for scraping a handle like "p".
+    for (const page of ["instagram.com/p/Dd_0JNUslzh", "https://www.instagram.com/reel/C1x2y3/", "instagram.com/reels/abc", "instagram.com/stories/sana/1", "instagram.com/explore/tags/bridal", "instagram.com/tv/abc", "instagram.com/accounts/login"]) {
+      expect(normalizeProfileUrl(page), page).toBeNull();
+    }
   });
 
   it("protects possible minors unless staff overrode the flag", () => {

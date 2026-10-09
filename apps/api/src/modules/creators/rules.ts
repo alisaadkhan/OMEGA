@@ -226,6 +226,9 @@ export function sourceHash(s: SummarySource): string {
 
 export type CreatorPlatform = (typeof PLATFORMS)[number];
 
+/** Instagram paths that are posts or app pages, not profiles. */
+const INSTAGRAM_PAGES = new Set(["p", "reel", "reels", "tv", "stories", "explore", "accounts", "direct", "about", "legal", "developer", "web", "challenge", "emails", "session", "privacy"]);
+
 /** Canonical profile URL as stored in gcp.creator_profiles.canonical_url, or null when it is not a supported profile URL. */
 export function normalizeProfileUrl(input: string): { platform: CreatorPlatform; canonicalUrl: string } | null {
   let url: URL;
@@ -237,7 +240,7 @@ export function normalizeProfileUrl(input: string): { platform: CreatorPlatform;
   const host = url.hostname.toLowerCase().replace(/^(www\.|m\.)/, "");
   const first = url.pathname.split("/").filter(Boolean)[0]?.toLowerCase();
   if (!first) return null;
-  if (host === "instagram.com" && /^[a-z0-9._]{1,30}$/.test(first)) return { platform: "instagram", canonicalUrl: `https://instagram.com/${first}` };
+  if (host === "instagram.com" && /^[a-z0-9._]{1,30}$/.test(first) && !INSTAGRAM_PAGES.has(first)) return { platform: "instagram", canonicalUrl: `https://instagram.com/${first}` };
   if (host === "tiktok.com" && /^@[a-z0-9._]{1,30}$/.test(first)) return { platform: "tiktok", canonicalUrl: `https://tiktok.com/${first}` };
   if (host === "youtube.com" && /^@[a-z0-9._-]{1,100}$/.test(first)) return { platform: "youtube", canonicalUrl: `https://youtube.com/${first}` };
   return null;
@@ -246,4 +249,9 @@ export function normalizeProfileUrl(input: string): { platform: CreatorPlatform;
 /** SRS §5.5: only MUSHIN staff can lift the possible-minor protection. */
 export function isMinorProtected(c: { isMinor: boolean; minorOverrideByStaffId: string | null }): boolean {
   return c.isMinor && c.minorOverrideByStaffId === null;
+}
+
+/** TikTok is billed per video by Apify, so adding or refreshing it has its own price (spec D4). */
+export function refreshActionFor(platform: CreatorPlatform): "refresh_data" | "refresh_tiktok" {
+  return platform === "tiktok" ? "refresh_tiktok" : "refresh_data";
 }
