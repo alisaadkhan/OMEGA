@@ -105,6 +105,9 @@ function isoCountry(v: string | null | undefined): string | undefined {
   return regionNames.of(code) ? code : undefined;
 }
 
+/** A real ISO 3166-1 alpha-2 code (upper-cased) or undefined. */
+export const isoCountryCode = isoCountry;
+
 function range(min: number | null | undefined, max: number | null | undefined, lo: number, hi: number, integer: boolean) {
   const ok = (n: number | null | undefined): n is number => typeof n === "number" && Number.isFinite(n) && n >= lo && n <= hi;
   const fix = (n: number) => (integer ? Math.round(n) : Math.round(n * 100) / 100);
