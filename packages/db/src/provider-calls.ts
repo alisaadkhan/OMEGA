@@ -27,3 +27,14 @@ export async function providerSpendSince(db: Db, provider: string, since: Date):
   );
   return Number(rows[0]?.total ?? 0);
 }
+
+/** Successful calls to one provider since a moment (the Serper monthly search limit, spec §4.4). Worker role only. */
+export async function providerCallsSince(db: Db, provider: string, since: Date): Promise<number> {
+  const rows = await db.withSystem((tx) =>
+    tx
+      .select({ n: sql<string>`count(*)` })
+      .from(providerCalls)
+      .where(and(eq(providerCalls.provider, provider), eq(providerCalls.status, "ok"), gte(providerCalls.createdAt, since))),
+  );
+  return Number(rows[0]?.n ?? 0);
+}

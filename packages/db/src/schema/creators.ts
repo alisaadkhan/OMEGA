@@ -222,3 +222,23 @@ export const enrichmentSettings = platform.table("enrichment_settings", {
   modelVersion: text("model_version").notNull(),
   updatedAt: ts("updated_at").notNull().defaultNow(),
 });
+
+export const removalRequests = gcp.table("removal_requests", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  urls: text("urls").array().notNull(),
+  creatorId: uuid("creator_id"),
+  requesterEmailEncrypted: text("requester_email_encrypted"),
+  reason: text("reason"),
+  status: text("status", { enum: ["received", "processed", "rejected"] }).notNull().default("received"),
+  staffNote: text("staff_note"),
+  handledByStaffId: uuid("handled_by_staff_id"),
+  createdAt: ts("created_at").notNull().defaultNow(),
+  processedAt: ts("processed_at"),
+});
+
+export const creatorSuppressions = gcp.table("creator_suppressions", {
+  urlHash: text("url_hash").primaryKey(),
+  platform: text("platform", { enum: platformEnum }).notNull(),
+  removalRequestId: uuid("removal_request_id"),
+  createdAt: ts("created_at").notNull().defaultNow(),
+});

@@ -59,10 +59,13 @@ export function createDiscoveryRunner(deps: Deps) {
   async function run(jobId: string, workspaceId: string): Promise<void> {
     const job = await deps.db.withWorkspace(workspaceId, (tx) => repo.startAttempt(tx, workspaceId, jobId));
     if (!job) return;
+    // Profile jobs always carry their profile (CHECK discovery_jobs_shape); live runs have their own runner.
+    const { platform, handle, canonicalUrl } = job;
+    if (!platform || !handle || !canonicalUrl) throw new Error(`discovery job ${jobId} is not a profile job`);
     const actor = { userId: job.requestedBy, requestId: job.requestId };
     try {
       const result = await deps.pipeline.enrich(
-        { jobId: job.id, workspaceId, platform: job.platform, handle: job.handle, canonicalUrl: job.canonicalUrl, requestId: job.requestId },
+        { jobId: job.id, workspaceId, platform, handle, canonicalUrl, requestId: job.requestId },
         {
           onStep: (step) =>
             deps.db.withWorkspace(workspaceId, async (tx) => {

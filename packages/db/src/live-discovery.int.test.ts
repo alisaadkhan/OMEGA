@@ -1,0 +1,70 @@
+import { randomUUID } from "node:crypto";
+import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { sql } from "drizzle-orm";
+import { createTestDatabase, createTestWorkspace, dbError, ownerQuery, resetTables } from "./testing";
+import { providerCallsSince } from "./provider-calls";
+
+const db = createTestDatabase();
+beforeEach(resetTables);
+afterAll(() => db.close());
+
+async function creator(): Promise<string> {
+  const [c] = await ownerQuery<{ id: string }>(`insert into gcp.creators (display_name, primary_handle, primary_platform) values ('C', 'c_${randomUUID().slice(0, 6)}', 'instagram') returning id`);
+  return c?.id ?? "";
+}
+
+async function liveJob(workspaceId: string, userId: string, hash = "a".repeat(64)): Promise<string> {
+  const [j] = await ownerQuery<{ id: string }>(`insert into wp.discovery_jobs (workspace_id, kind, requested_by, cost, search, max_new, search_hash, prices)
+    values ('${workspaceId}', 'live', '${userId}', 112, '{"text":"","filters":{}}', 10, '${hash}', '{"search":12,"instagram":10,"tiktok":30,"youtube":10}') returning id`);
+  return j?.id ?? "";
+}
+
+describe("migration 0012", () => {
+  it("allows live jobs without a profile, but not profile jobs without one", async () => {
+    const ws = await createTestWorkspace();
+    expect(await liveJob(ws.workspaceId, ws.userId)).toMatch(/^[0-9a-f-]{36}$/);
+    await expect(ownerQuery(`insert into wp.discovery_jobs (workspace_id, kind, requested_by, cost) values ('${ws.workspaceId}', 'add_by_url', '${ws.userId}', 10)`)).rejects.toSatisfy(dbError(/discovery_jobs_shape/));
+    await expect(liveJob(ws.workspaceId, ws.userId)).rejects.toSatisfy(dbError(/discovery_jobs_one_open_live/));
+  });
+
+  it("keeps each workspace's results private (RLS) and lets only the worker write them", async () => {
+    const a = await createTestWorkspace();
+    const b = await createTestWorkspace();
+    const job = await liveJob(a.workspaceId, a.userId);
+    const c = await creator();
+    await db.withWorkspace(a.workspaceId, (tx) => tx.execute(sql`insert into wp.discovery_results (workspace_id, job_id, creator_id, seq, is_new) values (${a.workspaceId}, ${job}, ${c}, 1, true)`));
+    expect(await db.withTenant(a, (tx) => tx.execute(sql`select id from wp.discovery_results`))).toHaveLength(1);
+    expect(await db.withTenant(b, (tx) => tx.execute(sql`select id from wp.discovery_results`))).toHaveLength(0);
+    await expect(db.withTenant(a, (tx) => tx.execute(sql`insert into wp.discovery_results (workspace_id, job_id, creator_id, seq, is_new) values (${a.workspaceId}, ${job}, ${c}, 2, false)`))).rejects.toThrow();
+  });
+
+  it("stores only 64-character hashes on the do-not-re-add list", async () => {
+    await expect(ownerQuery(`insert into gcp.creator_suppressions (url_hash, platform) values ('https://instagram.com/x', 'instagram')`)).rejects.toThrow();
+    await ownerQuery(`insert into gcp.creator_suppressions (url_hash, platform) values ('${"a".repeat(64)}', 'instagram')`);
+  });
+
+  it("erases a creator's workspace rows in every workspace through the worker-only function", async () => {
+    const a = await createTestWorkspace();
+    const b = await createTestWorkspace();
+    const c = await creator();
+    for (const ws of [a, b]) {
+      await ownerQuery(`insert into wp.audience_views (workspace_id, creator_id, month, viewed_by) values ('${ws.workspaceId}', '${c}', date_trunc('month', now())::date, '${ws.userId}')`);
+    }
+    await db.withSystem((tx) => tx.execute(sql`select platform.erase_creator_workspace_rows(${c})`));
+    expect(await ownerQuery(`select 1 from wp.audience_views where creator_id = '${c}'`)).toEqual([]);
+    await expect(db.withTenant(a, (tx) => tx.execute(sql`select platform.erase_creator_workspace_rows(${c})`))).rejects.toSatisfy(dbError(/permission denied/));
+  });
+
+  it("lets a workspace delete its own contact reveal", async () => {
+    const ws = await createTestWorkspace();
+    const c = await creator();
+    await ownerQuery(`insert into wp.contact_reveals (workspace_id, creator_id, revealed_by) values ('${ws.workspaceId}', '${c}', '${ws.userId}')`);
+    await db.withTenant(ws, (tx) => tx.execute(sql`delete from wp.contact_reveals where creator_id = ${c}`));
+    expect(await ownerQuery(`select 1 from wp.contact_reveals`)).toEqual([]);
+  });
+
+  it("counts a provider's successful calls since a moment (the Serper monthly limit)", async () => {
+    await ownerQuery(`insert into platform.provider_calls (provider, operation, cost_usd, latency_ms, status) values ('serper', 'web_search', 0.001, 5, 'ok'), ('serper', 'web_search', 0, 5, 'error'), ('apify', 'x', 1, 5, 'ok')`);
+    expect(await providerCallsSince(db, "serper", new Date(Date.now() - 60_000))).toBe(1);
+  });
+});

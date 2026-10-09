@@ -28,8 +28,10 @@ import {
   enrichmentSettings,
   profileMetricSnapshots,
   rawPayloads,
+  creatorSuppressions,
+  removalRequests,
 } from "./creators";
-import { discoveryJobs } from "./discovery";
+import { discoveryJobs, discoveryResults, serperCache } from "./discovery";
 import { users, workspaceMembers, workspaces } from "./identity";
 import { idempotencyKeys, outbox, providerCalls } from "./platform";
 import { auditLog, staffSessions, staffUsers } from "./staff";
@@ -80,4 +82,8 @@ export const ALL_TABLES = [
   creatorLinks,
   rawPayloads,
   enrichmentSettings,
+  discoveryResults,
+  serperCache,
+  removalRequests,
+  creatorSuppressions,
 ];
