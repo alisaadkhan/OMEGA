@@ -94,6 +94,20 @@ describe("profile", () => {
     const events = await ownerQuery<{ n: number }>(`select count(*)::int n from platform.outbox where event_type = 'creator.summary_requested'`);
     expect(events[0]?.n).toBe(0);
   });
+
+  it("shows the refresh price, linked accounts, last scrape and pending or insufficient assessments", async () => {
+    const id = await addCreator(db, { primaryPlatform: "tiktok", profiles: [{ platform: "tiktok", handle: "tt_one" }] });
+    await ownerQuery(`insert into gcp.creator_links (creator_id, platform, url, source) values ('${id}', 'website', 'https://tt.one', 'bio');
+      update gcp.creators set assessment_status = 'pending' where id = '${id}';`);
+    const p = await creators.profile(await trialCustomer(), id);
+    expect(p).toMatchObject({ refreshCost: 30, linkedAccounts: [{ platform: "website", url: "https://tt.one" }], authenticity: { status: "pending" } });
+    expect(p.lastScrapedAt).not.toBeNull();
+    await ownerQuery(`update gcp.creators set assessment_status = 'insufficient_data' where id = '${id}'`);
+    expect((await creators.profile(await trialCustomer(), id)).authenticity).toEqual({ status: "insufficient_data" });
+    const minor = await addCreator(db, { isMinor: true });
+    await ownerQuery(`insert into gcp.creator_links (creator_id, platform, url, source) values ('${minor}', 'website', 'https://minor.example', 'bio')`);
+    expect((await creators.profile(await trialCustomer(), minor)).linkedAccounts).toEqual([]);
+  });
 });
 
 describe("estimated audience (spec D5)", () => {

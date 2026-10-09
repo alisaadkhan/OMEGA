@@ -4,6 +4,7 @@ import {
   audienceViews,
   contactReveals,
   creatorContacts,
+  creatorLinks,
   creatorProfiles,
   creators,
   enrichmentSnapshots,
@@ -120,6 +121,7 @@ export type CreatorRow = Pick<
   | "minorOverrideByStaffId"
   | "status"
   | "mergedIntoId"
+  | "assessmentStatus"
 >;
 
 export async function getCreator(tx: Tx, id: string): Promise<CreatorRow | null> {
@@ -146,11 +148,22 @@ export async function getCreator(tx: Tx, id: string): Promise<CreatorRow | null>
       minorOverrideByStaffId: creators.minorOverrideByStaffId,
       status: creators.status,
       mergedIntoId: creators.mergedIntoId,
+      assessmentStatus: creators.assessmentStatus,
     })
     .from(creators)
     .where(eq(creators.id, id))
     .limit(1);
   return rows[0] ?? null;
+}
+
+/** Other accounts and websites found in the creator's bio (recorded, merged later: spec D7). */
+export function linkedAccounts(tx: Tx, creatorId: string) {
+  return tx
+    .select({ platform: creatorLinks.platform, url: creatorLinks.url })
+    .from(creatorLinks)
+    .where(eq(creatorLinks.creatorId, creatorId))
+    .orderBy(creatorLinks.firstSeenAt)
+    .limit(10);
 }
 
 export type ProfileRow = typeof creatorProfiles.$inferSelect;

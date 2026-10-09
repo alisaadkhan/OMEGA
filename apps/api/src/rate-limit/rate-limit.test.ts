@@ -10,6 +10,7 @@ const buckets: RateLimitBuckets = {
   user: { limit: 2, windowSeconds: 60 },
   auth: { limit: 1, windowSeconds: 60 },
   ai: { limit: 1, windowSeconds: 60 },
+  jobs: { limit: 1, windowSeconds: 3600 },
 };
 
 describe("MemoryRateLimiter", () => {
@@ -29,13 +30,13 @@ describe("MemoryRateLimiter", () => {
 describe("UpstashRateLimiter", () => {
   it("fails open when Redis is unreachable", async () => {
     const down = { limit: async () => Promise.reject(new Error("ENOTFOUND")) };
-    const rl = new UpstashRateLimiter({ ip: down, user: down, auth: down, ai: down }, testLogger());
+    const rl = new UpstashRateLimiter({ ip: down, user: down, auth: down, ai: down, jobs: down }, testLogger());
     expect(await rl.limit("ip", "1.2.3.4")).toEqual({ allowed: true, retryAfterSeconds: 0 });
   });
 
   it("converts reset time to retry-after seconds", async () => {
     const full = { limit: async () => ({ success: false, reset: Date.now() + 4_500 }) };
-    const rl = new UpstashRateLimiter({ ip: full, user: full, auth: full, ai: full }, testLogger());
+    const rl = new UpstashRateLimiter({ ip: full, user: full, auth: full, ai: full, jobs: full }, testLogger());
     const r = await rl.limit("ip", "k");
     expect(r.allowed).toBe(false);
     expect(r.retryAfterSeconds).toBeGreaterThanOrEqual(4);
@@ -87,6 +88,7 @@ describe("bucketsFromConfig", () => {
       user: { limit: 50, windowSeconds: 30 },
       auth: { limit: 10, windowSeconds: 60 },
       ai: { limit: 20, windowSeconds: 60 },
+      jobs: { limit: 20, windowSeconds: 3600 },
     });
   });
 });

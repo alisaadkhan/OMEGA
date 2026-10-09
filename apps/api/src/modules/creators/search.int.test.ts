@@ -169,6 +169,12 @@ describe("lookup", () => {
     expect((await creators.lookup(c, "Bilal")).matches.map((m) => m.id)).toEqual([id]);
     expect((await creators.lookup(c, "https://www.tiktok.com/@Bilal_Eats?lang=en")).matches.map((m) => m.id)).toEqual([id]);
     expect((await creators.lookup(c, "https://instagram.com/nobody_here")).matches).toEqual([]);
+    expect((await creators.lookup(c, "https://www.tiktok.com/@new_person")).addable).toEqual({ platform: "tiktok", handle: "new_person", url: "https://tiktok.com/@new_person", cost: 30 });
+    expect((await creators.lookup(c, "https://instagram.com/nobody_here")).addable).toMatchObject({ platform: "instagram", cost: 10 });
+    expect((await creators.lookup(c, "Bilal")).addable).toBeNull();
+    // A creator hidden from customers is neither a match nor addable (the discovery service answers NOT_FOUND too).
+    await addCreator(db, { isMinor: true, profiles: [{ platform: "instagram", handle: "hidden_minor" }] });
+    expect(await creators.lookup(c, "instagram.com/hidden_minor")).toEqual({ matches: [], addable: null });
   });
 });
 

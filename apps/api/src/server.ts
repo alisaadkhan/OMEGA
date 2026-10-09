@@ -8,6 +8,7 @@ import { createCustomerTokenVerifier, remoteJwks } from "./auth/customer-token";
 import type { Guards, ReadinessCheck } from "./http/types";
 import { createBillingModule, createBillingService, createRedisAccessCache, noAccessCache } from "./modules/billing";
 import { createCreatorsModule, createCreatorsService } from "./modules/creators";
+import { createDiscoveryModule, createDiscoveryService } from "./modules/discovery";
 import { createIdentityModule } from "./modules/identity";
 import { createPlatformModule } from "./modules/platform";
 import { createStaffModule, createStaffTokens } from "./modules/staff";
@@ -65,6 +66,7 @@ const app = await buildApp({
     staff.module,
     createBillingModule({ service: billing, payments, appUrl: config.appUrl }),
     createCreatorsModule({ service: creators, limiter }),
+    createDiscoveryModule({ service: createDiscoveryService({ db, billing }), limiter }),
   ],
   readiness,
   onRequestHooks: [ipRateLimitHook(limiter)],

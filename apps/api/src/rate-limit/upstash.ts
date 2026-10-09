@@ -33,7 +33,7 @@ export function createUpstashRateLimiter(
   const make = (name: BucketName, b: Bucket) =>
     new Ratelimit({ redis, prefix: `mushin:rl:${name}`, limiter: Ratelimit.slidingWindow(b.limit, `${b.windowSeconds} s`) });
   const limiter = new UpstashRateLimiter(
-    { ip: make("ip", buckets.ip), user: make("user", buckets.user), auth: make("auth", buckets.auth), ai: make("ai", buckets.ai) },
+    { ip: make("ip", buckets.ip), user: make("user", buckets.user), auth: make("auth", buckets.auth), ai: make("ai", buckets.ai), jobs: make("jobs", buckets.jobs) },
     logger,
   );
   return {
