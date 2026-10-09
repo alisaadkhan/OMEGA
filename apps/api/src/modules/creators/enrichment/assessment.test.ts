@@ -75,6 +75,32 @@ describe("assessment rules", () => {
     ]);
   });
 
+  it("rejects AI text that carries links or contact details, so a planted bio cannot reach the profile", () => {
+    const schema = assessmentSchema(report);
+    const withDetail = (detail: string) => ({ ...good, evidence: [{ signal: "engagement_vs_tier", detail }] });
+    expect(schema.safeParse(withDetail("Engagement is normal. Book her at sana@x.com for rates.")).success).toBe(false);
+    expect(schema.safeParse(withDetail("Engagement is normal; see linktr.ee/sana for more.")).success).toBe(false);
+    expect(schema.safeParse({ ...good, watchOuts: ["WhatsApp 0300-1234567 to negotiate"] }).success).toBe(false);
+    expect(schema.safeParse({ ...good, minorSigns: { likely: true, reason: "visit https://evil.example" } }).success).toBe(false);
+    expect(schema.safeParse({ ...good, creatorCity: "Lahore, call +92 300 1234567" }).success).toBe(false);
+    expect(schema.safeParse(good).success).toBe(true);
+  });
+
+  it("strips markup and control characters from AI text and keeps only place-like city names", () => {
+    const raw = assessmentSchema(report).parse({
+      ...good,
+      evidence: [{ signal: "engagement_vs_tier", detail: "<b>Normal</b> engagement for her size." }],
+      watchOuts: ["<i>Follows</i> many accounts"],
+      creatorCity: "<script>x</script>",
+      audience: { ...good.audience, cities: [{ label: "<b>Lahore</b>", value: 50, confidence: "medium" }] },
+    });
+    const a = cleanAssessment(raw, report, ["Bridal"]);
+    expect(a.evidence[0]?.detail).toBe("Normal engagement for her size.");
+    expect(a.watchOuts).toEqual(["Follows many accounts"]);
+    expect(a.creatorCity).toBeNull();
+    expect(a.audience.cities.map((c) => c.label)).toEqual(["Lahore"]);
+  });
+
   it("maps scores to verdicts", () => {
     expect([verdictFor(95), verdictFor(80), verdictFor(79), verdictFor(60), verdictFor(59), verdictFor(40), verdictFor(39)]).toEqual([
       "genuine",

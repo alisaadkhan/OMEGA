@@ -154,6 +154,11 @@ export function redactContacts(text: string): string {
 }
 
 /** Summaries carry public facts only: no links, emails or phone numbers; at most 600 characters (spec §6). */
+/** True when the text holds a link, an email, a phone number or a spelled-out email (any length). */
+export function hasContactOrLink(text: string): boolean {
+  return CONTACT_PATTERNS.some((re) => re.test(text));
+}
+
 export function isSafeSummary(text: string): boolean {
   const t = text.trim();
   return t.length >= 20 && t.length <= 600 && !CONTACT_PATTERNS.some((re) => re.test(t));

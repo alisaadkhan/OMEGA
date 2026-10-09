@@ -1,9 +1,9 @@
 import { z } from "zod";
 import type { AudienceRow, EvidenceRow } from "@mushin/db";
 import type { CallContext, Llm } from "@mushin/integrations";
-import { fenced, isoCountryCode, redactContacts } from "../rules";
+import { fenced, hasContactOrLink, isoCountryCode, redactContacts } from "../rules";
 import type { SignalReport } from "./signals";
-import type { StandardProfile } from "./standardize";
+import { cleanText, type StandardProfile } from "./standardize";
 
 const VERDICTS = ["genuine", "mostly genuine", "mixed signals", "likely inflated"] as const;
 const level = z.enum(["low", "medium", "high"]);
@@ -50,6 +50,18 @@ export function verdictFor(score: number): (typeof VERDICTS)[number] {
 export function assessmentSchema(report: SignalReport): z.ZodType<RawAssessment> {
   const measured = new Set(report.signals.map((s) => s.key));
   return rawShape.superRefine((v, ctx) => {
+    // AI text is shown on profiles: a bio planted with contacts or links must never come back through it (SRS §5.2, §5.3).
+    const texts: [string, (string | number)[]][] = [
+      ...v.evidence.map((e, i): [string, (string | number)[]] => [e.detail, ["evidence", i, "detail"]]),
+      ...v.watchOuts.map((w, i): [string, (string | number)[]] => [w, ["watchOuts", i]]),
+      [v.minorSigns.reason, ["minorSigns", "reason"]],
+      [v.creatorCity ?? "", ["creatorCity"]],
+      ...v.audience.cities.map((c, i): [string, (string | number)[]] => [c.label, ["audience", "cities", i, "label"]]),
+      ...v.audience.age.map((c, i): [string, (string | number)[]] => [c.label, ["audience", "age", i, "label"]]),
+    ];
+    for (const [text, path] of texts) {
+      if (text && hasContactOrLink(text)) ctx.addIssue({ code: "custom", path, message: "must not contain links, emails or phone numbers" });
+    }
     if (report.kind === "insufficient") {
       if (v.score !== null || v.verdict !== null) ctx.addIssue({ code: "custom", path: ["score"], message: "must be null: there is not enough data to score" });
       return;
@@ -67,6 +79,11 @@ export function assessmentSchema(report: SignalReport): z.ZodType<RawAssessment>
 }
 
 const capped = (c: "low" | "medium" | "high"): "low" | "medium" => (c === "high" ? "medium" : c);
+const PLACE = /^\p{L}[\p{L} .'-]{1,59}$/u;
+const placeOrNull = (v: string | null): string | null => {
+  const c = cleanText(v ?? "", 60);
+  return PLACE.test(c) ? c : null;
+};
 
 /** AI output is an estimate: unknown niches and countries are dropped, confidence never exceeds medium (SRS REQ-01.07, REQ-03.06). */
 export function cleanAssessment(raw: RawAssessment, report: SignalReport, nicheLabels: readonly string[]): Assessment {
@@ -78,19 +95,22 @@ export function cleanAssessment(raw: RawAssessment, report: SignalReport, nicheL
   return {
     verdict: raw.verdict,
     score: raw.score,
-    evidence: raw.evidence.map((e) => ({ signal: e.signal, detail: e.detail, weight: weights.get(e.signal) ?? 0 })),
-    watchOuts: raw.watchOuts,
+    evidence: raw.evidence.map((e) => ({ signal: e.signal, detail: cleanText(e.detail, 240), weight: weights.get(e.signal) ?? 0 })),
+    watchOuts: raw.watchOuts.map((w) => cleanText(w, 160)).filter(Boolean),
     audience: {
-      age: raw.audience.age.map((a) => ({ ...a, confidence: capped(a.confidence) })),
+      age: raw.audience.age.map((a) => ({ ...a, label: cleanText(a.label, 40), confidence: capped(a.confidence) })).filter((a) => a.label),
       gender: raw.audience.gender ? { ...raw.audience.gender, confidence: capped(raw.audience.gender.confidence) } : null,
-      cities: raw.audience.cities.map((a) => ({ ...a, confidence: capped(a.confidence) })),
+      cities: raw.audience.cities.flatMap((a) => {
+        const label = placeOrNull(a.label);
+        return label ? [{ ...a, label, confidence: capped(a.confidence) }] : [];
+      }),
       countries,
       source: "estimated from public content",
     },
     niches: [...new Set(raw.niches.map((n) => byLower.get(n.trim().toLowerCase())).filter((n): n is string => Boolean(n)))],
-    creatorCity: raw.creatorCity && raw.creatorCity.length > 0 ? raw.creatorCity : null,
+    creatorCity: placeOrNull(raw.creatorCity),
     creatorCountry: isoCountryCode(raw.creatorCountry) ?? null,
-    minorSigns: raw.minorSigns,
+    minorSigns: { likely: raw.minorSigns.likely, reason: cleanText(raw.minorSigns.reason, 200) },
   };
 }
 
