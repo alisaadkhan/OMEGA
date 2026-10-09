@@ -358,7 +358,7 @@ export function CreatorProfilePanel({ creator, onClose, onCompare }: { creator: 
 
               <div className="border-t border-slate-100 px-6 py-3">
                 <div className="flex items-center justify-between text-xs text-slate-500">
-                  <span>{refreshing ? jobStatusText(refreshing) : `Last updated ${relative(p?.lastScrapedAt ?? null)}`}</span>
+                  <span>{refreshing ? jobStatusText(refreshing) : `Last updated ${p ? relative(p.lastScrapedAt) : "—"}`}</span>
                   <button
                     onClick={() => void onRefresh()}
                     disabled={!p || refreshing !== null || start.isPending}
