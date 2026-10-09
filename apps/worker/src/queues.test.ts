@@ -5,6 +5,7 @@ import { queueFor } from "./queues";
 import { billingHandlers, NOTIFY_EVENTS, notifyHandlers } from "./billing-handlers";
 import { SCHEDULES } from "./schedules";
 import { creatorHandlers } from "./creator-handlers";
+import { discoveryHandlers } from "./discovery-handlers";
 
 describe("queue routing", () => {
   it("routes event types by prefix", () => {
@@ -105,5 +106,36 @@ describe("creator handlers", () => {
     expect(calls).toEqual(["sync:c1", "summary:c1", "reconcile"]);
     await expect(dispatch([{ id: "j4", data: job("creator.changed", {}) }])).rejects.toThrow(/creatorId/);
     expect(SCHEDULES.find((s) => s.key === "search_reconcile")).toMatchObject({ queue: "rescore-low", cron: "45 3 * * *" });
+  });
+});
+
+describe("discovery handlers", () => {
+  const job = (eventType: string, payload: Record<string, unknown>, workspaceId: string | null = "w1") => ({
+    eventId: "e",
+    eventType,
+    aggregateType: "discovery_job",
+    aggregateId: "1",
+    workspaceId,
+    requestId: null,
+    payload,
+  });
+
+  it("runs add-by-URL and refresh jobs, reassesses, sweeps and purges", async () => {
+    const calls: string[] = [];
+    const handlers = discoveryHandlers({
+      runner: { run: async (id, ws) => void calls.push(`run:${id}:${ws}`), sweepStuck: async () => (calls.push("sweep"), 0) },
+      pipeline: { reassess: async (id) => (calls.push(`reassess:${id}`), "assessed" as const), purgeExpiredPayloads: async () => (calls.push("purge"), 0) },
+    });
+    const dispatch = createDispatcher(handlers, createLogger({ level: "silent" }));
+    await dispatch([{ id: "j1", data: job("discovery.requested", { jobId: "a" }) }]);
+    await dispatch([{ id: "j2", data: job("refresh.requested", { jobId: "b" }) }]);
+    await dispatch([{ id: "j3", data: job("creator.assessment_requested", { creatorId: "c" }, null) }]);
+    await dispatch([{ id: "j4", data: job("system.discovery_sweep", {}, null) }]);
+    await dispatch([{ id: "j5", data: job("system.purge_raw_payloads", {}, null) }]);
+    expect(calls).toEqual(["run:a:w1", "run:b:w1", "reassess:c", "sweep", "purge"]);
+    await expect(dispatch([{ id: "j6", data: job("discovery.requested", {}, "w1") }])).rejects.toThrow(/jobId/);
+    await expect(dispatch([{ id: "j7", data: job("discovery.requested", { jobId: "a" }, null) }])).rejects.toThrow(/workspace/);
+    for (const key of ["discovery_sweep", "purge_raw_payloads"]) expect(SCHEDULES.find((s) => s.key === key)).toMatchObject({ queue: "system" });
+    expect(NOTIFY_EVENTS).toContain("notify.discovery_job_finished");
   });
 });

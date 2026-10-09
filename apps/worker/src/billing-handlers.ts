@@ -36,6 +36,7 @@ export const NOTIFY_EVENTS = [
   "notify.trial_expired",
   "notify.subscription_canceled",
   "notify.payment_failed",
+  "notify.discovery_job_finished",
 ] as const;
 
 /** Delivery (in-app notifications, emails) arrives in sub-project 7; until then the events are logged and acknowledged. */

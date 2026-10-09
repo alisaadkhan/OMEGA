@@ -26,4 +26,6 @@ export const SCHEDULES: Schedule[] = [
   billing("mock_renewals", "50 2 * * *"),
   billing("reconcile", "30 4 * * *"),
   { queue: "rescore-low", key: "search_reconcile", cron: "45 3 * * *", data: data("search_reconcile", "creator.reindex_all", {}) },
+  { queue: "system", key: "discovery_sweep", cron: "*/5 * * * *", data: data("discovery_sweep", "system.discovery_sweep", {}) },
+  { queue: "system", key: "purge_raw_payloads", cron: "25 3 * * *", data: data("purge_raw_payloads", "system.purge_raw_payloads", {}) },
 ];
