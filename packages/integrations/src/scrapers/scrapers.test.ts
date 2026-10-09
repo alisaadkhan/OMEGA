@@ -30,7 +30,7 @@ function apifyRoutes(items: unknown, runFixture: string) {
   };
 }
 
-function scraper(fetchImpl: typeof fetch, o: { budgetOk?: boolean; apify?: boolean; youtube?: boolean } = {}) {
+function scraper(fetchImpl: typeof fetch, o: { budgetOk?: boolean; apify?: boolean; youtube?: boolean; apifyMaxWaitMs?: number } = {}) {
   const sink = new MemoryProviderCallSink();
   const s = createProfileScraper({
     apify: o.apify === false ? null : { token: "t", instagramActor: "apify/instagram-profile-scraper", tiktokActor: "clockworks/tiktok-profile-scraper" },
@@ -45,6 +45,7 @@ function scraper(fetchImpl: typeof fetch, o: { budgetOk?: boolean; apify?: boole
     logger,
     fetch: fetchImpl,
     sleep: async () => {},
+    ...(o.apifyMaxWaitMs !== undefined ? { apifyMaxWaitMs: o.apifyMaxWaitMs } : {}),
   });
   return { s, sink };
 }
@@ -100,6 +101,36 @@ describe("profile scraper", () => {
     await expect(scraper(down.fetch).s.fetchProfile({ platform: "instagram", handle: "x" })).rejects.toSatisfy(isProviderError(true));
     const badToken = fakeFetch(() => Response.json({ error: { type: "user-or-token-not-found" } }, { status: 401 }));
     await expect(scraper(badToken.fetch).s.fetchProfile({ platform: "instagram", handle: "x" })).rejects.toSatisfy(isProviderError(false));
+  });
+
+  it("records what a failed run was charged, so the spend cap still counts it", async () => {
+    const { fetch } = fakeFetch((c) => {
+      if (c.url.includes("/runs?")) return Response.json({ data: { ...run("apify-run-instagram.json"), status: "RUNNING" } }, { status: 201 });
+      if (c.url.includes("/actor-runs/")) return Response.json({ data: { ...run("apify-run-instagram.json"), status: "FAILED" } });
+      if (c.url.includes("/datasets/")) return Response.json({ data: { itemCount: 1 } });
+      return new Response("unexpected", { status: 500 });
+    });
+    const { s, sink } = scraper(fetch);
+    await expect(s.fetchProfile({ platform: "instagram", handle: "x" })).rejects.toSatisfy(isProviderError(true));
+    expect(sink.calls).toContainEqual(expect.objectContaining({ provider: "apify", status: "error", errorCode: "charged_failure", costUsd: 0.0026 }));
+  });
+
+  it("aborts a run that takes too long instead of leaving it running, and records its cost", async () => {
+    const aborted: string[] = [];
+    const { fetch } = fakeFetch((c) => {
+      if (c.url.includes("/runs?")) return Response.json({ data: { ...run("apify-run-tiktok.json"), status: "RUNNING" } }, { status: 201 });
+      if (c.url.endsWith("/abort")) {
+        aborted.push(c.url);
+        return Response.json({ data: { ...run("apify-run-tiktok.json"), status: "ABORTED", chargedEventCounts: { result: 2 } } });
+      }
+      if (c.url.includes("/actor-runs/")) return Response.json({ data: { ...run("apify-run-tiktok.json"), status: "RUNNING" } });
+      if (c.url.includes("/datasets/")) return Response.json({ data: { itemCount: 2 } });
+      return new Response("unexpected", { status: 500 });
+    });
+    const { s, sink } = scraper(fetch, { apifyMaxWaitMs: 0 });
+    await expect(s.fetchProfile({ platform: "tiktok", handle: "@x" })).rejects.toSatisfy(isProviderError(true));
+    expect(aborted).toEqual(["https://api.apify.com/v2/actor-runs/run-1/abort"]);
+    expect(sink.calls).toContainEqual(expect.objectContaining({ status: "error", errorCode: "charged_failure", costUsd: 0.006 }));
   });
 
   it("reads a YouTube channel and its latest videos with three API calls and no cost", async () => {

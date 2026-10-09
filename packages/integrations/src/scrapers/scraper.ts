@@ -14,11 +14,20 @@ type Options = {
   logger: Logger;
   fetch?: typeof fetch;
   sleep?: (ms: number) => Promise<void>;
+  /** How long to wait for an Apify run before stopping it (default 180 s). */
+  apifyMaxWaitMs?: number;
 };
 
 /** Job-level retries decide whether to try again (spec §5.2), so the adapter itself makes one attempt. */
 export function createProfileScraper(o: Options): ProfileScraper {
-  const apify = o.apify ? createApifyClient({ token: o.apify.token, ...(o.fetch ? { fetch: o.fetch } : {}), ...(o.sleep ? { sleep: o.sleep } : {}) }) : null;
+  const apify = o.apify
+    ? createApifyClient({
+        token: o.apify.token,
+        ...(o.fetch ? { fetch: o.fetch } : {}),
+        ...(o.sleep ? { sleep: o.sleep } : {}),
+        ...(o.apifyMaxWaitMs !== undefined ? { maxWaitMs: o.apifyMaxWaitMs } : {}),
+      })
+    : null;
 
   async function viaApify(req: ScrapeRequest, actor: string, input: unknown): Promise<ScrapeResult> {
     if (!apify) throw new ProviderError(false, "not_configured", "APIFY_TOKEN is not set");
@@ -35,7 +44,30 @@ export function createProfileScraper(o: Options): ProfileScraper {
         usage: (r: { items: unknown[]; costUsd: number }) => ({ model: actor, units: r.items.length, costUsd: r.costUsd }),
       },
       () => apify.runActor(actor, input),
-    ).catch(unwrap);
+    ).catch(async (err: unknown) => {
+      // A failed run can still have been charged; record it so the monthly spend cap counts it (spec §4).
+      const pe = providerErrorOf(err);
+      if (pe && pe.costUsd > 0) {
+        await o.sink
+          .record({
+            provider: "apify",
+            operation: `scrape_${req.platform}`,
+            model: actor,
+            tokensIn: null,
+            tokensOut: null,
+            units: null,
+            costUsd: pe.costUsd,
+            latencyMs: 0,
+            status: "error",
+            errorCode: "charged_failure",
+            workspaceId: req.ctx?.workspaceId ?? null,
+            jobId: req.ctx?.jobId ?? null,
+            requestId: req.ctx?.requestId ?? null,
+          })
+          .catch((recordErr: unknown) => o.logger.error({ err: recordErr }, "could not record a failed Apify run's cost"));
+      }
+      return unwrap(err);
+    });
     return { provider: "apify", raw: out.items, costUsd: out.costUsd };
   }
 
@@ -73,8 +105,12 @@ export function createProfileScraper(o: Options): ProfileScraper {
   };
 }
 
+function providerErrorOf(err: unknown): ProviderError | null {
+  for (let e: unknown = err; e instanceof Error; e = e.cause) if (e instanceof ProviderError) return e;
+  return null;
+}
+
 /** `instrumented` wraps failures in PROVIDER_UNAVAILABLE; surface the ProviderError so the runner can read `retryable`. */
 function unwrap(err: unknown): never {
-  for (let e: unknown = err; e instanceof Error; e = e.cause) if (e instanceof ProviderError) throw e;
-  throw new ProviderError(true, "provider", err instanceof Error ? err.message : String(err));
+  throw providerErrorOf(err) ?? new ProviderError(true, "provider", err instanceof Error ? err.message : String(err));
 }

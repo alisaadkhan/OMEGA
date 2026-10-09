@@ -18,6 +18,8 @@ export class ProviderError extends Error {
     readonly retryable: boolean,
     readonly reason: ProviderErrorReason,
     message: string,
+    /** What the provider charged for the failed work (counted by the spend cap). */
+    readonly costUsd = 0,
   ) {
     super(message);
     this.name = "ProviderError";

@@ -48,6 +48,14 @@ export function createApifyClient(o: ClientOptions) {
     return (await res.json()) as T;
   }
 
+  /** What a failed or stopped run was charged: its events, or its dataset items at the primary event price. */
+  async function finalCost(run: ApifyRun): Promise<number> {
+    const items = await call<{ data: { itemCount?: number } }>(`${base}/datasets/${run.defaultDatasetId}`)
+      .then((r) => r.data.itemCount ?? 0)
+      .catch(() => 0);
+    return apifyRunCost(run, items);
+  }
+
   /** Starts an actor, waits for it (Apify waits at most 60 s per request), then reads its dataset. */
   async function runActor(actorId: string, input: unknown): Promise<{ items: unknown[]; costUsd: number }> {
     const started = await call<{ data: ApifyRun }>(`${base}/acts/${actorId.replace("/", "~")}/runs?waitForFinish=60`, {
@@ -57,11 +65,17 @@ export function createApifyClient(o: ClientOptions) {
     let run = started.data;
     const deadline = Date.now() + (o.maxWaitMs ?? 180_000);
     while (!TERMINAL.has(run.status)) {
-      if (Date.now() > deadline) throw new ProviderError(true, "provider", `Apify run did not finish in time (status ${run.status})`);
+      if (Date.now() >= deadline) {
+        // A run we stop waiting for keeps running (and charging) on Apify: stop it, then count what it cost.
+        const stopped = await call<{ data: ApifyRun }>(`${base}/actor-runs/${run.id}/abort`, { method: "POST" })
+          .then((r) => r.data)
+          .catch(() => run);
+        throw new ProviderError(true, "provider", `Apify run did not finish in time and was stopped (status ${run.status})`, await finalCost(stopped));
+      }
       run = (await call<{ data: ApifyRun }>(`${base}/actor-runs/${run.id}?waitForFinish=60`)).data;
       if (!TERMINAL.has(run.status)) await sleep(1000);
     }
-    if (run.status !== "SUCCEEDED") throw new ProviderError(true, "provider", `Apify run ended ${run.status}`);
+    if (run.status !== "SUCCEEDED") throw new ProviderError(true, "provider", `Apify run ended ${run.status}`, await finalCost(run));
     const items = await call<unknown[]>(`${base}/datasets/${run.defaultDatasetId}/items?clean=true`);
     return { items, costUsd: apifyRunCost(run, items.length) };
   }
