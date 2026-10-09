@@ -135,6 +135,8 @@ export function createCreatorsService(deps: CreatorsDeps) {
       matches: rows
         .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0))
         .map((r) => ({ id: r.id, displayName: r.displayName, handle: r.primaryHandle, platform: r.primaryPlatform, avatarUrl: r.avatarUrl })),
+      // Real "add this creator" answers arrive with the discovery module (sub-project 4A, Task 13).
+      addable: null,
     };
   }
 
@@ -248,6 +250,9 @@ export function createCreatorsService(deps: CreatorsDeps) {
         contacts: contacts.map((k) => ({ id: k.id, kind: k.kind, masked: k.masked, trust: k.trust, value: values.get(k.id) ?? null })),
         revealed,
         revealCost,
+        refreshCost: 0,
+        linkedAccounts: [],
+        lastScrapedAt: null,
         minorProtected: isMinorProtected(c),
         hasContacts: contacts.length > 0,
         mergedInto: c.mergedIntoId,

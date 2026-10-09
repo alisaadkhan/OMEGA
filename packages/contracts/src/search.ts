@@ -81,6 +81,8 @@ export const lookupResponseSchema = z.object({
   matches: z.array(
     z.object({ id: z.uuid(), displayName: z.string(), handle: z.string(), platform: creatorPlatformSchema, avatarUrl: z.string().nullable() }),
   ),
+  /** A supported profile link MUSHIN does not know yet: it can be added for `cost` credits (spec §7). */
+  addable: z.object({ platform: creatorPlatformSchema, handle: z.string(), url: z.string(), cost: z.number().int() }).nullable().default(null),
 });
 export type LookupResponse = z.output<typeof lookupResponseSchema>;
 
@@ -157,10 +159,15 @@ export const creatorProfileSchema = z.object({
       assessedAt: iso,
     }),
     z.object({ status: z.literal("not_assessed") }),
+    z.object({ status: z.literal("pending") }),
+    z.object({ status: z.literal("insufficient_data") }),
   ]),
   contacts: z.array(z.object({ id: z.uuid(), kind: z.enum(["email", "phone"]), masked: z.string(), trust: z.string(), value: z.string().nullable() })),
   revealed: z.boolean(),
   revealCost: z.number().int(),
+  refreshCost: z.number().int(),
+  linkedAccounts: z.array(z.object({ platform: z.enum(["instagram", "tiktok", "youtube", "website"]), url: z.string() })),
+  lastScrapedAt: iso.nullable(),
   minorProtected: z.boolean(),
   hasContacts: z.boolean(),
   mergedInto: z.uuid().nullable(),

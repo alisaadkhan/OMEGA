@@ -26,6 +26,7 @@ const ACTION_META: Record<CreditAction, { label: string; icon: typeof Search; to
   find_new: { label: COPY.findNew, icon: Radio, tone: "bg-indigo-50 text-indigo-700" },
   reveal_contact: { label: COPY.revealContact, icon: Mail, tone: "bg-emerald-50 text-emerald-700" },
   refresh_data: { label: COPY.refreshData, icon: RefreshCw, tone: "bg-amber-50 text-amber-700" },
+  refresh_tiktok: { label: "Refresh TikTok creator", icon: RefreshCw, tone: "bg-amber-50 text-amber-700" },
 };
 
 const KIND_LABEL = {

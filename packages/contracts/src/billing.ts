@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const creditActionSchema = z.enum(["search_existing", "find_new", "reveal_contact", "refresh_data"]);
+export const creditActionSchema = z.enum(["search_existing", "find_new", "reveal_contact", "refresh_data", "refresh_tiktok"]);
 export type CreditAction = z.infer<typeof creditActionSchema>;
 
 export const planIdSchema = z.enum(["explorer", "growth", "scale"]);

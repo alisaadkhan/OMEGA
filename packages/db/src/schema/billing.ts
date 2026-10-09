@@ -46,7 +46,7 @@ export const topupPacks = platform.table("topup_packs", {
 });
 
 export const creditActionCosts = platform.table("credit_action_costs", {
-  action: text("action", { enum: ["search_existing", "find_new", "reveal_contact", "refresh_data"] }).primaryKey(),
+  action: text("action", { enum: ["search_existing", "find_new", "reveal_contact", "refresh_data", "refresh_tiktok"] }).primaryKey(),
   credits: integer("credits").notNull(),
   updatedAt: ts("updated_at").notNull().defaultNow(),
 });
@@ -99,7 +99,7 @@ export const billingSchedule = platform.table(
 const statusEnum = ["trialing", "active", "past_due", "canceled", "expired"] as const;
 const intervalEnum = ["month", "year"] as const;
 const planEnum = ["explorer", "growth", "scale"] as const;
-const actionEnum = ["search_existing", "find_new", "reveal_contact", "refresh_data"] as const;
+const actionEnum = ["search_existing", "find_new", "reveal_contact", "refresh_data", "refresh_tiktok"] as const;
 
 export const subscriptions = wp.table("subscriptions", {
   workspaceId: uuid("workspace_id").primaryKey(),

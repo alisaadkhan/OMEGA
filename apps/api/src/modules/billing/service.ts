@@ -135,6 +135,7 @@ export function createBillingService(deps: BillingDeps) {
           find_new: cost("find_new"),
           reveal_contact: cost("reveal_contact"),
           refresh_data: cost("refresh_data"),
+          refresh_tiktok: cost("refresh_tiktok"),
         },
       };
     });
