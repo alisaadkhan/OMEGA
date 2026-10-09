@@ -16,6 +16,7 @@
     "dev:web": "npm --prefix frontend run dev",
     "db:migrate": "node --env-file-if-exists=.env --import tsx packages/db/src/migrate-cli.ts",
     "db:migrate:test": "node --env-file-if-exists=.env --import tsx packages/db/src/migrate-cli.ts --test",
+    "seed:creators": "node --env-file-if-exists=.env --import tsx scripts/seed-creators.ts",
     "create-admin": "node --env-file-if-exists=.env --import tsx scripts/create-admin.ts",
     "env:secrets": "node --import tsx scripts/ensure-env-secrets.ts",
     "lint": "eslint .",

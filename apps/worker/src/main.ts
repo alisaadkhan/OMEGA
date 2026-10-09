@@ -1,9 +1,11 @@
 import { Redis } from "@upstash/redis";
 import { createLogger, loadWorkerConfig } from "@mushin/core";
 import { createDatabase, createDbProviderCallSink, UNVERIFIED_TLS_WARNING } from "@mushin/db";
-import { createPayments } from "@mushin/integrations";
+import { createLlm, createPayments, createSearchIndex } from "@mushin/integrations";
 import { createBillingService, createRedisAccessCache, noAccessCache } from "../../api/src/modules/billing/index";
+import { createCreatorIndexer, createSummaryWriter } from "../../api/src/modules/creators/index";
 import { billingHandlers, notifyHandlers } from "./billing-handlers";
+import { creatorHandlers } from "./creator-handlers";
 import { startBoss } from "./boss";
 import { defaultHandlers } from "./handlers";
 import { startWorker } from "./worker";
@@ -18,11 +20,16 @@ const boss = await startBoss(config.directUrl, logger, config.databaseCaPem);
 const payments = createPayments(config.payments, { sink: createDbProviderCallSink(db), logger });
 const cache = config.upstash ? createRedisAccessCache(new Redis({ url: config.upstash.url, token: config.upstash.token }), logger) : noAccessCache;
 const billing = createBillingService({ db, payments, cache, logger });
+const searchIndex = createSearchIndex(config.search, logger);
+const indexer = createCreatorIndexer({ db, index: searchIndex, logger });
+const summaries = createSummaryWriter({ db, llm: createLlm(config.llm, { sink: createDbProviderCallSink(db), logger }), logger });
+// A fresh Meilisearch (local or Cloud) configures itself; a failure here must not stop billing work.
+await indexer.ensureSettings().catch((err: unknown) => logger.error({ err }, "could not apply search index settings"));
 const worker = await startWorker({
   db,
   boss,
   logger,
-  handlers: { ...defaultHandlers(db), ...billingHandlers(billing), ...notifyHandlers() },
+  handlers: { ...defaultHandlers(db), ...billingHandlers(billing), ...notifyHandlers(), ...creatorHandlers({ indexer, summaries }) },
 });
 logger.info("worker started");
 

@@ -25,4 +25,5 @@ export const SCHEDULES: Schedule[] = [
   billing("scheduled_changes", "40 * * * *"),
   billing("mock_renewals", "50 2 * * *"),
   billing("reconcile", "30 4 * * *"),
+  { queue: "rescore-low", key: "search_reconcile", cron: "45 3 * * *", data: data("search_reconcile", "creator.reindex_all", {}) },
 ];
