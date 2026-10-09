@@ -55,7 +55,9 @@ function hooks() {
 
 describe("enrichment pipeline", () => {
   it("creates a creator with metrics, history, archive, links, assessment and an index event", async () => {
-    const { pipeline, storage } = setup();
+    const raw = structuredClone(scraperFixture("instagram-profile.json")) as Record<string, unknown>[];
+    (raw[0] as Record<string, unknown>)["profilePicUrlHD"] = "https://scontent-man2-1.cdninstagram.com/v/t51/coke_studio.jpg";
+    const { pipeline, storage } = setup({ scraper: new FixtureScraper({ instagram: { provider: "apify", raw, costUsd: 0.0026 } }) });
     const j = await job();
     const { steps, saved, h } = hooks();
     const out = await pipeline.enrich(j, h);

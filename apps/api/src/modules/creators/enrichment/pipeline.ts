@@ -5,6 +5,7 @@ import { AVATAR_BUCKET, ProviderError, RAW_PAYLOAD_BUCKET, type Llm, type Object
 import { activeNiches } from "../repository";
 import type { CreatorPlatform } from "../rules";
 import { assessCreator, type Assessment } from "./assessment";
+import { fetchAvatar } from "./avatar";
 import { extractContacts, extractLinks } from "./links";
 import { minorByRules } from "./minors";
 import * as repo from "./repository";
@@ -27,8 +28,6 @@ type Deps = {
   /** Fetches a profile photo to copy into storage (injectable for tests). */
   fetchImage?: typeof fetch;
 };
-
-const MAX_AVATAR_BYTES = 2_000_000;
 
 function topTags(p: StandardProfile): string[] {
   const counts = new Map<string, number>();
@@ -54,13 +53,10 @@ export function createEnrichmentPipeline(deps: Deps) {
   async function copyAvatar(p: StandardProfile, canonicalUrl: string): Promise<{ url: string; key: string } | null> {
     if (!p.avatarUrl || !storage) return null;
     try {
-      const res = await (deps.fetchImage ?? fetch)(p.avatarUrl, { signal: AbortSignal.timeout(10_000) });
-      const type = res.headers.get("content-type") ?? "";
-      if (!res.ok || !type.startsWith("image/")) return null;
-      const bytes = new Uint8Array(await res.arrayBuffer());
-      if (bytes.length === 0 || bytes.length > MAX_AVATAR_BYTES) return null;
-      const key = `${p.platform}/${sha256Hex(canonicalUrl).slice(0, 32)}.jpg`;
-      await storage.put(AVATAR_BUCKET, key, bytes, type);
+      const image = await fetchAvatar(p.avatarUrl, deps.fetchImage ?? fetch);
+      if (!image) return null;
+      const key = `${p.platform}/${sha256Hex(canonicalUrl).slice(0, 32)}.${image.ext}`;
+      await storage.put(AVATAR_BUCKET, key, image.bytes, image.contentType);
       return { url: storage.publicUrl(AVATAR_BUCKET, key), key };
     } catch (err) {
       deps.logger.warn({ err, canonicalUrl }, "could not copy the profile photo; keeping the initials avatar");
