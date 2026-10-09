@@ -26,4 +26,5 @@ export class ProviderError extends Error {
   }
 }
 
-export type SpendGuard = { assertWithinBudget(): Promise<void> };
+/** Admits one paid run, or throws spend_cap; call the returned function once the run's cost is recorded. */
+export type SpendGuard = { begin(): Promise<() => void> };

@@ -7,6 +7,8 @@ import { scraperFixture } from "./testing";
 import { ProviderError } from "./types";
 
 const logger = createLogger({ level: "silent" });
+/** Runs the budget guard counts as in progress (each must be released once its cost is recorded). */
+const inFlight = { n: 0 };
 type Call = { url: string; method: string; body: unknown };
 
 function fakeFetch(routes: (c: Call) => Response) {
@@ -37,8 +39,10 @@ function scraper(fetchImpl: typeof fetch, o: { budgetOk?: boolean; apify?: boole
     youtubeApiKey: o.youtube === false ? null : "yt",
     tiktokVideos: 6,
     spendGuard: {
-      assertWithinBudget: async () => {
+      begin: async () => {
         if (o.budgetOk === false) throw new ProviderError(false, "spend_cap", "Monthly Apify budget reached");
+        inFlight.n += 1;
+        return () => void (inFlight.n -= 1);
       },
     },
     sink,
@@ -70,6 +74,7 @@ describe("profile scraper", () => {
     expect(calls[0]).toMatchObject({ method: "POST", body: { usernames: ["coke_studio"] } });
     expect(calls[0]?.url).toContain("/v2/acts/apify~instagram-profile-scraper/runs?");
     expect(sink.calls).toEqual([expect.objectContaining({ provider: "apify", operation: "scrape_instagram", status: "ok", costUsd: 0.0026 })]);
+    expect(inFlight.n).toBe(0);
   });
 
   it("asks the TikTok actor for the configured number of videos without downloads", async () => {
@@ -113,6 +118,7 @@ describe("profile scraper", () => {
     const { s, sink } = scraper(fetch);
     await expect(s.fetchProfile({ platform: "instagram", handle: "x" })).rejects.toSatisfy(isProviderError(true));
     expect(sink.calls).toContainEqual(expect.objectContaining({ provider: "apify", status: "error", errorCode: "charged_failure", costUsd: 0.0026 }));
+    expect(inFlight.n).toBe(0);
   });
 
   it("aborts a run that takes too long instead of leaving it running, and records its cost", async () => {

@@ -31,7 +31,15 @@ export function createProfileScraper(o: Options): ProfileScraper {
 
   async function viaApify(req: ScrapeRequest, actor: string, input: unknown): Promise<ScrapeResult> {
     if (!apify) throw new ProviderError(false, "not_configured", "APIFY_TOKEN is not set");
-    await o.spendGuard.assertWithinBudget();
+    const done = await o.spendGuard.begin();
+    try {
+      return await runApify(req, actor, input, apify);
+    } finally {
+      done();
+    }
+  }
+
+  async function runApify(req: ScrapeRequest, actor: string, input: unknown, apify: ReturnType<typeof createApifyClient>): Promise<ScrapeResult> {
     const out = await instrumented(
       {
         provider: "apify",
