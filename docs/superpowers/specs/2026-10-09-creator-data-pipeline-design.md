@@ -161,7 +161,7 @@ The `discovery` module owns `wp.discovery_jobs`; it calls the `creators` module 
 
 ## 11. Environment
 
-New: `APIFY_INSTAGRAM_ACTOR_ID=apify/instagram-profile-scraper`, `APIFY_TIKTOK_ACTOR_ID=clockworks/tiktok-profile-scraper`, `APIFY_YOUTUBE_ACTOR_ID=streamers/youtube-channel-scraper`, `APIFY_MONTHLY_BUDGET_USD=5`, `LIVE_SCRAPE_TESTS`. Already set in `.env`: `APIFY_TOKEN`, `YOUTUBE_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`; the worker config starts reading `APIFY_TOKEN`, `YOUTUBE_API_KEY` and `SUPABASE_SERVICE_ROLE_KEY` (worker only — the API never holds the storage key or scraper tokens; production requires them). Without `APIFY_TOKEN` the API refuses add-by-URL and refresh with `PROVIDER_UNAVAILABLE` and the worker logs a warning.
+New: `APIFY_INSTAGRAM_ACTOR_ID=apify/instagram-profile-scraper`, `APIFY_TIKTOK_ACTOR_ID=clockworks/tiktok-profile-scraper`, `APIFY_YOUTUBE_ACTOR_ID=streamers/youtube-channel-scraper`, `APIFY_MONTHLY_BUDGET_USD=5`, `LIVE_SCRAPE_TESTS`. Already set in `.env`: `APIFY_TOKEN`, `YOUTUBE_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`; the worker config starts reading `APIFY_TOKEN`, `YOUTUBE_API_KEY` and `SUPABASE_SERVICE_ROLE_KEY` (worker only — the API never holds the storage key or scraper tokens; production requires them). Without `APIFY_TOKEN` (or `YOUTUBE_API_KEY` for YouTube) the worker logs a warning at start and fails those jobs with `PROVIDER_UNAVAILABLE`, releasing the credits.
 
 ## 12. Out of scope
 
