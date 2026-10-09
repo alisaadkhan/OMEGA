@@ -66,7 +66,7 @@ export function JobTray({ onOpenCreator }: { onOpenCreator: (c: Creator) => void
               {j.status === "completed" && j.creatorId && (
                 <button
                   onClick={() => {
-                    onOpenCreator(creatorStub(j.creatorId ?? "", j.platform, j.handle));
+                    onOpenCreator(creatorStub(j.creatorId ?? "", j.platform ?? "instagram", j.handle ?? ""));
                     setOpen(false);
                   }}
                   className="mt-1.5 text-[11px] text-indigo-600 hover:text-indigo-700"

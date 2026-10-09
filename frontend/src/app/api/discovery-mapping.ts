@@ -1,6 +1,8 @@
 import type { DiscoveryJob, DiscoveryJobStep } from "@mushin/contracts";
 
 export const STEP_LABEL: Record<DiscoveryJobStep, string> = {
+  searching: "Searching Google…",
+  filtering: "Picking relevant profiles…",
   fetching: "Fetching public profile…",
   archiving: "Saving a copy of the data…",
   cleaning: "Reading the data…",
@@ -10,7 +12,7 @@ export const STEP_LABEL: Record<DiscoveryJobStep, string> = {
 
 export const isOpenJob = (j: DiscoveryJob) => j.status === "queued" || j.status === "running";
 
-export const jobTitle = (j: DiscoveryJob) => `${j.kind === "refresh" ? "Refreshing" : "Adding"} @${j.handle}`;
+export const jobTitle = (j: DiscoveryJob) => `${j.kind === "refresh" ? "Refreshing" : "Adding"} @${j.handle ?? ""}`;
 
 const RETURNED = "Your credits were returned.";
 

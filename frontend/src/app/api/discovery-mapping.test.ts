@@ -15,6 +15,7 @@ const job = (over: Partial<DiscoveryJob> = {}): DiscoveryJob => ({
   error: null,
   createdAt: "2026-10-09T10:00:00.000Z",
   finishedAt: null,
+  live: null,
   ...over,
 });
 

@@ -6,7 +6,7 @@ const ts = (name: string) => timestamp(name, { withTimezone: true, mode: "date" 
 export const discoveryJobs = wp.table("discovery_jobs", {
   id: uuid("id").primaryKey().defaultRandom(),
   workspaceId: uuid("workspace_id").notNull(),
-  kind: text("kind", { enum: ["add_by_url", "refresh"] }).notNull(),
+  kind: text("kind", { enum: ["add_by_url", "refresh", "live"] }).notNull(),
   requestedBy: uuid("requested_by").notNull(),
   inputUrl: text("input_url"),
   platform: text("platform", { enum: ["instagram", "tiktok", "youtube"] }).notNull(),
@@ -14,7 +14,7 @@ export const discoveryJobs = wp.table("discovery_jobs", {
   canonicalUrl: text("canonical_url").notNull(),
   creatorId: uuid("creator_id"),
   status: text("status", { enum: ["queued", "running", "completed", "failed"] }).notNull().default("queued"),
-  step: text("step", { enum: ["fetching", "archiving", "cleaning", "assessing", "saving"] }),
+  step: text("step", { enum: ["searching", "filtering", "fetching", "archiving", "cleaning", "assessing", "saving"] }),
   attempts: integer("attempts").notNull().default(0),
   reservationId: uuid("reservation_id"),
   cost: integer("cost").notNull(),

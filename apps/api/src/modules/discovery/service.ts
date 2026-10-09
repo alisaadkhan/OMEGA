@@ -19,7 +19,7 @@ export function createDiscoveryService(deps: DiscoveryDeps) {
 
   type Target = { platform: CreatorPlatform; handle: string; canonicalUrl: string; creatorId: string | null; inputUrl: string | null };
 
-  async function resolve(ctx: TenantContext, body: StartDiscoveryJob): Promise<Target | { answer: StartDiscoveryJobResponse }> {
+  async function resolve(ctx: TenantContext, body: Exclude<StartDiscoveryJob, { kind: "live" }>): Promise<Target | { answer: StartDiscoveryJobResponse }> {
     return deps.db.withTenant(tenant(ctx), async (tx) => {
       if (body.kind === "add_by_url") {
         const n = normalizeProfileUrl(body.url);
@@ -45,6 +45,8 @@ export function createDiscoveryService(deps: DiscoveryDeps) {
 
   /** Spec §6: reserve, create the job and announce it in one transaction; free answers never reserve. */
   async function start(ctx: TenantContext, body: StartDiscoveryJob): Promise<{ httpStatus: 200 | 202; body: StartDiscoveryJobResponse }> {
+    // Live runs start in Task 7 of sub-project 4B.
+    if (body.kind === "live") throw new AppError("VALIDATION_FAILED", "Finding new creators is not available yet.");
     const target = await resolve(ctx, body);
     if ("answer" in target) return { httpStatus: 200, body: target.answer };
     try {

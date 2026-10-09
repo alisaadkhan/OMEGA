@@ -105,14 +105,16 @@ const workerSchema = sharedObject
     APIFY_TIKTOK_ACTOR_ID: z.string().min(1).default("clockworks/tiktok-profile-scraper"),
     APIFY_MONTHLY_BUDGET_USD: z.coerce.number().min(0).default(5),
     YOUTUBE_API_KEY: z.string().min(1).optional(),
+    SERPER_API_KEY: z.string().min(1).optional(),
+    SERPER_MONTHLY_SEARCH_LIMIT: z.coerce.number().int().min(0).default(2500),
     SUPABASE_URL: z.url().optional(),
     SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
   })
   .superRefine((v, ctx) => {
     checkShared(v, ctx);
     if (v.NODE_ENV !== "production") return;
-    for (const key of ["APIFY_TOKEN", "YOUTUBE_API_KEY", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"] as const) {
-      if (!v[key]) ctx.addIssue({ code: "custom", path: [key], message: "is required in production (creator data pipeline)" });
+    for (const key of ["APIFY_TOKEN", "YOUTUBE_API_KEY", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SERPER_API_KEY"] as const) {
+      if (!v[key]) ctx.addIssue({ code: "custom", path: [key], message: "is required in production (creator data pipeline and live discovery)" });
     }
   });
 
@@ -221,6 +223,8 @@ export type ScrapingConfig = {
   tiktokActor: string;
   apifyMonthlyBudgetUsd: number;
   youtubeApiKey: string | null;
+  serperApiKey: string | null;
+  serperMonthlySearchLimit: number;
 };
 export type StorageConfig = { url: string; serviceKey: string } | null;
 
@@ -303,6 +307,8 @@ export function loadWorkerConfig(env: Env): WorkerConfig {
       tiktokActor: v.APIFY_TIKTOK_ACTOR_ID,
       apifyMonthlyBudgetUsd: v.APIFY_MONTHLY_BUDGET_USD,
       youtubeApiKey: v.YOUTUBE_API_KEY ?? null,
+      serperApiKey: v.SERPER_API_KEY ?? null,
+      serperMonthlySearchLimit: v.SERPER_MONTHLY_SEARCH_LIMIT,
     },
     storage: v.SUPABASE_URL && v.SUPABASE_SERVICE_ROLE_KEY ? { url: v.SUPABASE_URL.replace(/\/+$/, ""), serviceKey: v.SUPABASE_SERVICE_ROLE_KEY } : null,
   };

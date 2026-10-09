@@ -18,6 +18,7 @@ export function toApiJob(r: JobRow): DiscoveryJob {
     error: r.errorCode ? { code: r.errorCode, message: r.errorMessage ?? "Something went wrong." } : null,
     createdAt: r.createdAt.toISOString(),
     finishedAt: r.finishedAt?.toISOString() ?? null,
+    live: null,
   };
 }
 

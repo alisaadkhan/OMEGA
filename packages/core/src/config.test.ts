@@ -183,6 +183,8 @@ describe("scraping and storage settings (worker only)", () => {
       tiktokActor: "clockworks/tiktok-profile-scraper",
       apifyMonthlyBudgetUsd: 5,
       youtubeApiKey: "yt",
+      serperApiKey: null,
+      serperMonthlySearchLimit: 2500,
     });
     expect(c.storage).toEqual({ url: "https://ref.supabase.co", serviceKey: "service" });
     expect(c.dataEncryptionKey.length).toBe(32);
@@ -198,5 +200,12 @@ describe("scraping and storage settings (worker only)", () => {
   it("refuses production without the scraper keys, storage and encryption key", () => {
     expect(() => loadWorkerConfig({ ...worker, NODE_ENV: "production", DATABASE_SSL_CA_FILE: undefined })).toThrow(/APIFY_TOKEN/);
     expect(() => loadWorkerConfig({ ...worker, DATA_ENCRYPTION_KEY: "short" })).toThrow(/DATA_ENCRYPTION_KEY/);
+  });
+
+  it("reads the Serper key and monthly search limit, and requires the key in production", () => {
+    const c = loadWorkerConfig({ ...worker, SERPER_API_KEY: "serper-key", SERPER_MONTHLY_SEARCH_LIMIT: "100" });
+    expect(c.scraping).toMatchObject({ serperApiKey: "serper-key", serperMonthlySearchLimit: 100 });
+    expect(loadWorkerConfig(worker).scraping).toMatchObject({ serperApiKey: null, serperMonthlySearchLimit: 2500 });
+    expect(() => loadWorkerConfig({ ...worker, NODE_ENV: "production", DATABASE_SSL_CA_FILE: undefined })).toThrow(/SERPER_API_KEY/);
   });
 });
