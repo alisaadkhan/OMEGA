@@ -142,3 +142,15 @@ New: `MEILISEARCH_HOST` (dev `http://127.0.0.1:7700`), `MEILISEARCH_API_KEY` (ad
 ## 11. Out of scope
 
 Live discovery, add-by-URL, paid refresh, scrapers, raw-payload archive, spend caps, enrichment and authenticity scoring, minor detection, creator merging, erasure (sub-project 4); embeddings and similarity search, ranking explanations, historical metrics charts, content insights (SRS S2); staff minor override and cost dashboards (sub-project 8); lists and "Add to list" (sub-project 5).
+
+## 12. Implementation notes
+
+- **Summary requests:** `platform.summary_requests` records one AI call per creator data version (source hash); a request is sent again only if no summary arrived within an hour. Summaries are never requested for, or written about, creators customers cannot see (erased, removal requested, possible minors); a possible minor's profile shows the summary as unavailable.
+- **Module boundaries:** `billing.actionCost()` was added so the creators module reads the reveal price without touching billing tables (SRS §5.4).
+- **Meilisearch costs:** Meilisearch calls are not written to `provider_calls`: it is flat-fee infrastructure, like Postgres and Redis.
+- **Hidden creators:** search and lookup hydrate candidates from Postgres, so a creator hidden after indexing never appears even before the index catches up. Index sync re-checks visibility after its write lands, so a creator hidden mid-sync is not left in the index; the nightly reconcile repairs any other drift.
+- **Performance test:** the p95 search test allows for the remote test database's network round trips (a co-located production database adds none).
+- **AI providers:** Groq `openai/gpt-oss-20b` and Ollama Cloud `gpt-oss:20b` are the configured defaults. Both are reasoning models and need `max_tokens` ≥ 1024. Provider error bodies are never copied into errors or logs (they can echo user input); only the provider's error code and type are kept.
+- **Development Meilisearch:** Windows Smart App Control blocks the unsigned Windows binary, so development and integration tests use a Meilisearch Cloud project (index prefix `dev_`, throwaway `test_*` indexes for tests). A local server (or WSL) works the same way through `.env`.
+- **Score filter:** the search screen's score filter is the authenticity minimum (`minAuthenticity`), labelled "Authenticity score"; fit is computed per search and is a ranking, not a filter.
+- **Main database:** migrations 0009/0010 are applied; demo creators are not seeded there (`npm run seed:creators` adds them when wanted).
