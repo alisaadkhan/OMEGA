@@ -15,3 +15,8 @@ export type { NewCreator } from "./repository";
 export function createCreatorsModule(o: { service: CreatorsService; limiter: RateLimiter }): AppModule {
   return { name: "creators", register: (app, guards) => registerCreatorRoutes(app, guards, o.service, o.limiter) };
 }
+export { createEnrichmentPipeline } from "./enrichment/pipeline";
+export type { EnrichHooks, EnrichJob, EnrichmentPipeline, EnrichResult, SavedResult } from "./enrichment/pipeline";
+export { findProfileByUrl, getEnrichmentSettings, profileTarget } from "./enrichment/repository";
+export { normalizeProfileUrl } from "./rules";
+export type { CreatorPlatform } from "./rules";
