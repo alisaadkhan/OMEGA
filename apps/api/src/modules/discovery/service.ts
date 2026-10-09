@@ -3,7 +3,7 @@ import type { DiscoveryJob, StartDiscoveryJob, StartDiscoveryJobResponse } from 
 import { AppError, type TenantContext } from "@mushin/core";
 import { writeOutbox, type Db } from "@mushin/db";
 import type { BillingService } from "../billing/index";
-import { findProfileByUrl, getEnrichmentSettings, normalizeProfileUrl, profileTarget, refreshActionFor, type CreatorPlatform } from "../creators/index";
+import { findProfileByUrl, getEnrichmentSettings, isVisibleCreator, normalizeProfileUrl, profileTarget, refreshActionFor, type CreatorPlatform } from "../creators/index";
 import * as repo from "./repository";
 
 export type DiscoveryDeps = { db: Db; billing: Pick<BillingService, "engine">; now?: () => Date };
@@ -25,12 +25,16 @@ export function createDiscoveryService(deps: DiscoveryDeps) {
         const n = normalizeProfileUrl(body.url);
         if (!n) throw new AppError("VALIDATION_FAILED", "Paste a public Instagram, TikTok or YouTube profile link.", { field: "url" });
         const known = await findProfileByUrl(tx, n.canonicalUrl);
-        if (known) return { answer: { status: "known", creatorId: known.creatorId } };
+        if (known) {
+          // Creators hidden from customers (possible minors, removal requested) are not found here either, as in search.
+          if (!(await isVisibleCreator(tx, known.creatorId))) throw new AppError("NOT_FOUND", "This creator can't be added.");
+          return { answer: { status: "known", creatorId: known.creatorId } };
+        }
         const segment = n.canonicalUrl.split("/").pop() ?? "";
         return { platform: n.platform, handle: segment.replace(/^@/, ""), canonicalUrl: n.canonicalUrl, creatorId: null, inputUrl: body.url };
       }
       const t = await profileTarget(tx, body.creatorId);
-      if (!t) throw new AppError("NOT_FOUND", "Creator not found");
+      if (!t || !(await isVisibleCreator(tx, body.creatorId))) throw new AppError("NOT_FOUND", "Creator not found");
       const settings = await getEnrichmentSettings(tx);
       if (t.lastScrapedAt && now().getTime() - t.lastScrapedAt.getTime() < settings.refreshMinAgeHours * 3_600_000) {
         return { answer: { status: "up_to_date", creatorId: body.creatorId, updatedAt: t.lastScrapedAt.toISOString() } };

@@ -343,6 +343,12 @@ export function indexState(tx: SystemTx): Promise<{ id: string; updatedEpoch: nu
   return tx.execute<{ id: string; updatedEpoch: number }>(sql`select c.id, ${UPDATED_EPOCH} as "updatedEpoch" from gcp.creators c where ${VISIBLE}`);
 }
 
+/** Whether customers can see this creator (active, and not a possible minor without a staff override). */
+export async function isVisibleCreator(tx: Tx, id: string): Promise<boolean> {
+  const rows = await tx.execute<{ id: string }>(sql`select c.id from gcp.creators c where c.id = ${id} and ${VISIBLE}`);
+  return rows.length === 1;
+}
+
 /** Of the given creators, those customers can currently see. */
 export async function visibleIds(tx: SystemTx, ids: string[]): Promise<string[]> {
   if (ids.length === 0) return [];

@@ -77,6 +77,18 @@ describe("starting jobs", () => {
     await expect(discovery.start(await customer(), { kind: "refresh", creatorId: id, confirmedCost: 30 })).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 
+  it("treats creators customers cannot see (possible minors, removal requested) as not found on both paths", async () => {
+    const c = await customer();
+    const minor = await addCreator(db, { isMinor: true, profiles: [{ platform: "instagram", handle: "hidden_minor" }] });
+    await ownerQuery(`update gcp.creator_profiles set last_scraped_at = now() - interval '2 days' where creator_id = '${minor}'`);
+    await expect(discovery.start(c, addByUrl("instagram.com/hidden_minor"))).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(discovery.start(c, { kind: "refresh", creatorId: minor, confirmedCost: 10 })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    const removing = await addCreator(db, { profiles: [{ platform: "instagram", handle: "asked_removal" }] });
+    await ownerQuery(`update gcp.creators set status = 'removal_requested' where id = '${removing}'`);
+    await expect(discovery.start(c, addByUrl("instagram.com/asked_removal"))).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(await balance(c)).toMatchObject({ available: 200, reserved: 0 });
+  });
+
   it("refuses workspaces without credits or a plan", async () => {
     const ws = await createTestWorkspace();
     const c: TenantContext = { ...ws, requestId: "r", role: "owner" };

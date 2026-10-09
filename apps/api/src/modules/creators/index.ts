@@ -9,7 +9,7 @@ export { createCreatorIndexer } from "./indexer";
 export type { CreatorIndexer } from "./indexer";
 export { createSummaryWriter } from "./summaries";
 export type { SummaryWriter } from "./summaries";
-export { insertCreator } from "./repository";
+export { insertCreator, isVisibleCreator } from "./repository";
 export type { NewCreator } from "./repository";
 
 export function createCreatorsModule(o: { service: CreatorsService; limiter: RateLimiter }): AppModule {
