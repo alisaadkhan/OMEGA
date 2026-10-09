@@ -5,7 +5,7 @@ import { registerBillingRoutes } from "./routes";
 import type { BillingService } from "./service";
 
 export { createCreditEngine } from "./engine";
-export type { Actor, Balance, CreditEngine, GrantRequest, SpendRequest } from "./engine";
+export type { Actor, Balance, CreditEngine, GrantRequest, HoldRequest, SpendRequest } from "./engine";
 export { createBillingService } from "./service";
 export type { BillingDeps, BillingService, Customer } from "./service";
 export { createRedisAccessCache, MemoryAccessCache, noAccessCache } from "./access-cache";

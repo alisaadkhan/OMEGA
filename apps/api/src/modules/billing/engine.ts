@@ -16,6 +16,8 @@ import {
 
 export type Actor = { userId: string | null; requestId: string | null };
 export type SpendRequest = { action: CreditAction; confirmedCost: number; refType: string; refId: string };
+/** A reservation for an amount the caller computed from `costs()` (live discovery: 12 + size × per-creator price). */
+export type HoldRequest = { action: CreditAction; amount: number; confirmedCost: number; refType: string; refId: string };
 export type GrantRequest = {
   source: repo.LotSource;
   amount: number;
@@ -82,13 +84,12 @@ export function createCreditEngine(o: { now?: () => Date } = {}) {
     });
   }
 
-  async function reserveLocked(tx: TenantTx, workspaceId: string, req: SpendRequest, actor: Actor) {
-    const cost = await repo.getActionCost(tx, req.action);
-    if (cost === 0) throw new AppError("VALIDATION_FAILED", "This action is free and is never charged");
-    if (cost !== req.confirmedCost) {
+  async function holdLocked(tx: TenantTx, workspaceId: string, h: HoldRequest, actor: Actor) {
+    if (!Number.isInteger(h.amount) || h.amount <= 0) throw new AppError("VALIDATION_FAILED", "This action is free and is never charged");
+    if (h.amount !== h.confirmedCost) {
       throw new AppError("CONFLICT", "The cost of this action has changed. Please review it and confirm again.", {
-        confirmedCost: req.confirmedCost,
-        currentCost: cost,
+        confirmedCost: h.confirmedCost,
+        currentCost: h.amount,
       });
     }
     const before = await balance(tx, workspaceId);
@@ -99,29 +100,35 @@ export function createCreditEngine(o: { now?: () => Date } = {}) {
         lostAccess: lostAccessFor(before.status, before.topupRemaining),
       });
     }
-    if (before.available < cost) {
-      throw new AppError("INSUFFICIENT_CREDITS", "You don't have enough credits for this action.", { required: cost, available: before.available });
+    if (before.available < h.amount) {
+      throw new AppError("INSUFFICIENT_CREDITS", "You don't have enough credits for this action.", { required: h.amount, available: before.available });
     }
     const settings = await repo.getSettings(tx);
     const t = now();
     const reservation = await repo.insertReservation(tx, {
       workspaceId,
-      amount: cost,
-      action: req.action,
-      confirmedCost: req.confirmedCost,
+      amount: h.amount,
+      action: h.action,
+      confirmedCost: h.confirmedCost,
       status: "held",
       spendScope: scope,
       expiresAt: new Date(t.getTime() + settings.reservationTtlMinutes * 60_000),
-      refType: req.refType,
-      refId: req.refId,
+      refType: h.refType,
+      refId: h.refId,
       createdAt: t,
     });
     await repo.insertLedger(tx, [
-      { workspaceId, amount: cost, kind: "reserve", action: req.action, reservationId: reservation.id, actorUserId: actor.userId },
+      { workspaceId, amount: h.amount, kind: "reserve", action: h.action, reservationId: reservation.id, actorUserId: actor.userId },
     ]);
     await repo.scheduleJob(tx, workspaceId, "release_abandoned", reservation.expiresAt);
     await alertIfCrossed(tx, workspaceId, before, await balance(tx, workspaceId), actor);
-    return { reservationId: reservation.id, amount: cost };
+    return { reservationId: reservation.id, amount: h.amount };
+  }
+
+  async function reserveLocked(tx: TenantTx, workspaceId: string, req: SpendRequest, actor: Actor) {
+    const cost = await repo.getActionCost(tx, req.action);
+    if (cost === 0) throw new AppError("VALIDATION_FAILED", "This action is free and is never charged");
+    return holdLocked(tx, workspaceId, { action: req.action, amount: cost, confirmedCost: req.confirmedCost, refType: req.refType, refId: req.refId }, actor);
   }
 
   async function commitLocked(tx: TenantTx, workspaceId: string, reservationId: string, actor: Actor) {
@@ -153,6 +160,42 @@ export function createCreditEngine(o: { now?: () => Date } = {}) {
       })),
     );
     await repo.finishReservation(tx, r.id, "committed", now());
+  }
+
+  /** Charges `amount` of a held reservation and returns the rest (live discovery, spec §5). Ledger stays append-only. */
+  async function commitPartialLocked(tx: TenantTx, workspaceId: string, reservationId: string, amount: number, actor: Actor, note: string) {
+    const r = await repo.getReservationForUpdate(tx, workspaceId, reservationId);
+    if (!r) throw new AppError("NOT_FOUND", "Reservation not found");
+    if (r.status === "committed") return;
+    if (r.status !== "held") throw new AppError("CONFLICT", "This reservation was already released");
+    if (!Number.isInteger(amount) || amount < 0 || amount > r.amount) throw new Error(`partial commit amount must be between 0 and ${r.amount}`);
+    if (amount > 0) {
+      const lots = await repo.lotsValidAt(tx, workspaceId, r.createdAt, r.spendScope);
+      let plan: Allocation[];
+      try {
+        plan = allocateLots(lots, amount);
+      } catch (err) {
+        if (err instanceof InsufficientLotsError) throw new AppError("INTERNAL", "Credit lots cannot cover a held reservation", { reservationId }, { cause: err });
+        throw err;
+      }
+      for (const a of plan) await repo.takeFromLot(tx, a.lotId, a.take);
+      await repo.insertLedger(
+        tx,
+        plan.map((a) => ({ workspaceId, amount: -a.take, kind: "spend" as const, action: r.action, lotId: a.lotId, reservationId: r.id, actorUserId: actor.userId })),
+      );
+    }
+    if (amount < r.amount) {
+      await repo.insertLedger(tx, [
+        { workspaceId, amount: r.amount - amount, kind: "release", action: r.action, reservationId: r.id, actorUserId: actor.userId, note: note.slice(0, 200) },
+      ]);
+    }
+    await repo.finishReservation(tx, r.id, amount > 0 ? "committed" : "released", now());
+  }
+
+  async function costs<A extends CreditAction>(tx: TenantTx, actions: readonly A[]): Promise<Record<A, number>> {
+    const out = {} as Record<A, number>;
+    for (const a of actions) out[a] = await repo.getActionCost(tx, a);
+    return out;
   }
 
   async function releaseLocked(
@@ -204,6 +247,9 @@ export function createCreditEngine(o: { now?: () => Date } = {}) {
     balance,
     reserve: locked(reserveLocked),
     commit: locked(commitLocked),
+    costs,
+    reserveAmount: locked(holdLocked),
+    commitPartial: locked(commitPartialLocked),
     release: locked((tx, workspaceId, reservationId: string, reason: string, actor: Actor) =>
       releaseLocked(tx, workspaceId, reservationId, reason, actor, "released"),
     ),
