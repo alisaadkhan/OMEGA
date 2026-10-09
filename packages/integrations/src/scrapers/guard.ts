@@ -18,8 +18,9 @@ export function createBudgetGuard(o: { spentSince: (since: Date) => Promise<numb
       const monthStart = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth(), 1));
       const spent = await o.spentSince(monthStart);
       // Checked and counted together after the read, so simultaneous callers each see the others' runs.
-      const committed = spent + inFlight * perRun;
-      if (committed >= o.budgetUsd) {
+      // The new work counts too: a batch is admitted only if all of it fits under the budget.
+      const committed = spent + (inFlight + units) * perRun;
+      if (committed > o.budgetUsd + 1e-9) {
         throw new ProviderError(false, "spend_cap", `Monthly Apify budget of $${o.budgetUsd} reached ($${spent.toFixed(4)} spent, ${inFlight} run(s) in progress)`);
       }
       inFlight += units;
