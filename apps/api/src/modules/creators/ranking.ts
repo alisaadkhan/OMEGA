@@ -5,8 +5,25 @@ import { fitLabel, fitScore, freshnessOf } from "./rules";
 
 type Tx = TenantTx | SystemTx;
 
+/** Letters and digits only, so "Fashion Club", "fashion.club" and "@FashionClub" compare equal. */
+const nameKey = (s: string) => s.normalize("NFKC").toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+
+/**
+ * A search for someone by name finds them first (SRS REQ-02.03, relevance to the query): 0 = name or handle is the search,
+ * 1 = starts with a search of two or more words, 2 = everyone else. One-word topic searches ("fashion") keep fit order.
+ */
+function nameTier(text: string, name: string, handle: string): number {
+  const q = nameKey(text);
+  if (!q) return 2;
+  const keys = [nameKey(name), nameKey(handle)];
+  if (keys.includes(q)) return 0;
+  if (text.trim().split(/\s+/).length >= 2 && keys.some((k) => k.startsWith(q))) return 1;
+  return 2;
+}
+
 /** Brain 1's cards and order (spec D2 of sub-project 3); live results use the same scoring (sub-project 4B D5). */
 export function toCards(rows: repo.CardRow[], req: { text: string; filters: SearchFilters }, settings: repo.SearchSettings, now: Date, relevance: Map<string, number>): CreatorCard[] {
+  const tier = new Map(rows.map((r) => [r.id, nameTier(req.text, r.displayName, r.primaryHandle)]));
   return rows
     .map((r) => {
       const followersFreshness = freshnessOf(r.followersUpdatedAt, now, settings.fresh);
@@ -36,7 +53,7 @@ export function toCards(rows: repo.CardRow[], req: { text: string; filters: Sear
         fitLabel: fitLabel(score, settings.labels),
       };
     })
-    .sort((a, b) => b.fitScore - a.fitScore || b.followers - a.followers || a.id.localeCompare(b.id));
+    .sort((a, b) => (tier.get(a.id) ?? 2) - (tier.get(b.id) ?? 2) || b.fitScore - a.fitScore || b.followers - a.followers || a.id.localeCompare(b.id));
 }
 
 /** Cards for a live run's creators: hidden creators are left out (card rows apply the visibility rule); the AI already judged relevance, so text counts as matched. */
