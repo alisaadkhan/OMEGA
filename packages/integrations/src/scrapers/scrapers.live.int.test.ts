@@ -5,6 +5,7 @@ import { MemoryProviderCallSink } from "../memory-sink";
 import { createObjectStorage, RAW_PAYLOAD_BUCKET } from "../storage";
 import { createBudgetGuard } from "./guard";
 import { createProfileScraper } from "./scraper";
+import { createSearchLimitGuard, createSerperSearch } from "../websearch";
 
 // Spends about $0.02 of Apify (spec §10). Run: LIVE_SCRAPE_TESTS=1 npx vitest run --project int packages/integrations/src/scrapers/scrapers.live.int.test.ts
 describe.skipIf(process.env["LIVE_SCRAPE_TESTS"] !== "1")("live scrapers and storage (LIVE_SCRAPE_TESTS=1)", () => {
@@ -40,5 +41,13 @@ describe.skipIf(process.env["LIVE_SCRAPE_TESTS"] !== "1")("live scrapers and sto
     expect(new TextDecoder().decode((await storage.get(RAW_PAYLOAD_BUCKET, key)) ?? new Uint8Array())).toBe('{"ok":true}');
     await storage.remove(RAW_PAYLOAD_BUCKET, [key]);
     expect(await storage.get(RAW_PAYLOAD_BUCKET, key)).toBeNull();
+  }, 60_000);
+
+  it("runs one real Google search through Serper and records it", async () => {
+    const web = createSerperSearch({ apiKey: config.scraping.serperApiKey, limit: createSearchLimitGuard({ limit: 10, countSince: async () => 0 }), sink, logger });
+    const results = await web.search({ query: "site:instagram.com bridal makeup Lahore", country: "pk", num: 10 });
+    expect(results.length).toBeGreaterThan(0);
+    expect(results.every((r) => r.link.startsWith("http"))).toBe(true);
+    expect(sink.calls.some((c) => c.provider === "serper" && c.status === "ok")).toBe(true);
   }, 60_000);
 });

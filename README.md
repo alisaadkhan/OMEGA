@@ -93,3 +93,26 @@ authenticity signals, asks the AI to explain them and estimate the audience, fla
 
 Prices (credits) live in `platform.credit_action_costs`: `refresh_data` 10 (Instagram, YouTube), `refresh_tiktok` 30 (TikTok is billed
 per video by Apify). The other pipeline settings live in `platform.enrichment_settings`.
+
+## Live discovery and erasure (sub-project 4B)
+
+**Find New Creators** (search page) runs the current search on Google through Serper, keeps relevant profiles with the AI,
+shows creators MUSHIN already knows for free, and fetches and assesses up to 5, 10 or 20 new ones with the 4A pipeline.
+It costs `find_new` (12) plus each new creator added (`refresh_data` 10 for Instagram/YouTube, `refresh_tiktok` 30 for
+TikTok); the maximum is reserved and the rest returned. Google results are cached for 7 days in `platform.serper_cache`.
+
+**Removal requests**: creators ask at `/#/remove-my-data`; their profile is hidden at once; staff approve or reject at
+`/#/admin` → Removal requests (staff sign in with password and authenticator code). Approval erases contacts,
+profiles, history, archives and photo, keeps a tombstone and the credit ledger, and blocks the links by hash.
+
+| Variable | Purpose |
+|---|---|
+| `SERPER_API_KEY` | Serper (Google search) key, worker only |
+| `SERPER_MONTHLY_SEARCH_LIMIT` | searches per calendar month before runs fail and refund (default 2500) |
+
+In development the website proxy rewrites the staff refresh cookie's path (`frontend/vite.config.ts`); when the site is
+deployed, serve the API so `/admin/v1/auth` cookies reach it, or rewrite the path the same way.
+
+Serper's free plan allows 10 results per `site:` search, so each run makes up to 3 searches per platform with 10 results each.
+Migrations `0012`–`0014` add the run, result, cache, removal-request and do-not-re-add tables, allow the API to reserve a run's
+maximum, and let erasure scrub every workspace's rows that name the creator.

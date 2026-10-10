@@ -119,11 +119,11 @@ The job runs at least once per delivery. A retry reuses: cached Serper results (
 
 ## 7. Erasure (worker, queue `erasure`, concurrency 1)
 
-On `creator.erasure_requested` for a creator, each step safe to repeat:
+On `erasure.creator_requested` (the worker routes `creator.*` to another queue), each step safe to repeat:
 1. Remove the creator from the Meilisearch index.
 2. Delete storage files: every raw payload of the creator (files, then `raw_payloads` rows) and the avatar.
 3. In one transaction: delete `creator_contacts`, `creator_links`, `profile_metric_snapshots` (via profiles), `enrichment_snapshots`, `creator_profiles`, every workspace's `contact_reveals` and `audience_views` for the creator, and their `discovery_results` rows; insert a suppression hash for every canonical URL of the creator and of the request; clear the creator's personal fields (display name → "Erased creator", handles, avatar, city, country, niches, tags, bio-derived fields, AI summary, minor reason) and set status `erased`.
-4. Mark the request's confirmation as pending (sent in sub-project 7), then clear the requester email.
+4. Announce `notify.removal_processed` (the confirmation email is sent in sub-project 7). The requester's email stays encrypted until then, and a nightly job clears it 30 days after the request was handled.
 
 A request that matched no creator still adds its URLs to the suppression list on approval.
 
@@ -169,3 +169,28 @@ New: `SERPER_MONTHLY_SEARCH_LIMIT=2500`. Already set in `.env`: `SERPER_API_KEY`
 ## 12. Out of scope
 
 **Later:** confirmation emails to requesters and job notifications (sub-project 7); the rest of the admin tools, staff minor override and cost dashboard (sub-project 8); creator merging across platforms (TBD-010); similarity search (REQ-02.05, S2); "why this creator ranked here" explanations (REQ-02.08, S2); workspace data export and deletion (SRS §6.3 first bullet, account surfaces).
+
+## 13. Implementation notes
+
+Built on branch `feat/subproject-4b-live-discovery-erasure` (2026-10-09/10). Where the build departs from or adds to the sections above:
+
+**Billing and database**
+- **Quoted reservations:** the database's reservation policy (0005) allowed only an action's exact price. Migration `0013` keeps that defence and also allows `find_new` amounts of 12 + 5, 10 or 20 × the Instagram/YouTube or TikTok price.
+- **Erasure reaches old jobs:** migration `0014` makes the workspace cleanup take the creator's profile links and scrub earlier add-by-link and refresh jobs that name them (security review). The eraser also drops cached Google results that mention the creator.
+- **Simultaneous clicks:** both start paths return the open job when a second click fails for lack of credits because the first click already reserved them.
+
+**Live runs**
+- **Serper free plan:** 10 results per `site:` search (20 is refused), so up to 3 × 10 results per platform. The test fixture was recorded once from a real search (2026-10-09), with phone numbers in snippets removed.
+- **Apify budget:** a batch is admitted only if all of it fits under the monthly budget (security review), not just the work already running.
+- **Archive:** each fetched profile is archived on its own (not one file per batch), so erasure and re-assessment find a creator's own data.
+- **Possible minors** found by a run cost nothing (they are hidden from the user).
+- **Results:** the website polls one query per run with a cursor and re-reads the list once when the run finishes, so final ranks show.
+
+**Erasure**
+- **Stale links:** links are resolved again when the erasure runs, so a creator added after the request was made is erased too (security review).
+- **Open decision:** an unverified request hides a creator at once (D7). Staff rejection restores them; the public form is limited per IP. Optionally, a new request could be stopped from re-hiding a creator whose request staff rejected in the last 30 days.
+
+**Smaller corrections to the plan:** carry-over type changes between tasks; test data fixed (valid hashes, the fixture's random handle, counting only new outbox events); the staff sign-in screen rewritten in full; prices for the confirmation box come from the billing plans response.
+
+**Evidence**
+- Live check (`LIVE_SCRAPE_TESTS=1`, 2026-10-10): one real Serper search returned Instagram profile links and was recorded as a provider call.
