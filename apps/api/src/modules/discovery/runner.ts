@@ -1,9 +1,10 @@
 import { sql } from "drizzle-orm";
 import { AppError, type Logger } from "@mushin/core";
-import { writeOutbox, type Db, type TenantTx } from "@mushin/db";
+import type { Db } from "@mushin/db";
 import { ProviderError } from "@mushin/integrations";
 import type { BillingService } from "../billing/index";
 import { getEnrichmentSettings, type EnrichmentPipeline } from "../creators/index";
+import { failJob, notifyFinished, releaseHeld } from "./finish";
 import * as repo from "./repository";
 
 type Deps = { db: Db; billing: Pick<BillingService, "engine">; pipeline: Pick<EnrichmentPipeline, "enrich">; logger: Logger; maxAttempts?: number };
@@ -26,35 +27,6 @@ function providerErrorOf(err: unknown): ProviderError | null {
 export function createDiscoveryRunner(deps: Deps) {
   const maxAttempts = deps.maxAttempts ?? 3;
   const engine = deps.billing.engine;
-
-  async function notify(tx: TenantTx, job: repo.JobRow, status: "completed" | "failed") {
-    await writeOutbox(tx, {
-      eventType: "notify.discovery_job_finished",
-      aggregateType: "discovery_job",
-      aggregateId: job.id,
-      workspaceId: job.workspaceId,
-      payload: { jobId: job.id, status },
-      requestId: job.requestId,
-    });
-  }
-
-  async function refund(tx: TenantTx, job: repo.JobRow, reason: string) {
-    if (!job.reservationId) return;
-    try {
-      await engine.release(tx, job.workspaceId, job.reservationId, reason, { userId: job.requestedBy, requestId: job.requestId });
-    } catch (err) {
-      // Already committed (the data was saved and charged): nothing to return.
-      if (!(err instanceof AppError && err.code === "CONFLICT")) throw err;
-    }
-  }
-
-  async function fail(job: repo.JobRow, code: string, message: string) {
-    await deps.db.withWorkspace(job.workspaceId, async (tx) => {
-      if (!(await repo.finishJob(tx, job.workspaceId, job.id, { status: "failed", errorCode: code, errorMessage: message }))) return;
-      await refund(tx, job, `${code}: ${message}`);
-      await notify(tx, job, "failed");
-    });
-  }
 
   async function run(jobId: string, workspaceId: string): Promise<void> {
     const job = await deps.db.withWorkspace(workspaceId, (tx) => repo.startAttempt(tx, workspaceId, jobId));
@@ -85,18 +57,18 @@ export function createDiscoveryRunner(deps: Deps) {
               }
             }
             await repo.finishJob(tx, workspaceId, job.id, { status: "completed", outcome: saved.outcome, creatorId: saved.creatorId, creditsCharged: charged });
-            await notify(tx, job, "completed");
+            await notifyFinished(tx, job, "completed");
           },
         },
       );
       if (result.kind === "reused") {
         await deps.db.withWorkspace(workspaceId, async (tx) => {
           if (!(await repo.finishJob(tx, workspaceId, job.id, { status: "completed", outcome: "reused", creatorId: result.creatorId }))) return;
-          await refund(tx, job, "Fresh data was already available");
-          await notify(tx, job, "completed");
+          await releaseHeld(engine, tx, job, "Fresh data was already available");
+          await notifyFinished(tx, job, "completed");
         });
       } else if (result.kind === "unavailable") {
-        await fail(job, result.code, result.message);
+        await failJob(deps, job, result.code, result.message);
       }
     } catch (err) {
       const pe = providerErrorOf(err);
@@ -105,7 +77,7 @@ export function createDiscoveryRunner(deps: Deps) {
       const retryable = pe ? pe.retryable : !(err instanceof AppError) || err.code === "PROVIDER_UNAVAILABLE";
       if (retryable && job.attempts < maxAttempts) throw err; // the queue tries again with backoff
       deps.logger.warn({ err, jobId }, "creator data job failed");
-      await fail(job, "PROVIDER_UNAVAILABLE", MESSAGES[pe?.reason ?? "provider"]);
+      await failJob(deps, job, "PROVIDER_UNAVAILABLE", MESSAGES[pe?.reason ?? "provider"]);
     }
   }
 
@@ -117,7 +89,7 @@ export function createDiscoveryRunner(deps: Deps) {
     for (const s of stuck) {
       const job = await deps.db.withWorkspace(s.workspace_id, (tx) => repo.getJob(tx, s.workspace_id, s.id));
       if (!job) continue;
-      await fail(job, "TIMED_OUT", "This took too long and was stopped. Your credits were returned.");
+      await failJob(deps, job, "TIMED_OUT", "This took too long and was stopped. Your credits were returned.");
       n += 1;
     }
     return n;

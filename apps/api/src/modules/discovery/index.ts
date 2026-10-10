@@ -11,3 +11,7 @@ export type { DiscoveryRunner } from "./runner";
 export function createDiscoveryModule(o: { service: DiscoveryService; limiter: RateLimiter }): AppModule {
   return { name: "discovery", register: (app, guards) => registerDiscoveryRoutes(app, guards, o.service, o.limiter) };
 }
+export { createLiveRunner } from "./live-runner";
+export type { LiveRunner } from "./live-runner";
+export { createCachedSearch } from "./live/cache";
+export type { CachedSearch } from "./live/cache";
