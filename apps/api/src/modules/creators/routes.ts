@@ -1,4 +1,4 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import {
   audienceResponseSchema,
@@ -14,16 +14,30 @@ import {
   savedSearchSchema,
   searchRequestSchema,
   searchResponseSchema,
+  removalReceivedSchema,
+  removalRequestSchema,
+  revealRemovedSchema,
+  staffRejectSchema,
+  staffRemovalListSchema,
 } from "@mushin/contracts";
+import { AppError } from "@mushin/core";
 import { tenantOf } from "../../auth/customer-guard";
-import type { Guards } from "../../http/types";
+import type { Guards, PreHandler } from "../../http/types";
+import type { StaffAction } from "../staff/index";
+import type { RemovalService } from "./erasure/service";
 import { parseInput, sendOk } from "../../http/validate";
 import { rateLimitError, type RateLimiter } from "../../rate-limit/types";
 import type { CreatorsService } from "./service";
 
 const idParams = z.object({ id: z.uuid() });
 
-export function registerCreatorRoutes(app: FastifyInstance, guards: Guards, service: CreatorsService, limiter: RateLimiter): void {
+export function registerCreatorRoutes(
+  app: FastifyInstance,
+  guards: Guards,
+  service: CreatorsService,
+  limiter: RateLimiter,
+  extra?: { removals: RemovalService; requireStaff: (action: StaffAction) => PreHandler },
+): void {
   const read = { preHandler: guards.customer };
   const write = { preHandler: [guards.customer, guards.idempotent] };
 
@@ -69,4 +83,46 @@ export function registerCreatorRoutes(app: FastifyInstance, guards: Guards, serv
     const body = parseInput(revealRequestSchema, req.body);
     return sendOk(reply, revealResponseSchema, await service.reveal(tenantOf(req), id, body.confirmedCost));
   });
+
+  app.delete("/v1/creators/:id/reveal", read, async (req, reply) => {
+    const { id } = parseInput(idParams, req.params);
+    await service.forgetReveal(tenantOf(req), id);
+    return sendOk(reply, revealRemovedSchema, { status: "removed" });
+  });
+
+  if (extra) {
+    const { removals, requireStaff } = extra;
+    const staffOnly = { preHandler: requireStaff("creators.removal.review") };
+    const meta = (req: FastifyRequest) => ({ ip: req.ip ?? null, requestId: req.id });
+
+    // Public, no sign-in (SRS §6.3). The `auth` bucket keeps it to a few requests a minute per address.
+    app.post("/v1/public/removal-requests", async (req, reply) => {
+      const r = await limiter.limit("auth", `removal:${req.ip}`);
+      if (!r.allowed) throw rateLimitError(r.retryAfterSeconds);
+      await removals.submit(parseInput(removalRequestSchema, req.body));
+      return sendOk(reply, removalReceivedSchema, { status: "received" }, 202);
+    });
+
+    app.get("/admin/v1/removal-requests", staffOnly, async (req, reply) => {
+      const { status } = parseInput(z.object({ status: z.enum(["received", "processed", "rejected"]).default("received") }), req.query);
+      return sendOk(reply, staffRemovalListSchema, { requests: await removals.list(status) });
+    });
+
+    app.post("/admin/v1/removal-requests/:id/approve", staffOnly, async (req, reply) => {
+      const { id } = parseInput(idParams, req.params);
+      const staff = req.staff;
+      if (!staff) throw new AppError("UNAUTHENTICATED", "Admin authentication required");
+      await removals.approve(id, staff, meta(req));
+      return sendOk(reply, z.object({ status: z.literal("approved") }), { status: "approved" });
+    });
+
+    app.post("/admin/v1/removal-requests/:id/reject", staffOnly, async (req, reply) => {
+      const { id } = parseInput(idParams, req.params);
+      const { note } = parseInput(staffRejectSchema, req.body);
+      const staff = req.staff;
+      if (!staff) throw new AppError("UNAUTHENTICATED", "Admin authentication required");
+      await removals.reject(id, note, staff, meta(req));
+      return sendOk(reply, z.object({ status: z.literal("rejected") }), { status: "rejected" });
+    });
+  }
 }

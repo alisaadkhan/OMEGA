@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { discoveryJobListSchema, discoveryJobSchema, startDiscoveryJobResponseSchema, startDiscoveryJobSchema } from "@mushin/contracts";
+import { discoveryJobListSchema, discoveryJobSchema, discoveryResultsResponseSchema, startDiscoveryJobResponseSchema, startDiscoveryJobSchema } from "@mushin/contracts";
 import { tenantOf } from "../../auth/customer-guard";
 import type { Guards } from "../../http/types";
 import { parseInput, sendOk } from "../../http/validate";
@@ -25,6 +25,14 @@ export function registerDiscoveryRoutes(app: FastifyInstance, guards: Guards, se
   app.get("/v1/discovery/jobs/:id", read, async (req, reply) => {
     const { id } = parseInput(idParams, req.params);
     return sendOk(reply, discoveryJobSchema, await service.get(tenantOf(req), id));
+  });
+
+  const resultsQuery = z.object({ after: z.coerce.number().int().min(0).max(1_000_000).default(0) });
+
+  app.get("/v1/discovery/jobs/:id/results", read, async (req, reply) => {
+    const { id } = parseInput(idParams, req.params);
+    const { after } = parseInput(resultsQuery, req.query);
+    return sendOk(reply, discoveryResultsResponseSchema, await service.results(tenantOf(req), id, after));
   });
 
   app.get("/v1/discovery/jobs", read, async (req, reply) => {

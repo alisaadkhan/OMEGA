@@ -1,5 +1,8 @@
 import type { AppModule } from "../../http/types";
+import type { PreHandler } from "../../http/types";
 import type { RateLimiter } from "../../rate-limit/types";
+import type { StaffAction } from "../staff/index";
+import type { RemovalService } from "./erasure/service";
 import { registerCreatorRoutes } from "./routes";
 import type { CreatorsService } from "./service";
 
@@ -12,8 +15,9 @@ export type { SummaryWriter } from "./summaries";
 export { insertCreator, isVisibleCreator } from "./repository";
 export type { NewCreator } from "./repository";
 
-export function createCreatorsModule(o: { service: CreatorsService; limiter: RateLimiter }): AppModule {
-  return { name: "creators", register: (app, guards) => registerCreatorRoutes(app, guards, o.service, o.limiter) };
+export function createCreatorsModule(o: { service: CreatorsService; limiter: RateLimiter; removals?: RemovalService; requireStaff?: (action: StaffAction) => PreHandler }): AppModule {
+  const extra = o.removals && o.requireStaff ? { removals: o.removals, requireStaff: o.requireStaff } : undefined;
+  return { name: "creators", register: (app, guards) => registerCreatorRoutes(app, guards, o.service, o.limiter, extra) };
 }
 export { createEnrichmentPipeline } from "./enrichment/pipeline";
 export type { EnrichHooks, EnrichJob, EnrichmentPipeline, EnrichResult, SavedResult } from "./enrichment/pipeline";

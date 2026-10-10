@@ -7,11 +7,11 @@ import { createCustomerGuard } from "./auth/customer-guard";
 import { createCustomerTokenVerifier, remoteJwks } from "./auth/customer-token";
 import type { Guards, ReadinessCheck } from "./http/types";
 import { createBillingModule, createBillingService, createRedisAccessCache, noAccessCache } from "./modules/billing";
-import { createCreatorsModule, createCreatorsService } from "./modules/creators";
+import { createCreatorsModule, createCreatorsService, createRemovalService } from "./modules/creators";
 import { createDiscoveryModule, createDiscoveryService } from "./modules/discovery";
 import { createIdentityModule } from "./modules/identity";
 import { createPlatformModule } from "./modules/platform";
-import { createStaffModule, createStaffTokens } from "./modules/staff";
+import { createStaffModule, createStaffTokens, recordStaffAudit } from "./modules/staff";
 import { MemoryRateLimiter } from "./rate-limit/memory";
 import { ipRateLimitHook } from "./rate-limit/plugin";
 import { bucketsFromConfig, type RateLimiter } from "./rate-limit/types";
@@ -46,6 +46,7 @@ const llm = createLlm(config.llm, { sink: createDbProviderCallSink(db), logger }
 const creators = createCreatorsService({ db, index: searchIndex, llm, billing, encryptionKey: config.dataEncryptionKey, logger });
 const identity = createIdentityModule({ db, startTrial: billing.startTrial });
 const staff = createStaffModule({ db, tokens: createStaffTokens(config.staffJwtSecret), encryptionKey: config.dataEncryptionKey });
+const removals = createRemovalService({ db, encryptionKey: config.dataEncryptionKey, audit: recordStaffAudit });
 const platform = createPlatformModule({ db, ttlHours: config.idempotencyTtlHours });
 const guards: Guards = {
   customer: createCustomerGuard({
@@ -65,7 +66,7 @@ const app = await buildApp({
     identity.module,
     staff.module,
     createBillingModule({ service: billing, payments, appUrl: config.appUrl }),
-    createCreatorsModule({ service: creators, limiter }),
+    createCreatorsModule({ service: creators, limiter, removals, requireStaff: staff.requireStaff }),
     createDiscoveryModule({ service: createDiscoveryService({ db, billing }), limiter }),
   ],
   readiness,
