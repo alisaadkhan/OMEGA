@@ -16,7 +16,9 @@ import type { Llm, SearchIndex } from "@mushin/integrations";
 import type { BillingService } from "../billing/index";
 import { interpretOutputSchema, interpretSystemPrompt } from "./prompts";
 import * as repo from "./repository";
-import { cleanInterpretation, fenced, fitLabel, fitScore, freshnessOf, isMinorProtected, meiliFilter, monthKey, normalizeProfileUrl, refreshActionFor, sourceHash } from "./rules";
+import { cleanInterpretation, fenced, freshnessOf, isMinorProtected, meiliFilter, monthKey, normalizeProfileUrl, refreshActionFor, sourceHash } from "./rules";
+import { toCards } from "./ranking";
+import { suppressedUrls } from "./suppressions";
 
 export type CreatorsDeps = {
   db: Db;
@@ -67,42 +69,7 @@ export function createCreatorsService(deps: CreatorsDeps) {
     });
     const relevance = new Map(hits.map((h) => [h.id, h.rankingScore]));
     const rows = await deps.db.withTenant(tenant(ctx), (tx) => repo.cardRows(tx, hits.map((h) => h.id)));
-    const cards = rows
-      .map((r) => {
-        const followersFreshness = freshnessOf(r.followersUpdatedAt, t, settings.fresh);
-        const score = fitScore(
-          {
-            textScore: req.text ? (relevance.get(r.id) ?? 0) : null,
-            followers: r.followers,
-            engagementRate: r.engagementRate,
-            authenticityScore: r.authenticityScore,
-            followersFreshness,
-          },
-          req.filters,
-          settings.weights,
-        );
-        return {
-          id: r.id,
-          displayName: r.displayName,
-          handle: r.primaryHandle,
-          platform: r.primaryPlatform,
-          avatarUrl: r.avatarUrl,
-          city: r.city,
-          country: r.country,
-          niches: r.niches,
-          tags: r.tags,
-          verified: r.verified,
-          followers: r.followers,
-          engagementRate: r.engagementRate,
-          authenticityScore: r.authenticityScore,
-          fakeFollowerPct: r.fakeFollowerPct,
-          hasContact: r.hasContact,
-          followersFreshness,
-          fitScore: score,
-          fitLabel: fitLabel(score, settings.labels),
-        };
-      })
-      .sort((a, b) => b.fitScore - a.fitScore || b.followers - a.followers || a.id.localeCompare(b.id));
+    const cards = toCards(rows, req, settings, t, relevance);
     const start = (req.page - 1) * settings.pageSize;
     return {
       results: cards.slice(start, start + settings.pageSize),
@@ -140,9 +107,10 @@ export function createCreatorsService(deps: CreatorsDeps) {
     const order = new Map(ids.map((id, i) => [id, i]));
     const rows = await deps.db.withTenant(tenant(ctx), (tx) => repo.cardRows(tx, ids));
     const { refreshCost } = await config(ctx);
+    const suppressed = url && ids.length === 0 ? await deps.db.withTenant(tenant(ctx), (tx) => suppressedUrls(tx, [url.canonicalUrl])) : new Set<string>();
     // A profile link MUSHIN does not have yet can be added (a hidden creator's link matched an id, so it is not addable).
     const addable =
-      url && ids.length === 0
+      url && ids.length === 0 && !suppressed.has(url.canonicalUrl)
         ? {
             platform: url.platform,
             handle: (url.canonicalUrl.split("/").pop() ?? "").replace(/^@/, ""),

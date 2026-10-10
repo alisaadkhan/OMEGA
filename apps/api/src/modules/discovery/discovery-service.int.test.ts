@@ -4,6 +4,7 @@ import { createLogger, type TenantContext } from "@mushin/core";
 import { createTestDatabase, createTestWorkspace, ownerQuery, resetTables } from "@mushin/db/testing";
 import { MockPayments } from "@mushin/integrations";
 import { createBillingService, MemoryAccessCache } from "../billing/index";
+import { suppress } from "../creators/index";
 import { addCreator } from "../creators/test-fixtures";
 import { createDiscoveryService } from "./service";
 
@@ -96,6 +97,13 @@ describe("starting jobs", () => {
       ["ENTITLEMENT_REQUIRED", "INSUFFICIENT_CREDITS"].includes((e as { code?: string }).code ?? ""),
     );
   });
+  it("refuses links on the do-not-re-add list without charging", async () => {
+    const c = await customer();
+    await db.withSystem((tx) => suppress(tx, [{ canonicalUrl: "https://instagram.com/erased_one", platform: "instagram" }], null));
+    await expect(discovery.start(c, addByUrl("instagram.com/erased_one"))).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(await balance(c)).toMatchObject({ available: 200, reserved: 0 });
+  });
+
 });
 
 describe("reading jobs", () => {

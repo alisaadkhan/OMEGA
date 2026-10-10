@@ -3,7 +3,7 @@ import type { DiscoveryJob, StartDiscoveryJob, StartDiscoveryJobResponse } from 
 import { AppError, type TenantContext } from "@mushin/core";
 import { writeOutbox, type Db } from "@mushin/db";
 import type { BillingService } from "../billing/index";
-import { findProfileByUrl, getEnrichmentSettings, isVisibleCreator, normalizeProfileUrl, profileTarget, refreshActionFor, type CreatorPlatform } from "../creators/index";
+import { findProfileByUrl, getEnrichmentSettings, isVisibleCreator, suppressedUrls, normalizeProfileUrl, profileTarget, refreshActionFor, type CreatorPlatform } from "../creators/index";
 import * as repo from "./repository";
 
 export type DiscoveryDeps = { db: Db; billing: Pick<BillingService, "engine">; now?: () => Date };
@@ -24,6 +24,7 @@ export function createDiscoveryService(deps: DiscoveryDeps) {
       if (body.kind === "add_by_url") {
         const n = normalizeProfileUrl(body.url);
         if (!n) throw new AppError("VALIDATION_FAILED", "Paste a public Instagram, TikTok or YouTube profile link.", { field: "url" });
+        if ((await suppressedUrls(tx, [n.canonicalUrl])).size > 0) throw new AppError("NOT_FOUND", "This creator can't be added.");
         const known = await findProfileByUrl(tx, n.canonicalUrl);
         if (known) {
           // Creators hidden from customers (possible minors, removal requested) are not found here either, as in search.

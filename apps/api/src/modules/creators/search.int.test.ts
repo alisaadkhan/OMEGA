@@ -8,6 +8,8 @@ import { isIndexable, toDocument } from "./projection";
 import * as repo from "./repository";
 import { createCreatorsService } from "./service";
 import { addCreator, TEST_KEY } from "./test-fixtures";
+import { rankCards } from "./ranking";
+import { suppress } from "./suppressions";
 
 const db = createTestDatabase();
 const index = testSearchIndex();
@@ -176,6 +178,12 @@ describe("lookup", () => {
     await addCreator(db, { isMinor: true, profiles: [{ platform: "instagram", handle: "hidden_minor" }] });
     expect(await creators.lookup(c, "instagram.com/hidden_minor")).toEqual({ matches: [], addable: null });
   });
+
+  it("offers no 'add' for a link on the do-not-re-add list", async () => {
+    const c = await customer();
+    await db.withSystem((tx) => suppress(tx, [{ canonicalUrl: "https://instagram.com/gone_creator", platform: "instagram" }], null));
+    expect((await creators.lookup(c, "instagram.com/gone_creator")).addable).toBeNull();
+  });
 });
 
 describe("saved searches", () => {
@@ -188,5 +196,16 @@ describe("saved searches", () => {
     await expect(creators.deleteSaved(b, saved.id)).rejects.toMatchObject({ code: "NOT_FOUND" });
     await creators.deleteSaved(a, saved.id);
     expect((await creators.listSaved(a)).searches).toEqual([]);
+  });
+});
+
+describe("ranking cards for live results", () => {
+  it("ranks visible creators by fit for the run's filters and leaves hidden ones out", async () => {
+    const strong = await addCreator(db, { profiles: [{ followers: 120_000, engagementRate: 6 }] });
+    const weak = await addCreator(db, { profiles: [{ followers: 900, engagementRate: 0.2 }] });
+    const minor = await addCreator(db, { isMinor: true });
+    const cards = await db.withSystem((tx) => rankCards(tx, [weak, strong, minor], searchFiltersSchema.parse({ followersMin: 50_000, followersMax: 500_000 }), new Date()));
+    expect(cards.map((c) => c.id)).toEqual([strong, weak]);
+    expect(cards[0]?.fitScore).toBeGreaterThan(cards[1]?.fitScore ?? 100);
   });
 });

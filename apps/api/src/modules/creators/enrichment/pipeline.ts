@@ -11,11 +11,13 @@ import { minorByRules } from "./minors";
 import * as repo from "./repository";
 import { measureSignals, profileMetrics, type SignalReport } from "./signals";
 import { standardize, type StandardProfile } from "./standardize";
+import { suppressedUrls } from "../suppressions";
 
 export type EnrichJob = { jobId: string; workspaceId: string; platform: CreatorPlatform; handle: string; canonicalUrl: string; requestId: string | null };
 export type SavedResult = { kind: "saved"; creatorId: string; outcome: "created" | "refreshed"; assessment: "assessed" | "pending" | "insufficient_data" };
 export type EnrichResult = SavedResult | { kind: "reused"; creatorId: string } | { kind: "unavailable"; code: "PRIVATE_ACCOUNT" | "NOT_FOUND"; message: string };
 export type EnrichHooks = { onStep(step: DiscoveryJobStep): Promise<void>; onSaved(tx: TenantTx, result: SavedResult): Promise<void> };
+export type ProcessHooks = { onStep?(step: DiscoveryJobStep): Promise<void>; onSaved(tx: TenantTx, result: SavedResult): Promise<void> };
 
 type Deps = {
   db: Db;
@@ -78,58 +80,52 @@ export function createEnrichmentPipeline(deps: Deps) {
   const minorReasonFor = (p: StandardProfile, a: Assessment | null): string | null =>
     minorByRules([p.bio, ...p.recentPosts.map((x) => x.caption)], now()) ?? (a?.minorSigns.likely ? `AI: ${a.minorSigns.reason || "content suggests the creator may be under 18"}`.slice(0, 300) : null);
 
-  async function enrich(job: EnrichJob, hooks: EnrichHooks): Promise<EnrichResult> {
+  /** One stored file and index row per profile, so erasure and reassessment can find a creator's own data (spec §4.2). */
+  async function archive(job: EnrichJob, provider: "apify" | "youtube", raw: unknown): Promise<string> {
     const settings = await deps.db.withSystem((tx) => repo.getEnrichmentSettings(tx));
-    await hooks.onStep("fetching");
-    const known = await deps.db.withSystem((tx) => repo.findProfileByUrl(tx, job.canonicalUrl));
-    const own = await deps.db.withSystem((tx) => repo.payloadForJob(tx, job.jobId));
-    // Fresh data from any workspace's job a few minutes ago is reused, and this job is refunded (spec D10).
-    if (!own && known?.lastScrapedAt && now().getTime() - known.lastScrapedAt.getTime() < settings.reuseWindowMinutes * 60_000) {
-      return { kind: "reused", creatorId: known.creatorId };
-    }
+    const store = needStorage();
+    const body = JSON.stringify(raw);
+    const t = now();
+    const key = `${job.platform}/${t.getUTCFullYear()}/${String(t.getUTCMonth() + 1).padStart(2, "0")}/${job.jobId}-${sha256Hex(job.canonicalUrl).slice(0, 16)}.json`;
+    await store.put(RAW_PAYLOAD_BUCKET, key, body, "application/json");
+    return deps.db.withSystem((tx) =>
+      repo.insertRawPayload(tx, {
+        provider,
+        platform: job.platform,
+        canonicalUrl: job.canonicalUrl,
+        jobId: job.jobId,
+        storageKey: key,
+        bytes: Buffer.byteLength(body),
+        sha256: sha256Hex(body),
+        deleteAfter: new Date(t.getTime() + settings.rawRetentionDays * 86_400_000),
+      }),
+    );
+  }
 
-    let payloadId: string;
-    let raw: unknown;
-    if (own) {
-      // A retry of this job: the archived response is reused so Apify is never paid twice (Review Focus 1).
-      payloadId = own.id;
-      raw = await readPayload(own);
-    } else {
-      const store = needStorage();
-      const scraped = await deps.scraper.fetchProfile({ platform: job.platform, handle: job.handle, ctx: { workspaceId: job.workspaceId, jobId: job.jobId, requestId: job.requestId } });
-      await hooks.onStep("archiving");
-      const body = JSON.stringify(scraped.raw);
-      const t = now();
-      const key = `${job.platform}/${t.getUTCFullYear()}/${String(t.getUTCMonth() + 1).padStart(2, "0")}/${job.jobId}.json`;
-      await store.put(RAW_PAYLOAD_BUCKET, key, body, "application/json");
-      payloadId = await deps.db.withSystem((tx) =>
-        repo.insertRawPayload(tx, {
-          provider: scraped.provider,
-          platform: job.platform,
-          canonicalUrl: job.canonicalUrl,
-          jobId: job.jobId,
-          storageKey: key,
-          bytes: Buffer.byteLength(body),
-          sha256: sha256Hex(body),
-          deleteAfter: new Date(t.getTime() + settings.rawRetentionDays * 86_400_000),
-        }),
-      );
-      raw = scraped.raw;
-    }
+  async function archived(jobId: string, canonicalUrl: string): Promise<{ payloadId: string; raw: unknown } | null> {
+    const ref = await deps.db.withSystem((tx) => repo.payloadForJobProfile(tx, jobId, canonicalUrl));
+    return ref ? { payloadId: ref.id, raw: await readPayload(ref) } : null;
+  }
 
-    await hooks.onStep("cleaning");
+  /** Steps after fetching (spec 4A §5.1 steps 3–5) for one profile whose response is already archived. */
+  async function processProfile(job: EnrichJob, payloadId: string, raw: unknown, hooks: ProcessHooks): Promise<EnrichResult> {
+    const settings = await deps.db.withSystem((tx) => repo.getEnrichmentSettings(tx));
+    // Erased creators stay out, whichever path reaches here (sub-project 4B D9).
+    if ((await deps.db.withSystem((tx) => suppressedUrls(tx, [job.canonicalUrl]))).size > 0) {
+      return { kind: "unavailable", code: "NOT_FOUND", message: "We couldn't find this account. Check the link and try again." };
+    }
+    await hooks.onStep?.("cleaning");
     const std = standardize(job.platform, job.handle, raw, { maxPosts: job.platform === "tiktok" ? settings.tiktokRecentVideos : settings.recentPosts });
     if (std.kind === "private") return { kind: "unavailable", code: "PRIVATE_ACCOUNT", message: "This account is private, so we can't assess it." };
     if (std.kind === "not_found") return { kind: "unavailable", code: "NOT_FOUND", message: "We couldn't find this account. Check the link and try again." };
     const p = std.profile;
     const avatar = await copyAvatar(p, job.canonicalUrl);
-
-    await hooks.onStep("assessing");
+    await hooks.onStep?.("assessing");
+    const known = await deps.db.withSystem((tx) => repo.findProfileByUrl(tx, job.canonicalUrl));
     const previous = known ? await deps.db.withSystem((tx) => repo.latestMetrics(tx, known.profileId)) : null;
     const report = measureSignals(p, previous, { benchmarks: settings.engagementBenchmarks, minPostsForScore: settings.minPostsForScore, growthMinDays: settings.growthMinDays, scoreBand: settings.scoreBand }, now());
     const assessment = await assess(p, report, { jobId: job.jobId, workspaceId: job.workspaceId });
-
-    await hooks.onStep("saving");
+    await hooks.onStep?.("saving");
     return deps.db.withWorkspace(job.workspaceId, async (tx) => {
       const saved = await repo.saveEnrichment(tx, {
         profile: p,
@@ -151,6 +147,21 @@ export function createEnrichmentPipeline(deps: Deps) {
       await hooks.onSaved(tx, result);
       return result;
     });
+  }
+
+  async function enrich(job: EnrichJob, hooks: EnrichHooks): Promise<EnrichResult> {
+    const settings = await deps.db.withSystem((tx) => repo.getEnrichmentSettings(tx));
+    await hooks.onStep("fetching");
+    const known = await deps.db.withSystem((tx) => repo.findProfileByUrl(tx, job.canonicalUrl));
+    const own = await archived(job.jobId, job.canonicalUrl);
+    // Fresh data from any workspace's job a few minutes ago is reused, and this job is refunded (spec D10).
+    if (!own && known?.lastScrapedAt && now().getTime() - known.lastScrapedAt.getTime() < settings.reuseWindowMinutes * 60_000) {
+      return { kind: "reused", creatorId: known.creatorId };
+    }
+    if (own) return processProfile(job, own.payloadId, own.raw, hooks); // a retry: Apify is never paid twice
+    const scraped = await deps.scraper.fetchProfile({ platform: job.platform, handle: job.handle, ctx: { workspaceId: job.workspaceId, jobId: job.jobId, requestId: job.requestId } });
+    await hooks.onStep("archiving");
+    return processProfile(job, await archive(job, scraped.provider, scraped.raw), scraped.raw, hooks);
   }
 
   /** Re-runs signals and the AI from the archived response (after an AI failure). Throws so the queue retries. */
@@ -190,7 +201,7 @@ export function createEnrichmentPipeline(deps: Deps) {
     await storage.ensureBucket(AVATAR_BUCKET, { public: true });
   }
 
-  return { enrich, reassess, purgeExpiredPayloads, ensureBuckets, storage };
+  return { enrich, archive, archived, processProfile, reassess, purgeExpiredPayloads, ensureBuckets, storage };
 }
 
 export type EnrichmentPipeline = ReturnType<typeof createEnrichmentPipeline>;

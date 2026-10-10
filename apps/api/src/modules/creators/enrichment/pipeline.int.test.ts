@@ -5,6 +5,7 @@ import { createTestDatabase, createTestWorkspace, ownerQuery, resetTables } from
 import { FixtureScraper, MemoryStorage, MockLlm, ProviderError, scraperFixture } from "@mushin/integrations";
 import { isIndexable } from "../projection";
 import * as repo from "../repository";
+import { suppress } from "../suppressions";
 import { TEST_KEY } from "../test-fixtures";
 import { createEnrichmentPipeline, type EnrichJob, type EnrichResult } from "./pipeline";
 
@@ -173,6 +174,32 @@ describe("enrichment pipeline", () => {
     expect(await pipeline.purgeExpiredPayloads()).toBe(1);
     expect([...storage.objects.keys()].some((k) => k.startsWith("raw-payloads/"))).toBe(false);
     expect(await ownerQuery(`select 1 from platform.raw_payloads`)).toHaveLength(0);
+  });
+  it("archives each profile of a batch on its own and processes a pre-fetched profile (live discovery)", async () => {
+    const { pipeline, storage } = setup();
+    const j = await job();
+    const raw = scraperFixture("instagram-profile.json");
+    const payloadId = await pipeline.archive(j, "apify", raw);
+    expect(await pipeline.archived(j.jobId, j.canonicalUrl)).toEqual({ payloadId, raw });
+    expect(await pipeline.archived(j.jobId, "https://instagram.com/someone_else")).toBeNull();
+    const saved: EnrichResult[] = [];
+    const out = await pipeline.processProfile(j, payloadId, raw, { onSaved: async (_tx, r) => void saved.push(r) });
+    expect(out).toMatchObject({ kind: "saved", outcome: "created" });
+    expect(saved).toHaveLength(1);
+    const [p] = await ownerQuery<{ storage_key: string; creator_id: string | null }>(`select storage_key, creator_id from platform.raw_payloads where id = '${payloadId}'`);
+    expect(p?.storage_key).toContain(j.jobId);
+    expect(p?.creator_id).not.toBeNull();
+    expect([...storage.objects.keys()].some((k) => k.includes(j.jobId))).toBe(true);
+  });
+
+  it("refuses a profile link on the do-not-re-add list, even when the data was fetched", async () => {
+    const { pipeline } = setup();
+    const j = await job();
+    await db.withSystem((tx) => suppress(tx, [{ canonicalUrl: j.canonicalUrl, platform: "instagram" }], null));
+    const raw = scraperFixture("instagram-profile.json");
+    const out = await pipeline.processProfile(j, await pipeline.archive(j, "apify", raw), raw, { onSaved: async () => undefined });
+    expect(out).toMatchObject({ kind: "unavailable", code: "NOT_FOUND" });
+    expect(await ownerQuery(`select 1 from gcp.creators`)).toEqual([]);
   });
 });
 

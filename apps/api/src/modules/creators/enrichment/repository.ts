@@ -79,6 +79,17 @@ export async function payloadForJob(tx: Tx, jobId: string): Promise<PayloadRef |
   return rows[0] ?? null;
 }
 
+/** The archived response of one profile within a job (live runs archive several profiles per job). */
+export async function payloadForJobProfile(tx: Tx, jobId: string, canonicalUrl: string): Promise<PayloadRef | null> {
+  const rows = await tx
+    .select(payloadCols)
+    .from(rawPayloads)
+    .where(and(eq(rawPayloads.jobId, jobId), eq(rawPayloads.canonicalUrl, canonicalUrl)))
+    .orderBy(desc(rawPayloads.fetchedAt))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
 export async function latestPayloadForCreator(tx: Tx, creatorId: string): Promise<PayloadRef | null> {
   const rows = await tx.select(payloadCols).from(rawPayloads).where(eq(rawPayloads.creatorId, creatorId)).orderBy(desc(rawPayloads.fetchedAt)).limit(1);
   return rows[0] ?? null;

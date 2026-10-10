@@ -20,3 +20,8 @@ export type { EnrichHooks, EnrichJob, EnrichmentPipeline, EnrichResult, SavedRes
 export { findProfileByUrl, getEnrichmentSettings, profileTarget } from "./enrichment/repository";
 export { normalizeProfileUrl, refreshActionFor } from "./rules";
 export type { CreatorPlatform } from "./rules";
+export { cleanText } from "./enrichment/standardize";
+export { fenced, hasContactOrLink, redactContacts } from "./rules";
+export { rankCards } from "./ranking";
+export { suppress, suppressedUrls, urlHash } from "./suppressions";
+export type { ProcessHooks } from "./enrichment/pipeline";
