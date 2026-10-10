@@ -1,6 +1,7 @@
-import { and, desc, eq, gte, inArray, or, sql } from "drizzle-orm";
-import type { DiscoveryJob, DiscoveryJobStep } from "@mushin/contracts";
-import { discoveryJobs, type TenantTx } from "@mushin/db";
+import { and, count, desc, eq, gt, gte, inArray, lt, max, or, sql, sum } from "drizzle-orm";
+import type { DiscoveryJob, DiscoveryJobStep, LiveSearch } from "@mushin/contracts";
+import { discoveryJobs, discoveryResults, serperCache, type SystemTx, type TenantTx } from "@mushin/db";
+import type { WebResult } from "@mushin/integrations";
 
 export type JobRow = typeof discoveryJobs.$inferSelect;
 const OPEN = ["queued", "running"] as const;
@@ -18,7 +19,18 @@ export function toApiJob(r: JobRow): DiscoveryJob {
     error: r.errorCode ? { code: r.errorCode, message: r.errorMessage ?? "Something went wrong." } : null,
     createdAt: r.createdAt.toISOString(),
     finishedAt: r.finishedAt?.toISOString() ?? null,
-    live: null,
+    live:
+      r.kind === "live" && r.search && r.maxNew !== null
+        ? {
+            search: r.search as LiveSearch,
+            maxNew: r.maxNew,
+            found: r.foundCount,
+            new: r.newCount,
+            known: r.knownCount,
+            maxCost: r.cost,
+            creditsCharged: r.creditsCharged,
+          }
+        : null,
   };
 }
 
@@ -79,4 +91,86 @@ export async function finishJob(
     .where(and(eq(discoveryJobs.workspaceId, workspaceId), eq(discoveryJobs.id, id), inArray(discoveryJobs.status, [...OPEN])))
     .returning({ id: discoveryJobs.id });
   return rows.length === 1;
+}
+
+export async function openLiveJobFor(tx: TenantTx, workspaceId: string, searchHash: string): Promise<JobRow | null> {
+  const rows = await tx
+    .select()
+    .from(discoveryJobs)
+    .where(and(eq(discoveryJobs.workspaceId, workspaceId), eq(discoveryJobs.kind, "live"), eq(discoveryJobs.searchHash, searchHash), inArray(discoveryJobs.status, [...OPEN])))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export type ResultRow = typeof discoveryResults.$inferSelect;
+
+/** One result per creator per run, numbered in arrival order for polling (spec §3.1). Runs are processed one at a time. */
+export async function insertResult(tx: TenantTx, workspaceId: string, jobId: string, r: { creatorId: string; isNew: boolean; credits: number; reason: string | null }): Promise<boolean> {
+  const [last] = await tx.select({ seq: max(discoveryResults.seq) }).from(discoveryResults).where(eq(discoveryResults.jobId, jobId));
+  const inserted = await tx
+    .insert(discoveryResults)
+    .values({ workspaceId, jobId, creatorId: r.creatorId, seq: (last?.seq ?? 0) + 1, isNew: r.isNew, credits: r.credits, reason: r.reason })
+    .onConflictDoNothing({ target: [discoveryResults.jobId, discoveryResults.creatorId] })
+    .returning({ id: discoveryResults.id });
+  if (inserted.length === 0) return false;
+  await tx
+    .update(discoveryJobs)
+    .set(
+      r.isNew
+        ? { foundCount: sql`${discoveryJobs.foundCount} + 1`, newCount: sql`${discoveryJobs.newCount} + 1` }
+        : { foundCount: sql`${discoveryJobs.foundCount} + 1`, knownCount: sql`${discoveryJobs.knownCount} + 1` },
+    )
+    .where(and(eq(discoveryJobs.workspaceId, workspaceId), eq(discoveryJobs.id, jobId)));
+  return true;
+}
+
+export function resultsAfter(tx: TenantTx, workspaceId: string, jobId: string, after: number): Promise<ResultRow[]> {
+  return tx
+    .select()
+    .from(discoveryResults)
+    .where(and(eq(discoveryResults.workspaceId, workspaceId), eq(discoveryResults.jobId, jobId), gt(discoveryResults.seq, after)))
+    .orderBy(discoveryResults.seq)
+    .limit(200);
+}
+
+export async function resultCreatorIds(tx: TenantTx, workspaceId: string, jobId: string): Promise<string[]> {
+  const rows = await tx.select({ id: discoveryResults.creatorId }).from(discoveryResults).where(and(eq(discoveryResults.workspaceId, workspaceId), eq(discoveryResults.jobId, jobId)));
+  return rows.map((r) => r.id);
+}
+
+export async function countNew(tx: TenantTx, workspaceId: string, jobId: string): Promise<number> {
+  const [r] = await tx.select({ n: count() }).from(discoveryResults).where(and(eq(discoveryResults.workspaceId, workspaceId), eq(discoveryResults.jobId, jobId), eq(discoveryResults.isNew, true)));
+  return Number(r?.n ?? 0);
+}
+
+export async function resultCredits(tx: TenantTx, workspaceId: string, jobId: string): Promise<number> {
+  const [r] = await tx.select({ total: sum(discoveryResults.credits) }).from(discoveryResults).where(and(eq(discoveryResults.workspaceId, workspaceId), eq(discoveryResults.jobId, jobId)));
+  return Number(r?.total ?? 0);
+}
+
+export async function setRanks(tx: TenantTx, workspaceId: string, jobId: string, ranked: { creatorId: string; rank: number; fitScore: number; fitLabel: ResultRow["fitLabel"] }[]): Promise<void> {
+  for (const r of ranked) {
+    await tx
+      .update(discoveryResults)
+      .set({ rank: r.rank, fitScore: r.fitScore, fitLabel: r.fitLabel })
+      .where(and(eq(discoveryResults.workspaceId, workspaceId), eq(discoveryResults.jobId, jobId), eq(discoveryResults.creatorId, r.creatorId)));
+  }
+}
+
+// ── Serper cache (platform.serper_cache, shared by every workspace; SRS §3.4) ──
+export async function cachedSearch(tx: SystemTx, queryHash: string, since: Date): Promise<WebResult[] | null> {
+  const rows = await tx.select({ results: serperCache.results }).from(serperCache).where(and(eq(serperCache.queryHash, queryHash), gt(serperCache.fetchedAt, since))).limit(1);
+  return rows[0]?.results ?? null;
+}
+
+export async function storeSearch(tx: SystemTx, queryHash: string, query: string, results: WebResult[]): Promise<void> {
+  await tx
+    .insert(serperCache)
+    .values({ queryHash, query: query.slice(0, 400), results })
+    .onConflictDoUpdate({ target: serperCache.queryHash, set: { query: query.slice(0, 400), results, fetchedAt: sql`now()` } });
+}
+
+export async function purgeSearches(tx: SystemTx, before: Date): Promise<number> {
+  const rows = await tx.delete(serperCache).where(lt(serperCache.fetchedAt, before)).returning({ h: serperCache.queryHash });
+  return rows.length;
 }
