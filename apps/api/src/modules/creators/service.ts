@@ -11,7 +11,8 @@ import {
   type SearchResponse,
 } from "@mushin/contracts";
 import { AppError, decryptSecret, type Logger, type TenantContext } from "@mushin/core";
-import { writeOutbox, type Db, type TenantTx } from "@mushin/db";
+import { and, eq } from "drizzle-orm";
+import { contactReveals, writeOutbox, type Db, type TenantTx } from "@mushin/db";
 import type { Llm, SearchIndex } from "@mushin/integrations";
 import type { BillingService } from "../billing/index";
 import { interpretOutputSchema, interpretSystemPrompt } from "./prompts";
@@ -301,7 +302,13 @@ export function createCreatorsService(deps: CreatorsDeps) {
     });
   }
 
-  return { search, interpret, lookup, listSaved, createSaved, deleteSaved, profile, audience, reveal };
+  /** SRS §6.3 "deletable per workspace": the workspace forgets contacts it revealed (no refund). */
+  async function forgetReveal(ctx: TenantContext, creatorId: string): Promise<void> {
+    if (ctx.role !== "owner" && ctx.role !== "admin") throw new AppError("FORBIDDEN", "Only the workspace owner or an admin can remove revealed contacts.");
+    await deps.db.withTenant(tenant(ctx), (tx) => tx.delete(contactReveals).where(and(eq(contactReveals.workspaceId, ctx.workspaceId), eq(contactReveals.creatorId, creatorId))));
+  }
+
+  return { search, interpret, lookup, listSaved, createSaved, deleteSaved, profile, audience, reveal, forgetReveal };
 }
 
 export type CreatorsService = ReturnType<typeof createCreatorsService>;

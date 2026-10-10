@@ -3,6 +3,7 @@ import type { StaffRole } from "./tokens";
 /** Every staff action and the roles allowed to perform it. Anything not listed is denied. */
 export const STAFF_PERMISSIONS = {
   "staff.me.read": ["admin", "support"],
+  "creators.removal.review": ["admin"],
 } as const satisfies Record<string, readonly StaffRole[]>;
 
 export type StaffAction = keyof typeof STAFF_PERMISSIONS;

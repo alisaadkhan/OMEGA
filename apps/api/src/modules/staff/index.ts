@@ -14,3 +14,5 @@ export function createStaffModule(o: { db: Db; tokens: StaffTokens; encryptionKe
   const module: AppModule = { name: "staff", register: (app) => registerStaffRoutes(app, service, requireStaff) };
   return { module, requireStaff, createStaffAccount: service.createStaffAccount };
 }
+export { audit as recordStaffAudit } from "./repository";
+export type { StaffPrincipal } from "./tokens";

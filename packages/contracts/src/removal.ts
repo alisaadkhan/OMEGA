@@ -28,3 +28,4 @@ export const staffRemovalRequestSchema = z.object({
 export type StaffRemovalRequest = z.output<typeof staffRemovalRequestSchema>;
 export const staffRemovalListSchema = z.object({ requests: z.array(staffRemovalRequestSchema) });
 export const staffRejectSchema = z.object({ note: z.string().trim().min(3).max(300) });
+export const revealRemovedSchema = z.object({ status: z.literal("removed") });

@@ -25,3 +25,7 @@ export { fenced, hasContactOrLink, redactContacts } from "./rules";
 export { rankCards } from "./ranking";
 export { suppress, suppressedUrls, urlHash } from "./suppressions";
 export type { ProcessHooks } from "./enrichment/pipeline";
+export { createRemovalService } from "./erasure/service";
+export type { RemovalService } from "./erasure/service";
+export { createEraser } from "./erasure/eraser";
+export type { Eraser } from "./erasure/eraser";
