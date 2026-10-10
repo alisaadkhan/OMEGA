@@ -20,6 +20,7 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
   const [view, setView] = useState<DashView>("overview");
   const credits = useCredits();
   const [omniCreator, setOmniCreator] = useState<Creator | null>(null);
+  const [liveJobId, setLiveJobId] = useState<string | null>(null);
   // Returning from the hosted checkout: ?checkout=success|failed (query string before the hash route).
   const [checkoutResult, setCheckoutResult] = useState<"success" | "failed" | null>(null);
   useEffect(() => {
@@ -34,7 +35,12 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
     <div className="flex h-screen bg-slate-50/40">
       <Sidebar view={view} setView={setView} onExit={onExit} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar credits={credits} view={view} setView={setView} onExit={onExit} onOpenCreator={setOmniCreator} />
+        <Topbar credits={credits} view={view} setView={setView} onExit={onExit} onOpenCreator={setOmniCreator}
+          onViewResults={(id) => {
+            setLiveJobId(id);
+            setView("search");
+          }}
+        />
         <main className="flex-1 overflow-y-auto px-6 py-6 sm:px-8 sm:py-8">
           <BillingStatusBanner onChoosePlan={() => setView("billing")} />
           <AnimatePresence mode="wait">
@@ -46,7 +52,7 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
               transition={{ duration: 0.25, ease: "easeOut" }}
             >
               {view === "overview" && <Overview credits={credits} setView={setView} />}
-              {view === "search" && <SearchModule />}
+              {view === "search" && <SearchModule liveJobId={liveJobId} />}
               {view === "lists" && <Lists />}
               {view === "campaigns" && <Campaigns />}
               {view === "analytics" && <Analytics />}

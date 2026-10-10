@@ -1,8 +1,9 @@
+import { useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { discoveryJobListSchema, startDiscoveryJobResponseSchema, type StartDiscoveryJob } from "@mushin/contracts";
+import { discoveryJobListSchema, discoveryResultsResponseSchema, startDiscoveryJobResponseSchema, type DiscoveryResult, type StartDiscoveryJob } from "@mushin/contracts";
 import { useAuth } from "../auth/AuthContext";
 import { apiRequest } from "./client";
-import { isOpenJob } from "./discovery-mapping";
+import { isOpenJob, mergeResults } from "./discovery-mapping";
 
 export function useStartJob() {
   const qc = useQueryClient();
@@ -25,4 +26,28 @@ export function useActiveJobs() {
     enabled: status === "signedIn",
     refetchInterval: (q) => (q.state.data?.jobs.some(isOpenJob) ? 2000 : 30_000),
   });
+}
+
+/**
+ * Spec §6: polls a live run's results every 2 s, asking only for results after the last one seen, until the run is done;
+ * the last poll re-reads the whole list once so the final ranks show.
+ */
+export function useLiveResults(jobId: string | null) {
+  const { status } = useAuth();
+  const acc = useRef<{ jobId: string | null; results: DiscoveryResult[] }>({ jobId: null, results: [] });
+  const q = useQuery({
+    queryKey: ["discovery", "results", jobId],
+    queryFn: async () => {
+      if (acc.current.jobId !== jobId) acc.current = { jobId, results: [] };
+      const after = acc.current.results.reduce((m, r) => Math.max(m, r.seq), 0);
+      const page = await apiRequest(`/v1/discovery/jobs/${jobId ?? ""}/results?after=${after}`, discoveryResultsResponseSchema);
+      let results = mergeResults(acc.current.results, page.results);
+      if (page.done) results = mergeResults([], (await apiRequest(`/v1/discovery/jobs/${jobId ?? ""}/results?after=0`, discoveryResultsResponseSchema)).results);
+      acc.current = { jobId, results };
+      return { results, done: page.done };
+    },
+    enabled: status === "signedIn" && jobId !== null,
+    refetchInterval: (query) => (query.state.data?.done ? false : 2000),
+  });
+  return { results: jobId === null ? [] : (q.data?.results ?? []), done: q.data?.done ?? false };
 }

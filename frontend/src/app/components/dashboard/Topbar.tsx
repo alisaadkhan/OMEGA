@@ -17,6 +17,7 @@ type Props = {
   setView: (v: DashView) => void;
   onExit: () => void;
   onOpenCreator: (c: Creator) => void;
+  onViewResults: (jobId: string) => void;
 };
 
 const MENU: { id: DashView; label: string; icon: any }[] = [
@@ -32,7 +33,7 @@ const METER_STYLES = {
   red: { box: "border-red-300 bg-red-50 hover:bg-red-100", icon: "text-red-600", value: "text-red-700", title: "Credits are very low" },
 } as const;
 
-export function Topbar({ credits, view, setView, onExit, onOpenCreator }: Props) {
+export function Topbar({ credits, view, setView, onExit, onOpenCreator, onViewResults }: Props) {
   const { user, logout } = useAuth();
   const name = user?.name ?? "Ahmed Raza Khan";
   const email = user?.email ?? "ahmed@mushin.pk";
@@ -54,7 +55,7 @@ export function Topbar({ credits, view, setView, onExit, onOpenCreator }: Props)
       <div className="hidden sm:block"><Omnibar onOpen={onOpenCreator} /></div>
 
       <div className="flex items-center gap-3">
-        <JobTray onOpenCreator={onOpenCreator} />
+        <JobTray onOpenCreator={onOpenCreator} onViewResults={onViewResults} />
         <button
           onClick={() => go("billing")}
           title={METER_STYLES[meter].title}

@@ -9,7 +9,7 @@ import { useToast } from "../../lib/toast";
 import type { Creator } from "./CreatorProfilePanel";
 
 /** Running and recently finished creator data jobs (SRS §3.1: visible progress; the bell takes over in sub-project 7). */
-export function JobTray({ onOpenCreator }: { onOpenCreator: (c: Creator) => void }) {
+export function JobTray({ onOpenCreator, onViewResults }: { onOpenCreator: (c: Creator) => void; onViewResults: (jobId: string) => void }) {
   const { data } = useActiveJobs();
   const jobs = data?.jobs ?? [];
   const [open, setOpen] = useState(false);
@@ -21,6 +21,7 @@ export function JobTray({ onOpenCreator }: { onOpenCreator: (c: Creator) => void
   useEffect(() => {
     for (const j of newlyFinished(prev.current, jobs)) {
       if (j.creatorId) void qc.invalidateQueries({ queryKey: ["creator", j.creatorId] });
+      if (j.kind === "live") void qc.invalidateQueries({ queryKey: ["discovery", "results", j.id] });
       void qc.invalidateQueries({ queryKey: ["billing"] });
       if (j.status === "completed") toast.success(`${jobTitle(j).replace(/^Adding/, "Added").replace(/^Refreshing/, "Refreshed")}`, jobStatusText(j));
       else toast.error(`Couldn't finish: ${jobTitle(j)}`, jobStatusText(j));
@@ -63,7 +64,19 @@ export function JobTray({ onOpenCreator }: { onOpenCreator: (c: Creator) => void
                 )}
               </div>
               <p className="mt-1 text-[11px] text-slate-500">{jobStatusText(j)}</p>
-              {j.status === "completed" && j.creatorId && (
+              {j.status === "completed" && j.kind === "live" && j.live && j.live.found > 0 && (
+                <button
+                  onClick={() => {
+                    onViewResults(j.id);
+                    setOpen(false);
+                  }}
+                  className="mt-1.5 text-[11px] text-indigo-600 hover:text-indigo-700"
+                  style={{ fontWeight: 600 }}
+                >
+                  View results
+                </button>
+              )}
+              {j.status === "completed" && j.kind !== "live" && j.creatorId && (
                 <button
                   onClick={() => {
                     onOpenCreator(creatorStub(j.creatorId ?? "", j.platform ?? "instagram", j.handle ?? ""));

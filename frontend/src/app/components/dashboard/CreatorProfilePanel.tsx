@@ -12,6 +12,8 @@ import { useConfirm, useToast } from "../../lib/toast";
 /** Volume 4B — Creator Intelligence Profile. */
 
 export type Creator = {
+  /** Set on cards found by Find New Creators (sub-project 4B). */
+  discovery?: { isNew: boolean; reason: string | null };
   id: string;
   handle: string;
   name: string;

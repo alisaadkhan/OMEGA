@@ -48,8 +48,8 @@ import {
 } from "../../api/search-mapping";
 import { FreshnessBadge } from "./states";
 import { useToast } from "../../lib/toast";
-import { CreditConfirm } from "../shared/CreditConfirm";
-import { CREDIT_COST } from "../../lib/credits";
+import { FindNewDialog } from "./FindNewDialog";
+import { useLiveResults } from "../../api/discovery";
 
 /**
  * Volumes 3 + 4A — Search System.
@@ -74,7 +74,7 @@ const FRESH_RANK: Record<string, number> = { current: 0, aging: 1, stale: 2, una
 const CITIES = ["Karachi", "Lahore", "Islamabad", "Faisalabad", "Peshawar"];
 const NICHES = ["Bridal", "Fashion", "Beauty", "Tech", "Food", "Travel", "Comedy", "Finance", "Wellness", "Lifestyle"];
 
-export function SearchModule() {
+export function SearchModule({ liveJobId = null }: { liveJobId?: string | null } = {}) {
   const toast = useToast();
   const [query, setQuery] = useState("");
   const [platform, setPlatform] = useState<Platform>("all");
@@ -96,6 +96,13 @@ export function SearchModule() {
   const [linkCreator, setLinkCreator] = useState<Creator | null>(null);
   const [mode, setMode] = useState<"fast" | "live">("fast");
   const [creditConfirmOpen, setCreditConfirmOpen] = useState(false);
+  const [liveJob, setLiveJob] = useState<string | null>(liveJobId);
+  useEffect(() => {
+    if (liveJobId) setLiveJob(liveJobId);
+  }, [liveJobId]);
+  const live = useLiveResults(liveJob);
+  const liveCards = useMemo(() => live.results.map((r) => ({ ...toCreator(r), discovery: { isNew: r.isNew, reason: r.reason } })), [live.results]);
+  const liveStreaming = liveJob !== null && !live.done;
   const [showInterpret, setShowInterpret] = useState(true);
   const [compareOpen, setCompareOpen] = useState(false);
   const [request, setRequest] = useState<SearchRequest | null>(null);
@@ -144,9 +151,9 @@ export function SearchModule() {
   // "streaming" returns with live discovery (sub-project 4); the screen keeps that state.
   const status = (request === null ? "idle" : search.isFetching ? "loading" : search.isError ? "error" : filtered.length === 0 ? "empty" : "results") as Status;
   const progress = search.isFetching ? 60 : 100;
-  const revealed = 0;
+  const revealed = liveCards.length;
   const partialFail = 0;
-  const activeProfile = filtered.find((c) => c.id === profileId) ?? null;
+  const activeProfile = filtered.find((c) => c.id === profileId) ?? liveCards.find((c) => c.id === profileId) ?? null;
   const interpreted = suggested
     ? Object.fromEntries(
         Object.entries({
@@ -164,7 +171,6 @@ export function SearchModule() {
   const runSearch = (searchMode: "fast" | "live" = mode) => {
     setMode(searchMode);
     setSelected(new Set());
-    if (searchMode === "live") toast.info("Finding new creators live arrives in the next update. Showing creators MUSHIN already knows.");
     submit(requestFor(query, uiFilters(), 1));
     if (query.trim()) {
       interpret.mutate(query.trim(), {
@@ -546,7 +552,7 @@ export function SearchModule() {
 
       {/* Live streaming banner (§7.3) */}
       <AnimatePresence>
-        {status === "streaming" && (
+        {liveStreaming && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
@@ -566,19 +572,43 @@ export function SearchModule() {
         )}
       </AnimatePresence>
 
+      {/* Find New Creators results (sub-project 4B): best fit first, new and known marked */}
+      {liveJob !== null && (live.results.length > 0 || !live.done) && (
+        <div className="space-y-2">
+          <div className="text-xs text-slate-500">
+            <span className="text-slate-900" style={{ fontWeight: 600 }}>{liveCards.length}</span> found by Find New Creators{liveStreaming ? " so far" : ""}
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {liveCards.map((c, i) => (
+              <div key={c.id} className="space-y-1">
+                <span
+                  className={`inline-block rounded-full px-2 py-0.5 text-[10px] ${c.discovery.isNew ? "bg-indigo-50 text-indigo-700" : "bg-slate-100 text-slate-600"}`}
+                  style={{ fontWeight: 600 }}
+                >
+                  {c.discovery.isNew ? "New" : "Already in MUSHIN"}
+                </span>
+                <CreatorCard creator={c} index={i} query={query} selected={selected.has(c.id)} onSelect={() => toggleSelect(c.id)} onOpen={() => setProfileId(c.id)} />
+                {c.discovery.reason && <p className="px-1 text-[11px] text-slate-500">{c.discovery.reason}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Results */}
       <div className="min-h-[420px]">
         {status === "loading" && <ResultsSkeleton view={view} />}
         {status === "error" && <ErrorState message={searchErrorMessage(search.error)} onRetry={() => void search.refetch()} />}
-        {status === "empty" && <EmptyResults onReset={resetSearch} onAddByLink={() => setAddOpen(true)} />}
+        {status === "empty" && <EmptyResults onReset={resetSearch} onAddByLink={() => setAddOpen(true)} onFindNew={() => setCreditConfirmOpen(true)} />}
 
         {(status === "results" || status === "streaming") && (
           <div className="space-y-3">
             {search.data?.fewResults && (
               <p className="flex flex-wrap items-center gap-1 text-xs text-slate-500">
-                Only a few creators match. Widen the filters or
+                Only a few creators match.
+                <button onClick={() => setCreditConfirmOpen(true)} className="text-indigo-600 hover:text-indigo-700" style={{ fontWeight: 600 }}>Find new creators</button>
+                or
                 <button onClick={() => setAddOpen(true)} className="text-indigo-600 hover:text-indigo-700" style={{ fontWeight: 600 }}>add a creator by profile link</button>.
-                Finding new creators live arrives in the next update.
               </p>
             )}
             <div className="flex items-center justify-between text-xs text-slate-500">
@@ -741,12 +771,14 @@ export function SearchModule() {
         />
       )}
 
-      <CreditConfirm
+      <FindNewDialog
         open={creditConfirmOpen}
         onOpenChange={setCreditConfirmOpen}
-        action="Find New Creators"
-        cost={CREDIT_COST.findNew}
-        onConfirm={() => runSearch("live")}
+        search={{ text: query.trim(), filters: toFilters(uiFilters()) }}
+        onStarted={(id) => {
+          setLiveJob(id);
+          runSearch("fast");
+        }}
       />
     </div>
   );
@@ -1035,7 +1067,7 @@ function ResultsSkeleton({ view }: { view: ViewMode }) {
   );
 }
 
-function EmptyResults({ onReset, onAddByLink }: { onReset: () => void; onAddByLink: () => void }) {
+function EmptyResults({ onReset, onAddByLink, onFindNew }: { onReset: () => void; onAddByLink: () => void; onFindNew: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/40 px-6 py-16 text-center">
       <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-slate-500 shadow-sm ring-1 ring-slate-200">
@@ -1045,10 +1077,13 @@ function EmptyResults({ onReset, onAddByLink }: { onReset: () => void; onAddByLi
         No creators match your filters
       </div>
       <p className="mt-1 max-w-sm text-sm text-slate-500">
-        No creators match these filters yet. Widen the filters, or add a creator you know by their profile link. Finding new creators live arrives in the next update.
+        No creators match these filters yet. Find new creators live, add a creator you know by their profile link, or widen the filters.
       </p>
       <div className="mt-4 flex gap-2">
-        <button onClick={onReset} className="rounded-md bg-slate-900 px-3 py-1.5 text-xs text-white hover:bg-slate-800" style={{ fontWeight: 500 }}>
+        <button onClick={onFindNew} className="rounded-md bg-slate-900 px-3 py-1.5 text-xs text-white hover:bg-slate-800" style={{ fontWeight: 500 }}>
+          Find new creators
+        </button>
+        <button onClick={onReset} className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50" style={{ fontWeight: 500 }}>
           Reset filters
         </button>
         <button onClick={onAddByLink} className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50" style={{ fontWeight: 500 }}>

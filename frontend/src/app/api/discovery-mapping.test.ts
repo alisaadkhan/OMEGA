@@ -1,7 +1,28 @@
 import { describe, expect, it } from "vitest";
-import type { DiscoveryJob } from "@mushin/contracts";
-import { isOpenJob, jobStatusText, jobTitle, newlyFinished } from "./discovery-mapping";
+import type { CreatorCard, DiscoveryJob } from "@mushin/contracts";
+import { isOpenJob, jobStatusText, jobTitle, liveMaxCost, liveSummary, mergeResults, newlyFinished } from "./discovery-mapping";
 import { creatorStub } from "./search-mapping";
+
+const cardFor = (id: string): CreatorCard => ({
+  id,
+  displayName: "C",
+  handle: "c",
+  platform: "instagram",
+  avatarUrl: null,
+  city: null,
+  country: null,
+  niches: [],
+  tags: [],
+  verified: false,
+  followers: 1000,
+  engagementRate: 1,
+  authenticityScore: null,
+  fakeFollowerPct: null,
+  hasContact: false,
+  followersFreshness: "current",
+  fitScore: 50,
+  fitLabel: "Possible match",
+});
 
 const job = (over: Partial<DiscoveryJob> = {}): DiscoveryJob => ({
   id: "6f1c2a4e-8a51-4c0e-9d0a-2b7f4f1e9a10",
@@ -49,5 +70,33 @@ describe("job wording", () => {
 
   it("builds a profile-panel stub for a creator known only by id", () => {
     expect(creatorStub(job().id, "tiktok", "cokestudiopakistan")).toMatchObject({ id: job().id, platform: "tiktok", handle: "cokestudiopakistan", name: "@cokestudiopakistan" });
+  });
+});
+
+describe("live runs", () => {
+  const costs = { search_existing: 0, find_new: 12, reveal_contact: 5, refresh_data: 10, refresh_tiktok: 30 };
+  const L = { search: { text: "bridal makeup", filters: { niches: [], creatorCity: "Lahore", verifiedOnly: false, hasContact: false, freshOnly: false } }, maxNew: 10, found: 0, new: 0, known: 0, maxCost: 312, creditsCharged: 0 };
+  const liveJob = (over: Partial<DiscoveryJob> = {}): DiscoveryJob => job({ kind: "live", platform: null, handle: null, live: L, ...over });
+
+  it("prices the maximum like the server: TikTok's price whenever TikTok is in scope", () => {
+    expect(liveMaxCost(costs, "instagram", 10)).toBe(112);
+    expect(liveMaxCost(costs, "youtube", 5)).toBe(62);
+    expect(liveMaxCost(costs, undefined, 10)).toBe(312);
+    expect(liveMaxCost(costs, "tiktok", 20)).toBe(612);
+  });
+
+  it("names the run and explains its progress and outcome", () => {
+    const j = liveJob();
+    expect(liveSummary(L.search)).toBe("bridal makeup · Lahore");
+    expect(jobTitle(j)).toBe("Finding creators: bridal makeup · Lahore");
+    expect(jobStatusText(liveJob({ status: "running", step: "searching" }))).toBe("Searching Google…");
+    expect(jobStatusText(liveJob({ status: "running", step: "assessing", live: { ...L, found: 4 } }))).toBe("Assessing authenticity and audience… · 4 found so far");
+    expect(jobStatusText(liveJob({ status: "completed", live: { ...L, found: 9, new: 6, known: 3, creditsCharged: 72 } }))).toBe("Found 9 creators (6 new) · 72 credits used, 240 returned");
+    expect(jobStatusText(liveJob({ status: "completed", live: { ...L, found: 0 } }))).toBe("No new creators found. Your credits were returned.");
+  });
+
+  it("merges polled results without duplicates, best rank first", () => {
+    const r = (seq: number, rank: number, id = `00000000-0000-4000-8000-00000000000${seq}`) => ({ ...cardFor(id), seq, rank, isNew: true, reason: null });
+    expect(mergeResults([r(1, 2), r(2, 1)], [r(2, 1), r(3, 3)]).map((x) => x.seq)).toEqual([2, 1, 3]);
   });
 });
