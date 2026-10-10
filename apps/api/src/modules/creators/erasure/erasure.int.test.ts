@@ -151,6 +151,17 @@ describe("eraser", () => {
     expect(ev[0]?.n).toBe(1);
   });
 
+  it("erases a creator added after the request was made (links resolved again at erasure)", async () => {
+    await removals.submit(request(["instagram.com/added_later"]));
+    const late = await addCreator(db, { primaryHandle: "added_later", profiles: [{ platform: "instagram", handle: "added_later" }] });
+    const [r] = await removals.list("received");
+    expect(r?.creator).toBeNull();
+    await removals.approve(r?.id ?? "", await staff(), meta);
+    await createEraser({ db, storage: new MemoryStorage(), logger }).erase(r?.id ?? "");
+    expect(await status(late)).toBe("erased");
+    expect(await ownerQuery(`select 1 from gcp.creator_profiles where creator_id = '${late}'`)).toEqual([]);
+  });
+
   it("clears requester emails 30 days after a request was handled", async () => {
     await removals.submit(request(["instagram.com/old_one"]));
     await ownerQuery(`update gcp.removal_requests set status = 'rejected', processed_at = now() - interval '31 days'`);
