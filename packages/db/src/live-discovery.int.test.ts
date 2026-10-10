@@ -67,6 +67,20 @@ describe("migration 0012", () => {
     await expect(db.withTenant(a, (tx) => tx.execute(sql`select platform.erase_creator_workspace_rows(${c}, ${urls})`))).rejects.toSatisfy(dbError(/permission denied/));
   });
 
+  it("keeps snapshots append-only and erases a creator's snapshots only through the worker-only function (0015)", async () => {
+    const ws = await createTestWorkspace();
+    const c = await creator();
+    const [p] = await ownerQuery<{ id: string }>(`insert into gcp.creator_profiles (creator_id, platform, handle, canonical_url) values ('${c}', 'instagram', 'snap', 'https://instagram.com/snap') returning id`);
+    await ownerQuery(`insert into gcp.profile_metric_snapshots (profile_id, followers) values ('${p?.id}', 100)`);
+    await ownerQuery(`insert into gcp.enrichment_snapshots (creator_id, verdict, authenticity_score, evidence_breakdown, model_version)
+      values ('${c}', 'genuine', 80, '[{"signal":"s","detail":"d","weight":1}]', 'm1')`);
+    await expect(db.withSystem((tx) => tx.execute(sql`delete from gcp.enrichment_snapshots where creator_id = ${c}`))).rejects.toSatisfy(dbError(/permission denied/));
+    await expect(db.withTenant(ws, (tx) => tx.execute(sql`select platform.erase_creator_snapshots(${c})`))).rejects.toSatisfy(dbError(/permission denied/));
+    await db.withSystem((tx) => tx.execute(sql`select platform.erase_creator_snapshots(${c})`));
+    expect(await ownerQuery(`select 1 from gcp.enrichment_snapshots where creator_id = '${c}'`)).toEqual([]);
+    expect(await ownerQuery(`select 1 from gcp.profile_metric_snapshots where profile_id = '${p?.id}'`)).toEqual([]);
+  });
+
   it("lets a workspace delete its own contact reveal", async () => {
     const ws = await createTestWorkspace();
     const c = await creator();

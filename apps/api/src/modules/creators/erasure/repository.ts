@@ -4,8 +4,6 @@ import {
   creatorLinks,
   creatorProfiles,
   creators,
-  enrichmentSnapshots,
-  profileMetricSnapshots,
   rawPayloads,
   removalRequests,
   serperCache,
@@ -90,8 +88,8 @@ export async function eraseRows(tx: SystemTx, creatorId: string, payloadIds: str
   if (payloadIds.length > 0) await tx.delete(rawPayloads).where(inArray(rawPayloads.id, payloadIds));
   await tx.delete(creatorContacts).where(eq(creatorContacts.creatorId, creatorId));
   await tx.delete(creatorLinks).where(eq(creatorLinks.creatorId, creatorId));
-  await tx.delete(enrichmentSnapshots).where(eq(enrichmentSnapshots.creatorId, creatorId));
-  await tx.delete(profileMetricSnapshots).where(inArray(profileMetricSnapshots.profileId, tx.select({ id: creatorProfiles.id }).from(creatorProfiles).where(eq(creatorProfiles.creatorId, creatorId))));
+  // Snapshots are append-only for every app role; only this function deletes them (migration 0015).
+  await tx.execute(sql`select platform.erase_creator_snapshots(${creatorId}::uuid)`);
   await tx.delete(creatorProfiles).where(eq(creatorProfiles.creatorId, creatorId));
   await tx
     .update(creators)
