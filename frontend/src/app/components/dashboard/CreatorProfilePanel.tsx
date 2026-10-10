@@ -5,7 +5,8 @@ import type { AudienceData } from "@mushin/contracts";
 import { FreshnessBadge, SourceBadge, ContactTrustBadge, contactTrustNote, Unavailable, Spinner } from "./states";
 import { useActiveJobs, useStartJob } from "../../api/discovery";
 import { isOpenJob, jobStatusText } from "../../api/discovery-mapping";
-import { useCreatorAudience, useCreatorProfile, useRevealContact } from "../../api/search";
+import { useCreatorAudience, useCreatorProfile, useForgetReveal, useRevealContact } from "../../api/search";
+import { useAuth } from "../../auth/AuthContext";
 import { formatCount, uiTrust } from "../../api/search-mapping";
 import { useConfirm, useToast } from "../../lib/toast";
 
@@ -106,6 +107,23 @@ export function CreatorProfilePanel({ creator, onClose, onCompare }: { creator: 
         onError: (err) => toast.error("Couldn't refresh this creator", err instanceof Error ? err.message : undefined),
       },
     );
+  }
+
+  const { user } = useAuth();
+  const forget = useForgetReveal(id);
+  async function onForget() {
+    const ok = await confirm({
+      title: "Remove revealed contacts?",
+      body: "Their email and phone are hidden again for everyone in your workspace. Revealing them again costs credits.",
+      confirmLabel: "Remove",
+      cancelLabel: "Keep",
+      destructive: true,
+    });
+    if (!ok) return;
+    forget.mutate(undefined, {
+      onSuccess: () => toast.success("Revealed contacts removed from this workspace"),
+      onError: (err) => toast.error("Couldn't remove the contacts", err instanceof Error ? err.message : undefined),
+    });
   }
 
   async function onReveal() {
@@ -339,6 +357,15 @@ export function CreatorProfilePanel({ creator, onClose, onCompare }: { creator: 
                                 {ch.value && <p className="mt-1 text-[10px] text-slate-400">{contactTrustNote(uiTrust(ch.trust))}</p>}
                               </div>
                             ))}
+                            {p.revealed && (user?.role === "owner" || user?.role === "admin") && (
+                            <button
+                              onClick={() => void onForget()}
+                              disabled={forget.isPending}
+                              className="mt-1 text-[11px] text-slate-500 underline-offset-2 hover:text-red-600 hover:underline disabled:opacity-60"
+                            >
+                              Remove revealed contacts from this workspace
+                            </button>
+                            )}
                             {!p.revealed && (
                               <button
                                 onClick={() => void onReveal()}

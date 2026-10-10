@@ -61,6 +61,7 @@ export function Footer() {
           <div>© {new Date().getFullYear()} Mushin Technologies, Inc. All rights reserved.</div>
           <div className="flex gap-6">
             <a href="#" className="hover:text-slate-900">Privacy</a>
+            <a href="#/remove-my-data" className="hover:text-slate-900">Remove my data</a>
             <a href="#" className="hover:text-slate-900">Terms</a>
             <a href="#" className="hover:text-slate-900">Security</a>
             <a href="#" className="hover:text-slate-900">DPA</a>

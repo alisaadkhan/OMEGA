@@ -15,11 +15,12 @@ import { Signup } from "./components/auth/Signup";
 import { ForgotPassword } from "./components/auth/ForgotPassword";
 import { AdminLogin } from "./components/admin/AdminLogin";
 import { AdminApp } from "./components/admin/AdminApp";
+import { RemoveMyData } from "./components/public/RemoveMyData";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 import { AdminAuthProvider, useAdminAuth } from "./admin/AdminAuthContext";
 import { ToastProvider, ConfirmProvider } from "./lib/toast";
 
-type Route = "landing" | "dashboard" | "login" | "signup" | "forgot" | "admin-login" | "admin";
+type Route = "landing" | "dashboard" | "login" | "signup" | "forgot" | "admin-login" | "admin" | "remove-my-data";
 
 /**
  * Simple hash-based router. Reads `#/path` from the URL so
@@ -36,6 +37,7 @@ function useHashRoute(initial: Route): [Route, (r: Route) => void] {
     if (h === "signup") return "signup";
     if (h === "forgot") return "forgot";
     if (h === "dashboard") return "dashboard";
+    if (h === "remove-my-data") return "remove-my-data";
     return initial;
   };
   const [route, setRoute] = useState<Route>(initial);
@@ -99,6 +101,12 @@ function Shell() {
               <CTA onPrimary={goPrimary} />
             </main>
             <Footer />
+          </motion.div>
+        )}
+
+        {route === "remove-my-data" && (
+          <motion.div key="remove-my-data" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
+            <RemoveMyData onExit={() => setRoute("landing")} />
           </motion.div>
         )}
 

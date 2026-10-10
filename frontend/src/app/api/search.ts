@@ -4,6 +4,7 @@ import {
   creatorProfileSchema,
   interpretResponseSchema,
   lookupResponseSchema,
+  revealRemovedSchema,
   revealResponseSchema,
   savedSearchListSchema,
   savedSearchSchema,
@@ -85,5 +86,13 @@ export function useCreatorLookup(q: string) {
     queryFn: () => apiRequest(`/v1/creators/lookup?q=${encodeURIComponent(text)}`, lookupResponseSchema),
     enabled: status === "signedIn" && text.length >= 2,
     staleTime: 30_000,
+  });
+}
+
+export function useForgetReveal(id: string | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiRequest(`/v1/creators/${id ?? ""}/reveal`, revealRemovedSchema, { method: "DELETE" }),
+    onSettled: () => void qc.invalidateQueries({ queryKey: ["creator", id] }),
   });
 }
