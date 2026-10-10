@@ -1,13 +1,14 @@
 import { Redis } from "@upstash/redis";
 import { createLogger, loadWorkerConfig } from "@mushin/core";
-import { createDatabase, createDbProviderCallSink, providerSpendSince, UNVERIFIED_TLS_WARNING } from "@mushin/db";
-import { createBudgetGuard, createLlm, createObjectStorage, createPayments, createProfileScraper, createSearchIndex } from "@mushin/integrations";
+import { createDatabase, createDbProviderCallSink, providerCallsSince, providerSpendSince, UNVERIFIED_TLS_WARNING } from "@mushin/db";
+import { createBudgetGuard, createLlm, createObjectStorage, createPayments, createProfileScraper, createSearchIndex, createSearchLimitGuard, createSerperSearch } from "@mushin/integrations";
 import { createBillingService, createRedisAccessCache, noAccessCache } from "../../api/src/modules/billing/index";
-import { createCreatorIndexer, createEnrichmentPipeline, createSummaryWriter, getEnrichmentSettings } from "../../api/src/modules/creators/index";
-import { createDiscoveryRunner } from "../../api/src/modules/discovery/index";
+import { createCreatorIndexer, createEnrichmentPipeline, createEraser, createSummaryWriter, getEnrichmentSettings } from "../../api/src/modules/creators/index";
+import { createCachedSearch, createDiscoveryRunner, createLiveRunner } from "../../api/src/modules/discovery/index";
 import { billingHandlers, notifyHandlers } from "./billing-handlers";
 import { creatorHandlers } from "./creator-handlers";
 import { discoveryHandlers } from "./discovery-handlers";
+import { erasureHandlers } from "./erasure-handlers";
 import { startBoss } from "./boss";
 import { defaultHandlers } from "./handlers";
 import { startWorker } from "./worker";
@@ -42,6 +43,16 @@ if (!config.scraping.apifyToken) logger.warn("APIFY_TOKEN not set: Instagram and
 if (!config.scraping.youtubeApiKey) logger.warn("YOUTUBE_API_KEY not set: YouTube jobs will fail and refund");
 const pipeline = createEnrichmentPipeline({ db, scraper, storage: createObjectStorage(config.storage, logger), llm, encryptionKey: config.dataEncryptionKey, logger });
 const runner = createDiscoveryRunner({ db, billing, pipeline, logger });
+const web = createSerperSearch({
+  apiKey: config.scraping.serperApiKey,
+  limit: createSearchLimitGuard({ limit: config.scraping.serperMonthlySearchLimit, countSince: (since) => providerCallsSince(db, "serper", since) }),
+  sink: createDbProviderCallSink(db),
+  logger,
+});
+if (!config.scraping.serperApiKey) logger.warn("SERPER_API_KEY not set: Find New Creators runs will fail and refund");
+const searchCache = createCachedSearch({ db, web });
+const liveRunner = createLiveRunner({ db, billing, pipeline, scraper, search: searchCache, llm, logger });
+const eraser = createEraser({ db, storage: pipeline.storage, logger });
 // A fresh Meilisearch (local or Cloud) configures itself; a failure here must not stop billing work.
 await indexer.ensureSettings().catch((err: unknown) => logger.error({ err }, "could not apply search index settings"));
 await pipeline.ensureBuckets().catch((err: unknown) => logger.error({ err }, "could not create the storage buckets"));
@@ -49,7 +60,7 @@ const worker = await startWorker({
   db,
   boss,
   logger,
-  handlers: { ...defaultHandlers(db), ...billingHandlers(billing), ...notifyHandlers(), ...creatorHandlers({ indexer, summaries }), ...discoveryHandlers({ runner, pipeline }) },
+  handlers: { ...defaultHandlers(db), ...billingHandlers(billing), ...notifyHandlers(), ...creatorHandlers({ indexer, summaries }), ...discoveryHandlers({ runner, liveRunner, searchCache, pipeline }), ...erasureHandlers({ eraser }) },
 });
 logger.info("worker started");
 

@@ -1,5 +1,5 @@
 import type { EnrichmentPipeline } from "../../api/src/modules/creators/index";
-import type { DiscoveryRunner } from "../../api/src/modules/discovery/index";
+import type { CachedSearch, DiscoveryRunner, LiveRunner } from "../../api/src/modules/discovery/index";
 import type { HandlerRegistry, JobData } from "./dispatcher";
 
 function str(data: JobData, key: string): string {
@@ -10,15 +10,21 @@ function str(data: JobData, key: string): string {
 
 export function discoveryHandlers(o: {
   runner: Pick<DiscoveryRunner, "run" | "sweepStuck">;
+  liveRunner: Pick<LiveRunner, "run">;
+  searchCache: Pick<CachedSearch, "purge">;
   pipeline: Pick<EnrichmentPipeline, "reassess" | "purgeExpiredPayloads">;
 }): HandlerRegistry {
-  const runJob = async (data: JobData) => {
+  const runJob = (r: { run(jobId: string, workspaceId: string): Promise<void> }) => async (data: JobData) => {
     if (!data.workspaceId) throw new Error(`${data.eventType} without a workspace`);
-    await o.runner.run(str(data, "jobId"), data.workspaceId);
+    await r.run(str(data, "jobId"), data.workspaceId);
   };
   return {
-    "discovery.requested": runJob,
-    "refresh.requested": runJob,
+    "discovery.requested": runJob(o.runner),
+    "refresh.requested": runJob(o.runner),
+    "discovery.live_requested": runJob(o.liveRunner),
+    "system.purge_search_cache": async (_d, { logger }) => {
+      logger.info({ purged: await o.searchCache.purge() }, "expired Google results purged");
+    },
     "creator.assessment_requested": async (data, { logger }) => {
       const creatorId = str(data, "creatorId");
       logger.info({ creatorId, result: await o.pipeline.reassess(creatorId) }, "creator reassessed");

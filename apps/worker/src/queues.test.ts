@@ -6,6 +6,7 @@ import { billingHandlers, NOTIFY_EVENTS, notifyHandlers } from "./billing-handle
 import { SCHEDULES } from "./schedules";
 import { creatorHandlers } from "./creator-handlers";
 import { discoveryHandlers } from "./discovery-handlers";
+import { erasureHandlers } from "./erasure-handlers";
 
 describe("queue routing", () => {
   it("routes event types by prefix", () => {
@@ -124,6 +125,8 @@ describe("discovery handlers", () => {
     const calls: string[] = [];
     const handlers = discoveryHandlers({
       runner: { run: async (id, ws) => void calls.push(`run:${id}:${ws}`), sweepStuck: async () => (calls.push("sweep"), 0) },
+      liveRunner: { run: async () => undefined },
+      searchCache: { purge: async () => 0 },
       pipeline: { reassess: async (id) => (calls.push(`reassess:${id}`), "assessed" as const), purgeExpiredPayloads: async () => (calls.push("purge"), 0) },
     });
     const dispatch = createDispatcher(handlers, createLogger({ level: "silent" }));
@@ -137,5 +140,40 @@ describe("discovery handlers", () => {
     await expect(dispatch([{ id: "j7", data: job("discovery.requested", { jobId: "a" }, null) }])).rejects.toThrow(/workspace/);
     for (const key of ["discovery_sweep", "purge_raw_payloads"]) expect(SCHEDULES.find((s) => s.key === key)).toMatchObject({ queue: "system" });
     expect(NOTIFY_EVENTS).toContain("notify.discovery_job_finished");
+  });
+});
+
+describe("live discovery and erasure handlers", () => {
+  const job = (eventType: string, payload: Record<string, unknown>, workspaceId: string | null = "w1") => ({
+    eventId: "e",
+    eventType,
+    aggregateType: "x",
+    aggregateId: "1",
+    workspaceId,
+    requestId: null,
+    payload,
+  });
+
+  it("runs live jobs, erasures and the two purges, on the right queues", async () => {
+    const calls: string[] = [];
+    const handlers = {
+      ...discoveryHandlers({
+        runner: { run: async () => undefined, sweepStuck: async () => 0 },
+        liveRunner: { run: async (id, ws) => void calls.push(`live:${id}:${ws}`) },
+        searchCache: { purge: async () => (calls.push("purge-search"), 0) },
+        pipeline: { reassess: async () => "assessed" as const, purgeExpiredPayloads: async () => 0 },
+      }),
+      ...erasureHandlers({ eraser: { erase: async (id) => void calls.push(`erase:${id}`), clearOldEmails: async () => (calls.push("purge-emails"), 0) } }),
+    };
+    const dispatch = createDispatcher(handlers, createLogger({ level: "silent" }));
+    await dispatch([{ id: "j1", data: job("discovery.live_requested", { jobId: "a" }) }]);
+    await dispatch([{ id: "j2", data: job("erasure.creator_requested", { removalRequestId: "r1" }, null) }]);
+    await dispatch([{ id: "j3", data: job("system.purge_search_cache", {}, null) }]);
+    await dispatch([{ id: "j4", data: job("system.purge_removal_emails", {}, null) }]);
+    expect(calls).toEqual(["live:a:w1", "erase:r1", "purge-search", "purge-emails"]);
+    expect(queueFor("discovery.live_requested")).toBe("discovery-high");
+    expect(queueFor("erasure.creator_requested")).toBe("erasure");
+    for (const key of ["purge_search_cache", "purge_removal_emails"]) expect(SCHEDULES.find((s) => s.key === key)).toMatchObject({ queue: "system" });
+    expect(NOTIFY_EVENTS).toContain("notify.removal_processed");
   });
 });
