@@ -326,7 +326,7 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
             onClick={() => setCreditConfirmOpen(true)}
             className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 px-3 text-xs text-amber-800 transition-all hover:-translate-y-px hover:shadow-md"
             style={{ fontWeight: 500 }}
-            title="Find New Creators · queries platforms in real time · 12 credits"
+            title="Find New Creators · searches Google in real time · 12 credits plus each new creator added"
           >
             <Radio className="h-3.5 w-3.5" strokeWidth={2} />
             Find New Creators
