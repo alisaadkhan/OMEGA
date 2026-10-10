@@ -98,7 +98,7 @@ describe("live runner", () => {
     expect(res.results.filter((r) => r.isNew)).toHaveLength(2);
     expect(scraper.batchCalls).toHaveLength(1);
     expect(scraper.batchCalls[0]?.handles.sort()).toEqual(["new_a", "new_b", "private_c"]);
-    expect(web.calls).toHaveLength(3);
+    expect(web.calls).toHaveLength(2); // "bridal makeup lahore" and "bridal makeup content creator lahore"
     const payloads = await ownerQuery<{ n: number }>(`select count(*)::int n from platform.raw_payloads where job_id = '${id}'`);
     expect(payloads[0]?.n).toBe(3);
     const ev = await ownerQuery<{ n: number }>(`select count(*)::int n from platform.outbox where event_type = 'notify.discovery_job_finished'`);
@@ -158,7 +158,7 @@ describe("live runner", () => {
     const id = await startRun(c);
     await expect(runner.run(id, c.workspaceId)).rejects.toThrow(/crashed/);
     await runner.run(id, c.workspaceId);
-    expect(web.calls).toHaveLength(3);
+    expect(web.calls).toHaveLength(2); // the retry reads both searches from the cache
     expect(scraper.batchCalls).toHaveLength(1);
     expect(await discovery.get(c, id)).toMatchObject({ status: "completed", live: { new: 2, creditsCharged: 32 } });
     expect(await balance(c)).toMatchObject({ available: 168, reserved: 0 });

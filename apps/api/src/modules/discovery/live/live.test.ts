@@ -8,22 +8,33 @@ import { filterRelevant } from "./relevance";
 const search = (text: string, filters: Record<string, unknown> = {}) => ({ text, filters: searchFiltersSchema.parse(filters) });
 
 describe("Google queries from the filter chips", () => {
-  it("builds up to three site-restricted searches per platform with the place and the market", () => {
+  it("searches the chips first in plain words, once as creators (a bare niche word finds shops; 'influencer' finds posts)", () => {
     const qs = buildQueries(search("Bridal makeup", { platform: "instagram", niches: ["Bridal"], creatorCity: "Lahore" }));
     expect(qs).toEqual([
+      { platform: "instagram", query: "site:instagram.com bridal lahore", country: "pk" },
+      { platform: "instagram", query: "site:instagram.com bridal content creator lahore", country: "pk" },
       { platform: "instagram", query: "site:instagram.com bridal makeup lahore", country: "pk" },
-      { platform: "instagram", query: "site:instagram.com bridal lahore influencer", country: "pk" },
-      { platform: "instagram", query: "site:instagram.com bridal makeup influencer", country: "pk" },
     ]);
   });
 
-  it("covers every platform when none is chosen, and names a country when no city is given", () => {
+  it("covers every platform when none is chosen, limits TikTok and YouTube to profile pages, and names a country when no city is given", () => {
     const qs = buildQueries(search("", { niches: ["Food"], creatorCountry: "AE" }));
     expect(new Set(qs.map((q) => q.platform))).toEqual(new Set(["instagram", "tiktok", "youtube"]));
     expect(qs.every((q) => q.country === "ae")).toBe(true);
     expect(qs[0]?.query).toBe("site:instagram.com food united arab emirates");
-    expect(qs.filter((q) => q.platform === "youtube").some((q) => q.query.endsWith("channel"))).toBe(true);
+    expect(qs.find((q) => q.platform === "tiktok")?.query).toBe("site:tiktok.com/@ food united arab emirates");
+    expect(qs.find((q) => q.platform === "youtube")?.query).toBe("site:youtube.com/@ food united arab emirates");
     expect(platformsFor(search("x", { platform: "tiktok" }))).toEqual(["tiktok"]);
+  });
+
+  it("drops filler from a typed sentence: only the topic words are searched", () => {
+    const qs = buildQueries(search("find creator for tech related on youtube around 50k or above followers", { platform: "youtube", niches: ["Tech"], followersMin: 50000 }));
+    expect(qs.map((q) => q.query)).toEqual(["site:youtube.com/@ tech", "site:youtube.com/@ tech content creator", "site:youtube.com/@ tech pakistan"]);
+    const typed = buildQueries(search("Show me bridal makeup artists in Lahore with 100k+ followers on Instagram", { platform: "instagram", creatorCity: "Lahore" }));
+    expect(typed[0]?.query).toBe("site:instagram.com bridal makeup artists lahore");
+    // A place is given, so no search goes out without it (a bare "bridal" finds shops worldwide).
+    const placed = buildQueries(search("bridal creators in Lahore on instagram with 100k+ followers", { platform: "instagram", niches: ["Bridal"], creatorCity: "Lahore" }));
+    expect(placed.map((q) => q.query)).toEqual(["site:instagram.com bridal lahore", "site:instagram.com bridal content creator lahore"]);
   });
 
   it("never lets the user's text become Google operators", () => {
