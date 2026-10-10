@@ -40,6 +40,8 @@ export default defineConfig(({ mode }) => {
           target: `http://localhost:${apiPort}`,
           changeOrigin: true,
           rewrite: (p) => p.replace(/^\/api/, ''),
+          // The API scopes the staff refresh cookie to /admin/v1/auth; through this proxy the browser sees /api/admin/v1/auth.
+          cookiePathRewrite: { '/admin/v1/auth': '/api/admin/v1/auth' },
         },
       },
     },

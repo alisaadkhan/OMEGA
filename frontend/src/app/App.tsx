@@ -64,15 +64,16 @@ function useHashRoute(initial: Route): [Route, (r: Route) => void] {
 
 function Shell() {
   const { user, status } = useAuth();
-  const { admin, signOut: adminSignOut } = useAdminAuth();
+  const { admin, status: adminStatus, signOut: adminSignOut } = useAdminAuth();
   const [route, setRoute] = useHashRoute("landing");
 
   const goPrimary = () => setRoute(user ? "dashboard" : "signup");
 
   // Guard admin route — if not signed in as admin, bounce to admin-login
   useEffect(() => {
-    if (route === "admin" && !admin) setRoute("admin-login");
-  }, [route, admin, setRoute]);
+    // Wait for the session check (refresh cookie) before sending staff to sign in.
+    if (route === "admin" && adminStatus === "signedOut") setRoute("admin-login");
+  }, [route, adminStatus, setRoute]);
 
   // Session-problem handling: the dashboard needs a signed-in user.
   useEffect(() => {
@@ -148,8 +149,7 @@ function Shell() {
           <motion.div key="admin" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
             <AdminApp
               onSignOut={() => {
-                adminSignOut();
-                setRoute("admin-login");
+                void adminSignOut().then(() => setRoute("admin-login"));
               }}
               onExit={() => setRoute("landing")}
             />

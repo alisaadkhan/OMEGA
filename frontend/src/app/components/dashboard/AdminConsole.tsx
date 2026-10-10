@@ -21,7 +21,9 @@ import {
   Repeat,
   Zap,
   Circle,
+  UserX,
 } from "lucide-react";
+import { RemovalRequests } from "../admin/RemovalRequests";
 import { profiles } from "../../auth/profiles";
 
 /**
@@ -41,7 +43,8 @@ type AdminView =
   | "security"
   | "support"
   | "monitoring"
-  | "settings";
+  | "settings"
+  | "removals";
 
 const nav: { id: AdminView; label: string; icon: any }[] = [
   { id: "dashboard", label: "Overview", icon: LayoutDashboard },
@@ -52,11 +55,12 @@ const nav: { id: AdminView; label: string; icon: any }[] = [
   { id: "providers", label: "Providers", icon: Server },
   { id: "security", label: "Security", icon: ShieldCheck },
   { id: "support", label: "Support console", icon: LifeBuoy },
+  { id: "removals", label: "Removal requests", icon: UserX },
   { id: "monitoring", label: "Monitoring", icon: Activity },
   { id: "settings", label: "System settings", icon: Settings },
 ];
 
-export function AdminConsole({ onExit }: { onExit: () => void }) {
+export function AdminConsole({ onExit, role }: { onExit: () => void; role: "admin" | "support" }) {
   const [view, setView] = useState<AdminView>("dashboard");
 
   return (
@@ -71,7 +75,7 @@ export function AdminConsole({ onExit }: { onExit: () => void }) {
           </div>
         </div>
         <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">
-          {nav.map((item) => {
+          {nav.filter((item) => item.id !== "removals" || role === "admin").map((item) => {
             const active = view === item.id;
             return (
               <button
@@ -119,6 +123,7 @@ export function AdminConsole({ onExit }: { onExit: () => void }) {
             {view === "support" && <SupportConsole />}
             {view === "monitoring" && <Monitoring />}
             {view === "settings" && <SystemSettings />}
+            {view === "removals" && <RemovalRequests />}
           </motion.div>
         </AnimatePresence>
       </main>

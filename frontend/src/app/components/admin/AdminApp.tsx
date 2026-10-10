@@ -44,7 +44,7 @@ export function AdminApp({ onSignOut, onExit }: { onSignOut: () => void; onExit:
         </div>
       </header>
       <div className="flex min-h-0 flex-1">
-        <AdminConsole onExit={onExit} />
+        <AdminConsole onExit={onExit} role={admin.role} />
       </div>
     </div>
   );
