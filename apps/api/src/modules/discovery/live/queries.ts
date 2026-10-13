@@ -70,6 +70,7 @@ export function buildQueries(s: LiveSearch, round: 1 | 2 | 3 = 1): PlannedQuery[
   const country = (s.filters.creatorCountry ?? "PK").toLowerCase();
   const typed = keywords(s.text, place);
   const topic = niches.join(" ") || typed;
+  const roleTopic = typed || topic;
   // Measured 2026-10-10: a bare niche word finds shops and brands, "content creator" finds people; without a place, the
   // market's name keeps a search local (Google's country setting alone does not).
   const market = place ? "" : words(regionName(country.toUpperCase()), 60);
@@ -80,7 +81,7 @@ export function buildQueries(s: LiveSearch, round: 1 | 2 | 3 = 1): PlannedQuery[
     const seen = new Set<string>();
     const known = URDU_TERMS[topic] ?? URDU_TERMS[typed];
     const planned: { parts: string[]; hl: string }[] = round === 1
-      ? [[topic, place], [topic, "content creator", place], [typed, place], ...(market ? [[topic, market]] : [])].map((parts) => ({ parts, hl: "en" }))
+      ? [[topic, "content creator", place || market], [roleTopic, "blogger", place || market], [roleTopic, "influencer", place || market]].map((parts) => ({ parts, hl: "en" }))
       : round === 2 && isPakistan && known
         ? [
             { parts: [known.roman, place], hl: "en" },

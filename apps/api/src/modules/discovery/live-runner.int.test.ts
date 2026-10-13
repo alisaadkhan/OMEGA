@@ -113,7 +113,7 @@ describe("live runner", () => {
     expect(res.results.filter((r) => r.isNew)).toHaveLength(6);
     expect(scraper.batchCalls).toHaveLength(1);
     expect(scraper.batchCalls[0]?.handles.sort()).toEqual(["new_a", "new_b", "pool_1", "pool_2", "pool_3", "pool_4", "private_c"]);
-    expect(web.calls).toHaveLength(2); // the first two precision queries filled the eight-candidate pool
+    expect(web.calls).toHaveLength(3); // role-targeted queries filled the eight-candidate pool
     const payloads = await ownerQuery<{ n: number }>(`select count(*)::int n from platform.raw_payloads where job_id = '${id}'`);
     expect(payloads[0]?.n).toBe(7);
     const ev = await ownerQuery<{ n: number }>(`select count(*)::int n from platform.outbox where event_type = 'notify.discovery_job_finished'`);
@@ -184,7 +184,7 @@ describe("live runner", () => {
     const id = await startRun(c);
     await expect(runner.run(id, c.workspaceId)).rejects.toThrow(/crashed/);
     await runner.run(id, c.workspaceId);
-    expect(web.calls).toHaveLength(2); // retry reuses the precision queries from cache
+    expect(web.calls).toHaveLength(3); // retry reuses the role-targeted queries from cache
     expect(scraper.batchCalls).toHaveLength(1);
     expect(await discovery.get(c, id)).toMatchObject({ status: "completed", live: { new: 8, creditsCharged: 92 } });
     expect(await balance(c)).toMatchObject({ available: 108, reserved: 0 });

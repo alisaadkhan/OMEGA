@@ -26,6 +26,7 @@ export { findProfileByUrl, getEnrichmentSettings, profileTarget } from "./enrich
 export { normalizeProfileUrl, refreshActionFor } from "./rules";
 export type { CreatorPlatform } from "./rules";
 export { cleanText } from "./enrichment/standardize";
+export { standardize } from "./enrichment/standardize";
 export type { StandardPost, StandardProfile } from "./enrichment/standardize";
 export { fenced, hasContactOrLink, redactContacts } from "./rules";
 export { rankCards } from "./ranking";

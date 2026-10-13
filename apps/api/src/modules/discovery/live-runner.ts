@@ -7,7 +7,7 @@ import { findProfileByUrl, fitLabel, getSearchSettings, isVisibleCreator, rankCa
 import { notifyFinished, releaseHeld } from "./finish";
 import type { CachedSearch } from "./live/cache";
 import { evaluateCampaignFit } from "./fit";
-import { collectCandidates } from "./live/candidates";
+import { collectCandidates, spreadByPlatform } from "./live/candidates";
 import { buildQueries } from "./live/queries";
 import { classifyCandidates, filterRelevant, type Kept } from "./live/relevance";
 import * as repo from "./repository";
@@ -122,7 +122,7 @@ export function createLiveRunner(deps: Deps) {
       // 4. Known creators become free results; erased and hidden ones are dropped; new ones are queued up to the size.
       const suppressed = await deps.db.withSystem((tx) => suppressedUrls(tx, kept.map((k) => k.canonicalUrl)));
       const alreadyNew = await deps.db.withWorkspace(workspaceId, (tx) => repo.countNew(tx, workspaceId, jobId));
-      const fresh: Kept[] = [];
+      const availableNew: Kept[] = [];
       for (const k of kept) {
         if (suppressed.has(k.canonicalUrl)) continue;
         const known = await deps.db.withSystem((tx) => findProfileByUrl(tx, k.canonicalUrl));
@@ -137,8 +137,9 @@ export function createLiveRunner(deps: Deps) {
           }
           continue;
         }
-        if (alreadyNew + fresh.length < maxNew) fresh.push(k);
+        availableNew.push(k);
       }
+      const fresh = spreadByPlatform(availableNew).slice(0, Math.max(0, maxNew - alreadyNew));
       // 5. One Apify run per platform; each profile archived on its own (a retry reuses the archive).
       await step("fetching");
       const fetched: { k: Kept; payloadId: string; raw: unknown }[] = [];

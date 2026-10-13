@@ -1,19 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { searchFiltersSchema } from "@mushin/contracts";
 import { MockLlm } from "@mushin/integrations";
-import { collectCandidates } from "./candidates";
+import { collectCandidates, spreadByPlatform } from "./candidates";
 import { buildQueries, platformsFor } from "./queries";
 import { classifyCandidates, filterRelevant } from "./relevance";
 
 const search = (text: string, filters: Record<string, unknown> = {}) => ({ text, filters: searchFiltersSchema.parse(filters) });
 
 describe("Google queries from the filter chips", () => {
-  it("searches the chips first in plain words, once as creators (a bare niche word finds shops; 'influencer' finds posts)", () => {
+  it("keeps first-round queries focused on creator roles instead of bare niche searches", () => {
     const qs = buildQueries(search("Bridal makeup", { platform: "instagram", niches: ["Bridal"], creatorCity: "Lahore" }));
     expect(qs.map(({ platform, query, country }) => ({ platform, query, country }))).toEqual([
-      { platform: "instagram", query: "site:instagram.com bridal lahore", country: "pk" },
       { platform: "instagram", query: "site:instagram.com bridal content creator lahore", country: "pk" },
-      { platform: "instagram", query: "site:instagram.com bridal makeup lahore", country: "pk" },
+      { platform: "instagram", query: "site:instagram.com bridal makeup blogger lahore", country: "pk" },
+      { platform: "instagram", query: "site:instagram.com bridal makeup influencer lahore", country: "pk" },
     ]);
   });
 
@@ -21,20 +21,20 @@ describe("Google queries from the filter chips", () => {
     const qs = buildQueries(search("", { niches: ["Food"], creatorCountry: "AE" }));
     expect(new Set(qs.map((q) => q.platform))).toEqual(new Set(["instagram", "tiktok", "youtube"]));
     expect(qs.every((q) => q.country === "ae")).toBe(true);
-    expect(qs[0]?.query).toBe("site:instagram.com food united arab emirates");
-    expect(qs.find((q) => q.platform === "tiktok")?.query).toBe("site:tiktok.com/@ food united arab emirates");
-    expect(qs.find((q) => q.platform === "youtube")?.query).toBe("site:youtube.com/@ food united arab emirates");
+    expect(qs[0]?.query).toBe("site:instagram.com food content creator united arab emirates");
+    expect(qs.find((q) => q.platform === "tiktok")?.query).toBe("site:tiktok.com/@ food content creator united arab emirates");
+    expect(qs.find((q) => q.platform === "youtube")?.query).toBe("site:youtube.com/@ food content creator united arab emirates");
     expect(platformsFor(search("x", { platform: "tiktok" }))).toEqual(["tiktok"]);
   });
 
   it("drops filler from a typed sentence: only the topic words are searched", () => {
     const qs = buildQueries(search("find creator for tech related on youtube around 50k or above followers", { platform: "youtube", niches: ["Tech"], followersMin: 50000 }));
-    expect(qs.map((q) => q.query)).toEqual(["site:youtube.com/@ tech", "site:youtube.com/@ tech content creator", "site:youtube.com/@ tech pakistan"]);
+    expect(qs.map((q) => q.query)).toEqual(["site:youtube.com/@ tech content creator pakistan", "site:youtube.com/@ tech blogger pakistan", "site:youtube.com/@ tech influencer pakistan"]);
     const typed = buildQueries(search("Show me bridal makeup artists in Lahore with 100k+ followers on Instagram", { platform: "instagram", creatorCity: "Lahore" }));
-    expect(typed[0]?.query).toBe("site:instagram.com bridal makeup artists lahore");
+    expect(typed[0]?.query).toBe("site:instagram.com bridal makeup artists content creator lahore");
     // A place is given, so no search goes out without it (a bare "bridal" finds shops worldwide).
     const placed = buildQueries(search("bridal creators in Lahore on instagram with 100k+ followers", { platform: "instagram", niches: ["Bridal"], creatorCity: "Lahore" }));
-    expect(placed.map((q) => q.query)).toEqual(["site:instagram.com bridal lahore", "site:instagram.com bridal content creator lahore"]);
+    expect(placed.map((q) => q.query)).toEqual(["site:instagram.com bridal content creator lahore", "site:instagram.com bridal blogger lahore", "site:instagram.com bridal influencer lahore"]);
   });
 
   it("never lets the user's text become Google operators", () => {
@@ -62,6 +62,16 @@ describe("Google queries from the filter chips", () => {
 });
 
 describe("candidates from search results", () => {
+  it("deduplicates profile URLs without merging equal handles across platforms, then spreads extraction slots", () => {
+    const candidates = collectCandidates([
+      { platform: "instagram", results: [{ title: "Sana", link: "https://instagram.com/sana", snippet: "" }, { title: "Sana other account", link: "https://instagram.com/sana2", snippet: "" }] },
+      { platform: "tiktok", results: [{ title: "Sana", link: "https://tiktok.com/@sana", snippet: "" }] },
+      { platform: "youtube", results: [{ title: "Sana", link: "https://youtube.com/@sana", snippet: "" }] },
+    ]);
+    expect(candidates.map((c) => `${c.platform}:${c.handle}`)).toEqual(["instagram:sana", "instagram:sana2", "tiktok:sana", "youtube:sana"]);
+    expect(spreadByPlatform(candidates).map((c) => `${c.platform}:${c.handle}`)).toEqual(["instagram:sana", "tiktok:sana", "youtube:sana", "instagram:sana2"]);
+  });
+
   it("turns result links into unique profiles, including TikTok video links (Review Focus 2)", () => {
     const out = collectCandidates([
       {

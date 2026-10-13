@@ -3,6 +3,23 @@ import { normalizeProfileUrl, type CreatorPlatform } from "../../creators/index"
 
 export type Candidate = { platform: CreatorPlatform; handle: string; canonicalUrl: string; title: string; snippet: string };
 
+/** Keep a multi-platform brief from consuming its whole extraction cap on the first platform's search ordering. */
+export function spreadByPlatform<T extends { platform: CreatorPlatform }>(items: T[]): T[] {
+  const buckets = new Map<CreatorPlatform, T[]>([["instagram", []], ["tiktok", []], ["youtube", []]]);
+  for (const item of items) buckets.get(item.platform)?.push(item);
+  const result: T[] = [];
+  for (let index = 0; ; index++) {
+    let added = false;
+    for (const platform of ["instagram", "tiktok", "youtube"] as const) {
+      const item = buckets.get(platform)?.[index];
+      if (!item) continue;
+      result.push(item);
+      added = true;
+    }
+    if (!added) return result;
+  }
+}
+
 /** Spec §4.2 step 2: result links → unique profiles of the platform searched (posts, reels and app pages are not profiles). */
 export function collectCandidates(groups: { platform: CreatorPlatform; results: WebResult[] }[], max = 60): Candidate[] {
   const seen = new Map<string, Candidate>();
