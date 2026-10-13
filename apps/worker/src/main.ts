@@ -51,7 +51,7 @@ const web = createSerperSearch({
 });
 if (!config.scraping.serperApiKey) logger.warn("SERPER_API_KEY not set: Find New Creators runs will fail and refund");
 const searchCache = createCachedSearch({ db, web, ...(config.scraping.youtubeSearch ? { youtube: createYouTubeSearch({ apiKey: config.scraping.youtubeApiKey, sink: createDbProviderCallSink(db), logger }) } : {}) });
-const liveRunner = createLiveRunner({ db, billing, pipeline, scraper, search: searchCache, llm, logger, contentResolutionMax: config.scraping.contentResolutionMax });
+const liveRunner = createLiveRunner({ db, billing, pipeline, scraper, search: searchCache, llm, logger, contentResolutionMax: config.scraping.contentResolutionMax, extractionMultiplier: config.scraping.extractionMultiplier });
 const eraser = createEraser({ db, storage: pipeline.storage, logger });
 // PostgreSQL search is the default. When configured, Meilisearch is dual-written for rollback during the cutover.
 await indexer.ensureSettings().catch((err: unknown) => logger.error({ err }, "could not apply rollback search index settings"));

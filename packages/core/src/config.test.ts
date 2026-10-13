@@ -192,6 +192,7 @@ describe("scraping and storage settings (worker only)", () => {
       instagramPostBuild: "0.0.812",
       contentResolutionMax: 10,
       youtubeSearch: true,
+      extractionMultiplier: 1,
       apifyMonthlyBudgetUsd: 5,
       youtubeApiKey: "yt",
       serperApiKey: null,

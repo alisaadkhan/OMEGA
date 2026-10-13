@@ -26,6 +26,8 @@ type Deps = {
   now?: () => Date;
   /** Most Instagram post/reel links whose authors are resolved per run (0, the default, disables it). */
   contentResolutionMax?: number;
+  /** Profiles fetched per run, as a multiple of the chosen size, while the size is not filled (1, the default, = size). */
+  extractionMultiplier?: number;
 };
 
 /** G2: candidates after the cheap G1 gate needed before extraction (spec default 8); below it the run is `insufficient`. */
@@ -252,61 +254,77 @@ export function createLiveRunner(deps: Deps) {
       // Measured 2026-10-13: 1 of 12 extracted post/mention profiles qualified against about 60% of organic ones.
       const organic = rankByEvidence(search, availableNew.filter((k) => !recoveredKeys.has(k.canonicalUrl)));
       const ordered = spreadByPlatform([...organic, ...rankByEvidence(search, availableNew.filter((k) => recoveredKeys.has(k.canonicalUrl)))]);
-      const fresh = ordered.slice(0, Math.max(0, maxNew - alreadyNew));
-      // The run size the customer chose at quote time is the number of new profiles fetched (it bounds the charge).
-      ordered.forEach((k, index) => {
-        if (index < fresh.length) trail.set(k.canonicalUrl, "extraction", "pending", null, { detail: { selectionRank: index + 1 } });
-        else trail.set(k.canonicalUrl, "selection", "not_extracted", "run_size_limit", { detail: { selectionRank: index + 1 } });
-      });
-      await flush();
-      // 5. One Apify run per platform; each profile archived on its own (a retry reuses the archive).
-      await step("fetching");
-      const fetched: { k: Kept; payloadId: string; raw: unknown }[] = [];
-      for (const platform of ["instagram", "tiktok", "youtube"] as const) {
-        const list = fresh.filter((k) => k.platform === platform);
-        const missing: Kept[] = [];
-        for (const k of list) {
-          const a = await deps.pipeline.archived(jobId, k.canonicalUrl);
-          if (a) fetched.push({ k, ...a });
-          else missing.push(k);
-        }
-        if (missing.length === 0) continue;
-        const batch = await deps.scraper.fetchProfiles({ platform, handles: missing.map((m) => m.handle), ctx });
-        await step("archiving");
-        for (const m of missing) {
-          const raw = batch.profiles.find((p) => p.handle === m.handle.toLowerCase())?.raw ?? [];
-          fetched.push({ k: m, payloadId: await deps.pipeline.archive(profileJob(m), batch.provider, raw), raw });
-        }
-      }
-      // 6–7. 4A's steps per profile; each save inserts its result and re-ranks in the same transaction.
-      for (const f of fetched) {
-        await progress({ extractedProfiles: fetched.length });
-        const processed = await deps.pipeline.processProfile(profileJob(f.k), f.payloadId, f.raw, {
-          onStep: (s) => (s === "assessing" || s === "saving" ? step(s) : Promise.resolve()),
-          onSaved: async (tx, saved) => {
-            const isNew = saved.outcome === "created";
-            // A possible minor is saved but hidden from customers, so it costs nothing (Review Focus 1).
-            const visible = await isVisibleCreator(tx, saved.creatorId);
-            const campaignFit = evaluateCampaignFit(search, f.k, saved.profile, !visible, now());
-            trail.fit(f.k.canonicalUrl, campaignFit, saved.creatorId);
-            if (campaignFit.eligible && visible) trail.set(f.k.canonicalUrl, "delivery", "duplicate", "already_in_results");
-            if (campaignFit.eligible && visible && await repo.insertResult(tx, workspaceId, jobId, { creatorId: saved.creatorId, isNew, credits: isNew ? prices[f.k.platform] : 0, reason: f.k.reason, campaignFit })) {
-              trail.set(f.k.canonicalUrl, "delivery", "delivered", isNew ? "new_creator" : "known_creator", { detail: { credits: isNew ? prices[f.k.platform] : 0 } });
-              const results = await repo.resultCreatorIds(tx, workspaceId, jobId);
-              const qualified = await rerank(tx, job, search);
-              await repo.advanceProgress(tx, workspaceId, jobId, {
-                validIndividualCreators: qualified,
-                qualifiedCreators: qualified,
-                persistedResults: results.length,
-                billableCreators: await repo.countBillable(tx, workspaceId, jobId),
-              });
-            }
-          },
-        });
-        // Private, missing or unusable profiles return "unavailable": skipped, never charged.
-        if (processed.kind === "unavailable") trail.set(f.k.canonicalUrl, "extraction", "rejected", processed.code.toLowerCase());
+      // The run size chosen at quote time bounds the new creators charged. Profiles are fetched in waves: a first wave of
+      // the remaining size, then (when extractionMultiplier > 1) further waves of the next-best candidates while fewer
+      // new creators than the size qualified, up to multiplier × size fetches. The charge rule is unchanged.
+      const fetchCap = Math.max(0, Math.ceil((deps.extractionMultiplier ?? 1) * maxNew) - alreadyNew);
+      let offset = 0;
+      let fetchedCount = 0;
+      ordered.forEach((k, index) => trail.set(k.canonicalUrl, "selection", "pending", null, { detail: { selectionRank: index + 1 } }));
+      for (let wave = 1; ; wave++) {
+        const need = maxNew - (await deps.db.withWorkspace(workspaceId, (tx) => repo.countNew(tx, workspaceId, jobId)));
+        const take = Math.min(need, fetchCap - fetchedCount, ordered.length - offset);
+        if (take <= 0) break;
+        const fresh = ordered.slice(offset, offset + take);
+        offset += take;
+        fetchedCount += take;
+        for (const k of fresh) trail.set(k.canonicalUrl, "extraction", "pending", null, { detail: { wave } });
         await flush();
+        // 5. One Apify run per platform and wave; each profile archived on its own (a retry reuses the archive).
+        await step("fetching");
+        const fetched: { k: Kept; payloadId: string; raw: unknown }[] = [];
+        for (const platform of ["instagram", "tiktok", "youtube"] as const) {
+          const list = fresh.filter((k) => k.platform === platform);
+          const missing: Kept[] = [];
+          for (const k of list) {
+            const a = await deps.pipeline.archived(jobId, k.canonicalUrl);
+            if (a) fetched.push({ k, ...a });
+            else missing.push(k);
+          }
+          if (missing.length === 0) continue;
+          const batch = await deps.scraper.fetchProfiles({ platform, handles: missing.map((m) => m.handle), ctx });
+          await step("archiving");
+          for (const m of missing) {
+            const raw = batch.profiles.find((p) => p.handle === m.handle.toLowerCase())?.raw ?? [];
+            fetched.push({ k: m, payloadId: await deps.pipeline.archive(profileJob(m), batch.provider, raw), raw });
+          }
+        }
+        // 6–7. 4A's steps per profile; each save inserts its result and re-ranks in the same transaction.
+        for (const f of fetched) {
+          await progress({ extractedProfiles: fetchedCount - fresh.length + fetched.indexOf(f) + 1 });
+          const processed = await deps.pipeline.processProfile(profileJob(f.k), f.payloadId, f.raw, {
+            onStep: (s) => (s === "assessing" || s === "saving" ? step(s) : Promise.resolve()),
+            onSaved: async (tx, saved) => {
+              const isNew = saved.outcome === "created";
+              // A possible minor is saved but hidden from customers, so it costs nothing (Review Focus 1).
+              const visible = await isVisibleCreator(tx, saved.creatorId);
+              const campaignFit = evaluateCampaignFit(search, f.k, saved.profile, !visible, now());
+              trail.fit(f.k.canonicalUrl, campaignFit, saved.creatorId);
+              if (campaignFit.eligible && visible) trail.set(f.k.canonicalUrl, "delivery", "duplicate", "already_in_results");
+              if (campaignFit.eligible && visible && await repo.insertResult(tx, workspaceId, jobId, { creatorId: saved.creatorId, isNew, credits: isNew ? prices[f.k.platform] : 0, reason: f.k.reason, campaignFit })) {
+                trail.set(f.k.canonicalUrl, "delivery", "delivered", isNew ? "new_creator" : "known_creator", { detail: { credits: isNew ? prices[f.k.platform] : 0 } });
+                const results = await repo.resultCreatorIds(tx, workspaceId, jobId);
+                const qualified = await rerank(tx, job, search);
+                await repo.advanceProgress(tx, workspaceId, jobId, {
+                  validIndividualCreators: qualified,
+                  qualifiedCreators: qualified,
+                  persistedResults: results.length,
+                  billableCreators: await repo.countBillable(tx, workspaceId, jobId),
+                });
+              }
+            },
+          });
+          // Private, missing or unusable profiles return "unavailable": skipped, never charged.
+          if (processed.kind === "unavailable") trail.set(f.k.canonicalUrl, "extraction", "rejected", processed.code.toLowerCase());
+          await flush();
+        }
       }
+      for (const key of trail.pendingKeys()) {
+        // Candidates never fetched: beyond the chosen size, or beyond the extraction cap while the size was not filled.
+        const row = trail.all().find((r) => r.candidateKey === key);
+        if (row?.stage === "selection") trail.set(key, "selection", "not_extracted", fetchedCount >= fetchCap && (deps.extractionMultiplier ?? 1) > 1 ? "extraction_cap" : "run_size_limit");
+      }
+      await flush();
       trail.finish("skipped", "not_processed");
       await flush();
       // 8. Charge 12 + new creators if anything visible was found; otherwise everything comes back.

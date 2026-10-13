@@ -112,6 +112,9 @@ const workerSchema = sharedObject
     LIVE_CONTENT_RESOLUTION_MAX: z.coerce.number().int().min(0).max(20).default(10),
     // One YouTube Data API video search per live run with YouTube in scope (101 quota units, $0); "off" disables it.
     LIVE_YOUTUBE_SEARCH: z.enum(["video", "off"]).default("video"),
+    // Product decision pending (2026-10-13): fetch up to this multiple of the run size while it is not filled. The
+    // customer charge is unchanged (only delivered new creators, never above the quote); provider cost rises.
+    LIVE_EXTRACTION_MULTIPLIER: z.coerce.number().min(1).max(4).default(1),
     APIFY_MONTHLY_BUDGET_USD: z.coerce.number().min(0).default(5),
     YOUTUBE_API_KEY: z.string().min(1).optional(),
     SERPER_API_KEY: z.string().min(1).optional(),
@@ -239,6 +242,8 @@ export type ScrapingConfig = {
   contentResolutionMax: number;
   /** Live discovery also searches YouTube videos through the Data API. */
   youtubeSearch: boolean;
+  /** Profiles fetched per live run as a multiple of the run size while it is not filled (1 = the size). */
+  extractionMultiplier: number;
   apifyMonthlyBudgetUsd: number;
   youtubeApiKey: string | null;
   serperApiKey: string | null;
@@ -333,6 +338,7 @@ export function loadWorkerConfig(env: Env): WorkerConfig {
       instagramPostBuild: v.APIFY_INSTAGRAM_POST_BUILD ?? (v.APIFY_INSTAGRAM_POST_ACTOR_ID === "apify/instagram-scraper" ? "0.0.812" : null),
       contentResolutionMax: v.LIVE_CONTENT_RESOLUTION_MAX,
       youtubeSearch: v.LIVE_YOUTUBE_SEARCH === "video" && Boolean(v.YOUTUBE_API_KEY),
+      extractionMultiplier: v.LIVE_EXTRACTION_MULTIPLIER,
       apifyMonthlyBudgetUsd: v.APIFY_MONTHLY_BUDGET_USD,
       youtubeApiKey: v.YOUTUBE_API_KEY ?? null,
       serperApiKey: v.SERPER_API_KEY ?? null,

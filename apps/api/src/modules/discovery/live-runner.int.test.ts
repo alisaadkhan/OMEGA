@@ -75,13 +75,13 @@ function llmReply(req: { input: string }) {
   };
 }
 
-function setup(o: { web?: FixtureWebSearch; scraper?: FixtureScraper; wrap?: (p: EnrichmentPipeline) => EnrichmentPipeline; maxAttempts?: number; model?: MockLlm; contentResolutionMax?: number } = {}) {
+function setup(o: { web?: FixtureWebSearch; scraper?: FixtureScraper; wrap?: (p: EnrichmentPipeline) => EnrichmentPipeline; maxAttempts?: number; model?: MockLlm; contentResolutionMax?: number; extractionMultiplier?: number } = {}) {
   const web = o.web ?? new FixtureWebSearch(links("new_a", "new_b"));
   const scraper = o.scraper ?? igScraper();
   const model = o.model ?? llm();
   const base = createEnrichmentPipeline({ db, scraper, storage: new MemoryStorage(), llm: model, encryptionKey: TEST_KEY, logger, fetchImage: async () => new Response("", { status: 404 }) });
   const pipeline = o.wrap ? o.wrap(base) : base;
-  const runner = createLiveRunner({ db, billing, pipeline, scraper, search: createCachedSearch({ db, web }), llm: model, logger, ...(o.maxAttempts ? { maxAttempts: o.maxAttempts } : {}), ...(o.contentResolutionMax ? { contentResolutionMax: o.contentResolutionMax } : {}) });
+  const runner = createLiveRunner({ db, billing, pipeline, scraper, search: createCachedSearch({ db, web }), llm: model, logger, ...(o.maxAttempts ? { maxAttempts: o.maxAttempts } : {}), ...(o.contentResolutionMax ? { contentResolutionMax: o.contentResolutionMax } : {}), ...(o.extractionMultiplier ? { extractionMultiplier: o.extractionMultiplier } : {}) });
   return { runner, web, scraper, pipeline };
 }
 
@@ -355,6 +355,52 @@ describe("live runner", () => {
       await runner.run(id, c.workspaceId);
       expect(await discovery.get(c, id)).toMatchObject({ status: "completed" });
       expect((await trailOf(id)).filter((r) => r.decision === "pending")).toEqual([]);
+    });
+  });
+
+  describe("extraction waves", () => {
+    // Three private accounts first, then good ones: the size (5) is filled only if more profiles may be fetched.
+    const scraper = () => new FixtureScraper({
+      instagram: (req: ScrapeRequest) => req.handle.startsWith("locked_")
+        ? { provider: "apify", raw: scraperFixture("instagram-private.json"), costUsd: 0.0026 }
+        : { provider: "apify", raw: profile(req.handle), costUsd: 0.0026 },
+    });
+    const pool = () => new FixtureWebSearch(links("locked_1", "locked_2", "locked_3", "open_1", "open_2", "open_3", "open_4", "open_5", "open_6", "open_7"));
+
+    it("keeps today's behaviour by default: the first size-worth of profiles only", async () => {
+      const { runner, scraper: s } = setup({ web: pool(), scraper: scraper() });
+      const c = await customer();
+      const id = await startRun(c, 5);
+      await runner.run(id, c.workspaceId);
+      expect(s.batchCalls).toHaveLength(1);
+      expect(await discovery.get(c, id)).toMatchObject({ live: { new: 2, creditsCharged: 12 + 2 * 10 } });
+      expect((await trailOf(id)).filter((r) => r.reason === "run_size_limit")).toHaveLength(5);
+    });
+
+    it("with a multiplier fetches the next-best candidates until the size is filled, and charges only what was delivered", async () => {
+      const { runner, scraper: s } = setup({ web: pool(), scraper: scraper(), extractionMultiplier: 2 });
+      const c = await customer();
+      const id = await startRun(c, 5);
+      await runner.run(id, c.workspaceId);
+      expect(s.batchCalls.map((b) => b.handles.length)).toEqual([5, 3]);
+      expect(await discovery.get(c, id)).toMatchObject({ status: "completed", live: { new: 5, creditsCharged: 12 + 5 * 10 } });
+      expect(await balance(c)).toMatchObject({ available: 200 - 62, reserved: 0 });
+      const trail = await trailOf(id);
+      expect(trail.filter((r) => r.decision === "delivered")).toHaveLength(5);
+      expect(trail.filter((r) => r.reason === "private_account")).toHaveLength(3);
+      expect(trail.filter((r) => r.reason === "run_size_limit")).toHaveLength(2);
+      expect(trail.filter((r) => r.decision === "pending")).toEqual([]);
+    });
+
+    it("stops at the multiplier cap when too few qualify, and records the cap", async () => {
+      const lockedFirst = new FixtureWebSearch(links("locked_1", "locked_2", "locked_3", "locked_4", "locked_5", "locked_6", "open_1", "open_2"));
+      const { runner, scraper: s } = setup({ web: lockedFirst, scraper: scraper(), extractionMultiplier: 1.4 });
+      const c = await customer();
+      const id = await startRun(c, 5);
+      await runner.run(id, c.workspaceId);
+      expect(s.batchCalls.flatMap((b) => b.handles)).toHaveLength(7);
+      expect(await discovery.get(c, id)).toMatchObject({ live: { new: 1 } });
+      expect((await trailOf(id)).filter((r) => r.reason === "extraction_cap")).toHaveLength(1);
     });
   });
 
