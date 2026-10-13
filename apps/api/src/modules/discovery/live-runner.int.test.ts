@@ -34,7 +34,12 @@ function igScraper() {
   });
 }
 
-const links = (...handles: string[]): WebResult[] => handles.map((h) => ({ title: `${h} | Bridal MUA`, link: `https://www.instagram.com/${h}/`, snippet: "Bridal makeup, Lahore" }));
+const links = (...handles: string[]): WebResult[] => {
+  // Ordinary success fixtures must clear the production G2 pool threshold (8).
+  const pool = [...handles];
+  for (let i = 1; pool.length > 0 && pool.length < 8; i++) pool.push(`pool_${i}`);
+  return pool.map((h) => ({ title: `${h} | Bridal MUA`, link: `https://www.instagram.com/${h}/`, snippet: "Bridal makeup, Lahore" }));
+};
 
 /** The relevance filter keeps everything in order; assessments are valid for whatever range was measured. */
 const llm = () =>
@@ -59,13 +64,13 @@ const llm = () =>
     };
   });
 
-function setup(o: { web?: FixtureWebSearch; scraper?: FixtureScraper; wrap?: (p: EnrichmentPipeline) => EnrichmentPipeline } = {}) {
+function setup(o: { web?: FixtureWebSearch; scraper?: FixtureScraper; wrap?: (p: EnrichmentPipeline) => EnrichmentPipeline; maxAttempts?: number } = {}) {
   const web = o.web ?? new FixtureWebSearch(links("new_a", "new_b"));
   const scraper = o.scraper ?? igScraper();
   const model = llm();
   const base = createEnrichmentPipeline({ db, scraper, storage: new MemoryStorage(), llm: model, encryptionKey: TEST_KEY, logger, fetchImage: async () => new Response("", { status: 404 }) });
   const pipeline = o.wrap ? o.wrap(base) : base;
-  const runner = createLiveRunner({ db, billing, pipeline, scraper, search: createCachedSearch({ db, web }), llm: model, logger });
+  const runner = createLiveRunner({ db, billing, pipeline, scraper, search: createCachedSearch({ db, web }), llm: model, logger, ...(o.maxAttempts ? { maxAttempts: o.maxAttempts } : {}) });
   return { runner, web, scraper };
 }
 
@@ -91,17 +96,17 @@ describe("live runner", () => {
     const id = await startRun(c);
     await runner.run(id, c.workspaceId);
     const job = await discovery.get(c, id);
-    expect(job).toMatchObject({ status: "completed", live: { found: 3, new: 2, known: 1, creditsCharged: 32 } });
-    expect(await balance(c)).toMatchObject({ available: 168, reserved: 0 });
+    expect(job).toMatchObject({ status: "completed", outcome: "succeeded", live: { found: 7, new: 6, known: 1, creditsCharged: 72, progress: { persistedResults: 7, qualifiedCreators: 7, billableCreators: 6 } } });
+    expect(await balance(c)).toMatchObject({ available: 128, reserved: 0 });
     const res = await discovery.results(c, id, 0);
     expect(res.done).toBe(true);
     expect(res.results.find((r) => r.id === known)).toMatchObject({ isNew: false });
-    expect(res.results.filter((r) => r.isNew)).toHaveLength(2);
+    expect(res.results.filter((r) => r.isNew)).toHaveLength(6);
     expect(scraper.batchCalls).toHaveLength(1);
-    expect(scraper.batchCalls[0]?.handles.sort()).toEqual(["new_a", "new_b", "private_c"]);
-    expect(web.calls).toHaveLength(6); // two precise searches, then Urdu/Roman Urdu recall rounds for the thin pool
+    expect(scraper.batchCalls[0]?.handles.sort()).toEqual(["new_a", "new_b", "pool_1", "pool_2", "pool_3", "pool_4", "private_c"]);
+    expect(web.calls).toHaveLength(2); // the first two precision queries filled the eight-candidate pool
     const payloads = await ownerQuery<{ n: number }>(`select count(*)::int n from platform.raw_payloads where job_id = '${id}'`);
-    expect(payloads[0]?.n).toBe(3);
+    expect(payloads[0]?.n).toBe(7);
     const ev = await ownerQuery<{ n: number }>(`select count(*)::int n from platform.outbox where event_type = 'notify.discovery_job_finished'`);
     expect(ev[0]?.n).toBe(1);
   });
@@ -111,8 +116,19 @@ describe("live runner", () => {
     const c = await customer();
     const id = await startRun(c);
     await runner.run(id, c.workspaceId);
-    expect(await discovery.get(c, id)).toMatchObject({ status: "completed", live: { found: 0, creditsCharged: 0 } });
+    expect(await discovery.get(c, id)).toMatchObject({ status: "completed", outcome: "insufficient", live: { found: 0, creditsCharged: 0 } });
     expect(await balance(c)).toMatchObject({ available: 200, reserved: 0 });
+  });
+
+  it("releases the full reservation when fewer than eight candidates pass the relevance gate", async () => {
+    const seven = Array.from({ length: 7 }, (_, index) => ({ title: `Candidate ${index}`, link: `https://www.instagram.com/candidate_${index}/`, snippet: "Bridal makeup, Lahore" }));
+    const { runner, scraper } = setup({ web: new FixtureWebSearch(seven) });
+    const c = await customer();
+    const id = await startRun(c);
+    await runner.run(id, c.workspaceId);
+    expect(await discovery.get(c, id)).toMatchObject({ status: "completed", outcome: "insufficient", live: { creditsCharged: 0, progress: { profileCandidates: 7, afterDedupe: 7, extractedProfiles: 0 } } });
+    expect(await balance(c)).toMatchObject({ available: 200, reserved: 0 });
+    expect(scraper.batchCalls).toHaveLength(0);
   });
 
   it("stops at the chosen number of new creators", async () => {
@@ -129,8 +145,8 @@ describe("live runner", () => {
     const c = await customer();
     const id = await startRun(c);
     await runner.run(id, c.workspaceId);
-    expect(await discovery.get(c, id)).toMatchObject({ live: { new: 2, creditsCharged: 22 } });
-    expect((await discovery.results(c, id, 0)).results.map((r) => r.handle)).toEqual(["new_a"]);
+    expect(await discovery.get(c, id)).toMatchObject({ live: { new: 8, creditsCharged: 82 } });
+    expect((await discovery.results(c, id, 0)).results.map((r) => r.handle).sort()).toEqual(["new_a", "pool_1", "pool_2", "pool_3", "pool_4", "pool_5", "pool_6"]);
   });
 
   it("candidates on the do-not-re-add list are dropped (Review Focus 5)", async () => {
@@ -138,7 +154,7 @@ describe("live runner", () => {
     const { runner, scraper } = setup();
     const c = await customer();
     await runner.run(await startRun(c), c.workspaceId);
-    expect(scraper.batchCalls[0]?.handles).toEqual(["new_a"]);
+    expect(scraper.batchCalls[0]?.handles.sort()).toEqual(["new_a", "pool_1", "pool_2", "pool_3", "pool_4", "pool_5", "pool_6"]);
   });
 
   it("a retry reuses cached searches and archived profiles and charges once (Review Focus 2, 3)", async () => {
@@ -159,10 +175,54 @@ describe("live runner", () => {
     const id = await startRun(c);
     await expect(runner.run(id, c.workspaceId)).rejects.toThrow(/crashed/);
     await runner.run(id, c.workspaceId);
-    expect(web.calls).toHaveLength(6); // retry reuses all precise and multilingual searches from cache
+    expect(web.calls).toHaveLength(2); // retry reuses the precision queries from cache
     expect(scraper.batchCalls).toHaveLength(1);
     expect(await discovery.get(c, id)).toMatchObject({ status: "completed", live: { new: 2, creditsCharged: 32 } });
     expect(await balance(c)).toMatchObject({ available: 168, reserved: 0 });
+  });
+
+  it("settles a partial result once when a later profile fails permanently", async () => {
+    let failed = false;
+    const { runner } = setup({
+      maxAttempts: 1,
+      web: new FixtureWebSearch(links("first_saved", "second_fails")),
+      wrap: (p) => ({
+        ...p,
+        processProfile: async (job, payloadId, raw, hooks) => {
+          if (job.handle === "second_fails" && !failed) {
+            failed = true;
+            throw new Error("provider stopped after the first result");
+          }
+          return p.processProfile(job, payloadId, raw, hooks);
+        },
+      }),
+    });
+    const c = await customer();
+    const id = await startRun(c);
+    await runner.run(id, c.workspaceId);
+    expect(await discovery.get(c, id)).toMatchObject({ status: "completed", outcome: "partial", live: { found: 1, new: 1, creditsCharged: 22, progress: { persistedResults: 1, billableCreators: 1 } } });
+    expect(await balance(c)).toMatchObject({ available: 178, reserved: 0 });
+    expect((await discovery.results(c, id, 0)).results.map((r) => r.handle)).toEqual(["first_saved"]);
+  });
+
+  it("does not charge for hidden minor records when a later profile fails", async () => {
+    const { runner } = setup({
+      maxAttempts: 1,
+      web: new FixtureWebSearch(links("minor_m", "second_fails")),
+      wrap: (p) => ({
+        ...p,
+        processProfile: async (job, payloadId, raw, hooks) => {
+          if (job.handle === "second_fails") throw new Error("provider stopped after minor review");
+          return p.processProfile(job, payloadId, raw, hooks);
+        },
+      }),
+    });
+    const c = await customer();
+    const id = await startRun(c);
+    await runner.run(id, c.workspaceId);
+    expect(await discovery.get(c, id)).toMatchObject({ status: "failed", outcome: "failed", live: { creditsCharged: 0 } });
+    expect(await balance(c)).toMatchObject({ available: 200, reserved: 0 });
+    expect((await discovery.results(c, id, 0)).results).toHaveLength(0);
   });
 
   it("the Serper limit or a provider outage fails the run and returns everything", async () => {

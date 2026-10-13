@@ -32,9 +32,16 @@ export function jobStatusText(j: DiscoveryJob): string {
   if (j.kind === "live" && j.live) {
     const l = j.live;
     if (j.status === "queued") return "Waiting to start…";
-    if (j.status === "running") return `${j.step ? STEP_LABEL[j.step] : "Starting…"}${l.found > 0 ? ` · ${l.found} found so far` : ""}`;
+    if (j.status === "running") {
+      const funnel = l.progress.serpResultsSeen > 0
+        ? ` · ${l.progress.serpResultsSeen} searched · ${l.progress.qualifiedCreators} qualified · ${l.progress.persistedResults} saved`
+        : "";
+      return `${j.step ? STEP_LABEL[j.step] : "Starting…"}${funnel}`;
+    }
     if (j.status === "completed") {
-      if (l.found === 0) return `No new creators found. ${RETURNED}`;
+      if (j.outcome === "insufficient") return `Too few eligible profiles were found to continue. ${RETURNED}`;
+      if (j.outcome === "completed_empty" || l.found === 0) return `No eligible creators were delivered. ${RETURNED}`;
+      if (j.outcome === "partial") return `Some creators were saved. ${l.creditsCharged} credits used; remaining credits returned.`;
       return `Found ${l.found} creator${l.found === 1 ? "" : "s"} (${l.new} new) · ${l.creditsCharged} credits used, ${l.maxCost - l.creditsCharged} returned`;
     }
   }

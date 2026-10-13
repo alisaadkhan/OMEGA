@@ -7,6 +7,19 @@ export const discoveryJobKindSchema = z.enum(["add_by_url", "refresh", "live"]);
 export const discoveryJobStatusSchema = z.enum(["queued", "running", "completed", "failed"]);
 export const discoveryJobStepSchema = z.enum(["searching", "filtering", "fetching", "archiving", "cleaning", "assessing", "saving"]);
 export type DiscoveryJobStep = z.output<typeof discoveryJobStepSchema>;
+export const liveDiscoveryOutcomeSchema = z.enum(["succeeded", "completed_empty", "insufficient", "partial", "failed", "canceled", "expired"]);
+export const liveDiscoveryProgressSchema = z.object({
+  serpResultsSeen: z.number().int().nonnegative(),
+  profileCandidates: z.number().int().nonnegative(),
+  afterDedupe: z.number().int().nonnegative(),
+  snippetGatePass: z.number().int().nonnegative(),
+  ambiguousCandidates: z.number().int().nonnegative(),
+  extractedProfiles: z.number().int().nonnegative(),
+  validIndividualCreators: z.number().int().nonnegative(),
+  qualifiedCreators: z.number().int().nonnegative(),
+  persistedResults: z.number().int().nonnegative(),
+  billableCreators: z.number().int().nonnegative(),
+});
 
 const liveFiltersSchema = searchFiltersSchema.safeExtend({ niches: z.array(z.string().trim().min(1).max(40)).max(5).default([]) });
 export const liveSearchSchema = z.object({ text: z.string().trim().max(500).default(""), filters: liveFiltersSchema });
@@ -82,7 +95,7 @@ export const discoveryJobSchema = z.object({
   kind: discoveryJobKindSchema,
   status: discoveryJobStatusSchema,
   step: discoveryJobStepSchema.nullable(),
-  outcome: z.enum(["created", "refreshed", "reused"]).nullable(),
+  outcome: z.enum(["created", "refreshed", "reused", ...liveDiscoveryOutcomeSchema.options]).nullable(),
   creatorId: z.uuid().nullable(),
   platform: creatorPlatformSchema.nullable(),
   handle: z.string().nullable(),
@@ -99,6 +112,7 @@ export const discoveryJobSchema = z.object({
       known: z.number().int().nonnegative(),
       maxCost: z.number().int().nonnegative(),
       creditsCharged: z.number().int().nonnegative(),
+      progress: liveDiscoveryProgressSchema,
     })
     .nullable(),
 });

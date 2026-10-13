@@ -1,10 +1,10 @@
 import { searchFiltersSchema, type DiscoveryJobStep, type LiveSearch } from "@mushin/contracts";
 import { AppError, type Logger } from "@mushin/core";
-import type { Db, LivePrices, TenantTx } from "@mushin/db";
+import type { Db, LivePrices, LiveProgress, TenantTx } from "@mushin/db";
 import { ProviderError, type Llm, type ProfileScraper } from "@mushin/integrations";
 import type { BillingService } from "../billing/index";
 import { findProfileByUrl, isVisibleCreator, rankCards, suppressedUrls, type CreatorPlatform, type EnrichJob, type EnrichmentPipeline } from "../creators/index";
-import { failJob, notifyFinished } from "./finish";
+import { notifyFinished, releaseHeld } from "./finish";
 import type { CachedSearch } from "./live/cache";
 import { collectCandidates } from "./live/candidates";
 import { buildQueries } from "./live/queries";
@@ -62,6 +62,8 @@ export function createLiveRunner(deps: Deps) {
         // Long runs keep their credits held: the 15-minute cleanup must not release a run that is still working.
         if (job.reservationId) await engine.extend(tx, workspaceId, job.reservationId).catch(() => undefined);
       });
+    const progress = (patch: Partial<LiveProgress>) =>
+      deps.db.withWorkspace(workspaceId, (tx) => repo.advanceProgress(tx, workspaceId, jobId, patch));
     const record = (creatorId: string, isNew: boolean, credits: number, reason: string | null) =>
       deps.db.withWorkspace(workspaceId, async (tx) => {
         if (await repo.insertResult(tx, workspaceId, jobId, { creatorId, isNew, credits, reason })) await rerank(tx, job, search);
@@ -76,11 +78,30 @@ export function createLiveRunner(deps: Deps) {
       const groups: { platform: CreatorPlatform; results: Awaited<ReturnType<CachedSearch["search"]>> }[] = [];
       for (const round of [1, 2, 3] as const) {
         for (const q of buildQueries(search, round)) groups.push({ platform: q.platform, results: await deps.search.search(q, ctx) });
-        if (collectCandidates(groups, 60).length >= 8) break;
+        const candidates = collectCandidates(groups, 60);
+        await progress({
+          serpResultsSeen: groups.reduce((total, group) => total + group.results.length, 0),
+          profileCandidates: candidates.length,
+          afterDedupe: candidates.length,
+          // Candidate snippets are not cheaply classified yet; all are conservatively
+          // treated as ambiguous and sent through the schema-validated relevance gate.
+          ambiguousCandidates: candidates.length,
+        });
+        if (candidates.length >= 8) break;
       }
       // 3. The AI keeps the relevant ones.
       await step("filtering");
       const kept = await filterRelevant({ llm: deps.llm, search, candidates: collectCandidates(groups), ctx, logger: deps.logger });
+      await progress({ ambiguousCandidates: collectCandidates(groups).length });
+      if (kept.length < 8) {
+        await deps.db.withWorkspace(workspaceId, async (tx) => {
+          if (!(await repo.lockOpenJob(tx, workspaceId, jobId))) return;
+          if (job.reservationId) await engine.commitPartial(tx, workspaceId, job.reservationId, 0, { userId: job.requestedBy, requestId: job.requestId }, "Live run had too few eligible candidates");
+          if (!(await repo.finishJob(tx, workspaceId, jobId, { status: "completed", outcome: "insufficient", creditsCharged: 0 }))) return;
+          await notifyFinished(tx, job, "completed");
+        });
+        return;
+      }
       // 4. Known creators become free results; erased and hidden ones are dropped; new ones are queued up to the size.
       const suppressed = await deps.db.withSystem((tx) => suppressedUrls(tx, kept.map((k) => k.canonicalUrl)));
       const alreadyNew = await deps.db.withWorkspace(workspaceId, (tx) => repo.countNew(tx, workspaceId, jobId));
@@ -116,6 +137,7 @@ export function createLiveRunner(deps: Deps) {
       }
       // 6–7. 4A's steps per profile; each save inserts its result and re-ranks in the same transaction.
       for (const f of fetched) {
+        await progress({ extractedProfiles: fetched.length });
         await deps.pipeline.processProfile(profileJob(f.k), f.payloadId, f.raw, {
           onStep: (s) => (s === "assessing" || s === "saving" ? step(s) : Promise.resolve()),
           onSaved: async (tx, saved) => {
@@ -123,7 +145,14 @@ export function createLiveRunner(deps: Deps) {
             // A possible minor is saved but hidden from customers, so it costs nothing (Review Focus 1).
             const visible = await isVisibleCreator(tx, saved.creatorId);
             if (await repo.insertResult(tx, workspaceId, jobId, { creatorId: saved.creatorId, isNew, credits: isNew && visible ? prices[f.k.platform] : 0, reason: f.k.reason })) {
-              await rerank(tx, job, search);
+              const results = await repo.resultCreatorIds(tx, workspaceId, jobId);
+              const qualified = await rerank(tx, job, search);
+              await repo.advanceProgress(tx, workspaceId, jobId, {
+                validIndividualCreators: qualified,
+                qualifiedCreators: qualified,
+                persistedResults: results.length,
+                billableCreators: await repo.countBillable(tx, workspaceId, jobId),
+              });
             }
           },
         });
@@ -131,6 +160,7 @@ export function createLiveRunner(deps: Deps) {
       }
       // 8. Charge 12 + new creators if anything visible was found; otherwise everything comes back.
       await deps.db.withWorkspace(workspaceId, async (tx) => {
+        if (!(await repo.lockOpenJob(tx, workspaceId, jobId))) return;
         const visible = await rerank(tx, job, search);
         let charge = visible > 0 ? prices.search + (await repo.resultCredits(tx, workspaceId, jobId)) : 0;
         if (job.reservationId) {
@@ -143,7 +173,8 @@ export function createLiveRunner(deps: Deps) {
             charge = 0;
           }
         }
-        if (!(await repo.finishJob(tx, workspaceId, jobId, { status: "completed", creditsCharged: charge }))) return;
+        const outcome = visible > 0 ? "succeeded" : "completed_empty";
+        if (!(await repo.finishJob(tx, workspaceId, jobId, { status: "completed", outcome, creditsCharged: charge }))) return;
         await notifyFinished(tx, job, "completed");
       });
     } catch (err) {
@@ -151,7 +182,32 @@ export function createLiveRunner(deps: Deps) {
       const retryable = pe ? pe.retryable : !(err instanceof AppError) || err.code === "PROVIDER_UNAVAILABLE";
       if (retryable && job.attempts < maxAttempts) throw err; // the queue tries again with backoff
       deps.logger.warn({ err, jobId }, "live discovery run failed");
-      await failJob(deps, job, "PROVIDER_UNAVAILABLE", MESSAGES[pe?.reason ?? "provider"]);
+      const code = "PROVIDER_UNAVAILABLE";
+      const message = MESSAGES[pe?.reason ?? "provider"];
+      await deps.db.withWorkspace(workspaceId, async (tx) => {
+        if (!(await repo.lockOpenJob(tx, workspaceId, jobId))) return;
+        const visible = await rerank(tx, job, search);
+        const usable = visible > 0;
+        let charged = 0;
+        if (usable && job.reservationId) {
+          charged = prices.search + (await repo.resultCredits(tx, workspaceId, jobId));
+          try {
+            await engine.commitPartial(tx, workspaceId, job.reservationId, charged, { userId: job.requestedBy, requestId: job.requestId }, `Live run partially completed: ${visible} creator(s) delivered`);
+          } catch (settlementError) {
+            if (!(settlementError instanceof AppError && settlementError.code === "CONFLICT")) throw settlementError;
+            deps.logger.warn({ jobId }, "reservation was already released; partial results are saved without a charge");
+            charged = 0;
+          }
+        }
+        const status = usable ? "completed" : "failed";
+        const outcome = usable ? "partial" : "failed";
+        const terminalMessage = usable
+          ? "Some creators were saved and charged according to your quote. Remaining reserved credits were returned."
+          : message;
+        if (!(await repo.finishJob(tx, workspaceId, jobId, { status, outcome, creditsCharged: charged, errorCode: code, errorMessage: terminalMessage }))) return;
+        if (!usable) await releaseHeld(engine, tx, job, `${code}: ${message}`);
+        await notifyFinished(tx, job, status);
+      });
     }
   }
 

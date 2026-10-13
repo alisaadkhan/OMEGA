@@ -28,7 +28,11 @@ export const discoveryJobs = wp.table("discovery_jobs", {
   foundCount: integer("found_count").notNull().default(0),
   newCount: integer("new_count").notNull().default(0),
   knownCount: integer("known_count").notNull().default(0),
-  outcome: text("outcome", { enum: ["created", "refreshed", "reused"] }),
+  progress: jsonb("progress").$type<LiveProgress>().notNull().default({
+    serpResultsSeen: 0, profileCandidates: 0, afterDedupe: 0, snippetGatePass: 0, ambiguousCandidates: 0,
+    extractedProfiles: 0, validIndividualCreators: 0, qualifiedCreators: 0, persistedResults: 0, billableCreators: 0,
+  }),
+  outcome: text("outcome", { enum: ["created", "refreshed", "reused", "succeeded", "completed_empty", "insufficient", "partial", "failed", "canceled", "expired"] }),
   errorCode: text("error_code"),
   errorMessage: text("error_message"),
   requestId: text("request_id"),
@@ -55,6 +59,10 @@ export const discoveryEstimates = wp.table("discovery_estimates", {
 });
 
 export type LivePrices = { search: number; instagram: number; tiktok: number; youtube: number };
+export type LiveProgress = {
+  serpResultsSeen: number; profileCandidates: number; afterDedupe: number; snippetGatePass: number; ambiguousCandidates: number;
+  extractedProfiles: number; validIndividualCreators: number; qualifiedCreators: number; persistedResults: number; billableCreators: number;
+};
 
 export const discoveryResults = wp.table("discovery_results", {
   id: uuid("id").primaryKey().defaultRandom(),

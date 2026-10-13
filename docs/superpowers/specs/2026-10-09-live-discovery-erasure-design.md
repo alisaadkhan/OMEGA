@@ -212,3 +212,26 @@ This section records the implementation state after the `fffc751` baseline. It s
 - The current runner still uses the existing relevance/ranking pipeline and settlement rules. It has not yet implemented the full G1 cheap gate, minimum-pool `insufficient` settlement, evidence-backed Fit/Authenticity contract, or source/evidence funnel persistence described by the newer consolidated spec.
 - TikTok's configured actor remains on the moving `latest` build and was not live-validated in this work. Instagram actor terms/retention approval and a broader profile/business-output panel remain open.
 - Catalog Search still uses the existing Meilisearch runtime. Defer its PostgreSQL-native migration, and the Supabase runtime migration, until the complete Live Discovery workflow and its local integration tests pass.
+
+## 15. Verification and implementation update (2026-10-13, continued from `1c9088b`)
+
+**Code changed in this continuation**
+- Live jobs now persist monotonic funnel counters for Serper results, normalized/deduplicated candidates, ambiguous candidates, extracted profiles, visible qualified cards, persisted results, and billable creators. The frontend reports searched, qualified and saved counts separately; it does not show a fabricated percentage. `snippetGatePass` remains zero because the deterministic cheap snippet gate is not implemented yet; ambiguous candidates continue through the schema-validated relevance adapter.
+- After the allowed query rounds, fewer than eight relevance-approved profile candidates now finishes as `insufficient`, commits a zero-amount settlement (releasing the full reservation), and emits the normal completion event. A viable pool that produces no visible saved profiles finishes as `completed_empty`; a result-bearing run finishes as `succeeded`.
+- A permanent error after visible results have been persisted now settles the search component plus only persisted billable creator credits, releases the unused reservation, and returns `partial` with an accurate user message. A failure with no delivered result remains `failed` and releases the reservation. A row lock serializes terminal settlement for duplicate worker deliveries.
+- The additive migration `0017_live_discovery_progress_outcomes.sql` adds the progress object and live outcome values while retaining the generic job status values consumed by the existing job system. API contracts and status wording were updated.
+
+**Checks run in this worktree**
+- TypeScript typecheck, ESLint, module-boundary check and frontend Vite production build passed. The frontend build retains the existing upstream Zod annotation and large-chunk warnings.
+- Unit suite passed: 266 tests across 37 files. Frontend mapping tests run as part of that root suite.
+- The integration global setup was run with a deliberately fake remote hostname. It refused the URL before connection, migration, truncation or test discovery. Its unit safety cases also passed.
+- Database integration tests were not run: this Windows environment has no PostgreSQL server/client, Docker/Podman, Supabase CLI or WSL distribution. The existing `.env` test URL is remote and was never supplied to an integration invocation. Quote expiry, duplicate/concurrent confirmation, retry, provider failure and ledger settlement therefore remain unverified against a database.
+- One explicitly bounded live TikTok profile extraction through `clockworks/tiktok-profile-scraper` returned two dataset items; the actor output contained `input`, `authorMeta`, profile counters and post metrics, and the requested handle matched. The adapter recorded the call. The actor has no configured build pin, so behavior is not reproducible against a fixed actor build. The prior Instagram validation remains limited to the pinned `0.0.634` run documented in §14.
+
+**Remaining release gates**
+- Provision a disposable local PostgreSQL service and run the integration project; never reuse the remote Supabase test URL.
+- The current “qualified” progress count is the existing visibility/ranking result, not the specification's G3 Campaign Fit gate. The separate deterministic topic Fit model, minimum Fit threshold, individual-account evidence gate and authenticity/evidence contract are still incomplete. The current relevance LLM is not a score or billing authority, and implementation status must not be read as verification of those G3 requirements.
+- The cheap G1 snippet/persona gate and evidence/source funnel persistence are incomplete. `snippetGatePass` intentionally stays at zero; candidate rejection reasons are not yet persisted as a full funnel.
+- Duplicate terminal settlement is locked, but running-job claims are not yet lease-based; simultaneous worker delivery during provider calls and ambiguous provider outcomes still need integration/recovery tests.
+- TikTok requires a reviewed actor build pin and output validation against that exact pin. Do not treat the moving-build smoke test as a production integration gate.
+- Catalog Search remains on Meilisearch. Do not migrate it, or the runtime to Supabase, before the complete Live Discovery workflow and local database integration suite are verified.

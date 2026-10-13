@@ -75,7 +75,10 @@ describe("job wording", () => {
 
 describe("live runs", () => {
   const costs = { search_existing: 0, find_new: 12, reveal_contact: 5, refresh_data: 10, refresh_tiktok: 30 };
-  const L = { search: { text: "bridal makeup", filters: { niches: [], creatorCity: "Lahore", verifiedOnly: false, hasContact: false, freshOnly: false } }, maxNew: 10, found: 0, new: 0, known: 0, maxCost: 312, creditsCharged: 0 };
+  const L = {
+    search: { text: "bridal makeup", filters: { niches: [], creatorCity: "Lahore", verifiedOnly: false, hasContact: false, freshOnly: false } }, maxNew: 10, found: 0, new: 0, known: 0, maxCost: 312, creditsCharged: 0,
+    progress: { serpResultsSeen: 0, profileCandidates: 0, afterDedupe: 0, snippetGatePass: 0, ambiguousCandidates: 0, extractedProfiles: 0, validIndividualCreators: 0, qualifiedCreators: 0, persistedResults: 0, billableCreators: 0 },
+  };
   const liveJob = (over: Partial<DiscoveryJob> = {}): DiscoveryJob => job({ kind: "live", platform: null, handle: null, live: L, ...over });
 
   it("prices the maximum like the server: TikTok's price whenever TikTok is in scope", () => {
@@ -90,9 +93,11 @@ describe("live runs", () => {
     expect(liveSummary(L.search)).toBe("bridal makeup · Lahore");
     expect(jobTitle(j)).toBe("Finding creators: bridal makeup · Lahore");
     expect(jobStatusText(liveJob({ status: "running", step: "searching" }))).toBe("Searching Google…");
-    expect(jobStatusText(liveJob({ status: "running", step: "assessing", live: { ...L, found: 4 } }))).toBe("Assessing authenticity and audience… · 4 found so far");
+    expect(jobStatusText(liveJob({ status: "running", step: "assessing", live: { ...L, found: 4, progress: { ...L.progress, serpResultsSeen: 12, qualifiedCreators: 2, persistedResults: 1 } } }))).toBe("Assessing authenticity and audience… · 12 searched · 2 qualified · 1 saved");
     expect(jobStatusText(liveJob({ status: "completed", live: { ...L, found: 9, new: 6, known: 3, creditsCharged: 72 } }))).toBe("Found 9 creators (6 new) · 72 credits used, 240 returned");
-    expect(jobStatusText(liveJob({ status: "completed", live: { ...L, found: 0 } }))).toBe("No new creators found. Your credits were returned.");
+    expect(jobStatusText(liveJob({ status: "completed", outcome: "completed_empty", live: { ...L, found: 0 } }))).toBe("No eligible creators were delivered. Your credits were returned.");
+    expect(jobStatusText(liveJob({ status: "completed", outcome: "insufficient", live: { ...L, found: 0 } }))).toBe("Too few eligible profiles were found to continue. Your credits were returned.");
+    expect(jobStatusText(liveJob({ status: "completed", outcome: "partial", live: { ...L, found: 1, creditsCharged: 22 } }))).toBe("Some creators were saved. 22 credits used; remaining credits returned.");
   });
 
   it("merges polled results without duplicates, best rank first", () => {

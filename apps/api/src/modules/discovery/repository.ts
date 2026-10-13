@@ -1,6 +1,6 @@
 import { and, count, desc, eq, gt, gte, inArray, lt, max, or, sql, sum } from "drizzle-orm";
 import type { DiscoveryJob, DiscoveryJobStep, LiveSearch } from "@mushin/contracts";
-import { discoveryEstimates, discoveryJobs, discoveryResults, serperCache, type SystemTx, type TenantTx } from "@mushin/db";
+import { discoveryEstimates, discoveryJobs, discoveryResults, serperCache, type LiveProgress, type SystemTx, type TenantTx } from "@mushin/db";
 import type { WebResult } from "@mushin/integrations";
 
 export type JobRow = typeof discoveryJobs.$inferSelect;
@@ -30,6 +30,7 @@ export function toApiJob(r: JobRow): DiscoveryJob {
             known: r.knownCount,
             maxCost: r.cost,
             creditsCharged: r.creditsCharged,
+            progress: r.progress,
           }
         : null,
   };
@@ -66,6 +67,14 @@ export async function getJob(tx: TenantTx, workspaceId: string, id: string): Pro
   return rows[0] ?? null;
 }
 
+/** Serialize terminal settlement with any other delivery for this job. */
+export async function lockOpenJob(tx: TenantTx, workspaceId: string, id: string): Promise<JobRow | null> {
+  const rows = await tx.select().from(discoveryJobs)
+    .where(and(eq(discoveryJobs.workspaceId, workspaceId), eq(discoveryJobs.id, id), inArray(discoveryJobs.status, [...OPEN])))
+    .for("update").limit(1);
+  return rows[0] ?? null;
+}
+
 export async function openJobFor(tx: TenantTx, workspaceId: string, canonicalUrl: string): Promise<JobRow | null> {
   const rows = await tx
     .select()
@@ -97,6 +106,19 @@ export async function startAttempt(tx: TenantTx, workspaceId: string, id: string
 
 export async function setStep(tx: TenantTx, workspaceId: string, id: string, step: DiscoveryJobStep): Promise<void> {
   await tx.update(discoveryJobs).set({ step }).where(and(eq(discoveryJobs.workspaceId, workspaceId), eq(discoveryJobs.id, id), inArray(discoveryJobs.status, [...OPEN])));
+}
+
+/** Persist monotonic funnel counters. A retry may observe more work, never less. */
+export async function advanceProgress(tx: TenantTx, workspaceId: string, id: string, patch: Partial<LiveProgress>): Promise<LiveProgress> {
+  const current = await getJob(tx, workspaceId, id);
+  if (!current) throw new Error(`discovery job ${id} disappeared while updating progress`);
+  const progress = { ...current.progress };
+  for (const [key, value] of Object.entries(patch) as [keyof LiveProgress, number][]) {
+    if (!Number.isSafeInteger(value) || value < 0) throw new Error(`invalid live discovery progress counter: ${key}`);
+    progress[key] = Math.max(progress[key], value);
+  }
+  await tx.update(discoveryJobs).set({ progress }).where(and(eq(discoveryJobs.workspaceId, workspaceId), eq(discoveryJobs.id, id), inArray(discoveryJobs.status, [...OPEN])));
+  return progress;
 }
 
 /** Finishes an open job; false if it had already finished (e.g. swept). */
@@ -161,6 +183,11 @@ export async function resultCreatorIds(tx: TenantTx, workspaceId: string, jobId:
 
 export async function countNew(tx: TenantTx, workspaceId: string, jobId: string): Promise<number> {
   const [r] = await tx.select({ n: count() }).from(discoveryResults).where(and(eq(discoveryResults.workspaceId, workspaceId), eq(discoveryResults.jobId, jobId), eq(discoveryResults.isNew, true)));
+  return Number(r?.n ?? 0);
+}
+
+export async function countBillable(tx: TenantTx, workspaceId: string, jobId: string): Promise<number> {
+  const [r] = await tx.select({ n: count() }).from(discoveryResults).where(and(eq(discoveryResults.workspaceId, workspaceId), eq(discoveryResults.jobId, jobId), gt(discoveryResults.credits, 0)));
   return Number(r?.n ?? 0);
 }
 
