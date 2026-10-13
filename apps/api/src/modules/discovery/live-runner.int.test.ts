@@ -77,7 +77,8 @@ async function customer(): Promise<TenantContext> {
 const balance = async (c: TenantContext) => (await billing.summary(c)).balance;
 
 async function startRun(c: TenantContext, maxNew: 5 | 10 = 10): Promise<string> {
-  const out = await discovery.start(c, { kind: "live", search: { text: "bridal makeup", filters: searchFiltersSchema.parse({ platform: "instagram", creatorCity: "Lahore" }) }, maxNew, confirmedCost: 12 + maxNew * 10 });
+  const estimate = await discovery.createEstimate(c, { search: { text: "bridal makeup", filters: searchFiltersSchema.parse({ platform: "instagram", creatorCity: "Lahore" }) }, maxNew });
+  const out = await discovery.start(c, { kind: "live", estimateId: estimate.estimateId });
   if (out.body.status !== "started") throw new Error("expected started");
   return out.body.job.id;
 }

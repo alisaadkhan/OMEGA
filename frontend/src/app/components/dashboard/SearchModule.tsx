@@ -49,7 +49,7 @@ import {
 import { FreshnessBadge } from "./states";
 import { useToast } from "../../lib/toast";
 import { FindNewDialog } from "./FindNewDialog";
-import { useLiveResults } from "../../api/discovery";
+import { useDiscoveryJob, useLiveResults } from "../../api/discovery";
 
 /**
  * Volumes 3 + 4A — Search System.
@@ -101,8 +101,9 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
     if (liveJobId) setLiveJob(liveJobId);
   }, [liveJobId]);
   const live = useLiveResults(liveJob);
+  const liveJobInfo = useDiscoveryJob(liveJob);
   const liveCards = useMemo(() => live.results.map((r) => ({ ...toCreator(r), discovery: { isNew: r.isNew, reason: r.reason } })), [live.results]);
-  const liveStreaming = liveJob !== null && !live.done;
+  const liveStreaming = liveJob !== null && !live.done && !live.isError;
   const [showInterpret, setShowInterpret] = useState(true);
   const [compareOpen, setCompareOpen] = useState(false);
   const [request, setRequest] = useState<SearchRequest | null>(null);
@@ -150,7 +151,6 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
   const visible = filtered;
   // "streaming" returns with live discovery (sub-project 4); the screen keeps that state.
   const status = (request === null ? "idle" : search.isFetching ? "loading" : search.isError ? "error" : filtered.length === 0 ? "empty" : "results") as Status;
-  const progress = search.isFetching ? 60 : 100;
   const revealed = liveCards.length;
   const partialFail = 0;
   const activeProfile = filtered.find((c) => c.id === profileId) ?? liveCards.find((c) => c.id === profileId) ?? null;
@@ -482,22 +482,16 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
               <div className="flex items-center justify-between text-xs text-slate-500">
                 <span className="inline-flex items-center gap-2 text-slate-700">
                   <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-600" strokeWidth={2} />
-                  {mode === "live" ? "Find New Creators · querying platforms in real time" : "Search Existing Creators · streaming cached results"}
+                  {mode === "live" ? "Find New Creators · querying platforms in real time" : "Searching existing creator profiles…"}
                 </span>
-                <span className="tabular-nums">{Math.round(progress)}%</span>
+                <span>Searching your catalog</span>
               </div>
-              <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-slate-100">
+              <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-slate-100" aria-hidden="true">
                 <motion.div
-                  animate={{ width: `${progress}%` }}
-                  transition={{ duration: 0.2, ease: "linear" }}
-                  className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-emerald-500"
+                  animate={{ x: ["-100%", "300%"] }}
+                  transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                  className="h-full w-1/3 rounded-full bg-gradient-to-r from-indigo-500 to-emerald-500"
                 />
-              </div>
-              <div className="mt-2 flex items-center gap-3 text-[11px] text-slate-500">
-                <StageDot active={progress > 5}>Validating credits</StageDot>
-                <StageDot active={progress > 25}>Queueing</StageDot>
-                <StageDot active={progress > 55}>Refreshing creator data</StageDot>
-                <StageDot active={progress > 85}>Scoring</StageDot>
               </div>
             </div>
           </motion.div>
@@ -520,7 +514,8 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
               <BulkAction
                 icon={Plus}
                 label="Add to list"
-                onClick={() => toast.success(`Added ${selected.size} creator${selected.size > 1 ? "s" : ""} to your shortlist.`)}
+                disabled
+                title="Creator lists are not connected to the API yet. Nothing has been saved."
               />
               <BulkAction
                 icon={GitCompare}
@@ -537,7 +532,8 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
               <BulkAction
                 icon={Bookmark}
                 label="Save"
-                onClick={() => toast.success(`Saved ${selected.size} creator${selected.size > 1 ? "s" : ""}.`)}
+                disabled
+                title="Creator saving is not connected to the API yet. Nothing has been saved."
               />
               <button
                 onClick={() => setSelected(new Set())}
@@ -573,11 +569,29 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
       </AnimatePresence>
 
       {/* Find New Creators results (sub-project 4B): best fit first, new and known marked */}
-      {liveJob !== null && (live.results.length > 0 || !live.done) && (
+      {liveJob !== null && (
         <div className="space-y-2">
           <div className="text-xs text-slate-500">
             <span className="text-slate-900" style={{ fontWeight: 600 }}>{liveCards.length}</span> found by Find New Creators{liveStreaming ? " so far" : ""}
           </div>
+          {live.isError && (
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800" role="alert">
+              <span>{live.error instanceof Error ? live.error.message : "Couldn't load this discovery run's progress."}</span>
+              <button onClick={() => void live.retry()} className="shrink-0 font-medium underline underline-offset-2">Retry</button>
+            </div>
+          )}
+          {live.done && liveCards.length === 0 && (
+            <div className="rounded-lg border border-slate-200 bg-white px-4 py-5 text-sm text-slate-700">
+              <div className="font-medium text-slate-900">
+                {liveJobInfo.data?.status === "failed" ? "Live Discovery could not complete." : "No creator profiles were delivered in this run."}
+              </div>
+              <p className="mt-1 text-xs text-slate-500">
+                {liveJobInfo.data?.status === "failed"
+                  ? liveJobInfo.data.error?.message ?? "Open Jobs to review this run and its credit settlement."
+                  : "Open Jobs to review the final outcome and credit settlement."}
+              </p>
+            </div>
+          )}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {liveCards.map((c, i) => (
               <div key={c.id} className="space-y-1">
@@ -1018,15 +1032,6 @@ function ResultsTable({
 
 /* ─────────────────────── states ─────────────────────── */
 
-function StageDot({ active, children }: { active: boolean; children: React.ReactNode }) {
-  return (
-    <span className="inline-flex items-center gap-1">
-      <span className={`h-1.5 w-1.5 rounded-full transition-colors ${active ? "bg-emerald-500" : "bg-slate-300"}`} />
-      <span className={active ? "text-slate-700" : "text-slate-400"}>{children}</span>
-    </span>
-  );
-}
-
 function ResultsSkeleton({ view }: { view: ViewMode }) {
   if (view === "table") {
     return (
@@ -1120,16 +1125,19 @@ function BulkAction({
   label,
   onClick,
   disabled,
+  title,
 }: {
   icon: any;
   label: string;
   onClick?: () => void;
   disabled?: boolean;
+  title?: string;
 }) {
   return (
     <button
       onClick={onClick}
       disabled={disabled}
+      title={title}
       className="inline-flex items-center gap-1 rounded-md bg-white px-2.5 py-1 text-xs text-indigo-700 shadow-sm transition-colors hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-40"
       style={{ fontWeight: 500 }}
     >

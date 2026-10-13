@@ -58,7 +58,15 @@ async function staffToken(s: Awaited<ReturnType<typeof setup>>, role: "admin" | 
 describe("live discovery API", () => {
   it("starts a live run (202) and reads its results", async () => {
     const { app, auth } = await setup();
-    const payload = { kind: "live", search: { text: "bridal", filters: { platform: "instagram" } }, maxNew: 5, confirmedCost: 62 };
+    const estimateResponse = await app.inject({
+      method: "POST",
+      url: "/v1/discovery/estimates",
+      headers: { ...auth, "idempotency-key": "live-estimate-0001" },
+      payload: { search: { text: "bridal", filters: { platform: "instagram", creatorCity: "Lahore" } }, maxNew: 5 },
+    });
+    expect(estimateResponse.statusCode).toBe(201);
+    const estimateId = (estimateResponse.json() as { estimateId: string }).estimateId;
+    const payload = { kind: "live", estimateId };
     const res = await app.inject({ method: "POST", url: "/v1/discovery/jobs", headers: { ...auth, "idempotency-key": "live-run-0001" }, payload });
     expect(res.statusCode).toBe(202);
     const id = (res.json() as { job: { id: string } }).job.id;

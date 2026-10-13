@@ -94,10 +94,9 @@ describe("AI relevance filter", () => {
     expect(call?.input).not.toContain("0300-1234567");
   });
 
-  it("refuses reasons with contacts, repeated or unknown indexes, and then keeps Google's order", async () => {
+  it("does not extract unfiltered candidates when the model returns unsafe or invalid output", async () => {
     for (const bad of [{ keep: [{ i: 0, reason: "call 0300 1234567" }] }, { keep: [{ i: 0, reason: "ok fine" }, { i: 0, reason: "again ok" }] }, { keep: [{ i: 9, reason: "nope nope" }] }]) {
-      const kept = await filterRelevant({ llm: new MockLlm(() => bad), search: s, candidates });
-      expect(kept.map((k) => [k.handle, k.reason])).toEqual([["sana.mua", null], ["shoe.shop", null], ["hina.bridal", null]]);
+      await expect(filterRelevant({ llm: new MockLlm(() => bad), search: s, candidates })).rejects.toThrow();
     }
   });
 

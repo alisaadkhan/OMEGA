@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { creditActionSchema } from "./billing";
-import { discoveryJobSchema, discoveryResultsResponseSchema, startDiscoveryJobResponseSchema, startDiscoveryJobSchema } from "./discovery";
-import { creatorProfileSchema, lookupResponseSchema } from "./search";
+import { createLiveEstimateSchema, discoveryJobSchema, discoveryResultsResponseSchema, liveEstimateSchema, liveSearchSchema, startDiscoveryJobResponseSchema, startDiscoveryJobSchema, validateLiveBrief } from "./discovery";
+import { creatorProfileSchema, lookupResponseSchema, searchFiltersSchema } from "./search";
 
 const job = {
   id: "6f1c2a4e-8a51-4c0e-9d0a-2b7f4f1e9a10",
@@ -48,12 +48,26 @@ describe("discovery contracts", () => {
 describe("live discovery contracts", () => {
   const search = { text: "bridal makeup", filters: { niches: ["Bridal"], creatorCity: "Lahore" } };
 
-  it("accepts a live run of 5, 10 or 20 new creators only", () => {
+  it("creates estimates for 5, 10 or 20 creators and requires the estimate to start a run", () => {
     for (const maxNew of [5, 10, 20]) {
-      expect(startDiscoveryJobSchema.safeParse({ kind: "live", search, maxNew, confirmedCost: 112 }).success).toBe(true);
+      expect(createLiveEstimateSchema.safeParse({ search, maxNew }).success).toBe(true);
     }
-    expect(startDiscoveryJobSchema.safeParse({ kind: "live", search, maxNew: 7, confirmedCost: 112 }).success).toBe(false);
-    expect(startDiscoveryJobSchema.safeParse({ kind: "live", search: { text: "x".repeat(301), filters: {} }, maxNew: 5, confirmedCost: 62 }).success).toBe(false);
+    expect(createLiveEstimateSchema.safeParse({ search, maxNew: 7 }).success).toBe(false);
+    expect(liveSearchSchema.safeParse({ text: "x".repeat(501), filters: {} }).success).toBe(false);
+    expect(startDiscoveryJobSchema.safeParse({ kind: "live", search, maxNew: 10, confirmedCost: 112 }).success).toBe(false);
+    expect(startDiscoveryJobSchema.safeParse({ kind: "live", estimateId: "00000000-0000-4000-8000-000000000001" }).success).toBe(true);
+    expect(liveEstimateSchema.safeParse({ estimateId: "00000000-0000-4000-8000-000000000001", maxCredits: 112, priceVersion: "price-v1", expiresAt: job.createdAt }).success).toBe(true);
+  });
+
+  it("rejects empty and generic briefs and requires a topic plus location or language", () => {
+    const mk = (text: string, filters: Record<string, unknown> = {}) => ({ text, filters: searchFiltersSchema.parse(filters) });
+    expect(validateLiveBrief(mk("")).missingRequirements).toEqual(["topic", "location_or_language"]);
+    expect(validateLiveBrief(mk("best creators and influencers")).missingRequirements).toEqual(["topic", "location_or_language"]);
+    expect(validateLiveBrief(mk("bridal makeup creators")).missingRequirements).toEqual(["location_or_language"]);
+    expect(validateLiveBrief(mk("creators in Lahore")).missingRequirements).toEqual(["topic"]);
+    expect(validateLiveBrief(mk("bridal makeup creators in Lahore")).ok).toBe(true);
+    expect(validateLiveBrief(mk("find creators in Pakistan", { niches: ["Bridal"] })).ok).toBe(true);
+    expect(validateLiveBrief(mk("food creators in Roman Urdu")).ok).toBe(true);
   });
 
   it("describes a live job without a single profile, and its results as creator cards", () => {

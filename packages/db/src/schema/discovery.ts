@@ -38,6 +38,22 @@ export const discoveryJobs = wp.table("discovery_jobs", {
   updatedAt: ts("updated_at").notNull().defaultNow(),
 });
 
+export const discoveryEstimates = wp.table("discovery_estimates", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").notNull(),
+  requestedBy: uuid("requested_by").notNull(),
+  search: jsonb("search").$type<{ text: string; filters: Record<string, unknown> }>().notNull(),
+  maxNew: integer("max_new").notNull(),
+  searchHash: text("search_hash").notNull(),
+  prices: jsonb("prices").$type<LivePrices>().notNull(),
+  maxCredits: integer("max_credits").notNull(),
+  priceVersion: text("price_version").notNull(),
+  expiresAt: ts("expires_at").notNull(),
+  consumedAt: ts("consumed_at"),
+  jobId: uuid("job_id"),
+  createdAt: ts("created_at").notNull().defaultNow(),
+});
+
 export type LivePrices = { search: number; instagram: number; tiktok: number; youtube: number };
 
 export const discoveryResults = wp.table("discovery_results", {

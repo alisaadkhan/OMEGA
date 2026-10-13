@@ -42,7 +42,7 @@ function describe(s: LiveSearch): string {
     .join("\n");
 }
 
-/** Spec §4.2 step 3. The filter only saves money: if the AI fails, every candidate is kept in Google's order. */
+/** Spec §4.2 step 3. Never turn a failed or invalid relevance decision into an unfiltered extraction run. */
 export async function filterRelevant(o: { llm: Llm; search: LiveSearch; candidates: Candidate[]; ctx?: CallContext; logger?: Logger }): Promise<Kept[]> {
   if (o.candidates.length === 0) return [];
   const lines = o.candidates.map((c, i) => `${i}. ${c.platform} @${c.handle} | ${redactContacts(cleanText(c.title, 200))} | ${redactContacts(cleanText(c.snippet, 300))}`).join("\n");
@@ -61,7 +61,7 @@ export async function filterRelevant(o: { llm: Llm; search: LiveSearch; candidat
       return c ? [{ ...c, reason: cleanText(k.reason, 160) || null }] : [];
     });
   } catch (err) {
-    o.logger?.warn({ err }, "relevance filter failed; keeping every candidate in Google's order");
-    return o.candidates.map((c) => ({ ...c, reason: null }));
+    o.logger?.warn({ err }, "relevance filter failed; the run will retry or fail without extracting unfiltered candidates");
+    throw err;
   }
 }

@@ -5,6 +5,7 @@ describe("AppError", () => {
   it("maps every code to the spec's HTTP status", () => {
     expect(ERROR_STATUS).toEqual({
       VALIDATION_FAILED: 400,
+      QUERY_TOO_BROAD: 422,
       UNAUTHENTICATED: 401,
       INSUFFICIENT_CREDITS: 402,
       FORBIDDEN: 403,

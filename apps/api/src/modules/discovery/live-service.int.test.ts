@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { searchFiltersSchema, type LiveSearch } from "@mushin/contracts";
+import { searchFiltersSchema, type LiveSearch, type LiveRunSize } from "@mushin/contracts";
 import { createLogger, type TenantContext } from "@mushin/core";
 import { createTestDatabase, createTestWorkspace, ownerQuery, resetTables } from "@mushin/db/testing";
 import { MockPayments } from "@mushin/integrations";
@@ -23,19 +23,29 @@ async function customer(): Promise<TenantContext> {
   return { ...ws, requestId: `req-${randomUUID().slice(0, 8)}`, role: "owner" };
 }
 const balance = async (c: TenantContext) => (await billing.summary(c)).balance;
-const search = (filters: Record<string, unknown> = {}, text = "bridal makeup"): LiveSearch => ({ text, filters: searchFiltersSchema.parse(filters) });
-const live = (s: LiveSearch, maxNew: 5 | 10 | 20, confirmedCost: number) => ({ kind: "live" as const, search: s, maxNew, confirmedCost });
+const search = (filters: Record<string, unknown> = {}, text = "bridal makeup in Lahore"): LiveSearch => ({ text, filters: searchFiltersSchema.parse(filters) });
+const estimate = (c: TenantContext, s: LiveSearch, maxNew: LiveRunSize) => discovery.createEstimate(c, { search: s, maxNew });
+const startLive = async (c: TenantContext, s: LiveSearch, maxNew: LiveRunSize) => {
+  const quote = await estimate(c, s, maxNew);
+  return discovery.start(c, { kind: "live", estimateId: quote.estimateId });
+};
 
-async function started(c: TenantContext, s = search({ platform: "instagram" }), maxNew: 5 | 10 | 20 = 10, cost = 112): Promise<string> {
-  const out = await discovery.start(c, live(s, maxNew, cost));
+async function started(c: TenantContext, s = search({ platform: "instagram" }), maxNew: 5 | 10 | 20 = 10): Promise<string> {
+  const out = await startLive(c, s, maxNew);
   if (out.body.status !== "started") throw new Error("expected started");
   return out.body.job.id;
 }
 
 describe("starting live runs", () => {
-  it("reserves 12 + size × the platform's price and announces the run", async () => {
+  it("quotes without spending, then reserves the server-priced maximum and announces the run", async () => {
     const c = await customer();
-    const out = await discovery.start(c, live(search({ platform: "instagram", niches: ["Bridal"] }), 10, 112));
+    const s = search({ platform: "instagram", niches: ["Bridal"] });
+    const quote = await estimate(c, s, 10);
+    expect(quote).toMatchObject({ maxCredits: 112 });
+    expect(quote.priceVersion).toHaveLength(24);
+    expect(Date.parse(quote.expiresAt)).toBeGreaterThan(Date.now());
+    expect(await balance(c)).toMatchObject({ available: 200, reserved: 0 });
+    const out = await discovery.start(c, { kind: "live", estimateId: quote.estimateId });
     expect(out.httpStatus).toBe(202);
     if (out.body.status !== "started") throw new Error("expected started");
     expect(out.body.job).toMatchObject({ kind: "live", status: "queued", platform: null, handle: null, live: { maxNew: 10, maxCost: 112, found: 0, creditsCharged: 0 } });
@@ -44,21 +54,43 @@ describe("starting live runs", () => {
     expect(ev.map((e) => e.event_type)).toEqual(["discovery.live_requested"]);
   });
 
-  it("prices every new creator at TikTok's price when TikTok is in scope, and refuses a stale price", async () => {
+  it("prices every new creator at TikTok's price when TikTok is in scope and rejects an unaffordable quote at confirmation", async () => {
     const c = await customer();
-    await expect(discovery.start(c, live(search(), 5, 62))).rejects.toMatchObject({ code: "CONFLICT", details: { confirmedCost: 62, currentCost: 162 } });
-    await started(c, search(), 5, 162);
+    const quote = await estimate(c, search(), 5);
+    expect(quote.maxCredits).toBe(162);
+    await startLive(c, search(), 5);
     expect(await balance(c)).toMatchObject({ available: 38, reserved: 162 });
-    await expect(discovery.start(await customer(), live(search(), 20, 612))).rejects.toMatchObject({ code: "INSUFFICIENT_CREDITS" });
+    const poor = await customer();
+    const expensive = await estimate(poor, search(), 20);
+    expect(expensive.maxCredits).toBe(612);
+    await expect(discovery.start(poor, { kind: "live", estimateId: expensive.estimateId })).rejects.toMatchObject({ code: "INSUFFICIENT_CREDITS" });
   });
 
-  it("the same search while it runs returns the same run and charges once, even for simultaneous clicks", async () => {
+  it("uses one quote exactly once, even when confirmation is concurrent", async () => {
     const c = await customer();
-    const outs = await Promise.all(Array.from({ length: 4 }, () => discovery.start(c, live(search({ platform: "instagram" }), 10, 112))));
+    const quote = await estimate(c, search({ platform: "instagram" }), 10);
+    const outs = await Promise.all(Array.from({ length: 4 }, () => discovery.start(c, { kind: "live", estimateId: quote.estimateId })));
     expect(new Set(outs.map((o) => (o.body.status === "started" ? o.body.job.id : "")))).toHaveProperty("size", 1);
     expect(await balance(c)).toMatchObject({ available: 88, reserved: 112 });
-    const other = await discovery.start(c, live(search({ platform: "instagram" }), 5, 62));
+    const second = await estimate(c, search({ platform: "instagram" }), 5);
+    const other = await discovery.start(c, { kind: "live", estimateId: second.estimateId });
     expect(other.httpStatus).toBe(202);
+  });
+
+  it("rejects broad briefs before storing an estimate or touching credits", async () => {
+    const c = await customer();
+    await expect(estimate(c, search({}, "best creators and influencers"), 10)).rejects.toMatchObject({ code: "QUERY_TOO_BROAD" });
+    expect(await balance(c)).toMatchObject({ available: 200, reserved: 0 });
+    const rows = await ownerQuery<{ n: number }>(`select count(*)::int as n from wp.discovery_estimates where workspace_id = '${c.workspaceId}'`);
+    expect(rows[0]?.n).toBe(0);
+  });
+
+  it("rejects expired estimates without reserving credits", async () => {
+    const c = await customer();
+    const quote = await estimate(c, search(), 5);
+    await ownerQuery(`update wp.discovery_estimates set expires_at = now() - interval '1 second' where id = '${quote.estimateId}'`);
+    await expect(discovery.start(c, { kind: "live", estimateId: quote.estimateId })).rejects.toMatchObject({ code: "CONFLICT" });
+    expect(await balance(c)).toMatchObject({ available: 200, reserved: 0 });
   });
 });
 

@@ -147,7 +147,13 @@ describe("assessment prompt", () => {
   it("shows the AI the exact reply shape; filled with estimates it passes the same rules as a real reply", () => {
     expect(ASSESSMENT_SYSTEM_PROMPT).toContain(JSON.stringify(ASSESSMENT_REPLY_EXAMPLE));
     const scored: SignalReport = { ...report, range: { min: 70, max: 80 } };
-    const filled = assessmentSchema(scored).safeParse({ ...ASSESSMENT_REPLY_EXAMPLE, audience: good.audience });
+    const filled = assessmentSchema(scored).safeParse({
+      ...ASSESSMENT_REPLY_EXAMPLE,
+      evidence: [{ signal: "engagement_vs_tier", detail: "Engagement appears consistent with account size." }],
+      watchOuts: ["The recent post sample is limited."],
+      audience: good.audience,
+      niches: ["Bridal"],
+    });
     expect(filled.error?.issues ?? []).toEqual([]);
     // Echoing the example's zero placeholders is refused, which triggers the corrective retry.
     expect(assessmentSchema(scored).safeParse(ASSESSMENT_REPLY_EXAMPLE).error?.issues.map((i) => i.path.join("."))).toEqual(

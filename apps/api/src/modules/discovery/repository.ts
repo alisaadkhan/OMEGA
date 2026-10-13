@@ -1,9 +1,10 @@
 import { and, count, desc, eq, gt, gte, inArray, lt, max, or, sql, sum } from "drizzle-orm";
 import type { DiscoveryJob, DiscoveryJobStep, LiveSearch } from "@mushin/contracts";
-import { discoveryJobs, discoveryResults, serperCache, type SystemTx, type TenantTx } from "@mushin/db";
+import { discoveryEstimates, discoveryJobs, discoveryResults, serperCache, type SystemTx, type TenantTx } from "@mushin/db";
 import type { WebResult } from "@mushin/integrations";
 
 export type JobRow = typeof discoveryJobs.$inferSelect;
+export type EstimateRow = typeof discoveryEstimates.$inferSelect;
 const OPEN = ["queued", "running"] as const;
 
 export function toApiJob(r: JobRow): DiscoveryJob {
@@ -38,6 +39,26 @@ export async function insertJob(tx: TenantTx, row: typeof discoveryJobs.$inferIn
   const [r] = await tx.insert(discoveryJobs).values(row).returning();
   if (!r) throw new Error("job insert returned no row");
   return r;
+}
+
+export async function insertEstimate(tx: TenantTx, row: typeof discoveryEstimates.$inferInsert): Promise<EstimateRow> {
+  const [estimate] = await tx.insert(discoveryEstimates).values(row).returning();
+  if (!estimate) throw new Error("discovery estimate insert returned no row");
+  return estimate;
+}
+
+export async function estimateForUpdate(tx: TenantTx, workspaceId: string, id: string): Promise<EstimateRow | null> {
+  const rows = await tx
+    .select()
+    .from(discoveryEstimates)
+    .where(and(eq(discoveryEstimates.workspaceId, workspaceId), eq(discoveryEstimates.id, id)))
+    .for("update")
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function consumeEstimate(tx: TenantTx, workspaceId: string, id: string, jobId: string): Promise<void> {
+  await tx.update(discoveryEstimates).set({ consumedAt: sql`now()`, jobId }).where(and(eq(discoveryEstimates.workspaceId, workspaceId), eq(discoveryEstimates.id, id)));
 }
 
 export async function getJob(tx: TenantTx, workspaceId: string, id: string): Promise<JobRow | null> {

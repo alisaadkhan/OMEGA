@@ -4,6 +4,7 @@ export type { ErrorCode };
 
 export const ERROR_STATUS: Record<ErrorCode, number> = {
   VALIDATION_FAILED: 400,
+  QUERY_TOO_BROAD: 422,
   UNAUTHENTICATED: 401,
   INSUFFICIENT_CREDITS: 402,
   FORBIDDEN: 403,
