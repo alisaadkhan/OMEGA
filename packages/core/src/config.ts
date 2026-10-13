@@ -109,12 +109,16 @@ const workerSchema = sharedObject
     // Instagram post/reel → author for live discovery; set to "off" to disable. Pinned build reviewed 2026-10-13.
     APIFY_INSTAGRAM_POST_ACTOR_ID: z.string().min(1).default("apify/instagram-scraper"),
     APIFY_INSTAGRAM_POST_BUILD: z.string().min(1).optional(),
-    LIVE_CONTENT_RESOLUTION_MAX: z.coerce.number().int().min(0).max(20).default(10),
+    // Off by default until the post actor's terms and permitted use are reviewed (2026-10-13); 10 was the tested setting.
+    LIVE_CONTENT_RESOLUTION_MAX: z.coerce.number().int().min(0).max(20).default(0),
     // One YouTube Data API video search per live run with YouTube in scope (101 quota units, $0); "off" disables it.
     LIVE_YOUTUBE_SEARCH: z.enum(["video", "off"]).default("video"),
-    // Product decision pending (2026-10-13): fetch up to this multiple of the run size while it is not filled. The
-    // customer charge is unchanged (only delivered new creators, never above the quote); provider cost rises.
-    LIVE_EXTRACTION_MULTIPLIER: z.coerce.number().min(1).max(4).default(1),
+    // Fill-to-size, per platform: fetch up to this multiple of the run size while it is not filled. The customer charge
+    // is unchanged (only delivered new creators, never above the quote); provider cost rises. 1 disables extra waves.
+    // Approved in principle 2026-10-13 for an Instagram/YouTube pilot; TikTok stays at 1 until a test budget exists.
+    LIVE_EXTRACTION_MULTIPLIER_INSTAGRAM: z.coerce.number().min(1).max(4).default(1),
+    LIVE_EXTRACTION_MULTIPLIER_YOUTUBE: z.coerce.number().min(1).max(4).default(1),
+    LIVE_EXTRACTION_MULTIPLIER_TIKTOK: z.coerce.number().min(1).max(4).default(1),
     // Profiles a live run processes at the same time (the AI assessment dominates; measured ~6 s per profile).
     LIVE_PROFILE_CONCURRENCY: z.coerce.number().int().min(1).max(8).default(3),
     APIFY_MONTHLY_BUDGET_USD: z.coerce.number().min(0).default(5),
@@ -244,8 +248,8 @@ export type ScrapingConfig = {
   contentResolutionMax: number;
   /** Live discovery also searches YouTube videos through the Data API. */
   youtubeSearch: boolean;
-  /** Profiles fetched per live run as a multiple of the run size while it is not filled (1 = the size). */
-  extractionMultiplier: number;
+  /** Per platform: profiles fetched per live run as a multiple of the run size while it is not filled (1 = the size). */
+  extractionMultiplier: { instagram: number; youtube: number; tiktok: number };
   /** Profiles a live run processes at the same time. */
   profileConcurrency: number;
   apifyMonthlyBudgetUsd: number;
@@ -342,7 +346,7 @@ export function loadWorkerConfig(env: Env): WorkerConfig {
       instagramPostBuild: v.APIFY_INSTAGRAM_POST_BUILD ?? (v.APIFY_INSTAGRAM_POST_ACTOR_ID === "apify/instagram-scraper" ? "0.0.812" : null),
       contentResolutionMax: v.LIVE_CONTENT_RESOLUTION_MAX,
       youtubeSearch: v.LIVE_YOUTUBE_SEARCH === "video" && Boolean(v.YOUTUBE_API_KEY),
-      extractionMultiplier: v.LIVE_EXTRACTION_MULTIPLIER,
+      extractionMultiplier: { instagram: v.LIVE_EXTRACTION_MULTIPLIER_INSTAGRAM, youtube: v.LIVE_EXTRACTION_MULTIPLIER_YOUTUBE, tiktok: v.LIVE_EXTRACTION_MULTIPLIER_TIKTOK },
       profileConcurrency: v.LIVE_PROFILE_CONCURRENCY,
       apifyMonthlyBudgetUsd: v.APIFY_MONTHLY_BUDGET_USD,
       youtubeApiKey: v.YOUTUBE_API_KEY ?? null,

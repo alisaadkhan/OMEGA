@@ -103,3 +103,16 @@ describe("standardize", () => {
     expect(cleanText("\u202Eevil\u2066", 10)).toBe("evil");
   });
 });
+
+describe("platform-declared account type", () => {
+  it("keeps Instagram's declared category (not 'None') and TikTok's seller flag", () => {
+    expect(ok(standardize("instagram", "coke_studio", scraperFixture("instagram-profile.json"), { maxPosts: 12 })).accountCategory).toBe("Musician/band");
+    const none = igRaw();
+    (none[0] as Record<string, unknown>)["businessCategoryName"] = "None";
+    expect(ok(standardize("instagram", "coke_studio", none, { maxPosts: 12 })).accountCategory).toBeNull();
+    const shop = structuredClone(scraperFixture("tiktok-videos.json")) as Record<string, Record<string, unknown>>[];
+    for (const item of shop) if (item["authorMeta"]) item["authorMeta"]["ttSeller"] = true;
+    const handle = String(shop[0]?.["authorMeta"]?.["name"] ?? "x");
+    expect(ok(standardize("tiktok", handle, shop, { maxPosts: 6 })).seller).toBe(true);
+  });
+});

@@ -75,7 +75,7 @@ function llmReply(req: { input: string }) {
   };
 }
 
-function setup(o: { web?: FixtureWebSearch; scraper?: FixtureScraper; wrap?: (p: EnrichmentPipeline) => EnrichmentPipeline; maxAttempts?: number; model?: MockLlm; contentResolutionMax?: number; extractionMultiplier?: number; profileConcurrency?: number } = {}) {
+function setup(o: { web?: FixtureWebSearch; scraper?: FixtureScraper; wrap?: (p: EnrichmentPipeline) => EnrichmentPipeline; maxAttempts?: number; model?: MockLlm; contentResolutionMax?: number; extractionMultiplier?: Partial<Record<"instagram" | "tiktok" | "youtube", number>>; profileConcurrency?: number } = {}) {
   const web = o.web ?? new FixtureWebSearch(links("new_a", "new_b"));
   const scraper = o.scraper ?? igScraper();
   const model = o.model ?? llm();
@@ -378,7 +378,7 @@ describe("live runner", () => {
     });
 
     it("with a multiplier fetches the next-best candidates until the size is filled, and charges only what was delivered", async () => {
-      const { runner, scraper: s } = setup({ web: pool(), scraper: scraper(), extractionMultiplier: 2 });
+      const { runner, scraper: s } = setup({ web: pool(), scraper: scraper(), extractionMultiplier: { instagram: 2 } });
       const c = await customer();
       const id = await startRun(c, 5);
       await runner.run(id, c.workspaceId);
@@ -392,9 +392,61 @@ describe("live runner", () => {
       expect(trail.filter((r) => r.decision === "pending")).toEqual([]);
     });
 
+    it("stops safely when the provider budget runs out in an extra wave: keeps and charges only what was delivered", async () => {
+      let batches = 0;
+      const capped = new FixtureScraper({
+        instagram: (req: ScrapeRequest) => req.handle.startsWith("locked_")
+          ? { provider: "apify", raw: scraperFixture("instagram-private.json"), costUsd: 0.0026 }
+          : { provider: "apify", raw: profile(req.handle), costUsd: 0.0026 },
+      });
+      const fetchProfiles = capped.fetchProfiles.bind(capped);
+      capped.fetchProfiles = async (req) => {
+        if (++batches > 1) throw new ProviderError(false, "spend_cap", "Monthly Apify budget reached");
+        return fetchProfiles(req);
+      };
+      const { runner } = setup({ web: pool(), scraper: capped, extractionMultiplier: { instagram: 2 } });
+      const c = await customer();
+      const estimate = await discovery.createEstimate(c, { search: { text: "bridal makeup", filters: searchFiltersSchema.parse({ platform: "instagram", creatorCity: "Lahore" }) }, maxNew: 5 });
+      const started = await discovery.start(c, { kind: "live", estimateId: estimate.estimateId });
+      if (started.body.status !== "started") throw new Error("expected started");
+      const id = started.body.job.id;
+      await runner.run(id, c.workspaceId);
+      expect(batches).toBe(2);
+      expect(await discovery.get(c, id)).toMatchObject({ status: "completed", outcome: "succeeded", live: { new: 2, creditsCharged: 12 + 2 * 10 } });
+      expect(estimate.maxCredits).toBe(62);
+      expect(await balance(c)).toMatchObject({ available: 200 - 32, reserved: 0 });
+      const trail = await trailOf(id);
+      expect(trail.filter((r) => r.reason === "provider_budget_exhausted").length).toBeGreaterThan(0);
+      expect(trail.filter((r) => r.decision === "pending")).toEqual([]);
+    });
+
+    it("gives extra waves only to platforms with a multiplier: TikTok at 1 is never fetched beyond the size", async () => {
+      const mixed = new FixtureScraper({
+        instagram: (req: ScrapeRequest) => ({ provider: "apify", raw: req.handle.startsWith("locked_") ? scraperFixture("instagram-private.json") : profile(req.handle), costUsd: 0.0026 }),
+        tiktok: { provider: "apify", raw: [], costUsd: 0.018 },
+      });
+      const tt = (h: string): WebResult => ({ title: `${h} | Bridal MUA`, link: `https://www.tiktok.com/@${h}`, snippet: "Bridal makeup, Lahore" });
+      const web = new FixtureWebSearch([...links("locked_1", "locked_2", "open_1", "open_2", "open_3", "open_4"), tt("tok_1"), tt("tok_2"), tt("tok_3"), tt("tok_4"), tt("tok_5")]);
+      const { runner } = setup({ web, scraper: mixed, extractionMultiplier: { instagram: 2, tiktok: 1 } });
+      const c = await customer();
+      const estimate = await discovery.createEstimate(c, { search: { text: "bridal makeup", filters: searchFiltersSchema.parse({ creatorCity: "Lahore" }) }, maxNew: 5 });
+      const started = await discovery.start(c, { kind: "live", estimateId: estimate.estimateId });
+      if (started.body.status !== "started") throw new Error("expected started");
+      await runner.run(started.body.job.id, c.workspaceId);
+      const tiktokFetched = mixed.batchCalls.filter((b) => b.platform === "tiktok").flatMap((b) => b.handles);
+      const igFetched = mixed.batchCalls.filter((b) => b.platform === "instagram").flatMap((b) => b.handles);
+      expect(mixed.batchCalls.filter((b) => b.platform === "tiktok")).toHaveLength(1);
+      expect(tiktokFetched.length).toBeLessThanOrEqual(5);
+      expect(mixed.batchCalls.filter((b) => b.platform === "instagram").length).toBeGreaterThan(1);
+      expect(igFetched.length).toBeLessThanOrEqual(10);
+      const job = await discovery.get(c, started.body.job.id);
+      expect(job.live?.creditsCharged).toBeLessThanOrEqual(estimate.maxCredits);
+      expect(await balance(c)).toMatchObject({ reserved: 0 });
+    });
+
     it("stops at the multiplier cap when too few qualify, and records the cap", async () => {
       const lockedFirst = new FixtureWebSearch(links("locked_1", "locked_2", "locked_3", "locked_4", "locked_5", "locked_6", "open_1", "open_2"));
-      const { runner, scraper: s } = setup({ web: lockedFirst, scraper: scraper(), extractionMultiplier: 1.4 });
+      const { runner, scraper: s } = setup({ web: lockedFirst, scraper: scraper(), extractionMultiplier: { instagram: 1.4 } });
       const c = await customer();
       const id = await startRun(c, 5);
       await runner.run(id, c.workspaceId);

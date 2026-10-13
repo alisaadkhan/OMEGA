@@ -55,6 +55,12 @@ function hasLanguage(text: string, language: string): boolean {
   return language === "roman urdu" ? isRomanUrdu(text) : Boolean(LANGUAGE_PATTERNS[language]?.test(text));
 }
 
+// The category the owner declared on the platform is stronger evidence than bio wording (2026-10-13: 30 "Digital
+// creator", 9 "Blogger" against "Clothing (Brand)", "Travel agency", "Magazine"…). Business categories are checked
+// first; anything else ("Photography Videography", "Finance", "Design & fashion") falls back to the bio rules.
+const BUSINESS_CATEGORY = /\b(?:brand|store|shop|shopping|company|agency|restaurant|cafe|bakery|hotel|clinic|salon|services?|retail|magazine|media|news|real estate|hospitality|school|college|university|product|clothing|boutique|organization|non-profit|ngo|business|jewelry|cosmetics)\b/i;
+const CREATOR_CATEGORY = /\b(?:digital creator|creator|blogger|personal blog|video creator|reel creator|gamer|public figure|artist|musician|actor|actress|comedian|photographer|videographer|fitness trainer|personal trainer|coach|food critic|chef|journalist|writer|author|makeup artist|model|athlete|entrepreneur|just for fun|influencer|stylist|teacher|youtuber)\b/i;
+
 /** Mentions, links and hashtags name other accounts or topics; they never say what this account is. */
 const withoutRefs = (text: string): string => text.replace(/https?:\/\/\S+|[@#][\p{L}\p{N}._]+/gu, " ");
 const ownText = (text: string): string => withoutRefs(text).replace(TOPIC_PHRASES, " ");
@@ -64,14 +70,19 @@ const ownText = (text: string): string => withoutRefs(text).replace(TOPIC_PHRASE
  * account's own name outweighs everything except a first-person statement; first-person and collaboration cues only
  * break ties between conflicting or missing cues.
  */
-export function individualSignal(o: { name: string; title: string; bio: string }): { value: 1 | 0 | null; cue: string } {
+export function individualSignal(o: { name: string; title: string; bio: string; category?: string | null; seller?: boolean }): { value: 1 | 0 | null; cue: string } {
   const text = `${o.title} ${o.name} ${o.bio}`;
   const own = ownText(text);
   const roman = ROMAN_URDU_CREATOR.test(text);
   const person = PERSON.test(text) || roman;
-  const business = BUSINESS.test(own);
+  const business = BUSINESS.test(own) || o.seller === true;
   const firstPerson = FIRST_PERSON.test(own) || ROMAN_URDU_CREATOR.test(own) || CHANNEL_VOICE.test(own) || URDU_FIRST_PERSON.test(own);
-  if ((BUSINESS.test(ownText(o.name)) || GROUP_NAME.test(ownText(o.name))) && !firstPerson) return { value: 0, cue: "business name" };
+  const businessName = (BUSINESS.test(ownText(o.name)) || GROUP_NAME.test(ownText(o.name))) && !firstPerson;
+  if (o.category) {
+    if (BUSINESS_CATEGORY.test(o.category)) return { value: 0, cue: `platform category: ${o.category}` };
+    if (CREATOR_CATEGORY.test(o.category) && !businessName && o.seller !== true) return { value: 1, cue: `platform category: ${o.category}` };
+  }
+  if (businessName) return { value: 0, cue: "business name" };
   if (person && !business) return { value: 1, cue: roman && !PERSON.test(text) ? "Roman Urdu first-person creator cue" : "creator cue" };
   if (!person && business) return { value: 0, cue: "business cue" };
   if (firstPerson) return { value: 1, cue: "first-person creator cue" };
@@ -83,7 +94,7 @@ export function individualSignal(o: { name: string; title: string; bio: string }
 export function evaluateCampaignFit(search: LiveSearch, candidate: Kept, profile: StandardProfile, isMinor: boolean, now: Date, fetchedAt: Date = now): CampaignFit {
   const evidence: string[] = [];
   // Use profile-owned identity fields and the result title; search snippets may describe a linked post or ad.
-  const signal = individualSignal({ name: profile.displayName, title: candidate.title, bio: profile.bio });
+  const signal = individualSignal({ name: profile.displayName, title: candidate.title, bio: profile.bio, category: profile.accountCategory ?? null, ...(profile.seller ? { seller: true } : {}) });
   const individual = signal.value;
   const recent = profile.recentPosts.filter((p) => now.getTime() - p.postedAt.getTime() >= 0 && now.getTime() - p.postedAt.getTime() <= 90 * DAY);
   const latest = profile.recentPosts[0];

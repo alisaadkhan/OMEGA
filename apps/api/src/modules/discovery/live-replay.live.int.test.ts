@@ -176,7 +176,7 @@ describe.skipIf(!enabled)("Live Discovery recorded-response replay through the r
       },
     };
     const pipeline = createEnrichmentPipeline({ db, scraper, storage: new MemoryStorage(), llm, encryptionKey: TEST_KEY, logger, fetchImage: async () => new Response("", { status: 404 }) });
-    const runner = createLiveRunner({ db, billing, pipeline, scraper, search: createCachedSearch({ db, web }), llm, logger, maxAttempts: 1, contentResolutionMax: config.scraping.contentResolutionMax, extractionMultiplier: Number(process.env["LIVE_REPLAY_MULTIPLIER"] ?? "1") });
+    const runner = createLiveRunner({ db, billing, pipeline, scraper, search: createCachedSearch({ db, web }), llm, logger, maxAttempts: 1, contentResolutionMax: config.scraping.contentResolutionMax, extractionMultiplier: Object.fromEntries((process.env["LIVE_REPLAY_MULTIPLIER"] ?? "").split(",").filter(Boolean).map((pair) => { const [p, m] = pair.split("="); return [p, Number(m)]; })) });
 
     const report: unknown[] = [];
     for (const brief of recorded.briefs.filter((b) => ONLY.size === 0 || ONLY.has(b.id))) {

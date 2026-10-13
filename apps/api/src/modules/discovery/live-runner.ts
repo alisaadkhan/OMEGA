@@ -26,8 +26,11 @@ type Deps = {
   now?: () => Date;
   /** Most Instagram post/reel links whose authors are resolved per run (0, the default, disables it). */
   contentResolutionMax?: number;
-  /** Profiles fetched per run, as a multiple of the chosen size, while the size is not filled (1, the default, = size). */
-  extractionMultiplier?: number;
+  /**
+   * Per platform: profiles fetched per run as a multiple of the chosen size while the size is not filled (1, the default,
+   * = the size). Platforms left at 1 never get extra waves.
+   */
+  extractionMultiplier?: Partial<Record<CreatorPlatform, number>>;
   /** Profiles processed at the same time (default 1). */
   profileConcurrency?: number;
 };
@@ -263,20 +266,31 @@ export function createLiveRunner(deps: Deps) {
       // Measured 2026-10-13: 1 of 12 extracted post/mention profiles qualified against about 60% of organic ones.
       const organic = rankByEvidence(search, availableNew.filter((k) => !recoveredKeys.has(k.canonicalUrl)));
       const ordered = spreadByPlatform([...organic, ...rankByEvidence(search, availableNew.filter((k) => recoveredKeys.has(k.canonicalUrl)))]);
-      // The run size chosen at quote time bounds the new creators charged. Profiles are fetched in waves: a first wave of
-      // the remaining size, then (when extractionMultiplier > 1) further waves of the next-best candidates while fewer
-      // new creators than the size qualified, up to multiplier × size fetches. The charge rule is unchanged.
-      const fetchCap = Math.max(0, Math.ceil((deps.extractionMultiplier ?? 1) * maxNew) - alreadyNew);
-      let offset = 0;
+      // The run size chosen at quote time bounds the new creators charged. Profiles are fetched in waves: the first wave
+      // is the remaining size (today's behaviour); further waves fetch the next-best candidates of platforms whose
+      // multiplier allows it, while fewer new creators than the size qualified, up to multiplier × size per platform.
+      // A wave never fetches more than the size still missing, so the charge rule is unchanged.
+      const multiplierOf = (p: CreatorPlatform) => Math.max(1, deps.extractionMultiplier?.[p] ?? 1);
+      const capOf = (p: CreatorPlatform) => Math.max(0, Math.ceil(multiplierOf(p) * maxNew) - alreadyNew);
+      const fetchedBy: Record<CreatorPlatform, number> = { instagram: 0, tiktok: 0, youtube: 0 };
+      let remaining = [...ordered];
       let fetchedCount = 0;
+      let stopReason: "provider_budget_exhausted" | "extra_wave_provider_failed" | null = null;
       ordered.forEach((k, index) => trail.set(k.canonicalUrl, "selection", "pending", null, { detail: { selectionRank: index + 1 } }));
-      for (let wave = 1; ; wave++) {
+      for (let wave = 1; stopReason === null; wave++) {
         const need = maxNew - (await deps.db.withWorkspace(workspaceId, (tx) => repo.countNew(tx, workspaceId, jobId)));
-        const take = Math.min(need, fetchCap - fetchedCount, ordered.length - offset);
-        if (take <= 0) break;
-        const fresh = ordered.slice(offset, offset + take);
-        offset += take;
-        fetchedCount += take;
+        if (need <= 0) break;
+        const fresh: Kept[] = [];
+        for (const k of remaining) {
+          if (fresh.length >= need) break;
+          // After the first wave only platforms with a multiplier above 1 are fetched, and never past their cap.
+          if (wave > 1 && (multiplierOf(k.platform) <= 1 || fetchedBy[k.platform] >= capOf(k.platform))) continue;
+          fresh.push(k);
+          fetchedBy[k.platform]++;
+        }
+        if (fresh.length === 0) break;
+        remaining = remaining.filter((k) => !fresh.includes(k));
+        fetchedCount += fresh.length;
         for (const k of fresh) trail.set(k.canonicalUrl, "extraction", "pending", null, { detail: { wave } });
         await flush();
         // 5. One Apify run per platform and wave; each profile archived on its own (a retry reuses the archive).
@@ -304,7 +318,18 @@ export function createLiveRunner(deps: Deps) {
             fetched.push({ k: x, payloadId: await deps.pipeline.archive(profileJob(x), settled.value.provider, raw), raw });
           }
         }
-        const failedBatch = batches.find((b): b is PromiseRejectedResult => b.status === "rejected");
+        let failedBatch = batches.find((b): b is PromiseRejectedResult => b.status === "rejected");
+        if (failedBatch && wave > 1) {
+          // Extra waves are a best effort: a spend cap, quota or provider failure there ends extraction with what was
+          // already found (settled normally) instead of failing the run, and the trail records why.
+          const pe = providerErrorOf(failedBatch.reason);
+          stopReason = pe && (pe.reason === "spend_cap" || pe.reason === "quota") ? "provider_budget_exhausted" : "extra_wave_provider_failed";
+          deps.logger.warn({ err: failedBatch.reason, jobId, wave }, "an extra extraction wave could not run; finishing with the creators already found");
+          for (const [index, m] of missingByPlatform.entries()) {
+            if (batches[index]?.status === "rejected") for (const x of m.missing) trail.set(x.canonicalUrl, "extraction", "skipped", stopReason);
+          }
+          failedBatch = undefined;
+        }
         // 6–7. 4A's steps per profile; each save inserts its result and re-ranks in the same transaction (the job row is
         // locked there, so concurrent saves stay ordered). The slow step is the AI assessment, so profiles overlap.
         let processedCount = 0;
@@ -347,10 +372,17 @@ export function createLiveRunner(deps: Deps) {
         if (failedBatch) throw failedBatch.reason;
         if (failedProfile) throw failedProfile.reason;
       }
-      for (const key of trail.pendingKeys()) {
-        // Candidates never fetched: beyond the chosen size, or beyond the extraction cap while the size was not filled.
-        const row = trail.all().find((r) => r.candidateKey === key);
-        if (row?.stage === "selection") trail.set(key, "selection", "not_extracted", fetchedCount >= fetchCap && (deps.extractionMultiplier ?? 1) > 1 ? "extraction_cap" : "run_size_limit");
+      const deliveredNew = await deps.db.withWorkspace(workspaceId, (tx) => repo.countNew(tx, workspaceId, jobId));
+      const filled = deliveredNew >= maxNew;
+      for (const k of remaining) {
+        // Candidates never fetched: the size was filled, the platform reached its cap (or has no extra waves), or extra
+        // extraction stopped on the provider budget or a provider failure.
+        const reason = filled ? "run_size_limit" : stopReason ?? (multiplierOf(k.platform) > 1 && fetchedBy[k.platform] >= capOf(k.platform) ? "extraction_cap" : "run_size_limit");
+        trail.set(k.canonicalUrl, "selection", "not_extracted", reason);
+      }
+      if (!filled) {
+        // An honest shortfall: fewer new creators than the size the customer chose; only these are charged.
+        deps.logger.info({ jobId, requested: maxNew, deliveredNew, fetched: fetchedCount, candidatesLeft: remaining.length, stopReason }, "live run delivered fewer new creators than the chosen size");
       }
       await flush();
       trail.finish("skipped", "not_processed");

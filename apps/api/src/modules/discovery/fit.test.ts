@@ -115,6 +115,19 @@ describe("Live Discovery Campaign Fit", () => {
     expect(ok("Mubashir Saddique", "")).toBeNull();
   });
 
+  it("uses the category the owner declared on the platform before bio wording", () => {
+    const sig = (category: string | null, bio = "", name = "Sana", seller?: boolean) => individualSignal({ name, title: name, bio, category, ...(seller ? { seller } : {}) });
+    expect(sig("Digital creator")).toMatchObject({ value: 1, cue: "platform category: Digital creator" });
+    expect(sig("Food Critic", "Restaurant reviews")).toMatchObject({ value: 1 });
+    expect(sig("Clothing (Brand)", "Fashion blogger vibes")).toMatchObject({ value: 0, cue: "platform category: Clothing (Brand)" });
+    expect(sig("Travel agency")).toMatchObject({ value: 0 });
+    // Ambiguous categories, a shop name or a seller account fall back to the existing rules.
+    expect(sig("Photography Videography", "")).toMatchObject({ value: null });
+    expect(sig("Digital creator", "", "Hina Bridal Boutique")).toMatchObject({ value: 0, cue: "business name" });
+    expect(sig("Digital creator", "", "Sana", true)).toMatchObject({ value: 0, cue: "business cue" });
+    expect(sig(null, "Food blogger")).toMatchObject({ value: 1, cue: "creator cue" });
+  });
+
   // Paraphrased from TikTok profiles in the 2026-10-13 evaluation.
   it("recognizes TikTok self-promotion, and matches free-text briefs on any of their words, including plural/agent forms", () => {
     const ok = (name: string, bio: string) => individualSignal({ name, title: name, bio }).value;

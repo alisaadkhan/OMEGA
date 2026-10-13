@@ -27,6 +27,10 @@ export type StandardProfile = {
   country: string | null;
   avatarUrl: string | null;
   recentPosts: StandardPost[];
+  /** The category the account owner declared on the platform (Instagram "Digital creator", "Clothing (Brand)"…). */
+  accountCategory?: string | null;
+  /** The platform marks the account as a shop/seller (TikTok Shop seller or commerce account). */
+  seller?: boolean;
 };
 
 export type StandardizeResult = { kind: "ok"; profile: StandardProfile } | { kind: "not_found" } | { kind: "private" };
@@ -137,8 +141,15 @@ function instagram(handle: string, raw: unknown, maxPosts: number): StandardizeR
       country: null,
       avatarUrl: httpUrl(first["profilePicUrlHD"] ?? first["profilePicUrl"], LIMITS.photoUrl),
       recentPosts: newestFirst(posts, maxPosts),
+      accountCategory: category(first["businessCategoryName"]),
     },
   };
+}
+
+/** A declared category; Instagram reports "None" for professional accounts without one. */
+function category(value: unknown): string | null {
+  const c = cleanText(value, 80);
+  return c && c.toLowerCase() !== "none" ? c : null;
 }
 
 function tiktok(handle: string, raw: unknown, maxPosts: number): StandardizeResult {
@@ -180,6 +191,7 @@ function tiktok(handle: string, raw: unknown, maxPosts: number): StandardizeResu
       country: null,
       avatarUrl: httpUrl(author["originalAvatarUrl"] ?? author["avatar"], LIMITS.photoUrl),
       recentPosts: newestFirst(posts, maxPosts),
+      seller: author["ttSeller"] === true || sub(author["commerceUserInfo"])["commerceUser"] === true,
     },
   };
 }
