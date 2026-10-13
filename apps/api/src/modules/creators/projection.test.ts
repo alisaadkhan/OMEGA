@@ -27,4 +27,14 @@ describe("creator index projection", () => {
   it("does not publish a legacy YouTube zero as a known follower count", () => {
     expect(toDocument(row).followers).toBeNull();
   });
+
+  it("does not index demographic guesses without an audience analytics source", () => {
+    const withLegacyEstimate: IndexRow = {
+      ...row,
+      audience: {
+        age: [], gender: null, cities: [], countries: [{ code: "AE", value: 65, confidence: "low" }], source: "estimated from public content",
+      },
+    };
+    expect(toDocument(withLegacyEstimate).audience_countries).toEqual([]);
+  });
 });

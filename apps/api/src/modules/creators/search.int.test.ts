@@ -7,6 +7,7 @@ import { createBillingService, MemoryAccessCache } from "../billing/index";
 import { isIndexable, toDocument } from "./projection";
 import * as repo from "./repository";
 import { createCreatorsService } from "./service";
+import { createPostgresCatalogSearch } from "./postgres-search";
 import { addCreator, TEST_KEY } from "./test-fixtures";
 import { rankCards } from "./ranking";
 import { suppress } from "./suppressions";
@@ -19,6 +20,7 @@ const billing = createBillingService({ db, payments, cache: new MemoryAccessCach
 let llmReply: unknown = {};
 const llm = new MockLlm(() => llmReply);
 const creators = createCreatorsService({ db, index, llm, billing, encryptionKey: TEST_KEY, logger });
+const postgresCreators = createCreatorsService({ db, index, nativeSearch: createPostgresCatalogSearch(db), llm, billing, encryptionKey: TEST_KEY, logger });
 
 beforeAll(() => index.ensureSettings());
 afterAll(async () => {
@@ -34,7 +36,9 @@ beforeEach(async () => {
 /** What the worker does for creator.changed events. */
 async function indexAll(ids: string[]) {
   const rows = await db.withSystem((tx) => repo.indexRows(tx, ids));
-  await index.upsert(rows.filter(isIndexable).map(toDocument));
+  const docs = rows.filter(isIndexable).map(toDocument);
+  await index.upsert(docs);
+  await db.withSystem((tx) => repo.upsertPostgresSearchDocuments(tx, docs));
 }
 
 async function customer(): Promise<TenantContext> {
@@ -53,7 +57,9 @@ describe("search", () => {
     await indexAll([best, ok, wrongPlatform, wrongNiche, tooBig]);
     const c = await customer();
     const out = await creators.search(c, req("", { platform: "instagram", niches: ["Bridal"], followersMin: 10_000, followersMax: 100_000, engagementMin: 4, creatorCity: "Lahore", creatorCountry: "PK" }));
+    const nativeOut = await postgresCreators.search(c, req("", { platform: "instagram", niches: ["Bridal"], followersMin: 10_000, followersMax: 100_000, engagementMin: 4, creatorCity: "Lahore", creatorCountry: "PK" }));
     expect(out.results.map((r) => r.id)).toEqual([best, ok]);
+    expect(nativeOut.results.map((r) => r.id)).toEqual(out.results.map((r) => r.id));
     expect(out.results[0]?.fitScore).toBeGreaterThan(out.results[1]?.fitScore ?? 100);
     expect(out.results[0]).toMatchObject({ displayName: "Sana Bridal", followersFreshness: "current", authenticityScore: null, hasContact: false });
     expect(out.fewResults).toBe(true);
@@ -64,6 +70,15 @@ describe("search", () => {
     await indexAll([id]);
     expect((await creators.search(await customer(), req("Aisha"))).results.map((r) => r.id)).toEqual([id]);
     expect((await creators.search(await customer(), req("Aysha Khan"))).results.map((r) => r.id)).toEqual([id]);
+    expect((await postgresCreators.search(await customer(), req("Aisha"))).results.map((r) => r.id)).toEqual([id]);
+    expect((await postgresCreators.search(await customer(), req("Aysha Khan"))).results.map((r) => r.id)).toEqual([id]);
+  });
+
+  it("refuses audience-country filtering until verified audience analytics are available", async () => {
+    await expect(creators.search(await customer(), req("", { audienceCountry: "AE" }))).rejects.toMatchObject({
+      code: "PROVIDER_UNAVAILABLE",
+      message: "Audience-country filtering is unavailable until a verified audience analytics source is connected.",
+    });
   });
 
   it("drops creators the index still lists but Postgres hides (possible minors, erased)", async () => {
@@ -99,8 +114,12 @@ describe("search", () => {
     const c = await customer();
     const page1 = await creators.search(c, req(""));
     const page2 = await creators.search(c, req("", {}, 2));
+    const nativePage1 = await postgresCreators.search(c, req(""));
+    const nativePage2 = await postgresCreators.search(c, req("", {}, 2));
     expect([page1.results.length, page2.results.length, page1.total, page1.fewResults, page1.pageSize]).toEqual([24, 2, 26, false, 24]);
     expect(new Set([...page1.results, ...page2.results].map((r) => r.id)).size).toBe(26);
+    expect(nativePage1.results.map((r) => r.id)).toEqual(page1.results.map((r) => r.id));
+    expect(nativePage2.results.map((r) => r.id)).toEqual(page2.results.map((r) => r.id));
   });
 
   it(
@@ -119,6 +138,8 @@ describe("search", () => {
       await indexAll(ids);
       const c = await customer();
       await creators.search(c, req("")); // warm the settings cache and connections
+      const nativeBrowse = await postgresCreators.search(c, req(""));
+      expect(nativeBrowse.total).toBe(1000);
       // A co-located production database adds no network round trips; the remote test database adds about 6 per search.
       const t = performance.now();
       await ownerQuery("select 1");
@@ -130,15 +151,23 @@ describe("search", () => {
         req("Creator 42", { creatorCity: "Karachi" }),
         req("", { engagementMin: 5, freshOnly: true }),
       ];
-      const times: number[] = [];
+      const meiliTimes: number[] = [];
+      const postgresTimes: number[] = [];
       for (let i = 0; i < 20; i++) {
-        const s = performance.now();
-        await creators.search(c, queries[i % queries.length] ?? req(""));
-        times.push(performance.now() - s);
+        const query = queries[i % queries.length] ?? req("");
+        let started = performance.now();
+        await creators.search(c, query);
+        meiliTimes.push(performance.now() - started);
+        started = performance.now();
+        await postgresCreators.search(c, query);
+        postgresTimes.push(performance.now() - started);
       }
-      times.sort((a, b) => a - b);
-      const p95 = times[Math.ceil(times.length * 0.95) - 1] ?? Infinity;
-      expect(p95).toBeLessThan(1000 + 6 * rtt);
+      meiliTimes.sort((a, b) => a - b);
+      postgresTimes.sort((a, b) => a - b);
+      const meiliP95 = meiliTimes[Math.ceil(meiliTimes.length * 0.95) - 1] ?? Infinity;
+      const postgresP95 = postgresTimes[Math.ceil(postgresTimes.length * 0.95) - 1] ?? Infinity;
+      expect(meiliP95).toBeLessThan(1000 + 6 * rtt);
+      expect(postgresP95).toBeLessThan(1000 + 6 * rtt);
     },
     180_000,
   );

@@ -14,16 +14,18 @@ import { AppError, decryptSecret, type Logger, type TenantContext } from "@mushi
 import { and, eq } from "drizzle-orm";
 import { contactReveals, writeOutbox, type Db, type TenantTx } from "@mushin/db";
 import type { Llm, SearchIndex } from "@mushin/integrations";
+import type { CatalogSearch } from "./postgres-search";
 import type { BillingService } from "../billing/index";
 import { interpretOutputSchema, interpretSystemPrompt } from "./prompts";
 import * as repo from "./repository";
-import { cleanInterpretation, fenced, freshnessOf, isMinorProtected, meiliFilter, monthKey, normalizeProfileUrl, refreshActionFor, sourceHash } from "./rules";
+import { cleanInterpretation, fenced, freshnessOf, isMinorProtected, meiliFilter, normalizeProfileUrl, refreshActionFor, sourceHash } from "./rules";
 import { toCards } from "./ranking";
 import { suppressedUrls } from "./suppressions";
 
 export type CreatorsDeps = {
   db: Db;
   index: SearchIndex;
+  nativeSearch?: CatalogSearch;
   llm: Llm;
   billing: Pick<BillingService, "engine" | "getAccess" | "actionCost">;
   encryptionKey: Buffer;
@@ -58,16 +60,19 @@ export function createCreatorsService(deps: CreatorsDeps) {
 
   // ── search (Brain-1, spec §4) ──────────────────────────────────────────────
   async function search(ctx: TenantContext, req: SearchRequest): Promise<SearchResponse> {
+    if (req.filters.audienceCountry) throw new AppError("PROVIDER_UNAVAILABLE", "Audience-country filtering is unavailable until a verified audience analytics source is connected.");
     const t = now();
     const { settings } = await config(ctx);
     // Without text, Meilisearch returns matches in storage order; sorting by the fit score's strongest signals keeps the
     // capped candidate pool on the best creators when more match than it holds (SRS REQ-02.03).
-    const { hits, total: indexTotal } = await deps.index.search({
-      text: req.text,
-      filter: meiliFilter(req.filters, t, settings.fresh.currentDays),
-      limit: settings.candidatePool,
-      ...(req.text ? {} : { sort: FILTER_ONLY_SORT }),
-    });
+    const { hits, total: indexTotal } = deps.nativeSearch
+      ? await deps.nativeSearch.search({ text: req.text, filters: req.filters, freshCurrentDays: settings.fresh.currentDays, now: t, limit: settings.candidatePool }, tenant(ctx))
+      : await deps.index.search({
+          text: req.text,
+          filter: meiliFilter(req.filters, t, settings.fresh.currentDays),
+          limit: settings.candidatePool,
+          ...(req.text ? {} : { sort: FILTER_ONLY_SORT }),
+        });
     const relevance = new Map(hits.map((h) => [h.id, h.rankingScore]));
     const rows = await deps.db.withTenant(tenant(ctx), (tx) => repo.cardRows(tx, hits.map((h) => h.id)));
     const cards = toCards(rows, req, settings, t, relevance);
@@ -103,7 +108,9 @@ export function createCreatorsService(deps: CreatorsDeps) {
       const id = await deps.db.withTenant(tenant(ctx), (tx) => repo.findIdByCanonicalUrl(tx, url.canonicalUrl));
       ids = id ? [id] : [];
     } else {
-      ids = (await deps.index.search({ text: q, filter: [], limit: 8 })).hits.map((h) => h.id);
+      ids = (deps.nativeSearch
+        ? await deps.nativeSearch.search({ text: q, filters: searchFiltersShape.parse({}), freshCurrentDays: 0, now: now(), limit: 8 }, tenant(ctx))
+        : await deps.index.search({ text: q, filter: [], limit: 8 })).hits.map((h) => h.id);
     }
     const order = new Map(ids.map((id, i) => [id, i]));
     const rows = await deps.db.withTenant(tenant(ctx), (tx) => repo.cardRows(tx, ids));
@@ -256,23 +263,12 @@ export function createCreatorsService(deps: CreatorsDeps) {
 
   // ── estimated audience (spec D5) ──────────────────────────────────────────
   async function audience(ctx: TenantContext, id: string): Promise<AudienceResponse> {
-    const access = await deps.billing.getAccess(ctx);
     return deps.db.withTenant(tenant(ctx), async (tx) => {
       const c = await repo.getCreator(tx, id);
       if (!c || c.status !== "active") throw new AppError("NOT_FOUND", "Creator not found");
-      const latest = await repo.latestAudience(tx, id);
-      if (!latest) return { status: "not_assessed" as const };
-      const firstThisMonth = await repo.insertAudienceView(tx, ctx.workspaceId, id, monthKey(now()), ctx.userId);
-      if (firstThisMonth && !(await deps.billing.engine.useEntitlement(tx, ctx.workspaceId, "audience_views", access.entitlements.audienceViewsPerMonth))) {
-        // Throwing rolls back the view row recorded above.
-        const reason = access.planId !== null || access.status === "trialing" ? "plan_limit" : "no_active_plan";
-        throw new AppError(
-          "ENTITLEMENT_REQUIRED",
-          reason === "plan_limit" ? "You've used this month's audience views on your plan." : "Choose a plan to see audience details.",
-          { reason, key: "audience_views" },
-        );
-      }
-      return { status: "estimated" as const, audience: latest.audience, updatedAt: latest.at.toISOString() };
+      // The current scraper/LLM pipeline has no audience analytics source. Historical model-generated
+      // demographic estimates are not evidence and must not be shown or charged as audience insights.
+      return { status: "not_assessed" as const };
     });
   }
 

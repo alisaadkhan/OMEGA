@@ -46,6 +46,26 @@ describe("Live Discovery Campaign Fit", () => {
     expect(result.evidence).toContain("100% of sampled captions contain roman urdu script/language signal (12 captions)");
   });
 
+  it("matches Urdu-script topic evidence and records Urdu separately from English", () => {
+    const urduSearch = liveSearchSchema.parse({ text: "Urdu bridal creators in Lahore", filters: { niches: ["bridal"] } });
+    const posts = profile().recentPosts.map((post) => ({ ...post, caption: "آج دلہن کا خوبصورت لباس تیار کیا", hashtags: ["شادی", "دلہن"] }));
+    const result = evaluateCampaignFit(urduSearch, candidate, profile({ recentPosts: posts }), false, now);
+    expect(result.eligible).toBe(true);
+    expect(result.topicScore).toBe(1);
+    expect(result.evidence).toContain("100% of sampled captions contain urdu script/language signal (12 captions)");
+  });
+
+  it("recognizes English captions without treating the word 'main' as Roman Urdu", () => {
+    const englishSearch = liveSearchSchema.parse({ text: "English bridal creators in Lahore", filters: { niches: ["bridal"] } });
+    const posts = profile().recentPosts.map((post) => ({ ...post, caption: "Bridal makeup looks on Main Street", hashtags: ["bridal"] }));
+    const result = evaluateCampaignFit(englishSearch, candidate, profile({ recentPosts: posts }), false, now);
+    expect(result.evidence).toContain("100% of sampled captions contain english script/language signal (12 captions)");
+
+    const romanSearch = liveSearchSchema.parse({ text: "Roman Urdu bridal creators in Lahore", filters: { niches: ["bridal"] } });
+    const romanResult = evaluateCampaignFit(romanSearch, candidate, profile({ recentPosts: posts }), false, now);
+    expect(romanResult.evidence).toContain("0% of sampled captions contain roman urdu script/language signal (12 captions)");
+  });
+
   it("accepts a first-person Roman Urdu creator cue as lexical individual evidence", () => {
     const romanCandidate = { ...candidate, title: "Sana Bridal", snippet: "Lahore" };
     const result = evaluateCampaignFit(search, romanCandidate, profile({ displayName: "Sana", bio: "Main Lahore ki makeup videos banati hun" }), false, now);
@@ -64,7 +84,16 @@ describe("Live Discovery Campaign Fit", () => {
   it("fails closed when individual-creator evidence is absent or business cues dominate", () => {
     expect(evaluateCampaignFit(search, { ...candidate, title: "Sana", snippet: "Lahore" }, profile({ displayName: "Sana", bio: "Lahore" }), false, now).gate).toBe("individual_creator_unverified");
     expect(evaluateCampaignFit(search, candidate, profile(), true, now).gate).toBe("minor_or_unclear");
-    expect(evaluateCampaignFit(search, { ...candidate, title: "Official bridal shop" }, profile(), false, now).gate).toBe("business_or_non_creator");
+    expect(evaluateCampaignFit(search, { ...candidate, title: "Official bridal shop" }, profile({ displayName: "Hina Bridal Boutique", bio: "Order delivery wholesale bridal dresses" }), false, now).gate).toBe("business_or_non_creator");
+    expect(evaluateCampaignFit(search, { ...candidate, title: "Bridal shop and makeup artist" }, profile({ displayName: "Sana", bio: "Bridal makeup artist" }), false, now).gate).toBe("individual_creator_unverified");
+  });
+
+  it("requires enough of a multiword custom topic to appear in the sampled posts", () => {
+    const custom = liveSearchSchema.parse({ text: "Vintage watch creator in Lahore", filters: { niches: ["vintage watches"] } });
+    const posts = profile().recentPosts.map((post) => ({ ...post, caption: "Collecting watches from around the world", hashtags: ["watches"] }));
+    const result = evaluateCampaignFit(custom, candidate, profile({ recentPosts: posts }), false, now);
+    expect(result.eligible).toBe(false);
+    expect(result.gate).toBe("off_topic");
   });
 
   it("gates profiles without recent public posts", () => {

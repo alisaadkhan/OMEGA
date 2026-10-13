@@ -25,7 +25,7 @@ const llmReply = (req: { input: string }) => {
     score,
     evidence: score === null ? [] : [{ signal, detail: "Measured by MUSHIN from recent posts." }],
     watchOuts: [],
-    audience: { age: [{ label: "18–24", value: 60, confidence: "medium" }], gender: null, cities: [], countries: [{ code: "PK", value: 90, confidence: "medium" }] },
+    audience: { age: [], gender: null, cities: [], countries: [] },
     niches: ["Lifestyle"],
     creatorCity: null,
     creatorCountry: "PK",

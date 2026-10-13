@@ -32,6 +32,7 @@ const sharedObject = z.object({
   PADDLE_WEBHOOK_SECRET: z.string().min(1).optional(),
   PADDLE_ENVIRONMENT: z.enum(["sandbox", "production"]).default("sandbox"),
   MOCK_PADDLE_WEBHOOK_SECRET: z.string().min(32, "must be at least 32 characters").optional(),
+  CATALOG_SEARCH_BACKEND: z.enum(["postgres", "meilisearch"]).default("postgres"),
   MEILISEARCH_HOST: z.url().optional(),
   MEILISEARCH_API_KEY: z.string().min(1).optional(),
   MEILISEARCH_SEARCH_KEY: z.string().min(1).optional(),
@@ -71,7 +72,7 @@ function checkShared(v: SharedValues, ctx: z.RefinementCtx) {
       ctx.addIssue({ code: "custom", path: ["MOCK_PADDLE_WEBHOOK_SECRET"], message: "is required while Paddle keys are not set (run npm run env:secrets)" });
     }
   }
-  if (v.NODE_ENV === "production" && (!v.MEILISEARCH_HOST || !v.MEILISEARCH_API_KEY || !v.MEILISEARCH_SEARCH_KEY)) {
+  if (v.NODE_ENV === "production" && v.CATALOG_SEARCH_BACKEND === "meilisearch" && (!v.MEILISEARCH_HOST || !v.MEILISEARCH_API_KEY || !v.MEILISEARCH_SEARCH_KEY)) {
     ctx.addIssue({ code: "custom", path: ["MEILISEARCH_HOST"], message: "is required in production with MEILISEARCH_API_KEY and MEILISEARCH_SEARCH_KEY" });
   }
 }
@@ -246,6 +247,7 @@ export type ApiConfig = {
   idempotencyTtlHours: number;
   databaseCaPem: string | null;
   payments: PaymentsConfig;
+  catalogSearchBackend: "postgres" | "meilisearch";
   search: SearchConfig;
   llm: LlmProviderConfig[];
 };
@@ -268,6 +270,7 @@ export function loadApiConfig(env: Env): ApiConfig {
     idempotencyTtlHours: v.IDEMPOTENCY_TTL_HOURS,
     databaseCaPem: readCaFile(v.DATABASE_SSL_CA_FILE),
     payments: paymentsFrom(v),
+    catalogSearchBackend: v.CATALOG_SEARCH_BACKEND,
     search: searchFrom(v, v.MEILISEARCH_SEARCH_KEY),
     llm: llmFrom(v),
   };
@@ -284,6 +287,7 @@ export type WorkerConfig = {
   appUrl: string;
   payments: PaymentsConfig;
   upstash: { url: string; token: string } | null;
+  catalogSearchBackend: "postgres" | "meilisearch";
   search: SearchConfig;
   llm: LlmProviderConfig[];
   scraping: ScrapingConfig;
@@ -302,6 +306,7 @@ export function loadWorkerConfig(env: Env): WorkerConfig {
     appUrl: new URL(v.APP_URL).origin,
     payments: paymentsFrom(v),
     upstash: upstashFrom(v),
+    catalogSearchBackend: v.CATALOG_SEARCH_BACKEND,
     search: searchFrom(v, v.MEILISEARCH_API_KEY),
     llm: llmFrom(v),
     dataEncryptionKey: Buffer.from(v.DATA_ENCRYPTION_KEY, "base64"),

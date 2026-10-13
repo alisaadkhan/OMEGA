@@ -54,6 +54,13 @@ describe("OpenAiCompatibleLlm", () => {
     await expect(down.client.complete({ feature: "search_interpret", system: "s", input: "i", schema })).rejects.toMatchObject({ code: "PROVIDER_UNAVAILABLE" });
   });
 
+  it("retries a rate-limited 429 once and records both provider attempts", async () => {
+    let attempts = 0;
+    const { client, bodies, sink } = llm([groq], () => (++attempts === 1 ? reply("", 429) : reply('{"ok":true}')));
+    expect((await client.complete({ feature: "search_interpret", system: "s", input: "i", schema })).value).toEqual({ ok: true });
+    expect(bodies).toHaveLength(2);
+    expect(sink.calls.map((call) => call.status)).toEqual(["error", "ok"]);
+  });
   it("does not retry a request Groq rejects as invalid (4xx), and fails when nothing is configured", async () => {
     const { client, bodies } = llm([groq], () => reply("", 400));
     await expect(client.complete({ feature: "search_interpret", system: "s", input: "i", schema })).rejects.toMatchObject({ code: "PROVIDER_UNAVAILABLE" });

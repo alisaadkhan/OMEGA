@@ -17,6 +17,7 @@ import {
   type SystemTx,
   type TenantTx,
 } from "@mushin/db";
+import type { CreatorDocument } from "@mushin/integrations";
 import { isMinorProtected, maskContact, type FitWeights, type FreshnessThresholds, type LabelThresholds, type SummarySource } from "./rules";
 
 type Tx = TenantTx | SystemTx;
@@ -355,6 +356,51 @@ export async function indexRows(tx: SystemTx, ids: string[]): Promise<IndexRow[]
       (select s.audience from gcp.enrichment_snapshots s where s.creator_id = c.id and s.audience is not null order by s.created_at desc limit 1) as audience,
       ${UPDATED_EPOCH} as "updatedEpoch"
     from gcp.creators c where c.id in ${ids}`);
+}
+
+/** Dual-write the PostgreSQL-native search projection; Meilisearch remains a rollback option during cutover. */
+export async function upsertPostgresSearchDocuments(tx: SystemTx, docs: CreatorDocument[]): Promise<void> {
+  if (docs.length === 0) return;
+  const records = JSON.stringify(docs);
+  await tx.execute(sql`
+    insert into gcp.creator_search_documents (
+      creator_id, display_name, name_variants, primary_handle, handles, platforms, city, country, niches, tags, bio,
+      followers, engagement_rate, verified, authenticity_score, has_contact, followers_updated_epoch, updated_epoch, search_text, search_vector
+    )
+    select d.id, d.display_name, d.name_variants, d.primary_handle, d.handles, d.platforms, d.city, d.country,
+      d.niches, d.tags, d.bio, d.followers, d.engagement_rate, d.verified, d.authenticity_score, d.has_contact,
+      d.followers_updated_epoch, d.updated_epoch,
+      coalesce(d.display_name, '') || ' ' || coalesce(array_to_string(d.name_variants, ' '), '') || ' ' || coalesce(d.primary_handle, '') || ' ' ||
+        coalesce(array_to_string(d.handles, ' '), '') || ' ' || coalesce(array_to_string(d.niches, ' '), '') || ' ' ||
+        coalesce(array_to_string(d.tags, ' '), '') || ' ' || coalesce(d.bio, ''),
+      setweight(to_tsvector('simple'::regconfig, d.display_name), 'A') ||
+        setweight(to_tsvector('simple'::regconfig, array_to_string(d.name_variants, ' ')), 'B') ||
+        setweight(to_tsvector('simple'::regconfig, coalesce(d.primary_handle, '') || ' ' || coalesce(array_to_string(d.handles, ' '), '')), 'B') ||
+        setweight(to_tsvector('simple'::regconfig, coalesce(array_to_string(d.niches, ' '), '') || ' ' || coalesce(array_to_string(d.tags, ' '), '')), 'C') ||
+        setweight(to_tsvector('simple'::regconfig, d.bio), 'D')
+    from jsonb_to_recordset(${records}::jsonb) as d(
+      id uuid, display_name text, name_variants text[], primary_handle text, handles text[], platforms text[], city text,
+      country text, niches text[], tags text[], bio text, followers bigint, engagement_rate double precision,
+      verified boolean, authenticity_score smallint, has_contact boolean, followers_updated_epoch bigint, updated_epoch bigint
+    )
+    on conflict (creator_id) do update set
+      display_name = excluded.display_name, name_variants = excluded.name_variants, primary_handle = excluded.primary_handle,
+      handles = excluded.handles, platforms = excluded.platforms, city = excluded.city, country = excluded.country,
+      niches = excluded.niches, tags = excluded.tags, bio = excluded.bio, followers = excluded.followers,
+      engagement_rate = excluded.engagement_rate, verified = excluded.verified, authenticity_score = excluded.authenticity_score,
+      has_contact = excluded.has_contact, followers_updated_epoch = excluded.followers_updated_epoch, updated_epoch = excluded.updated_epoch,
+      search_text = excluded.search_text, search_vector = excluded.search_vector
+  `);
+}
+
+export async function removePostgresSearchDocuments(tx: SystemTx, ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  await tx.execute(sql`delete from gcp.creator_search_documents where creator_id in ${ids}`);
+}
+
+export async function postgresSearchState(tx: SystemTx): Promise<{ id: string; updatedEpoch: number }[]> {
+  const rows = await tx.execute<{ id: string; updatedEpoch: number | string }>(sql`select creator_id as id, updated_epoch as "updatedEpoch" from gcp.creator_search_documents`);
+  return rows.map((row) => ({ id: row.id, updatedEpoch: Number(row.updatedEpoch) }));
 }
 
 /** Every creator that belongs in the index, with its last-change time (nightly reconcile). */

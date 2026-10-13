@@ -1,4 +1,5 @@
 import type { LiveSearch } from "@mushin/contracts";
+import { meaningfulTopics, norm, topicMatch } from "./topic-evidence";
 import type { StandardProfile } from "../creators/index";
 import type { Kept } from "./live/relevance";
 
@@ -16,57 +17,37 @@ export type CampaignFit = {
 };
 
 const DAY = 86_400_000;
-const GENERIC = new Set("creator creators influencer influencers blogger bloggers vlogger vloggers account profile instagram tiktok youtube content social media find new best top in at from with for the and of pakistani pakistan lahore karachi islamabad rawalpindi urdu english".split(" "));
 const PERSON = /\b(creator|influencer|blogger|vlogger|artist|makeup artist|photographer|comedian|musician|singer|chef|writer|author|educator|coach)\b/i;
 const BUSINESS = /\b(shop|store|brand|company|restaurant|agency|school|university|news|magazine|mall|boutique|clinic|salon|order|delivery|wholesale)\b/i;
 const ROMAN_URDU_CREATOR = /\b(?:main|mein|meri|mujhe)\b.{0,40}\b(?:content|video|vlog|blog|makeup|beauty|fashion|creator|banat[ai]|kart[ai])\b|\b(?:content|video|vlog|blog|makeup|beauty|fashion)\b.{0,30}\b(?:banat[ai]|kart[ai](?:\s+(?:hun|hoon))?)\b/i;
-const LANGUAGES: Record<string, RegExp> = {
+const LATIN_WORD = /[a-z]+/gi;
+const ROMAN_URDU_MARKERS = new Set("main mein mera meri mujhe hum ham aap ap tum tera teri hai hain tha thi thay hoon hun houn karta karti karte kiya kiye banata banati banate aaj kal ka ki ke ko se mein par nahi nahin raha rahi rahe".split(" "));
+const ROMAN_URDU_GRAMMAR = new Set("main mein mera meri mujhe hum ham aap ap tum tera teri hai hain tha thi thay hoon hun houn karta karti karte kiya kiye banata banati banate ka ki ke ko se nahi nahin raha rahi rahe".split(" "));
+const LANGUAGE_PATTERNS: Record<string, RegExp> = {
   urdu: /[\u0600-\u06ff]/u,
-  english: /[a-z]/i,
+  english: /\b[a-z]{2,}\b/i,
   punjabi: /[\u0a00-\u0a7f]/u,
   pashto: /[\u0600-\u06ff]/u,
-  "roman urdu": /\b(?:main|mein|mera|meri|mujhe|aaj|kal|khana|khaana|dulhan|shaadi|shadi|khubsurti|libaas|safar|warzish|karun|karti|karta|banati|banata|hoon|hun)\b/i,
 };
 
-// Reviewed equivalents for supported Pakistani niches; this improves recall without asking a model to translate.
-const TOPIC_ALIASES: Record<string, string[]> = {
-  bridal: ["bridal", "bride", "dulhan", "shaadi", "shadi", "wedding", "mehndi", "mayun", "barat", "baraat", "walima", "makeup"],
-  beauty: ["beauty", "khubsurti", "khubsuratee", "makeup", "make up", "skincare", "jild", "sajna"],
-  makeup: ["makeup", "make up", "beauty", "khubsurti", "sajna", "dulhan"],
-  fashion: ["fashion", "libaas", "kapray", "kapre", "style", "outfit", "jora", "poshak"],
-  food: ["food", "khana", "khaana", "pakwan", "zaika", "recipe", "recipes", "cooking", "pakana"],
-  foodie: ["food", "khana", "khaana", "pakwan", "zaika", "recipe", "recipes", "cooking", "pakana"],
-  travel: ["travel", "safar", "ghoomna", "sair", "trip", "musafirat"],
-  fitness: ["fitness", "warzish", "exercise", "gym", "sehat"],
-  technology: ["technology", "tech", "technology", "takneek"],
-  tech: ["technology", "tech", "takneek"],
-};
-
-function norm(value: string): string {
-  return value.normalize("NFKC").toLocaleLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/gu, " ").trim();
+function isRomanUrdu(text: string): boolean {
+  const words = (text.match(LATIN_WORD) ?? []).map((word) => word.toLowerCase());
+  const markers = new Set(words.filter((word) => ROMAN_URDU_MARKERS.has(word)));
+  return markers.size >= 2 && [...markers].some((word) => ROMAN_URDU_GRAMMAR.has(word));
 }
 
-function meaningfulTopics(search: LiveSearch): string[] {
-  const candidates = search.filters.niches.length ? search.filters.niches : [search.text];
-  return [...new Set(candidates.map(norm).filter((v) => v && v.split(" ").some((w) => w.length >= 4 && !GENERIC.has(w))))];
-}
-
-function topicMatch(text: string, topic: string): boolean {
-  const haystack = ` ${norm(text)} `;
-  const needle = ` ${norm(topic)} `;
-  if (needle.trim() && haystack.includes(needle)) return true;
-  const normalizedTopic = norm(topic);
-  const aliases = TOPIC_ALIASES[normalizedTopic] ?? Object.entries(TOPIC_ALIASES).find(([key]) => normalizedTopic.split(" ").includes(key))?.[1] ?? [];
-  if (aliases.some((alias) => haystack.includes(` ${norm(alias)} `))) return true;
-  const terms = norm(topic).split(" ").filter((w) => w.length >= 4 && !GENERIC.has(w));
-  return terms.length > 0 && terms.some((word) => haystack.includes(` ${word} `));
+function hasLanguage(text: string, language: string): boolean {
+  return language === "roman urdu" ? isRomanUrdu(text) : Boolean(LANGUAGE_PATTERNS[language]?.test(text));
 }
 
 /** Conservative campaign gate. Every score component is derived from profile or sampled-post evidence. */
 export function evaluateCampaignFit(search: LiveSearch, candidate: Kept, profile: StandardProfile, isMinor: boolean, now: Date, fetchedAt: Date = now): CampaignFit {
   const evidence: string[] = [];
-  const accountText = `${candidate.title} ${candidate.snippet} ${profile.displayName} ${profile.bio}`;
-  const individual = BUSINESS.test(accountText) ? 0 : PERSON.test(accountText) || ROMAN_URDU_CREATOR.test(accountText) ? 1 : null;
+  // Use profile-owned identity fields and the result title; search snippets may describe a linked post or ad.
+  const accountText = `${candidate.title} ${profile.displayName} ${profile.bio}`;
+  const hasPersonCue = PERSON.test(accountText) || ROMAN_URDU_CREATOR.test(accountText);
+  const hasBusinessCue = BUSINESS.test(accountText);
+  const individual = hasPersonCue === hasBusinessCue ? null : hasPersonCue ? 1 : 0;
   const recent = profile.recentPosts.filter((p) => now.getTime() - p.postedAt.getTime() >= 0 && now.getTime() - p.postedAt.getTime() <= 90 * DAY);
   const latest = profile.recentPosts[0];
   const daysSinceLast = latest ? Math.floor((now.getTime() - latest.postedAt.getTime()) / DAY) : null;
@@ -97,10 +78,10 @@ export function evaluateCampaignFit(search: LiveSearch, candidate: Kept, profile
   }
   const language = /\broman\s+urdu\b/i.test(search.text)
     ? "roman urdu"
-    : Object.keys(LANGUAGES).filter((key) => key !== "roman urdu").find((key) => new RegExp(`\\b${key}\\b`, "i").test(search.text));
+    : Object.keys(LANGUAGE_PATTERNS).find((key) => new RegExp(`\\b${key}\\b`, "i").test(search.text));
   if (language) {
     const total = recent.filter((p) => p.caption.trim()).length;
-    const share = total ? recent.filter((p) => LANGUAGES[language]?.test(p.caption)).length / total : null;
+    const share = total ? recent.filter((p) => hasLanguage(p.caption, language)).length / total : null;
     components.push({ score: share ?? 0.5, weight: 0.1, evidenced: share !== null });
     evidence.push(share === null ? `No caption sample to assess ${language}` : `${Math.round(share * 100)}% of sampled captions contain ${language} script/language signal (${total} captions)`);
   }

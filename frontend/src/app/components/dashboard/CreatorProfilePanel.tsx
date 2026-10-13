@@ -1,11 +1,10 @@
 import { AnimatePresence, motion } from "motion/react";
-import { X, Instagram, Youtube, Music2, MapPin, Mail, Phone, Sparkles, ShieldCheck, Bookmark, Plus, Users, ExternalLink, RefreshCw, GitCompare } from "lucide-react";
+import { X, Instagram, Youtube, Music2, MapPin, Mail, Phone, Sparkles, ShieldCheck, Bookmark, Plus, ExternalLink, RefreshCw, GitCompare } from "lucide-react";
 import { useState } from "react";
-import type { AudienceData } from "@mushin/contracts";
-import { FreshnessBadge, SourceBadge, ContactTrustBadge, contactTrustNote, Unavailable, Spinner } from "./states";
+import { FreshnessBadge, ContactTrustBadge, contactTrustNote, Unavailable, Spinner } from "./states";
 import { useActiveJobs, useStartJob } from "../../api/discovery";
 import { isOpenJob, jobStatusText } from "../../api/discovery-mapping";
-import { useCreatorAudience, useCreatorProfile, useForgetReveal, useRevealContact } from "../../api/search";
+import { useCreatorProfile, useForgetReveal, useRevealContact } from "../../api/search";
 import { useAuth } from "../../auth/AuthContext";
 import { formatCount, uiTrust } from "../../api/search-mapping";
 import { useConfirm, useToast } from "../../lib/toast";
@@ -79,8 +78,6 @@ function scoreColor(v: number) {
 export function CreatorProfilePanel({ creator, onClose, onCompare }: { creator: Creator | null; onClose: () => void; onCompare?: (c: Creator) => void }) {
   const id = creator?.id ?? null;
   const profile = useCreatorProfile(id);
-  const [audienceOpen, setAudienceOpen] = useState(false);
-  const audience = useCreatorAudience(id, audienceOpen);
   const reveal = useRevealContact(id);
   const confirm = useConfirm();
   const toast = useToast();
@@ -143,7 +140,7 @@ export function CreatorProfilePanel({ creator, onClose, onCompare }: { creator: 
   }
 
   return (
-    <AnimatePresence onExitComplete={() => setAudienceOpen(false)}>
+    <AnimatePresence>
       {creator && (
         <>
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} onClick={onClose} className="fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-[2px]" />
@@ -311,30 +308,8 @@ export function CreatorProfilePanel({ creator, onClose, onCompare }: { creator: 
                   </div>
 
                   <div className="grid grid-cols-1 gap-4 px-6 pb-5 lg:grid-cols-2">
-                    {/* Estimated audience (SRS REQ-01.07; plan limit spec D5) */}
-                    <Section title="Audience Details" subtitle="AI-estimated">
-                      <div className="mt-3 text-xs">
-                        {!audienceOpen && (
-                          <>
-                            <button
-                              onClick={() => setAudienceOpen(true)}
-                              className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 px-3 py-3 text-xs text-slate-700 transition-colors hover:bg-slate-50"
-                              style={{ fontWeight: 500 }}
-                            >
-                              <Users className="h-3.5 w-3.5" strokeWidth={2} /> View estimated audience
-                            </button>
-                            <p className="mt-1.5 text-[10px] text-slate-400">Uses 1 of your plan's monthly audience views. Viewing this creator again this month is free.</p>
-                          </>
-                        )}
-                        {audienceOpen && audience.isLoading && <div className="flex items-center gap-2 text-slate-500"><Spinner /> Loading…</div>}
-                        {audienceOpen && audience.isError && (
-                          <p className="rounded-md border border-amber-100 bg-amber-50 px-2.5 py-2 text-[11px] text-amber-800">
-                            {audience.error instanceof Error ? audience.error.message : "Audience details are not available on your plan."} You can change your plan in Credits &amp; billing.
-                          </p>
-                        )}
-                        {audience.data?.status === "not_assessed" && <p className="text-[11px] text-slate-500">Not yet assessed. No audience view was used.</p>}
-                        {audience.data?.status === "estimated" && <AudienceView data={audience.data.audience} updatedAt={audience.data.updatedAt} />}
-                      </div>
+                    <Section title="Audience Details" subtitle="Unavailable">
+                      <p className="mt-3 text-[11px] text-slate-500">Audience age, gender, and location are hidden until a verified audience analytics source is connected.</p>
                     </Section>
 
                     {/* Contact reveal (SRS REQ-01.03, §5.2) */}
@@ -414,55 +389,6 @@ function relative(iso: string | null): string {
   if (days === 1) return "yesterday";
   if (days < 30) return `${days} days ago`;
   return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-}
-
-function AudienceView({ data, updatedAt }: { data: AudienceData; updatedAt: string }) {
-  const top = data.age.reduce<AudienceData["age"][number] | null>((a, b) => (a === null || b.value > a.value ? b : a), null);
-  return (
-    <div className="space-y-3">
-      <p className="text-[10px] text-slate-400">Estimated from public signals ({data.source}) — not a verified fact. Updated {relative(updatedAt)}.</p>
-      <div>
-        <div className="mb-1 flex items-center justify-between text-slate-500">
-          <span className="flex items-center gap-1.5">Age <SourceBadge kind="estimated" confidence={data.age[0]?.confidence} /></span>
-          {top && <span className="text-slate-400">Top: {top.label}</span>}
-        </div>
-        <div className="space-y-1.5">
-          {data.age.map((r) => (
-            <div key={r.label} className="flex items-center gap-2">
-              <span className="w-10 text-slate-500">{r.label}</span>
-              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
-                <motion.div initial={{ width: 0 }} animate={{ width: `${r.value}%` }} transition={{ duration: 0.7, ease: "easeOut" }} className="h-full rounded-full bg-indigo-500" />
-              </div>
-              <span className="w-8 text-right tabular-nums text-slate-700">{r.value}%</span>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-3 border-t border-slate-100 pt-3">
-        {data.gender && (
-          <div>
-            <div className="mb-1 flex items-center gap-1.5 text-slate-500">Gender split <SourceBadge kind="estimated" confidence={data.gender.confidence} /></div>
-            <div className="flex h-1.5 overflow-hidden rounded-full bg-slate-100">
-              <motion.div initial={{ width: 0 }} animate={{ width: `${data.gender.female}%` }} transition={{ duration: 0.7 }} className="bg-pink-500" />
-              <motion.div initial={{ width: 0 }} animate={{ width: `${data.gender.male}%` }} transition={{ duration: 0.7, delay: 0.2 }} className="bg-indigo-500" />
-            </div>
-            <div className="mt-1 flex justify-between text-[10px] text-slate-500">
-              <span>♀ {data.gender.female}%</span>
-              <span>♂ {data.gender.male}%</span>
-            </div>
-          </div>
-        )}
-        <div>
-          <div className="mb-1 flex items-center gap-1.5 text-slate-500">Top places <SourceBadge kind="estimated" /></div>
-          <ul className="space-y-0.5">
-            {[...data.cities.map((c) => ({ label: c.label, value: c.value })), ...data.countries.map((c) => ({ label: c.code, value: c.value }))].slice(0, 5).map((c) => (
-              <li key={c.label} className="flex justify-between"><span>{c.label}</span><span className="tabular-nums text-slate-700">{c.value}%</span></li>
-            ))}
-          </ul>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 function Section({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {

@@ -41,12 +41,7 @@ const good = {
     { signal: "follow_ratio", detail: "She follows many accounts; some growth may be follow-for-follow." },
   ],
   watchOuts: ["Follows a large number of accounts"],
-  audience: {
-    age: [{ label: "18–24", value: 45, confidence: "medium" }, { label: "25–34", value: 40, confidence: "high" }, { label: "35+", value: 15, confidence: "low" }],
-    gender: { female: 80, male: 20, confidence: "medium" },
-    cities: [{ label: "Lahore", value: 50, confidence: "medium" }],
-    countries: [{ code: "PK", value: 85, confidence: "medium" }, { code: "UK", value: 5, confidence: "low" }],
-  },
+  audience: { age: [], gender: null, cities: [], countries: [] },
   niches: ["bridal", "Crypto"],
   creatorCity: "Lahore",
   creatorCountry: "PK",
@@ -63,11 +58,9 @@ describe("assessment rules", () => {
     expect(schema.safeParse({ ...good, evidence: [] }).success).toBe(false);
   });
 
-  it("caps confidence at medium, keeps only known niches and real country codes", () => {
+  it("keeps unsupported audience demographics unknown and only accepts known niches", () => {
     const a = cleanAssessment(assessmentSchema(report).parse(good), report, ["Bridal", "Fashion"]);
-    expect(a.audience.age.map((x) => x.confidence)).toEqual(["medium", "medium", "low"]);
-    expect(a.audience.countries.map((c) => c.code)).toEqual(["PK"]);
-    expect(a.audience.source).toBe("estimated from public content");
+    expect(a.audience).toEqual({ age: [], gender: null, cities: [], countries: [], source: "unavailable: no audience analytics source configured" });
     expect(a.niches).toEqual(["Bridal"]);
     expect(a.evidence).toEqual([
       { signal: "engagement_vs_tier", detail: "Engagement sits in the normal range for her size.", weight: 0.3 },
@@ -89,19 +82,27 @@ describe("assessment rules", () => {
     expect(schema.safeParse(good).success).toBe(true);
   });
 
+  it("rejects demographic estimates that are not backed by an audience analytics source", () => {
+    const schema = assessmentSchema(report);
+    expect(schema.safeParse({ ...good, audience: { ...good.audience, age: [{ label: "18-24", value: 70, confidence: "low" }] } }).success).toBe(false);
+    expect(schema.safeParse({ ...good, audience: { ...good.audience, gender: { female: 70, male: 30, confidence: "low" } } }).success).toBe(false);
+    expect(schema.safeParse({ ...good, audience: { ...good.audience, cities: [{ label: "Lahore", value: 50, confidence: "low" }] } }).success).toBe(false);
+    expect(schema.safeParse({ ...good, audience: { ...good.audience, countries: [{ code: "PK", value: 80, confidence: "low" }] } }).success).toBe(false);
+    expect(schema.safeParse(good).success).toBe(true);
+  });
+
   it("strips markup and control characters from AI text and keeps only place-like city names", () => {
     const raw = assessmentSchema(report).parse({
       ...good,
       evidence: [{ signal: "engagement_vs_tier", detail: "<b>Normal</b> engagement for her size." }],
       watchOuts: ["<i>Follows</i> many accounts"],
       creatorCity: "<script>x</script>",
-      audience: { ...good.audience, cities: [{ label: "<b>Lahore</b>", value: 50, confidence: "medium" }] },
     });
     const a = cleanAssessment(raw, report, ["Bridal"]);
     expect(a.evidence[0]?.detail).toBe("Normal engagement for her size.");
     expect(a.watchOuts).toEqual(["Follows many accounts"]);
     expect(a.creatorCity).toBeNull();
-    expect(a.audience.cities.map((c) => c.label)).toEqual(["Lahore"]);
+    expect(a.audience.cities).toEqual([]);
   });
 
   it("maps scores to verdicts", () => {
@@ -144,21 +145,18 @@ describe("assessCreator", () => {
 });
 
 describe("assessment prompt", () => {
-  it("shows the AI the exact reply shape; filled with estimates it passes the same rules as a real reply", () => {
+  it("shows the AI the exact reply shape and requires unknown demographic fields to stay empty", () => {
     expect(ASSESSMENT_SYSTEM_PROMPT).toContain(JSON.stringify(ASSESSMENT_REPLY_EXAMPLE));
     const scored: SignalReport = { ...report, range: { min: 70, max: 80 } };
     const filled = assessmentSchema(scored).safeParse({
       ...ASSESSMENT_REPLY_EXAMPLE,
       evidence: [{ signal: "engagement_vs_tier", detail: "Engagement appears consistent with account size." }],
       watchOuts: ["The recent post sample is limited."],
-      audience: good.audience,
       niches: ["Bridal"],
     });
     expect(filled.error?.issues ?? []).toEqual([]);
-    // Echoing the example's zero placeholders is refused, which triggers the corrective retry.
-    expect(assessmentSchema(scored).safeParse(ASSESSMENT_REPLY_EXAMPLE).error?.issues.map((i) => i.path.join("."))).toEqual(
-      expect.arrayContaining(["audience.age", "audience.gender", "audience.cities", "audience.countries"]),
-    );
+    expect(ASSESSMENT_SYSTEM_PROMPT).toContain("Never infer an audience's age, gender, city, or country");
+    expect(assessmentSchema(scored).safeParse({ ...ASSESSMENT_REPLY_EXAMPLE, audience: { ...good.audience, age: [{ label: "18-24", value: 50, confidence: "low" }] } }).success).toBe(false);
     // The shape the live model returned before the example was added (2026-10-09 browser check) is still refused.
     expect(assessmentSchema(scored).safeParse({ ...ASSESSMENT_REPLY_EXAMPLE, audience: { ...ASSESSMENT_REPLY_EXAMPLE.audience, age: [{ "18-24": 40 }] } }).success).toBe(false);
   });

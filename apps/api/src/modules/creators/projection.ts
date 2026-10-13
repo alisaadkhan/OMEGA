@@ -29,7 +29,8 @@ export function toDocument(r: IndexRow): CreatorDocument {
     verified: r.verified,
     authenticity_score: r.authenticityScore,
     has_contact: r.hasContact,
-    audience_countries: (r.audience?.countries ?? []).map((c) => c.code),
+    // No source currently supplies creator audience analytics; omit legacy LLM-derived demographic guesses.
+    audience_countries: [],
     followers_updated_epoch: followersAt,
     updated_epoch: r.updatedEpoch,
   };

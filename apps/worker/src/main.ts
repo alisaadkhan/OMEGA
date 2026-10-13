@@ -23,7 +23,7 @@ const boss = await startBoss(config.directUrl, logger, config.databaseCaPem);
 const payments = createPayments(config.payments, { sink: createDbProviderCallSink(db), logger });
 const cache = config.upstash ? createRedisAccessCache(new Redis({ url: config.upstash.url, token: config.upstash.token }), logger) : noAccessCache;
 const billing = createBillingService({ db, payments, cache, logger });
-const searchIndex = createSearchIndex(config.search, logger);
+const searchIndex = config.search ? createSearchIndex(config.search, logger) : null;
 const indexer = createCreatorIndexer({ db, index: searchIndex, logger });
 const llm = createLlm(config.llm, { sink: createDbProviderCallSink(db), logger });
 const summaries = createSummaryWriter({ db, llm, logger });
@@ -53,8 +53,8 @@ if (!config.scraping.serperApiKey) logger.warn("SERPER_API_KEY not set: Find New
 const searchCache = createCachedSearch({ db, web });
 const liveRunner = createLiveRunner({ db, billing, pipeline, scraper, search: searchCache, llm, logger });
 const eraser = createEraser({ db, storage: pipeline.storage, logger });
-// A fresh Meilisearch (local or Cloud) configures itself; a failure here must not stop billing work.
-await indexer.ensureSettings().catch((err: unknown) => logger.error({ err }, "could not apply search index settings"));
+// PostgreSQL search is the default. When configured, Meilisearch is dual-written for rollback during the cutover.
+await indexer.ensureSettings().catch((err: unknown) => logger.error({ err }, "could not apply rollback search index settings"));
 await pipeline.ensureBuckets().catch((err: unknown) => logger.error({ err }, "could not create the storage buckets"));
 const worker = await startWorker({
   db,

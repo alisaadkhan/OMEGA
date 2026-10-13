@@ -7,7 +7,7 @@ import { createCustomerGuard } from "./auth/customer-guard";
 import { createCustomerTokenVerifier, remoteJwks } from "./auth/customer-token";
 import type { Guards, ReadinessCheck } from "./http/types";
 import { createBillingModule, createBillingService, createRedisAccessCache, noAccessCache } from "./modules/billing";
-import { createCreatorsModule, createCreatorsService, createRemovalService } from "./modules/creators";
+import { createCreatorsModule, createCreatorsService, createPostgresCatalogSearch, createRemovalService } from "./modules/creators";
 import { createDiscoveryModule, createDiscoveryService } from "./modules/discovery";
 import { createIdentityModule } from "./modules/identity";
 import { createPlatformModule } from "./modules/platform";
@@ -41,9 +41,18 @@ const accessCache = config.rateLimit.upstash
   : noAccessCache;
 const billing = createBillingService({ db, payments, cache: accessCache, logger });
 const searchIndex = createSearchIndex(config.search, logger);
-readiness.push({ name: "search", check: config.search ? () => searchIndex.ping() : async () => "skipped" });
+const nativeSearch = createPostgresCatalogSearch(db);
+if (config.catalogSearchBackend === "meilisearch") readiness.push({ name: "search", check: config.search ? () => searchIndex.ping() : async () => "skipped" });
 const llm = createLlm(config.llm, { sink: createDbProviderCallSink(db), logger });
-const creators = createCreatorsService({ db, index: searchIndex, llm, billing, encryptionKey: config.dataEncryptionKey, logger });
+const creators = createCreatorsService({
+  db,
+  index: searchIndex,
+  ...(config.catalogSearchBackend === "postgres" ? { nativeSearch } : {}),
+  llm,
+  billing,
+  encryptionKey: config.dataEncryptionKey,
+  logger,
+});
 const identity = createIdentityModule({ db, startTrial: billing.startTrial });
 const staff = createStaffModule({ db, tokens: createStaffTokens(config.staffJwtSecret), encryptionKey: config.dataEncryptionKey });
 const removals = createRemovalService({ db, encryptionKey: config.dataEncryptionKey, audit: recordStaffAudit });

@@ -8,6 +8,7 @@ import type { CreatorsService } from "./service";
 
 export { createCreatorsService } from "./service";
 export type { CreatorsDeps, CreatorsService } from "./service";
+export { createPostgresCatalogSearch } from "./postgres-search";
 export { createCreatorIndexer } from "./indexer";
 export type { CreatorIndexer } from "./indexer";
 export { createSummaryWriter } from "./summaries";

@@ -3,7 +3,7 @@ import { searchFiltersSchema } from "@mushin/contracts";
 import { MockLlm } from "@mushin/integrations";
 import { collectCandidates } from "./candidates";
 import { buildQueries, platformsFor } from "./queries";
-import { filterRelevant } from "./relevance";
+import { classifyCandidates, filterRelevant } from "./relevance";
 
 const search = (text: string, filters: Record<string, unknown> = {}) => ({ text, filters: searchFiltersSchema.parse(filters) });
 
@@ -88,6 +88,19 @@ describe("candidates from search results", () => {
   });
 });
 
+describe("cheap candidate gate", () => {
+  it("passes on-topic possible profiles for extraction, drops obvious shops, and leaves unsupported results ambiguous", () => {
+    const sample = collectCandidates([{ platform: "instagram", results: [
+      { title: "Food Content Creator", link: "https://instagram.com/creator", snippet: "Karachi recipes" },
+      { title: "Food Restaurant", link: "https://instagram.com/restaurant", snippet: "Order delivery" },
+      { title: "Unknown profile", link: "https://instagram.com/unknown", snippet: "Karachi" },
+    ] }]);
+    const classified = classifyCandidates(search("food blogger", { niches: ["Food"] }), sample);
+    expect(classified.possible.map((candidate) => candidate.handle)).toEqual(["creator"]);
+    expect(classified.ambiguous.map((candidate) => candidate.handle)).toEqual(["unknown"]);
+    expect(classified.rejected).toBe(1);
+  });
+});
 describe("AI relevance filter", () => {
   const candidates = collectCandidates([
     {
@@ -109,6 +122,8 @@ describe("AI relevance filter", () => {
     expect(call?.feature).toBe("discovery_relevance");
     expect(call?.input).toContain("<candidates>");
     expect(call?.input).not.toContain("0300-1234567");
+    expect(call?.system).toContain("zero-based integer index");
+    expect(call?.system).toContain("Do not use markdown fences or extra keys");
   });
 
   it("does not extract unfiltered candidates when the model returns unsafe or invalid output", async () => {

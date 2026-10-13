@@ -69,14 +69,11 @@ export function assessmentSchema(report: SignalReport): z.ZodType<RawAssessment>
     for (const [text, path] of texts) {
       if (text && isPlaceholder(text)) ctx.addIssue({ code: "custom", path, message: "replace placeholder with real estimate or leave array empty" });
     }
-    // An all-zero audience distribution is the example payload echoed back, not a measured estimate.
-    const allZero = (rows: { value: number }[]) => rows.length > 0 && rows.every((row) => row.value === 0);
+    // No supported provider supplies audience demographics. Public captions and language are not audience analytics.
     for (const key of ["age", "cities", "countries"] as const) {
-      if (allZero(v.audience[key])) ctx.addIssue({ code: "custom", path: ["audience", key], message: "replace placeholder values with grounded estimates or leave the list empty" });
+      if (v.audience[key].length > 0) ctx.addIssue({ code: "custom", path: ["audience", key], message: "no audience analytics source is configured; leave this list empty" });
     }
-    if (v.audience.gender && v.audience.gender.female + v.audience.gender.male === 0) {
-      ctx.addIssue({ code: "custom", path: ["audience", "gender"], message: "replace placeholder values with a grounded estimate or set gender to null" });
-    }
+    if (v.audience.gender !== null) ctx.addIssue({ code: "custom", path: ["audience", "gender"], message: "no audience analytics source is configured; set gender to null" });
     if (report.kind === "insufficient") {
       if (v.score !== null || v.verdict !== null) ctx.addIssue({ code: "custom", path: ["score"], message: "must be null: there is not enough data to score" });
       return;
@@ -93,34 +90,27 @@ export function assessmentSchema(report: SignalReport): z.ZodType<RawAssessment>
   });
 }
 
-const capped = (c: "low" | "medium" | "high"): "low" | "medium" => (c === "high" ? "medium" : c);
 const PLACE = /^\p{L}[\p{L} .'-]{1,59}$/u;
 const placeOrNull = (v: string | null): string | null => {
   const c = cleanText(v ?? "", 60);
   return PLACE.test(c) ? c : null;
 };
 
-/** AI output is an estimate: unknown niches and countries are dropped, confidence never exceeds medium (SRS REQ-01.07, REQ-03.06). */
+/** No audience analytics provider is configured; demographic fields stay unknown regardless of model output. */
 export function cleanAssessment(raw: RawAssessment, report: SignalReport, nicheLabels: readonly string[]): Assessment {
   const weights = new Map(report.signals.map((s) => [s.key as string, s.weight / 100]));
   const byLower = new Map(nicheLabels.map((l) => [l.toLowerCase(), l]));
-  const countries = raw.audience.countries
-    .map((c) => ({ code: isoCountryCode(c.code), value: c.value, confidence: capped(c.confidence) }))
-    .filter((c): c is { code: string; value: number; confidence: "low" | "medium" } => c.code !== undefined && c.code !== "UK" && c.code !== "EU");
   return {
     verdict: raw.verdict,
     score: raw.score,
     evidence: raw.evidence.map((e) => ({ signal: e.signal, detail: cleanText(e.detail, 240), weight: weights.get(e.signal) ?? 0 })),
     watchOuts: raw.watchOuts.map((w) => cleanText(w, 160)).filter(Boolean),
     audience: {
-      age: raw.audience.age.map((a) => ({ ...a, label: cleanText(a.label, 40), confidence: capped(a.confidence) })).filter((a) => a.label),
-      gender: raw.audience.gender ? { ...raw.audience.gender, confidence: capped(raw.audience.gender.confidence) } : null,
-      cities: raw.audience.cities.flatMap((a) => {
-        const label = placeOrNull(a.label);
-        return label ? [{ ...a, label, confidence: capped(a.confidence) }] : [];
-      }),
-      countries,
-      source: "estimated from public content",
+      age: [],
+      gender: null,
+      cities: [],
+      countries: [],
+      source: "unavailable: no audience analytics source configured",
     },
     niches: [...new Set(raw.niches.map((n) => byLower.get(n.trim().toLowerCase())).filter((n): n is string => Boolean(n)))],
     creatorCity: placeOrNull(raw.creatorCity),
@@ -139,10 +129,10 @@ export const ASSESSMENT_REPLY_EXAMPLE = {
   evidence: [{ signal: "engagement_vs_tier", detail: "<one sentence citing this measurement>" }],
   watchOuts: ["<short caution>"],
   audience: {
-    age: [{ label: "<age band, e.g. 18-24>", value: 0, confidence: "low" }],
-    gender: { female: 0, male: 0, confidence: "low" },
-    cities: [{ label: "<city>", value: 0, confidence: "low" }],
-    countries: [{ code: "<ISO 3166-1 alpha-2 code>", value: 0, confidence: "low" }],
+    age: [],
+    gender: null,
+    cities: [],
+    countries: [],
   },
   niches: ["<niche from the list>"],
   creatorCity: null,
@@ -156,11 +146,11 @@ export const ASSESSMENT_SYSTEM_PROMPT = [
   "Reply with one JSON object with keys: verdict, score, evidence, watchOuts, audience, niches, creatorCity, creatorCountry, minorSigns.",
   "score: an integer inside the given Range. verdict: \"genuine\" for 80–100, \"mostly genuine\" for 60–79, \"mixed signals\" for 40–59, \"likely inflated\" below 40.",
   "watchOuts: up to 3 short cautions.",
-  "audience: strictly grounded estimates. Cities and countries MUST be grounded in creator's language, declared location, geotags, or captions. NEVER guess generic Western cities (e.g. New York, London, Los Angeles) for Pakistani or South Asian creators. If no reliable city signal exists, return cities as []. If creator is in Pakistan, primary country code must be PK. If no reliable audience data exists, return empty arrays.",
-  "niches: up to 3 from the provided list. creatorCity/creatorCountry: only if stated or obvious, else null.",
+  "audience demographics are not supplied by the profile/post data. Always return age: [], gender: null, cities: [], countries: []. Never infer an audience's age, gender, city, or country from language, captions, or the creator's location.",
+  "niches: up to 3 from the provided list. creatorCity/creatorCountry: only if explicitly stated in profile fields, else null.",
   "minorSigns: likely=true only if the content suggests the creator is under 18; give the reason in a few words.",
   "If the input says no score is possible, set verdict and score to null and evidence to [].",
-  "Use exactly this shape: every audience entry is an object with label (or code), value 0-100 and confidence. Replace every <...> placeholder and every 0 with your own estimate for this creator; never copy the example's values:",
+  "Use exactly this shape. Keep all audience demographic fields empty/null as shown; do not add estimates:",
   JSON.stringify(ASSESSMENT_REPLY_EXAMPLE),
 ].join("\n");
 

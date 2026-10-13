@@ -4,7 +4,7 @@ import { searchFiltersSchema } from "@mushin/contracts";
 import { createLogger, loadWorkerConfig, type TenantContext } from "@mushin/core";
 import { createDbProviderCallSink, providerCallsSince, providerSpendSince } from "@mushin/db";
 import { createTestDatabase, createTestWorkspace, ownerQuery, resetTables } from "@mushin/db/testing";
-import { createBudgetGuard, createProfileScraper, createSearchLimitGuard, createSerperSearch, MemoryStorage, MockLlm, MockPayments } from "@mushin/integrations";
+import { createBudgetGuard, createLlm, createProfileScraper, createSearchLimitGuard, createSerperSearch, MemoryStorage, MockLlm, MockPayments } from "@mushin/integrations";
 import { createBillingService, MemoryAccessCache } from "../billing/index";
 import { createEnrichmentPipeline } from "../creators/index";
 import { TEST_KEY } from "../creators/test-fixtures";
@@ -13,6 +13,7 @@ import { createLiveRunner } from "./live-runner";
 import { createDiscoveryService } from "./service";
 
 const live = process.env["LIVE_DISCOVERY_E2E"] === "1";
+const realLlm = process.env["LIVE_DISCOVERY_REAL_LLM_E2E"] === "1";
 const db = createTestDatabase();
 const logger = createLogger({ level: "silent" });
 const sink = createDbProviderCallSink(db);
@@ -70,7 +71,9 @@ describe.skipIf(!live)("Live Discovery with real Serper, Apify, and local Postgr
       sink,
       logger,
     });
-    const llm = new MockLlm((request) => {
+    const llm = realLlm
+      ? createLlm(config.llm, { sink, logger })
+      : new MockLlm((request) => {
       if (request.feature === "discovery_relevance") {
         const count = (request.input.match(/^\d+\. /gm) ?? []).length;
         return { keep: Array.from({ length: count }, (_, i) => ({ i, reason: "Public Instagram profile returned for the targeted food-creator search" })) };
@@ -88,7 +91,7 @@ describe.skipIf(!live)("Live Discovery with real Serper, Apify, and local Postgr
         creatorCountry: null,
         minorSigns: { likely: false, reason: "" },
       };
-    });
+      });
     const pipeline = createEnrichmentPipeline({ db, scraper, storage: new MemoryStorage(), llm, encryptionKey: TEST_KEY, logger, fetchImage: async () => new Response("", { status: 404 }) });
     const runner = createLiveRunner({ db, billing, pipeline, scraper, search: createCachedSearch({ db, web }), llm, logger, maxAttempts: 1 });
     await runner.run(jobId, initial.workspaceId);
@@ -108,14 +111,16 @@ describe.skipIf(!live)("Live Discovery with real Serper, Apify, and local Postgr
     expect(balance.available).toBe(availableBefore - job.live.creditsCharged);
     expect(job.live.creditsCharged).toBe(12 + 10 * job.live.new);
     expect(job.live.creditsCharged).toBeLessThanOrEqual(quote.maxCredits);
-    const persisted = await ownerQuery<{ profiles: number; payloads: number; serper: number; apify: number }>(`
+    const persisted = await ownerQuery<{ profiles: number; payloads: number; serper: number; apify: number; llm: number }>(`
       select (select count(*)::int from gcp.creator_profiles p join platform.raw_payloads r on r.creator_id = p.creator_id where r.job_id = '${jobId}') profiles,
         (select count(*)::int from platform.raw_payloads where job_id = '${jobId}') payloads,
         (select count(*)::int from platform.provider_calls where job_id = '${jobId}' and provider = 'serper' and status = 'ok') serper,
-        (select count(*)::int from platform.provider_calls where job_id = '${jobId}' and provider = 'apify' and status = 'ok') apify`);
+        (select count(*)::int from platform.provider_calls where job_id = '${jobId}' and provider = 'apify' and status = 'ok') apify,
+        (select count(*)::int from platform.provider_calls where job_id = '${jobId}' and provider in ('groq','ollama') and status = 'ok') llm`);
     expect(persisted[0]?.profiles).toBeGreaterThan(0);
     expect(persisted[0]?.payloads).toBeGreaterThan(0);
     expect(persisted[0]?.serper).toBeGreaterThan(0);
     expect(persisted[0]?.apify).toBeGreaterThan(0);
+    if (realLlm) expect(persisted[0]?.llm).toBeGreaterThan(0);
   }, 600_000);
 });

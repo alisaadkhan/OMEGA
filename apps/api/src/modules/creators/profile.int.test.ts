@@ -119,25 +119,23 @@ describe("profile", () => {
   });
 });
 
-describe("estimated audience (spec D5)", () => {
-  it("counts the first view of each creator per month: 5 on the trial, repeats free, the 6th refused", async () => {
+describe("audience data availability", () => {
+  it("does not expose legacy LLM demographic estimates or charge for unverified analytics", async () => {
     const c = await trialCustomer();
     const ids: string[] = [];
     for (let i = 0; i < 6; i++) ids.push(await addCreator(db, { snapshot: assessed }));
-    for (const id of ids.slice(0, 5)) expect(await creators.audience(c, id)).toMatchObject({ status: "estimated", audience: { countries: [{ code: "PK" }] } });
-    expect(await creators.audience(c, ids[0] ?? "")).toMatchObject({ status: "estimated" });
-    await expect(creators.audience(c, ids[5] ?? "")).rejects.toMatchObject({ code: "ENTITLEMENT_REQUIRED", details: { reason: "plan_limit" } });
+    for (const id of ids) expect(await creators.audience(c, id)).toEqual({ status: "not_assessed" });
     const views = await ownerQuery<{ n: number }>(`select count(*)::int n from wp.audience_views`);
-    expect(views[0]?.n).toBe(5);
+    expect(views[0]?.n).toBe(0);
   });
 
-  it("is unlimited on Growth, closed without a plan, and not counted when nothing is assessed", async () => {
+  it("keeps demographics unavailable even for Growth and expired subscriptions", async () => {
     const growth = await trialCustomer();
     await ownerQuery(`update wp.subscriptions set status = 'active', plan_id = 'growth', billing_interval = 'month' where workspace_id = '${growth.workspaceId}'`);
-    for (let i = 0; i < 7; i++) expect((await creators.audience(growth, await addCreator(db, { snapshot: assessed }))).status).toBe("estimated");
+    for (let i = 0; i < 7; i++) expect((await creators.audience(growth, await addCreator(db, { snapshot: assessed }))).status).toBe("not_assessed");
     const expired = await trialCustomer();
     await ownerQuery(`update wp.subscriptions set trial_ends_at = now() - interval '1 day' where workspace_id = '${expired.workspaceId}'`);
-    await expect(creators.audience(expired, await addCreator(db, { snapshot: assessed }))).rejects.toMatchObject({ code: "ENTITLEMENT_REQUIRED", details: { reason: "no_active_plan" } });
+    expect(await creators.audience(expired, await addCreator(db, { snapshot: assessed }))).toEqual({ status: "not_assessed" });
     expect(await creators.audience(expired, await addCreator(db))).toEqual({ status: "not_assessed" });
   });
 });

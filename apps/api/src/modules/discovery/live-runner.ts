@@ -9,7 +9,7 @@ import type { CachedSearch } from "./live/cache";
 import { evaluateCampaignFit } from "./fit";
 import { collectCandidates } from "./live/candidates";
 import { buildQueries } from "./live/queries";
-import { filterRelevant, type Kept } from "./live/relevance";
+import { classifyCandidates, filterRelevant, type Kept } from "./live/relevance";
 import * as repo from "./repository";
 
 type Deps = {
@@ -101,16 +101,15 @@ export function createLiveRunner(deps: Deps) {
           serpResultsSeen: groups.reduce((total, group) => total + group.results.length, 0),
           profileCandidates: candidates.length,
           afterDedupe: candidates.length,
-          // Candidate snippets are not cheaply classified yet; all are conservatively
-          // treated as ambiguous and sent through the schema-validated relevance gate.
-          ambiguousCandidates: candidates.length,
         });
         if (candidates.length >= 8) break;
       }
-      // 3. The AI keeps the relevant ones.
+      // 3. Apply cheap topic/business evidence first; the LLM sees ambiguous results only.
       await step("filtering");
-      const kept = await filterRelevant({ llm: deps.llm, search, candidates: collectCandidates(groups), ctx, logger: deps.logger });
-      await progress({ ambiguousCandidates: collectCandidates(groups).length });
+      const gated = classifyCandidates(search, collectCandidates(groups));
+      await progress({ snippetGatePass: gated.possible.length, ambiguousCandidates: gated.ambiguous.length });
+      const reviewed = await filterRelevant({ llm: deps.llm, search, candidates: gated.ambiguous, ctx, logger: deps.logger });
+      const kept = [...gated.possible, ...reviewed];
       if (kept.length < 8) {
         await deps.db.withWorkspace(workspaceId, async (tx) => {
           if (!(await repo.lockOpenJob(tx, workspaceId, jobId))) return;

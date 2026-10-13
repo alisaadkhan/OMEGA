@@ -29,6 +29,7 @@ describe("loadApiConfig", () => {
     expect(c.dataEncryptionKey).toHaveLength(32);
     expect(c.rateLimit).toEqual({ windowMs: 60_000, maxRequests: 120, upstash: null });
     expect(c.idempotencyTtlHours).toBe(24);
+    expect(c.catalogSearchBackend).toBe("postgres");
     expect(c.logLevel).toBe("info");
   });
 
@@ -144,9 +145,13 @@ describe("search and LLM settings", () => {
     expect(loadWorkerConfig({ ...worker, ...meili }).search).toEqual({ host: "http://127.0.0.1:7700", apiKey: "admin", indexPrefix: "dev_" });
   });
 
-  it("treats a missing Meilisearch as not configured outside production, and refuses it in production", () => {
+  it("defaults to PostgreSQL and requires Meilisearch only for explicit rollback mode", () => {
     expect(loadApiConfig(valid).search).toBeNull();
-    expect(() => loadApiConfig({ ...valid, NODE_ENV: "production", DATABASE_SSL_CA_FILE: undefined })).toThrow(/MEILISEARCH_HOST/);
+    expect(loadApiConfig(valid).catalogSearchBackend).toBe("postgres");
+    const production = { ...valid, NODE_ENV: "production", DATABASE_SSL_CA_FILE: caFile(), PADDLE_API_KEY: "p", PADDLE_CLIENT_TOKEN: "c", PADDLE_WEBHOOK_SECRET: "w" };
+    expect(loadApiConfig(production).catalogSearchBackend).toBe("postgres");
+    expect(() => loadApiConfig({ ...production, CATALOG_SEARCH_BACKEND: "meilisearch" })).toThrow(/MEILISEARCH_HOST/);
+    expect(loadApiConfig({ ...valid, CATALOG_SEARCH_BACKEND: "meilisearch" }).catalogSearchBackend).toBe("meilisearch");
   });
 
   it("orders LLM providers Groq first, then Ollama Cloud, with model and price defaults", () => {
