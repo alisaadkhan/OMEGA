@@ -77,6 +77,17 @@ describe("profile scraper", () => {
     expect(inFlight.n).toBe(0);
   });
 
+  it("pins an Instagram run to the configured build instead of the moving latest tag", async () => {
+    const { fetch, calls } = fakeFetch(apifyRoutes(scraperFixture("instagram-profile.json"), "apify-run-instagram.json"));
+    const pinned = createProfileScraper({
+      apify: { token: "t", instagramActor: "apify/instagram-profile-scraper", instagramBuild: "0.0.634", tiktokActor: "clockworks/tiktok-profile-scraper" },
+      youtubeApiKey: "yt", tiktokVideos: 6,
+      spendGuard: { begin: async () => () => {} }, sink: new MemoryProviderCallSink(), logger, fetch, sleep: async () => {},
+    });
+    await pinned.fetchProfile({ platform: "instagram", handle: "coke_studio" });
+    expect(calls[0]?.url).toContain("build=0.0.634");
+  });
+
   it("asks the TikTok actor for the configured number of videos without downloads", async () => {
     const { fetch, calls } = fakeFetch(apifyRoutes(scraperFixture("tiktok-videos.json"), "apify-run-tiktok.json"));
     const { s, sink } = scraper(fetch);

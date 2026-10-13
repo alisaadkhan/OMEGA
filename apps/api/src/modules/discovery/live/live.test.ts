@@ -10,7 +10,7 @@ const search = (text: string, filters: Record<string, unknown> = {}) => ({ text,
 describe("Google queries from the filter chips", () => {
   it("searches the chips first in plain words, once as creators (a bare niche word finds shops; 'influencer' finds posts)", () => {
     const qs = buildQueries(search("Bridal makeup", { platform: "instagram", niches: ["Bridal"], creatorCity: "Lahore" }));
-    expect(qs).toEqual([
+    expect(qs.map(({ platform, query, country }) => ({ platform, query, country }))).toEqual([
       { platform: "instagram", query: "site:instagram.com bridal lahore", country: "pk" },
       { platform: "instagram", query: "site:instagram.com bridal content creator lahore", country: "pk" },
       { platform: "instagram", query: "site:instagram.com bridal makeup lahore", country: "pk" },
@@ -41,6 +41,23 @@ describe("Google queries from the filter chips", () => {
     const [q] = buildQueries(search('"makeup" OR site:evil.com -bridal', { platform: "instagram" }));
     expect(q?.query.startsWith("site:instagram.com ")).toBe(true);
     expect(q?.query.slice("site:instagram.com ".length)).not.toMatch(/[":]|\bOR\b|evil\.com/);
+  });
+
+  it("plans bounded Roman Urdu and Urdu-script recall rounds for Pakistani niches", () => {
+    const s = search("food blogger in Lahore", { platform: "instagram", niches: ["Food"], creatorCity: "Lahore", creatorCountry: "PK" });
+    const roman = buildQueries(s, 2);
+    const urdu = buildQueries(s, 2).find((q) => q.hl === "ur");
+    expect(roman).toHaveLength(2);
+    expect(roman.find((q) => q.hl === "en")?.query).toContain("khana foodie");
+    expect(urdu?.query).toContain("کھانا");
+    expect(urdu?.query).toContain("لاہور");
+    expect(roman.every((q) => q.num <= 10 && q.round === 2)).toBe(true);
+  });
+
+  it("does not invent translations for unsupported niches", () => {
+    const queries = buildQueries(search("vintage watch collector in Lahore", { platform: "instagram", niches: ["Vintage watches"], creatorCity: "Lahore" }), 2);
+    expect(queries.every((q) => q.hl === "en")).toBe(true);
+    expect(queries.length).toBeLessThanOrEqual(2);
   });
 });
 

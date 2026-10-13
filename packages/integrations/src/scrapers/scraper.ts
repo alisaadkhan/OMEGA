@@ -5,7 +5,7 @@ import { ProviderError, type ProfileScraper, type ScrapeRequest, type ScrapeResu
 import { fetchYouTubeChannel } from "./youtube";
 
 type Options = {
-  apify: { token: string; instagramActor: string; tiktokActor: string } | null;
+  apify: { token: string; instagramActor: string; tiktokActor: string; instagramBuild?: string; tiktokBuild?: string } | null;
   youtubeApiKey: string | null;
   tiktokVideos: number;
   youtubeVideos?: number;
@@ -54,17 +54,17 @@ export function createProfileScraper(o: Options): ProfileScraper {
       })
     : null;
 
-  async function viaApify(req: ScrapeRequest, actor: string, input: unknown, units = 1, maxWaitMs?: number): Promise<ScrapeResult> {
+  async function viaApify(req: ScrapeRequest, actor: string, input: unknown, units = 1, maxWaitMs?: number, build?: string): Promise<ScrapeResult> {
     if (!apify) throw new ProviderError(false, "not_configured", "APIFY_TOKEN is not set");
     const done = await o.spendGuard.begin(units);
     try {
-      return await runApify(req, actor, input, apify, maxWaitMs);
+      return await runApify(req, actor, input, apify, maxWaitMs, build);
     } finally {
       done();
     }
   }
 
-  async function runApify(req: ScrapeRequest, actor: string, input: unknown, apify: ReturnType<typeof createApifyClient>, maxWaitMs?: number): Promise<ScrapeResult> {
+  async function runApify(req: ScrapeRequest, actor: string, input: unknown, apify: ReturnType<typeof createApifyClient>, maxWaitMs?: number, build?: string): Promise<ScrapeResult> {
     const out = await instrumented(
       {
         provider: "apify",
@@ -76,7 +76,7 @@ export function createProfileScraper(o: Options): ProfileScraper {
         ctx: req.ctx,
         usage: (r: { items: unknown[]; costUsd: number }) => ({ model: actor, units: r.items.length, costUsd: r.costUsd }),
       },
-      () => apify.runActor(actor, input, maxWaitMs === undefined ? {} : { maxWaitMs }),
+      () => apify.runActor(actor, input, { ...(maxWaitMs === undefined ? {} : { maxWaitMs }), ...(build ? { build } : {}) }),
     ).catch(async (err: unknown) => {
       // A failed run can still have been charged; record it so the monthly spend cap counts it (spec §4).
       const pe = providerErrorOf(err);
@@ -126,13 +126,13 @@ export function createProfileScraper(o: Options): ProfileScraper {
 
   return {
     async fetchProfile(req) {
-      if (req.platform === "instagram") return viaApify(req, o.apify?.instagramActor ?? "", { usernames: [req.handle] });
+      if (req.platform === "instagram") return viaApify(req, o.apify?.instagramActor ?? "", { usernames: [req.handle] }, 1, undefined, o.apify?.instagramBuild);
       if (req.platform === "tiktok") {
         return viaApify(req, o.apify?.tiktokActor ?? "", {
           profiles: [req.handle.replace(/^@/, "")],
           resultsPerPage: o.tiktokVideos,
           ...NO_DOWNLOADS,
-        });
+        }, 1, undefined, o.apify?.tiktokBuild);
       }
       return youtubeProfile(req);
     },
@@ -150,8 +150,8 @@ export function createProfileScraper(o: Options): ProfileScraper {
       const one: ScrapeRequest = { platform: req.platform, handle: handles.join(","), ...(req.ctx ? { ctx: req.ctx } : {}) };
       const out =
         req.platform === "instagram"
-          ? await viaApify(one, o.apify?.instagramActor ?? "", { usernames: handles }, handles.length, maxWaitMs)
-          : await viaApify(one, o.apify?.tiktokActor ?? "", { profiles: handles, resultsPerPage: o.tiktokVideos, ...NO_DOWNLOADS }, handles.length, maxWaitMs);
+          ? await viaApify(one, o.apify?.instagramActor ?? "", { usernames: handles }, handles.length, maxWaitMs, o.apify?.instagramBuild)
+          : await viaApify(one, o.apify?.tiktokActor ?? "", { profiles: handles, resultsPerPage: o.tiktokVideos, ...NO_DOWNLOADS }, handles.length, maxWaitMs, o.apify?.tiktokBuild);
       return { provider: "apify", profiles: splitByHandle(req.platform, out.raw, handles), costUsd: out.costUsd };
     },
   };

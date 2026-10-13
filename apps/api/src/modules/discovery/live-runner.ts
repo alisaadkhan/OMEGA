@@ -69,10 +69,15 @@ export function createLiveRunner(deps: Deps) {
     const profileJob = (k: Kept): EnrichJob => ({ jobId, workspaceId, platform: k.platform, handle: k.handle, canonicalUrl: k.canonicalUrl, requestId: job.requestId });
 
     try {
-      // 1–2. Google searches (cached) → unique profile candidates.
+      // 1–2. Adaptive, cached Google rounds → unique profile candidates. The first
+      // round is precise; recall rounds add Urdu/Roman Urdu or alternate English
+      // phrasing only when the current valid-profile pool is still thin.
       await step("searching");
       const groups: { platform: CreatorPlatform; results: Awaited<ReturnType<CachedSearch["search"]>> }[] = [];
-      for (const q of buildQueries(search)) groups.push({ platform: q.platform, results: await deps.search.search(q, ctx) });
+      for (const round of [1, 2, 3] as const) {
+        for (const q of buildQueries(search, round)) groups.push({ platform: q.platform, results: await deps.search.search(q, ctx) });
+        if (collectCandidates(groups, 60).length >= 8) break;
+      }
       // 3. The AI keeps the relevant ones.
       await step("filtering");
       const kept = await filterRelevant({ llm: deps.llm, search, candidates: collectCandidates(groups), ctx, logger: deps.logger });

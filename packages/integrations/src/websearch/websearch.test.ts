@@ -28,8 +28,8 @@ function serper(reply: (body: unknown) => Response, apiKey: string | null = "k")
 describe("Serper web search", () => {
   it("sends the query with the country and size, and returns title, link and snippet", async () => {
     const { s, calls, sink } = serper(() => Response.json({ organic: webSearchFixture("serper-instagram.json") }));
-    const out = await s.search({ query: "site:instagram.com bridal makeup Lahore", country: "pk", num: 20 });
-    expect(calls[0]).toMatchObject({ url: "https://google.serper.dev/search", body: { q: "site:instagram.com bridal makeup Lahore", gl: "pk", num: 20 } });
+    const out = await s.search({ query: "site:instagram.com bridal makeup Lahore", country: "pk", num: 20, hl: "ur", autocorrect: false });
+    expect(calls[0]).toMatchObject({ url: "https://google.serper.dev/search", body: { q: "site:instagram.com bridal makeup Lahore", gl: "pk", hl: "ur", num: 20, autocorrect: false } });
     expect(calls[0]?.headers["x-api-key"]).toBe("k");
     expect(out.length).toBeGreaterThan(0);
     expect(Object.keys(out[0] ?? {}).sort()).toEqual(["link", "snippet", "title"]);

@@ -180,6 +180,7 @@ describe("scraping and storage settings (worker only)", () => {
     expect(c.scraping).toEqual({
       apifyToken: "apify",
       instagramActor: "apify/instagram-profile-scraper",
+      instagramBuild: "0.0.634",
       tiktokActor: "clockworks/tiktok-profile-scraper",
       apifyMonthlyBudgetUsd: 5,
       youtubeApiKey: "yt",
@@ -188,6 +189,11 @@ describe("scraping and storage settings (worker only)", () => {
     });
     expect(c.storage).toEqual({ url: "https://ref.supabase.co", serviceKey: "service" });
     expect(c.dataEncryptionKey.length).toBe(32);
+  });
+
+  it("does not apply the validated Instagram build to a custom actor", () => {
+    const c = loadWorkerConfig({ ...worker, APIFY_INSTAGRAM_ACTOR_ID: "team/custom-instagram-actor" });
+    expect(c.scraping.instagramBuild).toBeNull();
   });
 
   it("treats missing scraper keys and storage as not configured outside production", () => {

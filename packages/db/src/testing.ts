@@ -7,7 +7,26 @@ import { tlsOptions } from "./tls";
 export function testDatabaseUrl(): string {
   const url = process.env["TEST_DATABASE_URL"];
   if (!url) throw new Error("TEST_DATABASE_URL is not set. Integration tests run only against the test database.");
-  return url;
+  return assertDisposableTestDatabaseUrl(url);
+}
+
+/** Integration setup truncates application schemas, so only a clearly named local disposable DB is accepted. */
+export function assertDisposableTestDatabaseUrl(value: string): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new Error("TEST_DATABASE_URL must be a valid local disposable PostgreSQL URL.");
+  }
+  const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
+  const database = decodeURIComponent(parsed.pathname.replace(/^\//, ""));
+  if (parsed.protocol !== "postgres:" && parsed.protocol !== "postgresql:") {
+    throw new Error("Integration tests require PostgreSQL; TEST_DATABASE_URL was not accepted.");
+  }
+  if (!localHosts.has(parsed.hostname) || !/(test|disposable)/i.test(database)) {
+    throw new Error("Refusing integration setup: TEST_DATABASE_URL must point to localhost and a database named with 'test' or 'disposable'. The suite truncates application tables.");
+  }
+  return value;
 }
 
 export function testCaPem(): string | null {

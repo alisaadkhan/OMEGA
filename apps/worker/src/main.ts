@@ -30,7 +30,7 @@ const summaries = createSummaryWriter({ db, llm, logger });
 const enrichment = await db.withSystem((tx) => getEnrichmentSettings(tx));
 const scraper = createProfileScraper({
   apify: config.scraping.apifyToken
-    ? { token: config.scraping.apifyToken, instagramActor: config.scraping.instagramActor, tiktokActor: config.scraping.tiktokActor }
+    ? { token: config.scraping.apifyToken, instagramActor: config.scraping.instagramActor, ...(config.scraping.instagramBuild ? { instagramBuild: config.scraping.instagramBuild } : {}), tiktokActor: config.scraping.tiktokActor }
     : null,
   youtubeApiKey: config.scraping.youtubeApiKey,
   tiktokVideos: enrichment.tiktokRecentVideos,

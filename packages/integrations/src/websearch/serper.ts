@@ -40,7 +40,7 @@ export function createSerperSearch(o: { apiKey: string | null; limit: SpendGuard
             const res = await doFetch(SERPER_URL, {
               method: "POST",
               headers: { "x-api-key": apiKey, "content-type": "application/json" },
-              body: JSON.stringify({ q: q.query, gl: q.country, num: q.num }),
+              body: JSON.stringify({ q: q.query, gl: q.country, hl: q.hl ?? "en", num: q.num, ...(q.page === undefined ? {} : { page: q.page }), ...(q.autocorrect === undefined ? {} : { autocorrect: q.autocorrect }) }),
               signal,
             });
             if (res.status === 401 || res.status === 403) throw new ProviderError(false, "not_configured", `Serper refused the key (HTTP ${res.status})`);

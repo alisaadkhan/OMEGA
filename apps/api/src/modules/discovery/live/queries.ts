@@ -1,11 +1,33 @@
 import type { LiveSearch } from "@mushin/contracts";
 import type { CreatorPlatform } from "../../creators/index";
 
-export type PlannedQuery = { platform: CreatorPlatform; query: string; country: string };
+export type PlannedQuery = { platform: CreatorPlatform; query: string; country: string; hl: string; round: 1 | 2 | 3; num: number };
 
 // TikTok and YouTube profile pages live under /@handle: restricting to them leaves out videos (measured 2026-10-10).
 const SITE: Record<CreatorPlatform, string> = { instagram: "site:instagram.com", tiktok: "site:tiktok.com/@", youtube: "site:youtube.com/@" };
 const ALL: CreatorPlatform[] = ["instagram", "tiktok", "youtube"];
+
+// Reviewed, deterministic Urdu/Roman Urdu equivalents. Unknown niches stay in their
+// original language; we never ask a model to invent operators or silently translate.
+const URDU_TERMS: Record<string, { roman: string; urdu: string }> = {
+  food: { roman: "khana foodie", urdu: "کھانا فوڈ" },
+  foodie: { roman: "khana foodie", urdu: "کھانا فوڈ" },
+  "food blogger": { roman: "khana blogger", urdu: "کھانے کا بلاگر" },
+  "street food": { roman: "street food khana", urdu: "اسٹریٹ فوڈ کھانا" },
+  beauty: { roman: "khubsurti beauty", urdu: "خوبصورتی بیوٹی" },
+  makeup: { roman: "makeup beauty", urdu: "میک اپ بیوٹی" },
+  bridal: { roman: "dulhan bridal", urdu: "دلہن برائیڈل" },
+  fashion: { roman: "libaas fashion", urdu: "لباس فیشن" },
+  travel: { roman: "safar travel", urdu: "سفر ٹریول" },
+  fitness: { roman: "warzish fitness", urdu: "ورزش فٹنس" },
+  technology: { roman: "technology tech", urdu: "ٹیکنالوجی ٹیک" },
+  tech: { roman: "technology tech", urdu: "ٹیکنالوجی ٹیک" },
+};
+
+const URDU_PLACES: Record<string, string> = {
+  lahore: "لاہور", karachi: "کراچی", islamabad: "اسلام آباد", rawalpindi: "راولپنڈی",
+  peshawar: "پشاور", faisalabad: "فیصل آباد", multan: "ملتان", quetta: "کوئٹہ",
+};
 
 export const platformsFor = (s: LiveSearch): CreatorPlatform[] => (s.filters.platform ? [s.filters.platform] : ALL);
 
@@ -42,7 +64,7 @@ function regionName(code: string): string {
 }
 
 /** Spec §4.2 step 1: 2–3 targeted searches per platform in scope, built by code from the chips (the text only adds topic words). */
-export function buildQueries(s: LiveSearch): PlannedQuery[] {
+export function buildQueries(s: LiveSearch, round: 1 | 2 | 3 = 1): PlannedQuery[] {
   const niches = s.filters.niches.map((n) => words(n, 40)).filter(Boolean);
   const place = words(s.filters.creatorCity ?? "", 60) || words(s.filters.creatorCountry ? regionName(s.filters.creatorCountry) : "", 60);
   const country = (s.filters.creatorCountry ?? "PK").toLowerCase();
@@ -52,13 +74,31 @@ export function buildQueries(s: LiveSearch): PlannedQuery[] {
   // market's name keeps a search local (Google's country setting alone does not).
   const market = place ? "" : words(regionName(country.toUpperCase()), 60);
   const out: PlannedQuery[] = [];
+  const isPakistan = country === "pk";
+  const localizedPlace = isPakistan ? (URDU_PLACES[place] ?? "") : "";
   for (const platform of platformsFor(s)) {
     const seen = new Set<string>();
-    for (const parts of [[topic, place], [topic, "content creator", place], [typed, place], ...(market ? [[topic, market]] : [])]) {
-      const query = [SITE[platform], ...parts.filter(Boolean)].join(" ");
-      if (query === SITE[platform] || seen.has(query) || seen.size === 3) continue;
-      seen.add(query);
-      out.push({ platform, query, country });
+    const known = URDU_TERMS[topic] ?? URDU_TERMS[typed];
+    const planned: { parts: string[]; hl: string }[] = round === 1
+      ? [[topic, place], [topic, "content creator", place], [typed, place], ...(market ? [[topic, market]] : [])].map((parts) => ({ parts, hl: "en" }))
+      : round === 2 && isPakistan && known
+        ? [
+            { parts: [known.roman, place], hl: "en" },
+            { parts: [known.urdu, localizedPlace || place], hl: "ur" },
+          ]
+        : round === 2
+          ? [{ parts: [typed, "blogger", place || market], hl: "en" }, { parts: [topic, "vlogger", place || market], hl: "en" }]
+          : known && isPakistan
+            ? [
+                { parts: [topic, known.roman, place], hl: "en" },
+                { parts: [topic, known.urdu, localizedPlace || place], hl: "ur" },
+              ]
+            : [{ parts: [topic, "influencer", place || market], hl: "en" }, { parts: [typed, "creator", place || market], hl: "en" }];
+    for (const { parts, hl } of planned) {
+      const query = [SITE[platform], ...parts.filter(Boolean)].join(" ").slice(0, 240);
+      if (query === SITE[platform] || seen.has(`${hl}|${query}`) || seen.size === 4) continue;
+      seen.add(`${hl}|${query}`);
+      out.push({ platform, query, country, hl, round, num: 10 });
     }
   }
   return out;

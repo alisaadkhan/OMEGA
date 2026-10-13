@@ -77,6 +77,25 @@ describe("starting live runs", () => {
     expect(other.httpStatus).toBe(202);
   });
 
+  it("returns the existing job for a duplicate brief confirmation without a second hold or outbox event", async () => {
+    const c = await customer();
+    const s = search({ platform: "instagram", niches: ["Bridal"] });
+    const firstQuote = await estimate(c, s, 10);
+    const first = await discovery.start(c, { kind: "live", estimateId: firstQuote.estimateId });
+    if (first.body.status !== "started") throw new Error("expected started");
+
+    const duplicateQuote = await estimate(c, s, 10);
+    const duplicate = await discovery.start(c, { kind: "live", estimateId: duplicateQuote.estimateId });
+    if (duplicate.body.status !== "started") throw new Error("expected existing started job");
+    expect(duplicate.httpStatus).toBe(200);
+    expect(duplicate.body.job.id).toBe(first.body.job.id);
+    expect(await balance(c)).toMatchObject({ available: 88, reserved: 112 });
+    const reservations = await ownerQuery<{ n: number }>(`select count(*)::int n from wp.credit_reservations where workspace_id = '${c.workspaceId}' and action = 'find_new'`);
+    const events = await ownerQuery<{ n: number }>(`select count(*)::int n from platform.outbox where workspace_id = '${c.workspaceId}' and event_type = 'discovery.live_requested'`);
+    expect(reservations[0]?.n).toBe(1);
+    expect(events[0]?.n).toBe(1);
+  });
+
   it("rejects broad briefs before storing an estimate or touching credits", async () => {
     const c = await customer();
     await expect(estimate(c, search({}, "best creators and influencers"), 10)).rejects.toMatchObject({ code: "QUERY_TOO_BROAD" });

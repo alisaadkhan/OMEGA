@@ -102,6 +102,7 @@ const workerSchema = sharedObject
     DATA_ENCRYPTION_KEY: encryptionKey,
     APIFY_TOKEN: z.string().min(1).optional(),
     APIFY_INSTAGRAM_ACTOR_ID: z.string().min(1).default("apify/instagram-profile-scraper"),
+    APIFY_INSTAGRAM_BUILD: z.string().min(1).optional(),
     APIFY_TIKTOK_ACTOR_ID: z.string().min(1).default("clockworks/tiktok-profile-scraper"),
     APIFY_MONTHLY_BUDGET_USD: z.coerce.number().min(0).default(5),
     YOUTUBE_API_KEY: z.string().min(1).optional(),
@@ -220,6 +221,7 @@ function llmFrom(v: SharedValues): LlmProviderConfig[] {
 export type ScrapingConfig = {
   apifyToken: string | null;
   instagramActor: string;
+  instagramBuild: string | null;
   tiktokActor: string;
   apifyMonthlyBudgetUsd: number;
   youtubeApiKey: string | null;
@@ -304,6 +306,7 @@ export function loadWorkerConfig(env: Env): WorkerConfig {
     scraping: {
       apifyToken: v.APIFY_TOKEN ?? null,
       instagramActor: v.APIFY_INSTAGRAM_ACTOR_ID,
+      instagramBuild: v.APIFY_INSTAGRAM_BUILD ?? (v.APIFY_INSTAGRAM_ACTOR_ID === "apify/instagram-profile-scraper" ? "0.0.634" : null),
       tiktokActor: v.APIFY_TIKTOK_ACTOR_ID,
       apifyMonthlyBudgetUsd: v.APIFY_MONTHLY_BUDGET_USD,
       youtubeApiKey: v.YOUTUBE_API_KEY ?? null,

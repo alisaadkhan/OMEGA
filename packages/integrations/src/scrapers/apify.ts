@@ -57,8 +57,9 @@ export function createApifyClient(o: ClientOptions) {
   }
 
   /** Starts an actor, waits for it (Apify waits at most 60 s per request), then reads its dataset. */
-  async function runActor(actorId: string, input: unknown, opts: { maxWaitMs?: number } = {}): Promise<{ items: unknown[]; costUsd: number }> {
-    const started = await call<{ data: ApifyRun }>(`${base}/acts/${actorId.replace("/", "~")}/runs?waitForFinish=60`, {
+  async function runActor(actorId: string, input: unknown, opts: { maxWaitMs?: number; build?: string } = {}): Promise<{ items: unknown[]; costUsd: number }> {
+    const build = opts.build ? `&build=${encodeURIComponent(opts.build)}` : "";
+    const started = await call<{ data: ApifyRun }>(`${base}/acts/${actorId.replace("/", "~")}/runs?waitForFinish=60${build}`, {
       method: "POST",
       body: JSON.stringify(input),
     });

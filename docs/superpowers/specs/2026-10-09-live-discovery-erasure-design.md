@@ -194,3 +194,21 @@ Built on branch `feat/subproject-4b-live-discovery-erasure` (2026-10-09/10). Whe
 
 **Evidence**
 - Live check (`LIVE_SCRAPE_TESTS=1`, 2026-10-10): one real Serper search returned Instagram profile links and was recorded as a provider call.
+
+## 14. Current implementation status (2026-10-13)
+
+This section records the implementation state after the `fffc751` baseline. It supersedes stale statements above where the shipped behavior has moved on.
+
+**Verified in this worktree**
+- Discovery estimates are server-priced, expire after 15 minutes, and are consumed atomically with the credit reservation, job and outbox event. Existing database integration tests cover expiry, concurrent confirmations, failures, retries, duplicate delivery and credit settlement.
+- The query planner now has at most three deterministic rounds. Round one is English precision; later rounds use a small explicit Roman Urdu/Urdu-script topic map for supported Pakistani niches or English recall templates. It stops early after eight unique, normalized profile URLs. Serper receives `gl`, `hl`, `num <= 10`, and `autocorrect=false`; locale and query are included in the cache key. Unsupported topics are not machine-translated.
+- The configured Instagram actor returned one real dataset item for the smoke-test handle. The observed item included `username`, `biography`, `followersCount`, `followsCount`, `postsCount`, `latestPosts`, `isBusinessAccount` (boolean) and `businessCategoryName` (string); the handle matched and the provider adapter recorded $0.0026. The selected actor build is pinned to `0.0.634`, and that exact build selector passed the smoke test. This verifies that actor call and observed output only; it is not a legal/retention review or full paid-workflow verification. Do not reject every `isBusinessAccount=true` profile: the field alone also labels some individual creators and publishers.
+- Unit tests (266), TypeScript, lint, module-boundary checks and the React/Vite production build passed. The frontend emits existing upstream-comment and large-chunk warnings.
+- Integration setup now refuses non-local or ambiguously named databases before migration. The configured `TEST_DATABASE_URL` resolves to a remote Supabase host, and no local Postgres/Docker executable is available. `npm run test:int` was invoked only to verify the guard; it stopped before migration, truncation or test execution.
+
+**Still incomplete / release gates**
+- Integration cases listed in §10 remain unexecuted against a disposable local database. The next test environment must use a local database named with `test` or `disposable`; never point this suite at the configured remote host.
+- Persisted progress still exposes only the current step and found/new/known totals. The fuller funnel counters and terminal outcomes (`succeeded`, `completed_empty`, `insufficient`, `partial`, `canceled`, `expired`) from the current build spec have not been added; do not describe progress as full-funnel accurate.
+- The current runner still uses the existing relevance/ranking pipeline and settlement rules. It has not yet implemented the full G1 cheap gate, minimum-pool `insufficient` settlement, evidence-backed Fit/Authenticity contract, or source/evidence funnel persistence described by the newer consolidated spec.
+- TikTok's configured actor remains on the moving `latest` build and was not live-validated in this work. Instagram actor terms/retention approval and a broader profile/business-output panel remain open.
+- Catalog Search still uses the existing Meilisearch runtime. Defer its PostgreSQL-native migration, and the Supabase runtime migration, until the complete Live Discovery workflow and its local integration tests pass.

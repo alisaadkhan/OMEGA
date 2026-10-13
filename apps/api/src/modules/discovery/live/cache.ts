@@ -12,10 +12,10 @@ export function createCachedSearch(o: { db: Db; web: WebSearch; now?: () => Date
   const ttl = (o.ttlMinutes ?? 15) * MINUTE_MS;
   return {
     async search(q: PlannedQuery, ctx?: CallContext): Promise<WebResult[]> {
-      const hash = sha256Hex(`${q.country}|${q.query}`);
+      const hash = sha256Hex(`${q.country}|${q.hl}|${q.num}|${q.query}`);
       const hit = await o.db.withSystem((tx) => repo.cachedSearch(tx, hash, new Date(now().getTime() - ttl)));
       if (hit) return hit;
-      const results = await o.web.search({ query: q.query, country: q.country, num: 10, ...(ctx ? { ctx } : {}) });
+      const results = await o.web.search({ query: q.query, country: q.country, hl: q.hl, num: q.num, autocorrect: false, ...(ctx ? { ctx } : {}) });
       await o.db.withSystem((tx) => repo.storeSearch(tx, hash, q.query, results));
       return results;
     },
