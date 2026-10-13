@@ -55,7 +55,9 @@ describe.skipIf(!live || !realLlm || !platform)("Live Discovery platform end-to-
       youtube: { text: "لاہور میں کھانے کے بلاگر", filters: { ...platformFilter, creatorCountry: "PK", niches: ["Food"] } },
       all: { text: "Lahore ke khana bloggers", filters: { creatorCity: "Lahore", creatorCountry: "PK", niches: ["Food"] } },
     };
-    const selectedBrief = briefs[platform];
+    // LIVE_DISCOVERY_BRIEF='{"text":"…","filters":{…}}' runs a different brief on the selected platform (pilots).
+    const override = process.env["LIVE_DISCOVERY_BRIEF"] ? (JSON.parse(process.env["LIVE_DISCOVERY_BRIEF"]) as { text: string; filters: Record<string, unknown> }) : null;
+    const selectedBrief = override ? { text: override.text, filters: { ...override.filters, ...platformFilter } } : briefs[platform];
     const search = { text: selectedBrief.text, filters: searchFiltersSchema.parse(selectedBrief.filters) };
     const maxNew = 5;
     const quote = await discovery.createEstimate(initial, { search, maxNew });
@@ -123,7 +125,16 @@ describe.skipIf(!live || !realLlm || !platform)("Live Discovery platform end-to-
         observedGroups.push({ platform: q.platform, results: found });
         return found;
       },
-      ...(cached.searchYouTube ? { searchYouTube: cached.searchYouTube } : {}),
+      // Recorded too, so the per-platform accounting below can find YouTube-native candidates.
+      ...(cached.searchYouTube
+        ? {
+            async searchYouTube(q: { query: string; lang?: string }, ctx?: Parameters<typeof cached.search>[1]) {
+              const found = await (cached.searchYouTube as NonNullable<typeof cached.searchYouTube>)(q, ctx);
+              observedGroups.push({ platform: "youtube", results: found });
+              return found;
+            },
+          }
+        : {}),
     };
     const startedAt = Date.now();
     const runner = createLiveRunner({ db, billing, pipeline, scraper, search: searchAdapter, llm, logger, maxAttempts: 2,
