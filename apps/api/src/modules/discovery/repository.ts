@@ -1,6 +1,6 @@
 import { and, count, desc, eq, gt, gte, inArray, lt, max, or, sql, sum } from "drizzle-orm";
 import type { DiscoveryJob, DiscoveryJobStep, LiveSearch } from "@mushin/contracts";
-import { discoveryEstimates, discoveryJobs, discoveryResults, serperCache, type CampaignFitEvidence, type LiveProgress, type SystemTx, type TenantTx } from "@mushin/db";
+import { discoveryCandidates, discoveryEstimates, discoveryJobs, discoveryResults, serperCache, type CampaignFitEvidence, type LiveProgress, type SystemTx, type TenantTx } from "@mushin/db";
 import type { WebResult } from "@mushin/integrations";
 
 export type JobRow = typeof discoveryJobs.$inferSelect;
@@ -165,6 +165,29 @@ export async function insertResult(tx: TenantTx, workspaceId: string, jobId: str
     )
     .where(and(eq(discoveryJobs.workspaceId, workspaceId), eq(discoveryJobs.id, jobId)));
   return true;
+}
+
+export type CandidateRow = typeof discoveryCandidates.$inferInsert;
+
+/** Writes the decision trail; a retry or later stage updates the same (job, candidate) row. */
+export async function upsertCandidates(tx: TenantTx, rows: CandidateRow[]): Promise<void> {
+  for (let i = 0; i < rows.length; i += 200) {
+    await tx
+      .insert(discoveryCandidates)
+      .values(rows.slice(i, i + 200))
+      .onConflictDoUpdate({
+        target: [discoveryCandidates.jobId, discoveryCandidates.candidateKey],
+        set: {
+          canonicalUrl: sql`excluded.canonical_url`, handle: sql`excluded.handle`, query: sql`excluded.query`, round: sql`excluded.round`,
+          position: sql`excluded.position`, occurrences: sql`excluded.occurrences`, stage: sql`excluded.stage`, decision: sql`excluded.decision`,
+          reason: sql`excluded.reason`, detail: sql`excluded.detail`, creatorId: sql`excluded.creator_id`, updatedAt: sql`now()`,
+        },
+      });
+  }
+}
+
+export function candidatesFor(tx: TenantTx, workspaceId: string, jobId: string): Promise<(typeof discoveryCandidates.$inferSelect)[]> {
+  return tx.select().from(discoveryCandidates).where(and(eq(discoveryCandidates.workspaceId, workspaceId), eq(discoveryCandidates.jobId, jobId)));
 }
 
 export function resultsAfter(tx: TenantTx, workspaceId: string, jobId: string, after: number): Promise<ResultRow[]> {

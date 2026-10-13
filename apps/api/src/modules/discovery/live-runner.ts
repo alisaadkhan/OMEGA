@@ -3,13 +3,14 @@ import { AppError, type Logger } from "@mushin/core";
 import type { Db, LivePrices, LiveProgress, TenantTx } from "@mushin/db";
 import { ProviderError, type Llm, type ProfileScraper } from "@mushin/integrations";
 import type { BillingService } from "../billing/index";
-import { findProfileByUrl, fitLabel, getSearchSettings, isVisibleCreator, rankCards, suppressedUrls, type CreatorPlatform, type EnrichJob, type EnrichmentPipeline } from "../creators/index";
+import { findProfileByUrl, fitLabel, getSearchSettings, isVisibleCreator, rankCards, suppressedUrls, type EnrichJob, type EnrichmentPipeline } from "../creators/index";
 import { notifyFinished, releaseHeld } from "./finish";
 import type { CachedSearch } from "./live/cache";
 import { evaluateCampaignFit } from "./fit";
 import { collectCandidates, spreadByPlatform } from "./live/candidates";
 import { buildQueries } from "./live/queries";
 import { classifyCandidates, filterRelevant, type Kept } from "./live/relevance";
+import { createTrail, type SearchGroup } from "./live/trail";
 import * as repo from "./repository";
 
 type Deps = {
@@ -79,7 +80,7 @@ export function createLiveRunner(deps: Deps) {
       deps.db.withWorkspace(workspaceId, (tx) => repo.advanceProgress(tx, workspaceId, jobId, patch));
     const recordKnown = (creatorId: string, reason: string | null, campaignFit: Awaited<ReturnType<typeof evaluateCampaignFit>>) =>
       deps.db.withWorkspace(workspaceId, async (tx) => {
-        if (!await repo.insertResult(tx, workspaceId, jobId, { creatorId, isNew: false, credits: 0, reason, campaignFit })) return;
+        if (!await repo.insertResult(tx, workspaceId, jobId, { creatorId, isNew: false, credits: 0, reason, campaignFit })) return false;
         const results = await repo.resultCreatorIds(tx, workspaceId, jobId);
         const qualified = await rerank(tx, job, search);
         await repo.advanceProgress(tx, workspaceId, jobId, {
@@ -88,7 +89,14 @@ export function createLiveRunner(deps: Deps) {
           persistedResults: results.length,
           billableCreators: await repo.countBillable(tx, workspaceId, jobId),
         });
+        return true;
       });
+    // Every search-result link and the stage where it stopped (wp.discovery_candidates).
+    const trail = createTrail({ workspaceId, jobId });
+    const flush = async () => {
+      const rows = trail.drain();
+      if (rows.length > 0) await deps.db.withWorkspace(workspaceId, (tx) => repo.upsertCandidates(tx, rows));
+    };
     const profileJob = (k: Kept): EnrichJob => ({ jobId, workspaceId, platform: k.platform, handle: k.handle, canonicalUrl: k.canonicalUrl, requestId: job.requestId });
 
     try {
@@ -97,9 +105,10 @@ export function createLiveRunner(deps: Deps) {
       // phrasing only while the pool after the cheap G1 gate is still below the
       // G2 minimum (counting raw URLs stopped after round 1 even when most were shops).
       await step("searching");
-      const groups: { platform: CreatorPlatform; results: Awaited<ReturnType<CachedSearch["search"]>> }[] = [];
+      const groups: SearchGroup[] = [];
       for (const round of [1, 2, 3] as const) {
-        for (const q of buildQueries(search, round)) groups.push({ platform: q.platform, results: await deps.search.search(q, ctx) });
+        for (const q of buildQueries(search, round)) groups.push({ platform: q.platform, query: q.query, round, results: await deps.search.search(q, ctx) });
+        trail.observe(groups);
         const candidates = collectCandidates(groups, 60);
         await progress({
           serpResultsSeen: groups.reduce((total, group) => total + group.results.length, 0),
@@ -111,14 +120,22 @@ export function createLiveRunner(deps: Deps) {
       }
       // 3. Apply cheap topic/business evidence first (G1); G2 is the minimum pool after it. The LLM sees ambiguous results only.
       await step("filtering");
-      const gated = classifyCandidates(search, collectCandidates(groups));
+      const capped = collectCandidates(groups);
+      const inCap = new Set(capped.map((c) => c.canonicalUrl));
+      for (const key of trail.pendingKeys()) if (!inCap.has(key)) trail.set(key, "dedupe", "skipped", "candidate_cap");
+      const gated = classifyCandidates(search, capped);
+      for (const c of gated.businesses) trail.set(c.canonicalUrl, "cheap_gate", "rejected", "business_snippet");
+      for (const c of gated.possible) trail.set(c.canonicalUrl, "cheap_gate", "pending", "topic_snippet");
+      for (const c of gated.ambiguous) trail.set(c.canonicalUrl, "relevance", "pending", null);
       await progress({ snippetGatePass: gated.possible.length, ambiguousCandidates: gated.ambiguous.length });
       const pool = gated.possible.length + gated.ambiguous.length;
-      const relevance = { unreviewed: 0 };
+      const relevance = { unreviewed: 0, unreviewedUrls: [] as string[] };
       const reviewed = pool < MIN_POOL ? [] : await filterRelevant({ llm: deps.llm, search, candidates: gated.ambiguous, ctx, logger: deps.logger, stats: relevance });
       if (relevance.unreviewed > 0) deps.logger.warn({ jobId, unreviewed: relevance.unreviewed }, "some candidates were not extracted because their relevance review failed");
       const kept = [...gated.possible, ...reviewed];
       if (pool < MIN_POOL) {
+        trail.finish("skipped", "insufficient_pool");
+        await flush();
         await deps.db.withWorkspace(workspaceId, async (tx) => {
           if (!(await repo.lockOpenJob(tx, workspaceId, jobId))) return;
           if (job.reservationId) await engine.commitPartial(tx, workspaceId, job.reservationId, 0, { userId: job.requestedBy, requestId: job.requestId }, "Live run had too few eligible candidates");
@@ -127,27 +144,60 @@ export function createLiveRunner(deps: Deps) {
         });
         return;
       }
+      const keptUrls = new Set(reviewed.map((k) => k.canonicalUrl));
+      const unreviewed = new Set(relevance.unreviewedUrls);
+      for (const k of reviewed) trail.set(k.canonicalUrl, "relevance", "pending", "relevant", { detail: { relevanceReason: k.reason } });
+      for (const c of gated.ambiguous) {
+        if (keptUrls.has(c.canonicalUrl)) continue;
+        if (unreviewed.has(c.canonicalUrl)) trail.set(c.canonicalUrl, "relevance", "unreviewed", "relevance_review_failed");
+        else trail.set(c.canonicalUrl, "relevance", "rejected", "not_relevant");
+      }
+      await flush();
       // 4. Known creators become free results; erased and hidden ones are dropped; new ones are queued up to the size.
       const suppressed = await deps.db.withSystem((tx) => suppressedUrls(tx, kept.map((k) => k.canonicalUrl)));
       const alreadyNew = await deps.db.withWorkspace(workspaceId, (tx) => repo.countNew(tx, workspaceId, jobId));
       const availableNew: Kept[] = [];
       for (const k of kept) {
-        if (suppressed.has(k.canonicalUrl)) continue;
+        if (suppressed.has(k.canonicalUrl)) {
+          trail.set(k.canonicalUrl, "selection", "rejected", "suppressed");
+          continue;
+        }
         const known = await deps.db.withSystem((tx) => findProfileByUrl(tx, k.canonicalUrl));
         if (known) {
           // Reuse retained evidence only. A known creator without an archived sample cannot pass a per-job Fit gate.
-          if (await deps.db.withSystem((tx) => isVisibleCreator(tx, known.creatorId))) {
-            const stored = await deps.pipeline.profileForUrl(k.canonicalUrl);
-            if (stored) {
-              const campaignFit = evaluateCampaignFit(search, k, stored.profile, false, now(), stored.fetchedAt);
-              if (campaignFit.eligible) await recordKnown(known.creatorId, k.reason, campaignFit);
-            }
+          if (!(await deps.db.withSystem((tx) => isVisibleCreator(tx, known.creatorId)))) {
+            trail.set(k.canonicalUrl, "selection", "skipped", "hidden_creator", { creatorId: known.creatorId });
+            continue;
+          }
+          // An unreadable archive (storage outage, or an object purged before its row) skips this creator, not the run.
+          const stored = await deps.pipeline.profileForUrl(k.canonicalUrl).catch((err: unknown) => {
+            deps.logger.warn({ err, jobId }, "stored profile sample could not be read; the known creator is skipped");
+            trail.set(k.canonicalUrl, "selection", "skipped", "stored_sample_unreadable", { creatorId: known.creatorId });
+            return "unreadable" as const;
+          });
+          if (stored === "unreadable") continue;
+          if (!stored) {
+            trail.set(k.canonicalUrl, "selection", "skipped", "known_without_sample", { creatorId: known.creatorId });
+            continue;
+          }
+          const campaignFit = evaluateCampaignFit(search, k, stored.profile, false, now(), stored.fetchedAt);
+          trail.fit(k.canonicalUrl, campaignFit, known.creatorId);
+          if (campaignFit.eligible) {
+            if (await recordKnown(known.creatorId, k.reason, campaignFit)) trail.set(k.canonicalUrl, "delivery", "delivered", "known_creator");
+            else trail.set(k.canonicalUrl, "delivery", "duplicate", "already_in_results");
           }
           continue;
         }
         availableNew.push(k);
       }
-      const fresh = spreadByPlatform(availableNew).slice(0, Math.max(0, maxNew - alreadyNew));
+      const ordered = spreadByPlatform(availableNew);
+      const fresh = ordered.slice(0, Math.max(0, maxNew - alreadyNew));
+      // The run size the customer chose at quote time is the number of new profiles fetched (it bounds the charge).
+      ordered.forEach((k, index) => {
+        if (index < fresh.length) trail.set(k.canonicalUrl, "extraction", "pending", null, { detail: { selectionRank: index + 1 } });
+        else trail.set(k.canonicalUrl, "selection", "not_extracted", "run_size_limit", { detail: { selectionRank: index + 1 } });
+      });
+      await flush();
       // 5. One Apify run per platform; each profile archived on its own (a retry reuses the archive).
       await step("fetching");
       const fetched: { k: Kept; payloadId: string; raw: unknown }[] = [];
@@ -170,14 +220,17 @@ export function createLiveRunner(deps: Deps) {
       // 6–7. 4A's steps per profile; each save inserts its result and re-ranks in the same transaction.
       for (const f of fetched) {
         await progress({ extractedProfiles: fetched.length });
-        await deps.pipeline.processProfile(profileJob(f.k), f.payloadId, f.raw, {
+        const processed = await deps.pipeline.processProfile(profileJob(f.k), f.payloadId, f.raw, {
           onStep: (s) => (s === "assessing" || s === "saving" ? step(s) : Promise.resolve()),
           onSaved: async (tx, saved) => {
             const isNew = saved.outcome === "created";
             // A possible minor is saved but hidden from customers, so it costs nothing (Review Focus 1).
             const visible = await isVisibleCreator(tx, saved.creatorId);
             const campaignFit = evaluateCampaignFit(search, f.k, saved.profile, !visible, now());
+            trail.fit(f.k.canonicalUrl, campaignFit, saved.creatorId);
+            if (campaignFit.eligible && visible) trail.set(f.k.canonicalUrl, "delivery", "duplicate", "already_in_results");
             if (campaignFit.eligible && visible && await repo.insertResult(tx, workspaceId, jobId, { creatorId: saved.creatorId, isNew, credits: isNew ? prices[f.k.platform] : 0, reason: f.k.reason, campaignFit })) {
+              trail.set(f.k.canonicalUrl, "delivery", "delivered", isNew ? "new_creator" : "known_creator", { detail: { credits: isNew ? prices[f.k.platform] : 0 } });
               const results = await repo.resultCreatorIds(tx, workspaceId, jobId);
               const qualified = await rerank(tx, job, search);
               await repo.advanceProgress(tx, workspaceId, jobId, {
@@ -190,7 +243,11 @@ export function createLiveRunner(deps: Deps) {
           },
         });
         // Private, missing or unusable profiles return "unavailable": skipped, never charged.
+        if (processed.kind === "unavailable") trail.set(f.k.canonicalUrl, "extraction", "rejected", processed.code.toLowerCase());
+        await flush();
       }
+      trail.finish("skipped", "not_processed");
+      await flush();
       // 8. Charge 12 + new creators if anything visible was found; otherwise everything comes back.
       await deps.db.withWorkspace(workspaceId, async (tx) => {
         if (!(await repo.lockOpenJob(tx, workspaceId, jobId))) return;
@@ -213,7 +270,13 @@ export function createLiveRunner(deps: Deps) {
     } catch (err) {
       const pe = providerErrorOf(err);
       const retryable = pe ? pe.retryable : !(err instanceof AppError) || err.code === "PROVIDER_UNAVAILABLE";
-      if (retryable && job.attempts < maxAttempts) throw err; // the queue tries again with backoff
+      // The trail is diagnostic: failing to write it must not hide the run's own error.
+      if (retryable && job.attempts < maxAttempts) {
+        await flush().catch(() => undefined);
+        throw err; // the queue tries again with backoff; the next attempt updates these rows
+      }
+      trail.finish("failed", "run_failed");
+      await flush().catch((flushError: unknown) => deps.logger.warn({ err: flushError, jobId }, "could not record the candidate trail"));
       deps.logger.warn({ err, jobId }, "live discovery run failed");
       const code = "PROVIDER_UNAVAILABLE";
       const message = MESSAGES[pe?.reason ?? "provider"];

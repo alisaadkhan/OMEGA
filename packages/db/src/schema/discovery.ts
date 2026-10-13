@@ -81,6 +81,32 @@ export const discoveryResults = wp.table("discovery_results", {
   createdAt: ts("created_at").notNull().defaultNow(),
 });
 
+export type CandidateStage = "normalization" | "dedupe" | "cheap_gate" | "relevance" | "selection" | "extraction" | "verification" | "fit" | "delivery";
+export type CandidateDecision = "pending" | "delivered" | "rejected" | "duplicate" | "skipped" | "not_extracted" | "unreviewed" | "unverified" | "failed";
+
+/** Live Discovery decision trail: one row per job and search-result link (migration 0021). */
+export const discoveryCandidates = wp.table("discovery_candidates", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").notNull(),
+  jobId: uuid("job_id").notNull(),
+  platform: text("platform", { enum: ["instagram", "tiktok", "youtube"] }).notNull(),
+  candidateKey: text("candidate_key").notNull(),
+  sourceUrl: text("source_url").notNull(),
+  canonicalUrl: text("canonical_url"),
+  handle: text("handle"),
+  query: text("query"),
+  round: smallint("round"),
+  position: smallint("position"),
+  occurrences: smallint("occurrences").notNull().default(1),
+  stage: text("stage").$type<CandidateStage>().notNull(),
+  decision: text("decision").$type<CandidateDecision>().notNull(),
+  reason: text("reason"),
+  detail: jsonb("detail").$type<Record<string, unknown>>().notNull().default({}),
+  creatorId: uuid("creator_id"),
+  createdAt: ts("created_at").notNull().defaultNow(),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+});
+
 export const serperCache = platform.table("serper_cache", {
   queryHash: text("query_hash").primaryKey(),
   query: text("query").notNull(),

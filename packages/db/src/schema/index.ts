@@ -31,7 +31,7 @@ import {
   creatorSuppressions,
   removalRequests,
 } from "./creators";
-import { discoveryEstimates, discoveryJobs, discoveryResults, serperCache } from "./discovery";
+import { discoveryCandidates, discoveryEstimates, discoveryJobs, discoveryResults, serperCache } from "./discovery";
 import { users, workspaceMembers, workspaces } from "./identity";
 import { idempotencyKeys, outbox, providerCalls } from "./platform";
 import { auditLog, staffSessions, staffUsers } from "./staff";
@@ -84,6 +84,7 @@ export const ALL_TABLES = [
   rawPayloads,
   enrichmentSettings,
   discoveryResults,
+  discoveryCandidates,
   serperCache,
   removalRequests,
   creatorSuppressions,

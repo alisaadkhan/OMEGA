@@ -54,10 +54,17 @@ describe("migration 0012", () => {
     await ownerQuery(`insert into wp.discovery_jobs (workspace_id, kind, requested_by, input_url, platform, handle, canonical_url, cost, status)
       values ('${a.workspaceId}', 'add_by_url', '${a.userId}', 'https://www.instagram.com/Erase.Me/?hl=en', 'instagram', 'erase.me', 'https://instagram.com/erase.me', 10, 'completed'),
              ('${b.workspaceId}', 'refresh', '${b.userId}', null, 'instagram', 'erase.me', 'https://instagram.com/erase.me', 10, 'failed')`);
+    // Live runs' decision trails name the profile too (0021): by creator id, or by link before it was saved.
+    const live = await liveJob(a.workspaceId, a.userId);
+    await ownerQuery(`insert into wp.discovery_candidates (workspace_id, job_id, platform, candidate_key, source_url, canonical_url, stage, decision, creator_id)
+      values ('${a.workspaceId}', '${live}', 'instagram', 'https://instagram.com/erase.me', 'https://www.instagram.com/erase.me/', 'https://instagram.com/erase.me', 'delivery', 'delivered', '${c}'),
+             ('${a.workspaceId}', '${live}', 'instagram', 'https://instagram.com/erase.me.too', 'https://www.instagram.com/p/x/', 'https://instagram.com/erase.me', 'fit', 'rejected', null),
+             ('${a.workspaceId}', '${live}', 'instagram', 'https://instagram.com/keep.me', 'https://www.instagram.com/keep.me/', 'https://instagram.com/keep.me', 'fit', 'rejected', null)`);
     const urls = sql`array[${sql.join(["https://instagram.com/erase.me"].map((u) => sql`${u}`), sql`, `)}]::text[]`;
     await db.withSystem((tx) => tx.execute(sql`select platform.erase_creator_workspace_rows(${c}, ${urls})`));
     expect(await ownerQuery(`select 1 from wp.audience_views where creator_id = '${c}'`)).toEqual([]);
-    const jobs = await ownerQuery<{ input_url: string | null; handle: string; canonical_url: string }>(`select input_url, handle, canonical_url from wp.discovery_jobs`);
+    expect((await ownerQuery<{ candidate_key: string }>(`select candidate_key from wp.discovery_candidates`)).map((r) => r.candidate_key)).toEqual(["https://instagram.com/keep.me"]);
+    const jobs = await ownerQuery<{ input_url: string | null; handle: string; canonical_url: string }>(`select input_url, handle, canonical_url from wp.discovery_jobs where kind <> 'live'`);
     expect(jobs).toHaveLength(2);
     for (const j of jobs) {
       expect(j.input_url).toBeNull();

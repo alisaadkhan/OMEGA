@@ -49,24 +49,24 @@ const RESULT_CREATOR = /\b(creator|influencer|blogger|vlogger|artist|photographe
 const RESULT_BUSINESS = /\b(shop|store|brand|company|restaurant|agency|school|university|news|magazine|mall|boutique|clinic|salon|delivery|wholesale)\b/i;
 
 /** Cheap result gate: drop explicit businesses, retain topic-supported possible profiles, and ask the LLM only about the rest. */
-export function classifyCandidates(search: LiveSearch, candidates: Candidate[]): { possible: Kept[]; ambiguous: Candidate[]; rejected: number } {
+export function classifyCandidates(search: LiveSearch, candidates: Candidate[]): { possible: Kept[]; ambiguous: Candidate[]; rejected: number; businesses: Candidate[] } {
   const possible: Kept[] = [];
   const ambiguous: Candidate[] = [];
-  let rejected = 0;
+  const businesses: Candidate[] = [];
   for (const candidate of candidates) {
     const text = `${candidate.title} ${candidate.snippet}`;
     const creatorCue = RESULT_CREATOR.test(text);
     const businessCue = RESULT_BUSINESS.test(text);
     const topicCue = hasCampaignTopicEvidence(search, text);
     if (businessCue && !creatorCue) {
-      rejected++;
+      businesses.push(candidate);
     } else if (topicCue) {
       possible.push({ ...candidate, reason: "Search title or snippet contains requested-topic evidence; profile eligibility remains pending extraction" });
     } else {
       ambiguous.push(candidate);
     }
   }
-  return { possible, ambiguous, rejected };
+  return { possible, ambiguous, rejected: businesses.length, businesses };
 }
 /**
  * Candidates per relevance request. Measured 2026-10-13: every request with 14–36 candidates failed after the corrective
@@ -96,7 +96,7 @@ async function reviewBatch(o: { llm: Llm; search: LiveSearch; candidates: Candid
  * model could not review is dropped (counted in `stats.unreviewed`); if every batch fails the error is thrown, so the
  * job retries or fails without extracting anything.
  */
-export async function filterRelevant(o: { llm: Llm; search: LiveSearch; candidates: Candidate[]; ctx?: CallContext; logger?: Logger; stats?: { unreviewed: number } }): Promise<Kept[]> {
+export async function filterRelevant(o: { llm: Llm; search: LiveSearch; candidates: Candidate[]; ctx?: CallContext; logger?: Logger; stats?: { unreviewed: number; unreviewedUrls?: string[] } }): Promise<Kept[]> {
   if (o.candidates.length === 0) return [];
   const kept: Kept[] = [];
   let failed = 0;
@@ -107,6 +107,7 @@ export async function filterRelevant(o: { llm: Llm; search: LiveSearch; candidat
       kept.push(...(await reviewBatch({ llm: o.llm, search: o.search, candidates: batch, ...(o.ctx ? { ctx: o.ctx } : {}) })));
     } catch (err) {
       failed += batch.length;
+      o.stats?.unreviewedUrls?.push(...batch.map((c) => c.canonicalUrl));
       lastError = err;
       o.logger?.warn({ err, batch: batch.length }, "relevance review failed for one batch; its candidates are not extracted");
     }

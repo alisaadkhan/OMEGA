@@ -9,6 +9,7 @@ import { createEnrichmentPipeline, suppress, type EnrichmentPipeline } from "../
 import { addCreator, TEST_KEY } from "../creators/test-fixtures";
 import { createCachedSearch } from "./live/cache";
 import { createLiveRunner } from "./live-runner";
+import { candidatesFor as repoCandidates } from "./repository";
 import { createDiscoveryService } from "./service";
 
 const db = createTestDatabase();
@@ -90,6 +91,9 @@ async function customer(): Promise<TenantContext> {
   return { ...ws, requestId: `req-${randomUUID().slice(0, 8)}`, role: "owner" };
 }
 const balance = async (c: TenantContext) => (await billing.summary(c)).balance;
+type TrailRow = { candidate_key: string; stage: string; decision: string; reason: string | null; creator_id: string | null; occurrences: number };
+const trailOf = (jobId: string) => ownerQuery<TrailRow>(`select candidate_key, stage, decision, reason, creator_id, occurrences from wp.discovery_candidates where job_id = '${jobId}' order by candidate_key`);
+const row = (rows: TrailRow[], handle: string) => rows.find((r) => r.candidate_key === `https://instagram.com/${handle}`);
 
 async function startRun(c: TenantContext, maxNew: 5 | 10 = 10): Promise<string> {
   const estimate = await discovery.createEstimate(c, { search: { text: "bridal makeup", filters: searchFiltersSchema.parse({ platform: "instagram", creatorCity: "Lahore" }) }, maxNew });
@@ -123,6 +127,19 @@ describe("live runner", () => {
     expect(payloads[0]?.n).toBe(7);
     const ev = await ownerQuery<{ n: number }>(`select count(*)::int n from platform.outbox where event_type = 'notify.discovery_job_finished'`);
     expect(ev[0]?.n).toBe(1);
+
+    // Every candidate has a terminal decision, and the trail agrees with the persisted, charged results.
+    const trail = await trailOf(id);
+    expect(trail.filter((r) => r.decision === "pending")).toEqual([]);
+    expect(trail.filter((r) => r.decision === "delivered")).toHaveLength(res.results.length);
+    expect(new Set(trail.filter((r) => r.decision === "delivered").map((r) => r.creator_id))).toEqual(new Set(res.results.map((r) => r.id)));
+    expect(row(trail, "known_one")).toMatchObject({ stage: "delivery", decision: "delivered", reason: "known_creator" });
+    expect(row(trail, "new_a")).toMatchObject({ stage: "delivery", decision: "delivered", reason: "new_creator" });
+    expect(row(trail, "private_c")).toMatchObject({ stage: "extraction", decision: "rejected", reason: "private_account" });
+    // The trail is tenant data: another workspace sees none of it.
+    const other = await customer();
+    expect(await db.withTenant(other, (tx) => repoCandidates(tx, other.workspaceId, id))).toEqual([]);
+    expect(await db.withTenant(c, (tx) => repoCandidates(tx, c.workspaceId, id))).toHaveLength(trail.length);
   });
 
   it("a run that finds nothing is free", async () => {
@@ -175,6 +192,11 @@ describe("live runner", () => {
     await runner.run(id, c.workspaceId);
     expect(scraper.batchCalls[0]?.handles).toHaveLength(5);
     expect(await discovery.get(c, id)).toMatchObject({ live: { new: 5, creditsCharged: 62 } });
+    // Candidates beyond the chosen run size are recorded as not extracted, not silently dropped.
+    const trail = await trailOf(id);
+    expect(trail.filter((r) => r.reason === "run_size_limit")).toHaveLength(3); // seven links padded to the eight-candidate pool
+    expect(trail.filter((r) => r.decision === "delivered")).toHaveLength(5);
+    expect(trail.filter((r) => r.decision === "pending")).toEqual([]);
   });
 
   it("a new creator flagged as a possible minor is saved but costs nothing (Review Focus 1)", async () => {
@@ -242,6 +264,22 @@ describe("live runner", () => {
     expect((await discovery.results(c, id, 0)).results.map((r) => r.handle)).toEqual(["first_saved"]);
   });
 
+  it("skips a known creator whose stored sample cannot be read instead of failing the run", async () => {
+    const known = await addCreator(db, { displayName: "Known One", profiles: [{ platform: "instagram", handle: "known_one" }] });
+    const { runner } = setup({
+      web: new FixtureWebSearch(links("known_one", "new_a")),
+      wrap: (p) => ({ ...p, profileForUrl: async () => { throw new Error("archived payload is missing from storage"); } }),
+    });
+    const c = await customer();
+    const id = await startRun(c);
+    await runner.run(id, c.workspaceId);
+    expect(await discovery.get(c, id)).toMatchObject({ status: "completed", outcome: "succeeded" });
+    const res = await discovery.results(c, id, 0);
+    expect(res.results.some((r) => r.id === known)).toBe(false);
+    expect(res.results.length).toBeGreaterThan(0);
+    expect(row(await trailOf(id), "known_one")).toMatchObject({ stage: "selection", decision: "skipped", reason: "stored_sample_unreadable" });
+  });
+
   it("does not charge for hidden minor records when a later profile fails", async () => {
     const { runner } = setup({
       maxAttempts: 1,
@@ -278,5 +316,10 @@ describe("live runner", () => {
     await down.runner.run(id2, c2.workspaceId);
     expect(await discovery.get(c2, id2)).toMatchObject({ status: "failed", error: { code: "PROVIDER_UNAVAILABLE" } });
     expect(await balance(c2)).toMatchObject({ available: 200, reserved: 0 });
+    // Three attempts update the same rows; the selected candidates end as failed by the run, nothing stays pending.
+    const trail = await trailOf(id2);
+    expect(new Set(trail.map((r) => r.candidate_key)).size).toBe(trail.length);
+    expect(trail.filter((r) => r.decision === "pending")).toEqual([]);
+    expect(trail.filter((r) => r.reason === "run_failed").length).toBeGreaterThan(0);
   });
 });
