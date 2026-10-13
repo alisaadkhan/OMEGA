@@ -80,6 +80,25 @@ describe("enrichment pipeline", () => {
     expect([...storage.objects.keys()].some((k) => k.startsWith("raw-payloads/instagram/"))).toBe(true);
   });
 
+  it("persists a hidden YouTube subscriber count as unknown in profile and metric history", async () => {
+    const channel = structuredClone(scraperFixture("youtube-channel.json")) as Record<string, unknown>;
+    const channels = channel["items"] as Record<string, unknown>[];
+    const statistics = channels[0]?.["statistics"] as Record<string, unknown>;
+    statistics["hiddenSubscriberCount"] = true;
+    statistics["subscriberCount"] = "0";
+    const { pipeline } = setup({
+      scraper: new FixtureScraper({ youtube: { provider: "youtube", raw: { channel: { ...channel, items: channels }, videos: [] }, costUsd: 0 } }),
+    });
+    const out = await pipeline.enrich(await job("youtube"), hooks().h);
+    if (out.kind !== "saved") throw new Error("expected a saved profile");
+    expect(out.profile.followers).toBeNull();
+    const rows = await ownerQuery<{ profile_followers: number | null; snapshot_followers: number | null }>(`
+      select p.followers profile_followers,
+        (select s.followers from gcp.profile_metric_snapshots s where s.profile_id = p.id order by s.captured_at desc limit 1) snapshot_followers
+      from gcp.creator_profiles p where p.creator_id = '${out.creatorId}'`);
+    expect(rows).toEqual([{ profile_followers: null, snapshot_followers: null }]);
+  });
+
   it("retries reuse the archived payload instead of scraping again (Review Focus 1)", async () => {
     const { pipeline, scraper } = setup();
     const j = await job();

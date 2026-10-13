@@ -105,5 +105,14 @@ describe("signals", () => {
     expect(profileMetrics(profile()).engagementRate).toBeCloseTo(2.97, 1);
     expect(profileMetrics(profile({ recentPosts: [] }))).toEqual({ engagementRate: null, avgLikes: null, avgComments: null, avgViews: null });
     expect([tierOf(5_000), tierOf(10_000), tierOf(250_000), tierOf(3_000_000)]).toEqual(["under 10K", "10K–100K", "100K–1M", "1M+"]);
+    expect(tierOf(null)).toBe("unknown");
+  });
+
+  it("does not derive follower-based signals or a tier from unknown subscribers", () => {
+    const report = measureSignals(profile({ platform: "youtube", followers: null, following: null }), null, S, now);
+    expect(report.tier).toBe("unknown");
+    expect(byKey(report)["engagement_vs_tier"]).toBeUndefined();
+    expect(byKey(report)["views_to_followers"]).toBeUndefined();
+    expect(byKey(report)["follow_ratio"]).toBeUndefined();
   });
 });

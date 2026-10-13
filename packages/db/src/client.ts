@@ -8,7 +8,7 @@ export function createSql(url: string, opts: { max: number; applicationName: str
   return postgres(url, {
     max: opts.max,
     prepare: false, // required by Supabase's transaction pooler
-    ssl: tlsOptions(opts.caPem),
+    ssl: tlsOptions(opts.caPem, url),
     idle_timeout: 30,
     connect_timeout: 15,
     onnotice: () => {},

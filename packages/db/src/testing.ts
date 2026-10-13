@@ -39,7 +39,8 @@ export function createTestDatabase(): Db {
 
 /** Runs SQL as the database owner (test setup only). */
 export async function ownerQuery<T extends Record<string, unknown>>(text: string): Promise<T[]> {
-  const sql = postgres(testDatabaseUrl(), { max: 1, prepare: false, ssl: tlsOptions(testCaPem()), onnotice: () => {} });
+  const url = testDatabaseUrl();
+  const sql = postgres(url, { max: 1, prepare: false, ssl: tlsOptions(testCaPem(), url), onnotice: () => {} });
   try {
     return (await sql.unsafe(text)) as unknown as T[];
   } finally {

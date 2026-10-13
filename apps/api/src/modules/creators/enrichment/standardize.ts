@@ -17,7 +17,7 @@ export type StandardProfile = {
   handle: string;
   displayName: string;
   bio: string;
-  followers: number;
+  followers: number | null;
   following: number | null;
   posts: number | null;
   verified: boolean;
@@ -216,7 +216,8 @@ function youtube(handle: string, raw: unknown, maxPosts: number): StandardizeRes
       handle,
       displayName: cleanText(snippet["title"], LIMITS.name) || handle,
       bio: description,
-      followers: stats["hiddenSubscriberCount"] === true ? 0 : (count(stats["subscriberCount"]) ?? 0),
+      // YouTube's hidden count is unavailable data, not an audience of zero.
+      followers: stats["hiddenSubscriberCount"] === true ? null : count(stats["subscriberCount"]),
       following: null,
       posts: count(stats["videoCount"]),
       verified: false,

@@ -6,7 +6,16 @@ import type { ConnectionOptions } from "node:tls";
  * Without it (development only — production config requires the CA) traffic is still encrypted,
  * but the certificate is not verified; callers must log `UNVERIFIED_TLS_WARNING` at startup.
  */
-export function tlsOptions(caPem: string | null): ConnectionOptions {
+export function tlsOptions(caPem: string | null, url?: string): ConnectionOptions | false {
+  // Local PostgreSQL commonly has SSL disabled. Never weaken TLS for remote hosts.
+  if (url && !caPem) {
+    try {
+      const host = new URL(url).hostname;
+      if (host === "localhost" || host === "127.0.0.1" || host === "::1") return false;
+    } catch {
+      // Let the PostgreSQL client report malformed connection strings.
+    }
+  }
   return caPem ? { ca: caPem, rejectUnauthorized: true } : { rejectUnauthorized: false };
 }
 

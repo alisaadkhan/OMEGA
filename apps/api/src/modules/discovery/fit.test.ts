@@ -37,6 +37,30 @@ describe("Live Discovery Campaign Fit", () => {
     expect(result.score).toBe(0);
   });
 
+  it("matches reviewed Roman Urdu niche terms and reports Roman Urdu caption evidence", () => {
+    const romanSearch = liveSearchSchema.parse({ text: "Roman Urdu bridal creators in Lahore", filters: { niches: ["bridal"] } });
+    const posts = profile().recentPosts.map((post) => ({ ...post, caption: "Aaj dulhan ka makeup look tayyar kiya", hashtags: ["shaadi", "dulhan"] }));
+    const result = evaluateCampaignFit(romanSearch, candidate, profile({ recentPosts: posts }), false, now);
+    expect(result.eligible).toBe(true);
+    expect(result.topicScore).toBe(1);
+    expect(result.evidence).toContain("100% of sampled captions contain roman urdu script/language signal (12 captions)");
+  });
+
+  it("accepts a first-person Roman Urdu creator cue as lexical individual evidence", () => {
+    const romanCandidate = { ...candidate, title: "Sana Bridal", snippet: "Lahore" };
+    const result = evaluateCampaignFit(search, romanCandidate, profile({ displayName: "Sana", bio: "Main Lahore ki makeup videos banati hun" }), false, now);
+    expect(result.eligible).toBe(true);
+    expect(result.evidence).toContain("Individual-creator lexical signal from public title/bio (Roman Urdu first-person creator cue)");
+  });
+
+  it("does not treat an unknown follower count as zero or satisfy an explicit size filter", () => {
+    const sizedSearch = liveSearchSchema.parse({ text: "Bridal creators in Lahore", filters: { niches: ["bridal"], followersMin: 10_000 } });
+    const result = evaluateCampaignFit(sizedSearch, candidate, profile({ followers: null }), false, now);
+    expect(result.eligible).toBe(false);
+    expect(result.gate).toBe("follower_count_unavailable");
+    expect(result.evidence).toContain("Follower count unknown from the source profile");
+  });
+
   it("fails closed when individual-creator evidence is absent or business cues dominate", () => {
     expect(evaluateCampaignFit(search, { ...candidate, title: "Sana", snippet: "Lahore" }, profile({ displayName: "Sana", bio: "Lahore" }), false, now).gate).toBe("individual_creator_unverified");
     expect(evaluateCampaignFit(search, candidate, profile(), true, now).gate).toBe("minor_or_unclear");

@@ -10,7 +10,7 @@ export type SignalKey =
   | "engagement_consistency"
   | "follower_growth";
 export type Signal = { key: SignalKey; value: number; status: "ok" | "watch" | "risk"; subScore: number; weight: number; fact: string };
-export type PreviousMetrics = { followers: number; avgLikes: number | null; capturedAt: Date };
+export type PreviousMetrics = { followers: number | null; avgLikes: number | null; capturedAt: Date };
 export type SignalSettings = { benchmarks: EngagementBenchmarks; minPostsForScore: number; growthMinDays: number; scoreBand: number };
 export type SignalReport =
   | { kind: "scored"; signals: Signal[]; base: number; range: { min: number; max: number }; tier: string; confidence: number }
@@ -36,7 +36,8 @@ const median = (xs: number[]) => {
 };
 const status = (score: number): Signal["status"] => (score >= 70 ? "ok" : score >= 45 ? "watch" : "risk");
 
-export function tierOf(followers: number): string {
+export function tierOf(followers: number | null): string {
+  if (followers === null) return "unknown";
   if (followers >= 1_000_000) return "1M+";
   if (followers >= 100_000) return "100K–1M";
   if (followers >= 10_000) return "10K–100K";
@@ -50,7 +51,10 @@ const engaged = (posts: StandardPost[]) => posts.filter((p) => p.likes !== null)
 function engagementRaw(p: StandardProfile): number | null {
   const posts = engaged(p.recentPosts);
   if (posts.length === 0) return null;
-  if (p.platform === "instagram") return p.followers > 0 ? mean(posts.map((x) => ((x.likes ?? 0) + (x.comments ?? 0)) / p.followers)) * 100 : null;
+  if (p.platform === "instagram") {
+    const followers = p.followers;
+    return followers !== null && followers > 0 ? mean(posts.map((x) => ((x.likes ?? 0) + (x.comments ?? 0)) / followers)) * 100 : null;
+  }
   const withViews = posts.filter((x) => (x.views ?? 0) > 0);
   return withViews.length ? mean(withViews.map((x) => ((x.likes ?? 0) + (x.comments ?? 0)) / (x.views ?? 1))) * 100 : null;
 }
@@ -70,10 +74,12 @@ export function profileMetrics(p: StandardProfile): { engagementRate: number | n
 }
 
 function engagementVsTier(p: StandardProfile, s: SignalSettings): Signal | null {
+  const followers = p.followers;
+  if (followers === null) return null;
   const rate = engagementRaw(p);
   if (rate === null) return null;
   const b = s.benchmarks[p.platform];
-  const tier = [...b.tiers].reverse().find(([min]) => p.followers >= min) ?? b.tiers[0] ?? [0, 1, 5];
+  const tier = [...b.tiers].reverse().find(([min]) => followers >= min) ?? b.tiers[0] ?? [0, 1, 5];
   const [, lo, hi] = tier;
   let score: number;
   if (rate < lo) score = Math.max(0, Math.round((rate / lo) * 100) - 10);
@@ -102,7 +108,7 @@ function likesToComments(posts: StandardPost[]): Signal | null {
 
 function viewsToFollowers(p: StandardProfile, s: SignalSettings): Signal | null {
   const views = p.recentPosts.map((x) => x.views).filter((v): v is number => v !== null && v > 0);
-  if (views.length === 0 || p.followers === 0) return null;
+  if (views.length === 0 || p.followers === null || p.followers === 0) return null;
   const ratio = mean(views) / p.followers;
   const low = s.benchmarks[p.platform].viewsLow;
   const score = ratio >= low ? 100 : Math.max(0, Math.round((ratio / low) * 100));
@@ -111,7 +117,7 @@ function viewsToFollowers(p: StandardProfile, s: SignalSettings): Signal | null 
 }
 
 function followRatio(p: StandardProfile): Signal | null {
-  if (p.following === null || p.followers === 0) return null;
+  if (p.following === null || p.followers === null || p.followers === 0) return null;
   const ratio = p.following / p.followers;
   const score = ratio < 0.5 ? 100 : ratio < 0.9 ? 60 : p.followers >= 5_000 ? 25 : 55;
   const fact = `Follows ${num.format(p.following)} accounts against ${num.format(p.followers)} followers${score <= 60 ? "; some growth may be follow-for-follow" : ""}`;
@@ -147,7 +153,7 @@ function engagementConsistency(posts: StandardPost[]): Signal | null {
 }
 
 function followerGrowth(p: StandardProfile, prev: PreviousMetrics | null, s: SignalSettings, now: Date): Signal | null {
-  if (!prev || prev.followers <= 0) return null;
+  if (!prev || prev.followers === null || prev.followers <= 0 || p.followers === null) return null;
   const days = (now.getTime() - prev.capturedAt.getTime()) / DAY;
   if (days < s.growthMinDays) return null;
   const growth = (p.followers - prev.followers) / prev.followers;

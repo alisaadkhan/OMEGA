@@ -36,7 +36,7 @@ type Creator = {
   platform: "instagram" | "tiktok" | "youtube";
   handle: string;
   followers: string;
-  followersNum: number;
+  followersNum: number | null;
   auth: number;
   eng: number;
   quality: string;

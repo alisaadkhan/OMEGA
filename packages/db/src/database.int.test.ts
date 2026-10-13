@@ -80,8 +80,8 @@ describe("database scopes", () => {
   it("keeps Supabase API roles out of our schemas", async () => {
     const rows = await ownerQuery<{ s: string; anon: boolean; authed: boolean; app_staff: boolean }>(`
       select s,
-        has_schema_privilege('anon', s, 'usage') as anon,
-        has_schema_privilege('authenticated', s, 'usage') as authed,
+        case when exists (select 1 from pg_roles where rolname = 'anon') then has_schema_privilege('anon', s, 'usage') else false end as anon,
+        case when exists (select 1 from pg_roles where rolname = 'authenticated') then has_schema_privilege('authenticated', s, 'usage') else false end as authed,
         has_schema_privilege('mushin_app', 'staff', 'usage') as app_staff
       from unnest(array['wp','staff','platform','gcp']) as s`);
     for (const r of rows) {

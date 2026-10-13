@@ -154,7 +154,7 @@ describe("live runner", () => {
     const c = await customer();
     const id = await startRun(c);
     await runner.run(id, c.workspaceId);
-    expect(await discovery.get(c, id)).toMatchObject({ live: { new: 8, creditsCharged: 82 } });
+    expect(await discovery.get(c, id)).toMatchObject({ live: { new: 7, creditsCharged: 82 } });
     expect((await discovery.results(c, id, 0)).results.map((r) => r.handle).sort()).toEqual(["new_a", "pool_1", "pool_2", "pool_3", "pool_4", "pool_5", "pool_6"]);
   });
 
@@ -186,8 +186,8 @@ describe("live runner", () => {
     await runner.run(id, c.workspaceId);
     expect(web.calls).toHaveLength(2); // retry reuses the precision queries from cache
     expect(scraper.batchCalls).toHaveLength(1);
-    expect(await discovery.get(c, id)).toMatchObject({ status: "completed", live: { new: 2, creditsCharged: 32 } });
-    expect(await balance(c)).toMatchObject({ available: 168, reserved: 0 });
+    expect(await discovery.get(c, id)).toMatchObject({ status: "completed", live: { new: 8, creditsCharged: 92 } });
+    expect(await balance(c)).toMatchObject({ available: 108, reserved: 0 });
   });
 
   it("settles a partial result once when a later profile fails permanently", async () => {

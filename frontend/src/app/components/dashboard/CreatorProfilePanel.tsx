@@ -23,7 +23,7 @@ export type Creator = {
   city: string;
   niche: string;
   followers: string;
-  followersNum: number;
+  followersNum: number | null;
   engagement: number;
   /** null until MUSHIN has assessed the creator (never shown without evidence, SRS §5.5). */
   authenticity: number | null;
@@ -41,7 +41,8 @@ export type Creator = {
 };
 
 /** Human-readable creator size band (§8.1). */
-function sizeLabel(followers: number): string {
+function sizeLabel(followers: number | null): string {
+  if (followers === null) return "Unknown audience size";
   if (followers >= 1_000_000) return "Mega";
   if (followers >= 500_000) return "Macro";
   if (followers >= 100_000) return "Mid-tier";

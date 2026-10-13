@@ -55,4 +55,12 @@ describe("search order", () => {
     const rows = [row("a", "Fashion Weekly", "fw", false), row("b", "Ayesha Styles", "ayesha", true)];
     expect(order("fashion", rows, { a: 1, b: 0.8 })).toEqual(["Ayesha Styles", "Fashion Weekly"]);
   });
+
+  it("keeps an unknown follower count unknown and excludes it from numeric follower filters", () => {
+    const unknown = { ...row("yt", "Hidden Subscribers", "hidden", true), primaryPlatform: "youtube" as const, followers: null };
+    const unfiltered = toCards([unknown], { text: "", filters: searchFiltersSchema.parse({}) }, settings, now, new Map());
+    expect(unfiltered[0]?.followers).toBeNull();
+    const filtered = toCards([unknown], { text: "", filters: searchFiltersSchema.parse({ followersMax: 10_000 }) }, settings, now, new Map());
+    expect(filtered).toEqual([]);
+  });
 });

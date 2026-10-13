@@ -67,7 +67,7 @@ export type CardRow = {
   verified: boolean;
   authenticityScore: number | null;
   fakeFollowerPct: number | null;
-  followers: number;
+  followers: number | null;
   engagementRate: number | null;
   followersUpdatedAt: Date | null;
   hasContact: boolean;
@@ -80,11 +80,12 @@ export async function cardRows(tx: Tx, ids: string[]): Promise<CardRow[]> {
     select c.id, c.display_name as "displayName", c.primary_handle as "primaryHandle", c.primary_platform as "primaryPlatform",
       c.avatar_url as "avatarUrl", c.city, c.country, c.niches, c.tags, c.verified,
       c.authenticity_score as "authenticityScore", c.fake_follower_pct as "fakeFollowerPct",
-      coalesce(p.followers, 0) as followers, p.engagement_rate as "engagementRate", p.followers_updated_at as "followersUpdatedAt",
+      case when p.platform = 'youtube' and p.followers = 0 then null else p.followers end as followers,
+      p.engagement_rate as "engagementRate", p.followers_updated_at as "followersUpdatedAt",
       exists (select 1 from gcp.creator_contacts k where k.creator_id = c.id) as "hasContact"
     from gcp.creators c
     left join lateral (
-      select pr.followers, pr.engagement_rate, pr.followers_updated_at from gcp.creator_profiles pr
+      select pr.platform, pr.followers, pr.engagement_rate, pr.followers_updated_at from gcp.creator_profiles pr
       where pr.creator_id = c.id order by (pr.platform = c.primary_platform) desc, pr.followers desc limit 1
     ) p on true
     where c.id in ${ids} and ${VISIBLE}`);
@@ -167,8 +168,12 @@ export function linkedAccounts(tx: Tx, creatorId: string) {
 }
 
 export type ProfileRow = typeof creatorProfiles.$inferSelect;
-export function getProfiles(tx: Tx, creatorId: string): Promise<ProfileRow[]> {
-  return tx.select().from(creatorProfiles).where(eq(creatorProfiles.creatorId, creatorId)).orderBy(desc(creatorProfiles.followers));
+export type ProfileViewRow = Omit<ProfileRow, "followers"> & { followers: number | null };
+export async function getProfiles(tx: Tx, creatorId: string): Promise<ProfileViewRow[]> {
+  const rows = await tx.select().from(creatorProfiles).where(eq(creatorProfiles.creatorId, creatorId)).orderBy(desc(creatorProfiles.followers));
+  // Earlier normalizers stored a hidden YouTube subscriber count as zero. Without the original payload,
+  // that legacy zero is ambiguous; expose it as unknown instead of claiming an audience of zero.
+  return rows.map((p) => (p.platform === "youtube" && p.followers === 0 ? { ...p, followers: null } : p));
 }
 
 export type SnapshotRow = typeof enrichmentSnapshots.$inferSelect;
@@ -254,7 +259,7 @@ export async function requestSummary(tx: Tx, creatorId: string, hash: string): P
 }
 
 /** The public data a summary is written from (also used to tell when a summary is out of date). */
-export function buildSummarySource(c: CreatorRow, profiles: ProfileRow[], snap: SnapshotRow | null): SummarySource {
+export function buildSummarySource(c: CreatorRow, profiles: ProfileViewRow[], snap: SnapshotRow | null): SummarySource {
   return {
     displayName: c.displayName,
     niches: c.niches,
@@ -322,7 +327,7 @@ export type IndexRow = {
   verified: boolean;
   authenticityScore: number | null;
   hasContact: boolean;
-  profiles: { platform: Platform; handle: string; followers: number; engagementRate: number | null; bio: string | null; followersUpdatedAt: string | null }[];
+  profiles: { platform: Platform; handle: string; followers: number | null; engagementRate: number | null; bio: string | null; followersUpdatedAt: string | null }[];
   audience: AudienceRow | null;
   updatedEpoch: number;
 };
@@ -343,7 +348,8 @@ export async function indexRows(tx: SystemTx, ids: string[]): Promise<IndexRow[]
       c.authenticity_score as "authenticityScore",
       exists (select 1 from gcp.creator_contacts k where k.creator_id = c.id) as "hasContact",
       coalesce((
-        select jsonb_agg(jsonb_build_object('platform', p.platform, 'handle', p.handle, 'followers', p.followers,
+        select jsonb_agg(jsonb_build_object('platform', p.platform, 'handle', p.handle,
+          'followers', case when p.platform = 'youtube' and p.followers = 0 then null else p.followers end,
           'engagementRate', p.engagement_rate, 'bio', p.bio, 'followersUpdatedAt', p.followers_updated_at) order by p.followers desc)
         from gcp.creator_profiles p where p.creator_id = c.id), '[]'::jsonb) as profiles,
       (select s.audience from gcp.enrichment_snapshots s where s.creator_id = c.id and s.audience is not null order by s.created_at desc limit 1) as audience,
@@ -373,7 +379,7 @@ export async function visibleIds(tx: SystemTx, ids: string[]): Promise<string[]>
 export type NewProfile = {
   platform: Platform;
   handle: string;
-  followers: number;
+  followers: number | null;
   engagementRate: number | null;
   following?: number | null;
   posts?: number | null;

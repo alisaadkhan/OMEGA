@@ -12,7 +12,7 @@ export type CreatorDocument = {
   niches: string[];
   tags: string[];
   bio: string;
-  followers: number;
+  followers: number | null;
   engagement_rate: number | null;
   verified: boolean;
   authenticity_score: number | null;

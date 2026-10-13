@@ -62,6 +62,15 @@ describe("profile", () => {
     expect(p.authenticity).toMatchObject({ status: "assessed", score: 88, fakeFollowerPct: 4, evidence: assessed.evidence });
   });
 
+  it("presents legacy YouTube zero counts as unknown when the old source value is ambiguous", async () => {
+    const id = await addCreator(db, { primaryPlatform: "youtube", profiles: [{ platform: "youtube", handle: "hidden_subscribers", followers: 0 }] });
+    const profile = await creators.profile(await trialCustomer(), id);
+    expect(profile.profiles[0]?.followers).toBeNull();
+    const c = await trialCustomer();
+    const cards = await db.withTenant(c, (tx) => repo.cardRows(tx, [id]));
+    expect(cards[0]?.followers).toBeNull();
+  });
+
   it("writes one summary request for concurrent opens, and shows a summary that matches the current data", async () => {
     const id = await addCreator(db);
     const c = await trialCustomer();

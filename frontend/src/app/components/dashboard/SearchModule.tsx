@@ -143,7 +143,7 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
 
   const filtered = useMemo(() => {
     const list = (search.data?.results ?? []).map(toCreator);
-    if (sortKey === "followers") return [...list].sort((a, b) => b.followersNum - a.followersNum);
+    if (sortKey === "followers") return [...list].sort((a, b) => (a.followersNum === null ? 1 : b.followersNum === null ? -1 : b.followersNum - a.followersNum));
     if (sortKey === "engagement") return [...list].sort((a, b) => b.engagement - a.engagement);
     if (sortKey === "freshness") return [...list].sort((a, b) => FRESH_RANK[a.followersFreshness] - FRESH_RANK[b.followersFreshness]);
     return list; // relevance: the API's fit order

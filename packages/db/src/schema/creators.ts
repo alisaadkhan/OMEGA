@@ -55,7 +55,7 @@ export const creatorProfiles = gcp.table("creator_profiles", {
   platform: text("platform", { enum: platformEnum }).notNull(),
   handle: text("handle").notNull(),
   canonicalUrl: text("canonical_url").notNull(),
-  followers: integer("followers").notNull().default(0),
+  followers: integer("followers"),
   following: integer("following"),
   posts: integer("posts"),
   engagementRate: doublePrecision("engagement_rate"),
@@ -170,7 +170,7 @@ export const savedSearches = wp.table("saved_searches", {
 export const profileMetricSnapshots = gcp.table("profile_metric_snapshots", {
   id: uuid("id").primaryKey().defaultRandom(),
   profileId: uuid("profile_id").notNull(),
-  followers: integer("followers").notNull(),
+  followers: integer("followers"),
   following: integer("following"),
   posts: integer("posts"),
   engagementRate: doublePrecision("engagement_rate"),

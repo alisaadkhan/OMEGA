@@ -47,6 +47,22 @@ describe("standardize", () => {
     expect(standardize("youtube", "x", { channel: scraperFixture("youtube-notfound.json"), videos: null }, { maxPosts: 12 })).toEqual({ kind: "not_found" });
   });
 
+  it("keeps hidden or missing YouTube subscriber counts unknown", () => {
+    const channel = scraperFixture("youtube-channel.json") as Record<string, unknown>;
+    const hidden = structuredClone(channel) as Record<string, unknown>;
+    const hiddenItems = hidden["items"] as Record<string, unknown>[];
+    const hiddenStats = hiddenItems[0]?.["statistics"] as Record<string, unknown>;
+    hiddenStats["hiddenSubscriberCount"] = true;
+    hiddenStats["subscriberCount"] = "0";
+    const profile = ok(standardize("youtube", "hidden-channel", { channel: { ...channel, items: hiddenItems }, videos: [] }, { maxPosts: 12 }));
+    expect(profile.followers).toBeNull();
+
+    const missingItems = structuredClone(channel["items"]) as Record<string, unknown>[];
+    const missingStats = missingItems[0]?.["statistics"] as Record<string, unknown>;
+    delete missingStats["subscriberCount"];
+    expect(ok(standardize("youtube", "missing-count", { channel: { ...channel, items: missingItems }, videos: [] }, { maxPosts: 12 })).followers).toBeNull();
+  });
+
   it("strips HTML, control characters and caps lengths; rejects impossible numbers (SRS §5.3)", () => {
     const raw = igRaw();
     const first = raw[0] as Record<string, unknown> & { latestPosts: Record<string, unknown>[] };

@@ -12,7 +12,7 @@ export async function migrate(
   opts: { dir?: string; log?: (m: string) => void; caPem?: string | null } = {},
 ): Promise<string[]> {
   const dir = opts.dir ?? fileURLToPath(new URL("../migrations/", import.meta.url));
-  const sql = postgres(url, { max: 1, prepare: false, ssl: tlsOptions(opts.caPem ?? null), onnotice: () => {} });
+  const sql = postgres(url, { max: 1, prepare: false, ssl: tlsOptions(opts.caPem ?? null, url), onnotice: () => {} });
   try {
     await sql`create schema if not exists platform`;
     await sql`create table if not exists platform.schema_migrations (

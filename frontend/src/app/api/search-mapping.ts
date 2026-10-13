@@ -136,7 +136,8 @@ export function fromChips(chips: InterpretResponse["chips"]): ChipState {
   };
 }
 
-export function formatCount(n: number): string {
+export function formatCount(n: number | null): string {
+  if (n === null) return "Unknown";
   const trim = (v: string) => v.replace(/\.0$/, "");
   if (n >= 1_000_000) return `${trim((n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1))}M`;
   if (n >= 1_000) return `${trim((n / 1_000).toFixed(n >= 100_000 ? 0 : 1))}K`;

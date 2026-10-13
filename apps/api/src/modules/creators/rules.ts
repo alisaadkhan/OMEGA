@@ -8,7 +8,7 @@ export type LabelThresholds = { best: number; strong: number; possible: number }
 export type FitInput = {
   /** Meilisearch ranking score (0–1); null when the user typed no text. */
   textScore: number | null;
-  followers: number;
+  followers: number | null;
   engagementRate: number | null;
   authenticityScore: number | null;
   followersFreshness: Freshness;
@@ -27,9 +27,9 @@ export function freshnessOf(at: Date | null, now: Date, t: FreshnessThresholds):
 }
 
 /** 1 at the centre of a requested follower range (or when no range was asked for), 0.5 at its edges; likewise engagement above its minimum. */
-function filterCloseness(f: SearchFilters, followers: number, engagement: number | null): number {
+function filterCloseness(f: SearchFilters, followers: number | null, engagement: number | null): number {
   const parts: number[] = [];
-  if (f.followersMin !== undefined && f.followersMax !== undefined && f.followersMax > f.followersMin) {
+  if (followers !== null && f.followersMin !== undefined && f.followersMax !== undefined && f.followersMax > f.followersMin) {
     const centre = (f.followersMin + f.followersMax) / 2;
     const half = (f.followersMax - f.followersMin) / 2;
     parts.push(0.5 + 0.5 * clamp01(1 - Math.abs(followers - centre) / half));
@@ -197,7 +197,7 @@ export type SummarySource = {
   evidence: { signal: string; detail: string }[];
   profiles: {
     platform: string;
-    followers: number;
+    followers: number | null;
     engagementRate: number | null;
     posts: number | null;
     avgLikes: number | null;

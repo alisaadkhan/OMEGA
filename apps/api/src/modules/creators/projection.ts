@@ -10,6 +10,7 @@ export function isIndexable(r: IndexRow): boolean {
 export function toDocument(r: IndexRow): CreatorDocument {
   const primary = r.profiles.find((p) => p.platform === r.primaryPlatform) ?? r.profiles[0];
   const followersAt = primary?.followersUpdatedAt ? Math.floor(new Date(primary.followersUpdatedAt).getTime() / 1000) : null;
+  const knownFollowers = r.profiles.map((p) => (p.platform === "youtube" && p.followers === 0 ? null : p.followers)).filter((v): v is number => v !== null);
   return {
     id: r.id,
     display_name: r.displayName,
@@ -23,7 +24,7 @@ export function toDocument(r: IndexRow): CreatorDocument {
     niches: r.niches,
     tags: r.tags,
     bio: (primary?.bio ?? "").slice(0, 500),
-    followers: Math.max(0, ...r.profiles.map((p) => p.followers)),
+    followers: knownFollowers.length ? Math.max(...knownFollowers) : null,
     engagement_rate: primary?.engagementRate ?? null,
     verified: r.verified,
     authenticity_score: r.authenticityScore,
