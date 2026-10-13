@@ -202,7 +202,8 @@ describe("contacts, months, URLs and minors", () => {
     expect(normalizeProfileUrl("Ayesha Khan")).toBeNull();
     expect(normalizeProfileUrl("https://example.com/ayesha")).toBeNull();
     // Post, reel and app pages are not profiles: adding one would charge for scraping a handle like "p".
-    for (const page of ["instagram.com/p/Dd_0JNUslzh", "https://www.instagram.com/reel/C1x2y3/", "instagram.com/reels/abc", "instagram.com/stories/sana/1", "instagram.com/explore/tags/bridal", "instagram.com/tv/abc", "instagram.com/accounts/login"]) {
+    // "popular" topic pages appeared 63 times in 2026-10-13 live searches and were extracted as an account called "popular".
+    for (const page of ["instagram.com/p/Dd_0JNUslzh", "https://www.instagram.com/reel/C1x2y3/", "instagram.com/reels/abc", "instagram.com/stories/sana/1", "instagram.com/explore/tags/bridal", "instagram.com/tv/abc", "instagram.com/accounts/login", "https://www.instagram.com/popular/fitness-coach-in-pakistan/", "instagram.com/locations/123/karachi"]) {
       expect(normalizeProfileUrl(page), page).toBeNull();
     }
   });

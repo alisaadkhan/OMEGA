@@ -1,11 +1,11 @@
 import type { Logger, ProviderCallSink } from "@mushin/core";
 import { instrumented } from "../instrumented";
 import { createApifyClient } from "./apify";
-import { ProviderError, type ProfileScraper, type ScrapeRequest, type ScrapeResult, type SpendGuard } from "./types";
+import { ProviderError, type PostOwnerResult, type ProfileScraper, type ScrapeRequest, type ScrapeResult, type SpendGuard } from "./types";
 import { fetchYouTubeChannel } from "./youtube";
 
 type Options = {
-  apify: { token: string; instagramActor: string; tiktokActor: string; instagramBuild?: string; tiktokBuild?: string } | null;
+  apify: { token: string; instagramActor: string; tiktokActor: string; instagramBuild?: string; tiktokBuild?: string; instagramPostActor?: string; instagramPostBuild?: string } | null;
   youtubeApiKey: string | null;
   tiktokVideos: number;
   youtubeVideos?: number;
@@ -71,21 +71,21 @@ export function createProfileScraper(o: Options): ProfileScraper {
       })
     : null;
 
-  async function viaApify(req: ScrapeRequest, actor: string, input: unknown, units = 1, maxWaitMs?: number, build?: string): Promise<ScrapeResult> {
+  async function viaApify(req: ScrapeRequest, actor: string, input: unknown, units = 1, maxWaitMs?: number, build?: string, operation?: string): Promise<ScrapeResult> {
     if (!apify) throw new ProviderError(false, "not_configured", "APIFY_TOKEN is not set");
     const done = await o.spendGuard.begin(units);
     try {
-      return await runApify(req, actor, input, apify, maxWaitMs, build);
+      return await runApify(req, actor, input, apify, maxWaitMs, build, operation);
     } finally {
       done();
     }
   }
 
-  async function runApify(req: ScrapeRequest, actor: string, input: unknown, apify: ReturnType<typeof createApifyClient>, maxWaitMs?: number, build?: string): Promise<ScrapeResult> {
+  async function runApify(req: ScrapeRequest, actor: string, input: unknown, apify: ReturnType<typeof createApifyClient>, maxWaitMs?: number, build?: string, operation = `scrape_${req.platform}`): Promise<ScrapeResult> {
     const out = await instrumented(
       {
         provider: "apify",
-        operation: `scrape_${req.platform}`,
+        operation,
         timeoutMs: (maxWaitMs ?? 180_000) + 60_000,
         retries: 0,
         sink: o.sink,
@@ -101,7 +101,7 @@ export function createProfileScraper(o: Options): ProfileScraper {
         await o.sink
           .record({
             provider: "apify",
-            operation: `scrape_${req.platform}`,
+            operation,
             model: actor,
             tokensIn: null,
             tokensOut: null,
@@ -171,7 +171,36 @@ export function createProfileScraper(o: Options): ProfileScraper {
           : await viaApify(one, o.apify?.tiktokActor ?? "", { profiles: handles, resultsPerPage: o.tiktokVideos, ...NO_DOWNLOADS }, handles.length, maxWaitMs, o.apify?.tiktokBuild);
       return { provider: "apify", profiles: splitByHandle(req.platform, out.raw, handles), costUsd: out.costUsd };
     },
+
+    ...(o.apify?.instagramPostActor
+      ? {
+          async resolveInstagramPostOwners(req: { urls: string[]; ctx?: ScrapeRequest["ctx"] }): Promise<PostOwnerResult> {
+            const urls = [...new Set(req.urls)].slice(0, 20);
+            if (urls.length === 0) return { owners: [], costUsd: 0 };
+            const one: ScrapeRequest = { platform: "instagram", handle: "posts", ...(req.ctx ? { ctx: req.ctx } : {}) };
+            const out = await viaApify(one, o.apify?.instagramPostActor ?? "", { directUrls: urls, resultsType: "posts", resultsLimit: 1, addParentData: false }, urls.length, 180_000, o.apify?.instagramPostBuild, "resolve_instagram_posts");
+            return { owners: postOwners(urls, out.raw), costUsd: out.costUsd };
+          },
+        }
+      : {}),
   };
+}
+
+/** Instagram post short codes look like `DTGCHjfjDuY`; only an owner the provider reports for that exact post counts. */
+export function postOwners(urls: string[], items: unknown): { url: string; owner: string | null }[] {
+  const codeOf = (u: string): string | null => /instagram\.com\/(?:[^/]+\/)?(?:p|reel|reels|tv)\/([A-Za-z0-9_-]{5,40})/.exec(u)?.[1] ?? null;
+  const byCode = new Map<string, string>();
+  for (const it of Array.isArray(items) ? items : []) {
+    if (typeof it !== "object" || it === null) continue;
+    const r = it as Record<string, unknown>;
+    const code = typeof r["shortCode"] === "string" ? r["shortCode"] : typeof r["url"] === "string" ? codeOf(r["url"]) : null;
+    const owner = typeof r["ownerUsername"] === "string" ? r["ownerUsername"].toLowerCase() : null;
+    if (code && owner && /^[a-z0-9._]{1,30}$/.test(owner)) byCode.set(code, owner);
+  }
+  return urls.map((url) => {
+    const code = codeOf(url);
+    return { url, owner: code ? (byCode.get(code) ?? null) : null };
+  });
 }
 
 function providerErrorOf(err: unknown): ProviderError | null {

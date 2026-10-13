@@ -3,7 +3,7 @@ import { searchFiltersSchema } from "@mushin/contracts";
 import { MockLlm } from "@mushin/integrations";
 import { collectCandidates, spreadByPlatform } from "./candidates";
 import { buildQueries, platformsFor } from "./queries";
-import { classifyCandidates, filterRelevant, RELEVANCE_BATCH } from "./relevance";
+import { classifyCandidates, filterRelevant, rankByEvidence, RELEVANCE_BATCH } from "./relevance";
 
 const search = (text: string, filters: Record<string, unknown> = {}) => ({ text, filters: searchFiltersSchema.parse(filters) });
 
@@ -169,5 +169,19 @@ describe("AI relevance filter", () => {
     const llm = new MockLlm(() => ({ keep: [] }));
     expect(await filterRelevant({ llm, search: s, candidates: [] })).toEqual([]);
     expect(llm.calls).toHaveLength(0);
+  });
+});
+
+describe("extraction order", () => {
+  it("puts creator-role and requested-city evidence first, businesses last, and keeps search order on ties", () => {
+    const pool = collectCandidates([{ platform: "instagram", results: [
+      { title: "Lahore Foods", link: "https://instagram.com/plain_one", snippet: "Daily posts" },
+      { title: "Lahore Biryani Restaurant", link: "https://instagram.com/biryani_house", snippet: "Delivery across Lahore" },
+      { title: "Sana | Food blogger", link: "https://instagram.com/sana_eats", snippet: "Karachi food reviews" },
+      { title: "Ali | Food blogger", link: "https://instagram.com/ali_eats", snippet: "Best of Lahore" },
+      { title: "Plain two", link: "https://instagram.com/plain_two", snippet: "" },
+    ] }]);
+    const ranked = rankByEvidence(search("food", { niches: ["Food"], creatorCity: "Lahore" }), pool).map((c) => c.handle);
+    expect(ranked).toEqual(["ali_eats", "sana_eats", "plain_one", "plain_two", "biryani_house"]);
   });
 });

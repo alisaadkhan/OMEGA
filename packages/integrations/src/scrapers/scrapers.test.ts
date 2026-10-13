@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createLogger } from "@mushin/core";
 import { MemoryProviderCallSink } from "../memory-sink";
 import { apifyRunCost, type ApifyRun } from "./apify";
-import { createProfileScraper, splitByHandle } from "./scraper";
+import { createProfileScraper, postOwners, splitByHandle } from "./scraper";
 import { scraperFixture } from "./testing";
 import { ProviderError } from "./types";
 
@@ -70,6 +70,32 @@ describe("Apify cost", () => {
     const settled = { ...tt, usageTotalUsd: 0.018, chargedEventCounts: { result: 6 } };
     expect(apifyRunCost(settled, 6)).toBeCloseTo(0.018, 6);
     expect(apifyRunCost({ ...settled, usageTotalUsd: 0 }, 6)).toBeCloseTo(0.018, 6);
+  });
+
+  it("prices tiered pay-per-event actors at the highest tier when the run has not settled", () => {
+    const tiered = { id: "r", status: "SUCCEEDED", defaultDatasetId: "d", usageTotalUsd: 0, chargedEventCounts: { result: 12 },
+      pricingInfo: { pricingModel: "PAY_PER_EVENT", pricingPerEvent: { actorChargeEvents: { result: { isPrimaryEvent: true, eventTieredPricingUsd: { FREE: { tieredEventPriceUsd: 0.0027 }, GOLD: { tieredEventPriceUsd: 0.0015 } } } } } } };
+    expect(apifyRunCost(tiered, 12)).toBeCloseTo(0.0324, 6);
+    expect(apifyRunCost({ ...tiered, chargedEventCounts: {} }, 12)).toBeCloseTo(0.0324, 6);
+    expect(apifyRunCost({ ...tiered, usageTotalUsd: 0.03 }, 12)).toBeCloseTo(0.0324, 6);
+  });
+});
+
+describe("Instagram post owners", () => {
+  it("maps each post link to the owner the provider reported for that exact post, and never guesses", () => {
+    const urls = ["https://www.instagram.com/reel/DTGCHjfjDuY/", "https://www.instagram.com/p/DaDb8TLjEAJ/", "https://www.instagram.com/p/Missing123/"];
+    const items = [
+      { shortCode: "DTGCHjfjDuY", ownerUsername: "Aizah_Fit" },
+      { url: "https://www.instagram.com/p/DaDb8TLjEAJ/", ownerUsername: "aboutaqsa" },
+      { shortCode: "Other999", ownerUsername: "someone_else" },
+      { shortCode: "DaDb8TLjEAJ", ownerUsername: "not a <handle>" },
+    ];
+    expect(postOwners(urls, items)).toEqual([
+      { url: urls[0], owner: "aizah_fit" },
+      { url: urls[1], owner: "aboutaqsa" },
+      { url: urls[2], owner: null },
+    ]);
+    expect(postOwners(urls, "not a list").every((o) => o.owner === null)).toBe(true);
   });
 });
 

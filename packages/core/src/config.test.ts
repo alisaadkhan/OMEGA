@@ -188,11 +188,15 @@ describe("scraping and storage settings (worker only)", () => {
       instagramBuild: "0.0.634",
       tiktokActor: "clockworks/tiktok-profile-scraper",
       tiktokBuild: "0.99.2065",
+      instagramPostActor: "apify/instagram-scraper",
+      instagramPostBuild: "0.0.812",
+      contentResolutionMax: 10,
       apifyMonthlyBudgetUsd: 5,
       youtubeApiKey: "yt",
       serperApiKey: null,
       serperMonthlySearchLimit: 2500,
     });
+    expect(loadWorkerConfig({ ...worker, APIFY_INSTAGRAM_POST_ACTOR_ID: "off" }).scraping).toMatchObject({ instagramPostActor: null, instagramPostBuild: null });
     expect(c.storage).toEqual({ url: "https://ref.supabase.co", serviceKey: "service" });
     expect(c.dataEncryptionKey.length).toBe(32);
   });

@@ -106,6 +106,10 @@ const workerSchema = sharedObject
     APIFY_INSTAGRAM_BUILD: z.string().min(1).optional(),
     APIFY_TIKTOK_ACTOR_ID: z.string().min(1).default("clockworks/tiktok-profile-scraper"),
     APIFY_TIKTOK_BUILD: z.string().min(1).optional(),
+    // Instagram post/reel → author for live discovery; set to "off" to disable. Pinned build reviewed 2026-10-13.
+    APIFY_INSTAGRAM_POST_ACTOR_ID: z.string().min(1).default("apify/instagram-scraper"),
+    APIFY_INSTAGRAM_POST_BUILD: z.string().min(1).optional(),
+    LIVE_CONTENT_RESOLUTION_MAX: z.coerce.number().int().min(0).max(20).default(10),
     APIFY_MONTHLY_BUDGET_USD: z.coerce.number().min(0).default(5),
     YOUTUBE_API_KEY: z.string().min(1).optional(),
     SERPER_API_KEY: z.string().min(1).optional(),
@@ -226,6 +230,11 @@ export type ScrapingConfig = {
   instagramBuild: string | null;
   tiktokActor: string;
   tiktokBuild: string | null;
+  /** Live discovery resolves Instagram post/reel authors with this actor; null disables it. */
+  instagramPostActor: string | null;
+  instagramPostBuild: string | null;
+  /** Most post links resolved per live run (0 disables). */
+  contentResolutionMax: number;
   apifyMonthlyBudgetUsd: number;
   youtubeApiKey: string | null;
   serperApiKey: string | null;
@@ -316,6 +325,9 @@ export function loadWorkerConfig(env: Env): WorkerConfig {
       instagramBuild: v.APIFY_INSTAGRAM_BUILD ?? (v.APIFY_INSTAGRAM_ACTOR_ID === "apify/instagram-profile-scraper" ? "0.0.634" : null),
       tiktokActor: v.APIFY_TIKTOK_ACTOR_ID,
       tiktokBuild: v.APIFY_TIKTOK_BUILD ?? (v.APIFY_TIKTOK_ACTOR_ID === "clockworks/tiktok-profile-scraper" ? "0.99.2065" : null),
+      instagramPostActor: v.APIFY_INSTAGRAM_POST_ACTOR_ID === "off" ? null : v.APIFY_INSTAGRAM_POST_ACTOR_ID,
+      instagramPostBuild: v.APIFY_INSTAGRAM_POST_BUILD ?? (v.APIFY_INSTAGRAM_POST_ACTOR_ID === "apify/instagram-scraper" ? "0.0.812" : null),
+      contentResolutionMax: v.LIVE_CONTENT_RESOLUTION_MAX,
       apifyMonthlyBudgetUsd: v.APIFY_MONTHLY_BUDGET_USD,
       youtubeApiKey: v.YOUTUBE_API_KEY ?? null,
       serperApiKey: v.SERPER_API_KEY ?? null,

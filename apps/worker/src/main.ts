@@ -30,7 +30,7 @@ const summaries = createSummaryWriter({ db, llm, logger });
 const enrichment = await db.withSystem((tx) => getEnrichmentSettings(tx));
 const scraper = createProfileScraper({
   apify: config.scraping.apifyToken
-    ? { token: config.scraping.apifyToken, instagramActor: config.scraping.instagramActor, ...(config.scraping.instagramBuild ? { instagramBuild: config.scraping.instagramBuild } : {}), tiktokActor: config.scraping.tiktokActor, ...(config.scraping.tiktokBuild ? { tiktokBuild: config.scraping.tiktokBuild } : {}) }
+    ? { token: config.scraping.apifyToken, instagramActor: config.scraping.instagramActor, ...(config.scraping.instagramBuild ? { instagramBuild: config.scraping.instagramBuild } : {}), tiktokActor: config.scraping.tiktokActor, ...(config.scraping.tiktokBuild ? { tiktokBuild: config.scraping.tiktokBuild } : {}), ...(config.scraping.instagramPostActor ? { instagramPostActor: config.scraping.instagramPostActor } : {}), ...(config.scraping.instagramPostBuild ? { instagramPostBuild: config.scraping.instagramPostBuild } : {}) }
     : null,
   youtubeApiKey: config.scraping.youtubeApiKey,
   tiktokVideos: enrichment.tiktokRecentVideos,
@@ -51,7 +51,7 @@ const web = createSerperSearch({
 });
 if (!config.scraping.serperApiKey) logger.warn("SERPER_API_KEY not set: Find New Creators runs will fail and refund");
 const searchCache = createCachedSearch({ db, web });
-const liveRunner = createLiveRunner({ db, billing, pipeline, scraper, search: searchCache, llm, logger });
+const liveRunner = createLiveRunner({ db, billing, pipeline, scraper, search: searchCache, llm, logger, contentResolutionMax: config.scraping.contentResolutionMax });
 const eraser = createEraser({ db, storage: pipeline.storage, logger });
 // PostgreSQL search is the default. When configured, Meilisearch is dual-written for rollback during the cutover.
 await indexer.ensureSettings().catch((err: unknown) => logger.error({ err }, "could not apply rollback search index settings"));

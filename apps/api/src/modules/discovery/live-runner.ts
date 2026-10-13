@@ -8,21 +8,24 @@ import { notifyFinished, releaseHeld } from "./finish";
 import type { CachedSearch } from "./live/cache";
 import { evaluateCampaignFit } from "./fit";
 import { collectCandidates, spreadByPlatform } from "./live/candidates";
-import { buildQueries } from "./live/queries";
-import { classifyCandidates, filterRelevant, type Kept } from "./live/relevance";
+import { buildQueries, platformsFor } from "./live/queries";
+import { classifyCandidates, filterRelevant, rankByEvidence, type Kept } from "./live/relevance";
 import { createTrail, type SearchGroup } from "./live/trail";
+import { contentGroup, mentionLeads, postsToResolve } from "./live/content";
 import * as repo from "./repository";
 
 type Deps = {
   db: Db;
   billing: Pick<BillingService, "engine">;
   pipeline: Pick<EnrichmentPipeline, "archive" | "archived" | "profileForUrl" | "processProfile">;
-  scraper: Pick<ProfileScraper, "fetchProfiles">;
+  scraper: Pick<ProfileScraper, "fetchProfiles" | "resolveInstagramPostOwners">;
   search: Pick<CachedSearch, "search">;
   llm: Llm;
   logger: Logger;
   maxAttempts?: number;
   now?: () => Date;
+  /** Most Instagram post/reel links whose authors are resolved per run (0, the default, disables it). */
+  contentResolutionMax?: number;
 };
 
 /** G2: candidates after the cheap G1 gate needed before extraction (spec default 8); below it the run is `insufficient`. */
@@ -106,6 +109,8 @@ export function createLiveRunner(deps: Deps) {
       // G2 minimum (counting raw URLs stopped after round 1 even when most were shops).
       await step("searching");
       const groups: SearchGroup[] = [];
+      // Profiles found only through a post or mention: their search evidence is the post's, so they queue after organic ones.
+      const recoveredKeys = new Set<string>();
       for (const round of [1, 2, 3] as const) {
         for (const q of buildQueries(search, round)) groups.push({ platform: q.platform, query: q.query, round, results: await deps.search.search(q, ctx) });
         trail.observe(groups);
@@ -117,6 +122,51 @@ export function createLiveRunner(deps: Deps) {
         });
         const g1 = classifyCandidates(search, candidates);
         if (g1.possible.length + g1.ambiguous.length >= MIN_POOL) break;
+      }
+      // 2b. Posts and reels as discovery evidence: authors the provider reports for the exact post, and creator
+      // @mentions as leads. Resolution is paid, so it runs only while Instagram's own pool is short of twice the size.
+      if (platformsFor(search).includes("instagram")) {
+        const igPool = classifyCandidates(search, collectCandidates(groups)).possible.filter((c) => c.platform === "instagram").length;
+        const limit = deps.scraper.resolveInstagramPostOwners ? Math.min(deps.contentResolutionMax ?? 0, Math.max(0, 2 * maxNew - igPool)) : 0;
+        const { chosen, business, thirdPerson, overLimit } = postsToResolve(search, groups, limit);
+        for (const c of business) trail.set(c.url, "normalization", "rejected", "content_business_cue");
+        for (const c of thirdPerson) trail.set(c.url, "normalization", "skipped", "content_not_creator_voice");
+        for (const c of overLimit) trail.set(c.url, "normalization", "skipped", limit === 0 ? "content_resolution_not_needed" : "content_resolution_limit");
+        const authors: { handle: string; from: (typeof chosen)[number] }[] = [];
+        if (chosen.length > 0 && deps.scraper.resolveInstagramPostOwners) {
+          try {
+            const resolved = await deps.scraper.resolveInstagramPostOwners({ urls: chosen.map((c) => c.url), ctx });
+            for (const c of chosen) {
+              const owner = resolved.owners.find((o) => o.url === c.url)?.owner ?? null;
+              if (owner) {
+                authors.push({ handle: owner, from: c });
+                trail.set(c.url, "normalization", "skipped", "content_author_resolved", { detail: { author: owner } });
+              } else trail.set(c.url, "normalization", "rejected", "content_author_unresolved");
+            }
+          } catch (err) {
+            // Optional discovery evidence: a spend cap or provider failure here never fails the run.
+            deps.logger.warn({ err, jobId }, "Instagram post authors could not be resolved; continuing with profile results");
+            for (const c of chosen) trail.set(c.url, "normalization", "rejected", "content_resolution_failed");
+          }
+        }
+        const recovered = [...contentGroup("post_author", authors), ...contentGroup("mention", mentionLeads(groups))];
+        if (recovered.length > 0) {
+          const before = new Set(trail.all().map((r) => r.candidateKey));
+          groups.push(...recovered);
+          trail.observe(groups);
+          for (const g of recovered) {
+            const source = g.query.startsWith("post_author") ? "post_author" : "mention";
+            for (const r of g.results) {
+              const key = collectCandidates([{ platform: "instagram", results: [r] }])[0]?.canonicalUrl;
+              if (key && !before.has(key)) {
+                trail.note(key, { source });
+                recoveredKeys.add(key);
+              }
+            }
+          }
+          await progress({ serpResultsSeen: groups.reduce((total, group) => total + group.results.length, 0), profileCandidates: collectCandidates(groups, 60).length, afterDedupe: collectCandidates(groups, 60).length });
+        }
+        await flush();
       }
       // 3. Apply cheap topic/business evidence first (G1); G2 is the minimum pool after it. The LLM sees ambiguous results only.
       await step("filtering");
@@ -190,7 +240,9 @@ export function createLiveRunner(deps: Deps) {
         }
         availableNew.push(k);
       }
-      const ordered = spreadByPlatform(availableNew);
+      // Measured 2026-10-13: 1 of 12 extracted post/mention profiles qualified against about 60% of organic ones.
+      const organic = rankByEvidence(search, availableNew.filter((k) => !recoveredKeys.has(k.canonicalUrl)));
+      const ordered = spreadByPlatform([...organic, ...rankByEvidence(search, availableNew.filter((k) => recoveredKeys.has(k.canonicalUrl)))]);
       const fresh = ordered.slice(0, Math.max(0, maxNew - alreadyNew));
       // The run size the customer chose at quote time is the number of new profiles fetched (it bounds the charge).
       ordered.forEach((k, index) => {

@@ -8,9 +8,17 @@ export type ApifyRun = {
   chargedEventCounts?: Record<string, number> | null;
   pricingInfo?: {
     pricingModel?: string;
-    pricingPerEvent?: { actorChargeEvents?: Record<string, { eventPriceUsd?: number; isPrimaryEvent?: boolean }> };
+    pricingPerEvent?: { actorChargeEvents?: Record<string, ChargeEvent> };
   } | null;
 };
+type ChargeEvent = { eventPriceUsd?: number; eventTieredPricingUsd?: Record<string, { tieredEventPriceUsd?: number }>; isPrimaryEvent?: boolean };
+
+/** A flat event price, or for tiered pricing the highest tier's price (the account's tier is not in the run; never undercount). */
+function eventPrice(e: ChargeEvent | undefined): number {
+  if (!e) return 0;
+  if (typeof e.eventPriceUsd === "number") return e.eventPriceUsd;
+  return Math.max(0, ...Object.values(e.eventTieredPricingUsd ?? {}).map((t) => t.tieredEventPriceUsd ?? 0));
+}
 
 const TERMINAL = new Set(["SUCCEEDED", "FAILED", "ABORTED", "TIMED-OUT"]);
 
@@ -23,11 +31,11 @@ const TERMINAL = new Set(["SUCCEEDED", "FAILED", "ABORTED", "TIMED-OUT"]);
 export function apifyRunCost(run: ApifyRun, items: number): number {
   const events = run.pricingInfo?.pricingPerEvent?.actorChargeEvents ?? {};
   let charged = 0;
-  for (const [name, count] of Object.entries(run.chargedEventCounts ?? {})) charged += (events[name]?.eventPriceUsd ?? 0) * count;
+  for (const [name, count] of Object.entries(run.chargedEventCounts ?? {})) charged += eventPrice(events[name]) * count;
   let cost = Math.max(run.usageTotalUsd ?? 0, charged);
   if (cost === 0 && items > 0) {
     const primary = Object.values(events).find((e) => e.isPrimaryEvent);
-    cost = (primary?.eventPriceUsd ?? 0) * items;
+    cost = eventPrice(primary) * items;
   }
   return Math.round(cost * 1_000_000) / 1_000_000;
 }

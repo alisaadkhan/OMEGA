@@ -1,6 +1,7 @@
 import type { CandidateDecision, CandidateStage } from "@mushin/db";
 import type { WebResult } from "@mushin/integrations";
 import { cleanText, normalizeProfileUrl, redactContacts, type CreatorPlatform } from "../../creators/index";
+import { isInstagramContent } from "./candidates";
 import type { CandidateRow } from "../repository";
 
 export type SearchGroup = { platform: CreatorPlatform; query: string; round: number; results: WebResult[] };
@@ -50,7 +51,7 @@ export function createTrail(o: { workspaceId: string; jobId: string }) {
             round: g.round, position: index + 1, occurrences: 1,
             detail: { title: excerpt(r.title, 160), snippet: excerpt(r.snippet, 200), seenIn: [`${g.round}|${g.query}|${index}`] } as Record<string, unknown>,
           };
-          if (!n) put({ ...base, stage: "normalization", decision: "rejected", reason: "non_profile_url" });
+          if (!n) put({ ...base, stage: "normalization", decision: "rejected", reason: isInstagramContent(r.link) ? "content_url" : "non_profile_url" });
           else if (n.platform !== g.platform) put({ ...base, stage: "normalization", decision: "rejected", reason: "wrong_platform" });
           else put({ ...base, canonicalUrl: n.canonicalUrl, handle: (n.canonicalUrl.split("/").pop() ?? "").replace(/^@/, "").slice(0, 100), stage: "dedupe", decision: "pending", reason: null });
         });
@@ -71,6 +72,12 @@ export function createTrail(o: { workspaceId: string; jobId: string }) {
       const gate = fit.gate ?? "below_min_fit";
       if (INSUFFICIENT_EVIDENCE.has(gate)) return this.set(key, "verification", "unverified", gate, extra);
       this.set(key, ACCOUNT_GATES.has(gate) ? "verification" : "fit", "rejected", gate, extra);
+    },
+
+    /** Adds evidence to a row without changing its stage or decision. */
+    note(key: string, detail: Record<string, unknown>): void {
+      const row = rows.get(key);
+      if (row) put({ ...row, detail: { ...row.detail, ...detail } });
     },
 
     pendingKeys(): string[] {

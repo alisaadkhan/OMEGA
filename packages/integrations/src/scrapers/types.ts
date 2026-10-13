@@ -10,10 +10,17 @@ export type BatchScrapeRequest = { platform: ScrapePlatform; handles: string[]; 
 /** One raw response per requested handle, in the shape `fetchProfile` returns for that platform (archived per profile). */
 export type BatchScrapeResult = { provider: "apify" | "youtube"; profiles: { handle: string; raw: unknown }[]; costUsd: number };
 
+/** Public Instagram post or reel links whose author is wanted (live discovery uses posts as discovery evidence). */
+export type PostOwnerRequest = { urls: string[]; ctx?: CallContext };
+/** The author handle the provider reported for each link, or null when the post could not be read. */
+export type PostOwnerResult = { owners: { url: string; owner: string | null }[]; costUsd: number };
+
 export interface ProfileScraper {
   fetchProfile(req: ScrapeRequest): Promise<ScrapeResult>;
   /** Live discovery: many profiles of one platform in one Apify run (YouTube: one API read each, free). */
   fetchProfiles(req: BatchScrapeRequest): Promise<BatchScrapeResult>;
+  /** Live discovery: authors of Instagram post/reel links in one run; absent when not configured. */
+  resolveInstagramPostOwners?(req: PostOwnerRequest): Promise<PostOwnerResult>;
 }
 
 export type ProviderErrorReason = "spend_cap" | "quota" | "not_configured" | "provider";

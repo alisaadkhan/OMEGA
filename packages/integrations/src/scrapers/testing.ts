@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import type { BatchScrapeRequest, BatchScrapeResult, ProfileScraper, ScrapePlatform, ScrapeRequest, ScrapeResult } from "./types";
+import { ProviderError, type BatchScrapeRequest, type BatchScrapeResult, type ProfileScraper, type ScrapePlatform, type ScrapeRequest, type ScrapeResult } from "./types";
 
 /** A recorded real response (fixtures/, recorded 2026-10-09 from public brand accounts). */
 export function scraperFixture(name: string): unknown {
@@ -38,6 +38,17 @@ export class FixtureScraper implements ProfileScraper {
       provider = one.provider;
     }
     return { provider, profiles, costUsd };
+  }
+
+  /** Post link → author handle (or null); set to enable Instagram post-owner resolution in tests. */
+  postOwners: ((url: string) => string | null) | null = null;
+  readonly postOwnerCalls: string[][] = [];
+
+  async resolveInstagramPostOwners(req: { urls: string[] }): Promise<{ owners: { url: string; owner: string | null }[]; costUsd: number }> {
+    if (!this.postOwners) throw new ProviderError(false, "not_configured", "post-owner resolution is not configured in this fixture");
+    this.postOwnerCalls.push(req.urls);
+    const lookup = this.postOwners;
+    return { owners: req.urls.map((url) => ({ url, owner: lookup(url) })), costUsd: 0.0027 * req.urls.length };
   }
 
   static defaults(): FixtureScraper {

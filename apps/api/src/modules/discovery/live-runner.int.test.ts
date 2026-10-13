@@ -75,13 +75,13 @@ function llmReply(req: { input: string }) {
   };
 }
 
-function setup(o: { web?: FixtureWebSearch; scraper?: FixtureScraper; wrap?: (p: EnrichmentPipeline) => EnrichmentPipeline; maxAttempts?: number; model?: MockLlm } = {}) {
+function setup(o: { web?: FixtureWebSearch; scraper?: FixtureScraper; wrap?: (p: EnrichmentPipeline) => EnrichmentPipeline; maxAttempts?: number; model?: MockLlm; contentResolutionMax?: number } = {}) {
   const web = o.web ?? new FixtureWebSearch(links("new_a", "new_b"));
   const scraper = o.scraper ?? igScraper();
   const model = o.model ?? llm();
   const base = createEnrichmentPipeline({ db, scraper, storage: new MemoryStorage(), llm: model, encryptionKey: TEST_KEY, logger, fetchImage: async () => new Response("", { status: 404 }) });
   const pipeline = o.wrap ? o.wrap(base) : base;
-  const runner = createLiveRunner({ db, billing, pipeline, scraper, search: createCachedSearch({ db, web }), llm: model, logger, ...(o.maxAttempts ? { maxAttempts: o.maxAttempts } : {}) });
+  const runner = createLiveRunner({ db, billing, pipeline, scraper, search: createCachedSearch({ db, web }), llm: model, logger, ...(o.maxAttempts ? { maxAttempts: o.maxAttempts } : {}), ...(o.contentResolutionMax ? { contentResolutionMax: o.contentResolutionMax } : {}) });
   return { runner, web, scraper, pipeline };
 }
 
@@ -262,6 +262,57 @@ describe("live runner", () => {
     expect(await discovery.get(c, id)).toMatchObject({ status: "completed", outcome: "partial", live: { found: 1, new: 1, creditsCharged: 22, progress: { persistedResults: 1, billableCreators: 1 } } });
     expect(await balance(c)).toMatchObject({ available: 178, reserved: 0 });
     expect((await discovery.results(c, id, 0)).results.map((r) => r.handle)).toEqual(["first_saved"]);
+  });
+
+  describe("posts and reels as discovery evidence", () => {
+    const postResults: WebResult[] = [
+      { title: "Bridal makeup look of the week", link: "https://www.instagram.com/reel/AUTHOR0001/", snippet: "My bridal makeup for a Lahore wedding" },
+      { title: "Bridal glam reel", link: "https://www.instagram.com/p/NOAUTHOR01/", snippet: "I tried a bridal makeup tutorial" },
+      { title: "Bridal Collection 2026", link: "https://www.instagram.com/p/SHOPPOST01/", snippet: "Order now on WhatsApp" },
+    ];
+
+    it("recovers a creator from a post's reported author, extracts it like any candidate and records where it came from", async () => {
+      const scraper = igScraper();
+      scraper.postOwners = (url) => (url.includes("AUTHOR0001") ? "post_author_one" : null);
+      const { runner } = setup({ web: new FixtureWebSearch([...links("new_a", "new_b"), ...postResults]), scraper, contentResolutionMax: 10 });
+      const c = await customer();
+      const id = await startRun(c);
+      await runner.run(id, c.workspaceId);
+      expect(scraper.postOwnerCalls).toEqual([["https://www.instagram.com/reel/AUTHOR0001/", "https://www.instagram.com/p/NOAUTHOR01/"]]);
+      expect(scraper.batchCalls[0]?.handles).toContain("post_author_one");
+      expect((await discovery.results(c, id, 0)).results.map((r) => r.handle)).toContain("post_author_one");
+      const trail = await ownerQuery<{ candidate_key: string; decision: string; reason: string | null; source: string | null }>(
+        `select candidate_key, decision, reason, detail->>'source' source from wp.discovery_candidates where job_id = '${id}'`);
+      const byKey = new Map(trail.map((r) => [r.candidate_key, r]));
+      expect(byKey.get("https://www.instagram.com/reel/AUTHOR0001/")).toMatchObject({ reason: "content_author_resolved" });
+      expect(byKey.get("https://www.instagram.com/p/NOAUTHOR01/")).toMatchObject({ decision: "rejected", reason: "content_author_unresolved" });
+      expect(byKey.get("https://www.instagram.com/p/SHOPPOST01/")).toMatchObject({ decision: "rejected", reason: "content_business_cue" });
+      expect(byKey.get("https://instagram.com/post_author_one")).toMatchObject({ decision: "delivered", source: "post_author" });
+      expect(trail.filter((r) => r.decision === "pending")).toEqual([]);
+    });
+
+    it("continues with profile results when post resolution fails or is not configured", async () => {
+      const scraper = igScraper();
+      scraper.postOwners = () => {
+        throw new ProviderError(false, "spend_cap", "Monthly Apify budget reached");
+      };
+      const { runner } = setup({ web: new FixtureWebSearch([...links("new_a", "new_b"), ...postResults]), scraper, contentResolutionMax: 10 });
+      const c = await customer();
+      const id = await startRun(c);
+      await runner.run(id, c.workspaceId);
+      expect(await discovery.get(c, id)).toMatchObject({ status: "completed", outcome: "succeeded" });
+      expect(row(await trailOf(id), "new_a")).toMatchObject({ decision: "delivered" });
+      const failed = await ownerQuery<{ n: number }>(`select count(*)::int n from wp.discovery_candidates where job_id = '${id}' and reason = 'content_resolution_failed'`);
+      expect(failed[0]?.n).toBe(2);
+
+      const off = setup({ web: new FixtureWebSearch([...links("new_a"), ...postResults]) });
+      const c2 = await customer();
+      const id2 = await startRun(c2);
+      await off.runner.run(id2, c2.workspaceId);
+      expect(off.scraper.postOwnerCalls).toEqual([]);
+      const skipped = await ownerQuery<{ n: number }>(`select count(*)::int n from wp.discovery_candidates where job_id = '${id2}' and reason = 'content_resolution_not_needed'`);
+      expect(skipped[0]?.n).toBe(2);
+    });
   });
 
   it("skips a known creator whose stored sample cannot be read instead of failing the run", async () => {

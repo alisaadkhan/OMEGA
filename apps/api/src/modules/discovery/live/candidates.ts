@@ -3,6 +3,10 @@ import { normalizeProfileUrl, type CreatorPlatform } from "../../creators/index"
 
 export type Candidate = { platform: CreatorPlatform; handle: string; canonicalUrl: string; title: string; snippet: string };
 
+/** Instagram post, reel and IGTV links (also under a handle); the short code is group 1. */
+export const IG_CONTENT = /^https?:\/\/(?:www\.|m\.)?instagram\.com\/(?:[A-Za-z0-9._]+\/)?(?:p|reel|reels|tv)\/([A-Za-z0-9_-]{5,40})/i;
+export const isInstagramContent = (url: string): boolean => IG_CONTENT.test(url);
+
 /** Keep a multi-platform brief from consuming its whole extraction cap on the first platform's search ordering. */
 export function spreadByPlatform<T extends { platform: CreatorPlatform }>(items: T[]): T[] {
   const buckets = new Map<CreatorPlatform, T[]>([["instagram", []], ["tiktok", []], ["youtube", []]]);

@@ -227,7 +227,7 @@ export function sourceHash(s: SummarySource): string {
 export type CreatorPlatform = (typeof PLATFORMS)[number];
 
 /** Instagram paths that are posts or app pages, not profiles. */
-const INSTAGRAM_PAGES = new Set(["p", "reel", "reels", "tv", "stories", "explore", "accounts", "direct", "about", "legal", "developer", "web", "challenge", "emails", "session", "privacy"]);
+const INSTAGRAM_PAGES = new Set(["p", "reel", "reels", "tv", "stories", "explore", "accounts", "direct", "about", "legal", "developer", "web", "challenge", "emails", "session", "privacy", "popular", "locations", "share", "s"]);
 
 /** Canonical profile URL as stored in gcp.creator_profiles.canonical_url, or null when it is not a supported profile URL. */
 export function normalizeProfileUrl(input: string): { platform: CreatorPlatform; canonicalUrl: string } | null {

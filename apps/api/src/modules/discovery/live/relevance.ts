@@ -46,7 +46,7 @@ function describe(s: LiveSearch): string {
 }
 
 const RESULT_CREATOR = /\b(creator|influencer|blogger|vlogger|artist|photographer|comedian|musician|singer|chef|writer|author|educator|coach)\b/i;
-const RESULT_BUSINESS = /\b(shop|store|brand|company|restaurant|agency|school|university|news|magazine|mall|boutique|clinic|salon|delivery|wholesale)\b/i;
+export const RESULT_BUSINESS = /\b(shop|store|brand|company|restaurant|agency|school|university|news|magazine|mall|boutique|clinic|salon|delivery|wholesale)\b/i;
 
 /** Cheap result gate: drop explicit businesses, retain topic-supported possible profiles, and ask the LLM only about the rest. */
 export function classifyCandidates(search: LiveSearch, candidates: Candidate[]): { possible: Kept[]; ambiguous: Candidate[]; rejected: number; businesses: Candidate[] } {
@@ -67,6 +67,21 @@ export function classifyCandidates(search: LiveSearch, candidates: Candidate[]):
     }
   }
   return { possible, ambiguous, rejected: businesses.length, businesses };
+}
+
+// Measured 2026-10-13 on 163 extracted profiles: a creator role in the result's title/snippet (48% eligible vs 13%)
+// and the requested city (65% vs 41%) predict eligibility; search position alone does not.
+const RANK_CREATOR = /\b(creator|influencer|blogger|vlogger|artist|photographer|comedian|musician|singer|chef|writer|author|educator|coach|youtuber|foodie|traveller|traveler|reviewer|stylist|trainer)s?\b/i;
+
+/** Orders candidates for the limited extraction slots by search-result evidence; ties keep search order. */
+export function rankByEvidence<T extends Candidate>(search: LiveSearch, candidates: T[]): T[] {
+  const city = search.filters.creatorCity?.trim().toLowerCase();
+  const score = (c: T) => {
+    const text = `${c.title} ${c.snippet}`;
+    const creator = RANK_CREATOR.test(text);
+    return (creator ? 2 : 0) + (city && text.toLowerCase().includes(city) ? 1 : 0) - (!creator && RESULT_BUSINESS.test(text) ? 2 : 0);
+  };
+  return candidates.map((c, i) => ({ c, i, s: score(c) })).sort((a, b) => b.s - a.s || a.i - b.i).map((x) => x.c);
 }
 /**
  * Candidates per relevance request. Measured 2026-10-13: every request with 14–36 candidates failed after the corrective
