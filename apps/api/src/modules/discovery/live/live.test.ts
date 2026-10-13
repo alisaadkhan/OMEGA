@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { searchFiltersSchema } from "@mushin/contracts";
 import { MockLlm } from "@mushin/integrations";
 import { collectCandidates, spreadByPlatform } from "./candidates";
-import { buildQueries, platformsFor } from "./queries";
+import { buildQueries, platformsFor, youtubeNativeQuery } from "./queries";
 import { classifyCandidates, filterRelevant, rankByEvidence, RELEVANCE_BATCH } from "./relevance";
 
 const search = (text: string, filters: Record<string, unknown> = {}) => ({ text, filters: searchFiltersSchema.parse(filters) });
@@ -44,7 +44,7 @@ describe("Google queries from the filter chips", () => {
   });
 
   it("plans bounded Roman Urdu and Urdu-script recall rounds for Pakistani niches", () => {
-    const s = search("food blogger in Lahore", { platform: "instagram", niches: ["Food"], creatorCity: "Lahore", creatorCountry: "PK" });
+    const s = search("food blogger in Lahore", { platform: "tiktok", niches: ["Food"], creatorCity: "Lahore", creatorCountry: "PK" });
     const roman = buildQueries(s, 2);
     const urdu = buildQueries(s, 2).find((q) => q.hl === "ur");
     expect(roman).toHaveLength(2);
@@ -52,6 +52,16 @@ describe("Google queries from the filter chips", () => {
     expect(urdu?.query).toContain("کھانا");
     expect(urdu?.query).toContain("لاہور");
     expect(roman.every((q) => q.num <= 10 && q.round === 2)).toBe(true);
+    // Measured 2026-10-13: Urdu-script recall queries on Instagram found 1 new profile in 19 searches, none eligible.
+    const ig = { ...s, filters: { ...s.filters, platform: "instagram" as const } };
+    expect([...buildQueries(ig, 2), ...buildQueries(ig, 3)].some((q) => q.hl === "ur")).toBe(false);
+  });
+
+  it("builds one YouTube-native video query from the brief's Latin topic words and place", () => {
+    expect(youtubeNativeQuery(search("budget phones review in Urdu", { platform: "youtube", niches: ["Tech"], creatorCountry: "PK" }))).toEqual({ query: "budget phones review in urdu Pakistan", lang: "ur" });
+    expect(youtubeNativeQuery(search("پاکستانی کھانا ریسپی", { platform: "youtube", niches: ["Food"], creatorCountry: "PK" }))).toEqual({ query: "Food Pakistan", lang: "ur" });
+    expect(youtubeNativeQuery(search("Peshawar food vlogger", { creatorCity: "Peshawar", niches: ["Food"] }))).toEqual({ query: "peshawar food vlogger" });
+    expect(youtubeNativeQuery(search("food", { platform: "instagram" }))).toBeNull();
   });
 
   // Measured 2026-10-13: these briefs produced "ke khana bloggers blogger lahore" and Urdu text with English role words (0 results).

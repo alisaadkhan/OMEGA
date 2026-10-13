@@ -8,7 +8,7 @@ import { notifyFinished, releaseHeld } from "./finish";
 import type { CachedSearch } from "./live/cache";
 import { evaluateCampaignFit } from "./fit";
 import { collectCandidates, spreadByPlatform } from "./live/candidates";
-import { buildQueries, platformsFor } from "./live/queries";
+import { buildQueries, platformsFor, youtubeNativeQuery } from "./live/queries";
 import { classifyCandidates, filterRelevant, rankByEvidence, type Kept } from "./live/relevance";
 import { createTrail, type SearchGroup } from "./live/trail";
 import { contentGroup, mentionLeads, postsToResolve } from "./live/content";
@@ -19,7 +19,7 @@ type Deps = {
   billing: Pick<BillingService, "engine">;
   pipeline: Pick<EnrichmentPipeline, "archive" | "archived" | "profileForUrl" | "processProfile">;
   scraper: Pick<ProfileScraper, "fetchProfiles" | "resolveInstagramPostOwners">;
-  search: Pick<CachedSearch, "search">;
+  search: Pick<CachedSearch, "search" | "searchYouTube">;
   llm: Llm;
   logger: Logger;
   maxAttempts?: number;
@@ -113,6 +113,15 @@ export function createLiveRunner(deps: Deps) {
       const recoveredKeys = new Set<string>();
       for (const round of [1, 2, 3] as const) {
         for (const q of buildQueries(search, round)) groups.push({ platform: q.platform, query: q.query, round, results: await deps.search.search(q, ctx) });
+        const native = round === 1 ? youtubeNativeQuery(search) : null;
+        if (native && deps.search.searchYouTube) {
+          try {
+            groups.push({ platform: "youtube", query: `youtube_video: ${native.query}`, round, results: await deps.search.searchYouTube(native, ctx) });
+          } catch (err) {
+            // An extra source: a used-up quota or a refused key never fails the run.
+            deps.logger.warn({ err, jobId }, "YouTube-native search failed; continuing with web search results");
+          }
+        }
         trail.observe(groups);
         const candidates = collectCandidates(groups, 60);
         await progress({

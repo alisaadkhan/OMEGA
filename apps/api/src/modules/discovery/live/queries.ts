@@ -31,6 +31,22 @@ const URDU_PLACES: Record<string, string> = {
 
 export const platformsFor = (s: LiveSearch): CreatorPlatform[] => (s.filters.platform ? [s.filters.platform] : ALL);
 
+/**
+ * The YouTube-native video search for a brief: its Latin-script topic words (or niches) and place; Urdu requested or
+ * typed → Urdu relevance. Measured 2026-10-13 on 9 briefs: 57 more channels, 4 more eligible, almost none overlapping
+ * Serper's; channel search added 16 channels and none eligible, so only videos are searched.
+ */
+export function youtubeNativeQuery(s: LiveSearch): { query: string; lang?: string } | null {
+  if (!platformsFor(s).includes("youtube")) return null;
+  const place = (s.filters.creatorCity ?? (s.filters.creatorCountry ? regionName(s.filters.creatorCountry) : "Pakistan")).trim();
+  const latin = latinOnly(words(s.text, 120));
+  const base = latin || s.filters.niches.join(" ");
+  if (!base.trim()) return null;
+  const query = base.toLowerCase().includes(place.toLowerCase()) ? base : `${base} ${place}`;
+  const urdu = /urdu/i.test(s.text) || /[\u0600-\u06ff]/u.test(s.text);
+  return { query: query.slice(0, 200), ...(urdu ? { lang: "ur" } : {}) };
+}
+
 /** Lower-case letters, digits, spaces, # and - only: the user's text can never become Google operators (site:, OR, "…"). */
 function words(text: string, max: number): string {
   return text.normalize("NFKC").toLowerCase().replace(/[^\p{L}\p{N}#\s-]/gu, " ").replace(/(^|\s)-+/g, " ").replace(/\s+/g, " ").trim().slice(0, max).trim();
@@ -97,14 +113,15 @@ export function buildQueries(s: LiveSearch, round: 1 | 2 | 3 = 1): PlannedQuery[
       : round === 2 && isPakistan && known
         ? [
             { parts: [known.roman, place], hl: "en" },
-            { parts: [known.urdu, localizedPlace || place], hl: "ur" },
+            // Measured 2026-10-13: Urdu-script recall queries on Instagram found 1 new profile in 19 searches, none eligible.
+            ...(platform === "instagram" ? [] : [{ parts: [known.urdu, localizedPlace || place], hl: "ur" }]),
           ]
         : round === 2
           ? [{ parts: [typed, "blogger", place || market], hl: "en" }, { parts: [topic, "vlogger", place || market], hl: "en" }]
           : known && isPakistan
             ? [
                 { parts: [topic, known.roman, place], hl: "en" },
-                { parts: [topic, known.urdu, localizedPlace || place], hl: "ur" },
+                ...(platform === "instagram" ? [] : [{ parts: [topic, known.urdu, localizedPlace || place], hl: "ur" }]),
               ]
             : [{ parts: [topic, "influencer", place || market], hl: "en" }, { parts: [typed, "creator", place || market], hl: "en" }];
     for (const { parts, hl } of planned) {

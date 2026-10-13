@@ -315,6 +315,49 @@ describe("live runner", () => {
     });
   });
 
+  describe("YouTube-native video search", () => {
+    const channels = (...handles: string[]): WebResult[] => handles.map((h) => ({ title: `${h} - Bridal makeup tutorial`, link: `https://www.youtube.com/@${h}`, snippet: "Bridal makeup in Lahore" }));
+    async function startYouTube(c: TenantContext): Promise<string> {
+      const estimate = await discovery.createEstimate(c, { search: { text: "bridal makeup", filters: searchFiltersSchema.parse({ platform: "youtube", creatorCity: "Lahore" }) }, maxNew: 5 });
+      const out = await discovery.start(c, { kind: "live", estimateId: estimate.estimateId });
+      if (out.body.status !== "started") throw new Error("expected started");
+      return out.body.job.id;
+    }
+    function ytRunner(searchYouTube: (q: { query: string; lang?: string }) => Promise<WebResult[]>) {
+      const web = new FixtureWebSearch(channels("web_one", "web_two", "web_three", "web_four", "web_five", "web_six", "web_seven", "web_eight"));
+      const scraper = FixtureScraper.defaults();
+      const model = llm();
+      const pipeline = createEnrichmentPipeline({ db, scraper, storage: new MemoryStorage(), llm: model, encryptionKey: TEST_KEY, logger, fetchImage: async () => new Response("", { status: 404 }) });
+      const cached = createCachedSearch({ db, web });
+      const asked: { query: string; lang?: string }[] = [];
+      const search = { search: cached.search, searchYouTube: async (q: { query: string; lang?: string }) => { asked.push(q); return searchYouTube(q); } };
+      return { runner: createLiveRunner({ db, billing, pipeline, scraper, search, llm: model, logger }), asked };
+    }
+
+    it("adds the video search's channels to the candidate pool once, in the first round", async () => {
+      const { runner, asked } = ytRunner(async () => channels("native_one", "web_one"));
+      const c = await customer();
+      const id = await startYouTube(c);
+      await runner.run(id, c.workspaceId);
+      expect(asked).toEqual([{ query: "bridal makeup Lahore" }]);
+      const trail = await ownerQuery<{ candidate_key: string; occurrences: number; query: string }>(`select candidate_key, occurrences, query from wp.discovery_candidates where job_id = '${id}'`);
+      expect(trail.find((r) => r.candidate_key === "https://youtube.com/@native_one")).toMatchObject({ query: "youtube_video: bridal makeup Lahore" });
+      expect(trail.find((r) => r.candidate_key === "https://youtube.com/@web_one")?.occurrences).toBeGreaterThan(1);
+      expect(await discovery.get(c, id)).toMatchObject({ status: "completed" });
+    });
+
+    it("continues with web results when the YouTube quota is used up", async () => {
+      const { runner } = ytRunner(async () => {
+        throw new ProviderError(false, "quota", "YouTube daily quota used up");
+      });
+      const c = await customer();
+      const id = await startYouTube(c);
+      await runner.run(id, c.workspaceId);
+      expect(await discovery.get(c, id)).toMatchObject({ status: "completed" });
+      expect((await trailOf(id)).filter((r) => r.decision === "pending")).toEqual([]);
+    });
+  });
+
   it("skips a known creator whose stored sample cannot be read instead of failing the run", async () => {
     const known = await addCreator(db, { displayName: "Known One", profiles: [{ platform: "instagram", handle: "known_one" }] });
     const { runner } = setup({

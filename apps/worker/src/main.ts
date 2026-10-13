@@ -1,7 +1,7 @@
 import { Redis } from "@upstash/redis";
 import { createLogger, loadWorkerConfig } from "@mushin/core";
 import { createDatabase, createDbProviderCallSink, providerCallsSince, providerSpendSince, UNVERIFIED_TLS_WARNING } from "@mushin/db";
-import { createBudgetGuard, createLlm, createObjectStorage, createPayments, createProfileScraper, createSearchIndex, createSearchLimitGuard, createSerperSearch } from "@mushin/integrations";
+import { createBudgetGuard, createLlm, createObjectStorage, createPayments, createProfileScraper, createSearchIndex, createSearchLimitGuard, createSerperSearch, createYouTubeSearch } from "@mushin/integrations";
 import { createBillingService, createRedisAccessCache, noAccessCache } from "../../api/src/modules/billing/index";
 import { createCreatorIndexer, createEnrichmentPipeline, createEraser, createSummaryWriter, getEnrichmentSettings } from "../../api/src/modules/creators/index";
 import { createCachedSearch, createDiscoveryRunner, createLiveRunner } from "../../api/src/modules/discovery/index";
@@ -50,7 +50,7 @@ const web = createSerperSearch({
   logger,
 });
 if (!config.scraping.serperApiKey) logger.warn("SERPER_API_KEY not set: Find New Creators runs will fail and refund");
-const searchCache = createCachedSearch({ db, web });
+const searchCache = createCachedSearch({ db, web, ...(config.scraping.youtubeSearch ? { youtube: createYouTubeSearch({ apiKey: config.scraping.youtubeApiKey, sink: createDbProviderCallSink(db), logger }) } : {}) });
 const liveRunner = createLiveRunner({ db, billing, pipeline, scraper, search: searchCache, llm, logger, contentResolutionMax: config.scraping.contentResolutionMax });
 const eraser = createEraser({ db, storage: pipeline.storage, logger });
 // PostgreSQL search is the default. When configured, Meilisearch is dual-written for rollback during the cutover.

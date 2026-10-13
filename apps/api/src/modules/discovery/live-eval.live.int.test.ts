@@ -6,6 +6,9 @@
  * LIVE_EVAL_OUT. Provider responses are cached in that directory (outside the repository), so a re-run after a
  * code change replays the same search results, relevance decisions and profiles and pays only for new work.
  *
+ * LIVE_EVAL_YT_NATIVE=1 adds YouTube Data API video and channel searches (quota only, $0) for briefs that include YouTube;
+ * LIVE_EVAL_EXTRACT_YT=<n> changes how many YouTube channels are evaluated per brief (default 10; extraction is free).
+ *
  * LIVE_DISCOVERY_EVAL=1 LIVE_EVAL_OUT=<dir> LIVE_EVAL_APIFY_BUDGET_USD=0.5 [LIVE_EVAL_BRIEFS=id,id] [LIVE_EVAL_LABEL=baseline]
  */
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -15,7 +18,7 @@ import { searchFiltersSchema, type LiveSearch } from "@mushin/contracts";
 import { createLogger, loadWorkerConfig, sha256Hex } from "@mushin/core";
 import { createDbProviderCallSink, providerCallsSince } from "@mushin/db";
 import { createTestDatabase } from "@mushin/db/testing";
-import { createBudgetGuard, createLlm, createProfileScraper, createSearchLimitGuard, createSerperSearch, type Llm, type WebResult } from "@mushin/integrations";
+import { createBudgetGuard, createLlm, createProfileScraper, createSearchLimitGuard, createSerperSearch, createYouTubeSearch, type Llm, type WebResult } from "@mushin/integrations";
 import { normalizeProfileUrl, standardize, type CreatorPlatform } from "../creators/index";
 import { evaluateCampaignFit } from "./fit";
 import { collectCandidates, spreadByPlatform } from "./live/candidates";
@@ -30,7 +33,8 @@ const ONLY = new Set((process.env["LIVE_EVAL_BRIEFS"] ?? "").split(",").map((s) 
 /** Production sampling (platform.enrichment_settings): 12 Instagram posts / YouTube videos, 6 TikTok videos. */
 const MAX_POSTS: Record<CreatorPlatform, number> = { instagram: 12, tiktok: 6, youtube: 12 };
 /** Bounded extraction per brief and platform; YouTube reads are free (quota only). */
-const EXTRACT: Record<CreatorPlatform, number> = { instagram: 8, tiktok: 4, youtube: 10 };
+const EXTRACT: Record<CreatorPlatform, number> = { instagram: 8, tiktok: 4, youtube: Number(process.env["LIVE_EVAL_EXTRACT_YT"] ?? "10") };
+const YT_NATIVE = process.env["LIVE_EVAL_YT_NATIVE"] === "1";
 /** Apify list prices observed on this account's runs (USD per profile at the sampling above). */
 const UNIT_USD: Record<CreatorPlatform, number> = { instagram: 0.0026, tiktok: 0.003 * MAX_POSTS.tiktok, youtube: 0 };
 
@@ -91,7 +95,24 @@ describe.skipIf(!enabled)("Live Discovery quality evaluation (real providers, bo
     if (!config.scraping.serperApiKey || config.llm.length === 0) throw new Error("Serper and hosted LLM credentials are required");
     const logger = createLogger({ level: "silent" });
     const sink = createDbProviderCallSink(db);
-    for (const dir of ["serp", "llm", "raw/instagram", "raw/tiktok", "raw/youtube"]) await mkdir(join(OUT, dir), { recursive: true });
+    for (const dir of ["serp", "llm", "raw/instagram", "raw/tiktok", "raw/youtube", "ytsearch"]) await mkdir(join(OUT, dir), { recursive: true });
+    const yt = createYouTubeSearch({ apiKey: config.scraping.youtubeApiKey, sink, logger });
+    /** YouTube-native query: the brief's Latin-script topic words (or niches) plus place; Urdu requested → ur relevance. */
+    async function ytNative(b: Brief, type: "video" | "channel"): Promise<{ results: WebResult[]; query: string; cached: boolean }> {
+      const niches = ((b.filters["niches"] as string[] | undefined) ?? []).join(" ");
+      const latin = b.text.split(/\s+/).filter((w) => /^[\p{Script=Latin}\p{N}-]+$/u.test(w)).join(" ");
+      const place = (b.filters["creatorCity"] as string | undefined) ?? "Pakistan";
+      const base = latin || niches;
+      const query = base.toLowerCase().includes(place.toLowerCase()) ? base : `${base} ${place}`;
+      const lang = b.language === "ur" || b.language === "roman_urdu" || /urdu/i.test(b.text) ? "ur" : undefined;
+      const file = join(OUT, "ytsearch", `${sha256Hex(`${type}|${lang ?? ""}|${query}`)}.json`);
+      const hit = await readJson<{ results: WebResult[] }>(file);
+      if (hit) return { results: hit.results, query, cached: true };
+      const results = await yt.search({ query, type, regionCode: "PK", ...(lang ? { relevanceLanguage: lang } : {}), max: 25 });
+      spend.youtubeSearches++;
+      await writeFile(file, JSON.stringify({ query, type, lang, results, at: new Date().toISOString() }));
+      return { results, query, cached: false };
+    }
     const web = createSerperSearch({
       apiKey: config.scraping.serperApiKey,
       limit: createSearchLimitGuard({ limit: config.scraping.serperMonthlySearchLimit, countSince: (since) => providerCallsSince(db, "serper", since) }),
@@ -99,7 +120,7 @@ describe.skipIf(!enabled)("Live Discovery quality evaluation (real providers, bo
       logger,
     });
     const realLlm = createLlm(config.llm, { sink, logger });
-    const spend = { apifyUsd: 0, serperLive: 0, serperCached: 0, llmLive: 0, llmCached: 0, llmErrors: 0, youtubeReads: 0 };
+    const spend = { apifyUsd: 0, serperLive: 0, serperCached: 0, llmLive: 0, llmCached: 0, llmErrors: 0, youtubeReads: 0, youtubeSearches: 0 };
     const scraper = createProfileScraper({
       apify: config.scraping.apifyToken
         ? { token: config.scraping.apifyToken, instagramActor: config.scraping.instagramActor, tiktokActor: config.scraping.tiktokActor,
@@ -206,6 +227,23 @@ describe.skipIf(!enabled)("Live Discovery quality evaluation (real providers, bo
           queries.push({ round, platform: q.platform, hl: q.hl, query: q.query, results: r.results.length, profileUrls, newProfiles, nonProfile: nonProfile.slice(0, 5), cached: r.cached });
         }
         if (runnerStopsAfterRound === null && collectCandidates(groups, 60).length >= 8) runnerStopsAfterRound = round;
+      }
+      // YouTube-native discovery, recorded as its own query family so its new unique channels can be counted.
+      if (YT_NATIVE && (!brief.filters["platform"] || brief.filters["platform"] === "youtube")) {
+        for (const type of ["video", "channel"] as const) {
+          const r = await ytNative(brief, type);
+          const query = `yt_api_${type}: ${r.query}`;
+          groups.push({ platform: "youtube", results: r.results });
+          let newProfiles = 0;
+          for (const res of r.results) {
+            const n = normalizeProfileUrl(res.link);
+            if (n && !firstSeen.has(n.canonicalUrl)) {
+              firstSeen.set(n.canonicalUrl, { round: 1, query });
+              newProfiles++;
+            }
+          }
+          queries.push({ round: 1, platform: "youtube", hl: "api", query, results: r.results.length, profileUrls: r.results.length, newProfiles, nonProfile: [], cached: r.cached });
+        }
       }
       const allCandidates = collectCandidates(groups, 1000);
       const runnerCandidates = collectCandidates(groups);

@@ -191,6 +191,7 @@ describe("scraping and storage settings (worker only)", () => {
       instagramPostActor: "apify/instagram-scraper",
       instagramPostBuild: "0.0.812",
       contentResolutionMax: 10,
+      youtubeSearch: true,
       apifyMonthlyBudgetUsd: 5,
       youtubeApiKey: "yt",
       serperApiKey: null,
