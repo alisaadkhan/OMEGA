@@ -13,7 +13,7 @@ describe.skipIf(process.env["LIVE_SCRAPE_TESTS"] !== "1")("live scrapers and sto
   const logger = createLogger({ level: "silent" });
   const sink = new MemoryProviderCallSink();
   const scraper = createProfileScraper({
-    apify: config.scraping.apifyToken ? { token: config.scraping.apifyToken, instagramActor: config.scraping.instagramActor, ...(config.scraping.instagramBuild ? { instagramBuild: config.scraping.instagramBuild } : {}), tiktokActor: config.scraping.tiktokActor } : null,
+    apify: config.scraping.apifyToken ? { token: config.scraping.apifyToken, instagramActor: config.scraping.instagramActor, ...(config.scraping.instagramBuild ? { instagramBuild: config.scraping.instagramBuild } : {}), tiktokActor: config.scraping.tiktokActor, ...(config.scraping.tiktokBuild ? { tiktokBuild: config.scraping.tiktokBuild } : {}) } : null,
     youtubeApiKey: config.scraping.youtubeApiKey,
     tiktokVideos: 3,
     youtubeVideos: 3,

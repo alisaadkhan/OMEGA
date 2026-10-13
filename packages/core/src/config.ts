@@ -104,6 +104,7 @@ const workerSchema = sharedObject
     APIFY_INSTAGRAM_ACTOR_ID: z.string().min(1).default("apify/instagram-profile-scraper"),
     APIFY_INSTAGRAM_BUILD: z.string().min(1).optional(),
     APIFY_TIKTOK_ACTOR_ID: z.string().min(1).default("clockworks/tiktok-profile-scraper"),
+    APIFY_TIKTOK_BUILD: z.string().min(1).optional(),
     APIFY_MONTHLY_BUDGET_USD: z.coerce.number().min(0).default(5),
     YOUTUBE_API_KEY: z.string().min(1).optional(),
     SERPER_API_KEY: z.string().min(1).optional(),
@@ -223,6 +224,7 @@ export type ScrapingConfig = {
   instagramActor: string;
   instagramBuild: string | null;
   tiktokActor: string;
+  tiktokBuild: string | null;
   apifyMonthlyBudgetUsd: number;
   youtubeApiKey: string | null;
   serperApiKey: string | null;
@@ -308,6 +310,7 @@ export function loadWorkerConfig(env: Env): WorkerConfig {
       instagramActor: v.APIFY_INSTAGRAM_ACTOR_ID,
       instagramBuild: v.APIFY_INSTAGRAM_BUILD ?? (v.APIFY_INSTAGRAM_ACTOR_ID === "apify/instagram-profile-scraper" ? "0.0.634" : null),
       tiktokActor: v.APIFY_TIKTOK_ACTOR_ID,
+      tiktokBuild: v.APIFY_TIKTOK_BUILD ?? (v.APIFY_TIKTOK_ACTOR_ID === "clockworks/tiktok-profile-scraper" ? "0.99.2065" : null),
       apifyMonthlyBudgetUsd: v.APIFY_MONTHLY_BUDGET_USD,
       youtubeApiKey: v.YOUTUBE_API_KEY ?? null,
       serperApiKey: v.SERPER_API_KEY ?? null,

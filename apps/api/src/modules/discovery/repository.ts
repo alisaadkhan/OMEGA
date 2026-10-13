@@ -1,6 +1,6 @@
 import { and, count, desc, eq, gt, gte, inArray, lt, max, or, sql, sum } from "drizzle-orm";
 import type { DiscoveryJob, DiscoveryJobStep, LiveSearch } from "@mushin/contracts";
-import { discoveryEstimates, discoveryJobs, discoveryResults, serperCache, type LiveProgress, type SystemTx, type TenantTx } from "@mushin/db";
+import { discoveryEstimates, discoveryJobs, discoveryResults, serperCache, type CampaignFitEvidence, type LiveProgress, type SystemTx, type TenantTx } from "@mushin/db";
 import type { WebResult } from "@mushin/integrations";
 
 export type JobRow = typeof discoveryJobs.$inferSelect;
@@ -148,11 +148,11 @@ export async function openLiveJobFor(tx: TenantTx, workspaceId: string, searchHa
 export type ResultRow = typeof discoveryResults.$inferSelect;
 
 /** One result per creator per run, numbered in arrival order for polling (spec §3.1). Runs are processed one at a time. */
-export async function insertResult(tx: TenantTx, workspaceId: string, jobId: string, r: { creatorId: string; isNew: boolean; credits: number; reason: string | null }): Promise<boolean> {
+export async function insertResult(tx: TenantTx, workspaceId: string, jobId: string, r: { creatorId: string; isNew: boolean; credits: number; reason: string | null; campaignFit?: CampaignFitEvidence | null }): Promise<boolean> {
   const [last] = await tx.select({ seq: max(discoveryResults.seq) }).from(discoveryResults).where(eq(discoveryResults.jobId, jobId));
   const inserted = await tx
     .insert(discoveryResults)
-    .values({ workspaceId, jobId, creatorId: r.creatorId, seq: (last?.seq ?? 0) + 1, isNew: r.isNew, credits: r.credits, reason: r.reason })
+    .values({ workspaceId, jobId, creatorId: r.creatorId, seq: (last?.seq ?? 0) + 1, isNew: r.isNew, credits: r.credits, reason: r.reason, campaignFit: r.campaignFit ?? null })
     .onConflictDoNothing({ target: [discoveryResults.jobId, discoveryResults.creatorId] })
     .returning({ id: discoveryResults.id });
   if (inserted.length === 0) return false;

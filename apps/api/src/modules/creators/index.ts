@@ -25,8 +25,11 @@ export { findProfileByUrl, getEnrichmentSettings, profileTarget } from "./enrich
 export { normalizeProfileUrl, refreshActionFor } from "./rules";
 export type { CreatorPlatform } from "./rules";
 export { cleanText } from "./enrichment/standardize";
+export type { StandardPost, StandardProfile } from "./enrichment/standardize";
 export { fenced, hasContactOrLink, redactContacts } from "./rules";
 export { rankCards } from "./ranking";
+export { fitLabel } from "./rules";
+export { getSearchSettings } from "./repository";
 export { suppress, suppressedUrls, urlHash } from "./suppressions";
 export type { ProcessHooks } from "./enrichment/pipeline";
 export { createRemovalService } from "./erasure/service";

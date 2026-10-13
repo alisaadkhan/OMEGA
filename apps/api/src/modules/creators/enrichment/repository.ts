@@ -64,7 +64,7 @@ export async function latestMetrics(tx: Tx, profileId: string): Promise<Previous
   return rows[0] ?? null;
 }
 
-export type PayloadRef = { id: string; storageKey: string; provider: "apify" | "youtube"; platform: CreatorPlatform; canonicalUrl: string; fetchedAt: Date };
+export type PayloadRef = { id: string; storageKey: string; provider: "apify" | "youtube"; platform: CreatorPlatform; canonicalUrl: string; fetchedAt: Date; deleteAfter: Date };
 const payloadCols = {
   id: rawPayloads.id,
   storageKey: rawPayloads.storageKey,
@@ -72,6 +72,7 @@ const payloadCols = {
   platform: rawPayloads.platform,
   canonicalUrl: rawPayloads.canonicalUrl,
   fetchedAt: rawPayloads.fetchedAt,
+  deleteAfter: rawPayloads.deleteAfter,
 };
 
 export async function payloadForJob(tx: Tx, jobId: string): Promise<PayloadRef | null> {

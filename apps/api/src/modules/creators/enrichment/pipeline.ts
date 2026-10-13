@@ -14,7 +14,7 @@ import { standardize, type StandardProfile } from "./standardize";
 import { suppressedUrls } from "../suppressions";
 
 export type EnrichJob = { jobId: string; workspaceId: string; platform: CreatorPlatform; handle: string; canonicalUrl: string; requestId: string | null };
-export type SavedResult = { kind: "saved"; creatorId: string; outcome: "created" | "refreshed"; assessment: "assessed" | "pending" | "insufficient_data" };
+export type SavedResult = { kind: "saved"; creatorId: string; outcome: "created" | "refreshed"; assessment: "assessed" | "pending" | "insufficient_data"; profile: StandardProfile };
 export type EnrichResult = SavedResult | { kind: "reused"; creatorId: string } | { kind: "unavailable"; code: "PRIVATE_ACCOUNT" | "NOT_FOUND"; message: string };
 export type EnrichHooks = { onStep(step: DiscoveryJobStep): Promise<void>; onSaved(tx: TenantTx, result: SavedResult): Promise<void> };
 export type ProcessHooks = { onStep?(step: DiscoveryJobStep): Promise<void>; onSaved(tx: TenantTx, result: SavedResult): Promise<void> };
@@ -107,6 +107,23 @@ export function createEnrichmentPipeline(deps: Deps) {
     return ref ? { payloadId: ref.id, raw: await readPayload(ref) } : null;
   }
 
+  /** Reuses retained source evidence for a known profile; never fetches a provider as a side effect. */
+  async function profileForUrl(canonicalUrl: string): Promise<{ profile: StandardProfile; fetchedAt: Date } | null> {
+    const known = await deps.db.withSystem((tx) => repo.findProfileByUrl(tx, canonicalUrl));
+    if (!known) return null;
+    const ref = await deps.db.withSystem((tx) => repo.latestPayloadForCreator(tx, known.creatorId));
+    if (!ref || ref.canonicalUrl !== canonicalUrl || ref.deleteAfter <= now()) return null;
+    const settings = await deps.db.withSystem((tx) => repo.getEnrichmentSettings(tx));
+    let handle: string;
+    try {
+      handle = decodeURIComponent(new URL(canonicalUrl).pathname.split("/").filter(Boolean).at(-1) ?? "").replace(/^@/, "");
+    } catch {
+      return null;
+    }
+    const standardized = standardize(ref.platform, handle, await readPayload(ref), { maxPosts: ref.platform === "tiktok" ? settings.tiktokRecentVideos : settings.recentPosts });
+    return standardized.kind === "ok" ? { profile: standardized.profile, fetchedAt: ref.fetchedAt } : null;
+  }
+
   /** Steps after fetching (spec 4A §5.1 steps 3–5) for one profile whose response is already archived. */
   async function processProfile(job: EnrichJob, payloadId: string, raw: unknown, hooks: ProcessHooks): Promise<EnrichResult> {
     const settings = await deps.db.withSystem((tx) => repo.getEnrichmentSettings(tx));
@@ -143,7 +160,7 @@ export function createEnrichmentPipeline(deps: Deps) {
         encryptionKey: deps.encryptionKey,
         requestId: job.requestId,
       });
-      const result: SavedResult = { kind: "saved", creatorId: saved.creatorId, outcome: saved.created ? "created" : "refreshed", assessment: saved.assessment };
+      const result: SavedResult = { kind: "saved", creatorId: saved.creatorId, outcome: saved.created ? "created" : "refreshed", assessment: saved.assessment, profile: p };
       await hooks.onSaved(tx, result);
       return result;
     });
@@ -201,7 +218,7 @@ export function createEnrichmentPipeline(deps: Deps) {
     await storage.ensureBucket(AVATAR_BUCKET, { public: true });
   }
 
-  return { enrich, archive, archived, processProfile, reassess, purgeExpiredPayloads, ensureBuckets, storage };
+  return { enrich, archive, archived, profileForUrl, processProfile, reassess, purgeExpiredPayloads, ensureBuckets, storage };
 }
 
 export type EnrichmentPipeline = ReturnType<typeof createEnrichmentPipeline>;

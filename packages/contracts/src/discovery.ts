@@ -133,6 +133,10 @@ export const discoveryResultSchema = creatorCardSchema.extend({
   rank: z.number().int().nonnegative(),
   isNew: z.boolean(),
   reason: z.string().nullable(),
+  campaignFit: z.object({
+    version: z.string(), score: z.number().int().min(0).max(100).nullable(), confidence: z.number().min(0).max(1),
+    eligible: z.boolean(), gate: z.string().nullable(), topicScore: z.number().min(0).max(1).nullable(), sampleSize: z.number().int().nonnegative(), sourceUrl: z.url(), fetchedAt: iso, evidence: z.array(z.string()),
+  }).nullable(),
 });
 export type DiscoveryResult = z.output<typeof discoveryResultSchema>;
 export const discoveryResultsResponseSchema = z.object({ results: z.array(discoveryResultSchema), done: z.boolean() });

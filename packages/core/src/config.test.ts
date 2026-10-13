@@ -182,6 +182,7 @@ describe("scraping and storage settings (worker only)", () => {
       instagramActor: "apify/instagram-profile-scraper",
       instagramBuild: "0.0.634",
       tiktokActor: "clockworks/tiktok-profile-scraper",
+      tiktokBuild: "0.99.2065",
       apifyMonthlyBudgetUsd: 5,
       youtubeApiKey: "yt",
       serperApiKey: null,
@@ -194,6 +195,11 @@ describe("scraping and storage settings (worker only)", () => {
   it("does not apply the validated Instagram build to a custom actor", () => {
     const c = loadWorkerConfig({ ...worker, APIFY_INSTAGRAM_ACTOR_ID: "team/custom-instagram-actor" });
     expect(c.scraping.instagramBuild).toBeNull();
+  });
+
+  it("pins the reviewed TikTok actor version and permits explicit custom actor builds", () => {
+    expect(loadWorkerConfig(worker).scraping.tiktokBuild).toBe("0.99.2065");
+    expect(loadWorkerConfig({ ...worker, APIFY_TIKTOK_ACTOR_ID: "team/custom-tiktok", APIFY_TIKTOK_BUILD: "1.2.3" }).scraping.tiktokBuild).toBe("1.2.3");
   });
 
   it("treats missing scraper keys and storage as not configured outside production", () => {

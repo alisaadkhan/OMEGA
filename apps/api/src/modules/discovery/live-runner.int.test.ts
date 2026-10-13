@@ -21,6 +21,11 @@ afterAll(() => db.close());
 
 const profile = (username: string, bio = "Bridal makeup artist in Lahore") => {
   const one = structuredClone((scraperFixture("instagram-profile.json") as Record<string, unknown>[])[0] ?? {});
+  const posts = Array.isArray(one["latestPosts"]) ? one["latestPosts"] : [];
+  one["latestPosts"] = posts.map((post, index) => typeof post === "object" && post !== null ? {
+    ...(post as Record<string, unknown>), caption: "Bridal makeup look", hashtags: ["bridal", "makeup"],
+    timestamp: new Date(Date.now() - index * 5 * 86_400_000).toISOString(),
+  } : post);
   return [{ ...one, username, biography: bio }];
 };
 
@@ -71,7 +76,7 @@ function setup(o: { web?: FixtureWebSearch; scraper?: FixtureScraper; wrap?: (p:
   const base = createEnrichmentPipeline({ db, scraper, storage: new MemoryStorage(), llm: model, encryptionKey: TEST_KEY, logger, fetchImage: async () => new Response("", { status: 404 }) });
   const pipeline = o.wrap ? o.wrap(base) : base;
   const runner = createLiveRunner({ db, billing, pipeline, scraper, search: createCachedSearch({ db, web }), llm: model, logger, ...(o.maxAttempts ? { maxAttempts: o.maxAttempts } : {}) });
-  return { runner, web, scraper };
+  return { runner, web, scraper, pipeline };
 }
 
 async function customer(): Promise<TenantContext> {
@@ -91,8 +96,12 @@ async function startRun(c: TenantContext, maxNew: 5 | 10 = 10): Promise<string> 
 describe("live runner", () => {
   it("merges a known creator for free, adds new ones in one Apify run, skips a private one and charges only for what was added", async () => {
     const known = await addCreator(db, { displayName: "Known One", profiles: [{ platform: "instagram", handle: "known_one" }] });
-    const { runner, web, scraper } = setup({ web: new FixtureWebSearch(links("known_one", "new_a", "new_b", "private_c")) });
     const c = await customer();
+    const { runner, web, scraper, pipeline } = setup({ web: new FixtureWebSearch(links("known_one", "new_a", "new_b", "private_c")) });
+    const knownJob = { jobId: randomUUID(), workspaceId: c.workspaceId, platform: "instagram" as const, handle: "known_one", canonicalUrl: "https://instagram.com/known_one", requestId: c.requestId };
+    const knownRaw = profile("known_one");
+    const knownPayload = await pipeline.archive(knownJob, "apify", knownRaw);
+    await pipeline.processProfile(knownJob, knownPayload, knownRaw, { onSaved: async () => undefined });
     const id = await startRun(c);
     await runner.run(id, c.workspaceId);
     const job = await discovery.get(c, id);

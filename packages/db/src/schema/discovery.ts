@@ -63,6 +63,7 @@ export type LiveProgress = {
   serpResultsSeen: number; profileCandidates: number; afterDedupe: number; snippetGatePass: number; ambiguousCandidates: number;
   extractedProfiles: number; validIndividualCreators: number; qualifiedCreators: number; persistedResults: number; billableCreators: number;
 };
+export type CampaignFitEvidence = { version: string; score: number | null; confidence: number; eligible: boolean; gate: string | null; topicScore: number | null; sampleSize: number; sourceUrl: string; fetchedAt: string; evidence: string[] };
 
 export const discoveryResults = wp.table("discovery_results", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -76,6 +77,7 @@ export const discoveryResults = wp.table("discovery_results", {
   isNew: boolean("is_new").notNull(),
   credits: integer("credits").notNull().default(0),
   reason: text("reason"),
+  campaignFit: jsonb("campaign_fit").$type<CampaignFitEvidence>(),
   createdAt: ts("created_at").notNull().defaultNow(),
 });
 

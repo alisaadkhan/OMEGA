@@ -3,7 +3,7 @@ import { searchFiltersSchema, validateLiveBrief, type CreateLiveEstimate, type D
 import { AppError, sha256Hex, type TenantContext } from "@mushin/core";
 import { writeOutbox, type Db } from "@mushin/db";
 import type { BillingService } from "../billing/index";
-import { findProfileByUrl, getEnrichmentSettings, isVisibleCreator, suppressedUrls, normalizeProfileUrl, profileTarget, rankCards, refreshActionFor, type CreatorPlatform } from "../creators/index";
+import { findProfileByUrl, fitLabel, getEnrichmentSettings, getSearchSettings, isVisibleCreator, suppressedUrls, normalizeProfileUrl, profileTarget, rankCards, refreshActionFor, type CreatorPlatform } from "../creators/index";
 import { platformsFor } from "./live/queries";
 import * as repo from "./repository";
 
@@ -229,11 +229,13 @@ export function createDiscoveryService(deps: DiscoveryDeps) {
       const rows = await repo.resultsAfter(tx, ctx.workspaceId, id, after);
       const filters = searchFiltersSchema.parse(job.search.filters);
       const cards = new Map((await rankCards(tx, rows.map((r) => r.creatorId), filters, now())).map((c) => [c.id, c]));
+      const settings = await getSearchSettings(tx);
       return {
         results: rows.flatMap((r) => {
           const card = cards.get(r.creatorId);
-          return card ? [{ ...card, seq: r.seq, rank: r.rank, isNew: r.isNew, reason: r.reason }] : [];
-        }),
+          const score = r.campaignFit?.score;
+          return card ? [{ ...card, ...(score === null || score === undefined ? {} : { fitScore: score, fitLabel: fitLabel(score, settings.labels) }), seq: r.seq, rank: r.rank, isNew: r.isNew, reason: r.reason, campaignFit: r.campaignFit }] : [];
+        }).sort((a, b) => a.rank - b.rank),
         done: job.status === "completed" || job.status === "failed",
       };
     });

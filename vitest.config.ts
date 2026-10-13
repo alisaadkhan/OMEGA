@@ -24,7 +24,7 @@ export default defineConfig({
           include: ["apps/*/src/**/*.int.test.ts", "packages/*/src/**/*.int.test.ts"],
           globalSetup: ["packages/db/test/global-setup.ts"],
           fileParallelism: false,
-          // The test database is remote (Supabase, ap-south-1): tests are bound by network round trips, not CPU.
+          // Database integration tests require the local disposable TEST_DATABASE_URL guard.
           testTimeout: 120_000,
           hookTimeout: 120_000,
         },

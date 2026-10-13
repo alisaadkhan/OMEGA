@@ -20,6 +20,19 @@ type Options = {
 
 const NO_DOWNLOADS = { shouldDownloadVideos: false, shouldDownloadCovers: false, shouldDownloadAvatars: false, shouldDownloadSubtitles: false };
 
+function tiktokHandle(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const raw = value.trim();
+  try {
+    const url = new URL(raw);
+    if (url.hostname === "tiktok.com" || url.hostname.endsWith(".tiktok.com")) return url.pathname.match(/^\/@([\w.]+)\/?$/i)?.[1]?.toLowerCase() ?? null;
+  } catch {
+    // Actor output is normally the requested handle, not a URL.
+  }
+  const handle = raw.replace(/^@/, "");
+  return /^[a-z0-9._]{1,24}$/i.test(handle) ? handle.toLowerCase() : null;
+}
+
 /** Apify returns one list for a batch: Instagram items carry `username`, TikTok video items carry `input` (the requested profile). */
 export function splitByHandle(platform: "instagram" | "tiktok", items: unknown, handles: string[]): { handle: string; raw: unknown[] }[] {
   const keyOf = (it: unknown): string | null => {
@@ -30,10 +43,14 @@ export function splitByHandle(platform: "instagram" | "tiktok", items: unknown, 
       const url = r["inputUrl"] ?? r["url"];
       return typeof url === "string" ? (url.replace(/\/+$/, "").split("/").pop() ?? "").toLowerCase() : null;
     }
-    if (typeof r["input"] === "string") return r["input"].replace(/^@/, "").toLowerCase();
     const author = r["authorMeta"];
     const name = typeof author === "object" && author !== null ? (author as Record<string, unknown>)["name"] : undefined;
-    return typeof name === "string" ? name.toLowerCase() : null;
+    const authorHandle = tiktokHandle(name);
+    const inputHandle = tiktokHandle(r["input"]);
+    // TikTok returns one dataset row per video. Only associate a row when the
+    // requested profile and actor-reported author identity agree.
+    if (r["input"] !== undefined && (!inputHandle || !authorHandle || inputHandle !== authorHandle)) return null;
+    return inputHandle ?? authorHandle;
   };
   const groups = new Map<string, unknown[]>(handles.map((h) => [h, []]));
   for (const it of Array.isArray(items) ? items : []) {

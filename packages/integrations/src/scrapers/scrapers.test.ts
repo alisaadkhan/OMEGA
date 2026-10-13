@@ -88,6 +88,18 @@ describe("profile scraper", () => {
     expect(calls[0]?.url).toContain("build=0.0.634");
   });
 
+  it("pins TikTok runs to the configured immutable build", async () => {
+    const { fetch, calls } = fakeFetch(apifyRoutes(scraperFixture("tiktok-videos.json"), "apify-run-tiktok.json"));
+    const pinned = createProfileScraper({
+      apify: { token: "t", instagramActor: "apify/instagram-profile-scraper", tiktokActor: "clockworks/tiktok-profile-scraper", tiktokBuild: "0.99.2065" },
+      youtubeApiKey: "yt", tiktokVideos: 3,
+      spendGuard: { begin: async () => () => {} }, sink: new MemoryProviderCallSink(), logger, fetch, sleep: async () => {},
+    });
+    await pinned.fetchProfile({ platform: "tiktok", handle: "cokestudiopakistan" });
+    expect(calls[0]?.url).toContain("build=0.99.2065");
+    expect(calls[0]?.body).toMatchObject({ resultsPerPage: 3, shouldDownloadVideos: false });
+  });
+
   it("asks the TikTok actor for the configured number of videos without downloads", async () => {
     const { fetch, calls } = fakeFetch(apifyRoutes(scraperFixture("tiktok-videos.json"), "apify-run-tiktok.json"));
     const { s, sink } = scraper(fetch);
@@ -188,8 +200,14 @@ describe("profile scraper", () => {
 
   it("splits TikTok video items by the requested profile", () => {
     const v = (scraperFixture("tiktok-videos.json") as Record<string, unknown>[])[0] ?? {};
-    const items = [{ ...v, input: "a_one" }, { ...v, input: "a_one" }, { ...v, input: "b_two" }];
+    const items = [
+      { ...v, input: "a_one", authorMeta: { name: "a_one" } },
+      { ...v, input: "a_one", authorMeta: { name: "a_one" } },
+      { ...v, input: "b_two", authorMeta: { name: "b_two" } },
+    ];
     expect(splitByHandle("tiktok", items, ["a_one", "b_two", "c_three"]).map((p) => (p.raw as unknown[]).length)).toEqual([2, 1, 0]);
+    const mismatch = splitByHandle("tiktok", [{ ...v, input: "a_one", authorMeta: { name: "other_person" } }], ["a_one"]);
+    expect(mismatch[0]?.raw).toEqual([]);
   });
 
   it("reads YouTube channels one by one for free", async () => {

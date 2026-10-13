@@ -3,9 +3,10 @@ import { AppError, type Logger } from "@mushin/core";
 import type { Db, LivePrices, LiveProgress, TenantTx } from "@mushin/db";
 import { ProviderError, type Llm, type ProfileScraper } from "@mushin/integrations";
 import type { BillingService } from "../billing/index";
-import { findProfileByUrl, isVisibleCreator, rankCards, suppressedUrls, type CreatorPlatform, type EnrichJob, type EnrichmentPipeline } from "../creators/index";
+import { findProfileByUrl, fitLabel, getSearchSettings, isVisibleCreator, rankCards, suppressedUrls, type CreatorPlatform, type EnrichJob, type EnrichmentPipeline } from "../creators/index";
 import { notifyFinished, releaseHeld } from "./finish";
 import type { CachedSearch } from "./live/cache";
+import { evaluateCampaignFit } from "./fit";
 import { collectCandidates } from "./live/candidates";
 import { buildQueries } from "./live/queries";
 import { filterRelevant, type Kept } from "./live/relevance";
@@ -14,7 +15,7 @@ import * as repo from "./repository";
 type Deps = {
   db: Db;
   billing: Pick<BillingService, "engine">;
-  pipeline: Pick<EnrichmentPipeline, "archive" | "archived" | "processProfile">;
+  pipeline: Pick<EnrichmentPipeline, "archive" | "archived" | "profileForUrl" | "processProfile">;
   scraper: Pick<ProfileScraper, "fetchProfiles">;
   search: Pick<CachedSearch, "search">;
   llm: Llm;
@@ -43,8 +44,17 @@ export function createLiveRunner(deps: Deps) {
 
   async function rerank(tx: TenantTx, job: repo.JobRow, search: LiveSearch): Promise<number> {
     const ids = await repo.resultCreatorIds(tx, job.workspaceId, job.id);
-    const cards = await rankCards(tx, ids, search.filters, now());
-    await repo.setRanks(tx, job.workspaceId, job.id, cards.map((c, i) => ({ creatorId: c.id, rank: i + 1, fitScore: c.fitScore, fitLabel: c.fitLabel })));
+    const [cards, rows, settings] = await Promise.all([
+      rankCards(tx, ids, search.filters, now()),
+      repo.resultsAfter(tx, job.workspaceId, job.id, 0),
+      getSearchSettings(tx),
+    ]);
+    const campaignFit = new Map(rows.map((r) => [r.creatorId, r.campaignFit?.score ?? null]));
+    cards.sort((a, b) => (campaignFit.get(b.id) ?? b.fitScore) - (campaignFit.get(a.id) ?? a.fitScore) || b.fitScore - a.fitScore || a.id.localeCompare(b.id));
+    await repo.setRanks(tx, job.workspaceId, job.id, cards.map((c, i) => {
+      const score = campaignFit.get(c.id);
+      return { creatorId: c.id, rank: i + 1, fitScore: score ?? c.fitScore, fitLabel: score === null || score === undefined ? c.fitLabel : fitLabel(score, settings.labels) };
+    }));
     return cards.length; // creators customers can see
   }
 
@@ -64,9 +74,17 @@ export function createLiveRunner(deps: Deps) {
       });
     const progress = (patch: Partial<LiveProgress>) =>
       deps.db.withWorkspace(workspaceId, (tx) => repo.advanceProgress(tx, workspaceId, jobId, patch));
-    const record = (creatorId: string, isNew: boolean, credits: number, reason: string | null) =>
+    const recordKnown = (creatorId: string, reason: string | null, campaignFit: Awaited<ReturnType<typeof evaluateCampaignFit>>) =>
       deps.db.withWorkspace(workspaceId, async (tx) => {
-        if (await repo.insertResult(tx, workspaceId, jobId, { creatorId, isNew, credits, reason })) await rerank(tx, job, search);
+        if (!await repo.insertResult(tx, workspaceId, jobId, { creatorId, isNew: false, credits: 0, reason, campaignFit })) return;
+        const results = await repo.resultCreatorIds(tx, workspaceId, jobId);
+        const qualified = await rerank(tx, job, search);
+        await repo.advanceProgress(tx, workspaceId, jobId, {
+          validIndividualCreators: qualified,
+          qualifiedCreators: qualified,
+          persistedResults: results.length,
+          billableCreators: await repo.countBillable(tx, workspaceId, jobId),
+        });
       });
     const profileJob = (k: Kept): EnrichJob => ({ jobId, workspaceId, platform: k.platform, handle: k.handle, canonicalUrl: k.canonicalUrl, requestId: job.requestId });
 
@@ -110,8 +128,14 @@ export function createLiveRunner(deps: Deps) {
         if (suppressed.has(k.canonicalUrl)) continue;
         const known = await deps.db.withSystem((tx) => findProfileByUrl(tx, k.canonicalUrl));
         if (known) {
-          // Also covers creators this run saved before a retry: their row stays as it was.
-          if (await deps.db.withSystem((tx) => isVisibleCreator(tx, known.creatorId))) await record(known.creatorId, false, 0, k.reason);
+          // Reuse retained evidence only. A known creator without an archived sample cannot pass a per-job Fit gate.
+          if (await deps.db.withSystem((tx) => isVisibleCreator(tx, known.creatorId))) {
+            const stored = await deps.pipeline.profileForUrl(k.canonicalUrl);
+            if (stored) {
+              const campaignFit = evaluateCampaignFit(search, k, stored.profile, false, now(), stored.fetchedAt);
+              if (campaignFit.eligible) await recordKnown(known.creatorId, k.reason, campaignFit);
+            }
+          }
           continue;
         }
         if (alreadyNew + fresh.length < maxNew) fresh.push(k);
@@ -144,7 +168,8 @@ export function createLiveRunner(deps: Deps) {
             const isNew = saved.outcome === "created";
             // A possible minor is saved but hidden from customers, so it costs nothing (Review Focus 1).
             const visible = await isVisibleCreator(tx, saved.creatorId);
-            if (await repo.insertResult(tx, workspaceId, jobId, { creatorId: saved.creatorId, isNew, credits: isNew && visible ? prices[f.k.platform] : 0, reason: f.k.reason })) {
+            const campaignFit = evaluateCampaignFit(search, f.k, saved.profile, !visible, now());
+            if (campaignFit.eligible && visible && await repo.insertResult(tx, workspaceId, jobId, { creatorId: saved.creatorId, isNew, credits: isNew ? prices[f.k.platform] : 0, reason: f.k.reason, campaignFit })) {
               const results = await repo.resultCreatorIds(tx, workspaceId, jobId);
               const qualified = await rerank(tx, job, search);
               await repo.advanceProgress(tx, workspaceId, jobId, {

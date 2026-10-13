@@ -102,7 +102,7 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
   }, [liveJobId]);
   const live = useLiveResults(liveJob);
   const liveJobInfo = useDiscoveryJob(liveJob);
-  const liveCards = useMemo(() => live.results.map((r) => ({ ...toCreator(r), discovery: { isNew: r.isNew, reason: r.reason } })), [live.results]);
+  const liveCards = useMemo(() => live.results.map((r) => ({ ...toCreator(r), discovery: { isNew: r.isNew, reason: r.reason, campaignFit: r.campaignFit } })), [live.results]);
   const liveStreaming = liveJob !== null && !live.done && !live.isError;
   const [showInterpret, setShowInterpret] = useState(true);
   const [compareOpen, setCompareOpen] = useState(false);
@@ -602,6 +602,7 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
                   {c.discovery.isNew ? "New" : "Already in MUSHIN"}
                 </span>
                 <CreatorCard creator={c} index={i} query={query} selected={selected.has(c.id)} onSelect={() => toggleSelect(c.id)} onOpen={() => setProfileId(c.id)} />
+                {c.discovery.campaignFit && <p className="px-1 text-[11px] text-indigo-700">Fit based on {c.discovery.campaignFit.sampleSize} recent posts · {Math.round(c.discovery.campaignFit.confidence * 100)}% evidence confidence</p>}
                 {c.discovery.reason && <p className="px-1 text-[11px] text-slate-500">{c.discovery.reason}</p>}
               </div>
             ))}
