@@ -42,3 +42,16 @@ describe("YouTube-native search", () => {
     await expect(yt.search({ query: "x", type: "channel" })).rejects.toMatchObject({ reason: "quota", retryable: false });
   });
 });
+
+describe("YouTube-native search recency", () => {
+  it("passes publishedAfter as an RFC 3339 time without milliseconds", async () => {
+    const urls: string[] = [];
+    const fetchFake = (async (input: string | URL | Request) => {
+      urls.push(String(input));
+      return new Response(JSON.stringify({ items: [] }), { status: 200 });
+    }) as typeof fetch;
+    const yt = createYouTubeSearch({ apiKey: "k", sink: new MemoryProviderCallSink(), logger, fetch: fetchFake });
+    await yt.search({ query: "food Lahore", type: "video", publishedAfter: new Date("2026-07-15T00:00:00.000Z") });
+    expect(urls[0]).toContain("publishedAfter=2026-07-15T00%3A00%3A00Z");
+  });
+});

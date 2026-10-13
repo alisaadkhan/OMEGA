@@ -35,6 +35,8 @@ const MAX_POSTS: Record<CreatorPlatform, number> = { instagram: 12, tiktok: 6, y
 /** Bounded extraction per brief and platform; YouTube reads are free (quota only). */
 const EXTRACT: Record<CreatorPlatform, number> = { instagram: 8, tiktok: 4, youtube: Number(process.env["LIVE_EVAL_EXTRACT_YT"] ?? "10") };
 const YT_NATIVE = process.env["LIVE_EVAL_YT_NATIVE"] === "1";
+/** LIVE_EVAL_YT_RECENT_DAYS=<n>: the YouTube-native video search only returns videos uploaded in the last n days. */
+const YT_RECENT_DAYS = Number(process.env["LIVE_EVAL_YT_RECENT_DAYS"] ?? "0");
 /** Apify list prices observed on this account's runs (USD per profile at the sampling above). */
 const UNIT_USD: Record<CreatorPlatform, number> = { instagram: 0.0026, tiktok: 0.003 * MAX_POSTS.tiktok, youtube: 0 };
 
@@ -105,10 +107,11 @@ describe.skipIf(!enabled)("Live Discovery quality evaluation (real providers, bo
       const base = latin || niches;
       const query = base.toLowerCase().includes(place.toLowerCase()) ? base : `${base} ${place}`;
       const lang = b.language === "ur" || b.language === "roman_urdu" || /urdu/i.test(b.text) ? "ur" : undefined;
-      const file = join(OUT, "ytsearch", `${sha256Hex(`${type}|${lang ?? ""}|${query}`)}.json`);
+      const recent = type === "video" && YT_RECENT_DAYS > 0 ? YT_RECENT_DAYS : 0;
+      const file = join(OUT, "ytsearch", `${sha256Hex(`${type}|${lang ?? ""}|${query}${recent ? `|recent${recent}` : ""}`)}.json`);
       const hit = await readJson<{ results: WebResult[] }>(file);
       if (hit) return { results: hit.results, query, cached: true };
-      const results = await yt.search({ query, type, regionCode: "PK", ...(lang ? { relevanceLanguage: lang } : {}), max: 25 });
+      const results = await yt.search({ query, type, regionCode: "PK", ...(lang ? { relevanceLanguage: lang } : {}), max: 25, ...(recent ? { publishedAfter: new Date(Date.now() - recent * 86_400_000) } : {}) });
       spend.youtubeSearches++;
       await writeFile(file, JSON.stringify({ query, type, lang, results, at: new Date().toISOString() }));
       return { results, query, cached: false };

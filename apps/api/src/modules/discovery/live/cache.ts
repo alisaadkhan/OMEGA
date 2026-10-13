@@ -5,6 +5,7 @@ import * as repo from "../repository";
 import type { PlannedQuery } from "./queries";
 
 const MINUTE_MS = 60_000;
+const RECENT_DAYS = 90;
 
 /** Fresh live search results are shared for 15 minutes; a cache hit costs nothing and is not counted. */
 export function createCachedSearch(o: { db: Db; web: WebSearch; youtube?: YouTubeSearch; now?: () => Date; ttlMinutes?: number }) {
@@ -23,10 +24,14 @@ export function createCachedSearch(o: { db: Db; web: WebSearch; youtube?: YouTub
     ...(o.youtube
       ? {
           async searchYouTube(q: { query: string; lang?: string }, ctx?: CallContext): Promise<WebResult[]> {
-            const hash = sha256Hex(`youtube|video|${q.lang ?? ""}|${q.query}`);
+            // Videos from the last 90 days (the Fit activity window), from the start of that day so the cache key is stable.
+            // Measured 2026-10-13 on 9 briefs: inactive channels 5 -> 0, eligible 7 -> 8 of the channels it contributed.
+            const since = new Date(now().getTime() - RECENT_DAYS * 86_400_000);
+            since.setUTCHours(0, 0, 0, 0);
+            const hash = sha256Hex(`youtube|video|${q.lang ?? ""}|${q.query}|since:${since.toISOString().slice(0, 10)}`);
             const hit = await o.db.withSystem((tx) => repo.cachedSearch(tx, hash, new Date(now().getTime() - ttl)));
             if (hit) return hit;
-            const results = await (o.youtube as YouTubeSearch).search({ query: q.query, type: "video", regionCode: "PK", ...(q.lang ? { relevanceLanguage: q.lang } : {}), max: 25, ...(ctx ? { ctx } : {}) });
+            const results = await (o.youtube as YouTubeSearch).search({ query: q.query, type: "video", regionCode: "PK", ...(q.lang ? { relevanceLanguage: q.lang } : {}), max: 25, publishedAfter: since, ...(ctx ? { ctx } : {}) });
             await o.db.withSystem((tx) => repo.storeSearch(tx, hash, `youtube: ${q.query}`, results));
             return results;
           },

@@ -3,7 +3,7 @@ import { instrumented, type CallContext } from "../instrumented";
 import { ProviderError } from "../scrapers/types";
 import type { WebResult } from "./types";
 
-export type YouTubeSearchQuery = { query: string; type: "channel" | "video"; regionCode?: string; relevanceLanguage?: string; max?: number; ctx?: CallContext };
+export type YouTubeSearchQuery = { query: string; type: "channel" | "video"; regionCode?: string; relevanceLanguage?: string; max?: number; publishedAfter?: Date; ctx?: CallContext };
 export type YouTubeSearch = { search(q: YouTubeSearchQuery): Promise<WebResult[]> };
 
 const API = "https://www.googleapis.com/youtube/v3";
@@ -43,6 +43,7 @@ export function createYouTubeSearch(o: { apiKey: string | null; sink: ProviderCa
           const params = new URLSearchParams({ part: "snippet", type: q.type, q: q.query.slice(0, 200), maxResults: String(Math.min(50, q.max ?? 25)) });
           if (q.regionCode) params.set("regionCode", q.regionCode.toUpperCase());
           if (q.relevanceLanguage) params.set("relevanceLanguage", q.relevanceLanguage);
+          if (q.publishedAfter) params.set("publishedAfter", q.publishedAfter.toISOString().replace(/\.\d{3}Z$/, "Z"));
           const found = (await getJson(doFetch, `${API}/search?${params.toString()}&${key}`, signal)) as { items?: SearchItem[] };
           const items = found.items ?? [];
           const ids = [...new Set(items.map((i) => i.snippet?.channelId ?? i.id?.channelId).filter((id): id is string => typeof id === "string" && /^[\w-]{10,40}$/.test(id)))].slice(0, 50);
