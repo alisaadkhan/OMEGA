@@ -354,3 +354,43 @@ This section supersedes the earlier single-platform verification scope above. De
 - Cross-platform same-person identity resolution is absent and requires an explicit, high-confidence evidence policy before implementation; false merges must remain prohibited.
 - Groq provider errors have generic telemetry codes; their exact causes remain unknown. Supabase Storage was not used in the local E2E test. Campaign Fit remains provisional and should not be called calibrated.
 - No Catalog Search or runtime migration was performed in this task.
+
+## 20. Discovery quality evaluation and fixes (2026-10-13, commits 89989e5..00cb7e4)
+
+This section supersedes conflicting statements in §19. Evidence labels: **live** = real Serper/Apify/YouTube/LLM calls; **replay** = the real runner fed recorded responses (`live-replay.live.int.test.ts`); **labels** = one rater's judgement (the assistant), not a human panel. All database work used a disposable local PostgreSQL; no remote database was touched.
+
+**Method.** A 25-brief matrix (Instagram 11, TikTok 5, YouTube 7, cross-platform 2; food, beauty/bridal, fashion, fitness, travel, photography, parenting, real estate/finance, motorcycles, comedy, education, tech, gaming, cars; English, Urdu script, Roman Urdu; Karachi, Lahore, Islamabad, Multan, Peshawar, Pakistan-wide) run through `live-eval.live.int.test.ts` with provider responses cached for replay. Apify spend for the whole evaluation: about $0.92.
+
+**Root causes found and fixed**
+- The individual-creator check treated any business word as cancelling a creator word ("Lahore Food Blogger … Restaurant Reviews", "Owner @restaurant"): about half of genuine creators were unverified. Mentions, links, hashtags and topic phrases no longer count; first-person, channel-voice, Urdu-script first person, self-promotion and sponsorship cues break ties only. Empty bios stay unverified.
+- Topic matching: four taxonomy niches had no equivalents; "Tech" did not match phone reviews; free-text briefs needed most of their words although they list alternatives; 3-letter subjects ("car") were ignored; "bike" did not match "biker".
+- The G2 minimum pool was counted on raw URLs before G1 and then applied after LLM review with no further rounds; a run with four eligible creators could return none. It is now counted after G1 and drives the extra rounds, as this spec's §G2 requires.
+- LLM relevance review failed on lists above ~14 candidates and failed the run; it is now batched (12) and a failed batch is dropped, never extracted unreviewed.
+- Query planner: Roman Urdu particles and repeated role words ("ke khana bloggers blogger"), Urdu-script text glued to English role words (0 results); Instagram Urdu-script recall queries (1 profile in 19 searches) removed.
+- Instagram `popular` topic pages (63 results) were extracted as an account named "popular".
+- Apify cost was recorded as usageTotalUsd plus event charges (0.638 USD recorded for runs billed 0.380); tiered event prices were counted as zero.
+- Provider failures were all recorded as "error"; they now record `http_<status>` or the adapter reason. This showed every Groq call returning 429; a rate-limited provider is now skipped for 60 s.
+- One unreadable stored profile sample failed the whole run; it now skips that creator.
+
+**Added capabilities.** Per-candidate decision trail (`wp.discovery_candidates`, migration 0021, tenant RLS, scrubbed by erasure); bounded Instagram post-author resolution (pinned `apify/instagram-scraper` 0.0.812, first-person posts only, at most 10 per run and only while Instagram's pool is thin) and creator @mention leads; YouTube Data API video search (101 quota units, $0, `LIVE_YOUTUBE_SEARCH`); evidence-ordered extraction slots; fill-to-size extraction waves (`LIVE_EXTRACTION_MULTIPLIER`, default 1 = unchanged); parallel searches, provider runs and profile processing (`LIVE_PROFILE_CONCURRENCY`, default 3).
+
+**Measured results**
+| Measure | Before | After | Evidence |
+|---|---|---|---|
+| Eligible on the 25-brief matrix (same responses) | 26 | 57 | replay |
+| Relevant per labels (strict / with partial) | 11 / 19 of 26 (42% / 73%) | 35 / 49 of 57 (61% / 86%) | labels |
+| Runs ending `insufficient` / relevance failures | 8 / 4 | 1 / 0 | replay |
+| YouTube eligible, same 268 channels | 25 | 34 | replay |
+| YouTube channels found by Data API video search | — | +57 channels, +4 eligible on 9 briefs | live ($0) |
+| Delivered at size 5, 1x vs 2x extraction | 49 | 67 | replay (+0.013 USD live; TikTok 2x mostly unrecorded, lower bound) |
+| Instagram food/Karachi live run | 74.4 s, 67.7 s; 2 delivered (Codex) | 49.0 s; 4 delivered | live |
+| YouTube Urdu food live run | 49.6 s, 51.5 s; 0 delivered | 46.5 s; 1 delivered | live |
+
+Field accuracy (live sample): 136/136 extracted profiles matched the requested handle; follower/subscriber counts agreed with Google's snippet within 5% for 17/17 Instagram (after excluding one snippet quoting a TikTok count) and 7/7 YouTube profiles where the snippet stated a count. TikTok snippets state no count; TikTok counts are provider-reported only.
+
+**Decisions and limits**
+- `LIVE_EXTRACTION_MULTIPLIER` stays 1 pending a product decision: 2x raised delivered creators 37% at about +$0.01 per Instagram run, $0 YouTube, up to +$0.09 per TikTok run; the customer charge rule is unchanged.
+- TikTok remains weakly measured (14 extracted profiles in total); YouTube eligibility is about 10-12% of extracted channels (inactive, foreign and unverifiable channels).
+- Labels are one rater's; precision figures are bounded-sample estimates, not calibrated accuracy. Recall over the creator market is not claimed.
+- Groq's free-tier rate limit sends all AI work to the slower Ollama fallback; this dominates run time and is an account/plan issue.
+- Supabase Storage, the Edge/pg_cron runtime, cross-platform same-person resolution and Instagram post-actor terms review remain unverified.
