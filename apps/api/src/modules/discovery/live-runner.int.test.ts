@@ -75,13 +75,13 @@ function llmReply(req: { input: string }) {
   };
 }
 
-function setup(o: { web?: FixtureWebSearch; scraper?: FixtureScraper; wrap?: (p: EnrichmentPipeline) => EnrichmentPipeline; maxAttempts?: number; model?: MockLlm; contentResolutionMax?: number; extractionMultiplier?: number } = {}) {
+function setup(o: { web?: FixtureWebSearch; scraper?: FixtureScraper; wrap?: (p: EnrichmentPipeline) => EnrichmentPipeline; maxAttempts?: number; model?: MockLlm; contentResolutionMax?: number; extractionMultiplier?: number; profileConcurrency?: number } = {}) {
   const web = o.web ?? new FixtureWebSearch(links("new_a", "new_b"));
   const scraper = o.scraper ?? igScraper();
   const model = o.model ?? llm();
   const base = createEnrichmentPipeline({ db, scraper, storage: new MemoryStorage(), llm: model, encryptionKey: TEST_KEY, logger, fetchImage: async () => new Response("", { status: 404 }) });
   const pipeline = o.wrap ? o.wrap(base) : base;
-  const runner = createLiveRunner({ db, billing, pipeline, scraper, search: createCachedSearch({ db, web }), llm: model, logger, ...(o.maxAttempts ? { maxAttempts: o.maxAttempts } : {}), ...(o.contentResolutionMax ? { contentResolutionMax: o.contentResolutionMax } : {}), ...(o.extractionMultiplier ? { extractionMultiplier: o.extractionMultiplier } : {}) });
+  const runner = createLiveRunner({ db, billing, pipeline, scraper, search: createCachedSearch({ db, web }), llm: model, logger, ...(o.maxAttempts ? { maxAttempts: o.maxAttempts } : {}), ...(o.contentResolutionMax ? { contentResolutionMax: o.contentResolutionMax } : {}), ...(o.extractionMultiplier ? { extractionMultiplier: o.extractionMultiplier } : {}), ...(o.profileConcurrency ? { profileConcurrency: o.profileConcurrency } : {}) });
   return { runner, web, scraper, pipeline };
 }
 
@@ -402,6 +402,37 @@ describe("live runner", () => {
       expect(await discovery.get(c, id)).toMatchObject({ live: { new: 1 } });
       expect((await trailOf(id)).filter((r) => r.reason === "extraction_cap")).toHaveLength(1);
     });
+  });
+
+  it("processes profiles concurrently without colliding result numbers, double results or double charges", async () => {
+    const handles = Array.from({ length: 10 }, (_, i) => `para_${i}`);
+    let active = 0;
+    let peak = 0;
+    const { runner } = setup({
+      web: new FixtureWebSearch(links(...handles)),
+      profileConcurrency: 4,
+      wrap: (p) => ({
+        ...p,
+        processProfile: async (job, payloadId, raw, hooks) => {
+          active++;
+          peak = Math.max(peak, active);
+          await new Promise((r) => setTimeout(r, 20));
+          try {
+            return await p.processProfile(job, payloadId, raw, hooks);
+          } finally {
+            active--;
+          }
+        },
+      }),
+    });
+    const c = await customer();
+    const id = await startRun(c, 10);
+    await runner.run(id, c.workspaceId);
+    expect(peak).toBeGreaterThan(1);
+    expect(await discovery.get(c, id)).toMatchObject({ status: "completed", live: { new: 10, creditsCharged: 12 + 10 * 10, progress: { persistedResults: 10, billableCreators: 10 } } });
+    const seqs = await ownerQuery<{ seq: number }>(`select seq from wp.discovery_results where job_id = '${id}' order by seq`);
+    expect(seqs.map((r) => r.seq)).toEqual(Array.from({ length: 10 }, (_, i) => i + 1));
+    expect(await balance(c)).toMatchObject({ available: 200 - 112, reserved: 0 });
   });
 
   it("skips a known creator whose stored sample cannot be read instead of failing the run", async () => {

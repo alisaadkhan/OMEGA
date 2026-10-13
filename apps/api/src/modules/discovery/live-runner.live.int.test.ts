@@ -4,7 +4,7 @@ import { searchFiltersSchema } from "@mushin/contracts";
 import { createLogger, loadWorkerConfig, type TenantContext } from "@mushin/core";
 import { createDbProviderCallSink, providerCallsSince, providerSpendSince } from "@mushin/db";
 import { createTestDatabase, createTestWorkspace, ownerQuery, resetTables } from "@mushin/db/testing";
-import { createBudgetGuard, createLlm, createProfileScraper, createSearchLimitGuard, createSerperSearch, MemoryStorage, MockLlm, MockPayments } from "@mushin/integrations";
+import { createBudgetGuard, createLlm, createProfileScraper, createSearchLimitGuard, createSerperSearch, createYouTubeSearch, MemoryStorage, MockLlm, MockPayments } from "@mushin/integrations";
 import { createBillingService, MemoryAccessCache } from "../billing/index";
 import { createEnrichmentPipeline, standardize } from "../creators/index";
 import { TEST_KEY } from "../creators/test-fixtures";
@@ -72,6 +72,8 @@ describe.skipIf(!live || !realLlm || !platform)("Live Discovery platform end-to-
             ...(config.scraping.instagramBuild ? { instagramBuild: config.scraping.instagramBuild } : {}),
             tiktokActor: config.scraping.tiktokActor,
             ...(config.scraping.tiktokBuild ? { tiktokBuild: config.scraping.tiktokBuild } : {}),
+            ...(config.scraping.instagramPostActor ? { instagramPostActor: config.scraping.instagramPostActor } : {}),
+            ...(config.scraping.instagramPostBuild ? { instagramPostBuild: config.scraping.instagramPostBuild } : {}),
           }
         : null,
       youtubeApiKey: config.scraping.youtubeApiKey,
@@ -110,7 +112,8 @@ describe.skipIf(!live || !realLlm || !platform)("Live Discovery platform end-to-
       });
     const storage = new MemoryStorage();
     const pipeline = createEnrichmentPipeline({ db, scraper, storage, llm, encryptionKey: TEST_KEY, logger, fetchImage: async () => new Response("", { status: 404 }) });
-    const cached = createCachedSearch({ db, web });
+    // Production discovery settings from config (YouTube video search, post resolution, concurrency, extraction size).
+    const cached = createCachedSearch({ db, web, ...(config.scraping.youtubeSearch ? { youtube: createYouTubeSearch({ apiKey: config.scraping.youtubeApiKey, sink, logger }) } : {}) });
     const observedQueries: { platform: string; query: string; hl: string; round: number }[] = [];
     const observedGroups: { platform: TestPlatform; results: Awaited<ReturnType<typeof cached.search>> }[] = [];
     const searchAdapter = {
@@ -120,9 +123,11 @@ describe.skipIf(!live || !realLlm || !platform)("Live Discovery platform end-to-
         observedGroups.push({ platform: q.platform, results: found });
         return found;
       },
+      ...(cached.searchYouTube ? { searchYouTube: cached.searchYouTube } : {}),
     };
     const startedAt = Date.now();
-    const runner = createLiveRunner({ db, billing, pipeline, scraper, search: searchAdapter, llm, logger, maxAttempts: 2 });
+    const runner = createLiveRunner({ db, billing, pipeline, scraper, search: searchAdapter, llm, logger, maxAttempts: 2,
+      contentResolutionMax: config.scraping.contentResolutionMax, extractionMultiplier: config.scraping.extractionMultiplier, profileConcurrency: config.scraping.profileConcurrency });
     await runner.run(jobId, initial.workspaceId);
 
     const job = await discovery.get(initial, jobId);
@@ -165,7 +170,8 @@ describe.skipIf(!live || !realLlm || !platform)("Live Discovery platform end-to-
       status: job.status, outcome: job.outcome, delivered: results.results.length,
       credits: job.live ? { reserved: quote.maxCredits, charged: job.live.creditsCharged, released: quote.maxCredits - job.live.creditsCharged } : null,
       uniqueCandidates: uniqueCandidates.length, duplicateUrlsRejected: Math.max(0, (job.live?.progress.serpResultsSeen ?? 0) - uniqueCandidates.length),
-      byPlatform, excludedReasons, providerCalls, elapsedMs } })}\n`);
+      byPlatform, excludedReasons, providerCalls, elapsedMs, firstResultMs: (await ownerQuery<{ ms: number | null }>(`select (extract(epoch from (select min(r.created_at) from wp.discovery_results r where r.job_id = j.id) - j.started_at) * 1000)::int ms from wp.discovery_jobs j where j.id = '${jobId}'`))[0]?.ms ?? null,
+      settings: { profileConcurrency: config.scraping.profileConcurrency, youtubeSearch: config.scraping.youtubeSearch, contentResolutionMax: config.scraping.contentResolutionMax, extractionMultiplier: config.scraping.extractionMultiplier } } })}\n`);
     expect(job.status).toBe("completed");
     expect(["succeeded", "completed_empty"]).toContain(job.outcome);
     if (!job.live) throw new Error("completed live job is missing settlement details");

@@ -54,6 +54,32 @@ describe("OpenAiCompatibleLlm", () => {
     await expect(down.client.complete({ feature: "search_interpret", system: "s", input: "i", schema })).rejects.toMatchObject({ code: "PROVIDER_UNAVAILABLE" });
   });
 
+  // Measured 2026-10-13: every Groq call answered 429 for hours, adding a retry before each Ollama fallback.
+  it("skips a provider that answered 429 for a minute while another is available, then tries it again", async () => {
+    let clock = 0;
+    const sink = new MemoryProviderCallSink();
+    const urls: string[] = [];
+    const fetchFake = async (input: string | URL | Request) => {
+      urls.push(String(input));
+      return String(input).startsWith("https://groq.test") ? reply("", 429) : reply('{"ok":true}');
+    };
+    const client = new OpenAiCompatibleLlm({ providers: [groq, ollama], sink, logger: createLogger({ level: "silent" }), fetch: fetchFake as typeof fetch, sleep: async () => {}, now: () => clock });
+    const ask = () => client.complete({ feature: "creator_assessment", system: "s", input: "i", schema });
+    expect((await ask()).model).toBe("ollama:gpt-oss:20b");
+    expect(urls.filter((u) => u.startsWith("https://groq.test"))).toHaveLength(2);
+    clock = 30_000;
+    expect((await ask()).model).toBe("ollama:gpt-oss:20b");
+    expect(urls.filter((u) => u.startsWith("https://groq.test"))).toHaveLength(2);
+    clock = 61_000;
+    await ask();
+    expect(urls.filter((u) => u.startsWith("https://groq.test"))).toHaveLength(4);
+    // The only provider is never skipped.
+    const solo = llm([groq], () => reply("", 429));
+    await expect(solo.client.complete({ feature: "search_interpret", system: "s", input: "i", schema })).rejects.toMatchObject({ code: "PROVIDER_UNAVAILABLE" });
+    await expect(solo.client.complete({ feature: "search_interpret", system: "s", input: "i", schema })).rejects.toMatchObject({ code: "PROVIDER_UNAVAILABLE" });
+    expect(solo.bodies).toHaveLength(4);
+  });
+
   it("retries a rate-limited 429 once and records both provider attempts", async () => {
     let attempts = 0;
     const { client, bodies, sink } = llm([groq], () => (++attempts === 1 ? reply("", 429) : reply('{"ok":true}')));

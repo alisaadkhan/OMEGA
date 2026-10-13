@@ -193,6 +193,7 @@ describe("scraping and storage settings (worker only)", () => {
       contentResolutionMax: 10,
       youtubeSearch: true,
       extractionMultiplier: 1,
+      profileConcurrency: 3,
       apifyMonthlyBudgetUsd: 5,
       youtubeApiKey: "yt",
       serperApiKey: null,

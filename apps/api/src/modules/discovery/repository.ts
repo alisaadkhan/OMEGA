@@ -149,6 +149,8 @@ export type ResultRow = typeof discoveryResults.$inferSelect;
 
 /** One result per creator per run, numbered in arrival order for polling (spec §3.1). Runs are processed one at a time. */
 export async function insertResult(tx: TenantTx, workspaceId: string, jobId: string, r: { creatorId: string; isNew: boolean; credits: number; reason: string | null; campaignFit?: CampaignFitEvidence | null }): Promise<boolean> {
+  // Concurrent profile saves for one job: the job row lock orders them, so "max(seq) + 1" never collides.
+  await tx.select({ id: discoveryJobs.id }).from(discoveryJobs).where(and(eq(discoveryJobs.workspaceId, workspaceId), eq(discoveryJobs.id, jobId))).for("update");
   const [last] = await tx.select({ seq: max(discoveryResults.seq) }).from(discoveryResults).where(eq(discoveryResults.jobId, jobId));
   const inserted = await tx
     .insert(discoveryResults)

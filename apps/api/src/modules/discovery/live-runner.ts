@@ -3,7 +3,7 @@ import { AppError, type Logger } from "@mushin/core";
 import type { Db, LivePrices, LiveProgress, TenantTx } from "@mushin/db";
 import { ProviderError, type Llm, type ProfileScraper } from "@mushin/integrations";
 import type { BillingService } from "../billing/index";
-import { findProfileByUrl, fitLabel, getSearchSettings, isVisibleCreator, rankCards, suppressedUrls, type EnrichJob, type EnrichmentPipeline } from "../creators/index";
+import { findProfileByUrl, fitLabel, getSearchSettings, isVisibleCreator, rankCards, suppressedUrls, type CreatorPlatform, type EnrichJob, type EnrichmentPipeline } from "../creators/index";
 import { notifyFinished, releaseHeld } from "./finish";
 import type { CachedSearch } from "./live/cache";
 import { evaluateCampaignFit } from "./fit";
@@ -28,6 +28,8 @@ type Deps = {
   contentResolutionMax?: number;
   /** Profiles fetched per run, as a multiple of the chosen size, while the size is not filled (1, the default, = size). */
   extractionMultiplier?: number;
+  /** Profiles processed at the same time (default 1). */
+  profileConcurrency?: number;
 };
 
 /** G2: candidates after the cheap G1 gate needed before extraction (spec default 8); below it the run is `insufficient`. */
@@ -114,11 +116,18 @@ export function createLiveRunner(deps: Deps) {
       // Profiles found only through a post or mention: their search evidence is the post's, so they queue after organic ones.
       const recoveredKeys = new Set<string>();
       for (const round of [1, 2, 3] as const) {
-        for (const q of buildQueries(search, round)) groups.push({ platform: q.platform, query: q.query, round, results: await deps.search.search(q, ctx) });
+        // A round's searches are independent: run them together, keep their planned order (measured: 9 sequential
+        // searches took 14 s of a 138 s run).
+        const planned = buildQueries(search, round);
+        const nativeQuery = round === 1 ? youtubeNativeQuery(search) : null;
+        const nativeSearch = nativeQuery && deps.search.searchYouTube ? deps.search.searchYouTube(nativeQuery, ctx) : Promise.resolve([]);
+        nativeSearch.catch(() => undefined); // handled where it is awaited below
+        const found = await Promise.all(planned.map((q) => deps.search.search(q, ctx)));
+        planned.forEach((q, index) => groups.push({ platform: q.platform, query: q.query, round, results: found[index] ?? [] }));
         const native = round === 1 ? youtubeNativeQuery(search) : null;
         if (native && deps.search.searchYouTube) {
           try {
-            groups.push({ platform: "youtube", query: `youtube_video: ${native.query}`, round, results: await deps.search.searchYouTube(native, ctx) });
+            groups.push({ platform: "youtube", query: `youtube_video: ${native.query}`, round, results: await nativeSearch });
           } catch (err) {
             // An extra source: a used-up quota or a refused key never fails the run.
             deps.logger.warn({ err, jobId }, "YouTube-native search failed; continuing with web search results");
@@ -273,25 +282,35 @@ export function createLiveRunner(deps: Deps) {
         // 5. One Apify run per platform and wave; each profile archived on its own (a retry reuses the archive).
         await step("fetching");
         const fetched: { k: Kept; payloadId: string; raw: unknown }[] = [];
+        const missingByPlatform: { platform: CreatorPlatform; missing: Kept[] }[] = [];
         for (const platform of ["instagram", "tiktok", "youtube"] as const) {
-          const list = fresh.filter((k) => k.platform === platform);
           const missing: Kept[] = [];
-          for (const k of list) {
+          for (const k of fresh.filter((c) => c.platform === platform)) {
             const a = await deps.pipeline.archived(jobId, k.canonicalUrl);
             if (a) fetched.push({ k, ...a });
             else missing.push(k);
           }
-          if (missing.length === 0) continue;
-          const batch = await deps.scraper.fetchProfiles({ platform, handles: missing.map((m) => m.handle), ctx });
-          await step("archiving");
-          for (const m of missing) {
-            const raw = batch.profiles.find((p) => p.handle === m.handle.toLowerCase())?.raw ?? [];
-            fetched.push({ k: m, payloadId: await deps.pipeline.archive(profileJob(m), batch.provider, raw), raw });
+          if (missing.length > 0) missingByPlatform.push({ platform, missing });
+        }
+        // Each platform's provider run is independent (measured: Instagram then TikTok took 69 s in a row); all
+        // settle before archiving so a failure never leaves another platform's paid run unrecorded.
+        const batches = await Promise.allSettled(missingByPlatform.map((m) => deps.scraper.fetchProfiles({ platform: m.platform, handles: m.missing.map((x) => x.handle), ctx })));
+        if (missingByPlatform.length > 0) await step("archiving");
+        for (const [index, m] of missingByPlatform.entries()) {
+          const settled = batches[index];
+          if (!settled || settled.status === "rejected") continue;
+          for (const x of m.missing) {
+            const raw = settled.value.profiles.find((p) => p.handle === x.handle.toLowerCase())?.raw ?? [];
+            fetched.push({ k: x, payloadId: await deps.pipeline.archive(profileJob(x), settled.value.provider, raw), raw });
           }
         }
-        // 6–7. 4A's steps per profile; each save inserts its result and re-ranks in the same transaction.
-        for (const f of fetched) {
-          await progress({ extractedProfiles: fetchedCount - fresh.length + fetched.indexOf(f) + 1 });
+        const failedBatch = batches.find((b): b is PromiseRejectedResult => b.status === "rejected");
+        // 6–7. 4A's steps per profile; each save inserts its result and re-ranks in the same transaction (the job row is
+        // locked there, so concurrent saves stay ordered). The slow step is the AI assessment, so profiles overlap.
+        let processedCount = 0;
+        const processOne = async (f: (typeof fetched)[number]): Promise<void> => {
+          processedCount++;
+          await progress({ extractedProfiles: fetchedCount - fresh.length + processedCount });
           const processed = await deps.pipeline.processProfile(profileJob(f.k), f.payloadId, f.raw, {
             onStep: (s) => (s === "assessing" || s === "saving" ? step(s) : Promise.resolve()),
             onSaved: async (tx, saved) => {
@@ -317,7 +336,16 @@ export function createLiveRunner(deps: Deps) {
           // Private, missing or unusable profiles return "unavailable": skipped, never charged.
           if (processed.kind === "unavailable") trail.set(f.k.canonicalUrl, "extraction", "rejected", processed.code.toLowerCase());
           await flush();
-        }
+        };
+        let next = 0;
+        const workers = Array.from({ length: Math.min(Math.max(1, deps.profileConcurrency ?? 1), fetched.length) }, async () => {
+          for (let i = next++; i < fetched.length; i = next++) await processOne(fetched[i] as (typeof fetched)[number]);
+        });
+        const outcomes = await Promise.allSettled(workers);
+        const failedProfile = outcomes.find((o): o is PromiseRejectedResult => o.status === "rejected");
+        // Profiles already fetched are saved first; then a provider or processing failure is handled as before.
+        if (failedBatch) throw failedBatch.reason;
+        if (failedProfile) throw failedProfile.reason;
       }
       for (const key of trail.pendingKeys()) {
         // Candidates never fetched: beyond the chosen size, or beyond the extraction cap while the size was not filled.

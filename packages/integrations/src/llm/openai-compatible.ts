@@ -28,6 +28,13 @@ function errorLabel(body: string): string {
   }
 }
 
+const COOLDOWN_MS = 60_000;
+/** A 429 anywhere in the error's cause chain. */
+function rateLimited(err: unknown): boolean {
+  for (let e: unknown = err; e instanceof Error; e = e.cause) if (e instanceof HttpStatusError && e.status === 429) return true;
+  return false;
+}
+
 class LlmOutputError extends Error {
   constructor(reason: string) {
     super(`LLM reply was not usable: ${reason}`);
@@ -60,13 +67,20 @@ export class OpenAiCompatibleLlm implements Llm {
       logger: Logger;
       fetch?: typeof fetch;
       sleep?: (ms: number) => Promise<void>;
+      now?: () => number;
     },
   ) {}
+
+  /** Provider name → time until which it is skipped after answering 429 (measured: every Groq call 429'd for hours). */
+  private readonly coolingUntil = new Map<string, number>();
 
   async complete<T>(req: LlmRequest<T>): Promise<{ value: T; model: string }> {
     if (this.o.providers.length === 0) throw new AppError("PROVIDER_UNAVAILABLE", "AI features are not configured.");
     let last: unknown;
-    for (const p of this.o.providers) {
+    const nowMs = (this.o.now ?? Date.now)();
+    // A cooling provider is skipped while another is available; the last remaining provider is always tried.
+    const usable = this.o.providers.filter((p) => (this.coolingUntil.get(p.name) ?? 0) <= nowMs);
+    for (const p of usable.length > 0 ? usable : this.o.providers) {
       try {
         return { value: await this.withProvider(p, req), model: `${p.name}:${p.model}` };
       } catch (err) {
@@ -74,6 +88,7 @@ export class OpenAiCompatibleLlm implements Llm {
           throw new AppError("PROVIDER_UNAVAILABLE", "The AI could not produce a usable answer. Please try again.", undefined, { cause: err });
         }
         last = err;
+        if (rateLimited(err)) this.coolingUntil.set(p.name, (this.o.now ?? Date.now)() + COOLDOWN_MS);
         this.o.logger.warn({ err, provider: p.name, feature: req.feature }, "LLM provider failed; trying the next one");
       }
     }

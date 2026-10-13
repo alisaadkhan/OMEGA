@@ -115,6 +115,8 @@ const workerSchema = sharedObject
     // Product decision pending (2026-10-13): fetch up to this multiple of the run size while it is not filled. The
     // customer charge is unchanged (only delivered new creators, never above the quote); provider cost rises.
     LIVE_EXTRACTION_MULTIPLIER: z.coerce.number().min(1).max(4).default(1),
+    // Profiles a live run processes at the same time (the AI assessment dominates; measured ~6 s per profile).
+    LIVE_PROFILE_CONCURRENCY: z.coerce.number().int().min(1).max(8).default(3),
     APIFY_MONTHLY_BUDGET_USD: z.coerce.number().min(0).default(5),
     YOUTUBE_API_KEY: z.string().min(1).optional(),
     SERPER_API_KEY: z.string().min(1).optional(),
@@ -244,6 +246,8 @@ export type ScrapingConfig = {
   youtubeSearch: boolean;
   /** Profiles fetched per live run as a multiple of the run size while it is not filled (1 = the size). */
   extractionMultiplier: number;
+  /** Profiles a live run processes at the same time. */
+  profileConcurrency: number;
   apifyMonthlyBudgetUsd: number;
   youtubeApiKey: string | null;
   serperApiKey: string | null;
@@ -339,6 +343,7 @@ export function loadWorkerConfig(env: Env): WorkerConfig {
       contentResolutionMax: v.LIVE_CONTENT_RESOLUTION_MAX,
       youtubeSearch: v.LIVE_YOUTUBE_SEARCH === "video" && Boolean(v.YOUTUBE_API_KEY),
       extractionMultiplier: v.LIVE_EXTRACTION_MULTIPLIER,
+      profileConcurrency: v.LIVE_PROFILE_CONCURRENCY,
       apifyMonthlyBudgetUsd: v.APIFY_MONTHLY_BUDGET_USD,
       youtubeApiKey: v.YOUTUBE_API_KEY ?? null,
       serperApiKey: v.SERPER_API_KEY ?? null,

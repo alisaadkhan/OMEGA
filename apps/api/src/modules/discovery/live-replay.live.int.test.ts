@@ -108,7 +108,7 @@ describe.skipIf(!enabled)("Live Discovery recorded-response replay through the r
             ...(config.scraping.instagramPostBuild ? { instagramPostBuild: config.scraping.instagramPostBuild } : {}) },
           youtubeApiKey: config.scraping.youtubeApiKey, tiktokVideos: 6, youtubeVideos: 12,
           // Hard cap for this replay: the guard counts what this process has spent.
-          spendGuard: createBudgetGuard({ budgetUsd: EXTRACT_BUDGET_USD, perRunUsd: 0.003, spentSince: async () => spend.usd }),
+          spendGuard: createBudgetGuard({ budgetUsd: EXTRACT_BUDGET_USD, perRunUsd: 0.02, spentSince: async () => spend.usd }),
           sink, logger,
         })
       : null;
