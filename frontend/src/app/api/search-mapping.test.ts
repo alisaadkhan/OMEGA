@@ -3,6 +3,7 @@ import { ApiError } from "./http";
 import {
   extraChips,
   formatCount,
+  applySuggestion,
   fromChips,
   matchToCreator,
   pageCount,
@@ -61,6 +62,18 @@ describe("search mapping", () => {
       followerBand: "100K–1M",
       minEng: "5%+",
       extra: {},
+    });
+  });
+
+  it("applying the AI's reading keeps the user's choices for anything it did not read", () => {
+    // Regression: a reading with no platform used to reset an explicit YouTube search to "all" (and TikTok pricing).
+    const current = { platform: "youtube" as const, city: "Lahore", niche: null, followerBand: null, minEng: null, verifiedOnly: false, extra: {} };
+    const reading = fromChips({ niches: ["Food"], verifiedOnly: false, hasContact: false, freshOnly: false });
+    expect(applySuggestion(current, reading)).toEqual({ ...current, niche: "Food" });
+    // What the reading does name still replaces the user's value.
+    expect(applySuggestion(current, fromChips({ platform: "instagram", creatorCity: "Karachi", niches: [], verifiedOnly: false, hasContact: false, freshOnly: false }))).toMatchObject({
+      platform: "instagram",
+      city: "Karachi",
     });
   });
 

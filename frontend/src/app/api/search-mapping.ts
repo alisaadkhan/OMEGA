@@ -108,6 +108,22 @@ export function toFilters(s: UiFilters): SearchFilters {
 
 export type ChipState = Pick<UiFilters, "platform" | "city" | "niche" | "followerBand" | "minEng" | "verifiedOnly" | "extra">;
 
+/**
+ * Applying the AI's reading fills in what it read and keeps the user's own choices for anything it did not read:
+ * a reading without a platform must not widen an explicit YouTube search to every platform (and its pricing).
+ */
+export function applySuggestion(current: ChipState, suggested: ChipState): ChipState {
+  return {
+    platform: suggested.platform === "all" ? current.platform : suggested.platform,
+    city: suggested.city ?? current.city,
+    niche: suggested.niche ?? current.niche,
+    followerBand: suggested.followerBand ?? current.followerBand,
+    minEng: suggested.minEng ?? current.minEng,
+    verifiedOnly: suggested.verifiedOnly || current.verifiedOnly,
+    extra: { ...current.extra, ...suggested.extra },
+  };
+}
+
 /** AI chips are suggestions (SRS REQ-03.06): they only fill the screen's own filter controls when the user applies them. */
 export function fromChips(chips: InterpretResponse["chips"]): ChipState {
   const extra: Partial<SearchFilters> = {};

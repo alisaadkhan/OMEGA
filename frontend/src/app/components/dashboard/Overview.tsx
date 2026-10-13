@@ -123,28 +123,7 @@ export function Overview({ credits, setView }: { credits: number; setView?: (v: 
         </button>
       </div>
 
-      {/* Data-freshness notice (§6, §8.3) */}
-      {!loading && (
-        <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-3">
-          <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" strokeWidth={2} />
-          <div className="min-w-0 flex-1">
-            <div className="text-xs text-slate-900" style={{ fontWeight: 600 }}>
-              Some creator data is aging
-            </div>
-            <p className="mt-0.5 text-[11px] text-slate-600" style={{ lineHeight: 1.5 }}>
-              A portion of the creators in your lists were last refreshed over two weeks ago. Followers and engagement
-              may have shifted. Run live discovery on a profile to refresh it before making a decision.
-            </p>
-          </div>
-          <button
-            onClick={() => go("lists")}
-            className="flex-shrink-0 rounded-md border border-amber-300 bg-white px-2.5 py-1 text-[11px] text-amber-800 transition-colors hover:bg-amber-100"
-            style={{ fontWeight: 500 }}
-          >
-            Review lists
-          </button>
-        </div>
-      )}
+      {/* The data-freshness notice (§6, §8.3) returns when lists are backed by the API: it must reflect real list data. */}
 
       {/* Row 1: Credit balance · Subscription · Quick actions */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -470,7 +449,7 @@ function RecentSearchesCard({ loading, go }: { loading: boolean; go: (v: DashVie
     <Card>
       <CardHead
         title="Recent searches"
-        subtitle="Last 5 queries"
+        subtitle="Sample searches — your search history appears once it is tracked"
         action={
           <button onClick={() => go("search")} className="inline-flex items-center gap-0.5 text-[11px] text-indigo-600 hover:text-indigo-700" style={{ fontWeight: 500 }}>
             View all <ArrowUpRight className="h-3 w-3" />
@@ -512,7 +491,7 @@ function SavedListsCard({ loading, go }: { loading: boolean; go: (v: DashView) =
       <Card className="lg:col-span-2">
         <CardHead
           title="Saved lists"
-          subtitle="Recently updated shortlists"
+          subtitle="Sample lists — your shortlists appear here once lists are connected"
           action={
             <button onClick={() => go("lists")} className="inline-flex items-center gap-0.5 text-[11px] text-indigo-600 hover:text-indigo-700" style={{ fontWeight: 500 }}>
               Open Lists <ArrowUpRight className="h-3 w-3" />

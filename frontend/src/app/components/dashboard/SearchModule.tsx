@@ -37,6 +37,7 @@ import {
   extraChips,
   fromChips,
   pageCount,
+  applySuggestion,
   requestFor,
   sameRequest,
   searchErrorMessage,
@@ -186,15 +187,16 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
   /** The AI's reading is a suggestion: it changes the filters only when the user applies it (SRS REQ-02.02, REQ-03.06). */
   const applyInterpreted = () => {
     if (!suggested) return;
-    setPlatform(suggested.platform);
-    setCity(suggested.city);
-    setNiche(suggested.niche);
-    setFollowerBand(suggested.followerBand);
-    setMinEng(suggested.minEng);
-    setVerifiedOnly(suggested.verifiedOnly);
-    setExtra(suggested.extra);
+    const next = applySuggestion(uiFilters(), suggested);
+    setPlatform(next.platform);
+    setCity(next.city);
+    setNiche(next.niche);
+    setFollowerBand(next.followerBand);
+    setMinEng(next.minEng);
+    setVerifiedOnly(next.verifiedOnly);
+    setExtra(next.extra);
     toast.info("Applied MUSHIN's reading of your search. Edit the chips anytime.");
-    submit(requestFor(query, { ...uiFilters(), ...suggested }, 1));
+    submit(requestFor(query, { ...uiFilters(), ...next }, 1));
   };
 
   const savePreset = () => {
@@ -603,6 +605,17 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
                 </span>
                 <CreatorCard creator={c} index={i} query={query} selected={selected.has(c.id)} onSelect={() => toggleSelect(c.id)} onOpen={() => setProfileId(c.id)} />
                 {c.discovery.campaignFit && <p className="px-1 text-[11px] text-indigo-700">Fit based on {c.discovery.campaignFit.sampleSize} recent posts · {Math.round(c.discovery.campaignFit.confidence * 100)}% evidence confidence</p>}
+                {c.discovery.campaignFit && c.discovery.campaignFit.evidence.length > 0 && (
+                  <details className="px-1 text-[11px] text-slate-600">
+                    <summary className="cursor-pointer text-slate-700">Why this creator</summary>
+                    <ul className="mt-1 list-disc space-y-0.5 pl-4">
+                      {c.discovery.campaignFit.evidence.map((e) => <li key={e}>{e}</li>)}
+                    </ul>
+                    <a href={c.discovery.campaignFit.sourceUrl} target="_blank" rel="noreferrer" className="mt-1 inline-block text-indigo-600 hover:underline">
+                      Checked on the public profile
+                    </a>
+                  </details>
+                )}
                 {c.discovery.reason && <p className="px-1 text-[11px] text-slate-500">{c.discovery.reason}</p>}
               </div>
             ))}

@@ -131,6 +131,8 @@ describe("cheap candidate gate", () => {
     expect(classified.possible.map((candidate) => candidate.handle)).toEqual(["creator"]);
     expect(classified.ambiguous.map((candidate) => candidate.handle)).toEqual(["unknown"]);
     expect(classified.rejected).toBe(1);
+    // Regression: the reason is shown on delivered results, so it must not describe an earlier pipeline state.
+    expect(classified.possible[0]?.reason).toBe("Its search result mentions the requested topic");
   });
 });
 describe("AI relevance filter", () => {

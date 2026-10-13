@@ -61,7 +61,8 @@ export function classifyCandidates(search: LiveSearch, candidates: Candidate[]):
     if (businessCue && !creatorCue) {
       businesses.push(candidate);
     } else if (topicCue) {
-      possible.push({ ...candidate, reason: "Search title or snippet contains requested-topic evidence; profile eligibility remains pending extraction" });
+      // Shown on the delivered result card, after extraction and Campaign Fit: it must stay true at that point.
+      possible.push({ ...candidate, reason: "Its search result mentions the requested topic" });
     } else {
       ambiguous.push(candidate);
     }
