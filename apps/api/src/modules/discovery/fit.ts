@@ -1,5 +1,5 @@
 import type { LiveSearch } from "@mushin/contracts";
-import { KNOWN_CITIES, meaningfulTopics, norm, topicMatch } from "./topic-evidence";
+import { anyTermCounts, KNOWN_CITIES, meaningfulTopics, norm, topicMatch } from "./topic-evidence";
 import type { StandardProfile } from "../creators/index";
 import type { Kept } from "./live/relevance";
 
@@ -27,8 +27,13 @@ const BUSINESS = /\b(?:shop|store|brand|company|restaurant|cafe|agency|school|ac
 const GROUP_NAME = /\b(?:community|group|network|club)\b/i;
 /** Business words that describe a creator's subject or audience rather than what the account is. */
 const TOPIC_PHRASES = /\b(?:brand|business|restaurant|cafe|food|shop|store|product)s?\s+(?:collab\w*|partnerships?|reviews?|reviewer|hopping|hunting|deals|inquir\w*|enquir\w*|quer\w*|promotions?)\b|\bfor\s+(?:brand|business)\b/gi;
-const FIRST_PERSON = /\b(?:i am|i'm|my name is|mera naam|welcome to my|join me|i (?:make|share|create|post|review|cook|travel|help|love|explore|talk))\b/i;
-const COLLAB = /\b(?:collab(?:s|oration|orations)?|paid partnerships?|business (?:inquiries|enquiries|queries)|work queries|managed by)\b/i;
+// Self-promotion is a creator's voice too (TikTok bios are often only "Follow me on YT" or "Follow for more comedy").
+const FIRST_PERSON = /\b(?:i am|i'm|my name is|mera naam|welcome to my|join me|i (?:make|share|create|post|review|cook|travel|help|love|explore|talk)|follow me on (?:yt|youtube|insta|instagram|ig|tiktok|fb|facebook|snap(?:chat)?)|follow (?:me )?for more)\b/i;
+// Measured 2026-10-13 (98 unverified YouTube channels): channels describe their videos ("we do tech reviews", "on this
+// channel you will find videos") and write in Urdu script ("میرا نام" = my name, "میرے چینل" = my channel).
+const CHANNEL_VOICE = /\b(?:we|i)\s+(?:make|create|do|upload|share|post|review|bring(?: you)?)\b[^.\n]{0,40}\b(?:videos?|content|reviews?|vlogs?|tutorials?|recipes?|unboxings?|shorts)\b|\b(?:this|my|our)\s+(?:youtube\s+)?channel\b[^.\n]{0,60}\b(?:videos?|vlogs?|recipes?|reviews?|tutorials?)\b/i;
+const URDU_FIRST_PERSON = /میرا نام|میرے (?:یوٹیوب )?چینل|ہمارے چینل|میں آپ کو|میری ویڈیو/u;
+const COLLAB = /\b(?:collab(?:s|oration|orations)?|paid partnerships?|paid promotions?|sponsorships?|business (?:inquiries|enquiries|queries)|work queries|managed by)\b/i;
 const ROMAN_URDU_CREATOR = /\b(?:main|mein|meri|mujhe)\b.{0,40}\b(?:content|video|vlog|blog|makeup|beauty|fashion|creator|banat[ai]|kart[ai])\b|\b(?:content|video|vlog|blog|makeup|beauty|fashion)\b.{0,30}\b(?:banat[ai]|kart[ai](?:\s+(?:hun|hoon))?)\b/i;
 const LATIN_WORD = /[a-z]+/gi;
 const ROMAN_URDU_MARKERS = new Set("main mein mera meri mujhe hum ham aap ap tum tera teri hai hain tha thi thay hoon hun houn karta karti karte kiya kiye banata banati banate aaj kal ka ki ke ko se mein par nahi nahin raha rahi rahe".split(" "));
@@ -65,7 +70,7 @@ export function individualSignal(o: { name: string; title: string; bio: string }
   const roman = ROMAN_URDU_CREATOR.test(text);
   const person = PERSON.test(text) || roman;
   const business = BUSINESS.test(own);
-  const firstPerson = FIRST_PERSON.test(own) || ROMAN_URDU_CREATOR.test(own);
+  const firstPerson = FIRST_PERSON.test(own) || ROMAN_URDU_CREATOR.test(own) || CHANNEL_VOICE.test(own) || URDU_FIRST_PERSON.test(own);
   if ((BUSINESS.test(ownText(o.name)) || GROUP_NAME.test(ownText(o.name))) && !firstPerson) return { value: 0, cue: "business name" };
   if (person && !business) return { value: 1, cue: roman && !PERSON.test(text) ? "Roman Urdu first-person creator cue" : "creator cue" };
   if (!person && business) return { value: 0, cue: "business cue" };
@@ -103,18 +108,19 @@ export function evaluateCampaignFit(search: LiveSearch, candidate: Kept, profile
   if (daysSinceLast !== null) evidence.push(`Most recent sampled post: ${daysSinceLast} days ago`);
 
   const topics = meaningfulTopics(search);
+  const topicMode = anyTermCounts(search) ? "any" : "most";
   const declared = `${profile.displayName} ${profile.bio}`;
-  const topicShares = topics.map((topic) => recent.length ? recent.filter((post) => topicMatch(`${post.caption} ${post.hashtags.join(" ")}`, topic)).length / recent.length : null);
+  const topicShares = topics.map((topic) => recent.length ? recent.filter((post) => topicMatch(`${post.caption} ${post.hashtags.join(" ")}`, topic, topicMode)).length / recent.length : null);
   // Sampled posts are the evidence. A bio that declares the topic adds partial credit only when at least one sampled
   // post also matches; a declaration alone never passes the topic gate.
   const components = topics.map((topic, index) => {
     const share = topicShares[index] ?? 0;
     const fromPosts = Math.min(1, share / 0.25);
-    return share > 0 && topicMatch(declared, topic) ? Math.max(fromPosts, 0.5) : fromPosts;
+    return share > 0 && topicMatch(declared, topic, topicMode) ? Math.max(fromPosts, 0.5) : fromPosts;
   });
   const topicShare = recent.length && topics.length ? components.reduce((sum, c) => sum + c, 0) / topics.length : null;
   if (topicShare !== null) {
-    topics.forEach((topic, index) => evidence.push(`${topic}: ${Math.round((topicShares[index] ?? 0) * 100)}% of ${recent.length} sampled posts${topicMatch(declared, topic) ? "; declared in profile bio/name" : ""}`));
+    topics.forEach((topic, index) => evidence.push(`${topic}: ${Math.round((topicShares[index] ?? 0) * 100)}% of ${recent.length} sampled posts${topicMatch(declared, topic, topicMode) ? "; declared in profile bio/name" : ""}`));
   }
   const gateWithTopic = gate ?? (topicShare === null ? "topic_evidence_unavailable" : topicShare < 0.2 ? "off_topic" : null);
   if (gateWithTopic) return { version: FIT_VERSION, score: 0, confidence: 0, eligible: false, gate: gateWithTopic, topicScore: topicShare, sampleSize: recent.length, sourceUrl: candidate.canonicalUrl, fetchedAt: fetchedAt.toISOString(), evidence };

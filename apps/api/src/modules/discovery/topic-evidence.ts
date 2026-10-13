@@ -3,7 +3,9 @@ import type { LiveSearch } from "@mushin/contracts";
 const GENERIC = new Set(("creator creators influencer influencers blogger bloggers vlogger vloggers account profile instagram tiktok youtube content social media find new best top in at from with for the and of pakistani pakistan lahore karachi islamabad rawalpindi urdu english " +
   "video videos channel channels speaking making covering micro small local wala wale walay " +
   // Formats, not subjects: "car reviews" used to match any review because "car" was too short to count (2026-10-13).
-  "review reviews reviewer reviewers vlog vlogs ke ka ki are you all any who how").split(" "));
+  "review reviews reviewer reviewers vlog vlogs ke ka ki are you all any who how " +
+  // Role words are not subjects either ("Pakistani gaming YouTuber" matched any video mentioning YouTubers, 2026-10-13).
+  "youtuber youtubers tiktoker tiktokers streamer streamers").split(" "));
 
 /** Normalized names of Pakistani cities used as location evidence in a bio (a different city is a negative signal). */
 export const KNOWN_CITIES = ["lahore", "karachi", "islamabad", "rawalpindi", "peshawar", "faisalabad", "multan", "quetta", "hyderabad", "sialkot", "gujranwala", "sukkur", "abbottabad", "bahawalpur", "sargodha", "gilgit", "skardu", "hunza", "swat"];
@@ -41,15 +43,23 @@ export function meaningfulTopics(search: LiveSearch): string[] {
   return [...new Set(candidates.map(norm).filter((v) => v && v.split(" ").some((w) => w.length >= 3 && !GENERIC.has(w))))];
 }
 
-/** A word matches its light stem ("photographer" ~ "photography", "motorcycles" ~ "motorcycle"); never below 5 letters. */
+/**
+ * A word matches its light stem ("photographer" ~ "photography", "motorcycles" ~ "motorcycle"), and a 4–5 letter word its
+ * plural or agent form ("bike" ~ "bikes", "biker"; measured 2026-10-13: #biker posts were "off topic" for a bike brief).
+ */
 function hasWord(haystack: string, word: string): boolean {
   if (haystack.includes(` ${word} `)) return true;
+  if (word.length >= 4 && word.length < 6) return new RegExp(` ${word}(?:s|es|r|rs|er|ers|ie|ies) `, "u").test(haystack);
   if (word.length < 6) return false;
   const stem = word.slice(0, Math.max(5, word.length - 3));
   return haystack.includes(` ${stem}`);
 }
 
-export function topicMatch(text: string, topic: string): boolean {
+/** A brief typed as free text (no niche chosen) lists alternatives ("photographer videographer"), so any word counts. */
+export const anyTermCounts = (search: LiveSearch): boolean => search.filters.niches.length === 0;
+
+/** `any`: one meaningful word of a free-text topic suffices; otherwise most of a niche's words must appear. */
+export function topicMatch(text: string, topic: string, mode: "most" | "any" = "most"): boolean {
   const haystack = ` ${norm(text)} `;
   const needle = ` ${norm(topic)} `;
   if (needle.trim() && haystack.includes(needle)) return true;
@@ -59,11 +69,12 @@ export function topicMatch(text: string, topic: string): boolean {
   const terms = normalizedTopic.split(" ").filter((w) => w.length >= 3 && !GENERIC.has(w));
   if (terms.length === 0) return false;
   const matched = terms.filter((word) => hasWord(haystack, word)).length;
-  return matched / terms.length >= 0.6;
+  return mode === "any" ? matched > 0 : matched / terms.length >= 0.6;
 }
 
 /** Topic-only evidence for pre-extraction; this never establishes individual-creator eligibility. */
 export function hasCampaignTopicEvidence(search: LiveSearch, text: string): boolean {
   const topics = meaningfulTopics(search);
-  return topics.length > 0 && topics.some((topic) => topicMatch(text, topic));
+  const mode = anyTermCounts(search) ? "any" : "most";
+  return topics.length > 0 && topics.some((topic) => topicMatch(text, topic, mode));
 }

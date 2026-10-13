@@ -102,6 +102,35 @@ describe("Live Discovery Campaign Fit", () => {
     expect(ok("Saqib", "Buy caps from our partners. Business Queries and Promotion Email below")).toBe(1);
   });
 
+  // Paraphrased from YouTube channels rejected as unverified in the 2026-10-13 evaluation.
+  it("recognizes YouTube channels that describe their own videos, sponsorship contacts and Urdu-script first person", () => {
+    const ok = (name: string, bio: string) => individualSignal({ name, title: name, bio }).value;
+    expect(ok("MAS TECH", "Salam we are a Pakistani tech channel. We do tech reviews, unboxing and comparisons")).toBe(1);
+    expect(ok("Gaming Fun Army", "Love you all my YouTube family. For sponsorships or paid promotion contact me")).toBe(1);
+    expect(ok("AFC Food", "السلام علیکم میرا نام محمد ابرار احمد، یہاں آپ کو آسان کھانے ملیں گے")).toBe(1);
+    expect(ok("Cooking with Ashfaq", "میرے یوٹیوب چینل سے ناظرین کو کھانے بنانے کی ویڈیوز ملیں گی")).toBe(1);
+    // Businesses describing what they sell, and empty bios, stay out.
+    expect(ok("Malwari Kitchen", "Paratha kabab, Faisal Town Lahore since 1990. We deliver across Lahore")).toBeNull();
+    expect(ok("Digital World Tech Solutions", "Our platform offers tech services. We do video editing for companies")).toBe(0);
+    expect(ok("Mubashir Saddique", "")).toBeNull();
+  });
+
+  // Paraphrased from TikTok profiles in the 2026-10-13 evaluation.
+  it("recognizes TikTok self-promotion, and matches free-text briefs on any of their words, including plural/agent forms", () => {
+    const ok = (name: string, bio: string) => individualSignal({ name, title: name, bio }).value;
+    expect(ok("Muneezay", "Follow Me on YT")).toBe(1);
+    expect(ok("Max", "FOLLOW for more hilarious comedy :) Tickets on sale for my world tour")).toBe(1);
+    expect(ok("Mairi jan", "mara shock mare Marzi")).toBeNull();
+    const bikes = liveSearchSchema.parse({ text: "motorcycles bike riders Pakistan", filters: { platform: "tiktok", creatorCountry: "PK" } });
+    const riding = profile({ platform: "tiktok", bio: "biker from Karachi", recentPosts: profile().recentPosts.map((post) => ({ ...post, caption: "Sunday ride", hashtags: ["biker", "kawasakigto125pakistan"] })) });
+    expect(evaluateCampaignFit(bikes, { ...candidate, platform: "tiktok" }, riding, false, now).topicScore).toBe(1);
+    // A chosen niche still needs most of its words: "vintage watches" is not satisfied by "watches" alone (test below).
+    // A role word is not a subject: "Pakistani gaming YouTuber" is not satisfied by videos about being a YouTuber.
+    const gaming = liveSearchSchema.parse({ text: "Pakistani gaming YouTuber", filters: { platform: "youtube", creatorCountry: "PK" } });
+    const coaching = profile({ platform: "youtube", recentPosts: profile().recentPosts.map((post) => ({ ...post, caption: "How every new YouTuber can grow a channel", hashtags: ["youtuber"] })) });
+    expect(evaluateCampaignFit(gaming, { ...candidate, platform: "youtube" }, coaching, false, now).gate).toBe("off_topic");
+  });
+
   it("treats a short subject word as the topic and review formats as generic", () => {
     const cars = liveSearchSchema.parse({ text: "car reviews Pakistan", filters: {} });
     const phones = profile().recentPosts.map((post) => ({ ...post, caption: "Tecno Pova review, price in Pakistan", hashtags: [] }));
