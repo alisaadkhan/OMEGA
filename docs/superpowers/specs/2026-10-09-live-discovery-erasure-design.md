@@ -394,3 +394,57 @@ Field accuracy (live sample): 136/136 extracted profiles matched the requested h
 - Labels are one rater's; precision figures are bounded-sample estimates, not calibrated accuracy. Recall over the creator market is not claimed.
 - Groq's free-tier rate limit sends all AI work to the slower Ollama fallback; this dominates run time and is an account/plan issue.
 - Supabase Storage, the Edge/pg_cron runtime, cross-platform same-person resolution and Instagram post-actor terms review remain unverified.
+
+## 21. Brain 2 completion and local frontend integration (2026-10-13, commits d54d038..94cf9b3)
+
+Supersedes §20 where they differ. Evidence labels as in §20. **Spend correction:** total Apify spend for the evaluation is about **$1.02 against the approved $1.00** (account usage $3.487 → $4.508). The overrun (~$0.02) came from one UI test run that the platform-reset defect below widened to all platforms; Apify was then disabled locally (`APIFY_TOKEN=` in the local overrides) and no further paid extraction ran.
+
+**Changes since §20**
+- Fill-to-size is per platform: `LIVE_EXTRACTION_MULTIPLIER_{INSTAGRAM,YOUTUBE,TIKTOK}`, all default 1 (unchanged behaviour). Extra waves run only for platforms above 1, are capped at `ceil(multiplier × size) − already new`, counted while selecting, and never exceed the quote: the customer is still charged only for delivered new creators. A provider failure or budget stop in wave 2+ ends the run with what it found (`extra_wave_provider_failed`, `provider_budget_exhausted`) and logs the shortfall; verification is unchanged.
+- Instagram post-author lookup (`LIVE_CONTENT_RESOLUTION_MAX`) now defaults to 0 (off) until the post actor's terms are reviewed.
+- Platform verification uses Instagram `accountCategory` and the TikTok `seller` flag (same recorded profiles: Instagram 45 → 50 of 80 verified).
+- YouTube video search is limited to the last 90 days: inactive channels 5 → 0, eligible 7 → 8 (9 briefs, live, $0).
+
+**Pilot (Instagram 2×, YouTube 2×, TikTok 1×).** Replay: 49 → 66 delivered at size 5; Instagram +34 profile fetches (~$0.008 per run); TikTok fetches unchanged. Live: Instagram food/Karachi 5 and 5 delivered (1× live: 2, 4, 3, 4) for $0.034; YouTube Urdu food 1 and 2 (1×: 0, 0, 1). Billing was exact in every run. Runs are slower at 2× (Instagram 65–74 s, YouTube 75–92 s vs 46–49 s at 1×). Production defaults stay 1×; enabling the pilot is a product decision.
+
+**Frontend integration (local, real UI in Chrome, local API + worker + disposable PostgreSQL)**
+| Scenario | Result | Evidence |
+|---|---|---|
+| Brief → AI reading → filters (YouTube, "Lahore food vlogger") | City Lahore and Niche Food chips; chosen platform kept | UI + API |
+| Estimate → confirm (size 5) | Quote 62 = 12 + 5 × 10; estimate 201, job 202 | UI + DB |
+| Progress → results | First result after 16 s; 6 delivered (2 known, free; 4 new) in 60 s | UI + DB |
+| Settlement | Charged 52 = 12 + 4 × 10, 10 released, 0 reserved; trail 36 rows, 0 pending | DB ledger |
+| Profile panel | Followers 28.3K, posts 1.3K, eng. 2.9 %, avg likes/comments/views 142/2/4.4K, Lahore, all equal to `gcp.creator_profiles` | UI vs DB |
+| Fit evidence on live cards | Sample size, confidence, evidence list, source profile link | UI |
+| Empty run | `completed_empty`, "No creator profiles were delivered", 0 charged, every rejection recorded | UI + DB |
+| Provider failure (Instagram, Apify off) | `PROVIDER_UNAVAILABLE`; "credits were returned" in page and toast; 62 reserved → released | UI + DB |
+| Insufficient credits (size 20) | Warning shown, Confirm disabled | UI |
+
+Defects fixed in `94cf9b3` (regression tests in `search-mapping.test.ts`, `live.test.ts`): (1) applying the AI reading reset an explicit platform to "all" when the reading named none, which switched the quote to TikTok pricing and ran paid extraction on every platform; `applySuggestion` now keeps the user's choices for anything the reading omits. (2) Live cards dropped the Fit evidence and source link the API returns. (3) Delivered results said "eligibility remains pending extraction". (4) The dashboard showed an unconditional "creator data is aging" warning and unlabelled fixture searches/lists with stock avatars; the warning is removed and the fixtures are labelled as samples (lists, campaigns and activity have no API yet).
+
+**Local setup (reproducible; secret values stay in `.env`, never in reports)**
+1. PostgreSQL 16+ on a local port; create an empty database (e.g. `mushin_local`) and apply `packages/db/migrations/0001…0021` in order.
+2. Overrides on top of `.env`: `DATABASE_URL`/`DIRECT_URL` → the local database, `DATABASE_SSL_CA_FILE=`, `CATALOG_SEARCH_BACKEND=postgres`, `MEILISEARCH_HOST` and its keys blank, `NODE_ENV=development`, `PORT=4000`. Leave `APIFY_TOKEN` empty to make Instagram/TikTok runs fail and refund at $0.
+3. Start `node --env-file-if-exists=.env --import tsx apps/api/src/server.ts`, `node --env-file-if-exists=.env --import tsx apps/worker/src/main.ts`, and `npm run dev -- --port 5173` in `frontend/` (or `npm run dev` at the root for all three). Open http://localhost:5173, sign in, then Search → type a brief → choose a platform → Enter → Apply & search → Find New Creators → choose a size → Confirm.
+4. Sign-in needs a working Supabase Auth user (`JWKS_URI`, `JWT_ISSUER`, `JWT_AUDIENCE`). The seed test account was rejected (`invalid_credentials`), so this verification used a local JWKS stub issuing the same claims (`sub` UUID, `email`, audience `authenticated`); the API then provisioned the user, workspace and 200-credit trial normally.
+5. Tests: `TEST_DATABASE_URL=<local disposable db> npm run verify`; `npm run build` in `frontend/`. Live tests are opt-in and spend provider money.
+- Credential-dependent: Serper (web search), Apify (Instagram/TikTok extraction), YouTube Data API, Groq/Ollama (AI reading, relevance, summaries), Supabase Auth and Storage, Paddle (checkout), Meilisearch (optional catalog backend; its "search is unavailable" start-up warning is harmless with the Postgres backend).
+
+**Brain 2 checklist**
+| Issue | Status | Tests / evidence | Before → after | Risk / action required |
+|---|---|---|---|---|
+| Candidate rejection records | Fixed and verified | `trail.test.ts`, `live-runner.int.test.ts`; UI runs had 0 pending rows | None → every candidate with stage and reason | — |
+| Instagram post/Reel → creator | Fixed and verified (off by default) | `content.test.ts`; 12-post live experiment | 98 % of posts unusable → 12/12 authors resolved, 11 new | **Blocked:** review the `apify/instagram-scraper` post-lookup terms, then set `LIVE_CONTENT_RESOLUTION_MAX` |
+| TikTok verification | Fixed and verified (replay) | `fit.test.ts`, `standardize.test.ts` | 5 → 6 verified on recorded profiles | — |
+| TikTok yield | Blocked | 14 extracted profiles in total | — | Needs Apify budget for a measured TikTok sample; 2× stays off for TikTok |
+| YouTube search precision | Fixed and verified | `youtube-search.test.ts`; live at $0 | Eligible 25 → 34 (replay); inactive 5 → 0 | — |
+| Adaptive multilingual search | Fixed and verified | `live.test.ts` (queries) | Urdu-script/Roman Urdu queries returning 0 fixed or removed | Urdu-script recall stays weak on Instagram |
+| Extraction capacity / fill-to-size | Fixed and verified; pilot run | `live-runner.int.test.ts` (waves, caps, safe stop) | 49 → 66 delivered (replay); live 2–4 → 5 | **Product decision** needed to enable per-platform 2× in production |
+| Safe provider concurrency | Fixed and verified | Job-row lock test; full suite | Instagram 74 s → 49 s; YouTube 50 s → 46 s | — |
+| Groq rate limits | Fixed (cooldown); limit itself blocked | `llm.test.ts` | Every call 429 → skipped for 60 s, Ollama fallback | **Blocked:** paid Groq plan or another fast provider |
+| Data accuracy | Tested — no change needed | 136/136 handles; 17/17 + 7/7 counts within 5 % | — | TikTok counts are provider-only |
+| Cross-platform identity | Tested — no change needed now | 468 profiles: 39 with links, 1 pair both found, 0 mutual | — | Revisit when overlap grows |
+| Reliability and billing regressions | Fixed and verified | 601 passed, 7 skipped; billing exact in all live and UI runs | 3 intermittent failures at `3a21243`, not reproduced in 5 later runs | Watch for flakes |
+| Frontend integration | Fixed and verified locally | Table above | 4 defects → fixed | Real Supabase sign-in **blocked** on valid seed credentials; lists, campaigns and activity have no API |
+| Human-labelled quality panel | Not yet completed | One-rater labels only | — | Needs human raters |
+| Meilisearch tests | Blocked | Skipped without a reachable test host | — | Provide a disposable Meilisearch host |
