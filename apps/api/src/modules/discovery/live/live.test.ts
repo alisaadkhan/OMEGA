@@ -3,7 +3,7 @@ import { searchFiltersSchema } from "@mushin/contracts";
 import { MockLlm } from "@mushin/integrations";
 import { collectCandidates, spreadByPlatform } from "./candidates";
 import { buildQueries, platformsFor } from "./queries";
-import { classifyCandidates, filterRelevant } from "./relevance";
+import { classifyCandidates, filterRelevant, RELEVANCE_BATCH } from "./relevance";
 
 const search = (text: string, filters: Record<string, unknown> = {}) => ({ text, filters: searchFiltersSchema.parse(filters) });
 
@@ -52,6 +52,18 @@ describe("Google queries from the filter chips", () => {
     expect(urdu?.query).toContain("کھانا");
     expect(urdu?.query).toContain("لاہور");
     expect(roman.every((q) => q.num <= 10 && q.round === 2)).toBe(true);
+  });
+
+  // Measured 2026-10-13: these briefs produced "ke khana bloggers blogger lahore" and Urdu text with English role words (0 results).
+  it("drops Roman Urdu particles and repeated role words from typed text", () => {
+    const qs = buildQueries(search("Lahore ke khana bloggers", { platform: "tiktok", niches: ["Food"], creatorCity: "Lahore", creatorCountry: "PK" }));
+    expect(qs.map((q) => q.query)).toEqual(["site:tiktok.com/@ food content creator lahore", "site:tiktok.com/@ khana blogger lahore", "site:tiktok.com/@ khana influencer lahore"]);
+  });
+
+  it("searches Urdu-script text in an Urdu-locale query instead of mixing it with English role words", () => {
+    const qs = buildQueries(search("لاہور دلہن میک اپ آرٹسٹ", { platform: "instagram", niches: ["Bridal"], creatorCity: "Lahore", creatorCountry: "PK" }));
+    expect(qs.filter((q) => q.hl === "en").every((q) => !/[\u0600-\u06ff]/u.test(q.query))).toBe(true);
+    expect(qs.find((q) => q.hl === "ur")?.query).toBe("site:instagram.com دلہن میک اپ آرٹسٹ لاہور");
   });
 
   it("does not invent translations for unsupported niches", () => {
@@ -134,6 +146,17 @@ describe("AI relevance filter", () => {
     expect(call?.input).not.toContain("0300-1234567");
     expect(call?.system).toContain("zero-based integer index");
     expect(call?.system).toContain("Do not use markdown fences or extra keys");
+  });
+
+  it("reviews long candidate lists in batches and drops only a batch the model could not review", async () => {
+    const many = collectCandidates([{ platform: "instagram", results: Array.from({ length: 30 }, (_, i) => ({ title: `Creator ${i}`, link: `https://instagram.com/creator_${i}`, snippet: "Bridal makeup" })) }]);
+    const llm = new MockLlm((request) => (request.input.includes("@creator_12 ") ? { keep: [{ i: 99, reason: "invalid index" }] } : { keep: [{ i: 0, reason: "Bridal makeup creator" }] }));
+    const stats = { unreviewed: 0 };
+    const kept = await filterRelevant({ llm, search: s, candidates: many, stats });
+    expect(llm.calls).toHaveLength(Math.ceil(30 / RELEVANCE_BATCH));
+    expect(kept.map((k) => k.handle)).toEqual(["creator_0", "creator_24"]);
+    expect(stats.unreviewed).toBe(RELEVANCE_BATCH);
+    await expect(filterRelevant({ llm: new MockLlm(() => ({ keep: [{ i: 99, reason: "invalid index" }] })), search: s, candidates: many })).rejects.toThrow();
   });
 
   it("does not extract unfiltered candidates when the model returns unsafe or invalid output", async () => {

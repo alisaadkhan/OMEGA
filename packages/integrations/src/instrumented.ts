@@ -58,7 +58,7 @@ export async function instrumented<T>(opts: InstrumentOptions<T>, fn: (signal: A
         costUsd: 0,
         latencyMs: Math.round(performance.now() - started),
         status: "error",
-        errorCode: timedOut ? "timeout" : "error",
+        errorCode: timedOut ? "timeout" : errorCodeOf(err),
       });
       opts.logger.warn({ err, provider: opts.provider, operation: opts.operation, attempt }, "provider call failed");
       if (attempt === opts.retries || !(timedOut || isRetryable(err))) break;
@@ -87,6 +87,19 @@ export async function instrumented<T>(opts: InstrumentOptions<T>, fn: (signal: A
   throw new AppError("PROVIDER_UNAVAILABLE", `${opts.provider} is unavailable right now. Please try again shortly.`, undefined, {
     cause: lastError,
   });
+}
+
+/**
+ * A fixed, non-sensitive failure class: `http_<status>` when the provider answered, the adapter's reason otherwise.
+ * Messages are never recorded (they can echo prompts or provider output). A generic "error" for every failure hid
+ * whether 12 live-run Groq failures were rate limits or bad requests (2026-10-13).
+ */
+export function errorCodeOf(err: unknown): string {
+  if (typeof err !== "object" || err === null) return "error";
+  const { status, reason } = err as { status?: unknown; reason?: unknown };
+  if (typeof status === "number" && Number.isInteger(status) && status >= 100 && status <= 599) return `http_${status}`;
+  if (typeof reason === "string" && /^[a-z_]{1,32}$/.test(reason)) return reason;
+  return "error";
 }
 
 function usageOf<T>(opts: InstrumentOptions<T>, result: T): Usage | undefined {

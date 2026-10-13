@@ -41,19 +41,27 @@ const FILLER = new Set(
   (
     "a about above account accounts all and any are around at based below between by channel channels creator creators find finding follower followers for from " +
     "get give i ig in influencer influencers insta instagram is less list look looking me more need of on or over page pages platform plus profile profiles " +
-    "related search searching show some subscriber subscribers than that the tiktok to under want we which who with youtube yt"
+    "related search searching show some subscriber subscribers than that the tiktok to under want we which who with youtube yt " +
+    // Role words are added by the planner itself; repeating them produced queries like "khana bloggers blogger" (2026-10-13).
+    "blogger bloggers vlogger vloggers pakistani pakistan speaking making covering videos video " +
+    // Roman Urdu and Urdu-script particles carry no topic.
+    "ke ka ki ko mein main wala wale walay waly hai hain میں کے کی کا کو اور سے والے والا والی"
   ).split(" "),
 );
 
 /** The topic words of the user's text: no filler, no follower counts, no place already searched. */
-function keywords(text: string, place: string): string {
-  const placeWords = new Set(place.split(" "));
+function keywords(text: string, places: string[]): string {
+  const placeWords = new Set(places.flatMap((p) => p.split(" ")));
   return words(text, 120)
     .split(" ")
     .filter((w) => w && !FILLER.has(w) && !placeWords.has(w) && !/^\d+[km]?$/.test(w))
     .slice(0, 6)
     .join(" ");
 }
+
+/** Latin-script words only: Urdu-script words get their own Urdu-locale query instead of English role words. */
+const latinOnly = (text: string): string => text.split(" ").filter((w) => /^[\p{Script=Latin}\p{N}#-]+$/u.test(w)).join(" ");
+const nonLatin = (text: string): string => text.split(" ").filter((w) => w && !/^[\p{Script=Latin}\p{N}#-]+$/u.test(w)).join(" ");
 
 function regionName(code: string): string {
   try {
@@ -68,20 +76,24 @@ export function buildQueries(s: LiveSearch, round: 1 | 2 | 3 = 1): PlannedQuery[
   const niches = s.filters.niches.map((n) => words(n, 40)).filter(Boolean);
   const place = words(s.filters.creatorCity ?? "", 60) || words(s.filters.creatorCountry ? regionName(s.filters.creatorCountry) : "", 60);
   const country = (s.filters.creatorCountry ?? "PK").toLowerCase();
-  const typed = keywords(s.text, place);
+  const isPakistan = country === "pk";
+  const localizedPlace = isPakistan ? (URDU_PLACES[place] ?? "") : "";
+  const allTyped = keywords(s.text, [place, localizedPlace]);
+  const typed = latinOnly(allTyped);
+  const typedUrdu = nonLatin(allTyped);
   const topic = niches.join(" ") || typed;
   const roleTopic = typed || topic;
   // Measured 2026-10-10: a bare niche word finds shops and brands, "content creator" finds people; without a place, the
   // market's name keeps a search local (Google's country setting alone does not).
   const market = place ? "" : words(regionName(country.toUpperCase()), 60);
   const out: PlannedQuery[] = [];
-  const isPakistan = country === "pk";
-  const localizedPlace = isPakistan ? (URDU_PLACES[place] ?? "") : "";
   for (const platform of platformsFor(s)) {
     const seen = new Set<string>();
     const known = URDU_TERMS[topic] ?? URDU_TERMS[typed];
+    // Urdu-script text mixed with English role words returned 0 results in every measured query (2026-10-13).
+    const urduTyped = typedUrdu ? [{ parts: [typedUrdu, localizedPlace || place], hl: "ur" }] : [];
     const planned: { parts: string[]; hl: string }[] = round === 1
-      ? [[topic, "content creator", place || market], [roleTopic, "blogger", place || market], [roleTopic, "influencer", place || market]].map((parts) => ({ parts, hl: "en" }))
+      ? [...[[topic, "content creator", place || market], [roleTopic, "blogger", place || market], [roleTopic, "influencer", place || market]].map((parts) => ({ parts, hl: "en" })), ...urduTyped]
       : round === 2 && isPakistan && known
         ? [
             { parts: [known.roman, place], hl: "en" },

@@ -15,13 +15,16 @@ export type ApifyRun = {
 const TERMINAL = new Set(["SUCCEEDED", "FAILED", "ABORTED", "TIMED-OUT"]);
 
 /**
- * Pay-per-event actors report usageTotalUsd = 0; their price is the charged events × event prices. Free-tier runs report
- * no charged events, so items × the primary event's price is recorded instead — the spend cap must still count them.
+ * A pay-per-event run's price is its charged events × event prices. usageTotalUsd may still be 0 when the run is read,
+ * or may already include those same event charges once settled (measured 2026-10-13), so the larger of the two is the
+ * cost — never their sum. Free-tier runs report no charged events, so items × the primary event's price is recorded
+ * instead; the spend cap must still count them.
  */
 export function apifyRunCost(run: ApifyRun, items: number): number {
   const events = run.pricingInfo?.pricingPerEvent?.actorChargeEvents ?? {};
-  let cost = run.usageTotalUsd ?? 0;
-  for (const [name, count] of Object.entries(run.chargedEventCounts ?? {})) cost += (events[name]?.eventPriceUsd ?? 0) * count;
+  let charged = 0;
+  for (const [name, count] of Object.entries(run.chargedEventCounts ?? {})) charged += (events[name]?.eventPriceUsd ?? 0) * count;
+  let cost = Math.max(run.usageTotalUsd ?? 0, charged);
   if (cost === 0 && items > 0) {
     const primary = Object.values(events).find((e) => e.isPrimaryEvent);
     cost = (primary?.eventPriceUsd ?? 0) * items;

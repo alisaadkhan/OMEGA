@@ -24,6 +24,9 @@ type Deps = {
   now?: () => Date;
 };
 
+/** G2: candidates after the cheap G1 gate needed before extraction (spec default 8); below it the run is `insufficient`. */
+export const MIN_POOL = 8;
+
 const MESSAGES: Record<ProviderError["reason"], string> = {
   spend_cap: "Finding new creators is paused right now. Please try again later. Your credits were returned.",
   quota: "Finding new creators is paused right now. Please try again later. Your credits were returned.",
@@ -91,7 +94,8 @@ export function createLiveRunner(deps: Deps) {
     try {
       // 1–2. Adaptive, cached Google rounds → unique profile candidates. The first
       // round is precise; recall rounds add Urdu/Roman Urdu or alternate English
-      // phrasing only when the current valid-profile pool is still thin.
+      // phrasing only while the pool after the cheap G1 gate is still below the
+      // G2 minimum (counting raw URLs stopped after round 1 even when most were shops).
       await step("searching");
       const groups: { platform: CreatorPlatform; results: Awaited<ReturnType<CachedSearch["search"]>> }[] = [];
       for (const round of [1, 2, 3] as const) {
@@ -102,15 +106,19 @@ export function createLiveRunner(deps: Deps) {
           profileCandidates: candidates.length,
           afterDedupe: candidates.length,
         });
-        if (candidates.length >= 8) break;
+        const g1 = classifyCandidates(search, candidates);
+        if (g1.possible.length + g1.ambiguous.length >= MIN_POOL) break;
       }
-      // 3. Apply cheap topic/business evidence first; the LLM sees ambiguous results only.
+      // 3. Apply cheap topic/business evidence first (G1); G2 is the minimum pool after it. The LLM sees ambiguous results only.
       await step("filtering");
       const gated = classifyCandidates(search, collectCandidates(groups));
       await progress({ snippetGatePass: gated.possible.length, ambiguousCandidates: gated.ambiguous.length });
-      const reviewed = await filterRelevant({ llm: deps.llm, search, candidates: gated.ambiguous, ctx, logger: deps.logger });
+      const pool = gated.possible.length + gated.ambiguous.length;
+      const relevance = { unreviewed: 0 };
+      const reviewed = pool < MIN_POOL ? [] : await filterRelevant({ llm: deps.llm, search, candidates: gated.ambiguous, ctx, logger: deps.logger, stats: relevance });
+      if (relevance.unreviewed > 0) deps.logger.warn({ jobId, unreviewed: relevance.unreviewed }, "some candidates were not extracted because their relevance review failed");
       const kept = [...gated.possible, ...reviewed];
-      if (kept.length < 8) {
+      if (pool < MIN_POOL) {
         await deps.db.withWorkspace(workspaceId, async (tx) => {
           if (!(await repo.lockOpenJob(tx, workspaceId, jobId))) return;
           if (job.reservationId) await engine.commitPartial(tx, workspaceId, job.reservationId, 0, { userId: job.requestedBy, requestId: job.requestId }, "Live run had too few eligible candidates");

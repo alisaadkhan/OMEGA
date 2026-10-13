@@ -53,26 +53,31 @@ const llm = () =>
       const n = (req.input.match(/^\d+\. /gm) ?? []).length;
       return { keep: Array.from({ length: n }, (_, i) => ({ i, reason: "Bridal makeup in Lahore" })) };
     }
-    const m = /Range: (\d+)–(\d+)/.exec(req.input);
-    const score = m ? Math.round((Number(m[1]) + Number(m[2])) / 2) : null;
-    const signal = /^(\w+) \(/m.exec(req.input.split("<signals>")[1] ?? "")?.[1] ?? "engagement_vs_tier";
-    return {
-      verdict: score === null ? null : score >= 80 ? "genuine" : score >= 60 ? "mostly genuine" : score >= 40 ? "mixed signals" : "likely inflated",
-      score,
-      evidence: score === null ? [] : [{ signal, detail: "Measured from recent posts." }],
-      watchOuts: [],
-      audience: { age: [], gender: null, cities: [], countries: [] },
-      niches: [],
-      creatorCity: null,
-      creatorCountry: null,
-      minorSigns: { likely: false, reason: "" },
-    };
+    return llmReply(req);
   });
 
-function setup(o: { web?: FixtureWebSearch; scraper?: FixtureScraper; wrap?: (p: EnrichmentPipeline) => EnrichmentPipeline; maxAttempts?: number } = {}) {
+/** A valid creator assessment for whatever range was measured. */
+function llmReply(req: { input: string }) {
+  const m = /Range: (\d+)–(\d+)/.exec(req.input);
+  const score = m ? Math.round((Number(m[1]) + Number(m[2])) / 2) : null;
+  const signal = /^(\w+) \(/m.exec(req.input.split("<signals>")[1] ?? "")?.[1] ?? "engagement_vs_tier";
+  return {
+    verdict: score === null ? null : score >= 80 ? "genuine" : score >= 60 ? "mostly genuine" : score >= 40 ? "mixed signals" : "likely inflated",
+    score,
+    evidence: score === null ? [] : [{ signal, detail: "Measured from recent posts." }],
+    watchOuts: [],
+    audience: { age: [], gender: null, cities: [], countries: [] },
+    niches: [],
+    creatorCity: null,
+    creatorCountry: null,
+    minorSigns: { likely: false, reason: "" },
+  };
+}
+
+function setup(o: { web?: FixtureWebSearch; scraper?: FixtureScraper; wrap?: (p: EnrichmentPipeline) => EnrichmentPipeline; maxAttempts?: number; model?: MockLlm } = {}) {
   const web = o.web ?? new FixtureWebSearch(links("new_a", "new_b"));
   const scraper = o.scraper ?? igScraper();
-  const model = llm();
+  const model = o.model ?? llm();
   const base = createEnrichmentPipeline({ db, scraper, storage: new MemoryStorage(), llm: model, encryptionKey: TEST_KEY, logger, fetchImage: async () => new Response("", { status: 404 }) });
   const pipeline = o.wrap ? o.wrap(base) : base;
   const runner = createLiveRunner({ db, billing, pipeline, scraper, search: createCachedSearch({ db, web }), llm: model, logger, ...(o.maxAttempts ? { maxAttempts: o.maxAttempts } : {}) });
@@ -129,7 +134,30 @@ describe("live runner", () => {
     expect(await balance(c)).toMatchObject({ available: 200, reserved: 0 });
   });
 
-  it("releases the full reservation when fewer than eight candidates pass the relevance gate", async () => {
+  it("keeps searching while most results are shops, then ends insufficient below the G2 pool without extracting", async () => {
+    const shops = Array.from({ length: 10 }, (_, index) => ({ title: `Bridal Boutique ${index}`, link: `https://www.instagram.com/boutique_${index}/`, snippet: "Order now, delivery across Pakistan" }));
+    const { runner, web, scraper } = setup({ web: new FixtureWebSearch(shops) });
+    const c = await customer();
+    const id = await startRun(c);
+    await runner.run(id, c.workspaceId);
+    // Ten raw profile URLs used to stop the search after round one; G2 now counts the pool after the cheap G1 gate.
+    expect(new Set(web.calls.map((call) => call.query)).size).toBeGreaterThan(3);
+    expect(await discovery.get(c, id)).toMatchObject({ status: "completed", outcome: "insufficient", live: { creditsCharged: 0 } });
+    expect(scraper.batchCalls).toHaveLength(0);
+  });
+
+  it("extracts from a viable G1 pool even when relevance review keeps fewer than eight", async () => {
+    const eight = Array.from({ length: 8 }, (_, index) => ({ title: `Candidate ${index}`, link: `https://www.instagram.com/candidate_${index}/`, snippet: "Lahore" }));
+    const picky = new MockLlm((req) => (req.feature === "discovery_relevance" ? { keep: [{ i: 0, reason: "Bridal makeup in Lahore" }, { i: 1, reason: "Bridal makeup in Lahore" }] } : llmReply(req)));
+    const { runner, scraper } = setup({ web: new FixtureWebSearch(eight), model: picky });
+    const c = await customer();
+    const id = await startRun(c);
+    await runner.run(id, c.workspaceId);
+    expect(scraper.batchCalls[0]?.handles.sort()).toEqual(["candidate_0", "candidate_1"]);
+    expect(await discovery.get(c, id)).toMatchObject({ status: "completed", outcome: "succeeded", live: { new: 2, creditsCharged: 12 + 2 * 10 } });
+  });
+
+  it("releases the full reservation when fewer than eight candidates pass the cheap G1 gate", async () => {
     const seven = Array.from({ length: 7 }, (_, index) => ({ title: `Candidate ${index}`, link: `https://www.instagram.com/candidate_${index}/`, snippet: "Bridal makeup, Lahore" }));
     const { runner, scraper } = setup({ web: new FixtureWebSearch(seven) });
     const c = await customer();

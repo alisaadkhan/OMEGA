@@ -68,26 +68,53 @@ export function classifyCandidates(search: LiveSearch, candidates: Candidate[]):
   }
   return { possible, ambiguous, rejected };
 }
-/** Spec §4.2 step 3. Never turn a failed or invalid relevance decision into an unfiltered extraction run. */
-export async function filterRelevant(o: { llm: Llm; search: LiveSearch; candidates: Candidate[]; ctx?: CallContext; logger?: Logger }): Promise<Kept[]> {
-  if (o.candidates.length === 0) return [];
+/**
+ * Candidates per relevance request. Measured 2026-10-13: every request with 14–36 candidates failed after the corrective
+ * retry (4 of 25 briefs), and one failed request failed the whole run.
+ */
+export const RELEVANCE_BATCH = 12;
+
+async function reviewBatch(o: { llm: Llm; search: LiveSearch; candidates: Candidate[]; ctx?: CallContext }): Promise<Kept[]> {
   const lines = o.candidates.map((c, i) => `${i}. ${c.platform} @${c.handle} | ${redactContacts(cleanText(c.title, 200))} | ${redactContacts(cleanText(c.snippet, 300))}`).join("\n");
-  try {
-    const { value } = await o.llm.complete({
-      feature: "discovery_relevance",
-      system: RELEVANCE_SYSTEM_PROMPT,
-      input: [fenced("request", describe(o.search)), fenced("candidates", lines)].join("\n"),
-      schema: replySchema(o.candidates.length),
-      maxTokens: 1500,
-      timeoutMs: 30_000,
-      ...(o.ctx ? { ctx: o.ctx } : {}),
-    });
-    return value.keep.flatMap((k) => {
-      const c = o.candidates[k.i];
-      return c ? [{ ...c, reason: cleanText(k.reason, 160) || null }] : [];
-    });
-  } catch (err) {
-    o.logger?.warn({ err }, "relevance filter failed; the run will retry or fail without extracting unfiltered candidates");
-    throw err;
+  const { value } = await o.llm.complete({
+    feature: "discovery_relevance",
+    system: RELEVANCE_SYSTEM_PROMPT,
+    input: [fenced("request", describe(o.search)), fenced("candidates", lines)].join("\n"),
+    schema: replySchema(o.candidates.length),
+    maxTokens: 1500,
+    timeoutMs: 30_000,
+    ...(o.ctx ? { ctx: o.ctx } : {}),
+  });
+  return value.keep.flatMap((k) => {
+    const c = o.candidates[k.i];
+    return c ? [{ ...c, reason: cleanText(k.reason, 160) || null }] : [];
+  });
+}
+
+/**
+ * Spec §4.2 step 3. Never turn a failed or invalid relevance decision into an unfiltered extraction run: a batch the
+ * model could not review is dropped (counted in `stats.unreviewed`); if every batch fails the error is thrown, so the
+ * job retries or fails without extracting anything.
+ */
+export async function filterRelevant(o: { llm: Llm; search: LiveSearch; candidates: Candidate[]; ctx?: CallContext; logger?: Logger; stats?: { unreviewed: number } }): Promise<Kept[]> {
+  if (o.candidates.length === 0) return [];
+  const kept: Kept[] = [];
+  let failed = 0;
+  let lastError: unknown = null;
+  for (let start = 0; start < o.candidates.length; start += RELEVANCE_BATCH) {
+    const batch = o.candidates.slice(start, start + RELEVANCE_BATCH);
+    try {
+      kept.push(...(await reviewBatch({ llm: o.llm, search: o.search, candidates: batch, ...(o.ctx ? { ctx: o.ctx } : {}) })));
+    } catch (err) {
+      failed += batch.length;
+      lastError = err;
+      o.logger?.warn({ err, batch: batch.length }, "relevance review failed for one batch; its candidates are not extracted");
+    }
   }
+  if (o.stats) o.stats.unreviewed += failed;
+  if (failed === o.candidates.length) {
+    o.logger?.warn({ err: lastError }, "relevance filter failed; the run will retry or fail without extracting unfiltered candidates");
+    throw lastError;
+  }
+  return kept;
 }

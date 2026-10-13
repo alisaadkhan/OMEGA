@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { liveSearchSchema } from "@mushin/contracts";
 import type { StandardProfile } from "../creators/index";
 import type { Kept } from "./live/relevance";
-import { evaluateCampaignFit } from "./fit";
+import { evaluateCampaignFit, individualSignal } from "./fit";
 
 const now = new Date("2026-10-13T12:00:00.000Z");
 const search = liveSearchSchema.parse({ text: "Bridal creators in Lahore Urdu", filters: { niches: ["bridal"], creatorCity: "Lahore" } });
@@ -86,6 +86,70 @@ describe("Live Discovery Campaign Fit", () => {
     expect(evaluateCampaignFit(search, candidate, profile(), true, now).gate).toBe("minor_or_unclear");
     expect(evaluateCampaignFit(search, { ...candidate, title: "Official bridal shop" }, profile({ displayName: "Hina Bridal Boutique", bio: "Order delivery wholesale bridal dresses" }), false, now).gate).toBe("business_or_non_creator");
     expect(evaluateCampaignFit(search, { ...candidate, title: "Bridal shop and makeup artist" }, profile({ displayName: "Sana", bio: "Bridal makeup artist" }), false, now).gate).toBe("individual_creator_unverified");
+  });
+
+  // Paraphrased from genuine creators the earlier either/or cue test rejected in the 2026-10-13 live evaluation.
+  it("recognizes individual creators whose bios mention businesses only as subjects, mentions or collaborations", () => {
+    const ok = (name: string, bio: string, title = name) => individualSignal({ name, title, bio }).value;
+    expect(ok("Munir | Lahore Food Blogger", "Lahore Food Blogger | Restaurant Reviews | Hidden food gems | PR / Collabs → DM")).toBe(1);
+    expect(ok("Asad", "Food creator. Founder @asadbrand and partner @kolachirestaurant")).toBe(1);
+    expect(ok("Ducky", "Subscribe for random stuff. For business inquiries: mail me", "YouTuber Ducky")).toBe(1);
+    expect(ok("Zain", "Hello, my name is Zain and this channel is about cars. I make car reviews")).toBe(1);
+    expect(ok("Hamza", "Personal Trainer | Nutritionist | Home, online and gym coaching")).toBe(1);
+    expect(ok("Hamnah | Solo Female Traveler", "I quit my 9-5 to travel the world. Vlogs and travel guides")).toBe(1);
+    expect(ok("Tasha", "Fashion | Beauty | Lifestyle. DM for paid collaborations")).toBe(1);
+    expect(ok("Rushill", "Gaming streamer and content creator building a growing community of players")).toBe(1);
+    expect(ok("Saqib", "Buy caps from our partners. Business Queries and Promotion Email below")).toBe(1);
+  });
+
+  it("treats a short subject word as the topic and review formats as generic", () => {
+    const cars = liveSearchSchema.parse({ text: "car reviews Pakistan", filters: {} });
+    const phones = profile().recentPosts.map((post) => ({ ...post, caption: "Tecno Pova review, price in Pakistan", hashtags: [] }));
+    expect(evaluateCampaignFit(cars, candidate, profile({ recentPosts: phones }), false, now).gate).toBe("off_topic");
+    const drives = profile().recentPosts.map((post) => ({ ...post, caption: "Honda Civic 2026 car review and test drive", hashtags: [] }));
+    expect(evaluateCampaignFit(cars, candidate, profile({ recentPosts: drives }), false, now).topicScore).toBe(1);
+  });
+
+  it("keeps businesses and unclear accounts out of the individual-creator pool", () => {
+    const ok = (name: string, bio: string) => individualSignal({ name, title: name, bio }).value;
+    expect(ok("Safar Travel & Tours", "Explore Pakistan with us. Group tours and honeymoon trips")).toBe(0);
+    expect(ok("Hina Bridal Boutique", "Bridals, formals, worldwide shipping")).toBe(0);
+    expect(ok("Foodies Of Multan Community", "Food promoter, weekly giveaways")).toBe(0);
+    expect(individualSignal({ name: "Sana", title: "Bridal shop and makeup artist", bio: "Bridal makeup artist" }).value).toBeNull();
+    expect(ok("TBP", "Your Pakistan experience starts here.")).toBeNull();
+  });
+
+  it("excludes a profile whose platform-declared country differs from the requested one, but not an unknown country", () => {
+    const pk = liveSearchSchema.parse({ text: "Bridal creators", filters: { niches: ["bridal"], creatorCountry: "PK" } });
+    const elsewhere = evaluateCampaignFit(pk, candidate, profile({ country: "IN" }), false, now);
+    expect(elsewhere.gate).toBe("location_mismatch");
+    expect(elsewhere.evidence).toContain("Platform-declared country IN differs from requested PK");
+    expect(evaluateCampaignFit(pk, candidate, profile({ country: null }), false, now).eligible).toBe(true);
+  });
+
+  it("lowers location evidence when the bio names a different city than the requested one", () => {
+    const karachi = liveSearchSchema.parse({ text: "Bridal creators", filters: { niches: ["bridal"], creatorCity: "Karachi" } });
+    const result = evaluateCampaignFit(karachi, candidate, profile({ bio: "Bridal makeup artist 📍 Lahore" }), false, now);
+    expect(result.evidence).toContain("Profile names lahore, not the requested Karachi");
+    expect(result.score).toBeLessThan(evaluateCampaignFit(karachi, candidate, profile({ bio: "Bridal makeup artist 📍 Karachi" }), false, now).score ?? 0);
+  });
+
+  it("gives a declared niche partial topic credit only when a sampled post also matches", () => {
+    const posts = profile().recentPosts.map((post, i) => ({ ...post, caption: i === 0 ? "Bridal look of the week" : "Sunday with family", hashtags: [] }));
+    const declared = evaluateCampaignFit(search, candidate, profile({ bio: "Lahore bridal makeup artist", recentPosts: posts }), false, now);
+    expect(declared.topicScore).toBe(0.5);
+    expect(declared.gate).not.toBe("off_topic");
+    const none = posts.map((post) => ({ ...post, caption: "Sunday with family" }));
+    expect(evaluateCampaignFit(search, candidate, profile({ bio: "Lahore bridal makeup artist", recentPosts: none }), false, now).gate).toBe("off_topic");
+  });
+
+  it("matches taxonomy niches through reviewed equivalents: phone reviews are Tech, gym posts are Wellness", () => {
+    const tech = liveSearchSchema.parse({ text: "Phone reviewers", filters: { niches: ["Tech"] } });
+    const phones = profile().recentPosts.map((post) => ({ ...post, caption: "Tecno Pova 7 price in Pakistan with review", hashtags: ["unboxing"] }));
+    expect(evaluateCampaignFit(tech, candidate, profile({ bio: "Phone reviewer", recentPosts: phones }), false, now).topicScore).toBe(1);
+    const wellness = liveSearchSchema.parse({ text: "Fitness coaches", filters: { niches: ["Wellness"] } });
+    const gym = profile().recentPosts.map((post) => ({ ...post, caption: "Leg day at the gym, high protein meal after", hashtags: [] }));
+    expect(evaluateCampaignFit(wellness, candidate, profile({ bio: "Personal trainer", recentPosts: gym }), false, now).topicScore).toBe(1);
   });
 
   it("requires enough of a multiword custom topic to appear in the sampled posts", () => {

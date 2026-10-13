@@ -62,6 +62,15 @@ describe("Apify cost", () => {
     expect(apifyRunCost(tt, 6)).toBeCloseTo(0.018, 6);
     expect(apifyRunCost({ ...tt, usageTotalUsd: 0.5, chargedEventCounts: {} }, 0)).toBe(0.5);
   });
+
+  // Measured 2026-10-13: settled pay-per-event runs report usageTotalUsd equal to their event charges (e.g. 24 TikTok
+  // results: 0.072 and 24 × 0.003); adding both recorded 0.638 USD for runs Apify billed at 0.380.
+  it("does not count a settled run's event charges twice", () => {
+    const tt = run("apify-run-tiktok.json");
+    const settled = { ...tt, usageTotalUsd: 0.018, chargedEventCounts: { result: 6 } };
+    expect(apifyRunCost(settled, 6)).toBeCloseTo(0.018, 6);
+    expect(apifyRunCost({ ...settled, usageTotalUsd: 0 }, 6)).toBeCloseTo(0.018, 6);
+  });
 });
 
 describe("profile scraper", () => {

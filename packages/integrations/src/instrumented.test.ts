@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createLogger } from "@mushin/core";
-import { instrumented } from "./instrumented";
+import { errorCodeOf, instrumented } from "./instrumented";
 import { MemoryProviderCallSink } from "./memory-sink";
 
 const logger = createLogger({ level: "silent" });
@@ -120,5 +120,15 @@ describe("instrumented", () => {
     await expect(
       instrumented({ provider: "x", operation: "y", timeoutMs: 1000, retries: 0, sink: broken, logger }, async () => "ok"),
     ).resolves.toBe("ok");
+  });
+});
+
+describe("provider failure codes", () => {
+  it("records the HTTP status or adapter reason, never the message", () => {
+    expect(errorCodeOf(Object.assign(new Error("LLM provider answered 429 (rate_limit_exceeded)"), { status: 429 }))).toBe("http_429");
+    expect(errorCodeOf(Object.assign(new Error("Serper refused the key"), { reason: "not_configured" }))).toBe("not_configured");
+    expect(errorCodeOf(Object.assign(new Error("secret prompt text"), { reason: "Some Prompt Text" }))).toBe("error");
+    expect(errorCodeOf(new Error("boom"))).toBe("error");
+    expect(errorCodeOf("boom")).toBe("error");
   });
 });
