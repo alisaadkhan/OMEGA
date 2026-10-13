@@ -1,6 +1,5 @@
 import {
   searchFiltersShape,
-  type AudienceResponse,
   type CreatorProfile,
   type InterpretResponse,
   type LookupResponse,
@@ -261,17 +260,6 @@ export function createCreatorsService(deps: CreatorsDeps) {
     });
   }
 
-  // ── estimated audience (spec D5) ──────────────────────────────────────────
-  async function audience(ctx: TenantContext, id: string): Promise<AudienceResponse> {
-    return deps.db.withTenant(tenant(ctx), async (tx) => {
-      const c = await repo.getCreator(tx, id);
-      if (!c || c.status !== "active") throw new AppError("NOT_FOUND", "Creator not found");
-      // The current scraper/LLM pipeline has no audience analytics source. Historical model-generated
-      // demographic estimates are not evidence and must not be shown or charged as audience insights.
-      return { status: "not_assessed" as const };
-    });
-  }
-
   // ── contact reveal (spec D4) ──────────────────────────────────────────────
   async function reveal(ctx: TenantContext, id: string, confirmedCost: number): Promise<RevealResponse> {
     return deps.db.withTenant(tenant(ctx), async (tx) => {
@@ -304,7 +292,7 @@ export function createCreatorsService(deps: CreatorsDeps) {
     await deps.db.withTenant(tenant(ctx), (tx) => tx.delete(contactReveals).where(and(eq(contactReveals.workspaceId, ctx.workspaceId), eq(contactReveals.creatorId, creatorId))));
   }
 
-  return { search, interpret, lookup, listSaved, createSaved, deleteSaved, profile, audience, reveal, forgetReveal };
+  return { search, interpret, lookup, listSaved, createSaved, deleteSaved, profile, reveal, forgetReveal };
 }
 
 export type CreatorsService = ReturnType<typeof createCreatorsService>;

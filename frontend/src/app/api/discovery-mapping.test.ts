@@ -74,7 +74,7 @@ describe("job wording", () => {
 });
 
 describe("live runs", () => {
-  const costs = { search_existing: 0, find_new: 12, reveal_contact: 5, refresh_data: 10, refresh_tiktok: 30 };
+  const costs = { search_existing: 0, find_new: 12, reveal_contact: 5, refresh_data: 10, refresh_tiktok: 30, audience_estimate: 5 };
   const L = {
     search: { text: "bridal makeup", filters: { niches: [], creatorCity: "Lahore", verifiedOnly: false, hasContact: false, freshOnly: false } }, maxNew: 10, found: 0, new: 0, known: 0, maxCost: 312, creditsCharged: 0,
     progress: { serpResultsSeen: 0, profileCandidates: 0, afterDedupe: 0, snippetGatePass: 0, ambiguousCandidates: 0, extractedProfiles: 0, validIndividualCreators: 0, qualifiedCreators: 0, persistedResults: 0, billableCreators: 0 },

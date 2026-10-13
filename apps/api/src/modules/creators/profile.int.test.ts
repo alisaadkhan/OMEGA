@@ -119,26 +119,7 @@ describe("profile", () => {
   });
 });
 
-describe("audience data availability", () => {
-  it("does not expose legacy LLM demographic estimates or charge for unverified analytics", async () => {
-    const c = await trialCustomer();
-    const ids: string[] = [];
-    for (let i = 0; i < 6; i++) ids.push(await addCreator(db, { snapshot: assessed }));
-    for (const id of ids) expect(await creators.audience(c, id)).toEqual({ status: "not_assessed" });
-    const views = await ownerQuery<{ n: number }>(`select count(*)::int n from wp.audience_views`);
-    expect(views[0]?.n).toBe(0);
-  });
-
-  it("keeps demographics unavailable even for Growth and expired subscriptions", async () => {
-    const growth = await trialCustomer();
-    await ownerQuery(`update wp.subscriptions set status = 'active', plan_id = 'growth', billing_interval = 'month' where workspace_id = '${growth.workspaceId}'`);
-    for (let i = 0; i < 7; i++) expect((await creators.audience(growth, await addCreator(db, { snapshot: assessed }))).status).toBe("not_assessed");
-    const expired = await trialCustomer();
-    await ownerQuery(`update wp.subscriptions set trial_ends_at = now() - interval '1 day' where workspace_id = '${expired.workspaceId}'`);
-    expect(await creators.audience(expired, await addCreator(db, { snapshot: assessed }))).toEqual({ status: "not_assessed" });
-    expect(await creators.audience(expired, await addCreator(db))).toEqual({ status: "not_assessed" });
-  });
-});
+// Audience data lives in the audience module (audience.int.test.ts): legacy LLM demographics are never shown.
 
 describe("contact reveal (spec D4)", () => {
   it("charges 5 credits once and returns the contacts; repeats are free", async () => {

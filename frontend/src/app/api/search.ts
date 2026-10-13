@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  audienceResponseSchema,
   creatorProfileSchema,
   interpretResponseSchema,
   lookupResponseSchema,
@@ -52,17 +51,6 @@ export function useCreatorProfile(id: string | null) {
     queryFn: () => apiRequest(`/v1/creators/${id ?? ""}`, creatorProfileSchema),
     enabled: status === "signedIn" && id !== null,
     refetchInterval: (q) => (q.state.data?.summary.status === "generating" && q.state.dataUpdateCount < 15 ? 2000 : false),
-  });
-}
-
-/** Only fetched when the user opens the audience section: the first view of a creator each month counts against the plan. */
-export function useCreatorAudience(id: string | null, open: boolean) {
-  return useQuery({
-    queryKey: ["creator", id, "audience"],
-    queryFn: () => apiRequest(`/v1/creators/${id ?? ""}/audience`, audienceResponseSchema),
-    enabled: open && id !== null,
-    retry: false,
-    staleTime: Infinity,
   });
 }
 

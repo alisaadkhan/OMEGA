@@ -103,17 +103,6 @@ export const savedSearchListSchema = z.object({ searches: z.array(savedSearchSch
 
 export const evidenceItemSchema = z.object({ signal: z.string(), detail: z.string(), weight: z.number() });
 export type EvidenceItem = z.output<typeof evidenceItemSchema>;
-const confidence = z.enum(["low", "medium", "high"]);
-const share = z.object({ label: z.string(), value: z.number(), confidence });
-export const audienceDataSchema = z.object({
-  age: z.array(share),
-  gender: z.object({ female: z.number(), male: z.number(), confidence }).nullable(),
-  cities: z.array(share),
-  countries: z.array(z.object({ code: country, value: z.number(), confidence })),
-  source: z.string(),
-});
-export type AudienceData = z.output<typeof audienceDataSchema>;
-
 const metricTimes = z.object({ followers: iso.nullable(), engagement: iso.nullable(), audience: iso.nullable() });
 export const creatorProfileSchema = z.object({
   id: z.uuid(),
@@ -173,12 +162,6 @@ export const creatorProfileSchema = z.object({
   mergedInto: z.uuid().nullable(),
 });
 export type CreatorProfile = z.output<typeof creatorProfileSchema>;
-
-export const audienceResponseSchema = z.discriminatedUnion("status", [
-  z.object({ status: z.literal("estimated"), audience: audienceDataSchema, updatedAt: iso }),
-  z.object({ status: z.literal("not_assessed") }),
-]);
-export type AudienceResponse = z.output<typeof audienceResponseSchema>;
 
 export const revealRequestSchema = z.object({ confirmedCost: z.number().int().min(1) });
 export const revealResponseSchema = z.object({

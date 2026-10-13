@@ -6,6 +6,7 @@ import { buildApp } from "./app";
 import { createCustomerGuard } from "./auth/customer-guard";
 import { createCustomerTokenVerifier, remoteJwks } from "./auth/customer-token";
 import type { Guards, ReadinessCheck } from "./http/types";
+import { createAudienceModule, createAudienceService } from "./modules/audience";
 import { createBillingModule, createBillingService, createRedisAccessCache, noAccessCache } from "./modules/billing";
 import { createCreatorsModule, createCreatorsService, createPostgresCatalogSearch, createRemovalService } from "./modules/creators";
 import { createDiscoveryModule, createDiscoveryService } from "./modules/discovery";
@@ -77,6 +78,7 @@ const app = await buildApp({
     createBillingModule({ service: billing, payments, appUrl: config.appUrl }),
     createCreatorsModule({ service: creators, limiter, removals, requireStaff: staff.requireStaff }),
     createDiscoveryModule({ service: createDiscoveryService({ db, billing }), limiter }),
+    createAudienceModule({ service: createAudienceService({ db, billing, sources: config.audienceSources }), limiter }),
   ],
   readiness,
   onRequestHooks: [ipRateLimitHook(limiter)],

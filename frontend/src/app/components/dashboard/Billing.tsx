@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
-import { ArrowUpRight, Check, CheckCircle2, CreditCard, Lock, Mail, Plus, Radio, RefreshCw, Search, Smartphone, XCircle } from "lucide-react";
+import { ArrowUpRight, BarChart3, Check, CheckCircle2, CreditCard, Lock, Mail, Plus, Radio, RefreshCw, Search, Smartphone, XCircle } from "lucide-react";
 import type { BillingInterval, CreditAction, PlanId } from "@mushin/contracts";
 import { AnimatedNumber } from "./AnimatedNumber";
 import { COPY } from "../../lib/copy";
@@ -27,6 +27,7 @@ const ACTION_META: Record<CreditAction, { label: string; icon: typeof Search; to
   reveal_contact: { label: COPY.revealContact, icon: Mail, tone: "bg-emerald-50 text-emerald-700" },
   refresh_data: { label: COPY.refreshData, icon: RefreshCw, tone: "bg-amber-50 text-amber-700" },
   refresh_tiktok: { label: "Refresh TikTok creator", icon: RefreshCw, tone: "bg-amber-50 text-amber-700" },
+  audience_estimate: { label: "Audience estimate", icon: BarChart3, tone: "bg-violet-50 text-violet-700" },
 };
 
 const KIND_LABEL = {

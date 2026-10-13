@@ -33,6 +33,13 @@ const sharedObject = z.object({
   PADDLE_ENVIRONMENT: z.enum(["sandbox", "production"]).default("sandbox"),
   MOCK_PADDLE_WEBHOOK_SECRET: z.string().min(32, "must be at least 32 characters").optional(),
   CATALOG_SEARCH_BACKEND: z.enum(["postgres", "meilisearch"]).default("postgres"),
+  // Audience estimate sources, comma-separated; empty (the default) turns the feature off. Only "youtube" exists, and it
+  // may be enabled only once MUSHIN may derive metrics from YouTube API data (Developer Policies III.E.2, III.E.4.h, L).
+  AUDIENCE_SOURCES: z
+    .string()
+    .default("")
+    .transform((s) => s.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean))
+    .pipe(z.array(z.literal("youtube"))),
   MEILISEARCH_HOST: z.url().optional(),
   MEILISEARCH_API_KEY: z.string().min(1).optional(),
   MEILISEARCH_SEARCH_KEY: z.string().min(1).optional(),
@@ -276,6 +283,7 @@ export type ApiConfig = {
   catalogSearchBackend: "postgres" | "meilisearch";
   search: SearchConfig;
   llm: LlmProviderConfig[];
+  audienceSources: "youtube"[];
 };
 
 export function loadApiConfig(env: Env): ApiConfig {
@@ -299,6 +307,7 @@ export function loadApiConfig(env: Env): ApiConfig {
     catalogSearchBackend: v.CATALOG_SEARCH_BACKEND,
     search: searchFrom(v, v.MEILISEARCH_SEARCH_KEY),
     llm: llmFrom(v),
+    audienceSources: [...new Set(v.AUDIENCE_SOURCES)],
   };
 }
 
@@ -319,6 +328,7 @@ export type WorkerConfig = {
   scraping: ScrapingConfig;
   storage: StorageConfig;
   dataEncryptionKey: Buffer;
+  audienceSources: "youtube"[];
 };
 
 export function loadWorkerConfig(env: Env): WorkerConfig {
@@ -336,6 +346,7 @@ export function loadWorkerConfig(env: Env): WorkerConfig {
     search: searchFrom(v, v.MEILISEARCH_API_KEY),
     llm: llmFrom(v),
     dataEncryptionKey: Buffer.from(v.DATA_ENCRYPTION_KEY, "base64"),
+    audienceSources: [...new Set(v.AUDIENCE_SOURCES)],
     scraping: {
       apifyToken: v.APIFY_TOKEN ?? null,
       instagramActor: v.APIFY_INSTAGRAM_ACTOR_ID,

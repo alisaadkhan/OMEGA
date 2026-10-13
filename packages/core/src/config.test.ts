@@ -33,6 +33,12 @@ describe("loadApiConfig", () => {
     expect(c.logLevel).toBe("info");
   });
 
+  it("keeps audience estimates off unless a source is enabled, and accepts only sources that exist", () => {
+    expect(loadApiConfig(valid).audienceSources).toEqual([]);
+    expect(loadApiConfig({ ...valid, AUDIENCE_SOURCES: " YouTube,youtube " }).audienceSources).toEqual(["youtube"]);
+    expect(() => loadApiConfig({ ...valid, AUDIENCE_SOURCES: "youtube,instagram" })).toThrow(ConfigError);
+  });
+
   it("lists every problem at once and treats blank values as missing", () => {
     const run = () => loadApiConfig({ ...valid, DATABASE_URL: "  ", STAFF_JWT_SECRET: "short" });
     expect(run).toThrow(ConfigError);

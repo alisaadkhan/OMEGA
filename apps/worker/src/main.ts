@@ -1,10 +1,12 @@
 import { Redis } from "@upstash/redis";
 import { createLogger, loadWorkerConfig } from "@mushin/core";
 import { createDatabase, createDbProviderCallSink, providerCallsSince, providerSpendSince, UNVERIFIED_TLS_WARNING } from "@mushin/db";
-import { createBudgetGuard, createLlm, createObjectStorage, createPayments, createProfileScraper, createSearchIndex, createSearchLimitGuard, createSerperSearch, createYouTubeSearch } from "@mushin/integrations";
+import { createBudgetGuard, createYouTubeAudienceSource, createLlm, createObjectStorage, createPayments, createProfileScraper, createSearchIndex, createSearchLimitGuard, createSerperSearch, createYouTubeSearch } from "@mushin/integrations";
+import { createAudienceRunner } from "../../api/src/modules/audience/index";
 import { createBillingService, createRedisAccessCache, noAccessCache } from "../../api/src/modules/billing/index";
 import { createCreatorIndexer, createEnrichmentPipeline, createEraser, createSummaryWriter, getEnrichmentSettings } from "../../api/src/modules/creators/index";
 import { createCachedSearch, createDiscoveryRunner, createLiveRunner } from "../../api/src/modules/discovery/index";
+import { audienceHandlers } from "./audience-handlers";
 import { billingHandlers, notifyHandlers } from "./billing-handlers";
 import { creatorHandlers } from "./creator-handlers";
 import { discoveryHandlers } from "./discovery-handlers";
@@ -52,6 +54,14 @@ const web = createSerperSearch({
 if (!config.scraping.serperApiKey) logger.warn("SERPER_API_KEY not set: Find New Creators runs will fail and refund");
 const searchCache = createCachedSearch({ db, web, ...(config.scraping.youtubeSearch ? { youtube: createYouTubeSearch({ apiKey: config.scraping.youtubeApiKey, sink: createDbProviderCallSink(db), logger }) } : {}) });
 const liveRunner = createLiveRunner({ db, billing, pipeline, scraper, search: searchCache, llm, logger, contentResolutionMax: config.scraping.contentResolutionMax, extractionMultiplier: config.scraping.extractionMultiplier, profileConcurrency: config.scraping.profileConcurrency });
+// Audience estimates run only for sources the operator enabled (AUDIENCE_SOURCES); otherwise queued jobs are refunded.
+const audienceRunner = createAudienceRunner({
+  db,
+  billing,
+  youtube: config.audienceSources.includes("youtube") ? createYouTubeAudienceSource({ apiKey: config.scraping.youtubeApiKey, sink: createDbProviderCallSink(db), logger }) : null,
+  logger,
+});
+if (config.audienceSources.length === 0) logger.info("AUDIENCE_SOURCES not set: audience estimates are off");
 const eraser = createEraser({ db, storage: pipeline.storage, logger });
 // PostgreSQL search is the default. When configured, Meilisearch is dual-written for rollback during the cutover.
 await indexer.ensureSettings().catch((err: unknown) => logger.error({ err }, "could not apply rollback search index settings"));
@@ -60,7 +70,7 @@ const worker = await startWorker({
   db,
   boss,
   logger,
-  handlers: { ...defaultHandlers(db), ...billingHandlers(billing), ...notifyHandlers(), ...creatorHandlers({ indexer, summaries }), ...discoveryHandlers({ runner, liveRunner, searchCache, pipeline }), ...erasureHandlers({ eraser }) },
+  handlers: { ...defaultHandlers(db), ...billingHandlers(billing), ...notifyHandlers(), ...creatorHandlers({ indexer, summaries }), ...discoveryHandlers({ runner, liveRunner, searchCache, pipeline }), ...erasureHandlers({ eraser }), ...audienceHandlers({ runner: audienceRunner }) },
 });
 logger.info("worker started");
 

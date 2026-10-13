@@ -1,7 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import {
-  audienceResponseSchema,
   creatorProfileSchema,
   interpretRequestSchema,
   interpretResponseSchema,
@@ -74,10 +73,7 @@ export function registerCreatorRoutes(
     const { id } = parseInput(idParams, req.params);
     return sendOk(reply, creatorProfileSchema, await service.profile(tenantOf(req), id));
   });
-  app.get("/v1/creators/:id/audience", read, async (req, reply) => {
-    const { id } = parseInput(idParams, req.params);
-    return sendOk(reply, audienceResponseSchema, await service.audience(tenantOf(req), id));
-  });
+  // GET /v1/creators/:id/audience and the estimate request live in the audience module.
   app.post("/v1/creators/:id/reveal", write, async (req, reply) => {
     const { id } = parseInput(idParams, req.params);
     const body = parseInput(revealRequestSchema, req.body);

@@ -8,6 +8,7 @@ import { useCreatorProfile, useForgetReveal, useRevealContact } from "../../api/
 import { useAuth } from "../../auth/AuthContext";
 import { formatCount, uiTrust } from "../../api/search-mapping";
 import { useConfirm, useToast } from "../../lib/toast";
+import { AudienceEstimate } from "./AudienceEstimate";
 
 /** Volume 4B — Creator Intelligence Profile. */
 
@@ -308,8 +309,9 @@ export function CreatorProfilePanel({ creator, onClose, onCompare }: { creator: 
                   </div>
 
                   <div className="grid grid-cols-1 gap-4 px-6 pb-5 lg:grid-cols-2">
-                    <Section title="Audience Details" subtitle="Unavailable">
-                      <p className="mt-3 text-[11px] text-slate-500">Audience age, gender, and location are hidden until a verified audience analytics source is connected.</p>
+                    {/* Optional and on demand: nothing is estimated or charged until the user asks. */}
+                    <Section title="Audience Details" subtitle="Optional · experimental estimate on request">
+                      <AudienceEstimate creatorId={p.id} handle={p.handle} />
                     </Section>
 
                     {/* Contact reveal (SRS REQ-01.03, §5.2) */}

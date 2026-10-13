@@ -3,6 +3,7 @@ export const DEAD_LETTER_QUEUE = "dead-letter";
 export const QUEUES = [
   { name: "discovery-high", concurrency: 3 },
   { name: "discovery-standard", concurrency: 2 },
+  { name: "audience", concurrency: 2 },
   { name: "rescore-low", concurrency: 5 },
   { name: "billing", concurrency: 1 },
   { name: "outreach", concurrency: 2 },
@@ -24,6 +25,7 @@ export const QUEUE_OPTIONS = {
 const ROUTES: ReadonlyArray<readonly [string, QueueName]> = [
   ["discovery.", "discovery-high"],
   ["refresh.", "discovery-standard"],
+  ["audience.", "audience"],
   ["creator.", "rescore-low"],
   ["billing.", "billing"],
   ["outreach.", "outreach"],

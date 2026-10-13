@@ -75,7 +75,7 @@ describe("summary and plans", () => {
       charge: { monthly: { amountMinor: 4_600, currency: "USD" }, yearly: { amountMinor: 46_800 } },
     });
     expect(p.topupPacks.map((x) => x.credits)).toEqual([1000, 5000, 15000]);
-    expect(p.actionCosts).toEqual({ search_existing: 0, find_new: 12, reveal_contact: 5, refresh_data: 10, refresh_tiktok: 30 });
+    expect(p.actionCosts).toEqual({ search_existing: 0, find_new: 12, reveal_contact: 5, refresh_data: 10, refresh_tiktok: 30, audience_estimate: 5 });
   });
 });
 

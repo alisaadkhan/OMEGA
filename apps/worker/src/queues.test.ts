@@ -7,11 +7,13 @@ import { SCHEDULES } from "./schedules";
 import { creatorHandlers } from "./creator-handlers";
 import { discoveryHandlers } from "./discovery-handlers";
 import { erasureHandlers } from "./erasure-handlers";
+import { audienceHandlers } from "./audience-handlers";
 
 describe("queue routing", () => {
   it("routes event types by prefix", () => {
     expect(queueFor("discovery.requested")).toBe("discovery-high");
     expect(queueFor("refresh.requested")).toBe("discovery-standard");
+    expect(queueFor("audience.estimate_requested")).toBe("audience");
     expect(queueFor("creator.updated")).toBe("rescore-low");
     expect(queueFor("billing.webhook_received")).toBe("billing");
     expect(queueFor("system.ping")).toBe("system");
@@ -175,5 +177,19 @@ describe("live discovery and erasure handlers", () => {
     expect(queueFor("erasure.creator_requested")).toBe("erasure");
     for (const key of ["purge_search_cache", "purge_removal_emails"]) expect(SCHEDULES.find((s) => s.key === key)).toMatchObject({ queue: "system" });
     expect(NOTIFY_EVENTS).toContain("notify.removal_processed");
+  });
+});
+
+describe("audience handlers", () => {
+  it("runs requested estimates in their workspace and sweeps stuck ones", async () => {
+    const calls: string[] = [];
+    const handlers = audienceHandlers({ runner: { run: async (jobId, ws) => void calls.push(`run:${jobId}:${ws}`), sweepStuck: async () => (calls.push("sweep"), 0) } });
+    const dispatch = createDispatcher(handlers, createLogger({ level: "silent" }));
+    const job = (eventType: string, payload: Record<string, unknown>, workspaceId: string | null) => ({ eventId: "e", eventType, aggregateType: "audience_job", aggregateId: "1", workspaceId, requestId: null, payload });
+    await dispatch([{ id: "j1", data: job("audience.estimate_requested", { jobId: "a1" }, "w1") }]);
+    await dispatch([{ id: "j2", data: job("system.audience_sweep", {}, null) }]);
+    expect(calls).toEqual(["run:a1:w1", "sweep"]);
+    await expect(dispatch([{ id: "j3", data: job("audience.estimate_requested", { jobId: "a1" }, null) }])).rejects.toThrow(/workspace/);
+    expect(SCHEDULES.find((s) => s.key === "audience_sweep")).toMatchObject({ queue: "system", cron: "*/5 * * * *" });
   });
 });
