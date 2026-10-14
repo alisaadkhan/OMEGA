@@ -1,0 +1,60 @@
+requirement_id,priority,domain,status,implementation,verification,evidence,remaining_change
+AUTH-001,P0,Access control,complete,auth/customer-guard.ts; identity resolveTenant; RLS on every wp table,rls.int; identity.int (cross-user); lists/campaigns/support/analytics isolation tests; ops.int,Tests pass 2026-10-14 @07580ef; local signing stub only,Repeat with a real Supabase project (blocked: credentials)
+AUTH-002,P0,Access control,partial,Frontend reads only VITE_SUPABASE_URL and publishable key; server secrets in .env only,Manual bundle grep 2026-10-14 (no server secret names in dist),No automated secret scan,Add a CI secret scan of frontend/dist
+CAT-001,P0,Catalog Search,complete,creators/service.ts search(); /v1/search never creates jobs,search.int; UI search-acceptance (no estimate/job calls),11/11 UI checks both backends,—
+CAT-002,P0,Catalog Search,complete,postgres-search.ts and Meilisearch filters; unknown followers stay null,search.int; scripts/search-compare.ts (0 violating at 100k; identical totals),docs/readiness/search-backends.md,—
+CAT-003,P1,Catalog Search,partial,name_variants (Urdu script and Latin); trigram word similarity; Meilisearch typo tolerance,search-compare probes (variant/Urdu/typo/partial #1 both backends),No labelled recall/false-match set,Human-labelled language set (QA-001)
+CAT-004,P1,Catalog Search,partial,Page numbers (max 50) with deterministic tie-break,search-compare: pages disjoint and repeatable,Not cursor-bound to ranker version,Cursor bound to query+ranker version if the contract requires it
+CAT-005,P0,Catalog Search,partial,Cards carry fit label/score and freshness; profile has per-metric freshness,profile.int; UI checks,Catalog cards have no per-factor why-matched text,Return fit factors on catalog cards
+INT-001,P1,Query interpretation,complete,/v1/search/interpret returns cleaned editable chips,search.int interpretation tests,—,—
+INT-002,P1,Query interpretation,complete,Search and interpretation are separate calls,search.int (unusable AI reply fails cleanly),—,—
+INT-003,P1,Query interpretation,complete,Search endpoint never calls the LLM,search.int; UI call log,—,—
+LIVE-001,P0,Live discovery,complete,discovery/service.ts estimate → confirm,discovery-service.int; live-service.int,—,—
+LIVE-002,P0,Live discovery,complete,Expiring single-use estimates bound to search hash and price version,live-service.int (duplicate confirm returns same job),—,—
+LIVE-003,P0,Live discovery,complete,pg-boss worker runs jobs; API returns 202,worker.int; live-runner.int,—,—
+LIVE-004,P0,Live discovery,partial,Run size; 60-candidate cap; 3 search rounds; Apify monthly budget guard; Serper monthly limit; extraction multipliers,live-runner.int caps and safe-stop tests,No per-job token or deadline cap,Add per-job deadline and LLM token cap
+URL-001,P0,Candidate safety,partial,Candidates are fetched only by provider APIs by handle; avatars fetched only over HTTPS from platform image hosts without redirects,avatar.test,No DNS/IP check (host allow-list only),Acceptable while no arbitrary URL is fetched; revisit if that changes
+EXT-001,P0,Provider extraction,blocked,Actor id and optional build pinned through env,—,Actor terms not reviewed; no runtime allow-list registry,Owner/legal review of actors; pin builds
+EXT-002,P0,Provider extraction,complete,enrichment/standardize.ts; unusable output → unavailable (not charged),standardize.test; scrapers.test; pipeline.int,—,—
+ID-001,P0,Identity resolution,complete,Canonical profile URL unique per platform; names never merge,creator-plane.int; pipeline.int,—,—
+ID-002,P1,Identity resolution,partial,No automatic merges are made,—,No merge/unmerge review workflow,Build when cross-platform overlap grows (spec §21: not needed now)
+DATA-001,P0,Data quality,partial,Profile metrics carry updatedAt and freshness; assessment carries evidence,profile.int,Not every field has a source reference,Per-field provenance where shown
+DATA-002,P0,Data quality,complete,Unknown followers stored as null (migration 0019); UI shows Unknown,projection.test; UI,—,—
+DATA-003,P1,Freshness,partial,Current/aging/stale thresholds in platform.search_settings,rules.test,Thresholds are not source-specific,Source-specific TTLs after retention review
+RANK-001,P0,Ranking,complete,Deterministic ordering with id tie-break,search-compare (stable repeats; identical order across backends),—,—
+RANK-002,P0,Ranking,partial,Live results show the Fit evidence that produced the score,fit.test (location evidence wording),Catalog explanation limited to fit label,See CAT-005
+AUTHENT-001,P0,Authenticity,complete,Assessment needs evidence (contract min 1) or reports insufficient_data,assessment.test; contracts,—,—
+PERS-001,P0,Persistence,complete,Results inserted in the same transaction as the creator save; projections synced by worker and reconciled at start-up and nightly,live-runner.int; worker-side.int; UI (empty index repaired),4695878,—
+JOB-001,P0,Job lifecycle,partial,Status queued/running/completed/failed + outcome (incl. canceled) + cancelRequested flag,contracts discovery.test,No separate cancel_requested state value,Document the flag as the state or add it to the enum
+JOB-002,P0,Job lifecycle,complete,Attempts claimed atomically; duplicate delivery no-op; retries reuse archives,discovery-runner.int; live-runner.int (charges once),—,—
+JOB-003,P1,Job lifecycle,complete,POST /v1/discovery/jobs/:id/cancel; runner stops at safe points; partial settlement,live-runner.int (2 tests); live-api.int,c3621fb,—
+CREDIT-001,P0,Credits,complete,Reservation and job insert in one transaction,live-service.int; engine.int,—,—
+CREDIT-002,P0,Credits,complete,Append-only ledger; idempotent settlement,engine.int; partial-commit.int; service.int,—,—
+CREDIT-003,P0,Credits,blocked,Current rule: base fee only when a creator is delivered; empty/insufficient/failed cost 0,live-runner.int,Owner approval of the rule is outstanding,Owner decision (OD-001)
+CONTACT-001,P0,Contact reveal,complete,Contacts only through /reveal; never in cards/lists/campaigns,profile.int; lists/campaigns tests assert no contact fields,—,—
+CONTACT-002,P0,Contact reveal,complete,Reveal idempotent per workspace,profile.int,—,—
+CRM-001,P1,CRM,complete,Lists (0024) and campaigns + outreach log (0025),lists.int; campaigns.int; analytics.int; UI journeys 12/12 and 13/13,b1a4bbb; 6d8a6d0,Export and tasks remain planned
+BILL-001,P0,Billing,partial,Signed webhooks; idempotent event handling,payments.test; service.int (duplicate events grant once),Verified against the mock provider only,Paddle sandbox test (blocked: merchant account)
+BILL-002,P1,Billing,partial,Production refuses to start without a Paddle key; mock checkout in development,config.test,No explicit merchant-readiness switch,Owner/vendor gate
+EMAIL-001,P2,Notifications,missing,notify.* outbox events exist; no email provider,—,No email is sent; UI says so,Integrate Resend when needed
+OPS-001,P0,Operations,partial,Staff job inspector; provider usage; request ids on every response,ops.int; UI staff journey,No provider pause or staff retry/cancel action,Add audited pause/retry/cancel for admins
+OPS-002,P0,Recovery,blocked,Migrations are forward-only files,—,No restore drill (needs the Supabase project),Restore rehearsal before pilot
+PRIV-001,P0,Privacy,complete,Removal requests → staff approval → erasure; erasure covers reveals/audience/results/candidates/lists/campaigns,erasure.int; lists.int; campaigns.int,—,—
+QA-001,P0,Search quality,blocked,scripts/search-compare.ts measures mechanics on a generated corpus,—,No human-labelled panel,Two raters + adjudication
+QA-002,P0,Security quality,partial,Isolation; double-charge and contact tests pass,Full suite 661/668 (7 live-only skipped),URL-001 partial; AUTH-002 scan missing,See those rows
+PERF-001,P0,Performance,complete,Default Cache-Control: private; no-store on every API response,app.test,5c8b412,—
+PERF-002,P0,Performance,unverified,Vite emits hashed assets,—,Not deployed,Check Vercel headers after deployment
+PERF-003,P0,Performance,complete,Web search results cached 15 minutes (live/cache.ts),live-runner.int (retry reuses cached searches),—,—
+RATE-001,P0,Rate limits,partial,Per-IP and per-user limits on every route; paid starts per user and workspace; spend caps in PostgreSQL fail closed,rate-limit.test,Upstash limiter fails open by design,Accept or make paid-start limits fail closed
+RATE-002,P0,Rate limits,partial,Paid starts (incl. add-by-link): 20/h per user and 100/h per workspace,rate-limit.test (workspace cap),User cap stricter than the 50/h spec value,Owner to confirm values
+OPS-003,P0,Operations,complete,Stuck-job sweeper refunds; retries resume from archives,discovery-runner.int; queues.test,—,—
+OPS-004,P0,Operations,complete,Staff console shows only database counts and recorded provider calls,ops.int; UI staff journey (no fake health),692f918,—
+STAFF-001,P0,Staff security,partial,Staff password + TOTP; explicit permission table; negative tests,staff-login.int; staff-session.int; ops.int (403/401),Staff identity is MUSHIN's own login rather than Supabase Auth (decision 01 §A),Owner decision: keep or move staff identity to Supabase
+STAFF-002,P0,Staff privacy,complete,Support sees masked emails and no contacts; no credit/impersonation/export actions,ops.int; UI staff journey,—,—
+STAFF-003,P0,Staff operations,complete,No super-admin actions exist; console says so,permissions.ts; UI,—,—
+FRONT-001,P0,Frontend integrity,complete,Seeded lists/campaigns/activity/notifications/staff KPIs/payment methods removed,UI journeys (no sample content checks),6d8a6d0; 692f918; 9ec9ee0,Landing illustrations labelled fictional
+FRONT-002,P0,Frontend integration,partial,Dead buttons wired or disabled with reasons (sweep 2026-10-14),Manual sweep,No automated route-to-contract check,Add a lint/check for handler-less buttons
+PRIV-002,P0,Privacy,complete,No demographics in profile/search contracts; audience estimate separate and off by default,contracts; audience.int,—,—
+AI-001,P0,AI safety,complete,Schema-validated LLM output; fenced untrusted text; contact-leak refusal,llm.test; worker-side.int (summary leak refused),—,—
+SEARCH-006,P0,Live Discovery,complete,See PERS-001; candidate/qualified/billable/persisted counts kept separately,live-runner.int,—,—
+BILL-003,P0,Billing,complete,Insufficient/empty → 0; partial/canceled charge delivered only,live-runner.int,—,CREDIT-003 owner approval

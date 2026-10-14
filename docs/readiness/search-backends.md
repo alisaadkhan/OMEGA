@@ -75,6 +75,14 @@ Both backends: malformed requests (page 0, negative followers, unknown platform,
 
 Meilisearch needed no code change. Its added value is lower latency on broad queries at 100k (p95 19 vs 91 ms), and typo tolerance that is built in rather than tuned.
 
+## Verified through the real UI (2026-10-14)
+
+The full stack ran locally (Vite → API → worker → PostgreSQL :54330 / Meilisearch :7700) on 21 real creators copied from the earlier live-discovery runs. The same 11-check browser journey passed in **both** modes: text, partial handle, platform filter, empty state, profile vs stored data, no contact values, and a quote → failed run → full refund with paid providers blank. UI searches render in about 0.5 s.
+
+One defect found and fixed, and the fallback proven, in this run:
+- **Meilisearch newly enabled → no results.** The index was empty until the nightly reconcile, so search for "food" returned 0 instead of 9. The worker now reconciles both projections at start-up (`4695878`); the next restart filled 20 documents, and search returned the same 9.
+- **Fallback proven live.** With Meilisearch killed mid-session, `/health/ready` reported `search: down` (503) and search still returned all 9 results from PostgreSQL. After restarting Meilisearch, the index still held its 20 documents (persistent storage) and readiness returned to `ok`.
+
 ## Recommendation
 
 Keep **PostgreSQL as the default**. It now matches Meilisearch on every probe, meets the latency target with a large margin at 100k, and needs no extra service. Meilisearch is ready as a tested, one-switch alternative with automatic PostgreSQL fallback. Revisit only when the human-labelled panel (QA-001) or a measured production load (corpus well above 100k, concurrent users) shows a gain, as the canonical decision requires. Not measured here: concurrency, cold caches, the remote Supabase database, or Urdu-script typo tolerance.
