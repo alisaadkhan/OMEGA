@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { CheckCircle2, Loader2, ListChecks, XCircle } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { DiscoveryJob } from "@mushin/contracts";
-import { useActiveJobs } from "../../api/discovery";
+import { useActiveJobs, useCancelJob } from "../../api/discovery";
 import { isOpenJob, jobStatusText, jobTitle, newlyFinished } from "../../api/discovery-mapping";
 import { creatorStub } from "../../api/search-mapping";
 import { useToast } from "../../lib/toast";
@@ -17,6 +17,7 @@ export function JobTray({ onOpenCreator, onViewResults }: { onOpenCreator: (c: C
   const prev = useRef<DiscoveryJob[]>([]);
   const qc = useQueryClient();
   const toast = useToast();
+  const cancel = useCancelJob();
 
   useEffect(() => {
     for (const j of newlyFinished(prev.current, jobs)) {
@@ -57,6 +58,15 @@ export function JobTray({ onOpenCreator, onViewResults }: { onOpenCreator: (c: C
                   <XCircle className="h-3.5 w-3.5 text-red-600" />
                 )}
                 <span className="text-slate-900" style={{ fontWeight: 600 }}>{jobTitle(j)}</span>
+                {isOpenJob(j) && j.kind === "live" && !j.cancelRequested && (
+                  <button
+                    onClick={() => cancel.mutate(j.id, { onError: (err) => toast.error("Couldn't stop this search", err instanceof Error ? err.message : undefined) })}
+                    disabled={cancel.isPending}
+                    className="ml-auto text-[11px] text-slate-500 hover:text-red-600 disabled:opacity-50"
+                  >
+                    Stop
+                  </button>
+                )}
                 {!isOpenJob(j) && (
                   <button onClick={() => setDismissed((d) => new Set(d).add(j.id))} className="ml-auto text-[11px] text-slate-400 hover:text-slate-600">
                     Dismiss

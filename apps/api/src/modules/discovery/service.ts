@@ -241,7 +241,21 @@ export function createDiscoveryService(deps: DiscoveryDeps) {
     });
   }
 
-  return { createEstimate, start, get, listActive, results };
+  /**
+   * JOB-003: asks an open live run to stop. Only the request is recorded here; the worker stops at its next safe point
+   * and settles as a partial run. Repeating it, or asking after the run finished, returns the job unchanged.
+   */
+  async function cancel(ctx: TenantContext, id: string): Promise<DiscoveryJob> {
+    return deps.db.withTenant(tenant(ctx), async (tx) => {
+      const updated = await repo.requestCancel(tx, ctx.workspaceId, id);
+      if (updated) return repo.toApiJob(updated);
+      const job = await repo.getJob(tx, ctx.workspaceId, id);
+      if (!job || job.kind !== "live") throw new AppError("NOT_FOUND", "Job not found");
+      return repo.toApiJob(job);
+    });
+  }
+
+  return { createEstimate, start, get, listActive, results, cancel };
 }
 
 export type DiscoveryService = ReturnType<typeof createDiscoveryService>;

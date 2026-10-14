@@ -102,6 +102,8 @@ export const discoveryJobSchema = z.object({
   error: z.object({ code: z.string(), message: z.string() }).nullable(),
   createdAt: iso,
   finishedAt: iso.nullable(),
+  /** The customer asked a live run to stop; it stops at the next safe point and settles what was delivered. */
+  cancelRequested: z.boolean(),
   /** Live runs only: the search, its size and progress counters (found = new + known). */
   live: z
     .object({

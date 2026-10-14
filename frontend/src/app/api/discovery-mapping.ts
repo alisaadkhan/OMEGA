@@ -50,6 +50,7 @@ const RETURNED = "Your credits were returned.";
 export function jobStatusText(j: DiscoveryJob): string {
   if (j.kind === "live" && j.live) {
     const l = j.live;
+    if (isOpenJob(j) && j.cancelRequested) return "Stopping after the current step… Creators already found are kept.";
     if (j.status === "queued") return "Waiting to start…";
     if (j.status === "running") {
       const funnel = l.progress.serpResultsSeen > 0
@@ -58,6 +59,7 @@ export function jobStatusText(j: DiscoveryJob): string {
       return `${j.step ? STEP_LABEL[j.step] : "Starting…"}${funnel}`;
     }
     if (j.status === "completed") {
+      if (j.outcome === "canceled") return j.error?.message ?? `Stopped at your request. ${l.creditsCharged} credits used; remaining credits returned.`;
       if (j.outcome === "insufficient") return `Too few eligible profiles were found to continue. ${RETURNED}`;
       if (j.outcome === "completed_empty" || l.found === 0) return `No eligible creators were delivered. ${RETURNED}`;
       if (j.outcome === "partial") return `Some creators were saved. ${l.creditsCharged} credits used; remaining credits returned.`;

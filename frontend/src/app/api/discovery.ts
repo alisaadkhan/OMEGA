@@ -17,6 +17,18 @@ export function useStartJob() {
   });
 }
 
+/** Asks a running live search to stop; it settles what was already delivered (JOB-003). */
+export function useCancelJob() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (jobId: string) => apiRequest(`/v1/discovery/jobs/${jobId}/cancel`, discoveryJobSchema, { method: "POST" }),
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: ["discovery"] });
+      void qc.invalidateQueries({ queryKey: ["billing"] });
+    },
+  });
+}
+
 export function useCreateLiveEstimate() {
   return useMutation({
     mutationFn: (body: CreateLiveEstimate) =>

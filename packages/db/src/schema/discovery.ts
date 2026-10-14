@@ -40,6 +40,7 @@ export const discoveryJobs = wp.table("discovery_jobs", {
   startedAt: ts("started_at"),
   finishedAt: ts("finished_at"),
   updatedAt: ts("updated_at").notNull().defaultNow(),
+  cancelRequestedAt: ts("cancel_requested_at"),
 });
 
 export const discoveryEstimates = wp.table("discovery_estimates", {

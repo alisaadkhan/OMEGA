@@ -20,6 +20,7 @@ export function toApiJob(r: JobRow): DiscoveryJob {
     error: r.errorCode ? { code: r.errorCode, message: r.errorMessage ?? "Something went wrong." } : null,
     createdAt: r.createdAt.toISOString(),
     finishedAt: r.finishedAt?.toISOString() ?? null,
+    cancelRequested: r.cancelRequestedAt !== null,
     live:
       r.kind === "live" && r.search && r.maxNew !== null
         ? {
@@ -102,6 +103,21 @@ export async function startAttempt(tx: TenantTx, workspaceId: string, id: string
     .where(and(eq(discoveryJobs.workspaceId, workspaceId), eq(discoveryJobs.id, id), inArray(discoveryJobs.status, [...OPEN])))
     .returning();
   return rows[0] ?? null;
+}
+
+/** Records a stop request on an open live run (idempotent); null when there is no such open run. */
+export async function requestCancel(tx: TenantTx, workspaceId: string, id: string): Promise<JobRow | null> {
+  const rows = await tx
+    .update(discoveryJobs)
+    .set({ cancelRequestedAt: sql`coalesce(${discoveryJobs.cancelRequestedAt}, now())` })
+    .where(and(eq(discoveryJobs.workspaceId, workspaceId), eq(discoveryJobs.id, id), eq(discoveryJobs.kind, "live"), inArray(discoveryJobs.status, [...OPEN])))
+    .returning();
+  return rows[0] ?? null;
+}
+
+export async function cancelRequested(tx: TenantTx, workspaceId: string, id: string): Promise<boolean> {
+  const rows = await tx.select({ at: discoveryJobs.cancelRequestedAt }).from(discoveryJobs).where(and(eq(discoveryJobs.workspaceId, workspaceId), eq(discoveryJobs.id, id))).limit(1);
+  return rows[0]?.at != null;
 }
 
 export async function setStep(tx: TenantTx, workspaceId: string, id: string, step: DiscoveryJobStep): Promise<void> {

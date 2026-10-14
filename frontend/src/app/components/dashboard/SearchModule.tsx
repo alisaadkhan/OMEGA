@@ -50,7 +50,7 @@ import {
 import { FreshnessBadge } from "./states";
 import { useToast } from "../../lib/toast";
 import { FindNewDialog } from "./FindNewDialog";
-import { useDiscoveryJob, useLiveResults } from "../../api/discovery";
+import { useCancelJob, useDiscoveryJob, useLiveResults } from "../../api/discovery";
 import { liveFoundText } from "../../api/discovery-mapping";
 
 /**
@@ -106,6 +106,8 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
   const liveJobInfo = useDiscoveryJob(liveJob);
   const liveCards = useMemo(() => live.results.map((r) => ({ ...toCreator(r), discovery: { isNew: r.isNew, reason: r.reason, campaignFit: r.campaignFit } })), [live.results]);
   const liveStreaming = liveJob !== null && !live.done && !live.isError;
+  const cancelLive = useCancelJob();
+  const stopping = liveJobInfo.data?.cancelRequested === true;
   const [showInterpret, setShowInterpret] = useState(true);
   const [compareOpen, setCompareOpen] = useState(false);
   const [request, setRequest] = useState<SearchRequest | null>(null);
@@ -563,8 +565,19 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
                 <Radio className="h-3.5 w-3.5 animate-pulse" strokeWidth={2} />
                 Find New Creators — querying platforms in real time
               </span>
-              <span className="tabular-nums text-amber-700" style={{ fontWeight: 600 }}>
-                {revealed} found
+              <span className="inline-flex items-center gap-3">
+                <span className="tabular-nums text-amber-700" style={{ fontWeight: 600 }}>
+                  {revealed} found
+                </span>
+                {/* JOB-003: stops at the next safe point; creators already found are kept and charged as quoted. */}
+                <button
+                  onClick={() => liveJob && cancelLive.mutate(liveJob, { onError: (err) => toast.error("Couldn't stop this search", err instanceof Error ? err.message : undefined) })}
+                  disabled={stopping || cancelLive.isPending}
+                  className="rounded-md border border-amber-300 bg-white px-2 py-0.5 text-amber-800 hover:bg-amber-100 disabled:opacity-60"
+                  style={{ fontWeight: 600 }}
+                >
+                  {stopping ? "Stopping…" : "Stop"}
+                </button>
               </span>
             </div>
           </motion.div>

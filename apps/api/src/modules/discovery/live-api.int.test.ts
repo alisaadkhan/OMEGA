@@ -72,6 +72,13 @@ describe("live discovery API", () => {
     const id = (res.json() as { job: { id: string } }).job.id;
     expect((await app.inject({ method: "GET", url: `/v1/discovery/jobs/${id}/results?after=0`, headers: auth })).json()).toEqual({ results: [], done: false });
     expect((await app.inject({ method: "GET", url: `/v1/discovery/jobs/${id}/results?after=-1`, headers: auth })).statusCode).toBe(400);
+    // JOB-003: stopping needs sign-in, records the request and is idempotent.
+    expect((await app.inject({ method: "POST", url: `/v1/discovery/jobs/${id}/cancel` })).statusCode).toBe(401);
+    const stop = await app.inject({ method: "POST", url: `/v1/discovery/jobs/${id}/cancel`, headers: auth });
+    expect(stop.statusCode).toBe(200);
+    expect(stop.json()).toMatchObject({ id, status: "queued", cancelRequested: true });
+    expect((await app.inject({ method: "POST", url: `/v1/discovery/jobs/${id}/cancel`, headers: auth })).json()).toMatchObject({ cancelRequested: true });
+    expect((await app.inject({ method: "POST", url: `/v1/discovery/jobs/00000000-0000-4000-8000-000000000000/cancel`, headers: auth })).statusCode).toBe(404);
   });
 });
 

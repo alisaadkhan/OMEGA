@@ -36,6 +36,7 @@ const job = (over: Partial<DiscoveryJob> = {}): DiscoveryJob => ({
   error: null,
   createdAt: "2026-10-09T10:00:00.000Z",
   finishedAt: null,
+  cancelRequested: false,
   live: null,
   ...over,
 });
@@ -104,6 +105,9 @@ describe("live runs", () => {
     expect(livePlatformsText({ ...L.search, filters: { ...L.search.filters, platform: undefined } })).toBe("Instagram, TikTok and YouTube (all platforms)");
     expect(jobTitle(j)).toBe("Finding creators: bridal makeup · Lahore");
     expect(jobStatusText(liveJob({ status: "running", step: "searching" }))).toBe("Searching Google…");
+    // JOB-003: a stop request shows until the worker settles; the stopped run says what was kept and charged.
+    expect(jobStatusText(liveJob({ status: "running", step: "fetching", cancelRequested: true }))).toBe("Stopping after the current step… Creators already found are kept.");
+    expect(jobStatusText(liveJob({ status: "completed", outcome: "canceled", cancelRequested: true, error: { code: "CANCELED", message: "Stopped at your request. Your credits were returned." } }))).toBe("Stopped at your request. Your credits were returned.");
     expect(jobStatusText(liveJob({ status: "running", step: "assessing", live: { ...L, found: 4, progress: { ...L.progress, serpResultsSeen: 12, qualifiedCreators: 2, persistedResults: 1 } } }))).toBe("Assessing authenticity and audience… · 12 searched · 2 qualified · 1 saved");
     expect(jobStatusText(liveJob({ status: "completed", live: { ...L, found: 9, new: 6, known: 3, creditsCharged: 72 } }))).toBe("Found 9 creators (6 new) · 72 credits used, 240 returned");
     expect(jobStatusText(liveJob({ status: "completed", outcome: "completed_empty", live: { ...L, found: 0 } }))).toBe("No eligible creators were delivered. Your credits were returned.");

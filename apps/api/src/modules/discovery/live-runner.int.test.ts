@@ -142,6 +142,53 @@ describe("live runner", () => {
     expect(await db.withTenant(c, (tx) => repoCandidates(tx, c.workspaceId, id))).toHaveLength(trail.length);
   });
 
+  it("a stop requested before the run starts costs nothing and calls no provider (JOB-003)", async () => {
+    const { runner, web, scraper } = setup();
+    const c = await customer();
+    const id = await startRun(c);
+    expect(await discovery.cancel(c, id)).toMatchObject({ status: "queued", cancelRequested: true });
+    expect((await discovery.cancel(c, id)).cancelRequested).toBe(true); // repeating it changes nothing
+    await expect(discovery.cancel(await customer(), id)).rejects.toMatchObject({ code: "NOT_FOUND" }); // other workspaces cannot
+    await runner.run(id, c.workspaceId);
+    expect(await discovery.get(c, id)).toMatchObject({ status: "completed", outcome: "canceled", live: { found: 0, creditsCharged: 0 } });
+    expect(await balance(c)).toMatchObject({ available: 200, reserved: 0 });
+    expect(web.calls).toHaveLength(0);
+    expect(scraper.batchCalls).toHaveLength(0);
+    // Asking after it finished returns the finished job.
+    expect(await discovery.cancel(c, id)).toMatchObject({ status: "completed", outcome: "canceled" });
+  });
+
+  it("a stop during extraction keeps and charges only the creators already delivered (JOB-003)", async () => {
+    let c: TenantContext | null = null;
+    let id = "";
+    let asked = false;
+    const { runner } = setup({
+      // The customer presses Stop right after the first new creator is saved.
+      wrap: (p) => ({
+        ...p,
+        processProfile: async (...args: Parameters<EnrichmentPipeline["processProfile"]>) => {
+          const out = await p.processProfile(...args);
+          if (!asked && c) {
+            asked = true;
+            await discovery.cancel(c, id);
+          }
+          return out;
+        },
+      }),
+    });
+    c = await customer();
+    id = await startRun(c, 5);
+    await runner.run(id, c.workspaceId);
+    const job = await discovery.get(c, id);
+    expect(job).toMatchObject({ status: "completed", outcome: "canceled", live: { new: 1, creditsCharged: 12 + 10 } });
+    expect(job.error?.message).toMatch(/Stopped at your request/);
+    expect(await balance(c)).toMatchObject({ available: 200 - 22, reserved: 0 });
+    expect((await discovery.results(c, id, 0)).results).toHaveLength(1);
+    const trail = await trailOf(id);
+    expect(trail.filter((r) => r.decision === "pending")).toEqual([]);
+    expect(trail.some((r) => r.reason === "run_canceled")).toBe(true);
+  });
+
   it("a run that finds nothing is free", async () => {
     const { runner } = setup({ web: new FixtureWebSearch([]) });
     const c = await customer();

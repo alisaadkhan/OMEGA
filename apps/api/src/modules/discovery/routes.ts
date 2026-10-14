@@ -34,6 +34,11 @@ export function registerDiscoveryRoutes(app: FastifyInstance, guards: Guards, se
     return sendOk(reply, discoveryJobSchema, await service.get(tenantOf(req), id));
   });
 
+  app.post("/v1/discovery/jobs/:id/cancel", read, async (req, reply) => {
+    const { id } = parseInput(idParams, req.params);
+    return sendOk(reply, discoveryJobSchema, await service.cancel(tenantOf(req), id));
+  });
+
   const resultsQuery = z.object({ after: z.coerce.number().int().min(0).max(1_000_000).default(0) });
 
   app.get("/v1/discovery/jobs/:id/results", read, async (req, reply) => {

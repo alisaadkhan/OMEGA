@@ -15,6 +15,7 @@ const job = {
   error: null,
   createdAt: "2026-10-09T10:00:00.000Z",
   finishedAt: null,
+  cancelRequested: false,
   live: null,
 };
 
@@ -83,6 +84,7 @@ describe("live discovery contracts", () => {
       error: null,
       createdAt: "2026-10-09T10:00:00.000Z",
       finishedAt: null,
+      cancelRequested: false,
       live: {
         search: { text: "bridal makeup", filters: { niches: ["Bridal"] } }, maxNew: 10, found: 3, new: 2, known: 1, maxCost: 112, creditsCharged: 0,
         progress: { serpResultsSeen: 0, profileCandidates: 0, afterDedupe: 0, snippetGatePass: 0, ambiguousCandidates: 0, extractedProfiles: 0, validIndividualCreators: 0, qualifiedCreators: 0, persistedResults: 0, billableCreators: 0 },

@@ -50,6 +50,14 @@ function providerErrorOf(err: unknown): ProviderError | null {
   return null;
 }
 
+/** Thrown at a safe point after the customer asked the run to stop (JOB-003). */
+class RunCanceled extends Error {
+  constructor() {
+    super("live run canceled by the customer");
+    this.name = "RunCanceled";
+  }
+}
+
 /** Worker side of a live run (spec §4.2; Diagram 7). */
 export function createLiveRunner(deps: Deps) {
   const maxAttempts = deps.maxAttempts ?? 3;
@@ -107,6 +115,11 @@ export function createLiveRunner(deps: Deps) {
       const rows = trail.drain();
       if (rows.length > 0) await deps.db.withWorkspace(workspaceId, (tx) => repo.upsertCandidates(tx, rows));
     };
+    // Safe points: between search rounds, before filtering, before each extraction wave and before each profile. A
+    // provider run already started is not interrupted (and is not claimed to be); its profiles are simply not processed.
+    const checkCancel = async () => {
+      if (await deps.db.withWorkspace(workspaceId, (tx) => repo.cancelRequested(tx, workspaceId, jobId))) throw new RunCanceled();
+    };
     const profileJob = (k: Kept): EnrichJob => ({ jobId, workspaceId, platform: k.platform, handle: k.handle, canonicalUrl: k.canonicalUrl, requestId: job.requestId });
 
     try {
@@ -114,6 +127,7 @@ export function createLiveRunner(deps: Deps) {
       // round is precise; recall rounds add Urdu/Roman Urdu or alternate English
       // phrasing only while the pool after the cheap G1 gate is still below the
       // G2 minimum (counting raw URLs stopped after round 1 even when most were shops).
+      await checkCancel();
       await step("searching");
       const groups: SearchGroup[] = [];
       // Profiles found only through a post or mention: their search evidence is the post's, so they queue after organic ones.
@@ -145,6 +159,7 @@ export function createLiveRunner(deps: Deps) {
         });
         const g1 = classifyCandidates(search, candidates);
         if (g1.possible.length + g1.ambiguous.length >= MIN_POOL) break;
+        await checkCancel();
       }
       // 2b. Posts and reels as discovery evidence: authors the provider reports for the exact post, and creator
       // @mentions as leads. Resolution is paid, so it runs only while Instagram's own pool is short of twice the size.
@@ -192,6 +207,7 @@ export function createLiveRunner(deps: Deps) {
         await flush();
       }
       // 3. Apply cheap topic/business evidence first (G1); G2 is the minimum pool after it. The LLM sees ambiguous results only.
+      await checkCancel();
       await step("filtering");
       const capped = collectCandidates(groups);
       const inCap = new Set(capped.map((c) => c.canonicalUrl));
@@ -278,6 +294,7 @@ export function createLiveRunner(deps: Deps) {
       let stopReason: "provider_budget_exhausted" | "extra_wave_provider_failed" | null = null;
       ordered.forEach((k, index) => trail.set(k.canonicalUrl, "selection", "pending", null, { detail: { selectionRank: index + 1 } }));
       for (let wave = 1; stopReason === null; wave++) {
+        await checkCancel();
         const need = maxNew - (await deps.db.withWorkspace(workspaceId, (tx) => repo.countNew(tx, workspaceId, jobId)));
         if (need <= 0) break;
         const fresh: Kept[] = [];
@@ -334,6 +351,7 @@ export function createLiveRunner(deps: Deps) {
         // locked there, so concurrent saves stay ordered). The slow step is the AI assessment, so profiles overlap.
         let processedCount = 0;
         const processOne = async (f: (typeof fetched)[number]): Promise<void> => {
+          await checkCancel();
           processedCount++;
           await progress({ extractedProfiles: fetchedCount - fresh.length + processedCount });
           const processed = await deps.pipeline.processProfile(profileJob(f.k), f.payloadId, f.raw, {
@@ -407,6 +425,30 @@ export function createLiveRunner(deps: Deps) {
         await notifyFinished(tx, job, "completed");
       });
     } catch (err) {
+      if (err instanceof RunCanceled) {
+        // Settled like a partial run: creators already delivered are charged as quoted (with the search fee when
+        // anything was delivered); everything else held is returned.
+        trail.finish("skipped", "run_canceled");
+        await flush().catch((flushError: unknown) => deps.logger.warn({ err: flushError, jobId }, "could not record the candidate trail"));
+        await deps.db.withWorkspace(workspaceId, async (tx) => {
+          if (!(await repo.lockOpenJob(tx, workspaceId, jobId))) return;
+          const visible = await rerank(tx, job, search);
+          let charged = visible > 0 ? prices.search + (await repo.resultCredits(tx, workspaceId, jobId)) : 0;
+          if (job.reservationId) {
+            try {
+              await engine.commitPartial(tx, workspaceId, job.reservationId, charged, { userId: job.requestedBy, requestId: job.requestId }, `Live run stopped by the customer: ${visible} creator(s) delivered`);
+            } catch (settlementError) {
+              if (!(settlementError instanceof AppError && settlementError.code === "CONFLICT")) throw settlementError;
+              charged = 0;
+            }
+          }
+          const message = visible > 0 ? "Stopped at your request. Creators already found were saved and charged as quoted; the rest of your credits were returned." : "Stopped at your request. Your credits were returned.";
+          if (!(await repo.finishJob(tx, workspaceId, jobId, { status: "completed", outcome: "canceled", creditsCharged: charged, errorCode: "CANCELED", errorMessage: message }))) return;
+          await notifyFinished(tx, job, "completed");
+        });
+        deps.logger.info({ jobId }, "live run stopped at the customer's request");
+        return;
+      }
       const pe = providerErrorOf(err);
       const retryable = pe ? pe.retryable : !(err instanceof AppError) || err.code === "PROVIDER_UNAVAILABLE";
       // The trail is diagnostic: failing to write it must not hide the run's own error.
