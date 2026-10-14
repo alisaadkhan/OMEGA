@@ -37,6 +37,7 @@ beforeEach(async () => {
   await add("urduBio", { displayName: "Kashif Bites", niches: ["Food"], city: null, profiles: [{ bio: "Lahore based home cook" }] });
   await add("saraStyle", { displayName: "Sara Styles", niches: ["Fashion"], city: "Karachi", profiles: [{ bio: "Outfits and style" }] });
   await add("techTariq", { displayName: "Tariq Reviews", niches: ["Technology"], city: "Islamabad", profiles: [{ bio: "Gadgets and phones" }] });
+  await add("sanaMullick", { displayName: "Sana Mullick | Blogger", niches: [], city: null, profiles: [{ bio: "Daily life" }] });
   const docs = (await db.withSystem((tx) => repo.indexRows(tx, Object.values(ids)))).filter(isIndexable).map(toDocument);
   await db.withSystem((tx) => repo.upsertPostgresSearchDocuments(tx, docs));
 });
@@ -75,6 +76,24 @@ describe("catalogue search aliases (PostgreSQL)", () => {
   it("leaves queries without a recognised word unchanged (whole words, then typo and partial matching)", async () => {
     expect(await names("gadgets")).toEqual(["Tariq Reviews"]);
     expect(await names("Tariq Revews")).toEqual(["Tariq Reviews"]);
+  });
+
+  it("finds a name through its spelling variants once whole words find nothing (panel Q012, Q013)", async () => {
+    expect(await names("Find creator named Sana Malik")).toEqual(["Sana Mullick | Blogger"]);
+    expect(await names("Sana Malek creator Pakistan")).toEqual(["Sana Mullick | Blogger"]);
+    expect(await names("Sana Khan")).toEqual([]); // every word must meet the name
+  });
+
+  it("finds a creator whose only mention of the topic and city is a joined-up handle (panel Q004)", async () => {
+    const id = await addCreator(db, { displayName: "Zulekha", niches: [], city: null, profiles: [{ handle: "karachifoodadventure", bio: "Personal account" }] });
+    const docs = (await db.withSystem((tx) => repo.indexRows(tx, [id]))).filter(isIndexable).map(toDocument);
+    await db.withSystem((tx) => repo.upsertPostgresSearchDocuments(tx, docs));
+    expect(await names("Karachi ke food vloggers")).toEqual(["Zulekha"]);
+  });
+
+  it("finds a misspelt city and leaves out exclusion clauses (panel Q007, Q023)", async () => {
+    expect(await names("Islamabadd tech")).toEqual(["Tariq Reviews"]);
+    expect(await names("Creators in Lahore only; do not show creators outside Lahore")).toEqual(["Ali Eats", "Kashif Bites"]);
   });
 
   it("answers sentence-style queries: filler dropped, stated platform and ranges become filters, conflicts refused", async () => {

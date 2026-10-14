@@ -3,7 +3,23 @@ import type { SearchFilters } from "@mushin/contracts";
 import type { TenantContext } from "@mushin/core";
 import type { Db } from "@mushin/db";
 import type { SearchHit } from "@mushin/integrations";
-import { cityForms, expandQuery, type QueryGroup } from "./aliases";
+import { cityForms, expandQuery, normalizeQuery, type QueryGroup } from "./aliases";
+
+/**
+ * Consonant skeleton of a name word, so spelling variants of the same name meet: Malik / Malek / Mullick → "mlk",
+ * Muhammad / Mohammed → "mhmd", Ayesha / Aysha → "sh". Kept identical to the SQL in nameVariantMatch.
+ */
+export function nameKey(word: string): string {
+  return word.toLowerCase().replace(/ck/g, "k").replace(/[aeiouyw]/g, "").replace(/(.)\1+/g, "$1");
+}
+
+/** Query words that may be a person's name: 2–3 plain Latin words, each with a skeleton of at least two letters. */
+export function nameKeys(text: string): string[] | null {
+  const words = text.split(" ").filter(Boolean);
+  if (words.length < 2 || words.length > 3 || !words.every((w) => /^[a-z]+$/.test(w))) return null;
+  const keys = words.map(nameKey);
+  return keys.every((k) => k.length >= 2) ? keys : null;
+}
 
 export type CatalogSearchQuery = { text: string; filters: SearchFilters; freshCurrentDays: number; now: Date; limit: number; /** Words that only raise the rank (never required). */ boost?: string[] };
 export type CatalogSearch = { search(query: CatalogSearchQuery, ctx: Pick<TenantContext, "userId" | "workspaceId">): Promise<{ hits: SearchHit[]; total: number }> };
@@ -69,10 +85,29 @@ export function createPostgresCatalogSearch(db: Db): CatalogSearch {
     // 2. A typo or partial word ("Ayesah", "Siddiq") through trigram word similarity, which compares the query with the
     //    closest part of the text rather than the whole document. Only while whole words leave room in the pool: on a
     //    common word (thousands of matches) rechecking similarity across them cost ~1 s at 100k creators.
-    if (total < limit) {
-      const near = await run(sql`${text} <% d.search_text and not (${wordMatch})`, sql`word_similarity(${text}, d.search_text)`, byScore, limit - total);
+    //    Measured on the 469-creator panel corpus (2026-10-14): filling a small pool this way added unrelated creators
+    //    ("book" → "booking", "urdu history" → gaming channels), so it now runs only when whole words found nothing, and
+    //    every query word must be close to a word of the creator's text on its own.
+    const nearWords = normalizeQuery(text).split(" ").filter((w) => w.length >= 3);
+    if (total === 0 && nearWords.length > 0) {
+      const each = sql.join(nearWords.map((w) => sql`${w} <% d.search_text`), sql` and `);
+      const near = await run(sql`${each} and not (${wordMatch})`, sql`word_similarity(${text}, d.search_text)`, byScore, limit - total);
       total += Number(near[0]?.exactTotal ?? 0);
       rows = [...words, ...near].sort((a, b) => b.rankingScore - a.rankingScore || Number(b.updatedEpoch) - Number(a.updatedEpoch));
+    }
+    // 3. Name spelling variants ("Sana Malik" for "Sana Mullick"): only for a name-like query (2–3 plain words, no
+    //    recognised topic or city) while the pool still has room; every query word must meet a word of the display name.
+    const keys = groups ? null : nameKeys(normalizeQuery(text));
+    if (keys && total < limit) {
+      const skeleton = sql`' ' || regexp_replace(regexp_replace(replace(regexp_replace(lower(c.display_name), '[^a-z]+', ' ', 'g'), 'ck', 'k'), '[aeiouyw]', '', 'g'), '(.)\\1+', '\\1', 'g') || ' '`;
+      const seen = rows.map((x) => x.id);
+      const match = sql.join([
+        ...keys.map((k) => sql`${skeleton} like ${"% " + k + " %"}`),
+        ...(seen.length ? [sql`d.creator_id not in (${sql.join(seen.map((id) => sql`${id}::uuid`), sql`, `)})`] : []),
+      ], sql` and `);
+      const variants = await run(match, sql`0.3`, byScore, limit - rows.length);
+      total += Number(variants[0]?.exactTotal ?? 0);
+      rows = [...rows, ...variants];
     }
     return { hits: rows.map((r) => ({ id: r.id, rankingScore: Number(r.rankingScore) })), total };
   }

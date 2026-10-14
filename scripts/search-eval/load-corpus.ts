@@ -13,7 +13,7 @@
 import { writeFileSync } from "node:fs";
 import { createLogger } from "@mushin/core";
 import { createTestDatabase } from "@mushin/db/testing";
-import { createCreatorIndexer, insertCreator } from "../../apps/api/src/modules/creators/index";
+import { createCreatorIndexer, insertCreator, profileMetrics } from "../../apps/api/src/modules/creators/index";
 import { readRecordedProfiles } from "./recordings";
 
 const [dir, manifestPath] = process.argv.slice(2);
@@ -38,7 +38,7 @@ for (const { platform, file, fetchedAt, profile: p } of recorded.profiles) {
           niches: [],
           tags: [],
           verified: p.verified,
-          profiles: [{ platform, handle: p.handle, followers: p.followers, following: p.following, posts: p.posts, engagementRate: null, bio: p.bio, updatedAt: new Date(fetchedAt) }],
+          profiles: [{ platform, handle: p.handle, followers: p.followers, following: p.following, posts: p.posts, engagementRate: profileMetrics(p).engagementRate, bio: p.bio, updatedAt: new Date(fetchedAt) }],
         },
         Buffer.alloc(32),
       ),

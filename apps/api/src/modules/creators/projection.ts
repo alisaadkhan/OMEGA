@@ -1,5 +1,6 @@
 import { truncate } from "@mushin/core";
 import type { CreatorDocument } from "@mushin/integrations";
+import { handleWords } from "./aliases";
 import type { IndexRow } from "./repository";
 import { isMinorProtected } from "./rules";
 
@@ -18,6 +19,7 @@ export function toDocument(r: IndexRow): CreatorDocument {
     name_variants: r.nameVariants,
     primary_handle: r.primaryHandle,
     handles: [...new Set(r.profiles.map((p) => p.handle))],
+    handle_words: [...new Set([r.primaryHandle, ...r.profiles.map((p) => p.handle)].flatMap(handleWords))],
     platforms: [...new Set(r.profiles.map((p) => p.platform))],
     primary_platform: r.primaryPlatform,
     city: r.city,

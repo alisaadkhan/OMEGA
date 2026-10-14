@@ -13,7 +13,7 @@ export type AliasConcept = {
   live?: { roman: string; urdu: string };
 };
 
-const niche = (canonical: string, forms: string[], live: { roman: string; urdu: string }): AliasConcept => ({ kind: "niche", canonical, forms, live });
+const niche = (canonical: string, forms: string[], live?: { roman: string; urdu: string }): AliasConcept => ({ kind: "niche", canonical, forms, ...(live ? { live } : {}) });
 const city = (canonical: string, forms: string[]): AliasConcept => ({ kind: "city", canonical, forms });
 
 // Niche forms: the terms reviewed for Live Discovery (2026-10-13), unchanged.
@@ -26,6 +26,13 @@ export const NICHE_CONCEPTS: readonly AliasConcept[] = [
   niche("travel", ["travel", "safar", "سفر", "ٹریول"], { roman: "safar travel", urdu: "سفر ٹریول" }),
   niche("fitness", ["fitness", "warzish", "ورزش", "فٹنس"], { roman: "warzish fitness", urdu: "ورزش فٹنس" }),
   niche("technology", ["technology", "tech", "ٹیکنالوجی", "ٹیک"], { roman: "technology tech", urdu: "ٹیکنالوجی ٹیک" }),
+  // Catalogue-only concepts added 2026-10-14 from the Brain 1 panel diagnosis (pending owner review; not sent to Live
+  // Discovery): the Urdu-script panel queries for skincare and literature could never match their English forms.
+  niche("skincare", ["skincare", "skin care", "اسکن کیئر", "سکن کیئر"]),
+  // "home cooking" means cooking: requiring "home" lost 8 cooking channels on the panel corpus (Q014).
+  niche("cooking", ["cooking", "cook", "recipe", "recipes", "home cooking", "کوکنگ", "ریسپی"]),
+  niche("literature", ["literature", "adab", "ادب"]),
+  niche("agriculture", ["agriculture", "farming", "zaraat", "زراعت"]),
 ];
 
 // City forms: Urdu-script names reviewed for Live Discovery, LHR (owner-listed) and the short forms KHI, ISB, RWP, Pindi
@@ -64,6 +71,45 @@ export function normalizeQuery(text: string): string {
 
 export type QueryGroup = { kind: "niche" | "city" | "word"; canonical: string; forms: string[] };
 
+/** Levenshtein distance, stopping early once it exceeds `max`. */
+export function editDistance(a: string, b: string, max = 2): number {
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    let best = i;
+    for (let j = 1; j <= b.length; j++) {
+      cur[j] = Math.min((prev[j] ?? 0) + 1, (cur[j - 1] ?? 0) + 1, (prev[j - 1] ?? 0) + (a[i - 1] === b[j - 1] ? 0 : 1));
+      best = Math.min(best, cur[j] ?? best);
+    }
+    if (best > max) return max + 1;
+    prev = cur;
+  }
+  return prev[b.length] ?? max + 1;
+}
+
+/**
+ * The one vocabulary word a misspelt Latin-script word most likely means ("peshawer" → "peshawar", "bloogerz" →
+ * "bloggers"): at most 1 edit for words of 5–7 letters, 2 from 8 letters; shorter words are never corrected, nor ties
+ * between words that mean different things (`meaning` maps a word to what it means; by default itself).
+ */
+export function closestWord(word: string, vocabulary: Iterable<string>, meaning: (w: string) => string = (w) => w): string | null {
+  if (word.length < 5 || !/^[a-z]+$/.test(word)) return null;
+  const max = word.length >= 8 ? 2 : 1;
+  let best: string | null = null;
+  let bestD = max + 1;
+  let tie = false;
+  for (const v of vocabulary) {
+    if (v === word || !/^[a-z]+$/.test(v)) continue;
+    const d = editDistance(word, v, max);
+    if (d < bestD) [best, bestD, tie] = [v, d, false];
+    else if (d === bestD && best !== null && meaning(v) !== meaning(best)) tie = true;
+  }
+  return bestD <= max && !tie ? best : null;
+}
+
+const SINGLE_WORD_FORMS = new Map(ALL.flatMap((c) => c.forms.filter((f) => !f.includes(" ")).map((f) => [f, c] as const)));
+
 /**
  * Splits a query into groups that must all match; a recognised concept becomes one group of its forms (any of them
  * matches), every other word stays a one-form group. Returns null when nothing was recognised, so the caller keeps its
@@ -92,11 +138,31 @@ export function expandQuery(text: string): QueryGroup[] | null {
       i += hit.length;
     } else {
       const word = tokens[i] ?? "";
-      groups.push({ kind: "word", canonical: word, forms: [word] });
+      const near = closestWord(word, SINGLE_WORD_FORMS.keys(), (w) => SINGLE_WORD_FORMS.get(w)?.canonical ?? w);
+      const concept = near ? SINGLE_WORD_FORMS.get(near) : undefined;
+      if (concept) {
+        recognised = true;
+        if (!groups.some((g) => g.kind === concept.kind && g.canonical === concept.canonical)) groups.push({ kind: concept.kind, canonical: concept.canonical, forms: [...concept.forms] });
+      } else {
+        groups.push({ kind: "word", canonical: word, forms: [word] });
+      }
       i += 1;
     }
   }
   return recognised ? groups : null;
+}
+
+/**
+ * English concept and city words that can be read inside a joined-up handle. Roman Urdu forms are left out on purpose:
+ * short Roman Urdu words hide inside names ("khana" in "khanam").
+ */
+const HANDLE_VOCABULARY = [...new Set([...ALL.map((c) => c.canonical.toLowerCase()), "foodie", "tech", "pindi", "blogger", "vlogger"])].filter((w) => w.length >= 4 && /^[a-z]+$/.test(w));
+
+/** Vocabulary words inside a handle, for handles that join words together; words the handle already separates are skipped. */
+export function handleWords(handle: string): string[] {
+  const h = handle.toLowerCase();
+  const separated = new Set(h.split(/[^a-z]+/));
+  return HANDLE_VOCABULARY.filter((w) => h.includes(w) && !separated.has(w));
 }
 
 /** All forms of a city filter value (any alias accepted), or the value itself when it is not a listed city. */

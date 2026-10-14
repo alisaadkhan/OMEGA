@@ -371,15 +371,15 @@ export async function upsertPostgresSearchDocuments(tx: SystemTx, docs: CreatorD
       d.niches, d.tags, d.bio, d.followers, d.engagement_rate, d.verified, d.authenticity_score, d.has_contact,
       d.followers_updated_epoch, d.updated_epoch,
       coalesce(d.display_name, '') || ' ' || coalesce(array_to_string(d.name_variants, ' '), '') || ' ' || coalesce(d.primary_handle, '') || ' ' ||
-        coalesce(array_to_string(d.handles, ' '), '') || ' ' || coalesce(array_to_string(d.niches, ' '), '') || ' ' ||
+        coalesce(array_to_string(d.handles, ' '), '') || ' ' || coalesce(array_to_string(d.handle_words, ' '), '') || ' ' || coalesce(array_to_string(d.niches, ' '), '') || ' ' ||
         coalesce(array_to_string(d.tags, ' '), '') || ' ' || coalesce(d.bio, ''),
       setweight(to_tsvector('simple'::regconfig, d.display_name), 'A') ||
         setweight(to_tsvector('simple'::regconfig, array_to_string(d.name_variants, ' ')), 'B') ||
-        setweight(to_tsvector('simple'::regconfig, coalesce(d.primary_handle, '') || ' ' || coalesce(array_to_string(d.handles, ' '), '')), 'B') ||
+        setweight(to_tsvector('simple'::regconfig, coalesce(d.primary_handle, '') || ' ' || coalesce(array_to_string(d.handles, ' '), '') || ' ' || coalesce(array_to_string(d.handle_words, ' '), '')), 'B') ||
         setweight(to_tsvector('simple'::regconfig, coalesce(array_to_string(d.niches, ' '), '') || ' ' || coalesce(array_to_string(d.tags, ' '), '')), 'C') ||
         setweight(to_tsvector('simple'::regconfig, d.bio), 'D')
     from jsonb_to_recordset(${records}::jsonb) as d(
-      id uuid, display_name text, name_variants text[], primary_handle text, handles text[], platforms text[], city text,
+      id uuid, display_name text, name_variants text[], primary_handle text, handles text[], handle_words text[], platforms text[], city text,
       country text, niches text[], tags text[], bio text, followers bigint, engagement_rate double precision,
       verified boolean, authenticity_score smallint, has_contact boolean, followers_updated_epoch bigint, updated_epoch bigint
     )

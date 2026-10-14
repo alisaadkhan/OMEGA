@@ -5,6 +5,8 @@ export type CreatorDocument = {
   name_variants: string[];
   primary_handle: string;
   handles: string[];
+  /** Vocabulary words found inside joined-up handles ("karachifoodadventure" → karachi, food), searched like handles. */
+  handle_words?: string[];
   platforms: string[];
   primary_platform: string;
   city: string | null;

@@ -7,7 +7,7 @@ import { searchChargeHash } from "./search-charge";
  * version (CAT-004). A cursor from another search or an older ranking is refused instead of silently returning a page
  * of something else. Bump the version whenever ranking or matching changes.
  */
-export const CATALOG_RANKER_VERSION = "catalog-2-aliases";
+export const CATALOG_RANKER_VERSION = "catalog-3-variants";
 const MAX_OFFSET = 1000;
 
 type CursorBody = { v: string; h: string; o: number };
