@@ -26,6 +26,17 @@ export function livePlatformsText(s: LiveSearch): string {
   return p ? PLATFORM_NAMES[p] : "Instagram, TikTok and YouTube (all platforms)";
 }
 
+/**
+ * The results header for a live run. The chosen size caps new (charged) creators only; creators MUSHIN already
+ * knew are added free on top, so "6 found" for a size-5 run must show the split rather than look like an overrun.
+ */
+export function liveFoundText(cards: { discovery: { isNew: boolean } }[], streaming: boolean): string {
+  const fresh = cards.filter((c) => c.discovery.isNew).length;
+  const known = cards.length - fresh;
+  const head = `${cards.length} found by Find New Creators${streaming ? " so far" : ""}`;
+  return cards.length === 0 ? head : `${head} · ${fresh} new (charged)${known ? ` · ${known} already in MUSHIN (free)` : ""}`;
+}
+
 export function liveSummary(s: LiveSearch): string {
   const parts = [s.text.trim() || s.filters.niches.join(", "), s.filters.creatorCity ?? s.filters.creatorCountry ?? ""].filter(Boolean);
   return parts.join(" · ") || "new creators";

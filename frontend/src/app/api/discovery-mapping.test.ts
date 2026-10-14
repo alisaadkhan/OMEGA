@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CreatorCard, DiscoveryJob } from "@mushin/contracts";
-import { isOpenJob, jobStatusText, jobTitle, liveMaxCost, livePlatformsText, liveSummary, mergeResults, newlyFinished } from "./discovery-mapping";
+import { isOpenJob, jobStatusText, jobTitle, liveFoundText, liveMaxCost, livePlatformsText, liveSummary, mergeResults, newlyFinished } from "./discovery-mapping";
 import { creatorStub } from "./search-mapping";
 
 const cardFor = (id: string): CreatorCard => ({
@@ -86,6 +86,14 @@ describe("live runs", () => {
     expect(liveMaxCost(costs, "youtube", 5)).toBe(62);
     expect(liveMaxCost(costs, undefined, 10)).toBe(312);
     expect(liveMaxCost(costs, "tiktok", 20)).toBe(612);
+  });
+
+  it("splits the results header into new (charged) and already-known (free) creators", () => {
+    // Regression: a size-5 run delivering 4 new + 2 known showed "6 found", which read as exceeding the requested 5.
+    const cards = [true, true, true, true, false, false].map((isNew) => ({ discovery: { isNew } }));
+    expect(liveFoundText(cards, false)).toBe("6 found by Find New Creators · 4 new (charged) · 2 already in MUSHIN (free)");
+    expect(liveFoundText(cards.slice(0, 2), true)).toBe("2 found by Find New Creators so far · 2 new (charged)");
+    expect(liveFoundText([], true)).toBe("0 found by Find New Creators so far");
   });
 
   it("names the run and explains its progress and outcome", () => {

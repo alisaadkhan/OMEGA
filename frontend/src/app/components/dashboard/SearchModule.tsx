@@ -51,6 +51,7 @@ import { FreshnessBadge } from "./states";
 import { useToast } from "../../lib/toast";
 import { FindNewDialog } from "./FindNewDialog";
 import { useDiscoveryJob, useLiveResults } from "../../api/discovery";
+import { liveFoundText } from "../../api/discovery-mapping";
 
 /**
  * Volumes 3 + 4A — Search System.
@@ -574,7 +575,7 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
       {liveJob !== null && (
         <div className="space-y-2">
           <div className="text-xs text-slate-500">
-            <span className="text-slate-900" style={{ fontWeight: 600 }}>{liveCards.length}</span> found by Find New Creators{liveStreaming ? " so far" : ""}
+            {liveFoundText(liveCards, liveStreaming)}
           </div>
           {live.isError && (
             <div className="flex items-center justify-between gap-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800" role="alert">
