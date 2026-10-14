@@ -42,3 +42,14 @@ export function stableJson(v: unknown): string {
   }
   return JSON.stringify(v);
 }
+
+/**
+ * Shortens text to at most `max` characters without cutting an emoji or other astral character in half: String#slice
+ * counts UTF-16 units, and a lone surrogate half makes PostgreSQL reject the JSON the text is sent in.
+ */
+export function truncate(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max);
+  const last = cut.charCodeAt(cut.length - 1);
+  return last >= 0xd800 && last <= 0xdbff ? cut.slice(0, -1) : cut;
+}

@@ -60,3 +60,21 @@ Status: the tooling works end to end on the 21-creator local catalogue, but that
 YouTube, 3 TikTok, 0 Instagram creators; most panel queries have no relevant creator at all, so zeros are mostly true
 negatives). A real run needs the evaluation corpus of at least 100 policy-compliant real profiles (owner-authorised data
 collection) and two named raters. No ratings exist yet.
+
+## Evaluation corpus (disposable, 2026-10-14)
+
+`scripts/search-eval/load-corpus.ts` loads the real public profiles recorded by the 2026-10-13 live evaluation (no new
+provider calls) through the product's standardiser into a disposable database: 469 creators (339 YouTube, 104 Instagram,
+26 TikTok; 444 with a bio; 167 with country PK). Niches and city stay empty (they come from an AI assessment that is not
+re-run), so matching relies on names, handles and bios. **Retention:** the YouTube part is YouTube API data recorded
+2026-10-13 and must be deleted by 2026-11-12; drop the disposable database after the panel.
+
+Panel run on this corpus (typed text only; the CSV's `filters_json` is the expected reading for raters, not input):
+34 answered, 10 with results (e.g. "Karachi ke food vloggers on Instagram" 19, Urdu-script "کراچی کے فوڈ بلاگرز" 7,
+misspelt "Karachi me food bloogerz" 2), 24 with none (mostly topics and cities the recordings never covered: Quetta,
+Multan, agriculture, book reviewers, Urdu literature), 1 refused as an impossible range; latency p50 43 ms, p95 88 ms;
+78 result rows ready for the two raters. Bias to note: the corpus was collected for briefs similar to some panel queries.
+
+Defect found while loading: a bio longer than 500 characters cut inside an emoji produced invalid JSON, so PostgreSQL
+rejected the creator's search document and the whole batch of up to 100 creators with it (2 of 469 real profiles).
+Fixed with code-point-safe truncation (`truncate` in `@mushin/core`, used by the projection and `cleanText`).

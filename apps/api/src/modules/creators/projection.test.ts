@@ -37,4 +37,13 @@ describe("creator index projection", () => {
     };
     expect(toDocument(withLegacyEstimate).audience_countries).toEqual([]);
   });
+
+  it("cuts a long bio without splitting an emoji, so the document is valid JSON for PostgreSQL (real creator 2026-10-14)", () => {
+    const bio = "x".repeat(499) + String.fromCodePoint(0x1f4da) + " more";
+    const doc = toDocument({ ...row, profiles: row.profiles.map((p) => ({ ...p, bio })) });
+    expect(doc.bio).toBe("x".repeat(499));
+    const json = JSON.stringify(doc);
+    const loneHighSurrogateEscape = new RegExp(`${String.fromCharCode(92)}u[dD][89abAB][0-9a-fA-F]{2}`);
+    expect(loneHighSurrogateEscape.test(json)).toBe(false);
+  });
 });

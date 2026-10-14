@@ -51,7 +51,9 @@ for (const r of rows) {
   const filtersRaw = (r[col("filters_json")] ?? "").trim();
   const started = performance.now();
   try {
-    const filters = searchFiltersSchema.parse(filtersRaw ? JSON.parse(filtersRaw) : {});
+    // The panel's filters_json is the EXPECTED reading of the query (for raters), not something a user set: the search
+    // gets exactly what a user types. Only a filters-only case (no text) is run with its filters.
+    const filters = searchFiltersSchema.parse(!text.trim() && filtersRaw ? JSON.parse(filtersRaw) : {});
     const out = await service.search(ctx, searchRequestSchema.parse({ text, filters, confirmedCost: price }));
     const ms = Math.round(performance.now() - started);
     const top = out.results.slice(0, 10);

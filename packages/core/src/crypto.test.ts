@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decryptSecret, encryptSecret, randomToken, sha256Hex } from "./crypto";
+import { decryptSecret, encryptSecret, randomToken, sha256Hex, truncate } from "./crypto";
 
 const key = Buffer.alloc(32, 1);
 
@@ -33,5 +33,16 @@ describe("crypto", () => {
   it("hashes and generates tokens", () => {
     expect(sha256Hex("abc")).toBe("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
     expect(randomToken()).toMatch(/^[A-Za-z0-9_-]{43}$/);
+  });
+});
+
+describe("truncate", () => {
+  const smile = String.fromCodePoint(0x1f600); // two UTF-16 units
+  it("never leaves half of an emoji at the cut", () => {
+    const text = "a".repeat(9) + smile + "b";
+    expect(truncate(text, 10)).toBe("a".repeat(9)); // slice(0, 10) would end on a lone high surrogate
+    expect(truncate(text, 11)).toBe("a".repeat(9) + smile);
+    expect(JSON.parse(JSON.stringify(truncate(text, 10)))).toBe("a".repeat(9));
+    expect(truncate("short", 10)).toBe("short");
   });
 });

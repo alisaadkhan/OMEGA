@@ -1,3 +1,4 @@
+import { truncate } from "@mushin/core";
 import type { CreatorDocument } from "@mushin/integrations";
 import type { IndexRow } from "./repository";
 import { isMinorProtected } from "./rules";
@@ -23,7 +24,7 @@ export function toDocument(r: IndexRow): CreatorDocument {
     country: r.country,
     niches: r.niches,
     tags: r.tags,
-    bio: (primary?.bio ?? "").slice(0, 500),
+    bio: truncate(primary?.bio ?? "", 500),
     followers: knownFollowers.length ? Math.max(...knownFollowers) : null,
     engagement_rate: primary?.engagementRate ?? null,
     verified: r.verified,

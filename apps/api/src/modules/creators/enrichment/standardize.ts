@@ -1,3 +1,4 @@
+import { truncate } from "@mushin/core";
 import { z } from "zod";
 import type { CreatorPlatform } from "../rules";
 
@@ -48,14 +49,14 @@ const CONTROL = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u200B-\u20
 /** Scraped text is hostile input (SRS §5.3): no markup, no control characters, bounded length. */
 export function cleanText(value: unknown, max: number): string {
   if (typeof value !== "string") return "";
-  return value
+  const cleaned = value
     .replace(/<[^>]*>/g, " ")
     .replace(CONTROL, "")
     .replace(/[ \t]+/g, " ")
     .replace(/ *\n */g, "\n")
     .replace(/\n{3,}/g, "\n\n")
-    .trim()
-    .slice(0, max);
+    .trim();
+  return truncate(cleaned, max);
 }
 
 const count = (v: unknown): number | null => {
