@@ -109,7 +109,7 @@ describe("profile", () => {
     await ownerQuery(`insert into gcp.creator_links (creator_id, platform, url, source) values ('${id}', 'website', 'https://tt.one', 'bio');
       update gcp.creators set assessment_status = 'pending' where id = '${id}';`);
     const p = await creators.profile(await trialCustomer(), id);
-    expect(p).toMatchObject({ refreshCost: 30, linkedAccounts: [{ platform: "website", url: "https://tt.one" }], authenticity: { status: "pending" } });
+    expect(p).toMatchObject({ refreshCost: 50, linkedAccounts: [{ platform: "website", url: "https://tt.one" }], authenticity: { status: "pending" } });
     expect(p.lastScrapedAt).not.toBeNull();
     await ownerQuery(`update gcp.creators set assessment_status = 'insufficient_data' where id = '${id}'`);
     expect((await creators.profile(await trialCustomer(), id)).authenticity).toEqual({ status: "insufficient_data" });

@@ -22,7 +22,7 @@ describe("billing schema", () => {
       select (select count(*)::int from platform.plans) plans, (select count(*)::int from platform.topup_packs) packs,
              (select count(*)::int from platform.credit_action_costs) costs,
              (select trial_credits from platform.billing_settings) trial`);
-    expect(rows[0]).toEqual({ plans: 3, packs: 3, costs: 6, trial: 200 });
+    expect(rows[0]).toEqual({ plans: 3, packs: 3, costs: 7, trial: 200 });
   });
 
   it("keeps the ledger append-only for the API role", async () => {
@@ -59,6 +59,17 @@ describe("billing schema", () => {
     ).rejects.toSatisfy(dbError(/row-level security/));
   });
 
+  it("lets the API role reserve only a live run's quoted maximum (base 50 + 10 per creator for 5, 10 or 15)", async () => {
+    const ws = await createTestWorkspace();
+    const hold = (amount: number) =>
+      db.withTenant(ws, (tx) =>
+        tx.execute(sql`insert into wp.credit_reservations (workspace_id, amount, action, confirmed_cost, status, expires_at, ref_type, ref_id)
+                        values (${ws.workspaceId}, ${amount}, 'find_new', ${amount}, 'held', now() + interval '15 minutes', 't', ${String(amount)})`),
+      );
+    for (const allowed of [100, 150, 200]) await hold(allowed);
+    for (const refused of [62, 112, 250]) await expect(hold(refused)).rejects.toSatisfy(dbError(/row-level security/)); // old 12-credit base, old 20-creator size
+  });
+
   it("lets the API role only lower credits, raise usage, change held holds and move due work earlier", async () => {
     const ws = await createTestWorkspace();
     const inApi = (q: SQL) => db.withTenant(ws, (tx) => tx.execute(q));
@@ -71,7 +82,7 @@ describe("billing schema", () => {
                 values (${ws.workspaceId}, 1, 'find_new', 1, 'held', now() + interval '15 minutes', 't', '1')`),
     ).rejects.toSatisfy(dbError(/row-level security/));
     await inApi(sql`insert into wp.credit_reservations (workspace_id, amount, action, confirmed_cost, status, expires_at, ref_type, ref_id)
-                    values (${ws.workspaceId}, 12, 'find_new', 12, 'held', now() + interval '15 minutes', 't', '1')`);
+                    values (${ws.workspaceId}, 50, 'find_new', 50, 'held', now() + interval '15 minutes', 't', '1')`);
     await expect(inApi(sql`update wp.credit_reservations set expires_at = now() + interval '1 day'`)).rejects.toSatisfy(dbError(/at most one/));
     await inApi(sql`update wp.credit_reservations set status = 'committed'`);
     await expect(inApi(sql`update wp.credit_reservations set status = 'held'`)).rejects.toSatisfy(dbError(/only a held reservation/));

@@ -75,18 +75,15 @@ describe("job wording", () => {
 });
 
 describe("live runs", () => {
-  const costs = { search_existing: 0, find_new: 12, reveal_contact: 5, refresh_data: 10, refresh_tiktok: 30, audience_estimate: 5 };
+  const costs = { search_existing: 50, find_new: 50, live_creator: 10, reveal_contact: 5, refresh_data: 50, refresh_tiktok: 50, audience_estimate: 5 };
   const L = {
     search: { text: "bridal makeup", filters: { niches: [], creatorCity: "Lahore", verifiedOnly: false, hasContact: false, freshOnly: false } }, maxNew: 10, found: 0, new: 0, known: 0, maxCost: 312, creditsCharged: 0,
     progress: { serpResultsSeen: 0, profileCandidates: 0, afterDedupe: 0, snippetGatePass: 0, ambiguousCandidates: 0, extractedProfiles: 0, validIndividualCreators: 0, qualifiedCreators: 0, persistedResults: 0, billableCreators: 0 },
   };
   const liveJob = (over: Partial<DiscoveryJob> = {}): DiscoveryJob => job({ kind: "live", platform: null, handle: null, live: L, ...over });
 
-  it("prices the maximum like the server: TikTok's price whenever TikTok is in scope", () => {
-    expect(liveMaxCost(costs, "instagram", 10)).toBe(112);
-    expect(liveMaxCost(costs, "youtube", 5)).toBe(62);
-    expect(liveMaxCost(costs, undefined, 10)).toBe(312);
-    expect(liveMaxCost(costs, "tiktok", 20)).toBe(612);
+  it("prices the maximum like the server: base fee plus the per-creator price for every slot (100 / 150 / 200)", () => {
+    expect([5, 10, 15].map((n) => liveMaxCost(costs, n))).toEqual([100, 150, 200]);
   });
 
   it("splits the results header into new (charged) and already-known (free) creators", () => {

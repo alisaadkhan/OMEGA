@@ -22,7 +22,7 @@ async function customer(): Promise<TenantContext> {
   return { ...ws, requestId: `req-${randomUUID().slice(0, 8)}`, role: "owner" };
 }
 const balance = async (c: TenantContext) => (await billing.summary(c)).balance;
-const addByUrl = (url: string, confirmedCost = 10) => ({ kind: "add_by_url" as const, url, confirmedCost });
+const addByUrl = (url: string, confirmedCost = 50) => ({ kind: "add_by_url" as const, url, confirmedCost });
 
 describe("starting jobs", () => {
   it("reserves the price, queues the job and announces it", async () => {
@@ -31,17 +31,17 @@ describe("starting jobs", () => {
     expect(out.httpStatus).toBe(202);
     if (out.body.status !== "started") throw new Error("expected started");
     expect(out.body.job).toMatchObject({ kind: "add_by_url", status: "queued", platform: "instagram", handle: "coke_studio", creatorId: null });
-    expect(await balance(c)).toMatchObject({ available: 190, reserved: 10 });
+    expect(await balance(c)).toMatchObject({ available: 150, reserved: 50 });
     const ev = await ownerQuery<{ event_type: string; payload: { jobId: string } }>(`select event_type, payload from platform.outbox where event_type like 'discovery.%'`);
     expect(ev).toEqual([{ event_type: "discovery.requested", payload: { jobId: out.body.job.id } }]);
   });
 
-  it("charges TikTok at its own price and refuses a stale price", async () => {
+  it("charges TikTok the same refresh price as other platforms and refuses a stale price", async () => {
     const c = await customer();
-    await expect(discovery.start(c, addByUrl("https://tiktok.com/@cokestudiopakistan", 10))).rejects.toMatchObject({ code: "CONFLICT", details: { confirmedCost: 10, currentCost: 30 } });
-    const ok = await discovery.start(c, addByUrl("https://tiktok.com/@cokestudiopakistan", 30));
+    await expect(discovery.start(c, addByUrl("https://tiktok.com/@cokestudiopakistan", 30))).rejects.toMatchObject({ code: "CONFLICT", details: { confirmedCost: 30, currentCost: 50 } });
+    const ok = await discovery.start(c, addByUrl("https://tiktok.com/@cokestudiopakistan", 50));
     expect(ok.httpStatus).toBe(202);
-    expect(await balance(c)).toMatchObject({ available: 170, reserved: 30 });
+    expect(await balance(c)).toMatchObject({ available: 150, reserved: 50 });
   });
 
   it("opens a creator MUSHIN already has for free", async () => {
@@ -62,20 +62,20 @@ describe("starting jobs", () => {
     const results = await Promise.all(Array.from({ length: 5 }, () => discovery.start(c, addByUrl("https://instagram.com/coke_studio"))));
     const ids = new Set(results.map((r) => (r.body.status === "started" ? r.body.job.id : "")));
     expect(ids.size).toBe(1);
-    expect(await balance(c)).toMatchObject({ available: 190, reserved: 10 });
+    expect(await balance(c)).toMatchObject({ available: 150, reserved: 50 });
   });
 
   it("refreshes a known creator, answers 'up to date' for fresh data, and refuses hidden creators", async () => {
     const c = await customer();
     const id = await addCreator(db, { profiles: [{ platform: "tiktok", handle: "fresh_one" }], primaryPlatform: "tiktok" });
-    expect(await discovery.start(c, { kind: "refresh", creatorId: id, confirmedCost: 30 })).toMatchObject({ httpStatus: 200, body: { status: "up_to_date", creatorId: id } });
+    expect(await discovery.start(c, { kind: "refresh", creatorId: id, confirmedCost: 50 })).toMatchObject({ httpStatus: 200, body: { status: "up_to_date", creatorId: id } });
     await ownerQuery(`update gcp.creator_profiles set last_scraped_at = now() - interval '2 days' where creator_id = '${id}'`);
-    const out = await discovery.start(c, { kind: "refresh", creatorId: id, confirmedCost: 30 });
+    const out = await discovery.start(c, { kind: "refresh", creatorId: id, confirmedCost: 50 });
     expect(out.body).toMatchObject({ status: "started", job: { kind: "refresh", creatorId: id, platform: "tiktok", handle: "fresh_one" } });
     const ev = await ownerQuery<{ n: number }>(`select count(*)::int n from platform.outbox where event_type = 'refresh.requested'`);
     expect(ev[0]?.n).toBe(1);
     await ownerQuery(`update gcp.creators set status = 'erased' where id = '${id}'`);
-    await expect(discovery.start(await customer(), { kind: "refresh", creatorId: id, confirmedCost: 30 })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(discovery.start(await customer(), { kind: "refresh", creatorId: id, confirmedCost: 50 })).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 
   it("treats creators customers cannot see (possible minors, removal requested) as not found on both paths", async () => {
@@ -83,7 +83,7 @@ describe("starting jobs", () => {
     const minor = await addCreator(db, { isMinor: true, profiles: [{ platform: "instagram", handle: "hidden_minor" }] });
     await ownerQuery(`update gcp.creator_profiles set last_scraped_at = now() - interval '2 days' where creator_id = '${minor}'`);
     await expect(discovery.start(c, addByUrl("instagram.com/hidden_minor"))).rejects.toMatchObject({ code: "NOT_FOUND" });
-    await expect(discovery.start(c, { kind: "refresh", creatorId: minor, confirmedCost: 10 })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(discovery.start(c, { kind: "refresh", creatorId: minor, confirmedCost: 50 })).rejects.toMatchObject({ code: "NOT_FOUND" });
     const removing = await addCreator(db, { profiles: [{ platform: "instagram", handle: "asked_removal" }] });
     await ownerQuery(`update gcp.creators set status = 'removal_requested' where id = '${removing}'`);
     await expect(discovery.start(c, addByUrl("instagram.com/asked_removal"))).rejects.toMatchObject({ code: "NOT_FOUND" });

@@ -14,8 +14,6 @@ import {
   Phone,
   Mail,
   FolderOpen,
-  Download,
-  Users,
   Info,
 } from "lucide-react";
 import { PLANS, type Plan as Tier } from "../../lib/plans";
@@ -23,12 +21,10 @@ import { PLANS, type Plan as Tier } from "../../lib/plans";
 const featureIcons = {
   existing: Search,
   new: Radio,
-  audience: Users,
   contact: Phone,
-  outreach: Mail,
   campaigns: FolderOpen,
   lists: FolderOpen,
-  export: Download,
+  outreach_log: Mail,
 } as const;
 
 const tierIcons = { explorer: Compass, growth: Activity, scale: Layers } as const;
@@ -157,8 +153,8 @@ export function Pricing({ onPrimary }: { onPrimary?: () => void } = {}) {
                 </div>
               </div>
             </div>
-            <button className="group inline-flex h-11 flex-shrink-0 items-center gap-2 rounded-lg bg-white px-5 text-sm text-slate-900 shadow-sm transition-all hover:-translate-y-px hover:shadow-md" style={{ fontWeight: 500 }}>
-              Talk to sales
+            <button disabled title="Sales contact is not available yet" className="group inline-flex h-11 flex-shrink-0 cursor-not-allowed items-center gap-2 rounded-lg bg-white/70 px-5 text-sm text-slate-500 shadow-sm" style={{ fontWeight: 500 }}>
+              Talk to sales (coming soon)
               <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
             </button>
           </div>
@@ -168,7 +164,7 @@ export function Pricing({ onPrimary }: { onPrimary?: () => void } = {}) {
         <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-white/50">
           <TrustPill>14-day free trial · no card</TrustPill>
           <TrustPill>Cancel anytime</TrustPill>
-          <TrustPill>Rollover unused credits</TrustPill>
+          <TrustPill>Monthly credits reset each billing period</TrustPill>
           
         </div>
       </div>

@@ -24,7 +24,7 @@ export const liveDiscoveryProgressSchema = z.object({
 const liveFiltersSchema = searchFiltersSchema.safeExtend({ niches: z.array(z.string().trim().min(1).max(40)).max(5).default([]) });
 export const liveSearchSchema = z.object({ text: z.string().trim().max(500).default(""), filters: liveFiltersSchema });
 export type LiveSearch = z.output<typeof liveSearchSchema>;
-export const liveRunSizeSchema = z.union([z.literal(5), z.literal(10), z.literal(20)]);
+export const liveRunSizeSchema = z.union([z.literal(5), z.literal(10), z.literal(15)]);
 export type LiveRunSize = z.output<typeof liveRunSizeSchema>;
 
 const GENERIC = new Set("creator creators influencer influencers people person account accounts profile profiles blogger bloggers vlogger vloggers best top find new social media content popular famous some any all the and in of for with from ke ki ka instagram tiktok youtube".split(" "));

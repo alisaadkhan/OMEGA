@@ -30,7 +30,7 @@ const startLive = async (c: TenantContext, s: LiveSearch, maxNew: LiveRunSize) =
   return discovery.start(c, { kind: "live", estimateId: quote.estimateId });
 };
 
-async function started(c: TenantContext, s = search({ platform: "instagram" }), maxNew: 5 | 10 | 20 = 10): Promise<string> {
+async function started(c: TenantContext, s = search({ platform: "instagram" }), maxNew: 5 | 10 | 15 = 10): Promise<string> {
   const out = await startLive(c, s, maxNew);
   if (out.body.status !== "started") throw new Error("expected started");
   return out.body.job.id;
@@ -41,38 +41,39 @@ describe("starting live runs", () => {
     const c = await customer();
     const s = search({ platform: "instagram", niches: ["Bridal"] });
     const quote = await estimate(c, s, 10);
-    expect(quote).toMatchObject({ maxCredits: 112 });
+    expect(quote).toMatchObject({ maxCredits: 150 }); // 50 base + 10 × 10 new creators
     expect(quote.priceVersion).toHaveLength(24);
     expect(Date.parse(quote.expiresAt)).toBeGreaterThan(Date.now());
     expect(await balance(c)).toMatchObject({ available: 200, reserved: 0 });
     const out = await discovery.start(c, { kind: "live", estimateId: quote.estimateId });
     expect(out.httpStatus).toBe(202);
     if (out.body.status !== "started") throw new Error("expected started");
-    expect(out.body.job).toMatchObject({ kind: "live", status: "queued", platform: null, handle: null, live: { maxNew: 10, maxCost: 112, found: 0, creditsCharged: 0 } });
-    expect(await balance(c)).toMatchObject({ available: 88, reserved: 112 });
+    expect(out.body.job).toMatchObject({ kind: "live", status: "queued", platform: null, handle: null, live: { maxNew: 10, maxCost: 150, found: 0, creditsCharged: 0 } });
+    expect(await balance(c)).toMatchObject({ available: 50, reserved: 150 });
     const ev = await ownerQuery<{ event_type: string }>(`select event_type from platform.outbox where event_type like 'discovery.%'`);
     expect(ev.map((e) => e.event_type)).toEqual(["discovery.live_requested"]);
   });
 
-  it("prices every new creator at TikTok's price when TikTok is in scope and rejects an unaffordable quote at confirmation", async () => {
+  it("prices every platform the same (100 / 150 / 200 for 5 / 10 / 15) and rejects an unaffordable quote at confirmation", async () => {
     const c = await customer();
-    const quote = await estimate(c, search(), 5);
-    expect(quote.maxCredits).toBe(162);
+    for (const [size, max] of [[5, 100], [10, 150], [15, 200]] as const) {
+      expect((await estimate(c, search(), size)).maxCredits).toBe(max);
+      expect((await estimate(c, search({ platform: "tiktok" }), size)).maxCredits).toBe(max);
+    }
     await startLive(c, search(), 5);
-    expect(await balance(c)).toMatchObject({ available: 38, reserved: 162 });
-    const poor = await customer();
-    const expensive = await estimate(poor, search(), 20);
-    expect(expensive.maxCredits).toBe(612);
-    await expect(discovery.start(poor, { kind: "live", estimateId: expensive.estimateId })).rejects.toMatchObject({ code: "INSUFFICIENT_CREDITS" });
+    expect(await balance(c)).toMatchObject({ available: 100, reserved: 100 });
+    const expensive = await estimate(c, search({ platform: "instagram" }), 15);
+    expect(expensive.maxCredits).toBe(200);
+    await expect(discovery.start(c, { kind: "live", estimateId: expensive.estimateId })).rejects.toMatchObject({ code: "INSUFFICIENT_CREDITS" });
   });
 
   it("uses one quote exactly once, even when confirmation is concurrent", async () => {
     const c = await customer();
-    const quote = await estimate(c, search({ platform: "instagram" }), 10);
+    const quote = await estimate(c, search({ platform: "instagram" }), 5);
     const outs = await Promise.all(Array.from({ length: 4 }, () => discovery.start(c, { kind: "live", estimateId: quote.estimateId })));
     expect(new Set(outs.map((o) => (o.body.status === "started" ? o.body.job.id : "")))).toHaveProperty("size", 1);
-    expect(await balance(c)).toMatchObject({ available: 88, reserved: 112 });
-    const second = await estimate(c, search({ platform: "instagram" }), 5);
+    expect(await balance(c)).toMatchObject({ available: 100, reserved: 100 });
+    const second = await estimate(c, search({ platform: "youtube" }), 5); // a different brief, not a duplicate of the first
     const other = await discovery.start(c, { kind: "live", estimateId: second.estimateId });
     expect(other.httpStatus).toBe(202);
   });
@@ -89,7 +90,7 @@ describe("starting live runs", () => {
     if (duplicate.body.status !== "started") throw new Error("expected existing started job");
     expect(duplicate.httpStatus).toBe(200);
     expect(duplicate.body.job.id).toBe(first.body.job.id);
-    expect(await balance(c)).toMatchObject({ available: 88, reserved: 112 });
+    expect(await balance(c)).toMatchObject({ available: 50, reserved: 150 });
     const reservations = await ownerQuery<{ n: number }>(`select count(*)::int n from wp.credit_reservations where workspace_id = '${c.workspaceId}' and action = 'find_new'`);
     const events = await ownerQuery<{ n: number }>(`select count(*)::int n from platform.outbox where workspace_id = '${c.workspaceId}' and event_type = 'discovery.live_requested'`);
     expect(reservations[0]?.n).toBe(1);

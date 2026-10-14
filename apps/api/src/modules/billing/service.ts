@@ -133,6 +133,7 @@ export function createBillingService(deps: BillingDeps) {
         actionCosts: {
           search_existing: cost("search_existing"),
           find_new: cost("find_new"),
+          live_creator: cost("live_creator"),
           reveal_contact: cost("reveal_contact"),
           refresh_data: cost("refresh_data"),
           refresh_tiktok: cost("refresh_tiktok"),

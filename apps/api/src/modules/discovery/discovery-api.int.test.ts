@@ -37,7 +37,7 @@ async function setup(o: { jobsLimit?: number } = {}) {
   return { app, auth: { authorization: `Bearer ${token}` } };
 }
 
-const body = { kind: "add_by_url", url: "https://instagram.com/coke_studio", confirmedCost: 10 };
+const body = { kind: "add_by_url", url: "https://instagram.com/coke_studio", confirmedCost: 50 };
 
 describe("discovery API", () => {
   it("requires sign-in and an Idempotency-Key", async () => {

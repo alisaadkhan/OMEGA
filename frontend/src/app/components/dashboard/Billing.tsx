@@ -24,6 +24,7 @@ import {
 const ACTION_META: Record<CreditAction, { label: string; icon: typeof Search; tone: string }> = {
   search_existing: { label: COPY.searchExisting, icon: Search, tone: "bg-slate-100 text-slate-600" },
   find_new: { label: COPY.findNew, icon: Radio, tone: "bg-indigo-50 text-indigo-700" },
+  live_creator: { label: "New creator found (live)", icon: Radio, tone: "bg-indigo-50 text-indigo-700" },
   reveal_contact: { label: COPY.revealContact, icon: Mail, tone: "bg-emerald-50 text-emerald-700" },
   refresh_data: { label: COPY.refreshData, icon: RefreshCw, tone: "bg-amber-50 text-amber-700" },
   refresh_tiktok: { label: "Refresh TikTok creator", icon: RefreshCw, tone: "bg-amber-50 text-amber-700" },

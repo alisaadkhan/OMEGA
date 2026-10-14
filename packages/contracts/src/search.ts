@@ -38,6 +38,8 @@ export const searchRequestSchema = z.object({
   text: z.string().trim().max(300).default(""),
   filters: searchFiltersSchema,
   page: z.number().int().min(1).max(50).default(1),
+  /** The standalone search price the user was shown; a different current price is refused and charges nothing. */
+  confirmedCost: z.number().int().min(0),
 });
 export type SearchRequest = z.output<typeof searchRequestSchema>;
 
@@ -69,6 +71,9 @@ export const searchResponseSchema = z.object({
   page: z.number().int(),
   pageSize: z.number().int(),
   fewResults: z.boolean(),
+  /** Whether this call started a new logical search and paid for it; further pages and repeats inside the window are free. */
+  charged: z.boolean(),
+  creditsCharged: z.number().int().nonnegative(),
 });
 export type SearchResponse = z.output<typeof searchResponseSchema>;
 

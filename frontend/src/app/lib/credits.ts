@@ -1,13 +1,5 @@
 import { useBillingSummary } from "../api/billing";
 
-/** Shown before confirming; the server enforces the real costs (and refuses a stale one). */
-export const CREDIT_COST = {
-  searchExisting: 0,
-  findNew: 12,
-  revealContact: 5,
-  refreshData: 10,
-} as const;
-
 /** Available credits from the billing API (0 while loading). */
 export function useCredits(): number {
   return useBillingSummary().data?.balance.available ?? 0;

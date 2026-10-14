@@ -24,13 +24,13 @@ const insertJob = (ws: { userId: string; workspaceId: string }, url: string) =>
   );
 
 describe("creator pipeline tables", () => {
-  it("prices TikTok refreshes at 30 credits and accepts the action in reservations and the ledger", async () => {
+  it("prices TikTok refreshes at 50 credits (owner pricing 2026-10-14) and accepts the action in reservations and the ledger", async () => {
     const rows = await ownerQuery<{ credits: number }>(`select credits from platform.credit_action_costs where action = 'refresh_tiktok'`);
-    expect(rows).toEqual([{ credits: 30 }]);
+    expect(rows).toEqual([{ credits: 50 }]);
     const ws = await createTestWorkspace();
     await expect(
       ownerQuery(`insert into wp.credit_reservations (workspace_id, amount, action, confirmed_cost, status, ref_type, ref_id, expires_at, spend_scope)
-        values ('${ws.workspaceId}', 30, 'refresh_tiktok', 30, 'held', 'discovery_job', 'x', now() + interval '15 minutes', 'all')`),
+        values ('${ws.workspaceId}', 50, 'refresh_tiktok', 50, 'held', 'discovery_job', 'x', now() + interval '15 minutes', 'all')`),
     ).resolves.toBeDefined();
   });
 

@@ -75,7 +75,8 @@ describe("summary and plans", () => {
       charge: { monthly: { amountMinor: 4_600, currency: "USD" }, yearly: { amountMinor: 46_800 } },
     });
     expect(p.topupPacks.map((x) => x.credits)).toEqual([1000, 5000, 15000]);
-    expect(p.actionCosts).toEqual({ search_existing: 0, find_new: 12, reveal_contact: 5, refresh_data: 10, refresh_tiktok: 30, audience_estimate: 5 });
+    // Owner pricing 2026-10-14 (migration 0027); audience estimates have no approved price and stay disabled.
+    expect(p.actionCosts).toEqual({ search_existing: 50, find_new: 50, live_creator: 10, reveal_contact: 5, refresh_data: 50, refresh_tiktok: 50, audience_estimate: 5 });
   });
 });
 
@@ -295,7 +296,7 @@ describe("plan changes", () => {
     const s = await billing.summary(c);
     expect(s).toMatchObject({ status: "canceled", plan: null, balance: { available: 1000 } });
     expect(s.lostAccess).toEqual(["monthly_credits", "outreach", "audience_details", "export"]);
-    await expect(billing.reserve(c, { action: "find_new", confirmedCost: 12, refType: "test", refId: "1" })).resolves.toMatchObject({ amount: 12 });
+    await expect(billing.reserve(c, { action: "find_new", confirmedCost: 50, refType: "test", refId: "1" })).resolves.toMatchObject({ amount: 50 });
   });
 });
 
@@ -331,7 +332,7 @@ describe("jobs", () => {
 
   it("releases abandoned reservations and expires lots", async () => {
     const c = await trialCustomer();
-    await billing.reserve(c, { action: "find_new", confirmedCost: 12, refType: "test", refId: "1" });
+    await billing.reserve(c, { action: "find_new", confirmedCost: 50, refType: "test", refId: "1" });
     clock = new Date(clock.getTime() + 16 * 60_000);
     expect(await billing.runJob("release_abandoned")).toEqual({ processed: 1 });
     expect((await billing.summary(c)).balance.reserved).toBe(0);
@@ -344,7 +345,7 @@ describe("jobs", () => {
 describe("history", () => {
   it("pages through the ledger without skipping rows written in one transaction", async () => {
     const c = await trialCustomer();
-    await billing.spendInstant(c, { action: "find_new", confirmedCost: 12, refType: "test", refId: "1" }); // reserve + spend share a timestamp
+    await billing.spendInstant(c, { action: "find_new", confirmedCost: 50, refType: "test", refId: "1" }); // reserve + spend share a timestamp
     const kinds: string[] = [];
     let cursor: string | undefined;
     do {

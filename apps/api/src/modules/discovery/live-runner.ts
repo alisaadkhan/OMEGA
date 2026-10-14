@@ -405,7 +405,7 @@ export function createLiveRunner(deps: Deps) {
       await flush();
       trail.finish("skipped", "not_processed");
       await flush();
-      // 8. Charge 12 + new creators if anything visible was found; otherwise everything comes back.
+      // 8. Charge the base fee + each new creator if anything visible was found; otherwise everything comes back.
       await deps.db.withWorkspace(workspaceId, async (tx) => {
         if (!(await repo.lockOpenJob(tx, workspaceId, jobId))) return;
         const visible = await rerank(tx, job, search);

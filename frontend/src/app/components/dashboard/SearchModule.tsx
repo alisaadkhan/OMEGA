@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
   Search,
@@ -33,6 +33,7 @@ import { AddByLinkDialog } from "./AddByLinkDialog";
 import { Compare } from "./Compare";
 import type { SearchFilters, SearchRequest } from "@mushin/contracts";
 import { useCreateSavedSearch, useCreatorSearch, useInterpret, useSavedSearches } from "../../api/search";
+import { useActionCosts } from "../../api/billing";
 import {
   extraChips,
   fromChips,
@@ -120,12 +121,11 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
   const saved = useSavedSearches();
   const createSaved = useCreateSavedSearch();
   const uiFilters = (): UiFilters => ({ platform, city, niche, followerBand, minEng, minScore, verifiedOnly, contactOnly, freshOnly, extra });
-
-  // Every filter control re-runs the current search with page 1; the text changes only when the user searches.
-  useEffect(() => {
-    setRequest((r) => (r === null ? r : requestFor(r.text, uiFilters(), 1)));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [platform, city, niche, followerBand, minEng, minScore, verifiedOnly, contactOnly, freshOnly, extra]);
+  // A catalogue search is charged per logical search (server price, shown on the button). Filter changes therefore
+  // wait for the user to search again instead of re-running, and nothing searches without a user action.
+  const costs = useActionCosts();
+  const searchCost = costs?.search_existing ?? null;
+  const filtersChanged = request !== null && JSON.stringify(toFilters(uiFilters())) !== JSON.stringify(request.filters);
 
   // Picking a preset replaces the matching exact value the AI suggested, so the chips show what is really sent.
   useEffect(() => {
@@ -143,6 +143,7 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
     if (sameRequest(next, request)) void search.refetch();
     else setRequest(next);
   };
+  /** Further pages of the same search are free (the server recognises the same logical search). */
   const goToPage = (page: number) => {
     if (request) setRequest({ ...request, page });
   };
@@ -175,9 +176,10 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
   const presets = (saved.data?.searches ?? []).map((s) => ({ id: s.id, name: s.name, query: s.queryText, filters: s.filters }));
 
   const runSearch = (searchMode: "fast" | "live" = mode) => {
+    if (searchCost === null) return;
     setMode(searchMode);
     setSelected(new Set());
-    submit(requestFor(query, uiFilters(), 1));
+    submit(requestFor(query, uiFilters(), 1, searchCost));
     if (query.trim()) {
       interpret.mutate(query.trim(), {
         onSuccess: (r) => {
@@ -191,7 +193,7 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
 
   /** The AI's reading is a suggestion: it changes the filters only when the user applies it (SRS REQ-02.02, REQ-03.06). */
   const applyInterpreted = () => {
-    if (!suggested) return;
+    if (!suggested || searchCost === null) return;
     const next = applySuggestion(uiFilters(), suggested);
     setPlatform(next.platform);
     setCity(next.city);
@@ -201,7 +203,7 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
     setVerifiedOnly(next.verifiedOnly);
     setExtra(next.extra);
     toast.info("Applied MUSHIN's reading of your search. Edit the chips anytime.");
-    submit(requestFor(query, { ...uiFilters(), ...next }, 1));
+    submit(requestFor(query, { ...uiFilters(), ...next }, 1, searchCost));
   };
 
   const savePreset = () => {
@@ -213,6 +215,7 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
   };
 
   const loadPreset = (p: { query: string; filters: SearchFilters }) => {
+    if (searchCost === null) return;
     const s = fromChips(p.filters);
     setQuery(p.query);
     setPlatform(s.platform);
@@ -225,23 +228,30 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
     setMinScore(p.filters.minAuthenticity !== undefined ? `${p.filters.minAuthenticity}+` : null);
     setContactOnly(p.filters.hasContact);
     setFreshOnly(p.filters.freshOnly);
-    setRequest({ text: p.query, filters: p.filters, page: 1 });
+    setRequest({ text: p.query, filters: p.filters, page: 1, confirmedCost: searchCost });
   };
 
   const compareList = filtered.filter((c) => selected.has(c.id)).slice(0, 5);
 
+  // A query typed on the dashboard is a submitted search: run it once the price is known. Opening the page alone
+  // never searches (it would be a paid search the user did not ask for).
+  const pendingQuery = useRef<string | null | undefined>(undefined);
   useEffect(() => {
-    let pending: string | null = null;
-    try {
-      pending = sessionStorage.getItem("mushin.pendingQuery");
-      if (pending) sessionStorage.removeItem("mushin.pendingQuery");
-    } catch {
-      /* storage unavailable */
+    if (pendingQuery.current === undefined) {
+      try {
+        pendingQuery.current = sessionStorage.getItem("mushin.pendingQuery");
+        if (pendingQuery.current) sessionStorage.removeItem("mushin.pendingQuery");
+      } catch {
+        pendingQuery.current = null; // storage unavailable
+      }
+      if (pendingQuery.current) setQuery(pendingQuery.current);
     }
-    if (pending) setQuery(pending);
-    setRequest(requestFor(pending ?? "", uiFilters(), 1));
+    if (pendingQuery.current && searchCost !== null) {
+      setRequest(requestFor(pendingQuery.current, uiFilters(), 1, searchCost));
+      pendingQuery.current = null;
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [searchCost]);
 
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
@@ -278,11 +288,8 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
     setExtra({});
   };
 
-  const resetSearch = () => {
-    clearAll();
-    const cleared = { platform: "all" as const, city: null, niche: null, followerBand: null, minEng: null, minScore: null, verifiedOnly: false, contactOnly: false, freshOnly: false, extra: {} };
-    submit(requestFor(query, cleared, 1));
-  };
+  /** Clears the filters only; searching again (a new, charged search) stays the user's choice. */
+  const resetSearch = () => clearAll();
 
   return (
     <div className="space-y-5">
@@ -322,18 +329,20 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
           </button>
           <button
             onClick={() => runSearch("fast")}
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-slate-900 px-3 text-xs text-white transition-all hover:-translate-y-px hover:bg-slate-800 hover:shadow-md"
+            disabled={searchCost === null}
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-slate-900 px-3 text-xs text-white transition-all hover:-translate-y-px hover:bg-slate-800 hover:shadow-md disabled:opacity-60"
             style={{ fontWeight: 500 }}
-            title="Search existing creators · uses our cached graph · free"
+            title={searchCost === null ? "Loading the search price…" : `Search creators already in MUSHIN · ${searchCost} credits per search · further pages and repeats within 30 minutes are free`}
           >
             <Zap className="h-3.5 w-3.5" strokeWidth={2} />
             Search Existing Creators
+            {searchCost !== null && <span className="rounded bg-white/15 px-1.5 py-0.5 tabular-nums">{searchCost} cr</span>}
           </button>
           <button
             onClick={() => setCreditConfirmOpen(true)}
             className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 px-3 text-xs text-amber-800 transition-all hover:-translate-y-px hover:shadow-md"
             style={{ fontWeight: 500 }}
-            title="Find New Creators · searches Google in real time · 12 credits plus each new creator added"
+            title={costs ? `Find New Creators · searches Google in real time · ${costs.find_new} credits plus ${costs.live_creator} per new creator, quoted before you confirm; nothing is charged if none is found` : "Find New Creators · quoted before you confirm"}
           >
             <Radio className="h-3.5 w-3.5" strokeWidth={2} />
             Find New Creators
@@ -453,6 +462,16 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
             style={{ fontWeight: 500 }}
           >
             Clear all
+          </button>
+        )}
+        {filtersChanged && (
+          <button
+            onClick={() => runSearch("fast")}
+            role="status"
+            className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs text-amber-800 hover:bg-amber-100"
+            style={{ fontWeight: 500 }}
+          >
+            Filters changed · search again to apply{searchCost !== null ? ` (${searchCost} credits)` : ""}
           </button>
         )}
 
@@ -810,8 +829,10 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
         onOpenChange={setCreditConfirmOpen}
         search={{ text: query.trim(), filters: toFilters(uiFilters()) }}
         onStarted={(id) => {
+          // Live results stream in on their own; no extra catalogue search (and no extra charge) is started.
           setLiveJob(id);
-          runSearch("fast");
+          setMode("live");
+          setSelected(new Set());
         }}
       />
     </div>

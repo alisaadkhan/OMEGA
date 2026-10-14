@@ -12,13 +12,23 @@ import {
   type SearchRequest,
 } from "@mushin/contracts";
 import { useAuth } from "../auth/AuthContext";
-import { apiRequest } from "./client";
+import { ApiError, apiRequest } from "./client";
 
 export function useCreatorSearch(req: SearchRequest | null) {
   const { status } = useAuth();
+  const qc = useQueryClient();
   return useQuery({
     queryKey: ["search", req],
-    queryFn: () => apiRequest("/v1/search", searchResponseSchema, { method: "POST", body: req }),
+    queryFn: async () => {
+      const out = await apiRequest("/v1/search", searchResponseSchema, { method: "POST", body: req }).catch((err: unknown) => {
+        // A changed price is refused (409) and charges nothing: reload the prices so the next attempt shows the new one.
+        if (err instanceof ApiError && err.status === 409) void qc.invalidateQueries({ queryKey: ["billing"] });
+        throw err;
+      });
+      // A new logical search spends credits: refresh the balance shown in the app.
+      if (out.charged) void qc.invalidateQueries({ queryKey: ["billing"] });
+      return out;
+    },
     enabled: status === "signedIn" && req !== null,
     staleTime: 30_000,
   });

@@ -49,11 +49,11 @@ describe("discovery contracts", () => {
 describe("live discovery contracts", () => {
   const search = { text: "bridal makeup", filters: { niches: ["Bridal"], creatorCity: "Lahore" } };
 
-  it("creates estimates for 5, 10 or 20 creators and requires the estimate to start a run", () => {
-    for (const maxNew of [5, 10, 20]) {
+  it("creates estimates for 5, 10 or 15 creators and requires the estimate to start a run", () => {
+    for (const maxNew of [5, 10, 15]) {
       expect(createLiveEstimateSchema.safeParse({ search, maxNew }).success).toBe(true);
     }
-    expect(createLiveEstimateSchema.safeParse({ search, maxNew: 7 }).success).toBe(false);
+    for (const maxNew of [7, 20]) expect(createLiveEstimateSchema.safeParse({ search, maxNew }).success).toBe(false);
     expect(liveSearchSchema.safeParse({ text: "x".repeat(501), filters: {} }).success).toBe(false);
     expect(startDiscoveryJobSchema.safeParse({ kind: "live", search, maxNew: 10, confirmedCost: 112 }).success).toBe(false);
     expect(startDiscoveryJobSchema.safeParse({ kind: "live", estimateId: "00000000-0000-4000-8000-000000000001" }).success).toBe(true);

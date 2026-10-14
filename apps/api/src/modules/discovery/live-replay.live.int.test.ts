@@ -32,7 +32,7 @@ const OUT = process.env["LIVE_EVAL_OUT"] ?? "";
 const LABEL = process.env["LIVE_REPLAY_LABEL"] ?? "replay";
 const ALLOW_LIVE = process.env["LIVE_REPLAY_ALLOW_LIVE"] === "1";
 const LIVE_LLM = ALLOW_LIVE || process.env["LIVE_REPLAY_LIVE_LLM"] === "1";
-const SIZE = Number(process.env["LIVE_REPLAY_SIZE"] ?? "5") as 5 | 10 | 20;
+const SIZE = Number(process.env["LIVE_REPLAY_SIZE"] ?? "5") as 5 | 10 | 15;
 const EXTRACT_BUDGET_USD = Number(process.env["LIVE_REPLAY_EXTRACT_BUDGET_USD"] ?? "0");
 const ONLY = new Set((process.env["LIVE_REPLAY_BRIEFS"] ?? "").split(",").map((s) => s.trim()).filter(Boolean));
 

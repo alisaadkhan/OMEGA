@@ -7,7 +7,9 @@ describe("search contracts", () => {
     expect(searchFiltersSchema.safeParse({ followersMin: 5000, followersMax: 10 }).success).toBe(false);
     expect(searchFiltersSchema.safeParse({ engagementMin: 9, engagementMax: 2 }).success).toBe(false);
     expect(searchFiltersSchema.safeParse({ creatorCountry: "Pakistan" }).success).toBe(false);
-    expect(searchRequestSchema.parse({ filters: {} })).toMatchObject({ text: "", page: 1 });
+    expect(searchRequestSchema.parse({ filters: {}, confirmedCost: 50 })).toMatchObject({ text: "", page: 1, confirmedCost: 50 });
+    // A search spends credits: the price the user saw is required, so a client cannot search without confirming one.
+    expect(searchRequestSchema.safeParse({ filters: {} }).success).toBe(false);
   });
 
   it("never accepts an authenticity score without evidence", () => {

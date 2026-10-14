@@ -82,3 +82,17 @@ export async function createTestWorkspace(): Promise<{ userId: string; workspace
     insert into wp.workspace_members (workspace_id, user_id, role) values ('${workspaceId}', '${userId}', 'owner');`);
   return { userId, workspaceId };
 }
+
+/**
+ * Sets credit prices for a test file whose subject is ledger mechanics rather than the business price table, and
+ * returns a function that restores the previous prices. Prices survive resetTables, so always restore in afterAll.
+ */
+export async function pinActionCosts(prices: Record<string, number>): Promise<() => Promise<void>> {
+  const before = await ownerQuery<{ action: string; credits: number }>(`select action, credits from platform.credit_action_costs`);
+  const set = (rows: [string, number][]) =>
+    ownerQuery(rows.map(([action, credits]) => `update platform.credit_action_costs set credits = ${Math.trunc(credits)} where action = '${action.replace(/[^a-z_]/g, "")}';`).join("\n"));
+  await set(Object.entries(prices));
+  return async () => {
+    await set(before.map((r) => [r.action, r.credits]));
+  };
+}

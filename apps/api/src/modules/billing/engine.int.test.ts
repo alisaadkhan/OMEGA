@@ -1,8 +1,17 @@
 import { randomUUID } from "node:crypto";
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { TenantTx } from "@mushin/db";
-import { createTestDatabase, createTestWorkspace, ownerQuery, resetTables } from "@mushin/db/testing";
+import { createTestDatabase, createTestWorkspace, ownerQuery, resetTables, pinActionCosts } from "@mushin/db/testing";
 import { createCreditEngine } from "./engine";
+
+// Ledger mechanics are tested with fixed prices, independent of the business price table (owner pricing lives in
+// discovery and search tests).
+let restorePrices: () => Promise<void> = async () => {};
+beforeAll(async () => {
+  restorePrices = await pinActionCosts({ search_existing: 0, find_new: 12, live_creator: 10, reveal_contact: 5, refresh_data: 10, refresh_tiktok: 30 });
+});
+afterAll(() => restorePrices());
+
 
 const db = createTestDatabase();
 beforeEach(resetTables);

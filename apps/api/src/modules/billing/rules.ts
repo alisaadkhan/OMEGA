@@ -73,7 +73,7 @@ export function spendScope(status: SubscriptionStatus | null): SpendScope {
 export function lostAccessFor(status: SubscriptionStatus | null, topupRemaining: number): LostAccessItem[] {
   if (spendScope(status) === "all") return [];
   const lost: LostAccessItem[] = ["monthly_credits", "outreach", "audience_details", "export"];
-  return topupRemaining > 0 ? lost : ["find_new", "reveal_contact", "refresh_data", ...lost];
+  return topupRemaining > 0 ? lost : ["search_existing", "find_new", "reveal_contact", "refresh_data", ...lost];
 }
 
 export function daysLeft(until: Date | null, now: Date): number | null {

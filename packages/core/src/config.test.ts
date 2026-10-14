@@ -167,6 +167,11 @@ describe("search and LLM settings", () => {
       ["ollama", "gpt-oss:20b", "https://ollama.com/v1"],
     ]);
     expect(c.llm[0]?.priceInPerMTok).toBeGreaterThan(0);
+    // The paid Ollama Cloud fallback must never be recorded as free by default.
+    expect(c.llm.map((p) => [p.name, p.priceInPerMTok, p.priceOutPerMTok])).toEqual([
+      ["groq", 0.075, 0.3],
+      ["ollama", 0.07, 0.3],
+    ]);
     expect(loadApiConfig(valid).llm).toEqual([]);
     expect(loadWorkerConfig({ ...worker, OLLAMA_API_KEY: "o", OLLAMA_MODEL: "gemma4:31b" }).llm.map((p) => p.model)).toEqual(["gemma4:31b"]);
   });

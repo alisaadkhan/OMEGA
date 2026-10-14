@@ -20,6 +20,7 @@ import * as repo from "./repository";
 import { cleanInterpretation, fenced, freshnessOf, isMinorProtected, meiliFilter, normalizeProfileUrl, refreshActionFor, sourceHash } from "./rules";
 import { toCards } from "./ranking";
 import { suppressedUrls } from "./suppressions";
+import { chargeCatalogSearch } from "./search-charge";
 
 export type CreatorsDeps = {
   db: Db;
@@ -92,7 +93,10 @@ export function createCreatorsService(deps: CreatorsDeps) {
     const rows = await deps.db.withTenant(tenant(ctx), (tx) => repo.cardRows(tx, hits.map((h) => h.id)));
     const cards = toCards(rows, req, settings, t, relevance);
     const start = (req.page - 1) * settings.pageSize;
+    // Paid only once the search has answered; refused (no results returned) when the price or balance does not allow it.
+    const charge = await chargeCatalogSearch({ db: deps.db, billing: deps.billing, now }, ctx, req);
     return {
+      ...charge,
       results: cards.slice(start, start + settings.pageSize),
       // A full pool means more creators matched than were scored; the index's estimate is then the better total.
       total: hits.length >= settings.candidatePool ? Math.max(cards.length, indexTotal) : cards.length,

@@ -47,7 +47,7 @@ async function customer(): Promise<TenantContext> {
 }
 const balance = async (c: TenantContext) => (await billing.summary(c)).balance;
 
-async function started(c: TenantContext, url = "https://instagram.com/coke_studio", cost = 10): Promise<string> {
+async function started(c: TenantContext, url = "https://instagram.com/coke_studio", cost = 50): Promise<string> {
   const out = await discovery.start(c, { kind: "add_by_url", url, confirmedCost: cost });
   if (out.body.status !== "started") throw new Error("expected started");
   return out.body.job.id;
@@ -62,18 +62,18 @@ describe("job runner", () => {
     const job = await discovery.get(c, id);
     expect(job).toMatchObject({ status: "completed", outcome: "created", error: null });
     expect(job.creatorId).not.toBeNull();
-    expect(await balance(c)).toMatchObject({ available: 190, reserved: 0 });
+    expect(await balance(c)).toMatchObject({ available: 150, reserved: 0 });
     const [row] = await ownerQuery<{ credits_charged: number; step: string }>(`select credits_charged, step from wp.discovery_jobs where id = '${id}'`);
-    expect(row).toEqual({ credits_charged: 10, step: "saving" });
+    expect(row).toEqual({ credits_charged: 50, step: "saving" });
     const ev = await ownerQuery<{ n: number }>(`select count(*)::int n from platform.outbox where event_type = 'notify.discovery_job_finished'`);
     expect(ev[0]?.n).toBe(1);
   });
 
-  it("charges 30 credits for TikTok", async () => {
+  it("charges TikTok the same 50-credit refresh price", async () => {
     const { runner } = runnerWith();
     const c = await customer();
-    await runner.run(await started(c, "https://tiktok.com/@cokestudiopakistan", 30), c.workspaceId);
-    expect(await balance(c)).toMatchObject({ available: 170, reserved: 0 });
+    await runner.run(await started(c, "https://tiktok.com/@cokestudiopakistan", 50), c.workspaceId);
+    expect(await balance(c)).toMatchObject({ available: 150, reserved: 0 });
   });
 
   it("a second job for a profile scraped minutes ago reuses it and refunds (Review Focus 2)", async () => {
@@ -105,7 +105,7 @@ describe("job runner", () => {
     const id = await started(c);
     await expect(runner.run(id, c.workspaceId)).rejects.toThrow(/502/);
     await expect(runner.run(id, c.workspaceId)).rejects.toThrow(/502/);
-    expect(await balance(c)).toMatchObject({ reserved: 10 });
+    expect(await balance(c)).toMatchObject({ reserved: 50 });
     await runner.run(id, c.workspaceId);
     expect(await discovery.get(c, id)).toMatchObject({ status: "failed", error: { code: "PROVIDER_UNAVAILABLE", message: expect.stringMatching(/couldn't fetch/i) } });
     expect(await balance(c)).toMatchObject({ available: 200, reserved: 0 });
@@ -129,7 +129,7 @@ describe("job runner", () => {
     expect(job).toMatchObject({ status: "completed", outcome: "created" });
     const [cr] = await ownerQuery<{ assessment_status: string }>(`select assessment_status from gcp.creators where id = '${job.creatorId ?? ""}'`);
     expect(cr?.assessment_status).toBe("pending");
-    expect(await balance(c)).toMatchObject({ available: 190 });
+    expect(await balance(c)).toMatchObject({ available: 150 });
   });
 
   it("does nothing for a job that already finished (duplicate delivery)", async () => {
@@ -139,7 +139,7 @@ describe("job runner", () => {
     await runner.run(id, c.workspaceId);
     await runner.run(id, c.workspaceId);
     expect(scraper.calls).toHaveLength(1);
-    expect(await balance(c)).toMatchObject({ available: 190 });
+    expect(await balance(c)).toMatchObject({ available: 150 });
   });
 
   it("sweeps jobs stuck past the limit and returns their credits", async () => {

@@ -1,0 +1,109 @@
+import { randomUUID } from "node:crypto";
+import { readdirSync, readFileSync } from "node:fs";
+import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { searchRequestSchema } from "@mushin/contracts";
+import { createLogger, type TenantContext } from "@mushin/core";
+import { createTestDatabase, createTestWorkspace, ownerQuery, resetTables } from "@mushin/db/testing";
+import { MockLlm, MockPayments, UnavailableSearchIndex } from "@mushin/integrations";
+import { createBillingService, MemoryAccessCache } from "../billing/index";
+import { createPostgresCatalogSearch } from "./postgres-search";
+import { isIndexable, toDocument } from "./projection";
+import * as repo from "./repository";
+import { SEARCH_CHARGE_WINDOW_MS } from "./search-charge";
+import { createCreatorsService } from "./service";
+import { addCreator, TEST_KEY } from "./test-fixtures";
+
+// Owner pricing 2026-10-14: a standalone catalogue search costs 50 credits once per logical search.
+const db = createTestDatabase();
+const logger = createLogger({ level: "silent" });
+const payments = new MockPayments({ webhookSecret: "s".repeat(40), publicApiUrl: "http://api.test", deliver: async () => {} });
+const billing = createBillingService({ db, payments, cache: new MemoryAccessCache(), logger });
+let clock = Date.now();
+const now = () => new Date(clock);
+const deps = { db, index: new UnavailableSearchIndex(), llm: new MockLlm(() => ({})), billing, encryptionKey: TEST_KEY, logger, now };
+const creators = createCreatorsService({ ...deps, nativeSearch: createPostgresCatalogSearch(db) });
+
+afterAll(() => db.close());
+beforeEach(async () => {
+  await resetTables();
+  clock = Date.now();
+  const id = await addCreator(db, { displayName: "Sana Bridal", niches: ["Bridal"] });
+  const docs = (await db.withSystem((tx) => repo.indexRows(tx, [id]))).filter(isIndexable).map(toDocument);
+  await db.withSystem((tx) => repo.upsertPostgresSearchDocuments(tx, docs));
+});
+
+async function customer(credits: "trial" | "none" = "trial"): Promise<TenantContext> {
+  const ws = await createTestWorkspace();
+  if (credits === "trial") await db.withTenant(ws, (tx) => billing.startTrial(tx, ws.workspaceId));
+  return { ...ws, requestId: "req-search-charge", role: "owner" };
+}
+const req = (text: string, filters: Record<string, unknown> = {}, page = 1, confirmedCost = 50) => searchRequestSchema.parse({ text, filters, page, confirmedCost });
+const available = async (c: TenantContext) => (await billing.summary(c)).balance.available;
+const searchSpends = async (c: TenantContext) =>
+  (await ownerQuery<{ n: number }>(`select count(*)::int n from wp.credit_ledger where workspace_id = '${c.workspaceId}' and action = 'search_existing' and kind = 'spend'`))[0]?.n ?? 0;
+
+describe("catalogue search price", () => {
+  it("charges the server price once per logical search; pages, repeats and spacing/case variants are free", async () => {
+    const c = await customer();
+    const first = await creators.search(c, req("Sana"));
+    expect(first).toMatchObject({ charged: true, creditsCharged: 50 });
+    expect(first.results.map((r) => r.displayName)).toEqual(["Sana Bridal"]);
+    expect(await available(c)).toBe(150);
+    for (const repeat of [req("Sana", {}, 2), req("  sana "), req("SANA")]) {
+      expect(await creators.search(c, repeat)).toMatchObject({ charged: false, creditsCharged: 0 });
+    }
+    expect(await available(c)).toBe(150);
+    expect(await searchSpends(c)).toBe(1);
+  });
+
+  it("charges again for different filters, for another user and after the 30-minute window", async () => {
+    const c = await customer();
+    await creators.search(c, req("Sana"));
+    expect(await creators.search(c, req("Sana", { platform: "instagram" }))).toMatchObject({ charged: true });
+    const teammate = randomUUID();
+    await ownerQuery(`insert into wp.users (id, email) values ('${teammate}', '${teammate}@test.mushin.pk');
+      insert into wp.workspace_members (workspace_id, user_id, role) values ('${c.workspaceId}', '${teammate}', 'member');`);
+    expect(await creators.search({ ...c, userId: teammate, role: "member" }, req("Sana"))).toMatchObject({ charged: true });
+    clock += SEARCH_CHARGE_WINDOW_MS + 1000;
+    expect(await creators.search(c, req("Sana"))).toMatchObject({ charged: true });
+    expect(await searchSpends(c)).toBe(4);
+    expect(await available(c)).toBe(0);
+  });
+
+  it("refuses a stale confirmed price, an empty balance or a workspace without a plan, without charging", async () => {
+    const c = await customer();
+    await expect(creators.search(c, req("Sana", {}, 1, 10))).rejects.toMatchObject({ code: "CONFLICT" });
+    expect(await available(c)).toBe(200);
+    expect((await ownerQuery<{ n: number }>(`select count(*)::int n from wp.catalog_search_charges`))[0]?.n).toBe(0);
+    for (const text of ["a1", "a2", "a3", "a4"]) await creators.search(c, req(text)); // 4 × 50 spends the 200-credit trial
+    await expect(creators.search(c, req("a5"))).rejects.toMatchObject({ code: "INSUFFICIENT_CREDITS" });
+    expect(await searchSpends(c)).toBe(4);
+    expect(await available(c)).toBe(0);
+    await expect(creators.search(await customer("none"), req("Sana"))).rejects.toMatchObject({ code: "ENTITLEMENT_REQUIRED" });
+  });
+
+  it("charges simultaneous identical searches once", async () => {
+    const c = await customer();
+    const outs = await Promise.all(Array.from({ length: 5 }, () => creators.search(c, req("Sana"))));
+    expect(outs.filter((o) => o.charged)).toHaveLength(1);
+    expect(await available(c)).toBe(150);
+  });
+
+  it("charges nothing when the search itself fails", async () => {
+    const c = await customer();
+    const broken = createCreatorsService(deps); // Meilisearch unavailable and no PostgreSQL fallback
+    await expect(broken.search(c, req("Sana"))).rejects.toMatchObject({ code: "PROVIDER_UNAVAILABLE" });
+    expect(await available(c)).toBe(200);
+  });
+
+  it("is never charged by Live Discovery's internal catalogue lookups", () => {
+    // The only caller of the standalone charge is the customer search endpoint's service method.
+    const dir = new URL("../discovery/", import.meta.url);
+    const sources = readdirSync(dir, { recursive: true })
+      .map(String)
+      .filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"))
+      .map((f) => readFileSync(new URL(f.replaceAll("\\", "/"), dir), "utf8"));
+    expect(sources.length).toBeGreaterThan(5);
+    for (const s of sources) expect(s).not.toMatch(/chargeCatalogSearch|search-charge|creators\.search\(/);
+  });
+});

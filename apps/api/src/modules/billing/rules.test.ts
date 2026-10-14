@@ -91,6 +91,7 @@ describe("access", () => {
   it("lists what a workspace without a plan has lost", () => {
     expect(lostAccessFor("active", 0)).toEqual([]);
     expect(lostAccessFor("expired", 0)).toEqual([
+      "search_existing",
       "find_new",
       "reveal_contact",
       "refresh_data",

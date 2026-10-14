@@ -7,6 +7,7 @@ import {
   ledgerPageSchema,
   planChangeResponseSchema,
   type CheckoutRequest,
+  type CreditAction,
   type PlanChangeRequest,
 } from "@mushin/contracts";
 import { useAuth } from "../auth/AuthContext";
@@ -39,6 +40,11 @@ export function useBillingPlans() {
     enabled: status === "signedIn",
     staleTime: 5 * 60_000,
   });
+}
+
+/** Current credit prices from the server, the only source of prices (null while loading). */
+export function useActionCosts(): Record<CreditAction, number> | null {
+  return useBillingPlans().data?.actionCosts ?? null;
 }
 
 export function useLedger(enabled: boolean) {

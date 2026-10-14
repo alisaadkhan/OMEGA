@@ -3,6 +3,7 @@ import type { LostAccessItem } from "@mushin/contracts";
 import { useBillingSummary } from "../../api/billing";
 
 const LOST_LABEL: Record<LostAccessItem, string> = {
+  search_existing: "searching existing creators",
   find_new: "finding new creators",
   reveal_contact: "revealing contact details",
   refresh_data: "refreshing creator data",

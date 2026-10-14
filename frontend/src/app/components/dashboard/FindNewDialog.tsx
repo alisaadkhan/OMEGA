@@ -5,7 +5,7 @@ import { useCreateLiveEstimate, useStartJob } from "../../api/discovery";
 import { livePlatformsText, liveSummary } from "../../api/discovery-mapping";
 import { useToast } from "../../lib/toast";
 
-const SIZES: LiveRunSize[] = [5, 10, 20];
+const SIZES: LiveRunSize[] = [5, 10, 15];
 
 /** SRS §4.2.2, REQ-02.06: Find New Creators shows its maximum cost and starts only on confirmation. */
 export function FindNewDialog({ open, onOpenChange, search, onStarted }: { open: boolean; onOpenChange: (o: boolean) => void; search: LiveSearch; onStarted: (jobId: string) => void }) {

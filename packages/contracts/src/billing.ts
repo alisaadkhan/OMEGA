@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const creditActionSchema = z.enum(["search_existing", "find_new", "reveal_contact", "refresh_data", "refresh_tiktok", "audience_estimate"]);
+export const creditActionSchema = z.enum(["search_existing", "find_new", "live_creator", "reveal_contact", "refresh_data", "refresh_tiktok", "audience_estimate"]);
 export type CreditAction = z.infer<typeof creditActionSchema>;
 
 export const planIdSchema = z.enum(["explorer", "growth", "scale"]);
@@ -16,6 +16,7 @@ export const meterStateSchema = z.enum(["normal", "amber", "red"]);
 export type MeterState = z.infer<typeof meterStateSchema>;
 
 export const lostAccessItemSchema = z.enum([
+  "search_existing",
   "find_new",
   "reveal_contact",
   "refresh_data",

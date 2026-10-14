@@ -46,13 +46,16 @@ const sharedObject = z.object({
   MEILISEARCH_INDEX_PREFIX: z.string().regex(/^[a-z0-9_]*$/, "lowercase letters, digits and _ only").default(""),
   GROQ_API_KEY: z.string().min(1).optional(),
   GROQ_MODEL: z.string().min(1).default("openai/gpt-oss-20b"),
+  // Published USD prices per million tokens, checked 2026-10-14: Groq openai/gpt-oss-20b (console.groq.com model page)
+  // and Ollama Cloud gpt-oss:20b pay-as-you-go (ollama.com/pricing). Ollama plans include usage credits, but usage is
+  // still recorded at the per-token price so paid fallback traffic is never booked as free. Re-check on model changes.
   GROQ_PRICE_IN_PER_MTOK: z.coerce.number().min(0).default(0.075),
   GROQ_PRICE_OUT_PER_MTOK: z.coerce.number().min(0).default(0.3),
   OLLAMA_API_KEY: z.string().min(1).optional(),
   OLLAMA_BASE_URL: z.url().default("https://ollama.com/v1"),
   OLLAMA_MODEL: z.string().min(1).default("gpt-oss:20b"),
-  OLLAMA_PRICE_IN_PER_MTOK: z.coerce.number().min(0).default(0),
-  OLLAMA_PRICE_OUT_PER_MTOK: z.coerce.number().min(0).default(0),
+  OLLAMA_PRICE_IN_PER_MTOK: z.coerce.number().min(0).default(0.07),
+  OLLAMA_PRICE_OUT_PER_MTOK: z.coerce.number().min(0).default(0.3),
 });
 type SharedValues = z.output<typeof sharedObject>;
 

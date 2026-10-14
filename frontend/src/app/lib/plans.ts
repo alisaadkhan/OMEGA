@@ -1,5 +1,5 @@
 export type PlanFeature = {
-  key: "existing" | "new" | "audience" | "contact" | "outreach" | "campaigns" | "lists" | "export";
+  key: "existing" | "new" | "contact" | "campaigns" | "lists" | "outreach_log";
   label: string;
   value?: string;
   note?: string;
@@ -18,45 +18,41 @@ export type Plan = {
   highlight?: boolean;
 };
 
-const AUDIENCE_NOTE =
-  "Age, gender and location of a creator's audience. AI-estimated from public signals.";
+/**
+ * The public pricing cards. Prices and credits mirror `platform.plans` (checked by plans-claims.test.ts); the persisted
+ * id of Starter stays `explorer`. Every feature listed here works on every plan today. Not listed because they are not
+ * available yet: audience demographics, outreach email sending, data export and per-plan campaign limits.
+ */
+const FEATURES: PlanFeature[] = [
+  { key: "existing", label: "Search Existing Creators", note: "Each new search uses credits; further pages and repeats within 30 minutes are free." },
+  { key: "new", label: "Find New Creators", note: "Quoted before you confirm. You pay only for new creators actually added; nothing if none is found." },
+  { key: "contact", label: "Reveal Contact Information" },
+  { key: "lists", label: "Lists" },
+  { key: "campaigns", label: "Campaigns" },
+  { key: "outreach_log", label: "Outreach log", note: "Record your outreach by hand. MUSHIN does not send emails yet." },
+];
 
 export const PLANS: Plan[] = [
   {
     id: "explorer",
-    name: "EXPLORER",
+    name: "STARTER",
     tagline: "For freelancers and solo brands",
     positioning: "Everything you need to start finding the right creators.",
     monthly: 4900,
     yearly: 3900,
     credits: 2500,
-    features: [
-      { key: "existing", label: "Search Existing Creators" },
-      { key: "new", label: "Find New Creators" },
-      { key: "audience", label: "Audience Details", value: "5 profiles / month", note: AUDIENCE_NOTE },
-      { key: "contact", label: "Reveal Contact Information" },
-      { key: "campaigns", label: "Campaigns", value: "3 campaigns" },
-      { key: "lists", label: "Lists" },
-    ],
+    features: FEATURES,
     cta: "Start free trial",
   },
   {
     id: "growth",
     name: "GROWTH",
     tagline: "For active brands and agencies",
-    positioning: "Search, evaluate, and reach out to creators with more room to work.",
+    positioning: "The same tools with nearly five times the credits.",
     monthly: 12900,
     yearly: 10900,
     credits: 12000,
-    features: [
-      { key: "existing", label: "Search Existing Creators" },
-      { key: "new", label: "Find New Creators" },
-      { key: "audience", label: "Audience Details", value: "AI-estimated", note: AUDIENCE_NOTE },
-      { key: "contact", label: "Reveal Contact Information" },
-      { key: "outreach", label: "Outreach Emails", value: "500 / month" },
-      { key: "campaigns", label: "Campaigns", value: "Unlimited" },
-      { key: "lists", label: "Lists" },
-    ],
+    features: FEATURES,
     cta: "Upgrade to Growth",
     highlight: true,
   },
@@ -64,20 +60,11 @@ export const PLANS: Plan[] = [
     id: "scale",
     name: "SCALE",
     tagline: "For agencies operating at volume",
-    positioning: "More credits and outreach capacity for teams running several brands.",
+    positioning: "The most credits, for teams running several brands.",
     monthly: 24900,
     yearly: 19900,
     credits: 35000,
-    features: [
-      { key: "existing", label: "Search Existing Creators" },
-      { key: "new", label: "Find New Creators" },
-      { key: "audience", label: "Audience Details", value: "AI-estimated", note: AUDIENCE_NOTE },
-      { key: "contact", label: "Reveal Contact Information" },
-      { key: "outreach", label: "Outreach Emails", value: "2,000 / month" },
-      { key: "campaigns", label: "Campaigns", value: "Unlimited" },
-      { key: "lists", label: "Lists" },
-      { key: "export", label: "Data Export" },
-    ],
+    features: FEATURES,
     cta: "Choose Scale",
   },
 ];

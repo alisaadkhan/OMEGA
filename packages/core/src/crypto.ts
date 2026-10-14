@@ -29,3 +29,16 @@ export function sha256Hex(value: string): string {
 export function randomToken(bytes = 32): string {
   return randomBytes(bytes).toString("base64url");
 }
+
+/** Sorted-key JSON, so the same search always hashes the same way. */
+export function stableJson(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(stableJson).join(",")}]`;
+  if (v && typeof v === "object") {
+    return `{${Object.entries(v as Record<string, unknown>)
+      .filter(([, x]) => x !== undefined)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([k, x]) => `${JSON.stringify(k)}:${stableJson(x)}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(v);
+}

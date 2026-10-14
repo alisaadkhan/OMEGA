@@ -12,10 +12,9 @@ export const STEP_LABEL: Record<DiscoveryJobStep, string> = {
 
 export const isOpenJob = (j: DiscoveryJob) => j.status === "queued" || j.status === "running";
 
-/** Same maximum the API reserves (spec D2): 12 + size × the per-creator price, TikTok's whenever TikTok is in scope. */
-export function liveMaxCost(costs: Record<CreditAction, number>, platform: "instagram" | "tiktok" | "youtube" | undefined, maxNew: number): number {
-  const perCreator = platform === "instagram" || platform === "youtube" ? costs.refresh_data : Math.max(costs.refresh_data, costs.refresh_tiktok);
-  return costs.find_new + maxNew * perCreator;
+/** The largest charge a run of this size can be quoted: the base fee plus the per-creator price for every slot (the server quote is what is reserved). */
+export function liveMaxCost(costs: Record<CreditAction, number>, maxNew: number): number {
+  return costs.find_new + maxNew * costs.live_creator;
 }
 
 const PLATFORM_NAMES = { instagram: "Instagram", tiktok: "TikTok", youtube: "YouTube" } as const;

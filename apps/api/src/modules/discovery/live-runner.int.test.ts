@@ -114,8 +114,8 @@ describe("live runner", () => {
     const id = await startRun(c);
     await runner.run(id, c.workspaceId);
     const job = await discovery.get(c, id);
-    expect(job).toMatchObject({ status: "completed", outcome: "succeeded", live: { found: 7, new: 6, known: 1, creditsCharged: 72, progress: { persistedResults: 7, qualifiedCreators: 7, billableCreators: 6 } } });
-    expect(await balance(c)).toMatchObject({ available: 128, reserved: 0 });
+    expect(job).toMatchObject({ status: "completed", outcome: "succeeded", live: { found: 7, new: 6, known: 1, creditsCharged: 110, progress: { persistedResults: 7, qualifiedCreators: 7, billableCreators: 6 } } });
+    expect(await balance(c)).toMatchObject({ available: 90, reserved: 0 });
     const res = await discovery.results(c, id, 0);
     expect(res.done).toBe(true);
     expect(res.results.find((r) => r.id === known)).toMatchObject({ isNew: false });
@@ -180,9 +180,9 @@ describe("live runner", () => {
     id = await startRun(c, 5);
     await runner.run(id, c.workspaceId);
     const job = await discovery.get(c, id);
-    expect(job).toMatchObject({ status: "completed", outcome: "canceled", live: { new: 1, creditsCharged: 12 + 10 } });
+    expect(job).toMatchObject({ status: "completed", outcome: "canceled", live: { new: 1, creditsCharged: 50 + 10 } });
     expect(job.error?.message).toMatch(/Stopped at your request/);
-    expect(await balance(c)).toMatchObject({ available: 200 - 22, reserved: 0 });
+    expect(await balance(c)).toMatchObject({ available: 200 - 60, reserved: 0 });
     expect((await discovery.results(c, id, 0)).results).toHaveLength(1);
     const trail = await trailOf(id);
     expect(trail.filter((r) => r.decision === "pending")).toEqual([]);
@@ -218,7 +218,7 @@ describe("live runner", () => {
     const id = await startRun(c);
     await runner.run(id, c.workspaceId);
     expect(scraper.batchCalls[0]?.handles.sort()).toEqual(["candidate_0", "candidate_1"]);
-    expect(await discovery.get(c, id)).toMatchObject({ status: "completed", outcome: "succeeded", live: { new: 2, creditsCharged: 12 + 2 * 10 } });
+    expect(await discovery.get(c, id)).toMatchObject({ status: "completed", outcome: "succeeded", live: { new: 2, creditsCharged: 50 + 2 * 10 } });
   });
 
   it("releases the full reservation when fewer than eight candidates pass the cheap G1 gate", async () => {
@@ -238,7 +238,7 @@ describe("live runner", () => {
     const id = await startRun(c, 5);
     await runner.run(id, c.workspaceId);
     expect(scraper.batchCalls[0]?.handles).toHaveLength(5);
-    expect(await discovery.get(c, id)).toMatchObject({ live: { new: 5, creditsCharged: 62 } });
+    expect(await discovery.get(c, id)).toMatchObject({ live: { new: 5, creditsCharged: 100 } });
     // Candidates beyond the chosen run size are recorded as not extracted, not silently dropped.
     const trail = await trailOf(id);
     expect(trail.filter((r) => r.reason === "run_size_limit")).toHaveLength(3); // seven links padded to the eight-candidate pool
@@ -251,7 +251,7 @@ describe("live runner", () => {
     const c = await customer();
     const id = await startRun(c);
     await runner.run(id, c.workspaceId);
-    expect(await discovery.get(c, id)).toMatchObject({ live: { new: 7, creditsCharged: 82 } });
+    expect(await discovery.get(c, id)).toMatchObject({ live: { new: 7, creditsCharged: 120 } });
     expect((await discovery.results(c, id, 0)).results.map((r) => r.handle).sort()).toEqual(["new_a", "pool_1", "pool_2", "pool_3", "pool_4", "pool_5", "pool_6"]);
   });
 
@@ -283,8 +283,8 @@ describe("live runner", () => {
     await runner.run(id, c.workspaceId);
     expect(web.calls).toHaveLength(3); // retry reuses the role-targeted queries from cache
     expect(scraper.batchCalls).toHaveLength(1);
-    expect(await discovery.get(c, id)).toMatchObject({ status: "completed", live: { new: 8, creditsCharged: 92 } });
-    expect(await balance(c)).toMatchObject({ available: 108, reserved: 0 });
+    expect(await discovery.get(c, id)).toMatchObject({ status: "completed", live: { new: 8, creditsCharged: 130 } });
+    expect(await balance(c)).toMatchObject({ available: 70, reserved: 0 });
   });
 
   it("settles a partial result once when a later profile fails permanently", async () => {
@@ -306,8 +306,8 @@ describe("live runner", () => {
     const c = await customer();
     const id = await startRun(c);
     await runner.run(id, c.workspaceId);
-    expect(await discovery.get(c, id)).toMatchObject({ status: "completed", outcome: "partial", live: { found: 1, new: 1, creditsCharged: 22, progress: { persistedResults: 1, billableCreators: 1 } } });
-    expect(await balance(c)).toMatchObject({ available: 178, reserved: 0 });
+    expect(await discovery.get(c, id)).toMatchObject({ status: "completed", outcome: "partial", live: { found: 1, new: 1, creditsCharged: 60, progress: { persistedResults: 1, billableCreators: 1 } } });
+    expect(await balance(c)).toMatchObject({ available: 140, reserved: 0 });
     expect((await discovery.results(c, id, 0)).results.map((r) => r.handle)).toEqual(["first_saved"]);
   });
 
@@ -420,7 +420,7 @@ describe("live runner", () => {
       const id = await startRun(c, 5);
       await runner.run(id, c.workspaceId);
       expect(s.batchCalls).toHaveLength(1);
-      expect(await discovery.get(c, id)).toMatchObject({ live: { new: 2, creditsCharged: 12 + 2 * 10 } });
+      expect(await discovery.get(c, id)).toMatchObject({ live: { new: 2, creditsCharged: 50 + 2 * 10 } });
       expect((await trailOf(id)).filter((r) => r.reason === "run_size_limit")).toHaveLength(5);
     });
 
@@ -430,8 +430,8 @@ describe("live runner", () => {
       const id = await startRun(c, 5);
       await runner.run(id, c.workspaceId);
       expect(s.batchCalls.map((b) => b.handles.length)).toEqual([5, 3]);
-      expect(await discovery.get(c, id)).toMatchObject({ status: "completed", live: { new: 5, creditsCharged: 12 + 5 * 10 } });
-      expect(await balance(c)).toMatchObject({ available: 200 - 62, reserved: 0 });
+      expect(await discovery.get(c, id)).toMatchObject({ status: "completed", live: { new: 5, creditsCharged: 50 + 5 * 10 } });
+      expect(await balance(c)).toMatchObject({ available: 200 - 100, reserved: 0 });
       const trail = await trailOf(id);
       expect(trail.filter((r) => r.decision === "delivered")).toHaveLength(5);
       expect(trail.filter((r) => r.reason === "private_account")).toHaveLength(3);
@@ -459,9 +459,9 @@ describe("live runner", () => {
       const id = started.body.job.id;
       await runner.run(id, c.workspaceId);
       expect(batches).toBe(2);
-      expect(await discovery.get(c, id)).toMatchObject({ status: "completed", outcome: "succeeded", live: { new: 2, creditsCharged: 12 + 2 * 10 } });
-      expect(estimate.maxCredits).toBe(62);
-      expect(await balance(c)).toMatchObject({ available: 200 - 32, reserved: 0 });
+      expect(await discovery.get(c, id)).toMatchObject({ status: "completed", outcome: "succeeded", live: { new: 2, creditsCharged: 50 + 2 * 10 } });
+      expect(estimate.maxCredits).toBe(100);
+      expect(await balance(c)).toMatchObject({ available: 200 - 70, reserved: 0 });
       const trail = await trailOf(id);
       expect(trail.filter((r) => r.reason === "provider_budget_exhausted").length).toBeGreaterThan(0);
       expect(trail.filter((r) => r.decision === "pending")).toEqual([]);
@@ -528,10 +528,10 @@ describe("live runner", () => {
     const id = await startRun(c, 10);
     await runner.run(id, c.workspaceId);
     expect(peak).toBeGreaterThan(1);
-    expect(await discovery.get(c, id)).toMatchObject({ status: "completed", live: { new: 10, creditsCharged: 12 + 10 * 10, progress: { persistedResults: 10, billableCreators: 10 } } });
+    expect(await discovery.get(c, id)).toMatchObject({ status: "completed", live: { new: 10, creditsCharged: 50 + 10 * 10, progress: { persistedResults: 10, billableCreators: 10 } } });
     const seqs = await ownerQuery<{ seq: number }>(`select seq from wp.discovery_results where job_id = '${id}' order by seq`);
     expect(seqs.map((r) => r.seq)).toEqual(Array.from({ length: 10 }, (_, i) => i + 1));
-    expect(await balance(c)).toMatchObject({ available: 200 - 112, reserved: 0 });
+    expect(await balance(c)).toMatchObject({ available: 200 - 150, reserved: 0 });
   });
 
   it("skips a known creator whose stored sample cannot be read instead of failing the run", async () => {

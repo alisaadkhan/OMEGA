@@ -58,9 +58,12 @@ describe("creators API", () => {
     const id = await addCreator(db, { displayName: "Sana Bridal", contacts: [{ kind: "email", value: "sana@example.com", trust: "verified", source: "bio" }] });
     await createCreatorIndexer({ db, index, logger }).sync([id]);
     const { app, auth } = await setup();
-    const search = await app.inject({ method: "POST", url: "/v1/search", headers: auth, payload: { text: "Sana", filters: { niches: ["Bridal"] } } });
+    const search = await app.inject({ method: "POST", url: "/v1/search", headers: auth, payload: { text: "Sana", filters: { niches: ["Bridal"] }, confirmedCost: 50 } });
     expect(search.statusCode).toBe(200);
-    expect(search.json()).toMatchObject({ results: [{ id, displayName: "Sana Bridal" }], fewResults: true });
+    expect(search.json()).toMatchObject({ results: [{ id, displayName: "Sana Bridal" }], fewResults: true, charged: true, creditsCharged: 50 });
+    // The same search again (e.g. a refetch) is free.
+    const again = await app.inject({ method: "POST", url: "/v1/search", headers: auth, payload: { text: " sana ", filters: { niches: ["Bridal"] }, confirmedCost: 50 } });
+    expect(again.json()).toMatchObject({ charged: false, creditsCharged: 0 });
     expect((await app.inject({ method: "GET", url: `/v1/creators/${id}`, headers: auth })).json()).toMatchObject({ revealed: false, revealCost: 5 });
     expect((await app.inject({ method: "POST", url: `/v1/creators/${id}/reveal`, headers: auth, payload: { confirmedCost: 5 } })).statusCode).toBe(400);
     const key = { ...auth, "idempotency-key": "reveal-1" };
@@ -72,7 +75,8 @@ describe("creators API", () => {
 
   it("validates filters, rate-limits interpretation and reports search outages as 503", async () => {
     const { app, auth } = await setup({ aiLimit: 2 });
-    expect((await app.inject({ method: "POST", url: "/v1/search", headers: auth, payload: { filters: { followersMin: 10, followersMax: 1 } } })).statusCode).toBe(400);
+    expect((await app.inject({ method: "POST", url: "/v1/search", headers: auth, payload: { filters: { followersMin: 10, followersMax: 1 }, confirmedCost: 50 } })).statusCode).toBe(400);
+    expect((await app.inject({ method: "POST", url: "/v1/search", headers: auth, payload: { filters: {} } })).statusCode).toBe(400); // no confirmed price
     for (let i = 0; i < 2; i++) {
       const ok = await app.inject({ method: "POST", url: "/v1/search/interpret", headers: auth, payload: { text: "bridal Lahore" } });
       expect(ok.json()).toMatchObject({ chips: { niches: ["Bridal"], creatorCity: "Lahore" } });
@@ -81,7 +85,7 @@ describe("creators API", () => {
     expect(limited.statusCode).toBe(429);
     expect(limited.headers["retry-after"]).toBeDefined();
     const down = await setup({ index: new UnavailableSearchIndex() });
-    const r = await down.app.inject({ method: "POST", url: "/v1/search", headers: down.auth, payload: { filters: {} } });
+    const r = await down.app.inject({ method: "POST", url: "/v1/search", headers: down.auth, payload: { filters: {}, confirmedCost: 50 } });
     expect(r.statusCode).toBe(503);
     expect(r.json()).toMatchObject({ error: { code: "PROVIDER_UNAVAILABLE" } });
   });

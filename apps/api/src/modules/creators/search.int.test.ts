@@ -22,8 +22,16 @@ const llm = new MockLlm(() => llmReply);
 const creators = createCreatorsService({ db, index, llm, billing, encryptionKey: TEST_KEY, logger });
 const postgresCreators = createCreatorsService({ db, index, nativeSearch: createPostgresCatalogSearch(db), llm, billing, encryptionKey: TEST_KEY, logger });
 
-beforeAll(() => index.ensureSettings());
+// These tests check what search finds, not what it costs (search-charge.int.test.ts covers the price): searching is
+// free for this file and the owner price is put back afterwards.
+let searchPrice = 0;
+beforeAll(async () => {
+  await index.ensureSettings();
+  searchPrice = (await ownerQuery<{ credits: number }>(`select credits from platform.credit_action_costs where action = 'search_existing'`))[0]?.credits ?? 0;
+  await ownerQuery(`update platform.credit_action_costs set credits = 0 where action = 'search_existing'`);
+});
 afterAll(async () => {
+  await ownerQuery(`update platform.credit_action_costs set credits = ${searchPrice} where action = 'search_existing'`);
   await index.drop();
   await db.close();
 });
@@ -45,7 +53,7 @@ async function customer(): Promise<TenantContext> {
   return { ...(await createTestWorkspace()), requestId: "req-search", role: "owner" };
 }
 
-const req = (text: string, filters: Record<string, unknown> = {}, page = 1) => searchRequestSchema.parse({ text, filters, page });
+const req = (text: string, filters: Record<string, unknown> = {}, page = 1) => searchRequestSchema.parse({ text, filters, page, confirmedCost: 0 });
 
 describe("search", () => {
   it("filters by every requested dimension and ranks by fit", async () => {
@@ -212,8 +220,8 @@ describe("lookup", () => {
     expect((await creators.lookup(c, "Bilal")).matches.map((m) => m.id)).toEqual([id]);
     expect((await creators.lookup(c, "https://www.tiktok.com/@Bilal_Eats?lang=en")).matches.map((m) => m.id)).toEqual([id]);
     expect((await creators.lookup(c, "https://instagram.com/nobody_here")).matches).toEqual([]);
-    expect((await creators.lookup(c, "https://www.tiktok.com/@new_person")).addable).toEqual({ platform: "tiktok", handle: "new_person", url: "https://tiktok.com/@new_person", cost: 30 });
-    expect((await creators.lookup(c, "https://instagram.com/nobody_here")).addable).toMatchObject({ platform: "instagram", cost: 10 });
+    expect((await creators.lookup(c, "https://www.tiktok.com/@new_person")).addable).toEqual({ platform: "tiktok", handle: "new_person", url: "https://tiktok.com/@new_person", cost: 50 });
+    expect((await creators.lookup(c, "https://instagram.com/nobody_here")).addable).toMatchObject({ platform: "instagram", cost: 50 }); // add-by-link uses the refresh price, the same on every platform
     expect((await creators.lookup(c, "Bilal")).addable).toBeNull();
     // A creator hidden from customers is neither a match nor addable (the discovery service answers NOT_FOUND too).
     await addCreator(db, { isMinor: true, profiles: [{ platform: "instagram", handle: "hidden_minor" }] });

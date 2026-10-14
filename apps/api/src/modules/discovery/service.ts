@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { searchFiltersSchema, validateLiveBrief, type CreateLiveEstimate, type DiscoveryJob, type DiscoveryResult, type LiveEstimate, type LiveRunSize, type LiveSearch, type StartDiscoveryJob, type StartDiscoveryJobResponse } from "@mushin/contracts";
-import { AppError, sha256Hex, type TenantContext } from "@mushin/core";
+import { AppError, sha256Hex, stableJson, type TenantContext } from "@mushin/core";
 import { writeOutbox, type Db } from "@mushin/db";
 import type { BillingService } from "../billing/index";
 import { findProfileByUrl, fitLabel, getEnrichmentSettings, getSearchSettings, isVisibleCreator, suppressedUrls, normalizeProfileUrl, profileTarget, rankCards, refreshActionFor, type CreatorPlatform } from "../creators/index";
@@ -19,19 +19,6 @@ const isOneOpenViolation = (err: unknown) => {
  * credits first, leaves too few for this one. Either way the open job is the answer (one charge for repeated clicks).
  */
 const mayBeDuplicate = (err: unknown) => isOneOpenViolation(err) || (err instanceof AppError && err.code === "INSUFFICIENT_CREDITS");
-
-/** Sorted-key JSON, so the same search always hashes the same way. */
-function stableJson(v: unknown): string {
-  if (Array.isArray(v)) return `[${v.map(stableJson).join(",")}]`;
-  if (v && typeof v === "object") {
-    return `{${Object.entries(v as Record<string, unknown>)
-      .filter(([, x]) => x !== undefined)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([k, x]) => `${JSON.stringify(k)}:${stableJson(x)}`)
-      .join(",")}}`;
-  }
-  return JSON.stringify(v);
-}
 
 export function searchHash(search: LiveSearch, maxNew: LiveRunSize): string {
   return sha256Hex(stableJson({ text: search.text.trim().toLowerCase(), filters: search.filters, maxNew }));
@@ -126,8 +113,10 @@ export function createDiscoveryService(deps: DiscoveryDeps) {
       });
     }
     return deps.db.withTenant(tenant(ctx), async (tx) => {
-      const c = await deps.billing.engine.costs(tx, ["find_new", "refresh_data", "refresh_tiktok"]);
-      const prices = { search: c.find_new, instagram: c.refresh_data, youtube: c.refresh_data, tiktok: c.refresh_tiktok };
+      // A base fee plus one price per new qualified creator, the same on every platform (owner pricing 2026-10-14);
+      // provider cost is recorded separately and never shown as the customer price.
+      const c = await deps.billing.engine.costs(tx, ["find_new", "live_creator"]);
+      const prices = { search: c.find_new, instagram: c.live_creator, youtube: c.live_creator, tiktok: c.live_creator };
       const perCreator = Math.max(...platformsFor(body.search).map((p) => prices[p]));
       const maxCredits = prices.search + body.maxNew * perCreator;
       const expiresAt = new Date(now().getTime() + 15 * 60_000);

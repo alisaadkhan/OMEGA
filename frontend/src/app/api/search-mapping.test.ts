@@ -104,10 +104,10 @@ describe("search mapping", () => {
   });
 
   it("builds one request from the screen state, and tells when a search must be re-fetched rather than re-keyed", () => {
-    const r = requestFor("bridal", ui, 2);
-    expect(r).toEqual({ text: "bridal", filters: toFilters(ui), page: 2 });
-    expect(sameRequest(r, requestFor("bridal", { ...ui }, 2))).toBe(true);
-    expect(sameRequest(r, requestFor("bridal", { ...ui, platform: "tiktok" }, 2))).toBe(false);
+    const r = requestFor("bridal", ui, 2, 50);
+    expect(r).toEqual({ text: "bridal", filters: toFilters(ui), page: 2, confirmedCost: 50 });
+    expect(sameRequest(r, requestFor("bridal", { ...ui }, 2, 50))).toBe(true);
+    expect(sameRequest(r, requestFor("bridal", { ...ui, platform: "tiktok" }, 2, 50))).toBe(false);
     expect(sameRequest(null, r)).toBe(false);
   });
 

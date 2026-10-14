@@ -7,7 +7,7 @@ import { Database, Radio, ShieldCheck, Scale } from "lucide-react";
  */
 export function Metrics() {
   const pillars = [
-    { icon: Database, title: "Search first, spend later", body: "Query your database instantly for free — pay credits only when you deliberately go live." },
+    { icon: Database, title: "See the price before you spend", body: "Every search shows its credit price first. Live discovery is quoted before you confirm and charges only for new creators actually added." },
     { icon: Radio, title: "Live discovery on demand", body: "Reach the open web when you need fresh creators, with the credit cost shown up front." },
     { icon: ShieldCheck, title: "Honest data, always", body: "Every figure is labeled by freshness and confidence. Estimates are never dressed up as facts." },
     { icon: Scale, title: "Decisions, not dashboards", body: "Compare creators on the criteria that matter and see the trade-offs — no universal “winner.”" },
