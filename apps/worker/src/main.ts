@@ -27,7 +27,9 @@ const cache = config.upstash ? createRedisAccessCache(new Redis({ url: config.up
 const billing = createBillingService({ db, payments, cache, logger });
 const searchIndex = config.search ? createSearchIndex(config.search, logger) : null;
 const indexer = createCreatorIndexer({ db, index: searchIndex, logger, sourcePolicy: config.sourcePolicy });
-const llm = createLlm(config.llm, { sink: createDbProviderCallSink(db), logger });
+// Every hosted-LLM call is checked against the monthly LLM budget (recorded Groq + Ollama spend).
+const llmSpentSince = async (since: Date) => (await providerSpendSince(db, "groq", since)) + (await providerSpendSince(db, "ollama", since));
+const llm = createLlm(config.llm, { sink: createDbProviderCallSink(db), logger, budget: { budgetUsd: config.llmMonthlyBudgetUsd, spentSince: llmSpentSince } });
 const summaries = createSummaryWriter({ db, llm, logger });
 const enrichment = await db.withSystem((tx) => getEnrichmentSettings(tx));
 const scraper = createProfileScraper({

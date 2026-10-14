@@ -173,6 +173,7 @@ describe("search and LLM settings", () => {
       ["ollama", 0.07, 0.3],
     ]);
     expect(loadApiConfig(valid).llm).toEqual([]);
+    expect([loadApiConfig(valid).llmMonthlyBudgetUsd, loadApiConfig({ ...valid, LLM_MONTHLY_BUDGET_USD: "12.5" }).llmMonthlyBudgetUsd]).toEqual([5, 12.5]);
     expect(loadWorkerConfig({ ...worker, OLLAMA_API_KEY: "o", OLLAMA_MODEL: "gemma4:31b" }).llm.map((p) => p.model)).toEqual(["gemma4:31b"]);
   });
 });

@@ -1,6 +1,6 @@
 import { Redis } from "@upstash/redis";
 import { createLogger, loadApiConfig } from "@mushin/core";
-import { createDatabase, createDbProviderCallSink, UNVERIFIED_TLS_WARNING } from "@mushin/db";
+import { createDatabase, createDbProviderCallSink, providerSpendSince, UNVERIFIED_TLS_WARNING } from "@mushin/db";
 import { createLlm, createPayments, createSearchIndex } from "@mushin/integrations";
 import { buildApp } from "./app";
 import { createCustomerGuard } from "./auth/customer-guard";
@@ -50,7 +50,9 @@ const billing = createBillingService({ db, payments, cache: accessCache, logger 
 const searchIndex = createSearchIndex(config.search, logger);
 const nativeSearch = createPostgresCatalogSearch(db);
 if (config.catalogSearchBackend === "meilisearch") readiness.push({ name: "search", check: config.search ? () => searchIndex.ping() : async () => "skipped" });
-const llm = createLlm(config.llm, { sink: createDbProviderCallSink(db), logger });
+// Every hosted-LLM call is checked against the monthly LLM budget (recorded Groq + Ollama spend).
+const llmSpentSince = async (since: Date) => (await providerSpendSince(db, "groq", since)) + (await providerSpendSince(db, "ollama", since));
+const llm = createLlm(config.llm, { sink: createDbProviderCallSink(db), logger, budget: { budgetUsd: config.llmMonthlyBudgetUsd, spentSince: llmSpentSince } });
 const creators = createCreatorsService({
   db,
   index: searchIndex,

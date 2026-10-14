@@ -58,6 +58,8 @@ const sharedObject = z.object({
   OLLAMA_MODEL: z.string().min(1).default("gpt-oss:20b"),
   OLLAMA_PRICE_IN_PER_MTOK: z.coerce.number().min(0).default(0.07),
   OLLAMA_PRICE_OUT_PER_MTOK: z.coerce.number().min(0).default(0.3),
+  // Monthly cap on hosted-LLM spend across Groq and Ollama (USD). 5 is a placeholder until the owner sets the limit.
+  LLM_MONTHLY_BUDGET_USD: z.coerce.number().min(0).default(5),
 });
 type SharedValues = z.output<typeof sharedObject>;
 
@@ -289,6 +291,7 @@ export type ApiConfig = {
   sourcePolicy: { youtubeDerivedMetrics: boolean };
   search: SearchConfig;
   llm: LlmProviderConfig[];
+  llmMonthlyBudgetUsd: number;
   audienceSources: "youtube"[];
 };
 
@@ -312,6 +315,7 @@ export function loadApiConfig(env: Env): ApiConfig {
     payments: paymentsFrom(v),
     catalogSearchBackend: v.CATALOG_SEARCH_BACKEND,
     sourcePolicy: { youtubeDerivedMetrics: v.YOUTUBE_DERIVED_METRICS === "on" },
+    llmMonthlyBudgetUsd: v.LLM_MONTHLY_BUDGET_USD,
     search: searchFrom(v, v.MEILISEARCH_SEARCH_KEY),
     llm: llmFrom(v),
     audienceSources: [...new Set(v.AUDIENCE_SOURCES)],
@@ -333,6 +337,7 @@ export type WorkerConfig = {
   sourcePolicy: { youtubeDerivedMetrics: boolean };
   search: SearchConfig;
   llm: LlmProviderConfig[];
+  llmMonthlyBudgetUsd: number;
   scraping: ScrapingConfig;
   storage: StorageConfig;
   dataEncryptionKey: Buffer;
@@ -352,6 +357,7 @@ export function loadWorkerConfig(env: Env): WorkerConfig {
     upstash: upstashFrom(v),
     catalogSearchBackend: v.CATALOG_SEARCH_BACKEND,
     sourcePolicy: { youtubeDerivedMetrics: v.YOUTUBE_DERIVED_METRICS === "on" },
+    llmMonthlyBudgetUsd: v.LLM_MONTHLY_BUDGET_USD,
     search: searchFrom(v, v.MEILISEARCH_API_KEY),
     llm: llmFrom(v),
     dataEncryptionKey: Buffer.from(v.DATA_ENCRYPTION_KEY, "base64"),
