@@ -65,6 +65,12 @@ if (config.audienceSources.length === 0) logger.info("AUDIENCE_SOURCES not set: 
 const eraser = createEraser({ db, storage: pipeline.storage, logger });
 // PostgreSQL search is the default. When configured, Meilisearch is dual-written for rollback during the cutover.
 await indexer.ensureSettings().catch((err: unknown) => logger.error({ err }, "could not apply rollback search index settings"));
+// A newly enabled, emptied or restored Meilisearch would otherwise answer "no creators" until the nightly reconcile:
+// compare it with PostgreSQL once at start-up (only differences are written). Runs in the background.
+void indexer
+  .reconcile()
+  .then((r) => logger.info(r, "search projections reconciled at start-up"))
+  .catch((err: unknown) => logger.error({ err }, "start-up search reconcile failed; the nightly reconcile will retry"));
 await pipeline.ensureBuckets().catch((err: unknown) => logger.error({ err }, "could not create the storage buckets"));
 const worker = await startWorker({
   db,

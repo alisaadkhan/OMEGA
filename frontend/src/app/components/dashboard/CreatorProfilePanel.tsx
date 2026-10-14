@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from "motion/react";
 import { X, Instagram, Youtube, Music2, MapPin, Mail, Phone, Sparkles, ShieldCheck, Bookmark, Plus, ExternalLink, RefreshCw, GitCompare } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FreshnessBadge, ContactTrustBadge, contactTrustNote, Unavailable, Spinner } from "./states";
 import { useActiveJobs, useStartJob } from "../../api/discovery";
 import { isOpenJob, jobStatusText } from "../../api/discovery-mapping";
@@ -88,6 +88,16 @@ export function CreatorProfilePanel({ creator, onClose, onCompare }: { creator: 
   const jobs = useActiveJobs();
   const refreshing = jobs.data?.jobs.find((j) => j.kind === "refresh" && j.creatorId === id && isOpenJob(j)) ?? null;
 
+  // Escape closes the panel, as for any modal dialog (keyboard users have no other way out but Tab to the close button).
+  useEffect(() => {
+    if (!creator) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !document.querySelector("[role=alertdialog]")) onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [creator, onClose]);
+
   async function onRefresh() {
     if (!p || !id) return;
     const ok = await confirm({
@@ -151,6 +161,9 @@ export function CreatorProfilePanel({ creator, onClose, onCompare }: { creator: 
             exit={{ x: "100%" }}
             transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
             className="fixed right-0 top-0 z-50 flex h-full w-full max-w-2xl flex-col border-l border-slate-200 bg-white shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Creator profile"
           >
             <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
               <div className="text-xs text-slate-500">Creator profile</div>
