@@ -58,7 +58,7 @@ export function ScoreWithEvidence({
         >
           <span className={scoreColor(value)}>{value}</span>
           <span className="text-slate-500" style={{ fontWeight: 400 }}>{label}</span>
-          <HelpCircle className="h-3 w-3 text-slate-400" strokeWidth={2} />
+          <HelpCircle className="h-3 w-3 text-slate-500" strokeWidth={2} />
         </button>
       </Popover.Trigger>
       <Popover.Portal>
@@ -86,7 +86,7 @@ export function ScoreWithEvidence({
             </ul>
           )}
           {evidence.length === 0 && (
-            <p className="mt-2 text-[11px] text-slate-400">No specific evidence recorded for this profile.</p>
+            <p className="mt-2 text-[11px] text-slate-500">No specific evidence recorded for this profile.</p>
           )}
           <Popover.Arrow className="fill-slate-200" />
         </Popover.Content>

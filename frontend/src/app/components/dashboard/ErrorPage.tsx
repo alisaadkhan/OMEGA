@@ -305,7 +305,7 @@ export function ErrorPage({
         </div>
 
         {diag && (
-          <div className="mt-4 text-[11px] text-slate-400 tabular-nums">
+          <div className="mt-4 text-[11px] text-slate-500 tabular-nums">
             Request ID · <span className="text-slate-500">{diag}</span>
           </div>
         )}

@@ -16,7 +16,7 @@ export function MetricTip({ text, label = "What is this?" }: { text: string; lab
         onMouseLeave={() => setOpen(false)}
         onFocus={() => setOpen(true)}
         onBlur={() => setOpen(false)}
-        className="rounded text-slate-400 hover:text-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+        className="rounded text-slate-500 hover:text-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
       >
         <Info className="h-3 w-3" strokeWidth={2} />
       </button>
@@ -90,7 +90,7 @@ export function ScoreWithEvidence({
         >
           <div className="mb-1.5 flex items-center justify-between text-slate-900" style={{ fontWeight: 600 }}>
             {label}: contributing signals
-            <button type="button" aria-label="Close" onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-700">
+            <button type="button" aria-label="Close" onClick={() => setOpen(false)} className="text-slate-500 hover:text-slate-700">
               <X className="h-3.5 w-3.5" />
             </button>
           </div>
@@ -198,7 +198,7 @@ export function CreditConfirm({
           <span className="text-slate-500">Cost</span>
           <span className="tabular-nums text-slate-900" style={{ fontWeight: 600 }}>{cost} credits</span>
         </div>
-        <div className="mt-1.5 text-right text-[11px] text-slate-400">
+        <div className="mt-1.5 text-right text-[11px] text-slate-500">
           Your balance: {new Intl.NumberFormat("en-PK").format(balance)} credits
         </div>
         {insufficient && (

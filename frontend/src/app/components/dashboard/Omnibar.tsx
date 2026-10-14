@@ -66,7 +66,7 @@ export function Omnibar({ onOpen }: { onOpen: (c: Creator) => void }) {
 
   return (
     <div ref={box} className="relative w-80">
-      <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" strokeWidth={2} />
+      <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" strokeWidth={2} />
       <input
         value={text}
         onChange={(e) => {
@@ -98,7 +98,7 @@ export function Omnibar({ onOpen }: { onOpen: (c: Creator) => void }) {
             <button key={m.id} onClick={() => pick(m)} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-slate-50">
               <span className="text-slate-900" style={{ fontWeight: 600 }}>{m.displayName}</span>
               <span className="text-slate-500">@{m.handle}</span>
-              <span className="ml-auto capitalize text-slate-400">{m.platform}</span>
+              <span className="ml-auto capitalize text-slate-500">{m.platform}</span>
             </button>
           ))}
         </div>

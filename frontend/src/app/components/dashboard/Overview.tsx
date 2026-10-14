@@ -79,7 +79,7 @@ export function Overview({ credits, setView }: { credits: number; setView?: (v: 
 
       {/* Inline AI search entry (§6) */}
       <div className="relative">
-        <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
         <input
           value={entryQuery}
           onChange={(e) => setEntryQuery(e.target.value)}

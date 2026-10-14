@@ -21,6 +21,14 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
   const credits = useCredits();
   const [omniCreator, setOmniCreator] = useState<Creator | null>(null);
   const [liveJobId, setLiveJobId] = useState<string | null>(null);
+  // Below 768 px the navigation is a drawer opened from the top bar (a fixed 240 px sidebar left phones ~150 px).
+  const [navOpen, setNavOpen] = useState(false);
+  useEffect(() => {
+    if (!navOpen) return;
+    const close = (e: KeyboardEvent) => e.key === "Escape" && setNavOpen(false);
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [navOpen]);
   // Returning from the hosted checkout: ?checkout=success|failed (query string before the hash route).
   const [checkoutResult, setCheckoutResult] = useState<"success" | "failed" | null>(null);
   useEffect(() => {
@@ -33,15 +41,25 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
 
   return (
     <div className="flex h-screen bg-slate-50/40">
-      <Sidebar view={view} setView={setView} onExit={onExit} />
+      <div className="hidden md:flex">
+        <Sidebar view={view} setView={setView} onExit={onExit} />
+      </div>
+      {navOpen && (
+        <div className="fixed inset-0 z-50 flex md:hidden" role="dialog" aria-modal="true" aria-label="Navigation">
+          <div className="absolute inset-0 bg-slate-900/30" onClick={() => setNavOpen(false)} />
+          <div className="relative flex h-full shadow-xl">
+            <Sidebar view={view} setView={(v) => { setView(v); setNavOpen(false); }} onExit={onExit} />
+          </div>
+        </div>
+      )}
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar credits={credits} view={view} setView={setView} onExit={onExit} onOpenCreator={setOmniCreator}
+        <Topbar credits={credits} onOpenNav={() => setNavOpen(true)} view={view} setView={setView} onExit={onExit} onOpenCreator={setOmniCreator}
           onViewResults={(id) => {
             setLiveJobId(id);
             setView("search");
           }}
         />
-        <main className="flex-1 overflow-y-auto px-6 py-6 sm:px-8 sm:py-8">
+        <main className="min-w-0 flex-1 overflow-y-auto px-4 py-5 sm:px-8 sm:py-8">
           <BillingStatusBanner onChoosePlan={() => setView("billing")} />
           <AnimatePresence mode="wait">
             <motion.div

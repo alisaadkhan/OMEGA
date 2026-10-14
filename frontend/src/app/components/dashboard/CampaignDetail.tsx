@@ -63,7 +63,7 @@ export function CampaignDetail({ id, onBack, onOpenCreator, onGoToSearch }: { id
           </div>
         </div>
       )}
-      <p className="text-[11px] text-slate-400">Tasks and reminders are planned and not available yet. MUSHIN doesn't send messages: log outreach you did yourself.</p>
+      <p className="text-[11px] text-slate-500">Tasks and reminders are planned and not available yet. MUSHIN doesn't send messages: log outreach you did yourself.</p>
 
       {c.creators.length === 0 ? (
         <EmptyState icon={<Users className="h-5 w-5" />} title="No creators in this campaign yet" body="Add creators from Search, a list or a creator's profile with Add to campaign." action={<button onClick={onGoToSearch} className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs text-white" style={{ fontWeight: 600 }}>Search creators</button>} />
@@ -88,7 +88,7 @@ function Column({ title, items, campaignId, onOutreach, onOpenCreator, muted }: 
         <span className="rounded-full bg-white px-1.5 text-[10px] text-slate-500">{items.length}</span>
       </div>
       <div className="space-y-2">
-        {items.length === 0 && <div className="px-1 py-3 text-center text-[11px] text-slate-400">None</div>}
+        {items.length === 0 && <div className="px-1 py-3 text-center text-[11px] text-slate-500">None</div>}
         {items.map((m) => <MemberCard key={m.creator.id} m={m} campaignId={campaignId} onOutreach={() => onOutreach(m)} onOpenCreator={onOpenCreator} />)}
       </div>
     </section>

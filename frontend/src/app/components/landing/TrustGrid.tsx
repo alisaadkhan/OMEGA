@@ -74,7 +74,7 @@ export function TrustGrid() {
           {marks.map((m, i) => (
             <div
               key={i}
-              className="flex items-center justify-center text-slate-400 opacity-70 transition-all duration-300 hover:opacity-100 hover:text-slate-700"
+              className="flex items-center justify-center text-slate-500 opacity-70 transition-all duration-300 hover:opacity-100 hover:text-slate-700"
             >
               {m}
             </div>

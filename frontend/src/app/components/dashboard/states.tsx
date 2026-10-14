@@ -63,7 +63,7 @@ export function EmptyState({
     <div
       className={`flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/40 px-6 py-12 text-center ${className}`}
     >
-      <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 shadow-sm">
+      <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm">
         {icon ?? <Inbox className="h-5 w-5" strokeWidth={1.75} />}
       </div>
       <div className="mt-4 text-slate-900" style={{ fontSize: 15, fontWeight: 600 }}>
@@ -119,7 +119,7 @@ export function ErrorState({
 /** Small inline "Unavailable" marker — spec §23: prefer this over a fake zero. */
 export function Unavailable({ label = "Unavailable" }: { label?: string }) {
   return (
-    <span className="inline-flex items-center gap-1 text-[11px] text-slate-400" title="No reliable value available">
+    <span className="inline-flex items-center gap-1 text-[11px] text-slate-500" title="No reliable value available">
       <HelpCircle className="h-3 w-3" strokeWidth={2} />
       {label}
     </span>
@@ -134,9 +134,9 @@ export type Freshness = "current" | "aging" | "stale" | "unavailable";
 
 const FRESHNESS: Record<Freshness, { label: string; cls: string; dot: string }> = {
   current: { label: "Current", cls: "border-emerald-100 bg-emerald-50 text-emerald-700", dot: "bg-emerald-500" },
-  aging: { label: "Aging", cls: "border-amber-100 bg-amber-50 text-amber-700", dot: "bg-amber-500" },
+  aging: { label: "Aging", cls: "border-amber-100 bg-amber-50 text-amber-800", dot: "bg-amber-500" },
   stale: { label: "Stale", cls: "border-rose-100 bg-rose-50 text-rose-700", dot: "bg-rose-500" },
-  unavailable: { label: "Unavailable", cls: "border-slate-200 bg-slate-50 text-slate-500", dot: "bg-slate-400" },
+  unavailable: { label: "Unavailable", cls: "border-slate-200 bg-slate-50 text-slate-600", dot: "bg-slate-400" },
 };
 
 export function FreshnessBadge({ value, updated }: { value: Freshness; updated?: string }) {
@@ -165,7 +165,7 @@ const SOURCE: Record<SourceKind, { label: string; cls: string }> = {
   estimated: { label: "Estimated", cls: "border-indigo-100 bg-indigo-50 text-indigo-700" },
   public: { label: "Public signal", cls: "border-sky-100 bg-sky-50 text-sky-700" },
   stale: { label: "Stale", cls: "border-rose-100 bg-rose-50 text-rose-700" },
-  unavailable: { label: "Unavailable", cls: "border-slate-200 bg-slate-50 text-slate-500" },
+  unavailable: { label: "Unavailable", cls: "border-slate-200 bg-slate-50 text-slate-600" },
 };
 
 export function SourceBadge({
@@ -223,7 +223,7 @@ const TRUST: Record<
   },
   stale: {
     label: "Stale — update needed",
-    cls: "border-amber-100 bg-amber-50 text-amber-700",
+    cls: "border-amber-100 bg-amber-50 text-amber-800",
     Icon: Clock,
     note: "Too old or no recent evidence.",
   },

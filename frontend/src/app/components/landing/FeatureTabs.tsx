@@ -109,7 +109,7 @@ export function FeatureTabs() {
                   role="tab"
                   aria-selected={isActive}
                   onClick={() => setActive(t.id)}
-                  className={`relative z-10 inline-flex flex-1 items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm transition-colors duration-200 ${
+                  className={`relative z-10 inline-flex min-w-0 flex-1 items-center justify-center gap-2 rounded-full px-2 py-2.5 text-xs transition-colors duration-200 sm:px-4 sm:text-sm ${
                     isActive ? "text-white" : "text-slate-600 hover:text-slate-900"
                   }`}
                   style={{ fontWeight: 500 }}
@@ -121,7 +121,7 @@ export function FeatureTabs() {
                       transition={{ type: "spring", stiffness: 380, damping: 32 }}
                     />
                   )}
-                  <t.icon className="relative h-4 w-4" strokeWidth={1.75} />
+                  <t.icon className="relative hidden h-4 w-4 sm:block" strokeWidth={1.75} />
                   <span className="relative">{t.label}</span>
                 </button>
               );
@@ -274,7 +274,7 @@ function DiscoverPreview() {
               </div>
               <div className="hidden text-right text-xs text-slate-600 sm:block">
                 <div className="tabular-nums">{c.followers}</div>
-                <div className="tabular-nums text-slate-400">{c.er} ER</div>
+                <div className="tabular-nums text-slate-500">{c.er} ER</div>
               </div>
               <div className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-xs text-emerald-700 tabular-nums" style={{ fontWeight: 600 }}>
                 Fit {c.iq}
@@ -430,7 +430,7 @@ function ManagePreview() {
             <span className={`rounded-full px-2 py-0.5 text-[10px] ${s.color}`} style={{ fontWeight: 600 }}>
               {s.name}
             </span>
-            <span className="text-[10px] text-slate-400">{s.items.length}</span>
+            <span className="text-[10px] text-slate-500">{s.items.length}</span>
           </div>
           <div className="space-y-2">
             {s.items.map((it, i) => (
@@ -499,7 +499,7 @@ function EmailPreview() {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-slate-900" style={{ fontWeight: t.unread ? 600 : 500 }}>{t.name}</span>
-                  <span className="text-[10px] text-slate-400">{t.time}</span>
+                  <span className="text-[10px] text-slate-500">{t.time}</span>
                 </div>
                 <div className="truncate text-xs text-slate-700">{t.subject}</div>
                 <div className="truncate text-xs text-slate-500">{t.snippet}</div>

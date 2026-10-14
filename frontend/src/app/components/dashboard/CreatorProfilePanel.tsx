@@ -347,7 +347,7 @@ export function CreatorProfilePanel({ creator, onClose, onCompare }: { creator: 
                                   <span className={`text-slate-900 ${ch.kind === "phone" ? "tabular-nums" : ""}`} style={{ fontWeight: 500 }}>{ch.value ?? ch.masked}</span>
                                   <span className="ml-auto"><ContactTrustBadge state={uiTrust(ch.trust)} /></span>
                                 </div>
-                                {ch.value && <p className="mt-1 text-[10px] text-slate-400">{contactTrustNote(uiTrust(ch.trust))}</p>}
+                                {ch.value && <p className="mt-1 text-[10px] text-slate-500">{contactTrustNote(uiTrust(ch.trust))}</p>}
                               </div>
                             ))}
                             {p.revealed && (user?.role === "owner" || user?.role === "admin") && (

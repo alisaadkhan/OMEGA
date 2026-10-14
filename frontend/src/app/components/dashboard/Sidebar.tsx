@@ -61,7 +61,7 @@ export function Sidebar({ view, setView, onExit }: Props) {
         {groups.map((g, gi) => (
           <div key={g.label} className={gi > 0 ? "mt-5" : ""}>
             <div
-              className="px-2.5 pb-2 text-slate-400"
+              className="px-2.5 pb-2 text-slate-500"
               style={{ fontSize: 10, letterSpacing: "0.12em", fontWeight: 600, textTransform: "uppercase" }}
             >
               {g.label}

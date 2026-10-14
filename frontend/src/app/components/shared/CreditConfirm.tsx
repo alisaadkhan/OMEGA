@@ -49,7 +49,7 @@ export function CreditConfirm({
           className="fixed left-1/2 top-1/2 z-50 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl"
           aria-describedby="credit-confirm-desc"
         >
-          <Dialog.Close className="absolute right-4 top-4 rounded p-1 text-slate-400 hover:text-slate-600">
+          <Dialog.Close className="absolute right-4 top-4 rounded p-1 text-slate-500 hover:text-slate-600">
             <X className="h-4 w-4" strokeWidth={2} />
           </Dialog.Close>
 

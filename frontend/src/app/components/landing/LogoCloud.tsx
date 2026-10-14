@@ -10,7 +10,7 @@ export function LogoCloud() {
           {logos.map((l) => (
             <div
               key={l}
-              className="text-center text-slate-400 transition-colors hover:text-slate-700"
+              className="text-center text-slate-500 transition-colors hover:text-slate-700"
               style={{ fontWeight: 600, letterSpacing: "0.12em" }}
             >
               {l}

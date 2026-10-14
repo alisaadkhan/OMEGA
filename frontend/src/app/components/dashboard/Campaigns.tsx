@@ -19,7 +19,7 @@ export function Campaigns({ onOpenCreator, onGoToSearch }: { onOpenCreator: (c: 
 }
 
 export const STATUS_LABEL = { draft: "Draft", active: "Active", paused: "Paused", completed: "Completed" } as const;
-export const STATUS_TONE = { draft: "bg-slate-100 text-slate-700", active: "bg-emerald-50 text-emerald-700", paused: "bg-amber-50 text-amber-700", completed: "bg-indigo-50 text-indigo-700" } as const;
+export const STATUS_TONE = { draft: "bg-slate-100 text-slate-700", active: "bg-emerald-50 text-emerald-700", paused: "bg-amber-50 text-amber-800", completed: "bg-indigo-50 text-indigo-700" } as const;
 export const STAGE_LABEL = { identified: "Identified", contacted: "Contacted", negotiating: "Negotiating", confirmed: "Confirmed" } as const;
 
 export type CampaignFormValue = Required<Omit<CreateCampaign, "budgetMinor">> & { budgetMinor: number | null };
@@ -64,7 +64,7 @@ export function CampaignForm({ initial, submitLabel, busy, onSubmit, onCancel }:
         <input autoFocus required maxLength={120} value={v.name} onChange={set("name")} className={input} />
       </label>
       <label className={label} style={{ fontWeight: 600 }}>
-        Client <span className="text-slate-400" style={{ fontWeight: 400 }}>(optional)</span>
+        Client <span className="text-slate-500" style={{ fontWeight: 400 }}>(optional)</span>
         <input maxLength={120} value={v.client} onChange={set("client")} className={input} />
       </label>
       <label className={label} style={{ fontWeight: 600 }}>
@@ -84,7 +84,7 @@ export function CampaignForm({ initial, submitLabel, busy, onSubmit, onCancel }:
         </select>
       </label>
       <label className={label} style={{ fontWeight: 600 }}>
-        Budget (PKR) <span className="text-slate-400" style={{ fontWeight: 400 }}>(optional)</span>
+        Budget (PKR) <span className="text-slate-500" style={{ fontWeight: 400 }}>(optional)</span>
         <input inputMode="numeric" value={v.budget} onChange={set("budget")} placeholder="e.g. 500000" className={input} />
       </label>
       <label className={label} style={{ fontWeight: 600 }}>
@@ -97,11 +97,11 @@ export function CampaignForm({ initial, submitLabel, busy, onSubmit, onCancel }:
         {datesBad && <span id="dates-error" className="mt-1 block text-[11px] text-red-600">The end date must be on or after the start date.</span>}
       </label>
       <label className={`${label} sm:col-span-2`} style={{ fontWeight: 600 }}>
-        Objective <span className="text-slate-400" style={{ fontWeight: 400 }}>(optional)</span>
+        Objective <span className="text-slate-500" style={{ fontWeight: 400 }}>(optional)</span>
         <textarea rows={2} maxLength={1000} value={v.objective} onChange={set("objective")} className={input} />
       </label>
       <label className={`${label} sm:col-span-2`} style={{ fontWeight: 600 }}>
-        Notes <span className="text-slate-400" style={{ fontWeight: 400 }}>(optional)</span>
+        Notes <span className="text-slate-500" style={{ fontWeight: 400 }}>(optional)</span>
         <textarea rows={2} maxLength={4000} value={v.notes} onChange={set("notes")} className={input} />
       </label>
       <div className="flex justify-end gap-2 sm:col-span-2">
@@ -133,7 +133,7 @@ function CampaignCard({ c, onOpen }: { c: CampaignSummary; onOpen: () => void })
         <span className="inline-flex items-center gap-1"><Users className="h-3.5 w-3.5" /> {c.creatorCount}</span>
         <span title="Fees marked agreed / budget">{rupees(c.agreedFeesMinor)} agreed{c.budgetMinor !== null ? ` of ${rupees(c.budgetMinor)}` : ""}</span>
       </div>
-      <div className="mt-1 flex items-center justify-between text-[11px] text-slate-400">
+      <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500">
         <span className="inline-flex items-center gap-1"><CalendarDays className="h-3 w-3" /> {c.startDate ?? "No start"} → {c.endDate ?? "No end"}</span>
         <span>Updated {relative(c.updatedAt)}</span>
       </div>

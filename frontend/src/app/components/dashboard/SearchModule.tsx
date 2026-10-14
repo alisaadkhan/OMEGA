@@ -310,7 +310,7 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
 
       {/* Search bar */}
       <div className="relative">
-        <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -397,7 +397,7 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
                     </button>
                   </div>
                 </div>
-                <button onClick={() => setShowInterpret(false)} className="rounded-md p-1 text-slate-400 hover:bg-white/60">
+                <button onClick={() => setShowInterpret(false)} className="rounded-md p-1 text-slate-500 hover:bg-white/60">
                   <X className="h-3.5 w-3.5" strokeWidth={1.75} />
                 </button>
               </div>
@@ -409,7 +409,7 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
       {/* Saved searches (§7 presets) */}
       {presets.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="inline-flex items-center gap-1 text-[11px] text-slate-400" style={{ fontWeight: 500 }}>
+          <span className="inline-flex items-center gap-1 text-[11px] text-slate-500" style={{ fontWeight: 500 }}>
             <Bookmark className="h-3 w-3" strokeWidth={2} /> Saved
           </span>
           {presets.map((p) => (
@@ -868,7 +868,7 @@ function PlatformIcon({ platform }: { platform: Creator["platform"] }) {
 function scoreBg(score: number) {
   if (score >= 90) return "bg-emerald-100 text-emerald-700";
   if (score >= 75) return "bg-indigo-100 text-indigo-700";
-  if (score >= 60) return "bg-amber-100 text-amber-700";
+  if (score >= 60) return "bg-amber-100 text-amber-800";
   return "bg-red-100 text-red-700";
 }
 
@@ -968,7 +968,7 @@ function CreatorCard({
           className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] ${
             hasContact
               ? "border-sky-100 bg-sky-50 text-sky-700"
-              : "border-slate-200 bg-slate-50 text-slate-400"
+              : "border-slate-200 bg-slate-50 text-slate-600"
           }`}
           style={{ fontWeight: 500 }}
           title={hasContact ? "A contact channel is on file — trust shown on the profile" : "No usable contact on file yet"}
@@ -996,7 +996,7 @@ function CreatorCard({
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-md bg-slate-50 py-1.5">
-      <div className="text-[9px] uppercase tracking-wider text-slate-500">{label}</div>
+      <div className="text-[9px] uppercase tracking-wider text-slate-600">{label}</div>
       <div className="tabular-nums text-slate-900" style={{ fontSize: 12, fontWeight: 600 }}>
         {value}
       </div>

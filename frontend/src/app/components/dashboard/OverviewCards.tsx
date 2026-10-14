@@ -76,7 +76,7 @@ export function SavedSearchesCard({ go }: { go: (v: DashView) => void }) {
           {items.map((s) => (
             <li key={s.id}>
               <button onClick={() => go("search")} className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50">
-                <Search className="h-3.5 w-3.5 text-slate-400" />
+                <Search className="h-3.5 w-3.5 text-slate-500" />
                 <span className="min-w-0 flex-1 truncate">{s.name}</span>
               </button>
             </li>
@@ -96,11 +96,11 @@ export function ListsCard({ go }: { go: (v: DashView) => void }) {
         <ul className="divide-y divide-slate-100">
           {items.map((l) => (
             <li key={l.id} className="flex items-center gap-3 py-2 text-xs">
-              <Bookmark className="h-3.5 w-3.5 text-slate-400" />
+              <Bookmark className="h-3.5 w-3.5 text-slate-500" />
               <span className="min-w-0 flex-1 truncate text-slate-800" style={{ fontWeight: 600 }}>{l.name}</span>
               <span className="flex -space-x-1.5">{l.preview.map((p) => <img key={p.id} src={p.avatarUrl ?? initialsAvatar(p.displayName)} alt="" className="h-5 w-5 rounded-full border border-white object-cover" />)}</span>
               <span className="w-20 text-right text-slate-500">{l.count} creator{l.count === 1 ? "" : "s"}</span>
-              <span className="w-24 text-right text-slate-400">{relative(l.updatedAt)}</span>
+              <span className="w-24 text-right text-slate-500">{relative(l.updatedAt)}</span>
             </li>
           ))}
         </ul>
@@ -119,7 +119,7 @@ export function CampaignsCard({ go }: { go: (v: DashView) => void }) {
           {items.map((c) => (
             <li key={c.id} className="text-xs">
               <div className="flex items-center gap-2">
-                <FolderKanban className="h-3.5 w-3.5 text-slate-400" />
+                <FolderKanban className="h-3.5 w-3.5 text-slate-500" />
                 <span className="min-w-0 flex-1 truncate text-slate-800" style={{ fontWeight: 600 }}>{c.name}</span>
                 <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${STATUS_TONE[c.status]}`}>{STATUS_LABEL[c.status]}</span>
               </div>

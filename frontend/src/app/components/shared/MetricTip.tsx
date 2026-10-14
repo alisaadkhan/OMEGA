@@ -20,7 +20,7 @@ export function MetricTip({ metric, children }: MetricTipProps) {
         <Tooltip.Trigger asChild>
           <span className="inline-flex cursor-help items-center gap-1">
             {children}
-            <HelpCircle className="h-3 w-3 text-slate-400 hover:text-slate-600" strokeWidth={2} />
+            <HelpCircle className="h-3 w-3 text-slate-500 hover:text-slate-600" strokeWidth={2} />
           </span>
         </Tooltip.Trigger>
         <Tooltip.Portal>

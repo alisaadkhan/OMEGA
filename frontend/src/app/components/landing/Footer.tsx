@@ -65,7 +65,7 @@ export function Footer() {
             <a href="#" className="hover:text-slate-900">Terms</a>
             <a href="#" className="hover:text-slate-900">Security</a>
             <a href="#" className="hover:text-slate-900">DPA</a>
-            <a href="#/admin/login" className="text-slate-400 hover:text-slate-900">Staff</a>
+            <a href="#/admin/login" className="text-slate-500 hover:text-slate-900">Staff</a>
           </div>
         </div>
       </div>

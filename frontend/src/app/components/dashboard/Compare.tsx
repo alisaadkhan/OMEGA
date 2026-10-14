@@ -89,7 +89,7 @@ export function Compare({
               <table className="w-full text-sm">
                 <thead className="sticky top-0 z-10 bg-white">
                   <tr>
-                    <th className="w-40 border-b border-slate-100 px-6 py-3 text-left text-[10px] uppercase tracking-wider text-slate-400" style={{ fontWeight: 600 }}>
+                    <th className="w-40 border-b border-slate-100 px-6 py-3 text-left text-[10px] uppercase tracking-wider text-slate-500" style={{ fontWeight: 600 }}>
                       Creator
                     </th>
                     {list.map((c) => (

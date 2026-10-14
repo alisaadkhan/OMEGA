@@ -1,4 +1,4 @@
-/* global process, console, URL, fetch, setTimeout, document, localStorage -- Node script; document/localStorage run inside the browser page */
+/* global process, console, URL, fetch, setTimeout, document, localStorage, window, getComputedStyle -- Node script; document/localStorage run inside the browser page */
 // Customer E2E journey through the real local UI → API → worker → PostgreSQL (mushin_e2e) → Meilisearch (e2e_ index).
 // Usage: node journey.mjs <run-label> <phase: main|after-restart>. Paid providers and LLMs are blank by environment.
 import { execFileSync } from "node:child_process";
@@ -6,7 +6,49 @@ import { mkdirSync, readFileSync, writeFileSync, appendFileSync } from "node:fs"
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { createRequire } from "node:module";
 import { chromium } from "playwright-core";
+
+const AXE = readFileSync(createRequire(import.meta.url).resolve("axe-core/axe.min.js"), "utf8");
+/** Serious and critical WCAG 2 A/AA findings of axe-core on the current page, as "rule-id (count)". */
+async function axeFindings(p) {
+  // Entry animations fade content in; measuring mid-fade reports contrast for semi-transparent text.
+  await p.waitForTimeout(1200);
+  await p.addScriptTag({ content: AXE });
+  const out = await p.evaluate(async () => {
+    const r = await globalThis.axe.run(document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] } });
+    return r.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => `${v.id} (${v.nodes.length}): ${[...new Set(v.nodes.map((n) => n.html.replace(/\s+/g, " ").slice(0, 110)))].slice(0, 8).join(" ; ")}`);
+  });
+  return out;
+}
+/**
+ * The page fits the screen: the document and the main area never scroll sideways, and no visible element ends past the
+ * screen edge. Decoration clipped by an overflow-hidden parent and deliberate horizontal scrollers (a table, a tab bar
+ * with overflow-x auto) are not counted. Returns the offenders, empty when it fits.
+ */
+const widthOffenders = (p) =>
+  p.evaluate(() => {
+    const w = window.innerWidth;
+    const out = [];
+    if (document.documentElement.scrollWidth > w + 1) out.push(`document ${document.documentElement.scrollWidth}px`);
+    const main = document.querySelector("main");
+    if (main && main.scrollWidth > main.clientWidth + 1) out.push(`main scrolls sideways (${main.scrollWidth} > ${main.clientWidth})`);
+    const contained = (e) => {
+      for (let a = e.parentElement; a && a !== document.body; a = a.parentElement) {
+        const ox = getComputedStyle(a).overflowX;
+        if (ox === "hidden" || ox === "clip") return true;
+        if ((ox === "auto" || ox === "scroll") && a.tagName !== "MAIN") return true;
+      }
+      return false;
+    };
+    for (const e of document.querySelectorAll("body *")) {
+      const b = e.getBoundingClientRect();
+      if (b.width === 0 || b.height === 0 || b.right <= w + 1 || getComputedStyle(e).visibility === "hidden" || contained(e)) continue;
+      out.push(`${e.tagName.toLowerCase()} "${(e.textContent || "").trim().slice(0, 30)}" ends at ${Math.round(b.right)}px`);
+      if (out.length >= 4) break;
+    }
+    return out;
+  });
 
 const [label = "run", phase = "main"] = process.argv.slice(2);
 // Run output (identities, results, logs, screenshots) lives outside the repository.
@@ -38,8 +80,8 @@ const staffCallsFromCustomerPages = [];
 const openPages = [];
 const dbg = (m) => appendFileSync(new URL(`debug-${label}-${phase}.log`, here), `${new Date().toISOString()} ${m}\n`);
 process.on("uncaughtException", async (e) => { dbg("FATAL " + e.message); for (const [n, q] of openPages.entries()) { await shot(q, `FAILED-${phase}-${n}`); dbg(`page ${n} ${q.url()} :: ${(await q.locator("body").innerText().catch(() => "")).replace(/\s+/g, " ").slice(0, 600)}`); } process.exit(1); });
-async function pageAs(who) {
-  const ctx = await browser.newContext({ viewport: { width: 1440, height: 950 } });
+async function pageAs(who, viewport = { width: 1440, height: 950 }) {
+  const ctx = await browser.newContext({ viewport, ...(viewport.width < 600 ? { isMobile: true, hasTouch: true } : {}) });
   if (who) await ctx.addInitScript(([k, v]) => localStorage.setItem(k, v), [`sb-${ref}-auth-token`, JSON.stringify(session(who))]);
   const p = await ctx.newPage();
   p.on("pageerror", (e) => consoleErrors.push(`${who}: ${e.message}`));
@@ -56,6 +98,9 @@ async function pageAs(who) {
 const shot = (p, n) => p.screenshot({ path: decodeURIComponent(new URL(`${n}.png`, shots).pathname).replace(/^\/([A-Z]:)/, "$1") }).catch(() => {});
 const mainText = async (p) => (await p.locator("main").innerText().catch(() => "")).replace(/\s+/g, " ");
 const nav = async (p, name) => {
+  // Small screens keep the navigation in a drawer behind the top bar's menu button.
+  const drawer = p.getByRole("button", { name: "Open navigation" });
+  if (await drawer.isVisible().catch(() => false)) await drawer.click();
   await p.getByRole("button", { name, exact: true }).first().click();
   await p.getByRole("heading", { name, exact: true }).first().waitFor({ timeout: 15000 });
 };
@@ -305,10 +350,12 @@ if (phase === "main") {
   await p.getByRole("heading", { name: /Welcome back/ }).waitFor({ timeout: 30000 });
   await p.getByRole("region", { name: "Lists" }).getByText("Food shortlist").waitFor({ timeout: 15000 });
   t = await mainText(p);
-  const today = new Date().toISOString().slice(0, 10);
-  const from = new Date(Date.now() - 29 * 86_400_000).toISOString().slice(0, 10);
+  // The API counts days in Pakistan time (Asia/Karachi), so the range is computed there too.
+  const pkDate = (ms) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(new Date(ms));
+  const today = pkDate(Date.now());
+  const from = pkDate(Date.now() - 29 * 86_400_000);
   const sum = (await api("owner", "GET", `/v1/analytics/summary?from=${from}&to=${today}`)).json;
-  check("dashboard", "dashboard cards equal API and database", t.includes("Food shortlist") && t.includes("Eid food push") && sum.outreach.total === 1 && sum.pipeline.byStage.confirmed === 1 && sum.lists.savedCreators === 2);
+  check("dashboard", "dashboard cards equal API and database", t.includes("Food shortlist") && t.includes("Eid food push") && sum.outreach.total === 1 && sum.pipeline.byStage.confirmed === 1 && sum.lists.savedCreators === 2, `text has list ${t.includes("Food shortlist")} campaign ${t.includes("Eid food push")}; api outreach ${sum.outreach.total} confirmed ${sum.pipeline.byStage.confirmed} saved ${sum.lists.savedCreators}; range ${from}..${today}`);
   const feed = (await api("owner", "GET", "/v1/activity?limit=50")).json.events.map((e) => e.text).join(" | ");
   check("activity", "activity shows real actions only (feed and dashboard card)", /logged that Realwowboy agreed/.test(feed) && /created the campaign Eid food push/.test(feed) && /Find New Creators run/.test(t) && !/SSO group sync|auto top-up/.test(t));
 
@@ -380,7 +427,49 @@ if (phase === "main") {
   await p.getByRole("heading", { name: "Eid food push" }).waitFor();
   check("restart", "campaign pipeline persists", /Rs 40,000 agreed/.test(await mainText(p)));
   check("restart", "catalog search answers after restart (index reconciled)", (await apiSearch("owner", "food")).json.total > 0 && sql(`select count(*) from wp.credit_reservations where status = 'held'`) === "0");
+  // Accessibility (axe-core, WCAG 2.1 A/AA, serious and critical) on the main customer pages at desktop width.
+  for (const name of ["Search", "Lists", "Campaigns"]) {
+    await nav(p, name);
+    await p.waitForTimeout(400);
+    const found = await axeFindings(p);
+    check("a11y", `${name}: no serious or critical WCAG 2.1 A/AA issues (desktop)`, found.length === 0, found.join(" | "));
+  }
   await p.context().close();
+
+  // ── Phone width (390 × 844): pages fit without sideways scrolling, navigation works, and axe passes ──
+  const phone = { width: 390, height: 844 };
+  const pub = await pageAs(null, phone);
+  for (const route of ["#/", "#/login"]) {
+    await pub.goto(`http://localhost:5173/${route}`);
+    await pub.waitForTimeout(1500);
+    const off = await widthOffenders(pub);
+    check("phone", `${route} fits a 390 px screen`, off.length === 0, off.join(" | "));
+    const found = await axeFindings(pub);
+    check("a11y", `${route}: no serious or critical WCAG 2.1 A/AA issues (phone)`, found.length === 0, found.join(" | "));
+  }
+  await pub.context().close();
+  const m = await pageAs("owner", phone);
+  await m.goto("http://localhost:5173/#/dashboard");
+  await m.getByRole("heading", { name: /Welcome back, Olivia/ }).waitFor({ timeout: 30000 });
+  check("phone", "dashboard fits a 390 px screen", (await widthOffenders(m)).length === 0, (await widthOffenders(m)).join(" | "));
+  for (const name of ["Search", "Lists", "Campaigns", "Billing"]) {
+    let reached = true;
+    try {
+      await nav(m, name === "Billing" ? "Credits & billing" : name);
+    } catch (err) {
+      reached = false;
+      await shot(m, `phone-${name}`);
+      check("phone", `${name} can be reached on a 390 px screen`, false, err instanceof Error ? err.message.split("\n")[0] : "");
+    }
+    if (!reached) continue;
+    await m.waitForTimeout(400);
+    if (name === "Search") await search(m, "food");
+    await shot(m, `phone-${name}`);
+    check("phone", `${name} fits a 390 px screen`, (await widthOffenders(m)).length === 0, (await widthOffenders(m)).join(" | "));
+    const found = await axeFindings(m);
+    check("a11y", `${name}: no serious or critical WCAG 2.1 A/AA issues (phone)`, found.length === 0, found.join(" | "));
+  }
+  await m.context().close();
 }
 
 check("health", "no console errors in the browser", consoleErrors.length === 0, consoleErrors.slice(0, 3).join(" | "));

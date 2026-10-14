@@ -54,7 +54,7 @@ export function AddToCampaignMenu({ creatorIds, label = "Add to campaign", onGoT
                   <li key={c.id}>
                     <button disabled={add.isPending || inIt} onClick={() => addTo(c.id, c.name)} className="flex w-full items-center gap-2 rounded-md px-1.5 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50 disabled:cursor-default disabled:opacity-70">
                       <span className="min-w-0 flex-1 truncate">{c.name}</span>
-                      {inIt ? <span className="inline-flex items-center gap-0.5 text-[10px] text-emerald-700"><Check className="h-3 w-3" /> In campaign</span> : <span className="text-[10px] text-slate-400">{c.creatorCount}</span>}
+                      {inIt ? <span className="inline-flex items-center gap-0.5 text-[10px] text-emerald-700"><Check className="h-3 w-3" /> In campaign</span> : <span className="text-[10px] text-slate-500">{c.creatorCount}</span>}
                     </button>
                   </li>
                 );

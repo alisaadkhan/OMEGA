@@ -68,7 +68,7 @@ export function JobTray({ onOpenCreator, onViewResults }: { onOpenCreator: (c: C
                   </button>
                 )}
                 {!isOpenJob(j) && (
-                  <button onClick={() => setDismissed((d) => new Set(d).add(j.id))} className="ml-auto text-[11px] text-slate-400 hover:text-slate-600">
+                  <button onClick={() => setDismissed((d) => new Set(d).add(j.id))} className="ml-auto text-[11px] text-slate-500 hover:text-slate-600">
                     Dismiss
                   </button>
                 )}

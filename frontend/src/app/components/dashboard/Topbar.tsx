@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Coins, BarChart3, Activity, Settings, LifeBuoy, LogOut, ChevronDown } from "lucide-react";
+import { Coins, BarChart3, Activity, Settings, LifeBuoy, LogOut, ChevronDown, Menu } from "lucide-react";
 import { AnimatedNumber } from "./AnimatedNumber";
 import { useAuth } from "../../auth/AuthContext";
 import { useBillingSummary } from "../../api/billing";
@@ -18,6 +18,8 @@ type Props = {
   onExit: () => void;
   onOpenCreator: (c: Creator) => void;
   onViewResults: (jobId: string) => void;
+  /** Opens the navigation drawer on small screens. */
+  onOpenNav?: () => void;
 };
 
 const MENU: { id: DashView; label: string; icon: any }[] = [
@@ -33,7 +35,7 @@ const METER_STYLES = {
   red: { box: "border-red-300 bg-red-50 hover:bg-red-100", icon: "text-red-600", value: "text-red-700", title: "Credits are very low" },
 } as const;
 
-export function Topbar({ credits, view, setView, onExit, onOpenCreator, onViewResults }: Props) {
+export function Topbar({ credits, view, setView, onExit, onOpenCreator, onViewResults, onOpenNav }: Props) {
   const { user, logout } = useAuth();
   const name = user?.name ?? "Ahmed Raza Khan";
   const email = user?.email ?? "ahmed@mushin.pk";
@@ -48,13 +50,16 @@ export function Topbar({ credits, view, setView, onExit, onOpenCreator, onViewRe
   };
 
   return (
-    <div className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200 bg-white/80 px-6 backdrop-blur-md">
-      <div className="flex items-center gap-2 sm:hidden">
-        <Logo />
+    <div className="sticky top-0 z-30 flex h-16 items-center justify-between gap-2 border-b border-slate-200 bg-white/80 px-3 backdrop-blur-md sm:px-6">
+      <div className="flex min-w-0 items-center gap-2 md:hidden">
+        <button onClick={onOpenNav} aria-label="Open navigation" className="rounded-md p-2 text-slate-700 hover:bg-slate-100">
+          <Menu className="h-5 w-5" strokeWidth={1.75} />
+        </button>
+        <span className="sm:hidden"><Logo /></span>
       </div>
       <div className="hidden sm:block"><Omnibar onOpen={onOpenCreator} /></div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
         <JobTray onOpenCreator={onOpenCreator} onViewResults={onViewResults} />
         <button
           onClick={() => go("billing")}
@@ -86,7 +91,7 @@ export function Topbar({ credits, view, setView, onExit, onOpenCreator, onViewRe
                 {initials}
               </div>
             )}
-            <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} strokeWidth={2} />
+            <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${open ? "rotate-180" : ""}`} strokeWidth={2} />
           </button>
 
           <AnimatePresence>

@@ -102,7 +102,7 @@ export function SaveToListMenu({ creatorIds, variant = "button", label = "Save" 
                         </span>
                       )}
                       <span className="min-w-0 flex-1 truncate">{l.name}</span>
-                      <span className="text-[10px] text-slate-400">{l.count}</span>
+                      <span className="text-[10px] text-slate-500">{l.count}</span>
                     </button>
                   </li>
                 );

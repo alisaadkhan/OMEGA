@@ -34,7 +34,7 @@ function ListForm({ initial, submitLabel, busy, onSubmit, onCancel }: { initial?
         <input autoFocus value={name} onChange={(e) => setName(e.target.value)} maxLength={80} required className="mt-1 w-full rounded-md border border-slate-200 px-2.5 py-1.5 text-sm focus:border-indigo-400 focus:outline-none" />
       </label>
       <label className="block text-xs text-slate-600" style={{ fontWeight: 600 }}>
-        Description <span className="text-slate-400" style={{ fontWeight: 400 }}>(optional)</span>
+        Description <span className="text-slate-500" style={{ fontWeight: 400 }}>(optional)</span>
         <textarea value={description} onChange={(e) => setDescription(e.target.value)} maxLength={500} rows={2} className="mt-1 w-full rounded-md border border-slate-200 px-2.5 py-1.5 text-sm focus:border-indigo-400 focus:outline-none" />
       </label>
       <div className="flex justify-end gap-2">
@@ -57,7 +57,7 @@ function FavoriteButton({ list }: { list: ListSummary }) {
       disabled={update.isPending}
       aria-label={list.favorite ? "Remove from favourites" : "Mark as favourite"}
       aria-pressed={list.favorite}
-      className="rounded p-1 text-slate-400 hover:text-amber-500"
+      className="rounded p-1 text-slate-500 hover:text-amber-500"
     >
       <Star className={`h-4 w-4 ${list.favorite ? "fill-amber-400 text-amber-500" : ""}`} />
     </button>
@@ -111,17 +111,21 @@ function ListIndex({ onOpen, onGoToSearch }: { onOpen: (id: string) => void; onG
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {lists.data.lists.map((l) => (
+            // The list name is the card's button, stretched over the whole card; the favourite star sits above it, so no
+            // control is nested inside another (WCAG nested-interactive).
             <div
               key={l.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => onOpen(l.id)}
-              onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onOpen(l.id)}
-              className="cursor-pointer rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+              className="relative rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-shadow focus-within:ring-2 focus-within:ring-indigo-400 hover:shadow-md"
             >
               <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 truncate text-slate-900" style={{ fontSize: 15, fontWeight: 600 }}>{l.name}</div>
-                <FavoriteButton list={l} />
+                <button
+                  onClick={() => onOpen(l.id)}
+                  className="min-w-0 truncate text-left text-slate-900 after:absolute after:inset-0 after:rounded-xl after:content-[''] focus:outline-none"
+                  style={{ fontSize: 15, fontWeight: 600 }}
+                >
+                  {l.name}
+                </button>
+                <span className="relative z-10"><FavoriteButton list={l} /></span>
               </div>
               <p className="mt-1 line-clamp-2 min-h-[2.5em] text-xs text-slate-500">{l.description || "No description"}</p>
               <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
@@ -171,7 +175,7 @@ function NoteCell({ listId, member }: { listId: string; member: ListMember }) {
   }
   return (
     <button onClick={() => setDraft(member.note)} className="w-full truncate text-left text-xs text-slate-600 hover:text-slate-900" title="Edit note">
-      {member.note || <span className="text-slate-400">Add note</span>}
+      {member.note || <span className="text-slate-500">Add note</span>}
     </button>
   );
 }
@@ -225,7 +229,7 @@ function ListDetail({ id, onBack, onOpenCreator, onGoToSearch }: { id: string; o
           </div>
           <div className="flex shrink-0 gap-1.5">
             <button onClick={() => setEditing(true)} className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-50"><Pencil className="h-3.5 w-3.5" /> Rename</button>
-            <button disabled title="CSV export is not available yet" className="inline-flex cursor-not-allowed items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-400"><Download className="h-3.5 w-3.5" /> Export (not available yet)</button>
+            <button disabled title="CSV export is not available yet" className="inline-flex cursor-not-allowed items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-500"><Download className="h-3.5 w-3.5" /> Export (not available yet)</button>
             <button onClick={() => void onDelete()} className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-white px-2.5 py-1.5 text-xs text-red-700 hover:bg-red-50"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
           </div>
         </div>
@@ -280,7 +284,7 @@ function ListDetail({ id, onBack, onOpenCreator, onGoToSearch }: { id: string; o
                       <td className="px-3 py-2 text-slate-600">{m.creator.city ?? "Unknown"}</td>
                       <td className="px-3 py-2"><NoteCell listId={id} member={m} /></td>
                       <td className="px-3 py-2 text-slate-500">{relative(m.addedAt)}</td>
-                      <td className="px-3 py-2 text-right"><button onClick={() => onRemove([m.creator.id])} disabled={remove.isPending} className="text-slate-400 hover:text-red-600" aria-label={`Remove ${m.creator.displayName}`}><Trash2 className="h-3.5 w-3.5" /></button></td>
+                      <td className="px-3 py-2 text-right"><button onClick={() => onRemove([m.creator.id])} disabled={remove.isPending} className="text-slate-500 hover:text-red-600" aria-label={`Remove ${m.creator.displayName}`}><Trash2 className="h-3.5 w-3.5" /></button></td>
                     </tr>
                   );
                 })}

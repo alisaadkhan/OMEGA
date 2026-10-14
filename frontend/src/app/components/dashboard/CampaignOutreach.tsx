@@ -102,7 +102,7 @@ export function OutreachPanel({ campaignId, member, onClose }: { campaignId: str
             <label className="col-span-2 text-[11px] text-slate-600">When
               <input type="datetime-local" max={localNow()} value={form.when} onChange={(e) => setForm((f) => ({ ...f, when: e.target.value }))} className={field} />
             </label>
-            <label className="col-span-2 text-[11px] text-slate-600">Note <span className="text-slate-400">(optional)</span>
+            <label className="col-span-2 text-[11px] text-slate-600">Note <span className="text-slate-500">(optional)</span>
               <textarea rows={2} maxLength={2000} value={form.note} onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))} className={field} />
             </label>
             <div className="col-span-2 flex justify-end">
@@ -121,7 +121,7 @@ export function OutreachPanel({ campaignId, member, onClose }: { campaignId: str
                   <li key={e.id} className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2 text-xs">
                     <div className="flex justify-between text-slate-700"><span style={{ fontWeight: 600 }}>{OUTCOME_LABEL[e.outcome]} · {CHANNEL_LABEL[e.channel]}</span><time dateTime={e.occurredAt} className="text-slate-500">{new Date(e.occurredAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}</time></div>
                     {e.note && <p className="mt-1 text-slate-600">{e.note}</p>}
-                    <p className="mt-1 text-[10px] text-slate-400">Logged by {e.loggedBy.name}</p>
+                    <p className="mt-1 text-[10px] text-slate-500">Logged by {e.loggedBy.name}</p>
                   </li>
                 ))}
               </ol>

@@ -92,7 +92,7 @@ function Result({ e, charged }: { e: Estimate; charged: number | null }) {
           {new Date(e.expiresAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
         </div>
         {charged !== null && <div>{charged > 0 ? `${charged} credits used for this estimate.` : "No credits used."}</div>}
-        <div className="text-slate-400">Method {e.methodVersion}</div>
+        <div className="text-slate-500">Method {e.methodVersion}</div>
       </div>
 
       <details className="text-[11px] text-slate-600">
@@ -120,7 +120,7 @@ function Dimension({ title, d }: { title: string; d: AudienceDimension }) {
                 <span>{countryName(sh.code)}</span>
                 <span className="tabular-nums">
                   <span style={{ fontWeight: 600 }}>{percentText(sh, d.displayStep)}</span>
-                  <span className="ml-1 text-[10px] text-slate-400">likely {rangeText(sh)}</span>
+                  <span className="ml-1 text-[10px] text-slate-500">likely {rangeText(sh)}</span>
                 </span>
               </div>
               <div className="mt-0.5 h-1.5 rounded-full bg-slate-100">

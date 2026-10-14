@@ -26,8 +26,8 @@ const ACTION_META: Record<CreditAction, { label: string; icon: typeof Search; to
   find_new: { label: COPY.findNew, icon: Radio, tone: "bg-indigo-50 text-indigo-700" },
   live_creator: { label: "New creator found (live)", icon: Radio, tone: "bg-indigo-50 text-indigo-700" },
   reveal_contact: { label: COPY.revealContact, icon: Mail, tone: "bg-emerald-50 text-emerald-700" },
-  refresh_data: { label: COPY.refreshData, icon: RefreshCw, tone: "bg-amber-50 text-amber-700" },
-  refresh_tiktok: { label: "Refresh TikTok creator", icon: RefreshCw, tone: "bg-amber-50 text-amber-700" },
+  refresh_data: { label: COPY.refreshData, icon: RefreshCw, tone: "bg-amber-50 text-amber-800" },
+  refresh_tiktok: { label: "Refresh TikTok creator", icon: RefreshCw, tone: "bg-amber-50 text-amber-800" },
   audience_estimate: { label: "Audience estimate", icon: BarChart3, tone: "bg-violet-50 text-violet-700" },
 };
 
@@ -323,7 +323,7 @@ export function Billing({ checkoutResult }: { checkoutResult?: "success" | "fail
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-slate-900" style={{ fontWeight: 500 }}>{meta ? `${KIND_LABEL[e.kind]} · ${meta.label}` : KIND_LABEL[e.kind]}</span>
-                      <span className="text-[11px] text-slate-400">{formatDate(e.createdAt)}</span>
+                      <span className="text-[11px] text-slate-500">{formatDate(e.createdAt)}</span>
                     </div>
                     {e.note && <div className="truncate text-xs text-slate-500">{e.note}</div>}
                   </div>
@@ -353,7 +353,7 @@ export function Billing({ checkoutResult }: { checkoutResult?: "success" | "fail
                   <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700">{i.status}</span>
                   <span className="tabular-nums text-sm text-slate-900" style={{ fontWeight: 500 }}>{formatMoney(i.amount)}</span>
                   {i.invoiceUrl ? (
-                    <a href={i.invoiceUrl} target="_blank" rel="noreferrer" className="text-slate-400 hover:text-slate-700" aria-label="Open invoice">
+                    <a href={i.invoiceUrl} target="_blank" rel="noreferrer" className="text-slate-500 hover:text-slate-700" aria-label="Open invoice">
                       <ArrowUpRight className="h-3.5 w-3.5" />
                     </a>
                   ) : null}
