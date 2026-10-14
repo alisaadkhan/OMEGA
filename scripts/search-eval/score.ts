@@ -16,7 +16,8 @@ const BOM = String.fromCharCode(0xfeff);
 const BOM_PREFIX = new RegExp(`^${BOM}`);
 
 const dir = process.argv[2];
-if (!dir) throw new Error("usage: score.ts <out-dir>");
+const prefix = process.argv[3] ?? "brain1"; // brain1 (catalogue) or brain2 (live replay)
+if (!dir || !/^brain[12]$/.test(prefix)) throw new Error("usage: score.ts <out-dir> [brain1|brain2]");
 const read = (name: string) => parseCsv(readFileSync(join(dir, name), "utf8").replace(BOM_PREFIX, ""));
 type Row = { caseId: string; rank: number; creatorId: string; rating: Rating | null; cells: string[] };
 const load = (name: string): { header: string[]; rows: Row[] } => {
@@ -31,8 +32,8 @@ const load = (name: string): { header: string[]; rows: Row[] } => {
   };
 };
 
-const a = load("brain1-rater-A.csv");
-const b = load("brain1-rater-B.csv");
+const a = load(`${prefix}-rater-A.csv`);
+const b = load(`${prefix}-rater-B.csv`);
 const rated = (rows: Row[]) => rows.filter((r) => r.creatorId);
 const pairs = rated(a.rows).map((r, idx) => [r, rated(b.rows)[idx]] as const);
 const missing = pairs.filter(([x, y]) => x.rating === null || y?.rating === null || y === undefined).length;
@@ -44,18 +45,18 @@ const kappa = cohensKappa(pairs.map(([x]) => x.rating as Rating), pairs.map(([, 
 const disagreements = pairs.filter(([x, y]) => x.rating !== y?.rating);
 console.log(`Agreement: ${pairs.length - disagreements.length}/${pairs.length} identical, Cohen's kappa ${kappa?.toFixed(3)}`);
 
-if (!existsSync(join(dir, "brain1-adjudicated.csv"))) {
+if (!existsSync(join(dir, `${prefix}-adjudicated.csv`))) {
   writeFileSync(
-    join(dir, "brain1-to-adjudicate.csv"),
+    join(dir, `${prefix}-to-adjudicate.csv`),
     BOM + toCsv([[...a.header, "rater_B"], ...disagreements.map(([x, y]) => [...x.cells, y?.rating ?? ""])]),
   );
-  console.log(`${disagreements.length} disagreements written to brain1-to-adjudicate.csv. Adjudicate, then save brain1-adjudicated.csv.`);
+  console.log(`${disagreements.length} disagreements written to ${prefix}-to-adjudicate.csv. Adjudicate, then save ${prefix}-adjudicated.csv.`);
   process.exit(0);
 }
 
-const final = load("brain1-adjudicated.csv");
+const final = load(`${prefix}-adjudicated.csv`);
 if (rated(final.rows).some((r) => r.rating === null)) throw new Error("brain1-adjudicated.csv has unrated rows");
-const results = JSON.parse(readFileSync(join(dir, "brain1-results.json"), "utf8")) as { cases: { caseId: string; scenario: string; latencyMs: number; total?: number; rejected?: string }[] };
+const results = JSON.parse(readFileSync(join(dir, `${prefix}-results.json`), "utf8")) as { cases: { caseId: string; scenario: string; latencyMs: number; total?: number; rejected?: string }[] };
 
 const perCase = results.cases.map((c) => {
   const ranked = rated(final.rows).filter((r) => r.caseId === c.caseId).sort((x, y) => x.rank - y.rank).map((r) => r.rating as Rating);
@@ -72,7 +73,7 @@ const perCase = results.cases.map((c) => {
 const answered = perCase.filter((c) => !c.rejected);
 const f = (x: number | null) => (x === null ? "n/a" : x.toFixed(2));
 const lines = [
-  "# Brain 1 relevance report",
+  `# ${prefix === "brain1" ? "Brain 1 catalogue" : "Brain 2 live (replay)"} relevance report`,
   "",
   `Queries ${perCase.length}; answered ${answered.length}; rejected by validation ${perCase.length - answered.length}; zero results ${answered.filter((c) => c.count === 0).length} (${f(answered.filter((c) => c.count === 0).length / Math.max(1, answered.length))}).`,
   `Rater agreement: Cohen's kappa ${kappa?.toFixed(3)} over ${pairs.length} judged results; ${disagreements.length} adjudicated.`,
@@ -83,5 +84,5 @@ const lines = [
   "|---|---|---|---|---|---|---|---|",
   ...perCase.map((c) => `| ${c.caseId} | ${c.scenario} | ${c.count} | ${f(c.p5s)} | ${f(c.p5l)} | ${f(c.p10l)} | ${f(c.ndcg)} | ${c.rejected ?? ""} |`),
 ];
-writeFileSync(join(dir, "brain1-report.md"), lines.join("\n") + "\n");
+writeFileSync(join(dir, `${prefix}-report.md`), lines.join("\n") + "\n");
 console.log(lines.slice(0, 6).join("\n"));

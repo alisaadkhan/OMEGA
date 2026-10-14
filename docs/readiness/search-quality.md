@@ -78,3 +78,24 @@ Multan, agriculture, book reviewers, Urdu literature), 1 refused as an impossibl
 Defect found while loading: a bio longer than 500 characters cut inside an emoji produced invalid JSON, so PostgreSQL
 rejected the creator's search document and the whole batch of up to 100 creators with it (2 of 469 real profiles).
 Fixed with code-point-safe truncation (`truncate` in `@mushin/core`, used by the projection and `cleanText`).
+
+## Brain 2 (Live Discovery) on recorded provider responses (REPLAY, 2026-10-14, no spend)
+
+`live-replay.live.int.test.ts` re-ran the 25 recorded briefs from 2026-10-13 through today's runner (owner pricing, size
+5, providers blank; recorded Serper, LLM and profile responses only). `scripts/search-eval/brain2-sheets.ts` turns the
+report into two blind rating sheets (59 rows), a results file for `score.ts <out> brain2` and a funnel summary.
+
+- Delivered 51 creators (49 new, 2 already known); median 2 per brief; 8 of 25 briefs delivered nothing (32%).
+  Instagram 11 briefs: 39 delivered, 1 empty; YouTube 7 briefs: 5 empty; TikTok: partly limited by profiles missing from
+  the recordings (replay limitation, not a product result).
+- Credits: 2,500 quoted, 1,340 charged; every run settled exactly (base 50 only with a delivery, +10 per new creator,
+  nothing for empty runs, nothing left reserved).
+- Where candidates are lost (all briefs): not extracted because of the run-size cap 283; posts not resolved to a creator
+  198; judged not relevant 57; business cues 38 + 28; non-profile URLs 23; inactive or unverified 20; off-topic or below
+  minimum fit 16; location mismatch 7.
+- **Yield finding:** several "empty" runs still had unextracted candidates (e.g. yt-cooking-urdu: 28 left, 0 delivered)
+  because extraction stops at the run size when the extracted ones fail (extraction multiplier 1×, a pending product
+  decision). For YouTube the extra extraction costs no money (API quota only); for Instagram/TikTok it costs Apify.
+  Recommendation for the owner: a per-platform extraction budget (more for YouTube) or a second wave when the first
+  delivers nothing, within the per-job cost cap (credit-economics.md).
+- Not measured here: human relevance (sheets ready, no ratings) and live-provider behaviour (blocked: spend authorisation).
