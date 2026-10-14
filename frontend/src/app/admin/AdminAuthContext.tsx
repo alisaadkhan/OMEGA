@@ -22,13 +22,23 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const [admin, setAdmin] = useState<AdminUser | null>(null);
   const [status, setStatus] = useState<Ctx["status"]>("loading");
 
+  // The staff session is restored only once a staff route is opened: customer pages and the public site never send
+  // a staff refresh request (it failed with 401 on every customer page load and counted against the IP rate limit).
   useEffect(() => {
-    void refreshAdminSession()
-      .then((s) => {
-        setAdmin(s ? s.staff : null);
-        setStatus(s ? "signedIn" : "signedOut");
-      })
-      .catch(() => setStatus("signedOut"));
+    let started = false;
+    const restore = () => {
+      if (started || !window.location.hash.startsWith("#/admin")) return;
+      started = true;
+      void refreshAdminSession()
+        .then((s) => {
+          setAdmin(s ? s.staff : null);
+          setStatus(s ? "signedIn" : "signedOut");
+        })
+        .catch(() => setStatus("signedOut"));
+    };
+    restore();
+    window.addEventListener("hashchange", restore);
+    return () => window.removeEventListener("hashchange", restore);
   }, []);
 
   // Access tokens last 15 minutes: refresh a minute early while signed in.

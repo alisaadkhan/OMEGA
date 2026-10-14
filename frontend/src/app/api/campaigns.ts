@@ -7,12 +7,14 @@ import {
   campaignSummarySchema,
   outreachEventSchema,
   outreachLogSchema,
+  type CampaignDetail,
   type CreateCampaign,
   type LogOutreach,
   type UpdateCampaign,
   type UpdateCampaignCreator,
 } from "@mushin/contracts";
 import { useAuth } from "../auth/AuthContext";
+import { applyCreatorUpdate } from "./campaigns-mapping";
 import { apiRequest } from "./client";
 
 const noContent = z.null();
@@ -55,10 +57,15 @@ export const useAddToCampaign = () =>
   );
 export const useRemoveFromCampaign = () =>
   useCampaignMutation(({ id, creatorId }: { id: string; creatorId: string }) => apiRequest(`/v1/campaigns/${id}/creators/${creatorId}`, noContent, { method: "DELETE" }));
-export const useUpdateCampaignCreator = () =>
-  useCampaignMutation(({ id, creatorId, patch }: { id: string; creatorId: string; patch: UpdateCampaignCreator }) =>
-    apiRequest(`/v1/campaigns/${id}/creators/${creatorId}`, z.object({ version: z.number() }), { method: "PATCH", body: patch }),
-  );
+export function useUpdateCampaignCreator() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, creatorId, patch }: { id: string; creatorId: string; patch: UpdateCampaignCreator }) =>
+      apiRequest(`/v1/campaigns/${id}/creators/${creatorId}`, z.object({ version: z.number() }), { method: "PATCH", body: patch }),
+    onSuccess: ({ version }, { id, creatorId, patch }) => qc.setQueryData<CampaignDetail>(["campaigns", "detail", id], (d) => applyCreatorUpdate(d, creatorId, patch, version)),
+    onSettled: () => void qc.invalidateQueries({ queryKey: ["campaigns"] }),
+  });
+}
 export const useLogOutreach = () =>
   useCampaignMutation(({ id, creatorId, body }: { id: string; creatorId: string; body: LogOutreach }) =>
     apiRequest(`/v1/campaigns/${id}/creators/${creatorId}/outreach`, outreachEventSchema, { method: "POST", body }),
