@@ -5,7 +5,9 @@ The central record of what is built, what is verified and what is blocked. It is
 - `acceptance-matrix.md`: module and integration results;
 - `search-backends.md`: local Meilisearch and the backend comparison;
 - `local-setup.md`: how to run and test everything;
-- `customer-e2e-report.md`: customer-side browser E2E (matrix, runs, defects, findings; harness in `scripts/e2e-customer/`).
+- `customer-e2e-report.md`: customer-side browser E2E (matrix, runs, defects, findings; harness in `scripts/e2e-customer/`);
+- `credit-economics.md`: owner prices versus measured provider cost (3× rule, TikTok shortfall, proposed caps);
+- `supabase-migration-map.md`: every route, job, schedule, transaction and rate limit mapped to the approved Supabase target.
 
 ## 1. Bottom line
 
