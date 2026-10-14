@@ -25,7 +25,7 @@ async function setup() {
   const identity = createIdentityModule({ db, startTrial: billing.startTrial });
   const platform = createPlatformModule({ db, ttlHours: 24 });
   const big = { limit: 1000, windowSeconds: 60 };
-  const limiter = new MemoryRateLimiter({ ip: big, user: big, auth: big, ai: big, jobs: big });
+  const limiter = new MemoryRateLimiter({ ip: big, user: big, auth: big, ai: big, jobs: big, workspaceJobs: big });
   const iss = await createTestIssuer();
   const app = await buildTestApp({
     guards: {

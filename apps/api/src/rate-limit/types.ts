@@ -1,7 +1,7 @@
 import { AppError } from "@mushin/core";
 
 export type Bucket = { limit: number; windowSeconds: number };
-export type RateLimitBuckets = { ip: Bucket; user: Bucket; auth: Bucket; ai: Bucket; jobs: Bucket };
+export type RateLimitBuckets = { ip: Bucket; user: Bucket; auth: Bucket; ai: Bucket; jobs: Bucket; workspaceJobs: Bucket };
 export type BucketName = keyof RateLimitBuckets;
 export type LimitResult = { allowed: boolean; retryAfterSeconds: number };
 
@@ -19,7 +19,17 @@ export function bucketsFromConfig(c: { windowMs: number; maxRequests: number }):
     ai: { limit: 20, windowSeconds: 60 },
     // Each job spends real money on Apify (spec §3.3): 20 starts per hour per user.
     jobs: { limit: 20, windowSeconds: 3600 },
+    // The same paid starts counted for the whole workspace, so many members cannot multiply the spend (RATE-002).
+    workspaceJobs: { limit: 100, windowSeconds: 3600 },
   };
+}
+
+/** A paid job start counts against the user and against the workspace; the first exhausted limit refuses it. */
+export async function limitPaidStart(limiter: RateLimiter, ctx: { userId: string; workspaceId: string }): Promise<void> {
+  for (const [bucket, key] of [["jobs", ctx.userId], ["workspaceJobs", ctx.workspaceId]] as const) {
+    const r = await limiter.limit(bucket, key);
+    if (!r.allowed) throw rateLimitError(r.retryAfterSeconds);
+  }
 }
 
 export function rateLimitError(retryAfterSeconds: number): AppError {

@@ -28,7 +28,7 @@ async function setup(o: { removalLimit?: number } = {}) {
   const identity = createIdentityModule({ db, startTrial: billing.startTrial });
   const platform = createPlatformModule({ db, ttlHours: 24 });
   const big = { limit: 1000, windowSeconds: 60 };
-  const limiter = new MemoryRateLimiter({ ip: big, user: big, auth: { limit: o.removalLimit ?? 1000, windowSeconds: 60 }, ai: big, jobs: { limit: 1000, windowSeconds: 3600 } });
+  const limiter = new MemoryRateLimiter({ ip: big, user: big, auth: { limit: o.removalLimit ?? 1000, windowSeconds: 60 }, ai: big, jobs: { limit: 1000, windowSeconds: 3600 }, workspaceJobs: { limit: 100_000, windowSeconds: 3600 } });
   const staff = createStaffModule({ db, tokens: createStaffTokens("r".repeat(48)), encryptionKey: TEST_KEY });
   const creators = createCreatorsService({ db, index: createSearchIndex(null, logger), llm: new MockLlm(() => ({})), billing, encryptionKey: TEST_KEY, logger });
   const removals = createRemovalService({ db, encryptionKey: TEST_KEY, audit: recordStaffAudit });

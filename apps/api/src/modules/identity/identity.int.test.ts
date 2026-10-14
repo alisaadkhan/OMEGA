@@ -81,7 +81,7 @@ describe("GET /v1/me", () => {
         user: { limit: 100, windowSeconds: 60 },
         auth: { limit: 100, windowSeconds: 60 },
         ai: { limit: 100, windowSeconds: 60 },
-        jobs: { limit: 100, windowSeconds: 3600 },
+        jobs: { limit: 100, windowSeconds: 3600 }, workspaceJobs: { limit: 100_000, windowSeconds: 3600 },
       }),
     });
     const app = await buildTestApp({ guards: { ...noGuards(), customer: guard }, modules: [identity.module] });

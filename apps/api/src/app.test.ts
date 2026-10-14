@@ -43,6 +43,14 @@ describe("API skeleton", () => {
     expect(echoed.headers["x-request-id"]).toBe("req-abc-12345");
   });
 
+  it("marks every response private and not storable, errors included (PERF-001)", async () => {
+    const app = await appWithTestRoutes();
+    for (const [method, url] of [["GET", "/health/live"], ["POST", "/v1/echo"], ["GET", "/v1/conflict"], ["GET", "/v1/missing"]] as const) {
+      const res = await app.inject({ method, url, payload: method === "POST" ? { name: "ok" } : undefined });
+      expect(res.headers["cache-control"]).toBe("private, no-store");
+    }
+  });
+
   it("replaces a hostile request id (Review Focus 4)", async () => {
     const app = await appWithTestRoutes();
     for (const bad of ["bad\nid-injected", "x".repeat(10_000), "<script>alert(1)</script>"]) {

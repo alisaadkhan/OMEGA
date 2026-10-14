@@ -31,6 +31,9 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
 
   app.addHook("onRequest", async (req, reply) => {
     void reply.header("x-request-id", req.id);
+    // Every API response is personal or operational: never kept by browsers or shared caches (PERF-001).
+    // A route may still set its own policy; this is only the default.
+    void reply.header("cache-control", "private, no-store");
   });
   registerErrorHandling(app);
   await registerSecurity(app, deps.allowedOrigins);

@@ -4,7 +4,7 @@ import { createLiveEstimateSchema, discoveryJobListSchema, discoveryJobSchema, l
 import { tenantOf } from "../../auth/customer-guard";
 import type { Guards } from "../../http/types";
 import { parseInput, sendOk } from "../../http/validate";
-import { rateLimitError, type RateLimiter } from "../../rate-limit/types";
+import { limitPaidStart, type RateLimiter } from "../../rate-limit/types";
 import type { DiscoveryService } from "./service";
 
 const idParams = z.object({ id: z.uuid() });
@@ -16,8 +16,7 @@ export function registerDiscoveryRoutes(app: FastifyInstance, guards: Guards, se
   app.post("/v1/discovery/estimates", { preHandler: [guards.customer, guards.idempotent] }, async (req, reply) => {
     const ctx = tenantOf(req);
     const body = parseInput(createLiveEstimateSchema, req.body);
-    const r = await limiter.limit("jobs", ctx.userId);
-    if (!r.allowed) throw rateLimitError(r.retryAfterSeconds);
+    await limitPaidStart(limiter, ctx);
     const estimate = await service.createEstimate(ctx, body);
     return sendOk(reply, liveEstimateSchema, estimate, 201);
   });
@@ -25,8 +24,7 @@ export function registerDiscoveryRoutes(app: FastifyInstance, guards: Guards, se
   app.post("/v1/discovery/jobs", { preHandler: [guards.customer, guards.idempotent] }, async (req, reply) => {
     const ctx = tenantOf(req);
     const body = parseInput(startDiscoveryJobSchema, req.body);
-    const r = await limiter.limit("jobs", ctx.userId);
-    if (!r.allowed) throw rateLimitError(r.retryAfterSeconds);
+    await limitPaidStart(limiter, ctx);
     const out = await service.start(ctx, body);
     return sendOk(reply, startDiscoveryJobResponseSchema, out.body, out.httpStatus);
   });

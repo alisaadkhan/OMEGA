@@ -4,7 +4,7 @@ import { audienceRequestSchema, audienceStateSchema } from "@mushin/contracts";
 import { tenantOf } from "../../auth/customer-guard";
 import type { Guards } from "../../http/types";
 import { parseInput, sendOk } from "../../http/validate";
-import { rateLimitError, type RateLimiter } from "../../rate-limit/types";
+import { limitPaidStart, type RateLimiter } from "../../rate-limit/types";
 import type { AudienceService } from "./service";
 
 const idParams = z.object({ id: z.uuid() });
@@ -24,8 +24,7 @@ export function registerAudienceRoutes(app: FastifyInstance, guards: Guards, ser
     const ctx = tenantOf(req);
     const { id } = parseInput(idParams, req.params);
     const body = parseInput(audienceRequestSchema, req.body);
-    const r = await limiter.limit("jobs", ctx.userId);
-    if (!r.allowed) throw rateLimitError(r.retryAfterSeconds);
+    await limitPaidStart(limiter, ctx);
     const out = await service.request(ctx, id, body.confirmedCost);
     return sendOk(reply, audienceStateSchema, out.body, out.httpStatus);
   });

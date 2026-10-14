@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildTestApp, testLogger } from "../test-support/app";
 import { MemoryRateLimiter } from "./memory";
 import { ipRateLimitHook } from "./plugin";
-import { bucketsFromConfig, type RateLimitBuckets } from "./types";
+import { bucketsFromConfig, limitPaidStart, type RateLimitBuckets } from "./types";
 import { UpstashRateLimiter } from "./upstash";
 
 const buckets: RateLimitBuckets = {
@@ -11,6 +11,7 @@ const buckets: RateLimitBuckets = {
   auth: { limit: 1, windowSeconds: 60 },
   ai: { limit: 1, windowSeconds: 60 },
   jobs: { limit: 1, windowSeconds: 3600 },
+  workspaceJobs: { limit: 2, windowSeconds: 3600 },
 };
 
 describe("MemoryRateLimiter", () => {
@@ -30,13 +31,13 @@ describe("MemoryRateLimiter", () => {
 describe("UpstashRateLimiter", () => {
   it("fails open when Redis is unreachable", async () => {
     const down = { limit: async () => Promise.reject(new Error("ENOTFOUND")) };
-    const rl = new UpstashRateLimiter({ ip: down, user: down, auth: down, ai: down, jobs: down }, testLogger());
+    const rl = new UpstashRateLimiter({ ip: down, user: down, auth: down, ai: down, jobs: down, workspaceJobs: down }, testLogger());
     expect(await rl.limit("ip", "1.2.3.4")).toEqual({ allowed: true, retryAfterSeconds: 0 });
   });
 
   it("converts reset time to retry-after seconds", async () => {
     const full = { limit: async () => ({ success: false, reset: Date.now() + 4_500 }) };
-    const rl = new UpstashRateLimiter({ ip: full, user: full, auth: full, ai: full, jobs: full }, testLogger());
+    const rl = new UpstashRateLimiter({ ip: full, user: full, auth: full, ai: full, jobs: full, workspaceJobs: full }, testLogger());
     const r = await rl.limit("ip", "k");
     expect(r.allowed).toBe(false);
     expect(r.retryAfterSeconds).toBeGreaterThanOrEqual(4);
@@ -81,6 +82,18 @@ describe("IP rate limit hook", () => {
   });
 });
 
+describe("limitPaidStart", () => {
+  it("counts a paid start against the user and the workspace, so extra members cannot exceed the workspace cap", async () => {
+    const rl = new MemoryRateLimiter(buckets);
+    await limitPaidStart(rl, { userId: "a", workspaceId: "w" });
+    await expect(limitPaidStart(rl, { userId: "a", workspaceId: "w" })).rejects.toMatchObject({ code: "RATE_LIMITED" });
+    await limitPaidStart(rl, { userId: "b", workspaceId: "w" });
+    // Member c has its own user allowance but the workspace has used its 2 starts.
+    await expect(limitPaidStart(rl, { userId: "c", workspaceId: "w" })).rejects.toMatchObject({ code: "RATE_LIMITED" });
+    await limitPaidStart(rl, { userId: "d", workspaceId: "other" });
+  });
+});
+
 describe("bucketsFromConfig", () => {
   it("derives ip/user buckets from config and fixed auth and ai buckets", () => {
     expect(bucketsFromConfig({ windowMs: 30_000, maxRequests: 50 })).toEqual({
@@ -89,6 +102,7 @@ describe("bucketsFromConfig", () => {
       auth: { limit: 10, windowSeconds: 60 },
       ai: { limit: 20, windowSeconds: 60 },
       jobs: { limit: 20, windowSeconds: 3600 },
+      workspaceJobs: { limit: 100, windowSeconds: 3600 },
     });
   });
 });
