@@ -43,7 +43,30 @@ export const staffJobQuerySchema = z.object({ status: z.enum(["open", "failed", 
 export const staffJobDetailSchema = z.object({
   progress: z.record(z.string(), z.number()),
   decisions: z.array(z.object({ stage: z.string(), decision: z.string(), reason: z.string().nullable(), count })),
-  providerCalls: z.array(z.object({ provider: z.string(), operation: z.string(), status: z.string(), errorCode: z.string().nullable(), calls: count, costUsd: z.number() })),
+  providerCalls: z.array(
+    z.object({
+      provider: z.string(),
+      operation: z.string(),
+      model: z.string().nullable(),
+      status: z.string(),
+      errorCode: z.string().nullable(),
+      calls: count,
+      tokensIn: count,
+      tokensOut: count,
+      units: z.number(),
+      avgLatencyMs: z.number().nullable(),
+      costUsd: z.number(),
+    }),
+  ),
+  /** Direct provider cost (USD, reported or estimated per call) next to the customer's credit charge. */
+  cost: z.object({
+    totalUsd: z.number(),
+    failedCalls: count,
+    attempts: count,
+    newCreators: count,
+    creditsCharged: count,
+    costPerNewCreatorUsd: z.number().nullable(),
+  }),
 });
 
 export const providerUsageSchema = z.object({

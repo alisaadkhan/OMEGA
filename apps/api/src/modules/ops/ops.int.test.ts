@@ -10,7 +10,7 @@ import { MemoryRateLimiter } from "../../rate-limit/memory";
 import { buildTestApp } from "../../test-support/app";
 import { createTestIssuer } from "../../test-support/keys";
 import { createBillingService, MemoryAccessCache } from "../billing/index";
-import { TEST_KEY } from "../creators/test-fixtures";
+import { addCreator, TEST_KEY } from "../creators/test-fixtures";
 import { createIdentityModule } from "../identity/index";
 import { createPlatformModule } from "../platform/index";
 import { createStaffModule, createStaffTokens } from "../staff/index";
@@ -107,5 +107,32 @@ describe("support tickets and staff operations", () => {
     const audit = (await app.inject({ method: "GET", url: "/admin/v1/audit", headers: admin })).json() as { events: { action: string; staffRole: string }[] };
     expect(audit.events.map((e) => e.action)).toEqual(expect.arrayContaining(["ops.workspaces.searched"]));
     expect(audit.events.find((e) => e.action === "ops.workspaces.searched")?.staffRole).toBeDefined();
+  });
+
+  it("shows a job's direct provider cost by model next to the credits charged (admin job inspector)", async () => {
+    const { app, customer, staffToken } = await setup();
+    const owner = await customer("cost@brand.pk");
+    await app.inject({ method: "GET", url: "/v1/me", headers: owner });
+    const [ws] = await ownerQuery<{ workspace_id: string; user_id: string }>(`select workspace_id, user_id from wp.workspace_members limit 1`);
+    const jobId = randomUUID();
+    await ownerQuery(`insert into wp.discovery_jobs (id, workspace_id, kind, requested_by, platform, handle, canonical_url, status, attempts, cost, credits_charged)
+      values ('${jobId}', '${ws?.workspace_id}', 'add_by_url', '${ws?.user_id}', 'instagram', 'a', 'https://instagram.com/a', 'completed', 2, 50, 50)`);
+    for (const [i, handle] of ["c_one", "c_two"].entries()) {
+      const creatorId = await addCreator(db, { profiles: [{ platform: "instagram", handle }] });
+      await ownerQuery(`insert into wp.discovery_results (workspace_id, job_id, creator_id, seq, is_new, credits) values ('${ws?.workspace_id}', '${jobId}', '${creatorId}', ${i + 1}, true, 10)`);
+    }
+    await ownerQuery(`insert into platform.provider_calls (provider, operation, model, tokens_in, tokens_out, units, latency_ms, status, cost_usd, job_id) values
+      ('apify', 'scrape_instagram', 'apify/instagram-profile-scraper', null, null, 2, 4000, 'ok', 0.0052, '${jobId}'),
+      ('serper', 'web_search', null, null, null, 1, 300, 'ok', 0.001, '${jobId}'),
+      ('ollama', 'creator_assessment', 'gpt-oss:20b', 1000, 500, null, 2000, 'ok', 0.00022, '${jobId}'),
+      ('groq', 'creator_assessment', 'openai/gpt-oss-20b', 1000, 0, null, 900, 'error', 0, '${jobId}')`);
+    const detail = (await app.inject({ method: "GET", url: `/admin/v1/ops/jobs/${jobId}`, headers: await staffToken("admin") })).json() as {
+      providerCalls: { provider: string; model: string | null; tokensIn: number; tokensOut: number; costUsd: number }[];
+      cost: { totalUsd: number; failedCalls: number; attempts: number; newCreators: number; creditsCharged: number; costPerNewCreatorUsd: number | null };
+    };
+    expect(detail.providerCalls.find((c) => c.provider === "ollama")).toMatchObject({ model: "gpt-oss:20b", tokensIn: 1000, tokensOut: 500 });
+    expect(detail.cost).toMatchObject({ failedCalls: 1, attempts: 2, newCreators: 2, creditsCharged: 50 });
+    expect(detail.cost.totalUsd).toBeCloseTo(0.00642, 6);
+    expect(detail.cost.costPerNewCreatorUsd).toBeCloseTo(0.00321, 6);
   });
 });
