@@ -194,18 +194,23 @@ export function ErrorPage({
   onPrimary,
   onSecondary,
   onBack,
+  onHome,
+  onSupport,
   diagnosticId,
 }: {
   preset: Preset;
   onPrimary?: () => void;
   onSecondary?: () => void;
   onBack?: () => void;
+  onHome?: () => void;
+  onSupport?: () => void;
+  /** The server request id, when there is one. Never invented: a made-up id would send support looking for nothing. */
   diagnosticId?: string;
 }) {
   const p = presets[preset];
   const tones = toneMap[p.tone];
   const Icon = p.icon;
-  const diag = diagnosticId ?? `MUSHIN-${preset.toUpperCase()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+  const diag = diagnosticId ?? null;
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-white px-6 py-12">
@@ -288,20 +293,22 @@ export function ErrorPage({
             </button>
           )}
           <span className="h-3 w-px bg-slate-200" />
-          <button className="inline-flex items-center gap-1 hover:text-slate-800">
+          {onHome && <button onClick={onHome} className="inline-flex items-center gap-1 hover:text-slate-800">
             <Home className="h-3 w-3" strokeWidth={2} />
             Home
-          </button>
+          </button>}
           <span className="h-3 w-px bg-slate-200" />
-          <button className="inline-flex items-center gap-1 hover:text-slate-800">
+          {onSupport && <button onClick={onSupport} className="inline-flex items-center gap-1 hover:text-slate-800">
             <Search className="h-3 w-3" strokeWidth={2} />
             Contact support
-          </button>
+          </button>}
         </div>
 
-        <div className="mt-4 text-[11px] text-slate-400 tabular-nums">
-          Diagnostic ID · <span className="text-slate-500">{diag}</span>
-        </div>
+        {diag && (
+          <div className="mt-4 text-[11px] text-slate-400 tabular-nums">
+            Request ID · <span className="text-slate-500">{diag}</span>
+          </div>
+        )}
       </motion.div>
     </div>
   );
