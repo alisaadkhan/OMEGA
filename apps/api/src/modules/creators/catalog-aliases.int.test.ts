@@ -76,4 +76,17 @@ describe("catalogue search aliases (PostgreSQL)", () => {
     expect(await names("gadgets")).toEqual(["Tariq Reviews"]);
     expect(await names("Tariq Revews")).toEqual(["Tariq Reviews"]);
   });
+
+  it("answers sentence-style queries: filler dropped, stated platform and ranges become filters, conflicts refused", async () => {
+    expect(await names("Lahore ke food vloggers on Instagram")).toEqual(["Ali Eats", "Kashif Bites"]);
+    expect(await names("لاہور کے فوڈ بلاگرز")).toEqual(["Ali Eats", "Kashif Bites"]);
+    expect(await names("Lahore food creators on TikTok")).toEqual([]); // the fixtures are Instagram creators
+    expect(await names("food creators in Lahore with 10k-100k followers")).toEqual(["Ali Eats", "Kashif Bites"]); // fixtures have 50k
+    expect(await names("food creators with over 100k followers")).toEqual([]);
+    const out = await creators.search(await customer(), searchRequestSchema.parse({ text: "Lahore ke food vloggers on Instagram", filters: {}, confirmedCost: 0 }));
+    expect(out.understood).toEqual({ text: "lahore food", filters: { platform: "instagram" } });
+    // An explicit filter wins over the text, and an impossible range is refused rather than silently ignored.
+    expect((await creators.search(await customer(), searchRequestSchema.parse({ text: "food on TikTok", filters: { platform: "instagram" }, confirmedCost: 0 }))).results).toHaveLength(2);
+    await expect(creators.search(await customer(), searchRequestSchema.parse({ text: "creators with 100k minimum followers and 10k maximum followers", filters: {}, confirmedCost: 0 }))).rejects.toMatchObject({ code: "VALIDATION_FAILED", details: { reason: "conflicting_range" } });
+  });
 });

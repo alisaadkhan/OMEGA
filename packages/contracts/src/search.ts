@@ -75,6 +75,11 @@ export const searchResponseSchema = z.object({
   nextCursor: z.string().nullable(),
   prevCursor: z.string().nullable(),
   fewResults: z.boolean(),
+  /** What was searched: the topic words and any filters read from the text (not the ones the user set). */
+  understood: z.object({
+    text: z.string(),
+    filters: z.object({ platform: creatorPlatformSchema.optional(), followersMin: z.number().int().optional(), followersMax: z.number().int().optional(), engagementMin: z.number().optional() }),
+  }),
   /** Whether this call started a new logical search and paid for it; further pages and repeats inside the window are free. */
   charged: z.boolean(),
   creditsCharged: z.number().int().nonnegative(),

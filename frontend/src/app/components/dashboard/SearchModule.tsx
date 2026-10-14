@@ -656,6 +656,17 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
 
         {(status === "results" || status === "streaming") && (
           <div className="space-y-3">
+            {search.data && (Object.keys(search.data.understood.filters).length > 0 || search.data.understood.text !== (request?.text ?? "").trim().toLowerCase()) && (
+              <p className="text-xs text-slate-500" role="status">
+                Searched for{" "}
+                <span className="text-slate-700" style={{ fontWeight: 600 }}>{search.data.understood.text || "all creators"}</span>
+                {search.data.understood.filters.platform && <> · {search.data.understood.filters.platform}</>}
+                {(search.data.understood.filters.followersMin !== undefined || search.data.understood.filters.followersMax !== undefined) && (
+                  <> · {search.data.understood.filters.followersMin?.toLocaleString("en-PK") ?? "any"}–{search.data.understood.filters.followersMax?.toLocaleString("en-PK") ?? "any"} followers</>
+                )}
+                {search.data.understood.filters.engagementMin !== undefined && <> · engagement {search.data.understood.filters.engagementMin}%+</>}
+              </p>
+            )}
             {search.data?.fewResults && (
               <p className="flex flex-wrap items-center gap-1 text-xs text-slate-500">
                 Only a few creators match.

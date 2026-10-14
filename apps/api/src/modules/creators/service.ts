@@ -1,4 +1,5 @@
 import {
+  searchFiltersSchema,
   searchFiltersShape,
   type CreatorProfile,
   type InterpretResponse,
@@ -22,6 +23,7 @@ import { toCards } from "./ranking";
 import { suppressedUrls } from "./suppressions";
 import { chargeCatalogSearch } from "./search-charge";
 import { decodeCursor, encodeCursor } from "./cursor";
+import { understandQuery } from "./understand";
 
 export type CreatorsDeps = {
   db: Db;
@@ -78,26 +80,40 @@ export function createCreatorsService(deps: CreatorsDeps) {
     if (req.filters.audienceCountry) throw new AppError("PROVIDER_UNAVAILABLE", "Audience-country filtering is unavailable until a verified audience analytics source is connected.");
     const t = now();
     const { settings } = await config(ctx);
+    // What the text asks for: topic words to match, role words for ranking, and clearly stated platform, follower or
+    // engagement ranges as filters (explicit filters win). Billing and cursors stay bound to the request as sent.
+    const understood = understandQuery(req.text);
+    const merged = {
+      ...req.filters,
+      platform: req.filters.platform ?? understood.filters.platform,
+      followersMin: req.filters.followersMin ?? understood.filters.followersMin,
+      followersMax: req.filters.followersMax ?? understood.filters.followersMax,
+      engagementMin: req.filters.engagementMin ?? understood.filters.engagementMin,
+    };
+    const parsed = searchFiltersSchema.safeParse(merged);
+    if (!parsed.success) throw new AppError("VALIDATION_FAILED", "The search asks for an impossible range (the minimum is above the maximum). Adjust it and search again.", { reason: "conflicting_range" });
+    const q = { ...req, text: understood.text, filters: parsed.data };
     // Without text, Meilisearch returns matches in storage order; sorting by the fit score's strongest signals keeps the
     // capped candidate pool on the best creators when more match than it holds (SRS REQ-02.03).
     const { hits, total: indexTotal } = await fromIndex(
       () =>
         deps.index.search({
-          text: req.text,
-          filter: meiliFilter(req.filters, t, settings.fresh.currentDays),
+          text: q.text,
+          filter: meiliFilter(q.filters, t, settings.fresh.currentDays),
           limit: settings.candidatePool,
-          ...(req.text ? {} : { sort: FILTER_ONLY_SORT }),
+          ...(q.text ? {} : { sort: FILTER_ONLY_SORT }),
         }),
-      (s) => s.search({ text: req.text, filters: req.filters, freshCurrentDays: settings.fresh.currentDays, now: t, limit: settings.candidatePool }, tenant(ctx)),
+      (s) => s.search({ text: q.text, boost: understood.optional, filters: q.filters, freshCurrentDays: settings.fresh.currentDays, now: t, limit: settings.candidatePool }, tenant(ctx)),
     );
     const relevance = new Map(hits.map((h) => [h.id, h.rankingScore]));
     const rows = await deps.db.withTenant(tenant(ctx), (tx) => repo.cardRows(tx, hits.map((h) => h.id)));
-    const cards = toCards(rows, req, settings, t, relevance);
+    const cards = toCards(rows, q, settings, t, relevance);
     const start = decodeCursor(req, req.cursor, settings.pageSize);
     // Paid only once the search has answered; refused (no results returned) when the price or balance does not allow it.
     const charge = await chargeCatalogSearch({ db: deps.db, billing: deps.billing, now }, ctx, req);
     return {
       ...charge,
+      understood: { text: understood.text, filters: Object.fromEntries(Object.entries(understood.filters).filter(([k, v]) => v !== undefined && req.filters[k as keyof typeof req.filters] === undefined)) },
       results: cards.slice(start, start + settings.pageSize),
       nextCursor: start + settings.pageSize < cards.length ? encodeCursor(req, start + settings.pageSize) : null,
       prevCursor: start > 0 ? encodeCursor(req, Math.max(0, start - settings.pageSize)) : null,

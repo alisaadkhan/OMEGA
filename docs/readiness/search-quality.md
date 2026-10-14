@@ -1,0 +1,62 @@
+# Catalogue search quality: aliases, query understanding and the human panel
+
+Source of truth: `apps/api/src/modules/creators/aliases.ts` (shared by catalogue Search and Live Discovery). Language
+identifier for Roman Urdu: `roman_urdu`. A query word in any listed form matches all forms of its concept; other words
+are searched as typed. A city in the text matches the creator's own declared city field or their own bio, never another
+person's content. The city filter accepts any listed form.
+
+| Concept | Forms | Origin | Status |
+|---|---|---|---|
+| food | food, foodie, khana, کھانا, فوڈ | Live Discovery reviewed terms (2026-10-13) | In use |
+| beauty | beauty, khubsurti, خوبصورتی, بیوٹی | same | In use |
+| makeup | makeup, میک اپ | same | In use |
+| bridal | bridal, dulhan, دلہن, برائیڈل | same | In use |
+| fashion | fashion, libaas, لباس, فیشن | same | In use |
+| travel | travel, safar, سفر, ٹریول | same | In use |
+| fitness | fitness, warzish, ورزش, فٹنس | same | In use |
+| technology | technology, tech, ٹیکنالوجی, ٹیک | same | In use |
+| Lahore | lahore, lhr, لاہور | Urdu name reviewed; LHR owner-listed | In use |
+| Karachi | karachi, khi, کراچی | Urdu name reviewed; KHI common short form | In use, **confirm KHI** |
+| Islamabad | islamabad, isb, اسلام آباد | Urdu name reviewed; ISB common short form | In use, **confirm ISB** |
+| Rawalpindi | rawalpindi, pindi, rwp, راولپنڈی | Urdu name reviewed; Pindi/RWP common | In use, **confirm Pindi, RWP** |
+| Peshawar | peshawar, پشاور | Urdu name reviewed | In use |
+| Faisalabad | faisalabad, fsd, فیصل آباد | Urdu name reviewed; FSD common short form | In use, **confirm FSD** |
+| Multan | multan, ملتان | Urdu name reviewed | In use |
+| Quetta | quetta, کوئٹہ | Urdu name reviewed | In use |
+
+Measured on the local 21-creator catalogue (2026-10-14, PostgreSQL, matching only, not quality): khana 1 → 10 results,
+lhr 0 → 3 (same as "lahore"), کھانا 9 (same as "food"), latency 3–65 ms. Quality needs the human-labelled panel.
+
+To add a term: add the form to the concept in `aliases.ts`, add a case to `aliases.test.ts` and
+`catalog-aliases.int.test.ts`, and bump `CATALOG_RANKER_VERSION` in `cursor.ts`.
+
+## Query understanding (`understand.ts`)
+
+Full-text search requires every word, so sentence-style queries returned nothing: on the 35-query panel (2026-10-14,
+before this change) 33 of 34 answered queries had zero results, including "Karachi ke food vloggers on Instagram". The
+search now keeps topic, name and place words; drops search filler in English, Roman Urdu and Urdu ("creators", "in", "ke",
+"walay", "میں", "تخلیق کار"); keeps creator role words ("vloggers", "بلاگرز") for ranking only; and turns a single named
+platform and clearly stated follower/engagement ranges ("10k–100k followers", "20k se 100k followers", "engagement above 3
+percent") into filters. Explicit filters always win; an impossible range is refused (`conflicting_range`). The response
+field `understood` and a line above the results show what was searched.
+
+## Human relevance panel (Brain 1)
+
+Tooling: `scripts/search-eval/` (`run-brain1.ts`, `score.ts`, `metrics.ts` with tests).
+
+1. Copy the catalogue to a disposable database (`createdb -T mushin_local mushin_eval_disposable`); the runner refuses any
+   other database.
+2. `run-brain1.ts <queries.csv> <out>` runs each query through the real search service (production ranking and charging)
+   and writes identical sheets `brain1-rater-A.csv` and `brain1-rater-B.csv` (top 10 per query).
+3. Two people rate independently (2 relevant, 1 partly, 0 not), without seeing each other's sheet.
+4. `score.ts <out>` reports agreement (Cohen's kappa) and writes the disagreements for a third person to adjudicate; with
+   `brain1-adjudicated.csv` it writes `brain1-report.md`: precision@5/@10 (strict and lenient), nDCG@10 over the pooled
+   judgements, zero-result and rejected rates, latency p50/p95. Recall is not reported (the pool is not a complete set).
+
+Proposed thresholds, to be confirmed by the owner before the final run: mean lenient precision@5 ≥ 0.70, mean nDCG@10
+≥ 0.65, zero results on at most 15% of answerable queries, kappa ≥ 0.6 before metrics are trusted.
+
+Status: the tooling works end to end on the 21-creator local catalogue, but that catalogue cannot measure quality (18
+YouTube, 3 TikTok, 0 Instagram creators; most panel queries have no relevant creator at all, so zeros are mostly true
+negatives). A real run needs the evaluation corpus of at least 100 policy-compliant real profiles (owner-authorised data
+collection) and two named raters. No ratings exist yet.

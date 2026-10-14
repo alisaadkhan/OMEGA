@@ -5,7 +5,7 @@ import type { Db } from "@mushin/db";
 import type { SearchHit } from "@mushin/integrations";
 import { cityForms, expandQuery, type QueryGroup } from "./aliases";
 
-export type CatalogSearchQuery = { text: string; filters: SearchFilters; freshCurrentDays: number; now: Date; limit: number };
+export type CatalogSearchQuery = { text: string; filters: SearchFilters; freshCurrentDays: number; now: Date; limit: number; /** Words that only raise the rank (never required). */ boost?: string[] };
 export type CatalogSearch = { search(query: CatalogSearchQuery, ctx: Pick<TenantContext, "userId" | "workspaceId">): Promise<{ hits: SearchHit[]; total: number }> };
 
 /** Search the worker-maintained global creator projection. Hydration and visibility checks still run under tenant RLS. */
@@ -27,7 +27,8 @@ export function createPostgresCatalogSearch(db: Db): CatalogSearch {
           sql` and `,
         )
       : sql`d.search_vector @@ ${tsq}`;
-    const rankQuery = groups ? sql.join(groups.map((g) => sql`(${anyForm(g)})`), sql` || `) : tsq;
+    const boost = (query.boost ?? []).map((w) => sql`plainto_tsquery('simple', ${w})`);
+    const rankQuery = sql.join([groups ? sql.join(groups.map((g) => sql`(${anyForm(g)})`), sql` || `) : tsq, ...boost], sql` || `);
 
     const f = query.filters;
     if (f.platform) conditions.push(sql`d.platforms @> array[${f.platform}]::text[]`);

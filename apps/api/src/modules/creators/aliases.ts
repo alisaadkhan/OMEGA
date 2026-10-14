@@ -29,7 +29,7 @@ export const NICHE_CONCEPTS: readonly AliasConcept[] = [
 ];
 
 // City forms: Urdu-script names reviewed for Live Discovery, LHR (owner-listed) and common short forms (KHI, ISB,
-// RWP, Pindi, FSD) listed in docs/readiness/search-aliases.md for confirmation.
+// RWP, Pindi, FSD) listed in docs/readiness/search-quality.md for confirmation.
 export const CITY_CONCEPTS: readonly AliasConcept[] = [
   city("Lahore", ["lahore", "lhr", "لاہور"]),
   city("Karachi", ["karachi", "khi", "کراچی"]),
