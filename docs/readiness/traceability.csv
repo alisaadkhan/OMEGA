@@ -54,7 +54,7 @@ STAFF-002,P0,Staff privacy,complete,Support sees masked emails and no contacts; 
 STAFF-003,P0,Staff operations,complete,No super-admin actions exist; console says so,permissions.ts; UI,—,—
 FRONT-001,P0,Frontend integrity,complete,Seeded lists/campaigns/activity/notifications/staff KPIs/payment methods removed,UI journeys (no sample content checks),6d8a6d0; 692f918; 9ec9ee0,Landing illustrations labelled fictional
 FRONT-002,P0,Frontend integration,partial,Dead buttons wired or disabled with reasons (sweep 2026-10-14),Manual sweep,No automated route-to-contract check,Add a lint/check for handler-less buttons
-PRIV-002,P0,Privacy,complete,No demographics in profile/search contracts; audience estimate separate and off by default,contracts; audience.int,—,—
+PRIV-002,P0,Privacy,complete,No demographics in profile/search contracts; audience estimate separate and off by default; provenance on every estimate; expired estimates deleted,contracts; audience.int (incl. expiry deletion),Provider evaluation 2026-10-14 (audience spec §10): no Apify/vendor demographics adopted (AI-inferred age/gender conflict with this requirement),Creator-authorised analytics (design D) if verified demographics are wanted
 AI-001,P0,AI safety,complete,Schema-validated LLM output; fenced untrusted text; contact-leak refusal,llm.test; worker-side.int (summary leak refused),—,—
 SEARCH-006,P0,Live Discovery,complete,See PERS-001; candidate/qualified/billable/persisted counts kept separately,live-runner.int,—,—
 BILL-003,P0,Billing,complete,Insufficient/empty → 0; partial/canceled charge delivered only,live-runner.int,—,CREDIT-003 owner approval
