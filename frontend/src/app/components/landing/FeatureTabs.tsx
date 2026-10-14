@@ -90,6 +90,8 @@ export function FeatureTabs() {
               finally connected in one workflow.
             </span>
           </h2>
+          {/* The panels below are product illustrations; their creators, handles and numbers are fictional. */}
+          <p className="mt-3 text-xs text-slate-500">Product illustrations. Creators, handles and figures shown are fictional examples.</p>
         </div>
 
         {/* Horizontal tab bar */}
