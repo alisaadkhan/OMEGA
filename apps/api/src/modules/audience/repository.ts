@@ -122,6 +122,16 @@ export async function insertEstimate(tx: TenantTx, row: typeof audienceEstimates
   return r;
 }
 
+/**
+ * Deletes stored estimates past their expiry. Expiry is 30 days for estimates (YouTube API data may be kept at most 30
+ * days without the channel owner's authorisation; Developer Policies III.E.4.b) and 7 for insufficient results.
+ * Hiding expired rows is not enough: they must not be retained. Jobs keep their outcome; their link is set to null.
+ */
+export async function purgeExpiredEstimates(tx: SystemTx, now: Date): Promise<number> {
+  const rows = await tx.execute<{ id: string }>(sql`delete from gcp.audience_estimates where expires_at <= ${now.toISOString()}::timestamptz returning id`);
+  return rows.length;
+}
+
 export async function stuckJobs(tx: SystemTx, minutes: number): Promise<{ id: string; workspace_id: string }[]> {
   return [...(await tx.execute<{ id: string; workspace_id: string }>(sql`select id, workspace_id from platform.stuck_audience_jobs(${minutes})`))];
 }

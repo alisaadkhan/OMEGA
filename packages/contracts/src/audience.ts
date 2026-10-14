@@ -47,9 +47,18 @@ export const audienceSampleSchema = z.object({
   coverage: fraction,
 });
 
+/**
+ * Where audience figures come from. Only creator-authorised platform analytics may ever be "verified_analytics";
+ * a vendor's modelled figures are "provider_estimate"; MUSHIN's own calculation is "mushin_estimate".
+ */
+export const audienceProvenanceSchema = z.enum(["verified_analytics", "provider_estimate", "mushin_estimate"]);
+export type AudienceProvenance = z.output<typeof audienceProvenanceSchema>;
+
 /** Stored as the estimate's `result` (aggregates only) and returned as-is. */
 export const audienceEstimateBodySchema = z.object({
   methodVersion: z.string(),
+  /** Results stored before this field existed are MUSHIN's own commenter estimates. */
+  provenance: audienceProvenanceSchema.default("mushin_estimate"),
   label: z.string(),
   population: z.literal("sampled_recent_commenters"),
   outcome: z.enum(["estimated", "insufficient"]),

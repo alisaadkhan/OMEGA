@@ -183,12 +183,12 @@ describe("live discovery and erasure handlers", () => {
 describe("audience handlers", () => {
   it("runs requested estimates in their workspace and sweeps stuck ones", async () => {
     const calls: string[] = [];
-    const handlers = audienceHandlers({ runner: { run: async (jobId, ws) => void calls.push(`run:${jobId}:${ws}`), sweepStuck: async () => (calls.push("sweep"), 0) } });
+    const handlers = audienceHandlers({ runner: { run: async (jobId, ws) => void calls.push(`run:${jobId}:${ws}`), sweepStuck: async () => (calls.push("sweep"), 0), purgeExpired: async () => (calls.push("purge"), 0) } });
     const dispatch = createDispatcher(handlers, createLogger({ level: "silent" }));
     const job = (eventType: string, payload: Record<string, unknown>, workspaceId: string | null) => ({ eventId: "e", eventType, aggregateType: "audience_job", aggregateId: "1", workspaceId, requestId: null, payload });
     await dispatch([{ id: "j1", data: job("audience.estimate_requested", { jobId: "a1" }, "w1") }]);
     await dispatch([{ id: "j2", data: job("system.audience_sweep", {}, null) }]);
-    expect(calls).toEqual(["run:a1:w1", "sweep"]);
+    expect(calls).toEqual(["run:a1:w1", "sweep", "purge"]);
     await expect(dispatch([{ id: "j3", data: job("audience.estimate_requested", { jobId: "a1" }, null) }])).rejects.toThrow(/workspace/);
     expect(SCHEDULES.find((s) => s.key === "audience_sweep")).toMatchObject({ queue: "system", cron: "*/5 * * * *" });
   });

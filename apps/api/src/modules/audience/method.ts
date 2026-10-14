@@ -155,6 +155,7 @@ export function buildEstimate(sel: CommenterSelection, countries: (string | null
   if (sel.excludedLikelySpam > 0) limitations.push(`${sel.excludedLikelySpam} commenters were left out as likely spam (links or copied text).`);
   return {
     methodVersion: p.version,
+    provenance: "mushin_estimate",
     label: AUDIENCE_ESTIMATE_LABEL,
     population: "sampled_recent_commenters",
     outcome: country.status === "estimated" ? "estimated" : "insufficient",

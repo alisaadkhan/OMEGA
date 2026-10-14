@@ -140,7 +140,11 @@ export function createAudienceRunner(deps: Deps) {
     return n;
   }
 
-  return { run, sweepStuck };
+  async function purgeExpired(): Promise<number> {
+    return deps.db.withSystem((tx) => repo.purgeExpiredEstimates(tx, now()));
+  }
+
+  return { run, sweepStuck, purgeExpired };
 }
 
 export type AudienceRunner = ReturnType<typeof createAudienceRunner>;

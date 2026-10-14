@@ -121,6 +121,7 @@ describe("running an estimate", () => {
       platform: "youtube",
       outcome: "estimated",
       label: "Modeled estimate — not verified by the platform",
+      provenance: "mushin_estimate",
       population: "sampled_recent_commenters",
       sample: { uniqueCommenters: 200, classifiable: 60, coverage: 0.3 },
       country: { status: "estimated", classified: 60, displayStep: 5, confidence: "low" },
@@ -138,6 +139,20 @@ describe("running an estimate", () => {
     expect(again.httpStatus).toBe(200);
     expect(src.calls).toBe(1);
     expect(await balance(c)).toMatchObject({ available: 195, reserved: 0 });
+  });
+
+  it("deletes stored estimates once expired (YouTube API data kept at most 30 days) and does not show them again", async () => {
+    const c = await customer();
+    const id = await youtubeCreator();
+    await requestAndRun(c, id, new FakeYouTube(pkHeavy()));
+    const runner = runnerWith(null);
+    expect(await runner.purgeExpired()).toBe(0); // fresh: kept
+    await ownerQuery(`update gcp.audience_estimates set collected_at = now() - interval '31 days', expires_at = now() - interval '1 day'`);
+    expect(await runner.purgeExpired()).toBe(1);
+    expect(await ownerQuery(`select 1 from gcp.audience_estimates`)).toHaveLength(0);
+    const s = await audience.state(c, id);
+    expect(s.estimate).toBeNull();
+    expect(s.job).toMatchObject({ status: "completed", outcome: "estimated", creditsCharged: 5 });
   });
 
   it("returns the credits when the public evidence is insufficient, and shows why", async () => {

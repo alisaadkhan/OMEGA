@@ -1,7 +1,7 @@
 import type { AudienceRunner } from "../../api/src/modules/audience/index";
 import type { HandlerRegistry, JobData } from "./dispatcher";
 
-export function audienceHandlers(o: { runner: Pick<AudienceRunner, "run" | "sweepStuck"> }): HandlerRegistry {
+export function audienceHandlers(o: { runner: Pick<AudienceRunner, "run" | "sweepStuck" | "purgeExpired"> }): HandlerRegistry {
   return {
     "audience.estimate_requested": async (data: JobData) => {
       const jobId = data.payload["jobId"];
@@ -11,6 +11,8 @@ export function audienceHandlers(o: { runner: Pick<AudienceRunner, "run" | "swee
     "system.audience_sweep": async (_d, { logger }) => {
       const n = await o.runner.sweepStuck();
       if (n > 0) logger.warn({ swept: n }, "stuck audience estimates failed and refunded");
+      const purged = await o.runner.purgeExpired();
+      if (purged > 0) logger.info({ purged }, "expired audience estimates deleted");
     },
   };
 }
