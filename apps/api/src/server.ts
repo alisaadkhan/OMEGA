@@ -10,6 +10,9 @@ import { createAudienceModule, createAudienceService } from "./modules/audience"
 import { createBillingModule, createBillingService, createRedisAccessCache, noAccessCache } from "./modules/billing";
 import { createCreatorsModule, createCreatorsService, createPostgresCatalogSearch, createRemovalService } from "./modules/creators";
 import { createDiscoveryModule, createDiscoveryService } from "./modules/discovery";
+import { createActivityModule, createActivityService } from "./modules/activity";
+import { createAnalyticsModule, createAnalyticsService } from "./modules/analytics";
+import { createCampaignsModule, createCampaignsService } from "./modules/campaigns";
 import { createIdentityModule } from "./modules/identity";
 import { createListsModule, createListsService } from "./modules/lists";
 import { createPlatformModule } from "./modules/platform";
@@ -80,6 +83,9 @@ const app = await buildApp({
     createCreatorsModule({ service: creators, limiter, removals, requireStaff: staff.requireStaff }),
     createDiscoveryModule({ service: createDiscoveryService({ db, billing }), limiter }),
     createListsModule({ service: createListsService({ db }) }),
+    createCampaignsModule({ service: createCampaignsService({ db }) }),
+    createAnalyticsModule({ service: createAnalyticsService({ db }) }),
+    createActivityModule({ service: createActivityService({ db }) }),
     createAudienceModule({ service: createAudienceService({ db, billing, sources: config.audienceSources }), limiter }),
   ],
   readiness,

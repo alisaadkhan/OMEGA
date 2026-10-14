@@ -10,6 +10,7 @@ import { formatCount, uiTrust } from "../../api/search-mapping";
 import { useConfirm, useToast } from "../../lib/toast";
 import { AudienceEstimate } from "./AudienceEstimate";
 import { SaveToListMenu } from "./SaveToListMenu";
+import { AddToCampaignMenu } from "./AddToCampaignMenu";
 import { relative } from "../../lib/time";
 
 /** Volume 4B — Creator Intelligence Profile. */
@@ -171,9 +172,7 @@ export function CreatorProfilePanel({ creator, onClose, onCompare }: { creator: 
               <div className="text-xs text-slate-500">Creator profile</div>
               <div className="flex items-center gap-1">
                 {id && <SaveToListMenu creatorIds={[id]} />}
-                <button className="inline-flex items-center gap-1 rounded-md bg-slate-900 px-2.5 py-1 text-xs text-white transition-colors hover:bg-slate-800" style={{ fontWeight: 500 }}>
-                  <Plus className="h-3 w-3" strokeWidth={2} /> Add to campaign
-                </button>
+                {id && <AddToCampaignMenu creatorIds={[id]} />}
                 <button onClick={onClose} className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100" aria-label="Close">
                   <X className="h-4 w-4" strokeWidth={1.75} />
                 </button>

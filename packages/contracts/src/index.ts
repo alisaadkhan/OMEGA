@@ -8,3 +8,6 @@ export * from "./discovery";
 export * from "./removal";
 export * from "./audience";
 export * from "./lists";
+export * from "./campaigns";
+export * from "./analytics";
+export * from "./activity";

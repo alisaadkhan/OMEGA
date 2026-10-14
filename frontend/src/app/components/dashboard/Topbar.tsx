@@ -68,7 +68,7 @@ export function Topbar({ credits, view, setView, onExit, onOpenCreator, onViewRe
             <AnimatedNumber value={credits} />
           </span>
         </button>
-        <NotificationCenter />
+        <NotificationCenter onSeeAll={() => setView("activity")} />
 
         {/* Profile menu — holds Analytics, Activity, Settings, Support */}
         <div className="relative pl-1">

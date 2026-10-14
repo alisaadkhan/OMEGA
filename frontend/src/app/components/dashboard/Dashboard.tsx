@@ -54,9 +54,9 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
               {view === "overview" && <Overview credits={credits} setView={setView} />}
               {view === "search" && <SearchModule liveJobId={liveJobId} />}
               {view === "lists" && <Lists onOpenCreator={setOmniCreator} onGoToSearch={() => setView("search")} />}
-              {view === "campaigns" && <Campaigns />}
+              {view === "campaigns" && <Campaigns onOpenCreator={setOmniCreator} onGoToSearch={() => setView("search")} />}
               {view === "analytics" && <Analytics />}
-              {view === "inbox" && <Inbox />}
+              {view === "inbox" && <Inbox onGoToCampaigns={() => setView("campaigns")} />}
               {view === "settings" && <Settings />}
               {view === "billing" && <Billing checkoutResult={checkoutResult} />}
               {view === "support" && <Support />}

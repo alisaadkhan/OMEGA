@@ -5,7 +5,7 @@ import { meResponseSchema, type MeResponse } from "@mushin/contracts";
 import { apiRequest } from "../api/client";
 import { supabase } from "../lib/supabase";
 
-export type AuthUser = { name: string; email: string; avatar: string; initials: string; role: "owner" | "admin" | "member" };
+export type AuthUser = { id: string; name: string; email: string; avatar: string; initials: string; role: "owner" | "admin" | "member" };
 export type AuthStatus = "loading" | "signedIn" | "signedOut";
 
 type AuthContextValue = {
@@ -41,7 +41,7 @@ function toAuthUser(session: Session, me: MeResponse | undefined): AuthUser {
   const metaName = session.user.user_metadata?.["full_name"];
   const name = me?.user.displayName ?? (typeof metaName === "string" && metaName ? metaName : email.split("@")[0] ?? "You");
   const initials = initialsOf(name);
-  return { name, email, initials, avatar: me?.user.avatarUrl ?? initialsAvatar(initials), role: me?.workspace.role ?? "member" };
+  return { id: me?.user.id ?? session.user.id, name, email, initials, avatar: me?.user.avatarUrl ?? initialsAvatar(initials), role: me?.workspace.role ?? "member" };
 }
 
 function messageOf(error: { message: string }): string {

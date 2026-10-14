@@ -51,6 +51,7 @@ import { FreshnessBadge } from "./states";
 import { useToast } from "../../lib/toast";
 import { FindNewDialog } from "./FindNewDialog";
 import { SaveToListMenu } from "./SaveToListMenu";
+import { AddToCampaignMenu } from "./AddToCampaignMenu";
 import { useCancelJob, useDiscoveryJob, useLiveResults } from "../../api/discovery";
 import { liveFoundText } from "../../api/discovery-mapping";
 
@@ -518,12 +519,6 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
             </span>
             <div className="flex items-center gap-1.5">
               <BulkAction
-                icon={Plus}
-                label="Add to list"
-                disabled
-                title="Creator lists are not connected to the API yet. Nothing has been saved."
-              />
-              <BulkAction
                 icon={GitCompare}
                 label="Compare"
                 disabled={selected.size < 2}
@@ -536,6 +531,7 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
                 }}
               />
               <SaveToListMenu creatorIds={[...selected]} label={`Save ${selected.size} to a list`} />
+              <AddToCampaignMenu creatorIds={[...selected]} label={`Add ${selected.size} to a campaign`} />
               <button
                 onClick={() => setSelected(new Set())}
                 className="rounded-md px-2 py-1 text-xs text-indigo-700 transition-colors hover:bg-indigo-100"

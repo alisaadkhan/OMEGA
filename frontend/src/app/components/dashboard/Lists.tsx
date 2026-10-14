@@ -7,6 +7,7 @@ import { relative } from "../../lib/time";
 import { useConfirm, useToast } from "../../lib/toast";
 import type { Creator } from "./CreatorProfilePanel";
 import { EmptyState, ErrorState, LoadingBlock } from "./states";
+import { AddToCampaignMenu } from "./AddToCampaignMenu";
 
 /**
  * Lists and shortlists (canonical frontend spec page 09): workspace-private, every change saved on the server.
@@ -237,7 +238,10 @@ function ListDetail({ id, onBack, onOpenCreator, onGoToSearch }: { id: string; o
           {selected.size > 0 && (
             <div className="flex items-center justify-between border-b border-slate-200 bg-indigo-50/60 px-4 py-2 text-xs text-indigo-900">
               <span>{selected.size} selected</span>
-              <button onClick={() => onRemove([...selected])} disabled={remove.isPending} className="rounded-md border border-red-200 bg-white px-2.5 py-1 text-red-700 hover:bg-red-50 disabled:opacity-50">Remove from list</button>
+              <span className="flex items-center gap-1.5">
+                <AddToCampaignMenu creatorIds={[...selected]} label={`Add ${selected.size} to a campaign`} />
+                <button onClick={() => onRemove([...selected])} disabled={remove.isPending} className="rounded-md border border-red-200 bg-white px-2.5 py-1 text-red-700 hover:bg-red-50 disabled:opacity-50">Remove from list</button>
+              </span>
             </div>
           )}
           <div className="overflow-x-auto">
