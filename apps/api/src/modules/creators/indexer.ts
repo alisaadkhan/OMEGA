@@ -3,16 +3,18 @@ import type { Db } from "@mushin/db";
 import type { SearchIndex } from "@mushin/integrations";
 import { isIndexable, toDocument } from "./projection";
 import * as repo from "./repository";
+import { applyDocumentPolicy, DEFAULT_SOURCE_POLICY, type SourcePolicy } from "./source-policy";
 
 const BATCH = 200;
 
 /** Keeps the Meilisearch projection of gcp in step (spec §4.3): per change, and a nightly full comparison. */
-export function createCreatorIndexer(o: { db: Db; index: SearchIndex | null; logger: Logger }) {
+export function createCreatorIndexer(o: { db: Db; index: SearchIndex | null; logger: Logger; sourcePolicy?: SourcePolicy }) {
+  const policy = o.sourcePolicy ?? DEFAULT_SOURCE_POLICY;
   async function sync(creatorIds: string[]): Promise<void> {
     if (creatorIds.length === 0) return;
     const rows = await o.db.withSystem((tx) => repo.indexRows(tx, creatorIds));
     const keep = rows.filter(isIndexable);
-    const docs = keep.map(toDocument);
+    const docs = keep.map((r) => applyDocumentPolicy(toDocument(r), policy));
     await o.db.withSystem((tx) => repo.upsertPostgresSearchDocuments(tx, docs));
     if (o.index) await o.index.upsert(docs);
     // A creator hidden while we were writing may have had its own sync's removal applied before our upsert.

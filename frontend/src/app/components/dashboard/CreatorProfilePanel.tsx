@@ -27,7 +27,8 @@ export type Creator = {
   niche: string;
   followers: string;
   followersNum: number | null;
-  engagement: number;
+  /** null when unknown or not calculated for the source (e.g. YouTube data under policy review). */
+  engagement: number | null;
   /** null until MUSHIN has assessed the creator (never shown without evidence, SRS §5.5). */
   authenticity: number | null;
   fake: number | null;
@@ -289,7 +290,9 @@ export function CreatorProfilePanel({ creator, onClose, onCompare }: { creator: 
                                 ? "Assessment pending. MUSHIN is analysing this creator; check back in a few minutes."
                                 : p.authenticity.status === "insufficient_data"
                                   ? "Not enough recent posts to assess. MUSHIN needs at least 3 recent posts with public likes."
-                                  : "Not yet assessed. The authenticity score appears once MUSHIN has analysed this creator, always with the evidence behind it."}
+                                  : p.authenticity.status === "restricted"
+                                    ? "Not available for YouTube data. MUSHIN shows YouTube's own public counts but does not calculate engagement or authenticity from them while its use is under policy review."
+                                    : "Not yet assessed. The authenticity score appears once MUSHIN has analysed this creator, always with the evidence behind it."}
                             </p>
                           )}
                         </div>

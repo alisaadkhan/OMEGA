@@ -33,6 +33,8 @@ const sharedObject = z.object({
   PADDLE_ENVIRONMENT: z.enum(["sandbox", "production"]).default("sandbox"),
   MOCK_PADDLE_WEBHOOK_SECRET: z.string().min(32, "must be at least 32 characters").optional(),
   CATALOG_SEARCH_BACKEND: z.enum(["postgres", "meilisearch"]).default("postgres"),
+  // MUSHIN-derived metrics from YouTube API data (DATA-004): off until the owner confirms policy eligibility.
+  YOUTUBE_DERIVED_METRICS: z.enum(["on", "off"]).default("off"),
   // Audience estimate sources, comma-separated; empty (the default) turns the feature off. Only "youtube" exists, and it
   // may be enabled only once MUSHIN may derive metrics from YouTube API data (Developer Policies III.E.2, III.E.4.h, L).
   AUDIENCE_SOURCES: z
@@ -284,6 +286,7 @@ export type ApiConfig = {
   databaseCaPem: string | null;
   payments: PaymentsConfig;
   catalogSearchBackend: "postgres" | "meilisearch";
+  sourcePolicy: { youtubeDerivedMetrics: boolean };
   search: SearchConfig;
   llm: LlmProviderConfig[];
   audienceSources: "youtube"[];
@@ -308,6 +311,7 @@ export function loadApiConfig(env: Env): ApiConfig {
     databaseCaPem: readCaFile(v.DATABASE_SSL_CA_FILE),
     payments: paymentsFrom(v),
     catalogSearchBackend: v.CATALOG_SEARCH_BACKEND,
+    sourcePolicy: { youtubeDerivedMetrics: v.YOUTUBE_DERIVED_METRICS === "on" },
     search: searchFrom(v, v.MEILISEARCH_SEARCH_KEY),
     llm: llmFrom(v),
     audienceSources: [...new Set(v.AUDIENCE_SOURCES)],
@@ -326,6 +330,7 @@ export type WorkerConfig = {
   payments: PaymentsConfig;
   upstash: { url: string; token: string } | null;
   catalogSearchBackend: "postgres" | "meilisearch";
+  sourcePolicy: { youtubeDerivedMetrics: boolean };
   search: SearchConfig;
   llm: LlmProviderConfig[];
   scraping: ScrapingConfig;
@@ -346,6 +351,7 @@ export function loadWorkerConfig(env: Env): WorkerConfig {
     payments: paymentsFrom(v),
     upstash: upstashFrom(v),
     catalogSearchBackend: v.CATALOG_SEARCH_BACKEND,
+    sourcePolicy: { youtubeDerivedMetrics: v.YOUTUBE_DERIVED_METRICS === "on" },
     search: searchFrom(v, v.MEILISEARCH_API_KEY),
     llm: llmFrom(v),
     dataEncryptionKey: Buffer.from(v.DATA_ENCRYPTION_KEY, "base64"),

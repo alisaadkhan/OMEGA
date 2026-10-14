@@ -3,7 +3,7 @@ import { AppError, type Logger } from "@mushin/core";
 import type { Db, LivePrices, LiveProgress, TenantTx } from "@mushin/db";
 import { ProviderError, type Llm, type ProfileScraper } from "@mushin/integrations";
 import type { BillingService } from "../billing/index";
-import { findProfileByUrl, fitLabel, getSearchSettings, isVisibleCreator, rankCards, suppressedUrls, type CreatorPlatform, type EnrichJob, type EnrichmentPipeline } from "../creators/index";
+import { findProfileByUrl, fitLabel, getSearchSettings, isVisibleCreator, rankCards, suppressedUrls, type CreatorPlatform, type SourcePolicy, type EnrichJob, type EnrichmentPipeline } from "../creators/index";
 import { notifyFinished, releaseHeld } from "./finish";
 import type { CachedSearch } from "./live/cache";
 import { evaluateCampaignFit } from "./fit";
@@ -15,6 +15,7 @@ import { contentGroup, mentionLeads, postsToResolve } from "./live/content";
 import * as repo from "./repository";
 
 type Deps = {
+  sourcePolicy?: SourcePolicy;
   db: Db;
   billing: Pick<BillingService, "engine">;
   pipeline: Pick<EnrichmentPipeline, "archive" | "archived" | "profileForUrl" | "processProfile">;
@@ -67,7 +68,7 @@ export function createLiveRunner(deps: Deps) {
   async function rerank(tx: TenantTx, job: repo.JobRow, search: LiveSearch): Promise<number> {
     const ids = await repo.resultCreatorIds(tx, job.workspaceId, job.id);
     const [cards, rows, settings] = await Promise.all([
-      rankCards(tx, ids, search.filters, now()),
+      rankCards(tx, ids, search.filters, now(), deps.sourcePolicy),
       repo.resultsAfter(tx, job.workspaceId, job.id, 0),
       getSearchSettings(tx),
     ]);

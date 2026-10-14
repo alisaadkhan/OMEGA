@@ -13,6 +13,9 @@ import { measureSignals, profileMetrics, type SignalReport } from "./signals";
 import { standardize, type StandardProfile } from "./standardize";
 import { suppressedUrls } from "../suppressions";
 
+/** YouTube API Services: non-authorised data may not be stored beyond 30 calendar days. */
+export const YOUTUBE_API_RETENTION_DAYS = 30;
+
 export type EnrichJob = { jobId: string; workspaceId: string; platform: CreatorPlatform; handle: string; canonicalUrl: string; requestId: string | null };
 export type SavedResult = { kind: "saved"; creatorId: string; outcome: "created" | "refreshed"; assessment: "assessed" | "pending" | "insufficient_data"; profile: StandardProfile };
 export type EnrichResult = SavedResult | { kind: "reused"; creatorId: string } | { kind: "unavailable"; code: "PRIVATE_ACCOUNT" | "NOT_FOUND"; message: string };
@@ -97,7 +100,8 @@ export function createEnrichmentPipeline(deps: Deps) {
         storageKey: key,
         bytes: Buffer.byteLength(body),
         sha256: sha256Hex(body),
-        deleteAfter: new Date(t.getTime() + settings.rawRetentionDays * 86_400_000),
+        // YouTube API data may be kept at most 30 days (DATA-004); other sources follow the retention setting.
+        deleteAfter: new Date(t.getTime() + (provider === "youtube" ? Math.min(settings.rawRetentionDays, YOUTUBE_API_RETENTION_DAYS) : settings.rawRetentionDays) * 86_400_000),
       }),
     );
   }

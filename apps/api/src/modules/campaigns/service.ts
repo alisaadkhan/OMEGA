@@ -12,10 +12,10 @@ import {
 } from "@mushin/contracts";
 import { AppError, type TenantContext } from "@mushin/core";
 import type { Db } from "@mushin/db";
-import { rankCards } from "../creators/index";
+import { rankCards, type SourcePolicy } from "../creators/index";
 import * as repo from "./repository";
 
-export type CampaignsDeps = { db: Db; now?: () => Date };
+export type CampaignsDeps = { db: Db; now?: () => Date; sourcePolicy?: SourcePolicy };
 
 const FEE_KIND_FOR: Record<PipelineStage, "estimated" | "quoted" | "agreed"> = { identified: "estimated", contacted: "estimated", negotiating: "quoted", confirmed: "agreed" };
 const MAX_CLOCK_SKEW_MS = 5 * 60_000;
@@ -73,7 +73,7 @@ export function createCampaignsService(deps: CampaignsDeps) {
     return deps.db.withTenant(tenant(ctx), async (tx) => {
       const summary = await summaryOf(tx, ctx, id);
       const rows = await repo.members(tx, ctx.workspaceId, id);
-      const cards = new Map((await rankCards(tx, rows.map((r) => r.creatorId), searchFiltersSchema.parse({}), now())).map((c) => [c.id, c]));
+      const cards = new Map((await rankCards(tx, rows.map((r) => r.creatorId), searchFiltersSchema.parse({}), now(), deps.sourcePolicy)).map((c) => [c.id, c]));
       const latest = await repo.latestOutreach(tx, ctx.workspaceId, id);
       const creators: CampaignCreator[] = rows.flatMap((r) => {
         const card = cards.get(r.creatorId);

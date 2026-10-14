@@ -1,10 +1,10 @@
 import { searchFiltersSchema, type CreateList, type ListDetail, type ListSummary, type UpdateList } from "@mushin/contracts";
 import { AppError, type TenantContext } from "@mushin/core";
 import type { Db } from "@mushin/db";
-import { rankCards } from "../creators/index";
+import { rankCards, type SourcePolicy } from "../creators/index";
 import * as repo from "./repository";
 
-export type ListsDeps = { db: Db; now?: () => Date };
+export type ListsDeps = { db: Db; now?: () => Date; sourcePolicy?: SourcePolicy };
 
 const isDuplicateName = (err: unknown) => {
   for (let e: unknown = err; e instanceof Error; e = e.cause) if (/lists_workspace_name_idx/.test(e.message)) return true;
@@ -42,7 +42,7 @@ export function createListsService(deps: ListsDeps) {
       if (!summary) throw new AppError("NOT_FOUND", "List not found");
       const rows = await repo.members(tx, ctx.workspaceId, id);
       // Hidden creators (erasure pending, possible minors) are left out by the card query itself.
-      const cards = new Map((await rankCards(tx, rows.map((r) => r.creatorId), searchFiltersSchema.parse({}), now())).map((c) => [c.id, c]));
+      const cards = new Map((await rankCards(tx, rows.map((r) => r.creatorId), searchFiltersSchema.parse({}), now(), deps.sourcePolicy)).map((c) => [c.id, c]));
       return {
         ...toSummary(summary),
         members: rows.flatMap((r) => {

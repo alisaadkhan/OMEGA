@@ -151,7 +151,7 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
   const filtered = useMemo(() => {
     const list = (search.data?.results ?? []).map(toCreator);
     if (sortKey === "followers") return [...list].sort((a, b) => (a.followersNum === null ? 1 : b.followersNum === null ? -1 : b.followersNum - a.followersNum));
-    if (sortKey === "engagement") return [...list].sort((a, b) => b.engagement - a.engagement);
+    if (sortKey === "engagement") return [...list].sort((a, b) => (a.engagement === null ? 1 : b.engagement === null ? -1 : b.engagement - a.engagement));
     if (sortKey === "freshness") return [...list].sort((a, b) => FRESH_RANK[a.followersFreshness] - FRESH_RANK[b.followersFreshness]);
     return list; // relevance: the API's fit order
   }, [search.data, sortKey]);
@@ -939,7 +939,7 @@ function CreatorCard({
 
         <div className="mt-3 grid grid-cols-3 gap-2 text-center">
           <Metric label="Followers" value={creator.followers} />
-          <Metric label="ER" value={`${creator.engagement.toFixed(1)}%`} />
+          <Metric label="ER" value={creator.engagement === null ? "—" : `${creator.engagement.toFixed(1)}%`} />
           <Metric label="Auth." value={creator.authenticity === null ? "—" : String(creator.authenticity)} />
         </div>
 
@@ -1062,7 +1062,7 @@ function ResultsTable({
                 </div>
               </td>
               <td className="py-3 text-right tabular-nums text-slate-700">{c.followers}</td>
-              <td className="py-3 text-right tabular-nums text-slate-700">{c.engagement.toFixed(1)}%</td>
+              <td className="py-3 text-right tabular-nums text-slate-700">{c.engagement === null ? "—" : `${c.engagement.toFixed(1)}%`}</td>
               <td className="py-3 text-right tabular-nums text-slate-700">{c.authenticity ?? "—"}</td>
               <td className="py-3 pr-4 text-right">
                 <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] ${scoreBg(c.score)}`} style={{ fontWeight: 600 }}>

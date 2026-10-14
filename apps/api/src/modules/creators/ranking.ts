@@ -2,6 +2,7 @@ import type { CreatorCard, SearchFilters } from "@mushin/contracts";
 import type { SystemTx, TenantTx } from "@mushin/db";
 import * as repo from "./repository";
 import { fitLabel, fitScore, freshnessOf } from "./rules";
+import { DEFAULT_SOURCE_POLICY, restrictsDerived, type SourcePolicy } from "./source-policy";
 
 type Tx = TenantTx | SystemTx;
 
@@ -22,13 +23,17 @@ function nameTier(text: string, name: string, handle: string): number {
 }
 
 /** Brain 1's cards and order (spec D2 of sub-project 3); live results use the same scoring (sub-project 4B D5). */
-export function toCards(rows: repo.CardRow[], req: { text: string; filters: SearchFilters }, settings: repo.SearchSettings, now: Date, relevance: Map<string, number>): CreatorCard[] {
+export function toCards(rows: repo.CardRow[], req: { text: string; filters: SearchFilters }, settings: repo.SearchSettings, now: Date, relevance: Map<string, number>, policy: SourcePolicy = DEFAULT_SOURCE_POLICY): CreatorCard[] {
   const tier = new Map(rows.map((r) => [r.id, nameTier(req.text, r.displayName, r.primaryHandle)]));
   return rows
     .map((r) => {
       const followersFreshness = freshnessOf(r.followersUpdatedAt, now, settings.fresh);
+      // Derived metrics of restricted sources are neither shown nor used for the score (DATA-004).
+      const restricted = restrictsDerived(r.primaryPlatform, policy);
+      const engagementRate = restricted ? null : r.engagementRate;
+      const authenticityScore = restricted ? null : r.authenticityScore;
       const score = fitScore(
-        { textScore: req.text ? (relevance.get(r.id) ?? 0) : null, followers: r.followers, engagementRate: r.engagementRate, authenticityScore: r.authenticityScore, followersFreshness },
+        { textScore: req.text ? (relevance.get(r.id) ?? 0) : null, followers: r.followers, engagementRate, authenticityScore, followersFreshness },
         req.filters,
         settings.weights,
       );
@@ -44,9 +49,9 @@ export function toCards(rows: repo.CardRow[], req: { text: string; filters: Sear
         tags: r.tags,
         verified: r.verified,
         followers: r.followers,
-        engagementRate: r.engagementRate,
-        authenticityScore: r.authenticityScore,
-        fakeFollowerPct: r.fakeFollowerPct,
+        engagementRate,
+        authenticityScore,
+        fakeFollowerPct: restricted ? null : r.fakeFollowerPct,
         hasContact: r.hasContact,
         followersFreshness,
         fitScore: score,
@@ -59,8 +64,8 @@ export function toCards(rows: repo.CardRow[], req: { text: string; filters: Sear
 }
 
 /** Cards for a live run's creators: hidden creators are left out (card rows apply the visibility rule); the AI already judged relevance, so text counts as matched. */
-export async function rankCards(tx: Tx, ids: string[], filters: SearchFilters, now: Date): Promise<CreatorCard[]> {
+export async function rankCards(tx: Tx, ids: string[], filters: SearchFilters, now: Date, policy: SourcePolicy = DEFAULT_SOURCE_POLICY): Promise<CreatorCard[]> {
   if (ids.length === 0) return [];
   const settings = await repo.getSearchSettings(tx);
-  return toCards(await repo.cardRows(tx, ids), { text: "", filters }, settings, now, new Map());
+  return toCards(await repo.cardRows(tx, ids), { text: "", filters }, settings, now, new Map(), policy);
 }

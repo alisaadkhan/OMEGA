@@ -59,6 +59,7 @@ const creators = createCreatorsService({
   billing,
   encryptionKey: config.dataEncryptionKey,
   logger,
+  sourcePolicy: config.sourcePolicy,
 });
 const identity = createIdentityModule({ db, startTrial: billing.startTrial });
 const staff = createStaffModule({ db, tokens: createStaffTokens(config.staffJwtSecret), encryptionKey: config.dataEncryptionKey });
@@ -83,9 +84,9 @@ const app = await buildApp({
     staff.module,
     createBillingModule({ service: billing, payments, appUrl: config.appUrl }),
     createCreatorsModule({ service: creators, limiter, removals, requireStaff: staff.requireStaff }),
-    createDiscoveryModule({ service: createDiscoveryService({ db, billing }), limiter }),
-    createListsModule({ service: createListsService({ db }) }),
-    createCampaignsModule({ service: createCampaignsService({ db }) }),
+    createDiscoveryModule({ service: createDiscoveryService({ db, billing, sourcePolicy: config.sourcePolicy }), limiter }),
+    createListsModule({ service: createListsService({ db, sourcePolicy: config.sourcePolicy }) }),
+    createCampaignsModule({ service: createCampaignsService({ db, sourcePolicy: config.sourcePolicy }) }),
     createAnalyticsModule({ service: createAnalyticsService({ db }) }),
     createActivityModule({ service: createActivityService({ db }) }),
     createSupportModule({ service: createSupportService({ db }) }),

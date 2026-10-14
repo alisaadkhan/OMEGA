@@ -3,11 +3,11 @@ import { searchFiltersSchema, validateLiveBrief, type CreateLiveEstimate, type D
 import { AppError, sha256Hex, stableJson, type TenantContext } from "@mushin/core";
 import { writeOutbox, type Db } from "@mushin/db";
 import type { BillingService } from "../billing/index";
-import { findProfileByUrl, fitLabel, getEnrichmentSettings, getSearchSettings, isVisibleCreator, suppressedUrls, normalizeProfileUrl, profileTarget, rankCards, refreshActionFor, type CreatorPlatform } from "../creators/index";
+import { findProfileByUrl, fitLabel, getEnrichmentSettings, getSearchSettings, isVisibleCreator, suppressedUrls, type SourcePolicy, normalizeProfileUrl, profileTarget, rankCards, refreshActionFor, type CreatorPlatform } from "../creators/index";
 import { platformsFor } from "./live/queries";
 import * as repo from "./repository";
 
-export type DiscoveryDeps = { db: Db; billing: Pick<BillingService, "engine">; now?: () => Date };
+export type DiscoveryDeps = { db: Db; billing: Pick<BillingService, "engine">; now?: () => Date; sourcePolicy?: SourcePolicy };
 
 const isOneOpenViolation = (err: unknown) => {
   for (let e: unknown = err; e instanceof Error; e = e.cause) if (/discovery_jobs_one_open/.test(e.message)) return true;
@@ -217,7 +217,7 @@ export function createDiscoveryService(deps: DiscoveryDeps) {
       if (!job || job.kind !== "live" || !job.search) throw new AppError("NOT_FOUND", "Job not found");
       const rows = await repo.resultsAfter(tx, ctx.workspaceId, id, after);
       const filters = searchFiltersSchema.parse(job.search.filters);
-      const cards = new Map((await rankCards(tx, rows.map((r) => r.creatorId), filters, now())).map((c) => [c.id, c]));
+      const cards = new Map((await rankCards(tx, rows.map((r) => r.creatorId), filters, now(), deps.sourcePolicy)).map((c) => [c.id, c]));
       const settings = await getSearchSettings(tx);
       return {
         results: rows.flatMap((r) => {

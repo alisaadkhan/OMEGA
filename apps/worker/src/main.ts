@@ -4,7 +4,7 @@ import { createDatabase, createDbProviderCallSink, providerCallsSince, providerS
 import { createBudgetGuard, createYouTubeAudienceSource, createLlm, createObjectStorage, createPayments, createProfileScraper, createSearchIndex, createSearchLimitGuard, createSerperSearch, createYouTubeSearch } from "@mushin/integrations";
 import { createAudienceRunner } from "../../api/src/modules/audience/index";
 import { createBillingService, createRedisAccessCache, noAccessCache } from "../../api/src/modules/billing/index";
-import { createCreatorIndexer, createEnrichmentPipeline, createEraser, createSummaryWriter, getEnrichmentSettings } from "../../api/src/modules/creators/index";
+import { createCreatorIndexer, createEnrichmentPipeline, createEraser, createSummaryWriter, getEnrichmentSettings, expireYoutubeApiData } from "../../api/src/modules/creators/index";
 import { createCachedSearch, createDiscoveryRunner, createLiveRunner } from "../../api/src/modules/discovery/index";
 import { audienceHandlers } from "./audience-handlers";
 import { billingHandlers, notifyHandlers } from "./billing-handlers";
@@ -26,7 +26,7 @@ const payments = createPayments(config.payments, { sink: createDbProviderCallSin
 const cache = config.upstash ? createRedisAccessCache(new Redis({ url: config.upstash.url, token: config.upstash.token }), logger) : noAccessCache;
 const billing = createBillingService({ db, payments, cache, logger });
 const searchIndex = config.search ? createSearchIndex(config.search, logger) : null;
-const indexer = createCreatorIndexer({ db, index: searchIndex, logger });
+const indexer = createCreatorIndexer({ db, index: searchIndex, logger, sourcePolicy: config.sourcePolicy });
 const llm = createLlm(config.llm, { sink: createDbProviderCallSink(db), logger });
 const summaries = createSummaryWriter({ db, llm, logger });
 const enrichment = await db.withSystem((tx) => getEnrichmentSettings(tx));
@@ -53,7 +53,7 @@ const web = createSerperSearch({
 });
 if (!config.scraping.serperApiKey) logger.warn("SERPER_API_KEY not set: Find New Creators runs will fail and refund");
 const searchCache = createCachedSearch({ db, web, ...(config.scraping.youtubeSearch ? { youtube: createYouTubeSearch({ apiKey: config.scraping.youtubeApiKey, sink: createDbProviderCallSink(db), logger }) } : {}) });
-const liveRunner = createLiveRunner({ db, billing, pipeline, scraper, search: searchCache, llm, logger, contentResolutionMax: config.scraping.contentResolutionMax, extractionMultiplier: config.scraping.extractionMultiplier, profileConcurrency: config.scraping.profileConcurrency });
+const liveRunner = createLiveRunner({ sourcePolicy: config.sourcePolicy, db, billing, pipeline, scraper, search: searchCache, llm, logger, contentResolutionMax: config.scraping.contentResolutionMax, extractionMultiplier: config.scraping.extractionMultiplier, profileConcurrency: config.scraping.profileConcurrency });
 // Audience estimates run only for sources the operator enabled (AUDIENCE_SOURCES); otherwise queued jobs are refunded.
 const audienceRunner = createAudienceRunner({
   db,
@@ -76,7 +76,7 @@ const worker = await startWorker({
   db,
   boss,
   logger,
-  handlers: { ...defaultHandlers(db), ...billingHandlers(billing), ...notifyHandlers(), ...creatorHandlers({ indexer, summaries }), ...discoveryHandlers({ runner, liveRunner, searchCache, pipeline }), ...erasureHandlers({ eraser }), ...audienceHandlers({ runner: audienceRunner }) },
+  handlers: { ...defaultHandlers(db), ...billingHandlers(billing), ...notifyHandlers(), ...creatorHandlers({ indexer, summaries, expireYoutube: () => expireYoutubeApiData(db) }), ...discoveryHandlers({ runner, liveRunner, searchCache, pipeline }), ...erasureHandlers({ eraser }), ...audienceHandlers({ runner: audienceRunner }) },
 });
 logger.info("worker started");
 

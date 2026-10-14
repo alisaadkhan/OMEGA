@@ -24,6 +24,7 @@ import { suppressedUrls } from "./suppressions";
 import { chargeCatalogSearch } from "./search-charge";
 import { decodeCursor, encodeCursor } from "./cursor";
 import { understandQuery } from "./understand";
+import { DEFAULT_SOURCE_POLICY, restrictsDerived, type SourcePolicy } from "./source-policy";
 
 export type CreatorsDeps = {
   db: Db;
@@ -36,6 +37,8 @@ export type CreatorsDeps = {
   encryptionKey: Buffer;
   logger: Logger;
   now?: () => Date;
+  /** Source-specific metric rules (DATA-004); defaults to the restrictive policy. */
+  sourcePolicy?: SourcePolicy;
 };
 
 const SETTINGS_TTL_MS = 60_000;
@@ -44,6 +47,7 @@ const FILTER_ONLY_SORT = ["engagement_rate:desc", "authenticity_score:desc", "fo
 
 export function createCreatorsService(deps: CreatorsDeps) {
   const now = deps.now ?? (() => new Date());
+  const policy = deps.sourcePolicy ?? DEFAULT_SOURCE_POLICY;
   const tenant = (ctx: TenantContext) => ({ userId: ctx.userId, workspaceId: ctx.workspaceId });
   let cached: { at: number; settings: repo.SearchSettings; niches: string[]; revealCost: number; refreshCost: Record<"refresh_data" | "refresh_tiktok", number> } | null = null;
 
@@ -107,7 +111,7 @@ export function createCreatorsService(deps: CreatorsDeps) {
     );
     const relevance = new Map(hits.map((h) => [h.id, h.rankingScore]));
     const rows = await deps.db.withTenant(tenant(ctx), (tx) => repo.cardRows(tx, hits.map((h) => h.id)));
-    const cards = toCards(rows, q, settings, t, relevance);
+    const cards = toCards(rows, q, settings, t, relevance, policy);
     const start = decodeCursor(req, req.cursor, settings.pageSize);
     // Paid only once the search has answered; refused (no results returned) when the price or balance does not allow it.
     const charge = await chargeCatalogSearch({ db: deps.db, billing: deps.billing, now }, ctx, req);
@@ -264,10 +268,11 @@ export function createCreatorsService(deps: CreatorsDeps) {
           followers: p.followers,
           following: p.following,
           posts: p.posts,
-          engagementRate: p.engagementRate,
-          avgLikes: p.avgLikes,
-          avgComments: p.avgComments,
-          avgViews: p.avgViews,
+          // Averages and rates are MUSHIN-derived; observed counts above stay visible.
+          engagementRate: restrictsDerived(p.platform, policy) ? null : p.engagementRate,
+          avgLikes: restrictsDerived(p.platform, policy) ? null : p.avgLikes,
+          avgComments: restrictsDerived(p.platform, policy) ? null : p.avgComments,
+          avgViews: restrictsDerived(p.platform, policy) ? null : p.avgViews,
           bio: p.bio,
           freshness: {
             followers: freshnessOf(p.followersUpdatedAt, t, settings.fresh),
@@ -278,8 +283,9 @@ export function createCreatorsService(deps: CreatorsDeps) {
         })),
         summary,
         // Never a score without the evidence behind it (SRS REQ-01.02, §5.5).
-        authenticity:
-          snap && snap.authenticityScore !== null && evidence.length > 0
+        authenticity: restrictsDerived(c.primaryPlatform, policy)
+          ? { status: "restricted" as const, reason: "youtube_api_policy" as const }
+          : snap && snap.authenticityScore !== null && evidence.length > 0
             ? { status: "assessed" as const, score: snap.authenticityScore, fakeFollowerPct: c.fakeFollowerPct, evidence, assessedAt: snap.createdAt.toISOString() }
             : c.assessmentStatus === "pending"
               ? { status: "pending" as const }

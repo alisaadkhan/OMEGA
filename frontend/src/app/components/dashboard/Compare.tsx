@@ -19,7 +19,8 @@ type Row = {
 function bestByMax(pick: (c: Creator) => number) {
   return (list: Creator[]) => {
     const max = Math.max(...list.map(pick));
-    return new Set(list.filter((c) => pick(c) === max).map((c) => c.id));
+    // Nothing is "best" when no creator has a known value (unknowns are passed as negative).
+    return max < 0 ? new Set<string>() : new Set(list.filter((c) => pick(c) === max).map((c) => c.id));
   };
 }
 
@@ -28,7 +29,7 @@ const ROWS: Row[] = [
   { label: "City", get: (c) => c.city },
   { label: "Niche", get: (c) => c.niche },
   { label: "Followers", get: (c) => c.followers, best: bestByMax((c) => c.followersNum) },
-  { label: "Engagement", get: (c) => `${c.engagement.toFixed(1)}%`, best: bestByMax((c) => c.engagement) },
+  { label: "Engagement", get: (c) => (c.engagement === null ? "Unknown" : `${c.engagement.toFixed(1)}%`), best: bestByMax((c) => c.engagement ?? -1) },
   { label: "Authenticity", get: (c) => (c.authenticity === null ? "Not yet assessed" : `${c.authenticity}`), best: bestByMax((c) => c.authenticity ?? -1) },
   { label: "Flagged interactions", get: (c) => (c.fake === null ? "—" : `${c.fake}%`), best: bestByMax((c) => -(c.fake ?? 100)) },
   { label: "Creator Fit", get: (c) => `${c.score}`, best: bestByMax((c) => c.score) },

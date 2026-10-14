@@ -164,6 +164,8 @@ export const creatorProfileSchema = z.object({
     z.object({ status: z.literal("not_assessed") }),
     z.object({ status: z.literal("pending") }),
     z.object({ status: z.literal("insufficient_data") }),
+    /** Not computed for this source until its policy allows it (DATA-004: YouTube API data). */
+    z.object({ status: z.literal("restricted"), reason: z.literal("youtube_api_policy") }),
   ]),
   contacts: z.array(z.object({ id: z.uuid(), kind: z.enum(["email", "phone"]), masked: z.string(), trust: z.string(), value: z.string().nullable() })),
   revealed: z.boolean(),
