@@ -66,6 +66,7 @@ const menu = async (p, item) => {
 };
 async function search(p, text) {
   if (!(await p.getByPlaceholder(/Find Pakistani creators/).isVisible().catch(() => false))) await nav(p, "Search");
+  await p.waitForFunction(() => { const b = [...document.querySelectorAll("button")].find((x) => /Search Existing Creators/.test(x.textContent ?? "")); return !!b && !b.disabled; }, null, { timeout: 15000 });
   const input = p.getByPlaceholder(/Find Pakistani creators/);
   await input.fill(text);
   await input.press("Enter");
@@ -73,6 +74,9 @@ async function search(p, text) {
   await p.waitForFunction(() => !/Searching existing creator profiles/.test(document.body.innerText), null, { timeout: 30000 });
   return mainText(p);
 }
+const SEARCH_PRICE = 50;
+const apiSearch = (who, text, filters = {}, page = 1) => api(who, "POST", "/v1/search", { text, filters, page, confirmedCost: SEARCH_PRICE });
+const searchSpends = (ws) => Number(sql(`select count(*) from wp.credit_ledger where workspace_id = '${ws}' and action = 'search_existing' and kind = 'spend'`));
 const handles = (t) => [...new Set(t.match(/@[a-z0-9._]+/gi) ?? [])];
 async function openProfile(p, handle) {
   await search(p, handle);
@@ -117,6 +121,9 @@ if (phase === "main") {
   await p.reload();
   await p.getByRole("heading", { name: /Welcome back/ }).waitFor({ timeout: 30000 });
   check("auth", "reload on a direct dashboard URL restores the session", p.url().includes("#/dashboard"));
+  // Test fixture: 1,000 labelled pilot credits (a lot plus its ledger grant, as the billing engine writes them).
+  sql(`with lot as (insert into wp.credit_lots (workspace_id, source, amount, remaining, expires_at) values ('${ws}', 'adjustment', 1000, 1000, now() + interval '30 days') returning id)
+       insert into wp.credit_ledger (workspace_id, amount, kind, lot_id, source_ref, note) select '${ws}', 1000, 'grant', id, 'e2e-pilot-${label}', 'E2E pilot credits (test fixture)' from lot`);
 
   // ── 2. Settings ──
   await menu(p, "Settings");
@@ -134,23 +141,32 @@ if (phase === "main") {
   await shot(p, "02-settings");
 
   // ── 3. Brain 1 catalog search (Meilisearch backend, LLM unavailable) ──
+  await nav(p, "Search");
+  await p.waitForFunction(() => { const b = [...document.querySelectorAll("button")].find((x) => /Search Existing Creators/.test(x.textContent ?? "")); return !!b && !b.disabled; }, null, { timeout: 15000 });
+  const spendsBefore = searchSpends(ws);
+  // Opening the page searches nothing (it would be a paid search the user did not ask for).
+  const nothingOnOpen = searchSpends(ws) === spendsBefore && !/creators? match/.test(await mainText(p));
+  const priceShown = (await p.getByRole("button", { name: /Search Existing Creators/ }).first().innerText()).includes("50 cr");
   t = await search(p, "food");
-  const apiFood = (await api("owner", "POST", "/v1/search", { text: "food", filters: {} })).json;
+  const spentOnce = searchSpends(ws) === spendsBefore + 1;
+  const apiFood = (await apiSearch("owner", "food")).json;
   check("search", "text search shows exactly the API's creators", apiFood.total > 0 && apiFood.results.every((r) => handles(t).includes(`@${r.handle}`)), `API ${apiFood.total}, UI ${handles(t).length}`);
   check("search", "AI reading unavailable does not block search (INT-002)", apiFood.total > 0);
-  const lahore = (await api("owner", "POST", "/v1/search", { text: "Lahore", filters: {} })).json;
+  const page2 = (await apiSearch("owner", "food", {}, 2)).json;
+  check("pricing", "search button shows the server price; a search is charged once; repeat and next page are free", priceShown && nothingOnOpen && spentOnce && apiFood.charged === false && page2.charged === false && searchSpends(ws) === spendsBefore + 1, `spends ${spendsBefore}→${searchSpends(ws)}; api charged ${apiFood.charged}/${page2.charged}`);
+  const lahore = (await apiSearch("owner", "Lahore")).json;
   check("search", "different queries give different, query-related results", lahore.results.map((r) => r.id).join() !== apiFood.results.map((r) => r.id).join());
   check("search", "partial handle finds the creator", handles(await search(p, "realwowbo")).includes("@realwowboy"));
   await p.getByRole("button", { name: "youtube", exact: true }).first().click();
-  const yt = (await api("owner", "POST", "/v1/search", { text: "food", filters: { platform: "youtube" } })).json;
+  const yt = (await apiSearch("owner", "food", { platform: "youtube" })).json;
   t = await search(p, "food");
   check("search", "platform filter applied (API and UI)", yt.results.every((r) => r.platform === "youtube") && handles(t).every((h) => yt.results.some((r) => `@${r.handle}` === h)));
   await p.getByRole("button", { name: "All platforms", exact: true }).first().click().catch(() => {});
   t = await search(p, "zzqx nothing matches this");
   check("search", "empty result is explained and offers live discovery", /No creators match/.test(t) && /Find new creators/i.test(t));
-  check("search", "malformed input is rejected by the API", (await api("owner", "POST", "/v1/search", { text: "x".repeat(400), filters: {} })).status === 400);
+  check("search", "malformed input is rejected by the API", (await apiSearch("owner", "x".repeat(400))).status === 400);
   const panel = await openProfile(p, "realwowboy");
-  const rw = (await api("owner", "POST", "/v1/search", { text: "realwowboy", filters: {} })).json.results[0];
+  const rw = (await apiSearch("owner", "realwowboy")).json.results[0];
   const prof = (await api("owner", "GET", `/v1/creators/${rw.id}`)).json;
   check("profile", "profile shows the stored creator, no contact values", (await panel.innerText()).includes(prof.displayName) && prof.contacts.every((c) => c.value === null));
   await shot(p, "03-profile");
@@ -229,12 +245,20 @@ if (phase === "main") {
   await shot(p, "04-campaign");
 
   // ── 6. Brain 2 live discovery with paid providers blank ──
-  const before = (await api("owner", "GET", "/v1/billing/summary")).json.balance;
+  // An unaffordable size is checked on the outsider's own 200-credit trial; the owner's snapshot follows the paid search.
+  const outsiderPage = await pageAs("outsider");
+  await outsiderPage.goto("http://localhost:5173/#/dashboard");
+  await outsiderPage.getByRole("heading", { name: /Welcome back/ }).waitFor({ timeout: 30000 });
+  await search(outsiderPage, "Lahore food vlogger"); // 200 trial credits - 50 = 150 left
+  await outsiderPage.getByRole("button", { name: /Find New Creators/ }).first().click();
+  await outsiderPage.getByRole("button", { name: "Up to 15", exact: true }).click();
+  await outsiderPage.waitForFunction(() => { const d = document.querySelector("div.max-w-md"); return !!d && /\d+ credits/.test(d.textContent ?? "") && !/Preparing/.test(d.textContent ?? ""); }, null, { timeout: 30000 });
+  const outsiderQuote = (await outsiderPage.locator("div.max-w-md").innerText()).replace(/\s+/g, " ");
+  check("discovery", "size above the balance cannot be confirmed (insufficient credits)", /200 credits/.test(outsiderQuote) && (await outsiderPage.getByRole("button", { name: /Confirm · at most/ }).isDisabled()), outsiderQuote.slice(0, 160));
+  await outsiderPage.context().close();
   await search(p, "Lahore food vlogger");
+  const before = (await api("owner", "GET", "/v1/billing/summary")).json.balance;
   await p.getByRole("button", { name: /Find New Creators/ }).first().click();
-  await p.getByRole("button", { name: "Up to 20", exact: true }).click();
-  await p.waitForFunction(() => { const d = document.querySelector("div.max-w-md"); return !!d && /\d+ credits/.test(d.textContent ?? "") && !/Preparing/.test(d.textContent ?? ""); }, null, { timeout: 30000 });
-  check("discovery", "size above the balance cannot be confirmed (insufficient credits)", await p.getByRole("button", { name: /Confirm · at most/ }).isDisabled());
   await p.getByRole("button", { name: "Up to 5", exact: true }).click();
   await p.waitForFunction(() => { const d = document.querySelector("div.max-w-md"); return !!d && /\d+ credits/.test(d.textContent ?? "") && !/Preparing/.test(d.textContent ?? ""); }, null, { timeout: 30000 });
   const quote = (await p.locator("div.max-w-md").innerText()).replace(/\s+/g, " ");
@@ -250,7 +274,7 @@ if (phase === "main") {
   const after = (await api("owner", "GET", "/v1/billing/summary")).json.balance;
   const job = sql(`select status || '|' || coalesce(outcome,'') || '|' || credits_charged from wp.discovery_jobs`);
   check("discovery", "provider unavailable: job fails honestly and every credit returns", /^failed\|failed\|0$/.test(job) && after.available === before.available && after.reserved === 0 && /returned/i.test(final), `${job}; ${before.available}→${after.available}`);
-  check("discovery", "ledger: reserve and release net to zero", sql(`select coalesce(sum(case when kind='reserve' then amount when kind='release' then -amount else 0 end),0) from wp.credit_ledger where workspace_id = '${ws}'`) === "0");
+  check("discovery", "ledger: reserve and release net to zero", sql(`select coalesce(sum(case when kind='reserve' then amount when kind='release' then -amount else 0 end),0) from wp.credit_ledger where workspace_id = '${ws}' and action = 'find_new'`) === "0");
   const est = (await api("owner", "POST", "/v1/discovery/estimates", { search: { text: "bridal makeup", filters: { platform: "youtube", creatorCity: "Lahore" } }, maxNew: 5 }, { "idempotency-key": `e2e-est-${label}` })).json;
   const s1 = await api("owner", "POST", "/v1/discovery/jobs", { kind: "live", estimateId: est.estimateId }, { "idempotency-key": `e2e-a-${label}` });
   const s2 = await api("owner", "POST", "/v1/discovery/jobs", { kind: "live", estimateId: est.estimateId }, { "idempotency-key": `e2e-b-${label}` });
@@ -331,7 +355,7 @@ if (phase === "main") {
   ];
   check("isolation", "another workspace gets 404 on every private record (no data leak)", outsiderBlocked.every((s) => s === 404), outsiderBlocked.join(","));
   check("isolation", "another workspace's activity, lists and analytics are empty", (await api("outsider", "GET", "/v1/activity")).json.events.length === 0 && (await api("outsider", "GET", "/v1/lists")).json.lists.length === 0);
-  check("isolation", "the catalog itself stays globally searchable", (await api("outsider", "POST", "/v1/search", { text: "food", filters: {} })).json.total === apiFood.total);
+  check("isolation", "the catalog itself stays globally searchable", (await apiSearch("outsider", "food")).json.total === apiFood.total);
 
   // ── 11. Sign out ──
   await p.getByRole("button", { name: "Account menu" }).click();
@@ -354,7 +378,7 @@ if (phase === "main") {
   await p.getByRole("button", { name: /Eid food push/ }).first().click();
   await p.getByRole("heading", { name: "Eid food push" }).waitFor();
   check("restart", "campaign pipeline persists", /Rs 40,000 agreed/.test(await mainText(p)));
-  check("restart", "catalog search answers after restart (index reconciled)", (await api("owner", "POST", "/v1/search", { text: "food", filters: {} })).json.total > 0 && sql(`select count(*) from wp.credit_reservations where status = 'held'`) === "0");
+  check("restart", "catalog search answers after restart (index reconciled)", (await apiSearch("owner", "food")).json.total > 0 && sql(`select count(*) from wp.credit_reservations where status = 'held'`) === "0");
   await p.context().close();
 }
 
