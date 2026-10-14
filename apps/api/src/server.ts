@@ -48,7 +48,7 @@ const llm = createLlm(config.llm, { sink: createDbProviderCallSink(db), logger }
 const creators = createCreatorsService({
   db,
   index: searchIndex,
-  ...(config.catalogSearchBackend === "postgres" ? { nativeSearch } : {}),
+  ...(config.catalogSearchBackend === "postgres" ? { nativeSearch } : { fallbackSearch: nativeSearch }),
   llm,
   billing,
   encryptionKey: config.dataEncryptionKey,

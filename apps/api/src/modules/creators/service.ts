@@ -12,7 +12,7 @@ import {
 import { AppError, decryptSecret, type Logger, type TenantContext } from "@mushin/core";
 import { and, eq } from "drizzle-orm";
 import { contactReveals, writeOutbox, type Db, type TenantTx } from "@mushin/db";
-import type { Llm, SearchIndex } from "@mushin/integrations";
+import type { Llm, SearchHit, SearchIndex } from "@mushin/integrations";
 import type { CatalogSearch } from "./postgres-search";
 import type { BillingService } from "../billing/index";
 import { interpretOutputSchema, interpretSystemPrompt } from "./prompts";
@@ -25,6 +25,8 @@ export type CreatorsDeps = {
   db: Db;
   index: SearchIndex;
   nativeSearch?: CatalogSearch;
+  /** With Meilisearch as the backend: the always-maintained PostgreSQL projection answers while Meilisearch is unavailable. */
+  fallbackSearch?: CatalogSearch;
   llm: Llm;
   billing: Pick<BillingService, "engine" | "getAccess" | "actionCost">;
   encryptionKey: Buffer;
@@ -57,6 +59,18 @@ export function createCreatorsService(deps: CreatorsDeps) {
     return cached;
   }
 
+  /** Meilisearch first when it is the backend; only its unavailability (not a bad request) falls back to PostgreSQL. */
+  async function fromIndex(meili: () => Promise<{ hits: SearchHit[]; total: number }>, native: (s: CatalogSearch) => Promise<{ hits: SearchHit[]; total: number }>) {
+    if (deps.nativeSearch) return native(deps.nativeSearch);
+    try {
+      return await meili();
+    } catch (err) {
+      if (!deps.fallbackSearch || !(err instanceof AppError && err.code === "PROVIDER_UNAVAILABLE")) throw err;
+      deps.logger.warn({ err }, "Meilisearch unavailable: catalog search answered from the PostgreSQL projection");
+      return native(deps.fallbackSearch);
+    }
+  }
+
   // ── search (Brain-1, spec §4) ──────────────────────────────────────────────
   async function search(ctx: TenantContext, req: SearchRequest): Promise<SearchResponse> {
     if (req.filters.audienceCountry) throw new AppError("PROVIDER_UNAVAILABLE", "Audience-country filtering is unavailable until a verified audience analytics source is connected.");
@@ -64,14 +78,16 @@ export function createCreatorsService(deps: CreatorsDeps) {
     const { settings } = await config(ctx);
     // Without text, Meilisearch returns matches in storage order; sorting by the fit score's strongest signals keeps the
     // capped candidate pool on the best creators when more match than it holds (SRS REQ-02.03).
-    const { hits, total: indexTotal } = deps.nativeSearch
-      ? await deps.nativeSearch.search({ text: req.text, filters: req.filters, freshCurrentDays: settings.fresh.currentDays, now: t, limit: settings.candidatePool }, tenant(ctx))
-      : await deps.index.search({
+    const { hits, total: indexTotal } = await fromIndex(
+      () =>
+        deps.index.search({
           text: req.text,
           filter: meiliFilter(req.filters, t, settings.fresh.currentDays),
           limit: settings.candidatePool,
           ...(req.text ? {} : { sort: FILTER_ONLY_SORT }),
-        });
+        }),
+      (s) => s.search({ text: req.text, filters: req.filters, freshCurrentDays: settings.fresh.currentDays, now: t, limit: settings.candidatePool }, tenant(ctx)),
+    );
     const relevance = new Map(hits.map((h) => [h.id, h.rankingScore]));
     const rows = await deps.db.withTenant(tenant(ctx), (tx) => repo.cardRows(tx, hits.map((h) => h.id)));
     const cards = toCards(rows, req, settings, t, relevance);
@@ -107,9 +123,10 @@ export function createCreatorsService(deps: CreatorsDeps) {
       const id = await deps.db.withTenant(tenant(ctx), (tx) => repo.findIdByCanonicalUrl(tx, url.canonicalUrl));
       ids = id ? [id] : [];
     } else {
-      ids = (deps.nativeSearch
-        ? await deps.nativeSearch.search({ text: q, filters: searchFiltersShape.parse({}), freshCurrentDays: 0, now: now(), limit: 8 }, tenant(ctx))
-        : await deps.index.search({ text: q, filter: [], limit: 8 })).hits.map((h) => h.id);
+      ids = (await fromIndex(
+        () => deps.index.search({ text: q, filter: [], limit: 8 }),
+        (s) => s.search({ text: q, filters: searchFiltersShape.parse({}), freshCurrentDays: 0, now: now(), limit: 8 }, tenant(ctx)),
+      )).hits.map((h) => h.id);
     }
     const order = new Map(ids.map((id, i) => [id, i]));
     const rows = await deps.db.withTenant(tenant(ctx), (tx) => repo.cardRows(tx, ids));

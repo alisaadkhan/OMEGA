@@ -1,9 +1,13 @@
 import { defineConfig } from "vitest/config";
 
-try {
-  process.loadEnvFile(".env");
-} catch {
-  // No .env: unit tests still run; integration tests fail with a clear message.
+// loadEnvFile never overwrites a variable that is already set, so the local Meilisearch file (npm run meili:env) is
+// read first and wins over .env; values exported in the shell win over both.
+for (const file of [".env.meilisearch", ".env"]) {
+  try {
+    process.loadEnvFile(file);
+  } catch {
+    // Missing file: unit tests still run; integration tests fail with a clear message.
+  }
 }
 
 export default defineConfig({

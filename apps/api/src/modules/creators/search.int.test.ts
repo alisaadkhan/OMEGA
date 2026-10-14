@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { searchFiltersSchema, searchRequestSchema } from "@mushin/contracts";
 import { createLogger, type TenantContext } from "@mushin/core";
 import { createTestDatabase, createTestWorkspace, ownerQuery, resetTables } from "@mushin/db/testing";
-import { MockLlm, MockPayments, testSearchIndex } from "@mushin/integrations";
+import { MockLlm, MockPayments, testSearchIndex, UnavailableSearchIndex } from "@mushin/integrations";
 import { createBillingService, MemoryAccessCache } from "../billing/index";
 import { isIndexable, toDocument } from "./projection";
 import * as repo from "./repository";
@@ -79,6 +79,18 @@ describe("search", () => {
       code: "PROVIDER_UNAVAILABLE",
       message: "Audience-country filtering is unavailable until a verified audience analytics source is connected.",
     });
+  });
+
+  it("answers from the PostgreSQL projection while Meilisearch is unavailable, and only then", async () => {
+    const id = await addCreator(db, { displayName: "Sana Bridal", niches: ["Bridal"] });
+    await indexAll([id]);
+    const c = await customer();
+    const down = createCreatorsService({ db, index: new UnavailableSearchIndex(), fallbackSearch: createPostgresCatalogSearch(db), llm, billing, encryptionKey: TEST_KEY, logger });
+    expect((await down.search(c, req("Sana"))).results.map((r) => r.id)).toEqual([id]);
+    expect((await down.lookup(c, "Sana")).matches.map((m) => m.id)).toEqual([id]);
+    // Without a configured fallback the outage is reported, not hidden.
+    const noFallback = createCreatorsService({ db, index: new UnavailableSearchIndex(), llm, billing, encryptionKey: TEST_KEY, logger });
+    await expect(noFallback.search(c, req("Sana"))).rejects.toMatchObject({ code: "PROVIDER_UNAVAILABLE" });
   });
 
   it("drops creators the index still lists but Postgres hides (possible minors, erased)", async () => {
