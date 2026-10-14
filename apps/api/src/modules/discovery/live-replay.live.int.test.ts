@@ -79,7 +79,7 @@ describe.skipIf(!enabled)("Live Discovery recorded-response replay through the r
         return results;
       },
     };
-    const realLlm = LIVE_LLM && config.llm.length > 0 ? createLlm(config.llm, { sink, logger }) : null;
+    const realLlm = LIVE_LLM && config.llm.length > 0 ? createLlm(config.llm, { sink, logger, budget: null }) : null;
     const llm: Llm = {
       async complete(req) {
         if (req.feature === "creator_assessment") {

@@ -35,10 +35,12 @@ type Deps = {
   /** Profiles processed at the same time (default 1). */
   profileConcurrency?: number;
   /**
-   * Per-job cost cap for extra extraction waves (owner 3× rule): no extra wave starts once the job's recorded provider
-   * cost reaches quoted maximum credits × revenue per credit ÷ ratio. Absent = no cap. The first wave always runs.
+   * Per-job cost cap (owner 3× rule), checked before every extraction batch, the first included: the cap is quoted
+   * maximum credits × revenue per credit ÷ ratio. Spend is the larger of what provider_calls recorded for the job and
+   * the spend before extraction plus the estimated cost (profileUsd, per profile) of the batches already started; a
+   * batch only takes the candidates whose estimate still fits. Absent = no cap.
    */
-  jobCostCap?: { revenuePerCreditUsd: number; costToPriceRatio: number };
+  jobCostCap?: { revenuePerCreditUsd: number; costToPriceRatio: number; profileUsd?: Partial<Record<CreatorPlatform, number>> };
 };
 
 /** G2: candidates after the cheap G1 gate needed before extraction (spec default 8); below it the run is `insufficient`. */
@@ -299,29 +301,47 @@ export function createLiveRunner(deps: Deps) {
       let fetchedCount = 0;
       let stopReason: "provider_budget_exhausted" | "extra_wave_provider_failed" | "job_cost_cap" | null = null;
       const quoteMaxCredits = prices.search + maxNew * Math.max(prices.instagram, prices.tiktok, prices.youtube);
+      const capUsd = deps.jobCostCap ? (quoteMaxCredits * deps.jobCostCap.revenuePerCreditUsd) / deps.jobCostCap.costToPriceRatio : Infinity;
+      const spentBeforeExtraction = deps.jobCostCap ? await providerSpendForJob(deps.db, jobId) : 0;
+      let estimatedExtractionUsd = 0;
+      const profileUsdOf = (p: CreatorPlatform) => deps.jobCostCap?.profileUsd?.[p] ?? 0;
       ordered.forEach((k, index) => trail.set(k.canonicalUrl, "selection", "pending", null, { detail: { selectionRank: index + 1 } }));
       for (let wave = 1; stopReason === null; wave++) {
         await checkCancel();
         const need = maxNew - (await deps.db.withWorkspace(workspaceId, (tx) => repo.countNew(tx, workspaceId, jobId)));
         if (need <= 0) break;
-        if (wave > 1 && deps.jobCostCap) {
-          const spentUsd = await providerSpendForJob(deps.db, jobId);
-          const capUsd = (quoteMaxCredits * deps.jobCostCap.revenuePerCreditUsd) / deps.jobCostCap.costToPriceRatio;
-          if (spentUsd >= capUsd) {
-            deps.logger.info({ jobId, spentUsd, capUsd, wave }, "per-job cost cap reached: no further extraction wave");
+        let budgetUsd = Infinity;
+        if (deps.jobCostCap) {
+          const spentUsd = Math.max(await providerSpendForJob(deps.db, jobId), spentBeforeExtraction + estimatedExtractionUsd);
+          budgetUsd = capUsd - spentUsd;
+          if (budgetUsd <= 0) {
+            deps.logger.info({ jobId, spentUsd, capUsd, wave }, "per-job cost cap reached: no further extraction batch");
             stopReason = "job_cost_cap";
             break;
           }
         }
         const fresh: Kept[] = [];
+        let overBudget = false;
         for (const k of remaining) {
           if (fresh.length >= need) break;
           // After the first wave only platforms with a multiplier above 1 are fetched, and never past their cap.
           if (wave > 1 && (multiplierOf(k.platform) <= 1 || fetchedBy[k.platform] >= capOf(k.platform))) continue;
+          if (profileUsdOf(k.platform) > budgetUsd + 1e-9) {
+            overBudget = true;
+            continue;
+          }
+          budgetUsd -= profileUsdOf(k.platform);
+          estimatedExtractionUsd += profileUsdOf(k.platform);
           fresh.push(k);
           fetchedBy[k.platform]++;
         }
-        if (fresh.length === 0) break;
+        if (fresh.length === 0) {
+          if (overBudget) {
+            deps.logger.info({ jobId, capUsd, wave }, "per-job cost cap: no candidate's estimated cost fits; extraction stops");
+            stopReason = "job_cost_cap";
+          }
+          break;
+        }
         remaining = remaining.filter((k) => !fresh.includes(k));
         fetchedCount += fresh.length;
         for (const k of fresh) trail.set(k.canonicalUrl, "extraction", "pending", null, { detail: { wave } });
@@ -425,7 +445,8 @@ export function createLiveRunner(deps: Deps) {
       await deps.db.withWorkspace(workspaceId, async (tx) => {
         if (!(await repo.lockOpenJob(tx, workspaceId, jobId))) return;
         const visible = await rerank(tx, job, search);
-        let charge = visible > 0 ? prices.search + (await repo.resultCredits(tx, workspaceId, jobId)) : 0;
+        // A successful run with TikTok in scope is charged at least the quoted minimum, never above the quote.
+        let charge = visible > 0 ? Math.min(job.cost, Math.max(prices.tiktokMinimum ?? 0, prices.search + (await repo.resultCredits(tx, workspaceId, jobId)))) : 0;
         if (job.reservationId) {
           try {
             await engine.commitPartial(tx, workspaceId, job.reservationId, charge, { userId: job.requestedBy, requestId: job.requestId }, `Live run: ${visible} creator(s) found`);

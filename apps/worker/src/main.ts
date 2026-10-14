@@ -78,7 +78,7 @@ const worker = await startWorker({
   db,
   boss,
   logger,
-  handlers: { ...defaultHandlers(db), ...billingHandlers(billing), ...notifyHandlers(), ...creatorHandlers({ indexer, summaries, expireYoutube: () => expireYoutubeApiData(db) }), ...discoveryHandlers({ runner, liveRunner, searchCache, pipeline }), ...erasureHandlers({ eraser }), ...audienceHandlers({ runner: audienceRunner }) },
+  handlers: { ...defaultHandlers(db), ...billingHandlers(billing), ...notifyHandlers(), ...creatorHandlers({ indexer, summaries, expireYoutube: () => expireYoutubeApiData(db, pipeline.storage ? { storage: pipeline.storage } : {}) }), ...discoveryHandlers({ runner, liveRunner, searchCache, pipeline }), ...erasureHandlers({ eraser }), ...audienceHandlers({ runner: audienceRunner }) },
 });
 logger.info("worker started");
 

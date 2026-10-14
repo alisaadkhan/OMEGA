@@ -82,16 +82,27 @@ describe("YouTube derived-metrics policy", () => {
   it("clears YouTube API data not refreshed within 30 days, and leaves recent YouTube and other platforms alone", async () => {
     const fresh = await addCreator(db, { displayName: "Fresh Tube", primaryPlatform: "youtube", snapshot, profiles: [{ platform: "youtube", handle: "freshtube", followers: 5_000, engagementRate: 3 }] });
     await ownerQuery(`update gcp.creator_profiles set last_scraped_at = now() - interval '31 days' where creator_id in ('${yt}', '${ig}');
+      update gcp.creators set ai_summary = 'A food channel', city = 'Lahore', avatar_url = 'https://x/a.jpg', avatar_key = 'yt/a.jpg' where id in ('${yt}', '${ig}');
       insert into gcp.profile_metric_snapshots (profile_id, followers, captured_at) select id, 1, now() - interval '31 days' from gcp.creator_profiles where creator_id in ('${yt}', '${ig}', '${fresh}');`);
-    expect(await expireYoutubeApiData(db)).toEqual([yt]);
+    const removed: string[][] = [];
+    expect(await expireYoutubeApiData(db, { storage: { remove: async (_bucket, keys) => void removed.push(keys) } })).toEqual([yt]);
+    expect(removed).toEqual([["yt/a.jpg"]]);
     const profiles = await ownerQuery<{ creator_id: string; followers: number | null; engagement_rate: number | null; bio: string | null }>(`select creator_id, followers, engagement_rate, bio from gcp.creator_profiles`);
     expect(profiles.find((p) => p.creator_id === yt)).toEqual({ creator_id: yt, followers: null, engagement_rate: null, bio: null });
     expect(profiles.find((p) => p.creator_id === ig)?.followers).toBe(90_000); // other platforms follow their own rules
     expect(profiles.find((p) => p.creator_id === fresh)?.followers).toBe(5_000); // refreshed within 30 days
     const snaps = await ownerQuery<{ creator_id: string }>(`select p.creator_id from gcp.profile_metric_snapshots s join gcp.creator_profiles p on p.id = s.profile_id where s.captured_at < now() - interval '30 days'`);
     expect(snaps.map((x) => x.creator_id)).toEqual([ig]);
-    const [c] = await ownerQuery<{ authenticity_score: number | null; display_name: string }>(`select authenticity_score, display_name from gcp.creators where id = '${yt}'`);
-    expect(c).toEqual({ authenticity_score: null, display_name: "Tube Chef" }); // identity kept pending the owner decision
+    // API-sourced identity and everything derived from the API data go (0031); the handle and URL stay.
+    const cs = await ownerQuery<{ id: string; authenticity_score: number | null; display_name: string; primary_handle: string; ai_summary: string | null; niches: string[]; city: string | null; avatar_url: string | null }>(`select id, authenticity_score, display_name, primary_handle, ai_summary, niches, city, avatar_url from gcp.creators`);
+    const c = cs.find((x) => x.id === yt);
+    expect(c).toMatchObject({ authenticity_score: null, display_name: c?.primary_handle, ai_summary: null, niches: [], city: null, avatar_url: null });
+    expect(cs.find((x) => x.id === ig)).toMatchObject({ display_name: "Gram Chef", ai_summary: "A food channel", city: "Lahore" });
+    expect(cs.find((x) => x.id === fresh)?.display_name).toBe("Fresh Tube");
+    const assessments = await ownerQuery<{ creator_id: string }>(`select creator_id from gcp.enrichment_snapshots`);
+    expect(assessments.map((a) => a.creator_id)).not.toContain(yt);
+    const [url] = await ownerQuery<{ canonical_url: string }>(`select canonical_url from gcp.creator_profiles where creator_id = '${yt}'`);
+    expect(url?.canonical_url).toMatch(/youtube.com/);
     expect(await expireYoutubeApiData(db)).toEqual([]); // idempotent
   });
 });

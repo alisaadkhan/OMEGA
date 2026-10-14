@@ -92,7 +92,7 @@ describe.skipIf(!live || !realLlm || !platform)("Live Discovery platform end-to-
       logger,
     });
     const llm = realLlm
-      ? createLlm(config.llm, { sink, logger })
+      ? createLlm(config.llm, { sink, logger, budget: null })
       : new MockLlm((request) => {
       if (request.feature === "discovery_relevance") {
         const count = (request.input.match(/^\d+\. /gm) ?? []).length;

@@ -21,7 +21,8 @@ export type HoldRequest = { action: CreditAction; amount: number; confirmedCost:
 export type GrantRequest = {
   source: repo.LotSource;
   amount: number;
-  expiresAt: Date;
+  /** Null = never expires; only top-ups (owner decision 2026-10-14, enforced by the database). */
+  expiresAt: Date | null;
   sourceRef: string;
   paymentId?: string | null;
   note?: string | null;
@@ -221,7 +222,7 @@ export function createCreditEngine(o: { now?: () => Date } = {}) {
     if (await repo.hasGrant(tx, workspaceId, g.sourceRef)) return null;
     const lotId = await repo.insertLot(tx, { workspaceId, source: g.source, amount: g.amount, expiresAt: g.expiresAt, paymentId: g.paymentId ?? null });
     await repo.insertLedger(tx, [{ workspaceId, amount: g.amount, kind: "grant", lotId, sourceRef: g.sourceRef, note: g.note ?? null }]);
-    await repo.scheduleJob(tx, workspaceId, "expire_lots", g.expiresAt);
+    if (g.expiresAt) await repo.scheduleJob(tx, workspaceId, "expire_lots", g.expiresAt);
     await repo.scheduleJob(tx, workspaceId, "reconcile", new Date(now().getTime() + 86_400_000));
     return lotId;
   }

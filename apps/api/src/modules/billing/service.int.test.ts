@@ -300,6 +300,38 @@ describe("plan changes", () => {
   });
 });
 
+describe("credit lots (owner decision 2026-10-14)", () => {
+  it("top-up credits never expire, monthly credits end at renewal without rolling over, and monthly credits are spent first", async () => {
+    const c = await trialCustomer();
+    await subscribe(c, "growth");
+    const { checkoutId } = await billing.startCheckout(c, { kind: "topup", packId: "credits_1000" });
+    await billing.completeMockCheckout(c.workspaceId, checkoutId, "paid");
+    await flush();
+    const lots = () => ownerQuery<{ source: string; remaining: number; expires_at: Date | null }>(`select source, remaining, expires_at from wp.credit_lots where workspace_id = '${c.workspaceId}' and remaining > 0 order by source`);
+    expect((await lots()).find((l) => l.source === "topup")).toMatchObject({ remaining: 1000, expires_at: null });
+    const held = await billing.reserve(c, { action: "find_new", confirmedCost: 50, refType: "test", refId: "lots" });
+    await billing.commit(c, held.reservationId);
+    expect((await lots()).find((l) => l.source === "topup")).toMatchObject({ remaining: 1000 }); // monthly spent first
+    const monthlyBefore = (await lots()).find((l) => l.source === "monthly")?.remaining ?? 0;
+    clock = days(31);
+    await billing.runJob("mock_renewals");
+    await flush();
+    await billing.runJob("expire_lots");
+    const after = await lots();
+    expect(after.filter((l) => l.source === "monthly")).toHaveLength(1);
+    expect(after.find((l) => l.source === "monthly")?.remaining).toBeLessThanOrEqual(monthlyBefore + 50); // a fresh allowance, nothing carried over
+    expect(after.find((l) => l.source === "topup")).toMatchObject({ remaining: 1000, expires_at: null });
+    clock = days(3650);
+    await billing.runJob("expire_lots");
+    expect((await lots()).find((l) => l.source === "topup")).toMatchObject({ remaining: 1000, expires_at: null });
+  });
+
+  it("the database refuses a never-expiring lot for anything but a top-up", async () => {
+    const c = await trialCustomer();
+    await expect(ownerQuery(`insert into wp.credit_lots (workspace_id, source, amount, remaining, expires_at) values ('${c.workspaceId}', 'monthly', 10, 10, null)`)).rejects.toThrow(/credit_lots_expiry_rule/);
+  });
+});
+
 describe("jobs", () => {
   it("warns before the trial ends, then expires it", async () => {
     const c = await trialCustomer();

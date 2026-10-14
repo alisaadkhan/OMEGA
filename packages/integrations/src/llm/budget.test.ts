@@ -44,3 +44,12 @@ describe("monthly LLM budget", () => {
     expect(logs.filter((l) => l.level === "warn")).toHaveLength(2);
   });
 });
+
+describe("monthly LLM budget at zero", () => {
+  it("refuses every call: a zero cap never means unlimited", async () => {
+    const inner = new MockLlm(() => ({ ok: true }));
+    const llm = withLlmBudget(inner, { budgetUsd: 0, spentSince: async () => 0, logger });
+    await expect(llm.complete(req)).rejects.toMatchObject({ details: { reason: "llm_budget" } });
+    expect(inner.calls).toHaveLength(0);
+  });
+});

@@ -75,7 +75,7 @@ function llmReply(req: { input: string }) {
   };
 }
 
-function setup(o: { web?: FixtureWebSearch; scraper?: FixtureScraper; wrap?: (p: EnrichmentPipeline) => EnrichmentPipeline; maxAttempts?: number; model?: MockLlm; contentResolutionMax?: number; extractionMultiplier?: Partial<Record<"instagram" | "tiktok" | "youtube", number>>; profileConcurrency?: number; jobCostCap?: { revenuePerCreditUsd: number; costToPriceRatio: number } } = {}) {
+function setup(o: { web?: FixtureWebSearch; scraper?: FixtureScraper; wrap?: (p: EnrichmentPipeline) => EnrichmentPipeline; maxAttempts?: number; model?: MockLlm; contentResolutionMax?: number; extractionMultiplier?: Partial<Record<"instagram" | "tiktok" | "youtube", number>>; profileConcurrency?: number; jobCostCap?: { revenuePerCreditUsd: number; costToPriceRatio: number; profileUsd?: Partial<Record<"instagram" | "tiktok" | "youtube", number>> } } = {}) {
   const web = o.web ?? new FixtureWebSearch(links("new_a", "new_b"));
   const scraper = o.scraper ?? igScraper();
   const model = o.model ?? llm();
@@ -187,6 +187,20 @@ describe("live runner", () => {
     const trail = await trailOf(id);
     expect(trail.filter((r) => r.decision === "pending")).toEqual([]);
     expect(trail.some((r) => r.reason === "run_canceled")).toBe(true);
+  });
+
+  it("a run that surfaces only a relevant creator MUSHIN already knows charges the base fee alone (owner rule 3)", async () => {
+    const c = await customer();
+    const allPrivate = new FixtureScraper({ instagram: { provider: "apify", raw: scraperFixture("instagram-private.json"), costUsd: 0.0026 } });
+    const { runner, pipeline } = setup({ web: new FixtureWebSearch(links("known_one", "locked_1", "locked_2", "locked_3", "locked_4", "locked_5", "locked_6", "locked_7")), scraper: allPrivate });
+    await addCreator(db, { displayName: "Known One", profiles: [{ platform: "instagram", handle: "known_one" }] });
+    const knownJob = { jobId: randomUUID(), workspaceId: c.workspaceId, platform: "instagram" as const, handle: "known_one", canonicalUrl: "https://instagram.com/known_one", requestId: c.requestId };
+    const knownRaw = profile("known_one");
+    await pipeline.processProfile(knownJob, await pipeline.archive(knownJob, "apify", knownRaw), knownRaw, { onSaved: async () => undefined });
+    const id = await startRun(c, 5);
+    await runner.run(id, c.workspaceId);
+    expect(await discovery.get(c, id)).toMatchObject({ status: "completed", outcome: "succeeded", live: { new: 0, known: 1, creditsCharged: 50 } });
+    expect(await balance(c)).toMatchObject({ available: 150, reserved: 0 });
   });
 
   it("a run that finds nothing is free", async () => {
@@ -424,14 +438,30 @@ describe("live runner", () => {
       expect((await trailOf(id)).filter((r) => r.reason === "run_size_limit")).toHaveLength(5);
     });
 
-    it("stops extra waves once the job's provider cost reaches its cap (quoted max × revenue per credit ÷ 3)", async () => {
-      const { runner, scraper: s } = setup({ web: pool(), scraper: scraper(), extractionMultiplier: { instagram: 2 }, jobCostCap: { revenuePerCreditUsd: 0.002029, costToPriceRatio: 3 } });
+    const spend = (id: string, usd: number) => ownerQuery(`insert into platform.provider_calls (provider, operation, latency_ms, status, cost_usd, job_id) values ('serper', 'search', 1, 'ok', ${usd}, '${id}')`);
+    const cap = { revenuePerCreditUsd: 0.002029, costToPriceRatio: 3 }; // a 100-credit quote → cap USD 0.0676
+
+    it("checks the job's cost cap before the first batch too: spent beyond the cap means no extraction and no charge", async () => {
+      const { runner, scraper: s } = setup({ web: pool(), scraper: scraper(), jobCostCap: cap });
       const c = await customer();
-      const id = await startRun(c, 5); // quoted 100 credits → cap USD 0.0676
-      await ownerQuery(`insert into platform.provider_calls (provider, operation, latency_ms, status, cost_usd, job_id) values ('apify', 'scrape_instagram', 1, 'ok', 0.07, '${id}')`);
+      const id = await startRun(c, 5);
+      await spend(id, 0.07);
       await runner.run(id, c.workspaceId);
-      expect(s.batchCalls.map((b) => b.handles.length)).toEqual([5]); // the first wave always runs; no second wave
-      expect(await discovery.get(c, id)).toMatchObject({ status: "completed", live: { new: 2, creditsCharged: 50 + 2 * 10 } });
+      expect(s.batchCalls).toEqual([]);
+      expect(await discovery.get(c, id)).toMatchObject({ status: "completed", outcome: "completed_empty", live: { creditsCharged: 0 } });
+      expect((await trailOf(id)).filter((r) => r.reason === "job_cost_cap").length).toBeGreaterThan(0);
+      expect(await balance(c)).toMatchObject({ available: 200, reserved: 0 });
+    });
+
+    it("sizes each batch to the estimated cost that still fits the cap and stops extra waves when none fits", async () => {
+      const { runner, scraper: s } = setup({ web: pool(), scraper: scraper(), extractionMultiplier: { instagram: 2 }, jobCostCap: { ...cap, profileUsd: { instagram: 0.01 } } });
+      const c = await customer();
+      const id = await startRun(c, 5);
+      await spend(id, 0.03); // searching already cost USD 0.03: three profiles at USD 0.01 fit, a fourth would not
+      await runner.run(id, c.workspaceId);
+      expect(s.batchCalls.map((b) => b.handles.length)).toEqual([3]);
+      const job = await discovery.get(c, id);
+      expect(job.status).toBe("completed");
       expect((await trailOf(id)).filter((r) => r.reason === "job_cost_cap").length).toBeGreaterThan(0);
       expect(await balance(c)).toMatchObject({ reserved: 0 });
     });
@@ -513,6 +543,29 @@ describe("live runner", () => {
       expect(await discovery.get(c, id)).toMatchObject({ live: { new: 1 } });
       expect((await trailOf(id)).filter((r) => r.reason === "extraction_cap")).toHaveLength(1);
     });
+  });
+
+  it("charges a successful run with TikTok in scope at least the quoted minimum (100), never above the quote", async () => {
+    const mixed = new FixtureScraper({
+      instagram: (req: ScrapeRequest) => ({ provider: "apify", raw: req.handle.startsWith("locked_") ? scraperFixture("instagram-private.json") : profile(req.handle), costUsd: 0.0026 }),
+      tiktok: { provider: "apify", raw: [], costUsd: 0.018 },
+    });
+    const tt = (h: string): WebResult => ({ title: `${h} | Bridal MUA`, link: `https://www.tiktok.com/@${h}`, snippet: "Bridal makeup, Lahore" });
+    const web = new FixtureWebSearch([...links("locked_1", "open_1", "open_2"), tt("tok_1"), tt("tok_2"), tt("tok_3")]);
+    const { runner } = setup({ web, scraper: mixed });
+    const c = await customer();
+    const estimate = await discovery.createEstimate(c, { search: { text: "bridal makeup", filters: searchFiltersSchema.parse({ creatorCity: "Lahore" }) }, maxNew: 5 });
+    expect(estimate).toMatchObject({ maxCredits: 100, minimumCredits: 100 });
+    const igOnly = await discovery.createEstimate(c, { search: { text: "bridal makeup", filters: searchFiltersSchema.parse({ platform: "instagram", creatorCity: "Lahore" }) }, maxNew: 5 });
+    expect(igOnly.minimumCredits).toBeUndefined();
+    const started = await discovery.start(c, { kind: "live", estimateId: estimate.estimateId });
+    if (started.body.status !== "started") throw new Error("expected started");
+    await runner.run(started.body.job.id, c.workspaceId);
+    const job = await discovery.get(c, started.body.job.id);
+    expect(job.live?.new).toBeGreaterThan(0);
+    expect(job.live?.new).toBeLessThan(5); // 50 + 10 per creator would be below 100
+    expect(job).toMatchObject({ status: "completed", outcome: "succeeded", live: { creditsCharged: 100 } });
+    expect(await balance(c)).toMatchObject({ available: 100, reserved: 0 });
   });
 
   it("processes profiles concurrently without colliding result numbers, double results or double charges", async () => {

@@ -5,7 +5,7 @@ import { createTestDatabase, createTestWorkspace, ownerQuery, resetTables } from
 import { FixtureScraper, MemoryStorage, MockLlm, MockPayments, ProviderError, scraperFixture } from "@mushin/integrations";
 import { createBillingService, MemoryAccessCache } from "../billing/index";
 import { createEnrichmentPipeline } from "../creators/index";
-import { TEST_KEY } from "../creators/test-fixtures";
+import { addCreator, TEST_KEY } from "../creators/test-fixtures";
 import { createDiscoveryRunner } from "./runner";
 import { createDiscoveryService } from "./service";
 
@@ -88,6 +88,27 @@ describe("job runner", () => {
     expect(await discovery.get(b, second)).toMatchObject({ status: "completed", outcome: "reused" });
     expect(await balance(b)).toMatchObject({ available: 200, reserved: 0 });
     expect(scraper.calls).toHaveLength(1);
+  });
+
+  it("an add-by-link that turns out to be a creator MUSHIN already had (stale data, refreshed) costs nothing", async () => {
+    const { runner } = runnerWith();
+    const c = await customer();
+    const id = await started(c); // not known yet: the request is accepted and 50 credits are held
+    await addCreator(db, { displayName: "Coke Studio", profiles: [{ platform: "instagram", handle: "coke_studio" }] });
+    await ownerQuery(`update gcp.creator_profiles set last_scraped_at = now() - interval '30 days'`);
+    await runner.run(id, c.workspaceId);
+    expect(await discovery.get(c, id)).toMatchObject({ status: "completed", outcome: "refreshed" });
+    expect(await balance(c)).toMatchObject({ available: 200, reserved: 0 });
+    const [row] = await ownerQuery<{ credits_charged: number }>(`select credits_charged from wp.discovery_jobs where id = '${id}'`);
+    expect(row?.credits_charged).toBe(0);
+  });
+
+  it("an add-by-link for a creator already known is answered free, without a job", async () => {
+    await addCreator(db, { displayName: "Coke Studio", profiles: [{ platform: "instagram", handle: "coke_studio" }] });
+    const c = await customer();
+    const out = await discovery.start(c, { kind: "add_by_url", url: "https://instagram.com/coke_studio", confirmedCost: 50 });
+    expect(out.body.status).toBe("known");
+    expect(await balance(c)).toMatchObject({ available: 200, reserved: 0 });
   });
 
   it("a private account fails with the reason and refunds", async () => {

@@ -7,6 +7,13 @@ import { findProfileByUrl, fitLabel, getEnrichmentSettings, getSearchSettings, i
 import { platformsFor } from "./live/queries";
 import * as repo from "./repository";
 
+/**
+ * Provisional owner decision 2026-10-14: a successful live run with TikTok in scope is charged at least this much (one
+ * measured TikTok run cost USD 0.065, which needs 96 credits under the 3× rule). It never exceeds the quote and does not
+ * guarantee a margin; re-measure before making it final. Failed, empty and canceled runs keep the normal rule.
+ */
+export const TIKTOK_LIVE_MINIMUM_CREDITS = 100;
+
 export type DiscoveryDeps = { db: Db; billing: Pick<BillingService, "engine">; now?: () => Date; sourcePolicy?: SourcePolicy };
 
 const isOneOpenViolation = (err: unknown) => {
@@ -116,8 +123,9 @@ export function createDiscoveryService(deps: DiscoveryDeps) {
       // A base fee plus one price per new qualified creator, the same on every platform (owner pricing 2026-10-14);
       // provider cost is recorded separately and never shown as the customer price.
       const c = await deps.billing.engine.costs(tx, ["find_new", "live_creator"]);
-      const prices = { search: c.find_new, instagram: c.live_creator, youtube: c.live_creator, tiktok: c.live_creator };
-      const perCreator = Math.max(...platformsFor(body.search).map((p) => prices[p]));
+      const platforms = platformsFor(body.search);
+      const prices = { search: c.find_new, instagram: c.live_creator, youtube: c.live_creator, tiktok: c.live_creator, ...(platforms.includes("tiktok") ? { tiktokMinimum: TIKTOK_LIVE_MINIMUM_CREDITS } : {}) };
+      const perCreator = Math.max(...platforms.map((p) => prices[p]));
       const maxCredits = prices.search + body.maxNew * perCreator;
       const expiresAt = new Date(now().getTime() + 15 * 60_000);
       const priceVersion = sha256Hex(stableJson(prices)).slice(0, 24);
@@ -132,7 +140,8 @@ export function createDiscoveryService(deps: DiscoveryDeps) {
         priceVersion,
         expiresAt,
       });
-      return { estimateId: estimate.id, maxCredits, priceVersion, expiresAt: expiresAt.toISOString() };
+      const minimumCredits = prices.tiktokMinimum !== undefined ? Math.min(prices.tiktokMinimum, maxCredits) : undefined;
+      return { estimateId: estimate.id, maxCredits, ...(minimumCredits !== undefined ? { minimumCredits } : {}), priceVersion, expiresAt: expiresAt.toISOString() };
     });
   }
 

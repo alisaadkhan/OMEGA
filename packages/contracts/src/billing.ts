@@ -74,7 +74,8 @@ export const billingPlansSchema = z.object({
       credits: z.number().int().positive(),
       display: moneySchema,
       charge: moneySchema,
-      validityMonths: z.number().int().positive(),
+      /** Null: top-up credits never expire. */
+      validityMonths: z.number().int().positive().nullable(),
     }),
   ),
   actionCosts: z.record(creditActionSchema, z.number().int().nonnegative()),

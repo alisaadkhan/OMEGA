@@ -128,7 +128,7 @@ export function createBillingService(deps: BillingDeps) {
           credits: k.credits,
           display: { amountMinor: k.displayPriceMinor, currency: k.displayCurrency },
           charge: { amountMinor: k.chargePriceMinor, currency: k.chargeCurrency },
-          validityMonths: k.validityMonths,
+          validityMonths: null,
         })),
         actionCosts: {
           search_existing: cost("search_existing"),
@@ -361,7 +361,7 @@ export function createBillingService(deps: BillingDeps) {
         await engine.grant(tx, e.workspaceId, {
           source: "topup",
           amount: owner.pack.credits,
-          expiresAt: addMonths(e.occurredAt, owner.pack.validityMonths),
+          expiresAt: null, // top-up credits never expire (owner decision 2026-10-14)
           sourceRef: `txn:${e.transactionId}`,
           paymentId,
           note: `${owner.pack.credits.toLocaleString("en-US")} credit top-up`,

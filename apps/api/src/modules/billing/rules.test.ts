@@ -25,6 +25,13 @@ describe("allocateLots", () => {
     ]);
   });
 
+  it("spends never-expiring lots (top-ups) last", () => {
+    expect(allocateLots([{ id: "t", remaining: 10, expiresAt: null }, lot("m", 5, 30)], 8)).toEqual([
+      { lotId: "m", take: 5 },
+      { lotId: "t", take: 3 },
+    ]);
+  });
+
   it("breaks expiry ties by id and skips empty lots", () => {
     expect(allocateLots([lot("z", 4, 10), lot("y", 0, 1), lot("x", 4, 10)], 6)).toEqual([
       { lotId: "x", take: 4 },

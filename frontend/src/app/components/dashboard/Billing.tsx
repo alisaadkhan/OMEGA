@@ -208,7 +208,7 @@ export function Billing({ checkoutResult }: { checkoutResult?: "success" | "fail
                   onClick={async () => {
                     const ok = await confirm({
                       title: "Cancel your subscription?",
-                      body: `Your plan stays active until ${s?.currentPeriodEnd ? new Date(s.currentPeriodEnd).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "the end of this billing period"}. After that, its monthly credits and features end; paid top-up credits stay usable until they expire.`,
+                      body: `Your plan stays active until ${s?.currentPeriodEnd ? new Date(s.currentPeriodEnd).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "the end of this billing period"}. After that, its monthly credits and features end; paid top-up credits never expire.`,
                       confirmLabel: "Cancel subscription",
                       cancelLabel: "Keep my plan",
                       destructive: true,
@@ -273,7 +273,7 @@ export function Billing({ checkoutResult }: { checkoutResult?: "success" | "fail
           </div>
           <div className="mt-6 text-sm text-slate-900" style={{ fontWeight: 600 }}>Credit top-ups</div>
           <div className="mt-1 text-xs text-slate-500">
-            {trialing ? "Top-ups unlock once you choose a plan." : "Valid for 12 months. Spent after your monthly credits run out."}
+            {trialing ? "Top-ups unlock once you choose a plan." : "Never expire. Spent after your monthly credits run out."}
           </div>
           <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
             {plans.data.topupPacks.map((k) => (

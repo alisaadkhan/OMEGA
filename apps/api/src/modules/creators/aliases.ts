@@ -28,8 +28,8 @@ export const NICHE_CONCEPTS: readonly AliasConcept[] = [
   niche("technology", ["technology", "tech", "ٹیکنالوجی", "ٹیک"], { roman: "technology tech", urdu: "ٹیکنالوجی ٹیک" }),
 ];
 
-// City forms: Urdu-script names reviewed for Live Discovery, LHR (owner-listed) and common short forms (KHI, ISB,
-// RWP, Pindi, FSD) listed in docs/readiness/search-quality.md for confirmation.
+// City forms: Urdu-script names reviewed for Live Discovery, LHR (owner-listed) and the short forms KHI, ISB, RWP, Pindi
+// and FSD (owner-approved 2026-10-14). They expand queries deterministically; they never verify a creator's location.
 export const CITY_CONCEPTS: readonly AliasConcept[] = [
   city("Lahore", ["lahore", "lhr", "لاہور"]),
   city("Karachi", ["karachi", "khi", "کراچی"]),

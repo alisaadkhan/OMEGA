@@ -47,7 +47,11 @@ export function createDiscoveryRunner(deps: Deps) {
             }),
           onSaved: async (tx, saved) => {
             let charged = 0;
-            if (job.reservationId) {
+            // Owner rule 2026-10-14: add-by-link charges only a new creator import. A link that turned out to be a creator
+            // MUSHIN already had (found while the job ran) is a duplicate: saved, but its credits come back.
+            if (job.kind === "add_by_url" && saved.outcome !== "created") {
+              await releaseHeld(engine, tx, job, "The creator was already in MUSHIN");
+            } else if (job.reservationId) {
               try {
                 await engine.commit(tx, workspaceId, job.reservationId, actor);
                 charged = job.cost;

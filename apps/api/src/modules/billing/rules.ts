@@ -1,6 +1,7 @@
 import type { BillingInterval, LostAccessItem, MeterState, PlanId, SubscriptionStatus } from "@mushin/contracts";
 
-export type LotForSpend = { id: string; remaining: number; expiresAt: Date };
+/** expiresAt null = never expires (top-ups). */
+export type LotForSpend = { id: string; remaining: number; expiresAt: Date | null };
 export type Allocation = { lotId: string; take: number };
 
 export class InsufficientLotsError extends Error {
@@ -13,12 +14,12 @@ export class InsufficientLotsError extends Error {
   }
 }
 
-/** Takes credits from the soonest-expiring lots first (ties by id, so the order is deterministic). */
+/** Takes credits from the soonest-expiring lots first, never-expiring ones last (ties by id, so the order is deterministic). */
 export function allocateLots(lots: readonly LotForSpend[], amount: number): Allocation[] {
   if (!Number.isInteger(amount) || amount <= 0) throw new Error("amount must be a positive integer");
   const ordered = lots
     .filter((l) => l.remaining > 0)
-    .sort((a, b) => a.expiresAt.getTime() - b.expiresAt.getTime() || a.id.localeCompare(b.id));
+    .sort((a, b) => (a.expiresAt?.getTime() ?? Infinity) - (b.expiresAt?.getTime() ?? Infinity) || a.id.localeCompare(b.id));
   const out: Allocation[] = [];
   let left = amount;
   for (const lot of ordered) {

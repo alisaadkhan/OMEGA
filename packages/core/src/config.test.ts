@@ -154,7 +154,7 @@ describe("search and LLM settings", () => {
   it("defaults to PostgreSQL and requires Meilisearch only for explicit rollback mode", () => {
     expect(loadApiConfig(valid).search).toBeNull();
     expect(loadApiConfig(valid).catalogSearchBackend).toBe("postgres");
-    const production = { ...valid, NODE_ENV: "production", DATABASE_SSL_CA_FILE: caFile(), PADDLE_API_KEY: "p", PADDLE_CLIENT_TOKEN: "c", PADDLE_WEBHOOK_SECRET: "w" };
+    const production = { ...valid, NODE_ENV: "production", DATABASE_SSL_CA_FILE: caFile(), PADDLE_API_KEY: "p", PADDLE_CLIENT_TOKEN: "c", PADDLE_WEBHOOK_SECRET: "w", LLM_MONTHLY_BUDGET_USD: "20" };
     expect(loadApiConfig(production).catalogSearchBackend).toBe("postgres");
     expect(() => loadApiConfig({ ...production, CATALOG_SEARCH_BACKEND: "meilisearch" })).toThrow(/MEILISEARCH_HOST/);
     expect(loadApiConfig({ ...valid, CATALOG_SEARCH_BACKEND: "meilisearch" }).catalogSearchBackend).toBe("meilisearch");
@@ -174,6 +174,10 @@ describe("search and LLM settings", () => {
     ]);
     expect(loadApiConfig(valid).llm).toEqual([]);
     expect([loadApiConfig(valid).llmMonthlyBudgetUsd, loadApiConfig({ ...valid, LLM_MONTHLY_BUDGET_USD: "12.5" }).llmMonthlyBudgetUsd]).toEqual([5, 12.5]);
+    // Production needs an explicit cap; 0 is a cap (every call refused), not "no cap".
+    const production = { ...valid, NODE_ENV: "production", DATABASE_SSL_CA_FILE: caFile(), PADDLE_API_KEY: "p", PADDLE_CLIENT_TOKEN: "c", PADDLE_WEBHOOK_SECRET: "w" };
+    expect(() => loadApiConfig(production)).toThrow(/LLM_MONTHLY_BUDGET_USD/);
+    expect(loadApiConfig({ ...production, LLM_MONTHLY_BUDGET_USD: "0" }).llmMonthlyBudgetUsd).toBe(0);
     expect(loadWorkerConfig({ ...worker, OLLAMA_API_KEY: "o", OLLAMA_MODEL: "gemma4:31b" }).llm.map((p) => p.model)).toEqual(["gemma4:31b"]);
   });
 });
@@ -206,7 +210,7 @@ describe("scraping and storage settings (worker only)", () => {
       youtubeSearch: true,
       extractionMultiplier: { instagram: 1, youtube: 1, tiktok: 1 },
       profileConcurrency: 3,
-      jobCostCap: { revenuePerCreditUsd: 0.002029, costToPriceRatio: 3 },
+      jobCostCap: { revenuePerCreditUsd: 0.002029, costToPriceRatio: 3, profileUsd: { instagram: 0.0026, tiktok: 0.011, youtube: 0 } },
       apifyMonthlyBudgetUsd: 5,
       youtubeApiKey: "yt",
       serperApiKey: null,

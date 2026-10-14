@@ -122,7 +122,7 @@ describe.skipIf(!enabled)("Live Discovery quality evaluation (real providers, bo
       sink,
       logger,
     });
-    const realLlm = createLlm(config.llm, { sink, logger });
+    const realLlm = createLlm(config.llm, { sink, logger, budget: null });
     const spend = { apifyUsd: 0, serperLive: 0, serperCached: 0, llmLive: 0, llmCached: 0, llmErrors: 0, youtubeReads: 0, youtubeSearches: 0 };
     const scraper = createProfileScraper({
       apify: config.scraping.apifyToken

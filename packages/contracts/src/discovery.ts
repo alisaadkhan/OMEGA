@@ -78,6 +78,8 @@ export type CreateLiveEstimate = z.output<typeof createLiveEstimateSchema>;
 export const liveEstimateSchema = z.object({
   estimateId: z.uuid(),
   maxCredits: z.number().int().positive(),
+  /** Least charged when the run succeeds with at least one result (TikTok in scope); absent = base fee + per creator. */
+  minimumCredits: z.number().int().positive().optional(),
   priceVersion: z.string().min(1),
   expiresAt: iso,
 });

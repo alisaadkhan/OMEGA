@@ -59,7 +59,8 @@ export const discoveryEstimates = wp.table("discovery_estimates", {
   createdAt: ts("created_at").notNull().defaultNow(),
 });
 
-export type LivePrices = { search: number; instagram: number; tiktok: number; youtube: number };
+/** tiktokMinimum: least charged for a successful run with TikTok in scope (absent on older quotes = no minimum). */
+export type LivePrices = { search: number; instagram: number; tiktok: number; youtube: number; tiktokMinimum?: number };
 export type LiveProgress = {
   serpResultsSeen: number; profileCandidates: number; afterDedupe: number; snippetGatePass: number; ambiguousCandidates: number;
   extractedProfiles: number; validIndividualCreators: number; qualifiedCreators: number; persistedResults: number; billableCreators: number;

@@ -93,6 +93,7 @@ export function FindNewDialog({ open, onOpenChange, search, onStarted }: { open:
           <div className="flex justify-between border-t border-slate-200 pt-1 text-slate-900" style={{ fontWeight: 600 }}><span>Server quote · up to {size} new creators</span><span>{estimate.isPending ? "Preparing…" : `${max ?? "—"} credits`}</span></div>
           {currentQuote && <p className="pt-1 text-[11px] text-slate-500">Quote expires {new Date(currentQuote.expiresAt).toLocaleTimeString()}.</p>}
           <p className="pt-1 text-[11px] text-slate-500">You’re charged only for creators actually added; the rest comes back when the search finishes. If nothing is found, nothing is charged.</p>
+          {currentQuote?.minimumCredits !== undefined && <p className="pt-1 text-[11px] text-slate-500">With TikTok included, a search that finds creators costs at least {currentQuote.minimumCredits} credits.</p>}
         </div>
         {quoteError !== null && <p className="mt-2 text-xs text-red-600">{quoteError instanceof Error ? quoteError.message : "Add a specific creator topic and a city, country or language to continue."}</p>}
         {max !== null && available < max && <p className="mt-2 text-xs text-red-600">You have {available} credits. Choose a smaller number or top up.</p>}

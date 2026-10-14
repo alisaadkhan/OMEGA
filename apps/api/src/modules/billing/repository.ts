@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, inArray, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import type { BillingInterval, CreditAction, PlanId } from "@mushin/contracts";
 import {
   billingPayments,
@@ -126,7 +126,7 @@ export async function sumRemaining(tx: TenantTx, workspaceId: string, now: Date,
       and(
         eq(creditLots.workspaceId, workspaceId),
         gt(creditLots.remaining, 0),
-        gt(creditLots.expiresAt, now),
+        or(isNull(creditLots.expiresAt), gt(creditLots.expiresAt, now)),
         sources === "all" ? undefined : inArray(creditLots.source, [...sources]),
       ),
     );
@@ -141,7 +141,7 @@ export async function lotsValidAt(tx: TenantTx, workspaceId: string, at: Date, s
       and(
         eq(creditLots.workspaceId, workspaceId),
         gt(creditLots.remaining, 0),
-        gt(creditLots.expiresAt, at),
+        or(isNull(creditLots.expiresAt), gt(creditLots.expiresAt, at)),
         scope === "topup_only" ? eq(creditLots.source, "topup") : undefined,
       ),
     );
@@ -149,7 +149,7 @@ export async function lotsValidAt(tx: TenantTx, workspaceId: string, at: Date, s
 
 export async function insertLot(
   tx: TenantTx,
-  l: { workspaceId: string; source: LotSource; amount: number; expiresAt: Date; paymentId: string | null },
+  l: { workspaceId: string; source: LotSource; amount: number; expiresAt: Date | null; paymentId: string | null },
 ): Promise<string> {
   const rows = await tx.insert(creditLots).values({ ...l, remaining: l.amount }).returning({ id: creditLots.id });
   const id = rows[0]?.id;

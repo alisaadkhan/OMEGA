@@ -38,7 +38,8 @@ export const topupPacks = platform.table("topup_packs", {
   displayPriceMinor: money("display_price_minor").notNull(),
   chargeCurrency: char("charge_currency", { length: 3 }).notNull().default("USD"),
   chargePriceMinor: money("charge_price_minor").notNull(),
-  validityMonths: integer("validity_months").notNull().default(12),
+  /** Unused since 0030: top-up credits never expire. */
+  validityMonths: integer("validity_months"),
   paddlePriceId: text("paddle_price_id").notNull(),
   active: boolean("active").notNull().default(true),
   createdAt: ts("created_at").notNull().defaultNow(),
@@ -159,7 +160,8 @@ export const creditLots = wp.table("credit_lots", {
   source: text("source", { enum: ["trial", "monthly", "topup", "adjustment"] }).notNull(),
   amount: integer("amount").notNull(),
   remaining: integer("remaining").notNull(),
-  expiresAt: ts("expires_at").notNull(),
+  /** Null = never expires (top-ups only, constraint credit_lots_expiry_rule). */
+  expiresAt: ts("expires_at"),
   paymentId: uuid("payment_id"),
   createdAt: ts("created_at").notNull().defaultNow(),
   updatedAt: ts("updated_at").notNull().defaultNow(),

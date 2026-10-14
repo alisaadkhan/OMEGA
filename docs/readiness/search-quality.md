@@ -3,7 +3,8 @@
 Source of truth: `apps/api/src/modules/creators/aliases.ts` (shared by catalogue Search and Live Discovery). Language
 identifier for Roman Urdu: `roman_urdu`. A query word in any listed form matches all forms of its concept; other words
 are searched as typed. A city in the text matches the creator's own declared city field or their own bio, never another
-person's content. The city filter accepts any listed form.
+person's content. The city filter accepts any listed form. City forms are deterministic **query expansion only**: they
+never verify where a creator is (owner decision 2026-10-14).
 
 | Concept | Forms | Origin | Status |
 |---|---|---|---|
@@ -16,11 +17,11 @@ person's content. The city filter accepts any listed form.
 | fitness | fitness, warzish, ورزش, فٹنس | same | In use |
 | technology | technology, tech, ٹیکنالوجی, ٹیک | same | In use |
 | Lahore | lahore, lhr, لاہور | Urdu name reviewed; LHR owner-listed | In use |
-| Karachi | karachi, khi, کراچی | Urdu name reviewed; KHI common short form | In use, **confirm KHI** |
-| Islamabad | islamabad, isb, اسلام آباد | Urdu name reviewed; ISB common short form | In use, **confirm ISB** |
-| Rawalpindi | rawalpindi, pindi, rwp, راولپنڈی | Urdu name reviewed; Pindi/RWP common | In use, **confirm Pindi, RWP** |
+| Karachi | karachi, khi, کراچی | Urdu name reviewed; KHI common short form | In use; KHI approved by the owner 2026-10-14 |
+| Islamabad | islamabad, isb, اسلام آباد | Urdu name reviewed; ISB common short form | In use; ISB approved 2026-10-14 |
+| Rawalpindi | rawalpindi, pindi, rwp, راولپنڈی | Urdu name reviewed; Pindi/RWP common | In use; Pindi and RWP approved 2026-10-14 |
 | Peshawar | peshawar, پشاور | Urdu name reviewed | In use |
-| Faisalabad | faisalabad, fsd, فیصل آباد | Urdu name reviewed; FSD common short form | In use, **confirm FSD** |
+| Faisalabad | faisalabad, fsd, فیصل آباد | Urdu name reviewed; FSD common short form | In use; FSD approved 2026-10-14 |
 | Multan | multan, ملتان | Urdu name reviewed | In use |
 | Quetta | quetta, کوئٹہ | Urdu name reviewed | In use |
 
