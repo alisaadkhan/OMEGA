@@ -10,7 +10,7 @@ import { AppError } from "@mushin/core";
 import { bearerToken } from "../../http/bearer";
 import type { PreHandler } from "../../http/types";
 import { parseInput, sendOk } from "../../http/validate";
-import { can, type StaffAction } from "./permissions";
+import { can, HARDWARE_KEY_ACTIONS, type StaffAction } from "./permissions";
 import { SESSION_DAYS, type RequestMeta, type StaffService } from "./service";
 import type { StaffPrincipal, StaffTokens } from "./tokens";
 
@@ -45,6 +45,9 @@ export function createRequireStaff(tokens: StaffTokens) {
       if (!token) throw new AppError("UNAUTHENTICATED", "Admin authentication required");
       const principal = await tokens.verifyAccess(token);
       if (!can(principal.role, action)) throw new AppError("FORBIDDEN", "You do not have permission to do this");
+      if (HARDWARE_KEY_ACTIONS.has(action) && !principal.factors.includes("hwk")) {
+        throw new AppError("FORBIDDEN", "This admin action needs a hardware security key sign-in, which is not available yet.", { reason: "hardware_key_required" });
+      }
       req.staff = principal;
     };
 }

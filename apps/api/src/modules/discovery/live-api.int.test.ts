@@ -29,7 +29,8 @@ async function setup(o: { removalLimit?: number } = {}) {
   const platform = createPlatformModule({ db, ttlHours: 24 });
   const big = { limit: 1000, windowSeconds: 60 };
   const limiter = new MemoryRateLimiter({ ip: big, user: big, auth: { limit: o.removalLimit ?? 1000, windowSeconds: 60 }, ai: big, jobs: { limit: 1000, windowSeconds: 3600 }, workspaceJobs: { limit: 100_000, windowSeconds: 3600 } });
-  const staff = createStaffModule({ db, tokens: createStaffTokens("r".repeat(48)), encryptionKey: TEST_KEY });
+  const tokens = createStaffTokens("r".repeat(48));
+  const staff = createStaffModule({ db, tokens, encryptionKey: TEST_KEY });
   const creators = createCreatorsService({ db, index: createSearchIndex(null, logger), llm: new MockLlm(() => ({})), billing, encryptionKey: TEST_KEY, logger });
   const removals = createRemovalService({ db, encryptionKey: TEST_KEY, audit: recordStaffAudit });
   const iss = await createTestIssuer();
@@ -44,7 +45,7 @@ async function setup(o: { removalLimit?: number } = {}) {
     ],
   });
   const token = await iss.sign({ sub: randomUUID(), email: "owner@mushin.pk", fullName: "Owner" });
-  return { app, staff, auth: { authorization: `Bearer ${token}` } };
+  return { app, staff, tokens, auth: { authorization: `Bearer ${token}` } };
 }
 
 async function staffToken(s: Awaited<ReturnType<typeof setup>>, role: "admin" | "support") {
@@ -99,7 +100,13 @@ describe("staff review API", () => {
     await s.app.inject({ method: "POST", url: "/v1/public/removal-requests", payload: { urls: ["instagram.com/review_me"], email: "me@example.com", confirm: true } });
     expect((await s.app.inject({ method: "GET", url: "/admin/v1/removal-requests" })).statusCode).toBe(401);
     expect((await s.app.inject({ method: "GET", url: "/admin/v1/removal-requests", headers: await staffToken(s, "support") })).statusCode).toBe(403);
-    const admin = await staffToken(s, "admin");
+    // Approving a removal is an admin action: TOTP alone is refused until a hardware-key sign-in exists (DOC-029).
+    const totpAdmin = await staffToken(s, "admin");
+    const refused = await s.app.inject({ method: "GET", url: "/admin/v1/removal-requests?status=received", headers: totpAdmin });
+    expect(refused.statusCode).toBe(403);
+    expect(refused.json()).toMatchObject({ error: { details: { reason: "hardware_key_required" } } });
+    const keyAdmin = await s.staff.createStaffAccount({ email: `hwk-${randomUUID().slice(0, 6)}@mushin.pk`, name: "Key admin", role: "admin" });
+    const admin = { authorization: `Bearer ${await s.tokens.signAccess({ staffId: keyAdmin.id, role: "admin", factors: ["otp", "hwk"] })}` };
     const list = (await s.app.inject({ method: "GET", url: "/admin/v1/removal-requests?status=received", headers: admin })).json() as { requests: { id: string }[] };
     expect(list.requests).toHaveLength(1);
     const id = list.requests[0]?.id ?? "";

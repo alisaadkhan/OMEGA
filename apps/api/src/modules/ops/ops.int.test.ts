@@ -29,7 +29,8 @@ async function setup() {
   const platform = createPlatformModule({ db, ttlHours: 24 });
   const big = { limit: 1000, windowSeconds: 60 };
   const limiter = new MemoryRateLimiter({ ip: big, user: big, auth: big, ai: big, jobs: big, workspaceJobs: big });
-  const staff = createStaffModule({ db, tokens: createStaffTokens("r".repeat(48)), encryptionKey: TEST_KEY });
+  const tokens = createStaffTokens("r".repeat(48));
+  const staff = createStaffModule({ db, tokens, encryptionKey: TEST_KEY });
   const iss = await createTestIssuer();
   const app = await buildTestApp({
     guards: { customer: createCustomerGuard({ verify: createCustomerTokenVerifier(iss), resolveTenant: identity.resolveTenant, limiter }), idempotent: platform.requireIdempotencyKey },
@@ -43,7 +44,12 @@ async function setup() {
     const res = await app.inject({ method: "POST", url: "/admin/v1/auth/totp", payload: { challengeToken, code: await generate({ secret: acct.totpSecret }) } });
     return { authorization: `Bearer ${(res.json() as { accessToken: string }).accessToken}` };
   };
-  return { app, customer, staffToken };
+  // An admin session that states a hardware-key factor. No WebAuthn sign-in exists yet, so only tests can mint one.
+  const hardwareKeyAdmin = async () => {
+    const acct = await staff.createStaffAccount({ email: `hwk-${randomUUID().slice(0, 6)}@mushin.pk`, name: "Key admin", role: "admin" });
+    return { authorization: `Bearer ${await tokens.signAccess({ staffId: acct.id, role: "admin", factors: ["otp", "hwk"] })}` };
+  };
+  return { app, customer, staffToken, hardwareKeyAdmin };
 }
 
 describe("support tickets and staff operations", () => {
@@ -80,11 +86,19 @@ describe("support tickets and staff operations", () => {
   });
 
   it("separates staff roles: support gets redacted, read-only views; providers and audit are admin-only; customers are refused", async () => {
-    const { app, customer, staffToken } = await setup();
+    const { app, customer, staffToken, hardwareKeyAdmin } = await setup();
     const owner = await customer("ayesha@brand.pk");
     await app.inject({ method: "GET", url: "/v1/me", headers: owner }); // provisions the workspace
     const support = await staffToken("support");
-    const admin = await staffToken("admin");
+    const totpAdmin = await staffToken("admin");
+    const admin = await hardwareKeyAdmin();
+    // Admin-only views need a hardware key: a TOTP-only admin session is refused (DOC-029).
+    for (const url of ["/admin/v1/ops/providers", "/admin/v1/audit"]) {
+      const res = await app.inject({ method: "GET", url, headers: totpAdmin });
+      expect(res.statusCode).toBe(403);
+      expect(res.json()).toMatchObject({ error: { details: { reason: "hardware_key_required" } } });
+    }
+    expect((await app.inject({ method: "GET", url: "/admin/v1/ops/overview", headers: totpAdmin })).statusCode).toBe(200);
 
     expect((await app.inject({ method: "GET", url: "/admin/v1/ops/overview", headers: owner })).statusCode).toBe(401);
     expect((await app.inject({ method: "GET", url: "/admin/v1/ops/overview" })).statusCode).toBe(401);

@@ -20,7 +20,7 @@ afterAll(() => db.close());
 
 const staff = async () => {
   const [s] = await ownerQuery<{ id: string }>(`insert into staff.staff_users (email, name, role, password_hash, totp_secret_encrypted) values ('a${randomUUID().slice(0, 6)}@mushin.pk', 'Admin', 'admin', 'x', 'x') returning id`);
-  return { staffId: s?.id ?? "", role: "admin" as const };
+  return { staffId: s?.id ?? "", role: "admin" as const, factors: ["otp" as const, "hwk" as const] };
 };
 const meta = { ip: "127.0.0.1", requestId: "req-1" };
 const status = async (id: string) => (await ownerQuery<{ status: string }>(`select status from gcp.creators where id = '${id}'`))[0]?.status;

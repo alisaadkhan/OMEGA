@@ -44,7 +44,9 @@ describe("staff tokens", () => {
     const t = createStaffTokens(secret);
     const staffId = randomUUID();
     const access = await t.signAccess({ staffId, role: "support" });
-    expect(await t.verifyAccess(access)).toEqual({ staffId, role: "support" });
+    expect(await t.verifyAccess(access)).toEqual({ staffId, role: "support", factors: ["otp"] });
+    // A hardware-key factor is carried only when the session states it (no WebAuthn sign-in exists yet).
+    expect((await t.verifyAccess(await t.signAccess({ staffId, role: "admin", factors: ["otp", "hwk"] }))).factors).toEqual(["otp", "hwk"]);
     const challenge = await t.signChallenge(staffId);
     expect(await t.verifyChallenge(challenge)).toBe(staffId);
     await expect(t.verifyAccess(challenge)).rejects.toMatchObject({ code: "UNAUTHENTICATED" });

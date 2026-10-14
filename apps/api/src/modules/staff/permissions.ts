@@ -17,6 +17,15 @@ export const STAFF_PERMISSIONS = {
 
 export type StaffAction = keyof typeof STAFF_PERMISSIONS;
 
+/**
+ * Privileged (Admin) actions need a WebAuthn hardware key (master pack DOC-029: Support TOTP mandatory, Admin hardware
+ * key mandatory). MUSHIN has no WebAuthn sign-in yet, so these stay refused for every session until it is built and
+ * proven: TOTP alone is never treated as hardware-key compliance (owner decision 2026-10-14).
+ */
+export const HARDWARE_KEY_ACTIONS: ReadonlySet<StaffAction> = new Set(
+  (Object.keys(STAFF_PERMISSIONS) as StaffAction[]).filter((a) => !(STAFF_PERMISSIONS[a] as readonly string[]).includes("support")),
+);
+
 export function can(role: StaffRole, action: string): boolean {
   const table: Record<string, readonly StaffRole[] | undefined> = STAFF_PERMISSIONS;
   // Own keys only: inherited names like "toString" or "__proto__" are not actions.
