@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CreatorCard, DiscoveryJob } from "@mushin/contracts";
-import { isOpenJob, jobStatusText, jobTitle, liveMaxCost, liveSummary, mergeResults, newlyFinished } from "./discovery-mapping";
+import { isOpenJob, jobStatusText, jobTitle, liveMaxCost, livePlatformsText, liveSummary, mergeResults, newlyFinished } from "./discovery-mapping";
 import { creatorStub } from "./search-mapping";
 
 const cardFor = (id: string): CreatorCard => ({
@@ -91,6 +91,9 @@ describe("live runs", () => {
   it("names the run and explains its progress and outcome", () => {
     const j = liveJob();
     expect(liveSummary(L.search)).toBe("bridal makeup · Lahore");
+    // The quote dialog names the platform scope the server will price and search.
+    expect(livePlatformsText({ ...L.search, filters: { ...L.search.filters, platform: "youtube" } })).toBe("YouTube");
+    expect(livePlatformsText({ ...L.search, filters: { ...L.search.filters, platform: undefined } })).toBe("Instagram, TikTok and YouTube (all platforms)");
     expect(jobTitle(j)).toBe("Finding creators: bridal makeup · Lahore");
     expect(jobStatusText(liveJob({ status: "running", step: "searching" }))).toBe("Searching Google…");
     expect(jobStatusText(liveJob({ status: "running", step: "assessing", live: { ...L, found: 4, progress: { ...L.progress, serpResultsSeen: 12, qualifiedCreators: 2, persistedResults: 1 } } }))).toBe("Assessing authenticity and audience… · 12 searched · 2 qualified · 1 saved");

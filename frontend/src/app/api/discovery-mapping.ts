@@ -18,6 +18,14 @@ export function liveMaxCost(costs: Record<CreditAction, number>, platform: "inst
   return costs.find_new + maxNew * perCreator;
 }
 
+const PLATFORM_NAMES = { instagram: "Instagram", tiktok: "TikTok", youtube: "YouTube" } as const;
+
+/** The platforms a live run will search and extract, as the server scopes them (no platform = all three). */
+export function livePlatformsText(s: LiveSearch): string {
+  const p = s.filters.platform;
+  return p ? PLATFORM_NAMES[p] : "Instagram, TikTok and YouTube (all platforms)";
+}
+
 export function liveSummary(s: LiveSearch): string {
   const parts = [s.text.trim() || s.filters.niches.join(", "), s.filters.creatorCity ?? s.filters.creatorCountry ?? ""].filter(Boolean);
   return parts.join(" · ") || "new creators";

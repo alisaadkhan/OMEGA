@@ -173,6 +173,14 @@ describe("Live Discovery Campaign Fit", () => {
     const karachi = liveSearchSchema.parse({ text: "Bridal creators", filters: { niches: ["bridal"], creatorCity: "Karachi" } });
     const result = evaluateCampaignFit(karachi, candidate, profile({ bio: "Bridal makeup artist 📍 Lahore" }), false, now);
     expect(result.evidence).toContain("Profile names lahore, not the requested Karachi");
+    // Regression: a matching country was reported as "Location signal matched … (Karachi)" although no city was named.
+    const pkKarachi = liveSearchSchema.parse({ text: "Bridal creators", filters: { niches: ["bridal"], creatorCity: "Karachi", creatorCountry: "PK" } });
+    const countryOnly = evaluateCampaignFit(pkKarachi, candidate, profile({ bio: "Bridal makeup artist", country: "PK" }), false, now);
+    expect(countryOnly.evidence).toContain("Profile country matches (PK); Karachi is not named in the public profile");
+    expect(countryOnly.evidence.join(" ")).not.toMatch(/matched public profile evidence/);
+    const pk = liveSearchSchema.parse({ text: "Bridal creators", filters: { niches: ["bridal"], creatorCountry: "PK" } });
+    expect(evaluateCampaignFit(pk, candidate, profile({ bio: "Bridal makeup artist", country: "PK" }), false, now).evidence).toContain("Profile country matches the requested PK");
+    expect(evaluateCampaignFit(karachi, candidate, profile({ bio: "Bridal makeup artist 📍 Karachi" }), false, now).evidence).toContain("Profile names the requested location (Karachi)");
     expect(result.score).toBeLessThan(evaluateCampaignFit(karachi, candidate, profile({ bio: "Bridal makeup artist 📍 Karachi" }), false, now).score ?? 0);
   });
 

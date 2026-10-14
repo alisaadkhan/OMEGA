@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { LiveEstimate, LiveRunSize, LiveSearch } from "@mushin/contracts";
 import { useBillingSummary } from "../../api/billing";
 import { useCreateLiveEstimate, useStartJob } from "../../api/discovery";
-import { liveSummary } from "../../api/discovery-mapping";
+import { livePlatformsText, liveSummary } from "../../api/discovery-mapping";
 import { useToast } from "../../lib/toast";
 
 const SIZES: LiveRunSize[] = [5, 10, 20];
@@ -75,6 +75,11 @@ export function FindNewDialog({ open, onOpenChange, search, onStarted }: { open:
       <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="text-slate-900" style={{ fontSize: 15, fontWeight: 600 }}>Find new creators</div>
         <p className="mt-1 text-xs text-slate-500">MUSHIN searches Google for “{liveSummary(search)}”, fetches the profiles it doesn’t know yet and assesses them. Creators MUSHIN already knows are free.</p>
+        {/* The platforms set the price (TikTok's is higher): show them so a widened scope can't go unnoticed. */}
+        <div className="mt-3 flex justify-between rounded-md border border-slate-200 px-3 py-2 text-xs text-slate-700">
+          <span>Platforms searched</span>
+          <span style={{ fontWeight: 600 }}>{livePlatformsText(search)}</span>
+        </div>
         <div className="mt-4 text-xs text-slate-700" style={{ fontWeight: 600 }}>How many new creators?</div>
         <div className="mt-2 grid grid-cols-3 gap-2">
           {SIZES.map((s) => (

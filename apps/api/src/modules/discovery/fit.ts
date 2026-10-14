@@ -144,9 +144,13 @@ export function evaluateCampaignFit(search: LiveSearch, candidate: Kept, profile
       ? (bio.includes(norm(requestedCity)) ? 1 : otherCity ? 0 : profile.country && requestedCountry === profile.country ? 0.6 : 0.5)
       : profile.country === requestedCountry ? 1 : profile.country ? 0 : 0.5;
     scored.push({ score: geo, weight: 0.2, evidenced: geo !== 0.5 });
+    // Say what actually matched: a matching platform country is not evidence of the requested city.
     evidence.push(geo === 0.5 ? "Location unknown from public profile evidence"
       : otherCity && geo === 0 ? `Profile names ${otherCity}, not the requested ${requestedCity}`
-      : `Location signal matched public profile evidence (${requestedCity ?? requestedCountry})`);
+      : geo === 0.6 ? `Profile country matches (${profile.country ?? ""}); ${requestedCity ?? ""} is not named in the public profile`
+      : geo === 0 ? `Profile country ${profile.country ?? "unknown"} differs from the requested ${requestedCountry ?? "country"}`
+      : requestedCity ? `Profile names the requested location (${requestedCity})`
+      : `Profile country matches the requested ${requestedCountry}`);
   }
   const language = /\broman\s+urdu\b/i.test(search.text)
     ? "roman urdu"
