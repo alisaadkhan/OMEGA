@@ -34,6 +34,7 @@ import {
 import { audienceEstimates, audienceJobs } from "./audience";
 import { discoveryCandidates, discoveryEstimates, discoveryJobs, discoveryResults, serperCache } from "./discovery";
 import { users, workspaceMembers, workspaces } from "./identity";
+import { listMembers, lists } from "./lists";
 import { idempotencyKeys, outbox, providerCalls } from "./platform";
 import { auditLog, staffSessions, staffUsers } from "./staff";
 
@@ -42,6 +43,7 @@ export * from "./billing";
 export * from "./creators";
 export * from "./discovery";
 export * from "./identity";
+export * from "./lists";
 export * from "./platform";
 export * from "./staff";
 
@@ -88,6 +90,8 @@ export const ALL_TABLES = [
   discoveryResults,
   discoveryCandidates,
   serperCache,
+  lists,
+  listMembers,
   removalRequests,
   creatorSuppressions,
   audienceEstimates,

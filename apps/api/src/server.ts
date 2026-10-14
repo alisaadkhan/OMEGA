@@ -11,6 +11,7 @@ import { createBillingModule, createBillingService, createRedisAccessCache, noAc
 import { createCreatorsModule, createCreatorsService, createPostgresCatalogSearch, createRemovalService } from "./modules/creators";
 import { createDiscoveryModule, createDiscoveryService } from "./modules/discovery";
 import { createIdentityModule } from "./modules/identity";
+import { createListsModule, createListsService } from "./modules/lists";
 import { createPlatformModule } from "./modules/platform";
 import { createStaffModule, createStaffTokens, recordStaffAudit } from "./modules/staff";
 import { MemoryRateLimiter } from "./rate-limit/memory";
@@ -78,6 +79,7 @@ const app = await buildApp({
     createBillingModule({ service: billing, payments, appUrl: config.appUrl }),
     createCreatorsModule({ service: creators, limiter, removals, requireStaff: staff.requireStaff }),
     createDiscoveryModule({ service: createDiscoveryService({ db, billing }), limiter }),
+    createListsModule({ service: createListsService({ db }) }),
     createAudienceModule({ service: createAudienceService({ db, billing, sources: config.audienceSources }), limiter }),
   ],
   readiness,

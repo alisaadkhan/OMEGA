@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
-import { X, Instagram, Youtube, Music2, MapPin, Mail, Phone, Sparkles, ShieldCheck, Bookmark, Plus, ExternalLink, RefreshCw, GitCompare } from "lucide-react";
+import { X, Instagram, Youtube, Music2, MapPin, Mail, Phone, Sparkles, ShieldCheck,  Plus, ExternalLink, RefreshCw, GitCompare } from "lucide-react";
 import { useEffect, useState } from "react";
 import { FreshnessBadge, ContactTrustBadge, contactTrustNote, Unavailable, Spinner } from "./states";
 import { useActiveJobs, useStartJob } from "../../api/discovery";
@@ -9,6 +9,8 @@ import { useAuth } from "../../auth/AuthContext";
 import { formatCount, uiTrust } from "../../api/search-mapping";
 import { useConfirm, useToast } from "../../lib/toast";
 import { AudienceEstimate } from "./AudienceEstimate";
+import { SaveToListMenu } from "./SaveToListMenu";
+import { relative } from "../../lib/time";
 
 /** Volume 4B — Creator Intelligence Profile. */
 
@@ -168,9 +170,7 @@ export function CreatorProfilePanel({ creator, onClose, onCompare }: { creator: 
             <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
               <div className="text-xs text-slate-500">Creator profile</div>
               <div className="flex items-center gap-1">
-                <button className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-700 transition-colors hover:bg-slate-50" style={{ fontWeight: 500 }}>
-                  <Bookmark className="h-3 w-3" strokeWidth={2} /> Save
-                </button>
+                {id && <SaveToListMenu creatorIds={[id]} />}
                 <button className="inline-flex items-center gap-1 rounded-md bg-slate-900 px-2.5 py-1 text-xs text-white transition-colors hover:bg-slate-800" style={{ fontWeight: 500 }}>
                   <Plus className="h-3 w-3" strokeWidth={2} /> Add to campaign
                 </button>
@@ -395,15 +395,6 @@ export function CreatorProfilePanel({ creator, onClose, onCompare }: { creator: 
       )}
     </AnimatePresence>
   );
-}
-
-function relative(iso: string | null): string {
-  if (!iso) return "never";
-  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
-  if (days <= 0) return "today";
-  if (days === 1) return "yesterday";
-  if (days < 30) return `${days} days ago`;
-  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
 function Section({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {

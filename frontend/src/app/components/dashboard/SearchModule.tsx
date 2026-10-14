@@ -50,6 +50,7 @@ import {
 import { FreshnessBadge } from "./states";
 import { useToast } from "../../lib/toast";
 import { FindNewDialog } from "./FindNewDialog";
+import { SaveToListMenu } from "./SaveToListMenu";
 import { useCancelJob, useDiscoveryJob, useLiveResults } from "../../api/discovery";
 import { liveFoundText } from "../../api/discovery-mapping";
 
@@ -534,12 +535,7 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
                   setCompareOpen(true);
                 }}
               />
-              <BulkAction
-                icon={Bookmark}
-                label="Save"
-                disabled
-                title="Creator saving is not connected to the API yet. Nothing has been saved."
-              />
+              <SaveToListMenu creatorIds={[...selected]} label={`Save ${selected.size} to a list`} />
               <button
                 onClick={() => setSelected(new Set())}
                 className="rounded-md px-2 py-1 text-xs text-indigo-700 transition-colors hover:bg-indigo-100"
@@ -963,12 +959,7 @@ function CreatorCard({
           View profile
           <ArrowUpRight className="h-3 w-3" />
         </button>
-        <button
-          className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 transition-colors hover:bg-slate-50"
-          title="Add to list"
-        >
-          <Bookmark className="h-3.5 w-3.5" strokeWidth={1.75} />
-        </button>
+        <SaveToListMenu creatorIds={[creator.id]} variant="icon" />
       </div>
     </motion.div>
   );

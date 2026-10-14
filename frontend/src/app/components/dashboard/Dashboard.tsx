@@ -53,7 +53,7 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
             >
               {view === "overview" && <Overview credits={credits} setView={setView} />}
               {view === "search" && <SearchModule liveJobId={liveJobId} />}
-              {view === "lists" && <Lists />}
+              {view === "lists" && <Lists onOpenCreator={setOmniCreator} onGoToSearch={() => setView("search")} />}
               {view === "campaigns" && <Campaigns />}
               {view === "analytics" && <Analytics />}
               {view === "inbox" && <Inbox />}
