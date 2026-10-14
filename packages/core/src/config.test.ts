@@ -208,7 +208,7 @@ describe("scraping and storage settings (worker only)", () => {
       instagramPostBuild: "0.0.812",
       contentResolutionMax: 0,
       youtubeSearch: true,
-      extractionMultiplier: { instagram: 1, youtube: 1, tiktok: 1 },
+      extractionMultiplier: { instagram: 2, youtube: 3, tiktok: 1 },
       profileConcurrency: 3,
       jobCostCap: { revenuePerCreditUsd: 0.002029, costToPriceRatio: 3, profileUsd: { instagram: 0.0026, tiktok: 0.011, youtube: 0 } },
       apifyMonthlyBudgetUsd: 5,

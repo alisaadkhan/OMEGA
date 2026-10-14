@@ -9,6 +9,9 @@
  * LIVE_REPLAY_EXTRACT_BUDGET_USD=<n> (default 0) lets profile extraction and Instagram post-author resolution run live
  * for recordings that do not exist, under that hard cap; their responses are recorded for later replays.
  *
+ * LIVE_REPLAY_MULTIPLIER=instagram=2,tiktok=1 sets extraction multipliers; the production per-job cost cap (config defaults,
+ * per-profile cost estimates) always applies. Profiles fetched per platform are counted, with their estimated cost.
+ *
  * LIVE_DISCOVERY_REPLAY=1 LIVE_EVAL_OUT=<dir> [LIVE_REPLAY_BRIEFS=id,id] [LIVE_REPLAY_SIZE=5|10|20] [LIVE_REPLAY_LABEL=x]
  */
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -114,6 +117,7 @@ describe.skipIf(!enabled)("Live Discovery recorded-response replay through the r
       : null;
     await mkdir(join(OUT, "posts"), { recursive: true });
     for (const p of ["instagram", "tiktok", "youtube"]) await mkdir(join(OUT, "raw", p), { recursive: true });
+    const fetchedBy: Record<string, number> = { instagram: 0, tiktok: 0, youtube: 0 };
     const scraper: ProfileScraper = {
       async fetchProfile() {
         throw new Error("single-profile fetch is not replayed");
@@ -121,6 +125,7 @@ describe.skipIf(!enabled)("Live Discovery recorded-response replay through the r
       async fetchProfiles(req) {
         const profiles: { handle: string; raw: unknown }[] = [];
         const missing: string[] = [];
+        fetchedBy[req.platform] = (fetchedBy[req.platform] ?? 0) + req.handles.length;
         for (const handle of req.handles) {
           const h = handle.replace(/^@/, "").toLowerCase();
           const hit = await readJson<{ raw: unknown }>(join(OUT, "raw", req.platform, `${h}.json`));
@@ -176,11 +181,12 @@ describe.skipIf(!enabled)("Live Discovery recorded-response replay through the r
       },
     };
     const pipeline = createEnrichmentPipeline({ db, scraper, storage: new MemoryStorage(), llm, encryptionKey: TEST_KEY, logger, fetchImage: async () => new Response("", { status: 404 }) });
-    const runner = createLiveRunner({ db, billing, pipeline, scraper, search: createCachedSearch({ db, web }), llm, logger, maxAttempts: 1, contentResolutionMax: config.scraping.contentResolutionMax, extractionMultiplier: Object.fromEntries((process.env["LIVE_REPLAY_MULTIPLIER"] ?? "").split(",").filter(Boolean).map((pair) => { const [p, m] = pair.split("="); return [p, Number(m)]; })) });
+    const runner = createLiveRunner({ db, billing, pipeline, scraper, search: createCachedSearch({ db, web }), llm, logger, maxAttempts: 1, contentResolutionMax: config.scraping.contentResolutionMax, extractionMultiplier: Object.fromEntries((process.env["LIVE_REPLAY_MULTIPLIER"] ?? "").split(",").filter(Boolean).map((pair) => { const [p, m] = pair.split("="); return [p, Number(m)]; })), jobCostCap: config.scraping.jobCostCap });
 
     const report: unknown[] = [];
     for (const brief of recorded.briefs.filter((b) => ONLY.size === 0 || ONLY.has(b.id))) {
       const before = { ...misses };
+      const fetchedBefore = { ...fetchedBy };
       const ws = await createTestWorkspace();
       await db.withTenant(ws, (tx) => billing.startTrial(tx, ws.workspaceId));
       const c: TenantContext = { ...ws, requestId: `replay-${randomUUID().slice(0, 8)}`, role: "owner" };
@@ -207,6 +213,8 @@ describe.skipIf(!enabled)("Live Discovery recorded-response replay through the r
         credits: { quoted: quote.maxCredits, charged: job.live?.creditsCharged ?? 0, reservedAfter: balance.reserved },
         trailRows: trail.length, pendingAfter: trail.filter((r) => r.decision === "pending").length, duplicates: trail.reduce((n, r) => n + r.occurrences - 1, 0),
         spendUsdSoFar: Math.round(spend.usd * 10000) / 10000, livePostsSoFar: spend.livePosts, liveProfilesSoFar: spend.liveProfiles,
+        fetched: Object.fromEntries(Object.entries(fetchedBy).map(([p, n]) => [p, n - (fetchedBefore[p] ?? 0)])),
+        estimatedExtractionUsd: Math.round(Object.entries(fetchedBy).reduce((sum, [p, n]) => sum + (n - (fetchedBefore[p] ?? 0)) * (config.scraping.jobCostCap.profileUsd[p as "instagram" | "tiktok" | "youtube"] ?? 0), 0) * 10000) / 10000,
         byOutcome, misses: { serp: misses.serp - before.serp, profiles: misses.profiles - before.profiles, llm: misses.llm - before.llm }, ms: Date.now() - t0,
       };
       report.push(entry);

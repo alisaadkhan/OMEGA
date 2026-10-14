@@ -149,3 +149,44 @@ report into two blind rating sheets (59 rows), a results file for `score.ts <out
   Recommendation for the owner: a per-platform extraction budget (more for YouTube) or a second wave when the first
   delivers nothing, within the per-job cost cap (credit-economics.md).
 - Not measured here: human relevance (sheets ready, no ratings) and live-provider behaviour (blocked: spend authorisation).
+
+## Brain 2 experiment log (REPLAY, 2026-10-14, no spend)
+
+Harness: `live-replay.live.int.test.ts` now applies the production per-job cost cap and counts profiles fetched per
+platform with their estimated cost (`LIVE_PROFILE_USD_*`). Summary: `scratchpad search-eval/mult.cjs`. Recorded data:
+25 briefs (11 Instagram, 5 TikTok, 7 YouTube, 2 all-platform), size 5. A profile that was never recorded is a replay
+miss and reads as "not found", so any gain is a lower bound when misses are reported.
+
+**Baseline reproduced** (current code, 1×): 51 delivered, 8 of 25 briefs empty, 1,440 of 2,500 quoted credits charged
+(1,340 before the TikTok minimum), nothing left reserved, no pending trail rows.
+
+**Empty briefs, one by one:**
+- *tt-streetfood-khi-roman, tt-education-urdu:* all 5 extracted profiles are replay misses (never recorded). Undecidable
+  without a live run; not evidence of a defect.
+- *yt-budget-phones, yt-roman-tech, yt-cooking-urdu, yt-gaming-pk, yt-finance-urdu:* every fetched channel failed a
+  spec rule on its own evidence, checked row by row: declared country not PK (Canada, India, Bangladesh, Philippines),
+  no public post in 90 days (e.g. 101, 174, 214, 1,257 days), off-topic or below minimum Campaign Fit, agency or
+  business. No rejection contradicted its evidence. The loss was **yield**: 5 channels fetched while 2–28 ranked
+  candidates were never extracted.
+- *ig-skincare-micro-khi:* `insufficient` (pool below the spec's 8). Its 24 skipped post links are third-person features
+  and agency calls ("Meet Nimra Irshad…", "Content Creators Wanted"); with post-author resolution enabled
+  (`LIVE_CONTENT_RESOLUTION_MAX=10`, recorded owners) the pool is still below 8. A shortage of usable results, not a defect.
+
+**Controlled multiplier study** (one platform changed at a time, cost cap on):
+
+| Platform | 1× | 2× | 3× | 4× | Extra estimated cost | Replay misses |
+|---|---|---|---|---|---|---|
+| Instagram (11 briefs): delivered / empty | 33 / 1 | 45 / 1 | 45 / 1 | 45 / 1 | USD 0.13 → 0.21 in total | 0 → 5 |
+| YouTube (7 briefs): delivered / empty | 2 / 5 | 8 / 2 | 12 / 2 | 12 / 2 | USD 0 (API quota) | 0 |
+| TikTok (5 briefs): delivered / empty | 6 / 2 | 6 / 2 | 6 / 2 | 6 / 2 | cap stops extra batches (81 candidates) | 14 → 19 |
+
+Replay latency p95 per brief rose from about 0.3–0.4 s to 0.8–0.9 s (YouTube 3×); live latency is dominated by the
+provider calls and is not measured here.
+
+**Decision (provisional):** the smallest multiplier at each platform's plateau: Instagram 2×, YouTube 3×, TikTok 1×
+(cannot be measured from the recordings, and the cost cap already stops its extra batches at the 3× rule). Combined
+replay (`b2-ig2-yt3`): 51 → 77 delivered, 8 → 5 empty briefs, charged 1,440 → 1,790 credits (within 2,500 quoted),
+estimated extraction cost USD 0.46 → 0.54 across 25 briefs, exact settlement. Set as configuration defaults
+(`LIVE_EXTRACTION_MULTIPLIER_*`, overridable). **Not accepted:** whether the extra creators are relevant needs the
+two-person ratings of the 82 delivered rows (`brain2-rater-A/B.csv`); live provider behaviour and real cost need an
+authorised capped pilot.

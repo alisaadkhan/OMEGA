@@ -133,9 +133,12 @@ const workerSchema = sharedObject
     LIVE_YOUTUBE_SEARCH: z.enum(["video", "off"]).default("video"),
     // Fill-to-size, per platform: fetch up to this multiple of the run size while it is not filled. The customer charge
     // is unchanged (only delivered new creators, never above the quote); provider cost rises. 1 disables extra waves.
-    // Approved in principle 2026-10-13 for an Instagram/YouTube pilot; TikTok stays at 1 until a test budget exists.
-    LIVE_EXTRACTION_MULTIPLIER_INSTAGRAM: z.coerce.number().min(1).max(4).default(1),
-    LIVE_EXTRACTION_MULTIPLIER_YOUTUBE: z.coerce.number().min(1).max(4).default(1),
+    // Defaults from the 2026-10-14 recorded-response replay study (25 briefs, size 5, 1×–4× per platform, cost cap on;
+    // docs/readiness/search-quality.md): the smallest multiplier at each platform's yield plateau. Instagram 2× (33 → 45
+    // delivered, +USD 0.007 per brief estimated), YouTube 3× (2 → 12, USD 0: API quota). TikTok stays 1×: the
+    // recordings cannot measure it (most extra profiles were never recorded). Provisional until human relevance ratings.
+    LIVE_EXTRACTION_MULTIPLIER_INSTAGRAM: z.coerce.number().min(1).max(4).default(2),
+    LIVE_EXTRACTION_MULTIPLIER_YOUTUBE: z.coerce.number().min(1).max(4).default(3),
     LIVE_EXTRACTION_MULTIPLIER_TIKTOK: z.coerce.number().min(1).max(4).default(1),
     // Profiles a live run processes at the same time (the AI assessment dominates; measured ~6 s per profile).
     LIVE_PROFILE_CONCURRENCY: z.coerce.number().int().min(1).max(8).default(3),
