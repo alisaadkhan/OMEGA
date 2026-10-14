@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
-import { ArrowUpRight, BarChart3, Check, CheckCircle2, CreditCard, Lock, Mail, Plus, Radio, RefreshCw, Search, Smartphone, XCircle } from "lucide-react";
+import { ArrowUpRight, BarChart3, Check, CheckCircle2, Lock, Mail, Plus, Radio, RefreshCw, Search, XCircle } from "lucide-react";
 import type { BillingInterval, CreditAction, PlanId } from "@mushin/contracts";
 import { AnimatedNumber } from "./AnimatedNumber";
 import { COPY } from "../../lib/copy";
@@ -44,11 +44,6 @@ const formatMoney = (m: { amountMinor: number; currency: string }) =>
   m.currency === "PKR" ? `Rs. ${(m.amountMinor / 100).toLocaleString("en-PK")}` : `$${(m.amountMinor / 100).toFixed(2)}`;
 const formatDate = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
-const paymentMethods = [
-  { id: "pm-1", kind: "easypaisa", label: "EasyPaisa wallet", detail: "0300 •••• 4521", badge: "EP", tone: "bg-emerald-600", primary: true },
-  { id: "pm-2", kind: "jazzcash", label: "JazzCash wallet", detail: "0321 •••• 8890", badge: "JC", tone: "bg-red-600", primary: false },
-  { id: "pm-3", kind: "card", label: "Visa debit", detail: "•••• •••• •••• 6042", badge: "", tone: "bg-slate-800", primary: false },
-] as const;
 
 export function Billing({ checkoutResult }: { checkoutResult?: "success" | "failed" | null }) {
   const summary = useBillingSummary();
@@ -369,35 +364,11 @@ export function Billing({ checkoutResult }: { checkoutResult?: "success" | "fail
         </div>
       )}
 
-      {/* Payment methods: unchanged sample data until sub-project 7 removes EasyPaisa/JazzCash. */}
+      {/* Payment methods are held by the payment provider at checkout; MUSHIN never stores them (BILL-001/002). */}
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div>
-          <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Payment methods</div>
-          <div className="text-xs text-slate-500">How you top up credits and pay invoices.</div>
-        </div>
-        <div className="mt-4 space-y-2.5">
-          {paymentMethods.map((m) => (
-            <div key={m.id} className="flex items-center gap-3 rounded-lg border border-slate-200 p-3">
-              <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-white ${m.tone}`}>
-                {m.kind === "card" ? <CreditCard className="h-4 w-4" strokeWidth={1.75} /> : <span className="text-[11px]" style={{ fontWeight: 700 }}>{m.badge}</span>}
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-slate-900" style={{ fontWeight: 500 }}>{m.label}</span>
-                  {m.primary && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] text-emerald-700" style={{ fontWeight: 600 }}>
-                      <Check className="h-2.5 w-2.5" strokeWidth={2.5} /> Primary
-                    </span>
-                  )}
-                </div>
-                <div className="tabular-nums text-xs text-slate-500">{m.detail}</div>
-              </div>
-              {m.kind !== "card" && <Smartphone className="h-4 w-4 flex-shrink-0 text-slate-300" strokeWidth={1.75} />}
-            </div>
-          ))}
-        </div>
-        <p className="mt-3 text-[11px] text-slate-400" style={{ lineHeight: 1.5 }}>
-          Sample data for demonstration.
+        <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Payment methods</div>
+        <p className="mt-1 text-xs text-slate-500" style={{ lineHeight: 1.55 }}>
+          You enter payment details on the secure checkout page when you subscribe or buy credits. MUSHIN doesn&apos;t store cards or wallet details, so there are no saved methods to manage here.
         </p>
       </div>
     </div>
