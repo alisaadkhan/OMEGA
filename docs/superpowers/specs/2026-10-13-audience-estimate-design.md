@@ -249,3 +249,29 @@ Excluded until a vendor subscription is bought: the vendor wrappers ($299+ per m
    - core Search unaffected while the provider is down (separate module and queue).
 3. Rollout: staging, then an internal workspace, then customers, with the source flag per environment.
 4. Rollback: remove the source from `AUDIENCE_SOURCES`. Queued jobs are refunded by the runner; stored results expire and are deleted by the sweep.
+
+### 10.8 The three owner-named wrappers (documentation review 2026-10-14, no runs)
+
+Checked on the Apify listings on 2026-10-14. All three are community Actors by the same author, bring-your-own-key
+(the vendor account and subscription are separate and not priced on the listing), read-only, with 1–3 users and no
+ratings; build dates are not stated. Example outputs on the listings are illustrative, not real data. Nothing was run.
+
+| | HypeAuditor (`influencer-search-audience-analytics-api`) | Upfluence (`influencer-search-audience-demographics-api`) | Phyllo (`creator-data-connected-accounts-api`) |
+|---|---|---|---|
+| Data basis | Inferred from public signals (method not documented) | Inferred (method not documented); each field has sample size + confidence flag | Public analytics: inferred. **Connected accounts: from the platform itself, after the creator authorises** |
+| Platforms | IG, TikTok, YouTube (+Twitch, X) | IG, TikTok, YouTube (+X, Pinterest, Twitch); audience filters IG/TikTok only | IG, YouTube, TikTok (+Twitch, X) |
+| Age / gender | Yes / yes | Yes / yes | Yes / yes (connected: gender × age) |
+| Countries / cities | Countries only, **no cities** | Countries, states, cities | Public: countries (cities named, keys not shown); connected: countries, cities |
+| Actor fee | USD 0.02 per audience report | USD 0.015 per audience report | USD 0.02 public report; USD 0.01 connected audience report |
+| Vendor cost | HypeAuditor plan + report credits (1 per report, unlocked a year) | Upfluence plan + monthly credit allowance | Phyllo plan (staging: 25 connections) |
+| Free test | Sandbox rows free | Empty results free | **Sandbox: mock data, never charged** (shape only, not accuracy) |
+| Rights | Not stated on listing; vendor terms needed | **Listing: Upfluence terms restrict API data to your own internal use**, which conflicts with showing reports to paying brands | Not stated; connected data needs creator consent and the provider's terms |
+| Fit for MUSHIN | Blocked: vendor price, rights unknown, no cities, inferred | Blocked: internal-use restriction | Connected-accounts path matches design D (verified, consented); public inferred path has the same issues as the others |
+
+Conclusion (unchanged in substance from 10.5, now covering these three): do not integrate an inferred-demographics
+wrapper. The only route that can show audience age/gender/cities as measured data is creator-authorised analytics
+(Phyllo connected accounts or the platforms' own creator APIs). Next free step, if wanted: a Phyllo **sandbox** shape test
+(mock data, zero charge) to design the normalised schema; it proves integration shape only. A paid cohort comparison
+(same approved creator cohort per provider, field-level coverage and agreement against creator-provided insights) needs:
+vendor accounts and price quotes, the owner's spend cap, and a rights review confirming display to paying customers.
+The feature stays disabled.
