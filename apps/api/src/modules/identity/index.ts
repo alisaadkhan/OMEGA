@@ -10,6 +10,6 @@ export function createIdentityModule(o: { db: Db; startTrial: StartTrial }): { r
   const service = createIdentityService(o.db, o.startTrial);
   return {
     resolveTenant: service.resolveTenant,
-    module: { name: "identity", register: (app, guards) => registerIdentityRoutes(app, guards, service) },
+    module: { name: "identity", register: (app, guards) => registerIdentityRoutes(app, guards, service, o.db) },
   };
 }

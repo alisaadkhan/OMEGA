@@ -1,582 +1,168 @@
 import { useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
-import {
-  User,
-  CreditCard,
-  Bell,
-  ShieldCheck,
-  Monitor,
-  Puzzle,
-  Palette,
-  AlertTriangle,
-  CheckCircle2,
-  Trash2,
-  Sparkles,
-  Lock,
-  Search as SearchIcon,
-} from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { meResponseSchema, workspaceMembersSchema } from "@mushin/contracts";
+import { apiRequest } from "../../api/client";
 import { useAuth } from "../../auth/AuthContext";
-import { useToast, useConfirm } from "../../lib/toast";
-import { profiles } from "../../auth/profiles";
+import { supabase } from "../../lib/supabase";
+import { relative } from "../../lib/time";
+import { useToast } from "../../lib/toast";
+import { ErrorState, LoadingBlock } from "./states";
 
-/** SETTINGS module — profile, security, sessions, notifications, billing prefs, integrations, AI, privacy, appearance, danger zone. */
-
-type Tab =
-  | "profile"
-  | "billing"
-  | "notifications"
-  | "security"
-  | "sessions"
-  | "integrations"
-  | "ai"
-  | "privacy"
-  | "appearance"
-  | "danger";
-
-const tabs: { id: Tab; label: string; icon: any; group: string }[] = [
-  { id: "profile", label: "Profile", icon: User, group: "Account" },
-  { id: "security", label: "Security", icon: ShieldCheck, group: "Account" },
-  { id: "sessions", label: "Sessions", icon: Monitor, group: "Account" },
-  { id: "notifications", label: "Notifications", icon: Bell, group: "Account" },
-  { id: "billing", label: "Billing", icon: CreditCard, group: "Billing" },
-  { id: "integrations", label: "Integrations", icon: Puzzle, group: "Billing" },
-  { id: "ai", label: "AI settings", icon: Sparkles, group: "Preferences" },
-  { id: "privacy", label: "Data & privacy", icon: Lock, group: "Preferences" },
-  { id: "appearance", label: "Appearance", icon: Palette, group: "Preferences" },
-  { id: "danger", label: "Danger zone", icon: AlertTriangle, group: "Preferences" },
+/**
+ * Settings (canonical spec page 14): only settings the server actually stores are editable. Anything MUSHIN does not
+ * support yet is stated plainly instead of shown as a toggle that saves nothing.
+ */
+type Tab = "profile" | "workspace" | "security" | "notifications" | "privacy";
+const TABS: { id: Tab; label: string }[] = [
+  { id: "profile", label: "Profile" },
+  { id: "workspace", label: "Workspace & team" },
+  { id: "security", label: "Password & sessions" },
+  { id: "notifications", label: "Notifications" },
+  { id: "privacy", label: "Privacy & data" },
 ];
 
-export function Settings() {
-  const [tab, setTab] = useState<Tab>("profile");
-  const groups = Array.from(new Set(tabs.map((t) => t.group)));
+const card = "rounded-xl border border-slate-200 bg-white p-5 shadow-sm";
+const field = "mt-1 w-full max-w-md rounded-md border border-slate-200 px-2.5 py-1.5 text-sm focus:border-indigo-400 focus:outline-none";
+const button = "rounded-md bg-slate-900 px-3 py-1.5 text-xs text-white disabled:opacity-50";
 
+function useMe() {
+  const { status } = useAuth();
+  return useQuery({ queryKey: ["me"], queryFn: () => apiRequest("/v1/me", meResponseSchema), enabled: status === "signedIn" });
+}
+
+export function Settings({ onOpenSupport }: { onOpenSupport?: () => void }) {
+  const [tab, setTab] = useState<Tab>("profile");
   return (
-    <div className="flex flex-col gap-6 lg:flex-row">
-      {/* Sub-nav */}
-      <aside className="w-full flex-shrink-0 lg:w-56">
-        <h1 className="tracking-tight text-slate-900" style={{ fontSize: "1.5rem", fontWeight: 600, letterSpacing: "-0.02em" }}>
-          Settings
-        </h1>
-        <p className="mt-1 text-xs text-slate-500">Account, billing and preferences.</p>
-        <nav className="mt-4 space-y-4">
-          {groups.map((g) => (
-            <div key={g}>
-              <div className="mb-1 px-2 text-[10px] uppercase tracking-wider text-slate-400" style={{ fontWeight: 600 }}>{g}</div>
-              <div className="space-y-0.5">
-                {tabs.filter((t) => t.group === g).map((t) => {
-                  const active = tab === t.id;
-                  return (
-                    <button
-                      key={t.id}
-                      onClick={() => setTab(t.id)}
-                      className={`group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
-                        active ? "bg-slate-900 text-white shadow-sm" : "text-slate-700 hover:bg-slate-100"
-                      }`}
-                      style={{ fontWeight: 500 }}
-                    >
-                      <t.icon className={`h-3.5 w-3.5 ${active ? "text-white" : t.id === "danger" ? "text-red-500" : "text-slate-500"}`} strokeWidth={1.75} />
-                      {t.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+    <div className="space-y-5">
+      <h1 className="text-slate-900" style={{ fontSize: 26, fontWeight: 700 }}>Settings</h1>
+      <div className="flex flex-col gap-5 md:flex-row">
+        <nav className="flex shrink-0 gap-1 overflow-x-auto md:w-52 md:flex-col" aria-label="Settings sections">
+          {TABS.map((t) => (
+            <button key={t.id} onClick={() => setTab(t.id)} aria-current={tab === t.id ? "page" : undefined} className={`whitespace-nowrap rounded-md px-3 py-2 text-left text-sm ${tab === t.id ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200" : "text-slate-600 hover:bg-white"}`}>{t.label}</button>
           ))}
         </nav>
-      </aside>
-
-      {/* Content */}
-      <div className="min-w-0 flex-1">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={tab}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.2 }}
-            className="max-w-2xl space-y-5"
-          >
-            {tab === "profile" && <ProfileTab />}
-            {tab === "billing" && <BillingPrefsTab />}
-            {tab === "notifications" && <NotificationsTab />}
-            {tab === "security" && <SecurityTab />}
-            {tab === "sessions" && <SessionsTab />}
-            {tab === "integrations" && <IntegrationsTab />}
-            {tab === "ai" && <AISettingsTab />}
-            {tab === "privacy" && <PrivacyTab />}
-            {tab === "appearance" && <AppearanceTab />}
-            {tab === "danger" && <DangerTab />}
-          </motion.div>
-        </AnimatePresence>
+        <div className="min-w-0 flex-1">
+          {tab === "profile" && <ProfileTab />}
+          {tab === "workspace" && <WorkspaceTab />}
+          {tab === "security" && <SecurityTab />}
+          {tab === "notifications" && <NotificationsTab />}
+          {tab === "privacy" && <PrivacyTab onOpenSupport={onOpenSupport} />}
+        </div>
       </div>
     </div>
   );
 }
-
-/* ─────────────────────── shared ─────────────────────── */
-
-function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`rounded-xl border border-slate-200 bg-white p-5 shadow-sm ${className}`}>{children}</div>;
-}
-
-function SectionTitle({ children, sub }: { children: React.ReactNode; sub?: string }) {
-  return (
-    <div>
-      <div className="text-slate-900" style={{ fontSize: 14, fontWeight: 600, letterSpacing: "-0.01em" }}>{children}</div>
-      {sub && <div className="mt-0.5 text-xs text-slate-500">{sub}</div>}
-    </div>
-  );
-}
-
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="text-[11px] uppercase tracking-wider text-slate-500" style={{ fontWeight: 600 }}>{label}</span>
-      <div className="mt-1">{children}</div>
-      {hint && <div className="mt-1 text-[11px] text-slate-500">{hint}</div>}
-    </label>
-  );
-}
-
-function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <input
-      {...props}
-      className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm placeholder:text-slate-400 focus:border-indigo-300 focus:outline-none focus:ring-4 focus:ring-indigo-100"
-    />
-  );
-}
-
-function Toggle({ enabled: initial, onChange, label, hint }: { enabled: boolean; onChange?: (v: boolean) => void; label: string; hint?: string }) {
-  const [on, setOn] = useState(initial);
-  return (
-    <label className="flex items-start justify-between gap-4 border-b border-slate-100 py-2.5 last:border-0">
-      <div>
-        <div className="text-sm text-slate-900" style={{ fontWeight: 500 }}>{label}</div>
-        {hint && <div className="mt-0.5 text-[11px] text-slate-500">{hint}</div>}
-      </div>
-      <button
-        onClick={() => {
-          const next = !on;
-          setOn(next);
-          onChange?.(next);
-        }}
-        className={`relative flex-shrink-0 h-5 w-9 rounded-full transition-colors ${on ? "bg-emerald-500" : "bg-slate-300"}`}
-        aria-pressed={on}
-      >
-        <motion.span
-          animate={{ x: on ? 18 : 2 }}
-          transition={{ type: "spring", stiffness: 500, damping: 30 }}
-          className="absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm"
-        />
-      </button>
-    </label>
-  );
-}
-
-function SaveBar({ onSave, onDiscard }: { onSave: () => void; onDiscard?: () => void }) {
-  return (
-    <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
-      {onDiscard && (
-        <button onClick={onDiscard} className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50" style={{ fontWeight: 500 }}>
-          Discard
-        </button>
-      )}
-      <button onClick={onSave} className="inline-flex items-center gap-1 rounded-md bg-slate-900 px-3 py-1.5 text-xs text-white hover:bg-slate-800" style={{ fontWeight: 500 }}>
-        <CheckCircle2 className="h-3 w-3" strokeWidth={2} /> Save changes
-      </button>
-    </div>
-  );
-}
-
-/* ─────────────────────── tabs ─────────────────────── */
 
 function ProfileTab() {
-  const { user } = useAuth();
+  const me = useMe();
+  const qc = useQueryClient();
   const toast = useToast();
-  const [name, setName] = useState(user?.name ?? "Ahmed Raza Khan");
-  const [email] = useState(user?.email ?? "ahmed@mushin.pk");
-  const [bio, setBio] = useState("Head of Growth · brand & creator partnerships in South Asia.");
-  const [tz, setTz] = useState("Asia/Karachi");
-  const [lang, setLang] = useState("English (Pakistan)");
-
+  const [name, setName] = useState<string | null>(null);
+  const save = useMutation({
+    mutationFn: (displayName: string) => apiRequest("/v1/me", meResponseSchema, { method: "PATCH", body: { displayName } }),
+    onSuccess: () => { setName(null); toast.success("Profile saved"); void qc.invalidateQueries({ queryKey: ["me"] }); },
+    onError: (err) => toast.error("Couldn't save your profile", err instanceof Error ? err.message : undefined),
+  });
+  if (me.isPending) return <LoadingBlock lines={3} />;
+  if (me.isError) return <ErrorState body={me.error instanceof Error ? me.error.message : undefined} onRetry={() => void me.refetch()} />;
+  const value = name ?? me.data.user.displayName ?? "";
   return (
-    <>
-      <Card>
-        <SectionTitle sub="How you appear across your workspace.">Profile</SectionTitle>
-        <div className="mt-4 space-y-4">
-          <div className="flex items-center gap-3">
-            <img src={user?.avatar ?? profiles.ahmed.avatar} className="h-14 w-14 rounded-full object-cover ring-2 ring-white shadow-sm" alt={name} />
-            <div>
-              <button onClick={() => toast.info("Upload a new avatar (dev stub)")} className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-700 hover:bg-slate-50" style={{ fontWeight: 500 }}>
-                Change avatar
-              </button>
-              <div className="mt-1 text-[11px] text-slate-500">PNG or JPG · 512×512 min.</div>
-            </div>
-          </div>
-          <Field label="Full name">
-            <Input value={name} onChange={(e) => setName(e.target.value)} />
-          </Field>
-          <Field label="Email" hint="Email changes are handled by support to prevent hijacking.">
-            <Input value={email} disabled className="!bg-slate-50" />
-          </Field>
-          <Field label="Bio">
-            <textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={3} className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:border-indigo-300 focus:outline-none focus:ring-4 focus:ring-indigo-100" />
-          </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Timezone"><Input value={tz} onChange={(e) => setTz(e.target.value)} /></Field>
-            <Field label="Language"><Input value={lang} onChange={(e) => setLang(e.target.value)} /></Field>
-          </div>
-          <SaveBar onSave={() => toast.success("Profile saved")} onDiscard={() => toast.info("Discarded changes")} />
-        </div>
-      </Card>
-    </>
+    <form className={`${card} space-y-3`} onSubmit={(e) => { e.preventDefault(); if (value.trim()) save.mutate(value.trim()); }}>
+      <label className="block text-xs text-slate-600" style={{ fontWeight: 600 }}>Your name<input value={value} maxLength={80} onChange={(e) => setName(e.target.value)} className={field} /></label>
+      <div className="text-xs text-slate-600"><span style={{ fontWeight: 600 }}>Email</span><p className="mt-1 text-sm text-slate-800">{me.data.user.email}</p><p className="text-[11px] text-slate-500">Your sign-in email is managed by your login and can't be changed here.</p></div>
+      <p className="text-[11px] text-slate-500">Profile photos are not supported yet; your initials are shown instead.</p>
+      <button type="submit" disabled={save.isPending || name === null || !value.trim()} className={button}>{save.isPending ? "Saving…" : "Save profile"}</button>
+    </form>
   );
 }
 
-function BillingPrefsTab() {
+function WorkspaceTab() {
+  const me = useMe();
+  const { status } = useAuth();
+  const members = useQuery({ queryKey: ["workspace", "members"], queryFn: () => apiRequest("/v1/workspace/members", workspaceMembersSchema), enabled: status === "signedIn" });
+  const qc = useQueryClient();
   const toast = useToast();
+  const [name, setName] = useState<string | null>(null);
+  const save = useMutation({
+    mutationFn: (n: string) => apiRequest("/v1/workspace", meResponseSchema, { method: "PATCH", body: { name: n } }),
+    onSuccess: () => { setName(null); toast.success("Workspace renamed"); void qc.invalidateQueries({ queryKey: ["me"] }); },
+    onError: (err) => toast.error("Couldn't rename the workspace", err instanceof Error ? err.message : undefined),
+  });
+  if (me.isPending) return <LoadingBlock lines={3} />;
+  if (me.isError) return <ErrorState body={me.error instanceof Error ? me.error.message : undefined} onRetry={() => void me.refetch()} />;
+  const canRename = me.data.workspace.role === "owner" || me.data.workspace.role === "admin";
+  const value = name ?? me.data.workspace.name;
   return (
-    <Card>
-      <SectionTitle sub="How invoices, receipts, and tax details are handled.">Billing preferences</SectionTitle>
-      <div className="mt-4 space-y-4">
-        <Field label="Billing email"><Input defaultValue="finance@mushin.pk" /></Field>
-        <Field label="Company legal name"><Input defaultValue="MUSHIN Technologies (Pvt.) Ltd." /></Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="NTN"><Input defaultValue="1234567-8" /></Field>
-          <Field label="STRN"><Input defaultValue="1122334455" /></Field>
-        </div>
-        <Field label="Billing address"><Input defaultValue="Plot 42, Clifton Block 5, Karachi" /></Field>
-        <SaveBar onSave={() => toast.success("Billing details saved")} />
-      </div>
-    </Card>
-  );
-}
-
-function NotificationsTab() {
-  return (
-    <Card>
-      <SectionTitle sub="Choose how you want to be reached.">Notifications</SectionTitle>
-      <div className="mt-3">
-        <Toggle enabled label="Email · search completion" hint="Sent when a search finishes running." />
-        <Toggle enabled label="Email · campaign updates" hint="Status changes, replies, and milestones." />
-        <Toggle enabled label="Email · security alerts" hint="Recommended — new devices, MFA changes." />
-        <Toggle enabled={false} label="Email · billing alerts" hint="Invoices, failed charges, plan changes." />
-        <Toggle enabled={false} label="Email · weekly digest" hint="A summary of workspace activity every Monday." />
-        <Toggle enabled={false} label="Email · marketing" hint="Product updates, best practices, event invites." />
-        <Toggle enabled label="In-app · everything" hint="Show all notifications in the bell menu." />
-      </div>
-    </Card>
+    <div className="space-y-4">
+      <form className={`${card} space-y-3`} onSubmit={(e) => { e.preventDefault(); if (value.trim()) save.mutate(value.trim()); }}>
+        <label className="block text-xs text-slate-600" style={{ fontWeight: 600 }}>Workspace name<input value={value} maxLength={80} disabled={!canRename} onChange={(e) => setName(e.target.value)} className={`${field} disabled:bg-slate-50`} /></label>
+        {canRename ? <button type="submit" disabled={save.isPending || name === null || !value.trim()} className={button}>Save name</button> : <p className="text-[11px] text-slate-500">Only the owner or an admin can rename the workspace.</p>}
+      </form>
+      <section className={card} aria-label="Team">
+        <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Team</div>
+        {members.isPending ? <LoadingBlock lines={2} /> : members.isError ? <ErrorState body={members.error instanceof Error ? members.error.message : undefined} /> : (
+          <ul className="mt-2 divide-y divide-slate-100 text-sm">
+            {members.data.members.map((m) => <li key={m.id} className="flex justify-between gap-2 py-2"><span><span className="text-slate-900" style={{ fontWeight: 600 }}>{m.name}</span> <span className="text-slate-500">{m.email}</span></span><span className="text-xs capitalize text-slate-600">{m.role} · joined {relative(m.joinedAt)}</span></li>)}
+          </ul>
+        )}
+        <p className="mt-2 text-[11px] text-slate-500">Inviting teammates and changing roles are not available yet.</p>
+      </section>
+    </div>
   );
 }
 
 function SecurityTab() {
   const toast = useToast();
-  const [mfa, setMfa] = useState(true);
-  const [pw, setPw] = useState({ current: "", next: "", confirm: "" });
+  const [pw, setPw] = useState({ next: "", confirm: "" });
+  const [busy, setBusy] = useState(false);
+  const mismatch = pw.confirm !== "" && pw.next !== pw.confirm;
+  async function changePassword() {
+    setBusy(true);
+    const { error } = await supabase.auth.updateUser({ password: pw.next });
+    setBusy(false);
+    if (error) toast.error("Couldn't change your password", error.message);
+    else { setPw({ next: "", confirm: "" }); toast.success("Password changed"); }
+  }
+  async function signOutOthers() {
+    const { error } = await supabase.auth.signOut({ scope: "others" });
+    if (error) toast.error("Couldn't sign out other sessions", error.message);
+    else toast.success("Signed out on your other devices");
+  }
   return (
-    <>
-      <Card>
-        <SectionTitle sub="Update the password on your account.">Password</SectionTitle>
-        <div className="mt-3 space-y-3">
-          <Field label="Current password"><Input type="password" value={pw.current} onChange={(e) => setPw({ ...pw, current: e.target.value })} /></Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="New password"><Input type="password" value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} /></Field>
-            <Field label="Confirm new password"><Input type="password" value={pw.confirm} onChange={(e) => setPw({ ...pw, confirm: e.target.value })} /></Field>
-          </div>
-          <SaveBar onSave={() => { setPw({ current: "", next: "", confirm: "" }); toast.success("Password updated"); }} />
-        </div>
-      </Card>
-
-      <Card>
-        <SectionTitle sub="Add a second step when signing in.">Multi-factor authentication</SectionTitle>
-        <div className="mt-3">
-          <Toggle enabled={mfa} onChange={setMfa} label="Authenticator app" hint="Recommended — Google Authenticator, 1Password, Authy." />
-          <Toggle enabled={false} label="SMS" hint="Send a code by SMS. Less secure than an authenticator app." />
-        </div>
-        <div className="mt-3 flex items-center gap-2">
-          <button onClick={() => toast.info("Recovery codes downloaded")} className="rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-50" style={{ fontWeight: 500 }}>
-            Download recovery codes
-          </button>
-        </div>
-      </Card>
-    </>
-  );
-}
-
-function SessionsTab() {
-  const toast = useToast();
-  const rows = [
-    { device: "MacBook Pro · Safari", city: "Karachi", ip: "39.34.•••.18", when: "Just now", current: true },
-    { device: "iPhone 15 Pro · Safari", city: "Karachi", ip: "39.34.•••.18", when: "3h", current: false },
-    { device: "Windows · Chrome", city: "Lahore", ip: "103.240.•••.9", when: "Yesterday", current: false },
-  ];
-  return (
-    <Card>
-      <div className="flex items-center justify-between">
-        <SectionTitle sub="Every device signed in to your Mushin account.">Active sessions</SectionTitle>
-        <button onClick={() => toast.success("All other sessions revoked")} className="rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-50" style={{ fontWeight: 500 }}>
-          Sign out all others
-        </button>
-      </div>
-      <div className="mt-4 divide-y divide-slate-100">
-        {rows.map((r, i) => (
-          <div key={i} className="flex items-center justify-between py-2.5">
-            <div>
-              <div className="flex items-center gap-2 text-sm text-slate-900" style={{ fontWeight: 500 }}>
-                {r.device}
-                {r.current && <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] text-emerald-700" style={{ fontWeight: 600 }}>This device</span>}
-              </div>
-              <div className="text-[11px] text-slate-500">{r.city} · {r.ip} · {r.when}</div>
-            </div>
-            {!r.current && (
-              <button onClick={() => toast.success("Session revoked")} className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-700 hover:bg-slate-50" style={{ fontWeight: 500 }}>
-                Revoke
-              </button>
-            )}
-          </div>
-        ))}
-      </div>
-    </Card>
-  );
-}
-
-function IntegrationsTab() {
-  const toast = useToast();
-  const items = [
-    { name: "HubSpot", desc: "Sync creators, campaigns and deals to your CRM.", connected: true },
-    { name: "Slack", desc: "Get campaign and search alerts in Slack channels.", connected: true },
-    { name: "Discord", desc: "Push activity events to your workspace Discord.", connected: false },
-    { name: "Zapier", desc: "Wire Mushin events into 6,000+ apps.", connected: false },
-    { name: "Webhooks", desc: "Send raw event payloads to your endpoint.", connected: false },
-  ];
-  return (
-    <div className="space-y-3">
-      {items.map((i) => (
-        <Card key={i.name}>
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <div className="text-slate-900" style={{ fontSize: 14, fontWeight: 600 }}>{i.name}</div>
-                {i.connected && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] text-emerald-700" style={{ fontWeight: 600 }}>
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Connected
-                </span>}
-              </div>
-              <p className="mt-1 text-xs text-slate-500">{i.desc}</p>
-            </div>
-            <button
-              onClick={() => toast.success(`${i.name} ${i.connected ? "disconnected" : "connected"}`)}
-              className={`rounded-md px-2.5 py-1 text-xs transition-colors ${i.connected ? "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50" : "bg-slate-900 text-white hover:bg-slate-800"}`}
-              style={{ fontWeight: 500 }}
-            >
-              {i.connected ? "Disconnect" : "Connect"}
-            </button>
-          </div>
-        </Card>
-      ))}
+    <div className="space-y-4">
+      <form className={`${card} space-y-3`} onSubmit={(e) => { e.preventDefault(); if (!mismatch && pw.next.length >= 8) void changePassword(); }}>
+        <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Change password</div>
+        <label className="block text-xs text-slate-600">New password (at least 8 characters)<input type="password" autoComplete="new-password" value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} className={field} /></label>
+        <label className="block text-xs text-slate-600">Repeat new password<input type="password" autoComplete="new-password" value={pw.confirm} onChange={(e) => setPw({ ...pw, confirm: e.target.value })} aria-invalid={mismatch} className={field} /></label>
+        {mismatch && <p className="text-[11px] text-red-600">The passwords don't match.</p>}
+        <button type="submit" disabled={busy || mismatch || pw.next.length < 8} className={button}>{busy ? "Changing…" : "Change password"}</button>
+      </form>
+      <section className={card}>
+        <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Sessions</div>
+        <p className="mt-1 text-xs text-slate-500">Sign out everywhere except this browser, for example after using a shared computer.</p>
+        <button onClick={() => void signOutOthers()} className="mt-2 rounded-md border border-slate-200 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50">Sign out other sessions</button>
+      </section>
     </div>
   );
 }
 
-function AISettingsTab() {
-  const toast = useToast();
-  const [mode, setMode] = useState<"fast" | "live">("fast");
-  const [threshold, setThreshold] = useState("30");
+function NotificationsTab() {
   return (
-    <>
-      <Card>
-        <SectionTitle sub="Control how MUSHIN interprets searches and spends credits. These settings never expose which engines run behind the scenes.">
-          AI &amp; search
-        </SectionTitle>
-        <div className="mt-4 space-y-4">
-          <Field label="Default search mode" hint="Search Existing Creators is free — it searches your existing database. Find New Creators goes to the web and costs credits.">
-            <div className="mt-1 grid grid-cols-2 gap-2">
-              {([
-                { id: "fast", label: "Search Existing Creators", icon: SearchIcon },
-                { id: "live", label: "Find New Creators", icon: Sparkles },
-              ] as const).map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => setMode(m.id)}
-                  className={`inline-flex items-center justify-center gap-1.5 rounded-md border px-3 py-2 text-xs transition-colors ${
-                    mode === m.id ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                  }`}
-                  style={{ fontWeight: 500 }}
-                >
-                  <m.icon className="h-3.5 w-3.5" strokeWidth={1.75} /> {m.label}
-                </button>
-              ))}
-            </div>
-          </Field>
-          <Field label="Consider data stale after (days)" hint="Results older than this are flagged so you can refresh before deciding.">
-            <select value={threshold} onChange={(e) => setThreshold(e.target.value)} className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm focus:border-indigo-300 focus:outline-none focus:ring-4 focus:ring-indigo-100">
-              {["14", "30", "60", "90"].map((d) => <option key={d} value={d}>{d} days</option>)}
-            </select>
-          </Field>
-          <SaveBar onSave={() => toast.success("AI settings saved")} />
-        </div>
-      </Card>
-
-      <Card>
-        <SectionTitle sub="Guardrails for how credits are spent on your behalf.">Automation &amp; spend</SectionTitle>
-        <div className="mt-3">
-          <Toggle enabled label="Auto-interpret my queries" hint="Turn plain-language searches into editable filters before running." />
-          <Toggle enabled label="Confirm before live discovery" hint="Always show the estimated credit cost and ask before spending." />
-          <Toggle enabled={false} label="Auto-refresh stale profiles" hint="Silently update aging data when I open a profile. Costs credits." />
-          <Toggle enabled label="Show confidence on estimates" hint="Label estimated audience figures with a confidence level." />
-        </div>
-      </Card>
-    </>
+    <section className={card}>
+      <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Notifications</div>
+      <p className="mt-1 text-sm text-slate-600">MUSHIN doesn't send notification emails yet. Finished Find New Creators runs, list and campaign changes and outreach appear in the bell and the Activity log.</p>
+    </section>
   );
 }
 
-function PrivacyTab() {
-  const toast = useToast();
-  const confirm = useConfirm();
-  const [handle, setHandle] = useState("");
-  const [reason, setReason] = useState("");
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (handle.trim().length < 2) return;
-    const ok = await confirm({
-      title: `Request erasure for ${handle.trim()}?`,
-      body: "We'll remove this creator's data from your workspace and log a deletion request against our records. This does not delete their public social profiles.",
-      confirmLabel: "Submit request",
-    });
-    if (ok) {
-      setHandle("");
-      setReason("");
-      toast.success("Erasure request submitted", "We'll confirm by email once processed.");
-    }
-  };
-
+function PrivacyTab({ onOpenSupport }: { onOpenSupport?: (() => void) | undefined }) {
   return (
-    <>
-      <Card>
-        <SectionTitle sub="How MUSHIN handles the creator data you discover.">Creator data &amp; privacy</SectionTitle>
-        <p className="mt-3 text-sm text-slate-600" style={{ lineHeight: 1.6 }}>
-          Creator profiles are built from public information and clearly labeled with freshness and
-          confidence. Contact details are only ever revealed when you choose to spend credits, and one
-          successful delivery does not mean a creator has confirmed the address.
-        </p>
-      </Card>
-
-      <Card>
-        <SectionTitle sub="Distinct from your own account data — this removes a creator's information at their (or your) request.">
-          Request creator data erasure
-        </SectionTitle>
-        <form onSubmit={submit} className="mt-4 space-y-4">
-          <Field label="Creator handle or profile URL">
-            <Input value={handle} onChange={(e) => setHandle(e.target.value)} placeholder="@handle or https://instagram.com/…" />
-          </Field>
-          <Field label="Reason (optional)" hint="Helps us process the request and confirm authority to make it.">
-            <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={3} className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:border-indigo-300 focus:outline-none focus:ring-4 focus:ring-indigo-100" placeholder="e.g. Creator requested removal; no longer active." />
-          </Field>
-          <div className="flex items-start gap-2 rounded-md bg-slate-50 px-3 py-2.5 text-[11px] text-slate-600" style={{ lineHeight: 1.5 }}>
-            <Lock className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-slate-400" strokeWidth={2} />
-            Erasure removes the creator from your lists and cached intelligence and records a deletion
-            request. It can't remove their public social-media presence. Processing may take a few days.
-          </div>
-          <div className="flex justify-end">
-            <button type="submit" disabled={handle.trim().length < 2} className="inline-flex items-center gap-1.5 rounded-md bg-slate-900 px-4 py-1.5 text-xs text-white transition-colors hover:bg-slate-800 disabled:opacity-50" style={{ fontWeight: 500 }}>
-              <Trash2 className="h-3 w-3" strokeWidth={2} /> Submit erasure request
-            </button>
-          </div>
-        </form>
-      </Card>
-    </>
-  );
-}
-
-function AppearanceTab() {
-  const [theme, setTheme] = useState("light");
-  const [density, setDensity] = useState("comfortable");
-  return (
-    <Card>
-      <SectionTitle sub="Adjust how Mushin looks and feels.">Appearance</SectionTitle>
-      <div className="mt-4 space-y-4">
-        <Field label="Theme">
-          <div className="mt-1 grid grid-cols-3 gap-2">
-            {(["light", "dark", "system"] as const).map((t) => (
-              <button
-                key={t}
-                onClick={() => setTheme(t)}
-                className={`rounded-md border px-3 py-2 text-xs capitalize transition-colors ${theme === t ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}
-                style={{ fontWeight: 500 }}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
-        </Field>
-        <Field label="Density">
-          <div className="mt-1 grid grid-cols-2 gap-2">
-            {(["comfortable", "compact"] as const).map((d) => (
-              <button
-                key={d}
-                onClick={() => setDensity(d)}
-                className={`rounded-md border px-3 py-2 text-xs capitalize transition-colors ${density === d ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}
-                style={{ fontWeight: 500 }}
-              >
-                {d}
-              </button>
-            ))}
-          </div>
-        </Field>
-        <Toggle enabled label="Interface animations" hint="Turn off to reduce motion." />
-        <Toggle enabled label="Show sidebar tooltips" hint="Reveal item labels on hover when collapsed." />
-      </div>
-    </Card>
-  );
-}
-
-function DangerTab() {
-  const toast = useToast();
-  const confirm = useConfirm();
-  return (
-    <Card className="border-red-200 bg-red-50/40">
-      <SectionTitle sub="Permanent, irreversible actions live here. Handle with care.">Danger zone</SectionTitle>
-      <div className="mt-4 space-y-3">
-        <RedRow
-          title="Export all my data"
-          desc="Get a full ZIP with your lists, campaigns, activity and settings. Delivered by email."
-          cta="Export data"
-          onClick={() => toast.success("Export queued", "You'll receive an email when it's ready.")}
-        />
-        <RedRow
-          title="Remove personal data"
-          desc="Strip PII (name, avatar) from historical events while keeping analytics intact."
-          cta="Remove personal data"
-          onClick={async () => {
-            const ok = await confirm({ title: "Remove personal data?", body: "This can't be undone.", destructive: true });
-            if (ok) toast.success("Personal data removed");
-          }}
-        />
-        <RedRow
-          title="Delete account"
-          desc="Permanently removes your Mushin account and all associated lists, campaigns, and invoices."
-          cta="Delete account"
-          onClick={async () => {
-            const ok = await confirm({ title: "Delete your account?", body: "This is permanent and irreversible. In production this requires re-authentication.", destructive: true, confirmLabel: "Delete account" });
-            if (ok) toast.success("Account scheduled for deletion");
-          }}
-        />
-      </div>
-    </Card>
-  );
-}
-
-function RedRow({ title, desc, cta, onClick }: { title: string; desc: string; cta: string; onClick: () => void }) {
-  return (
-    <div className="flex items-start justify-between gap-3 rounded-lg border border-red-200 bg-white p-3">
-      <div>
-        <div className="text-sm text-red-800" style={{ fontWeight: 600 }}>{title}</div>
-        <p className="mt-0.5 text-xs text-red-700" style={{ lineHeight: 1.5 }}>{desc}</p>
-      </div>
-      <button onClick={onClick} className="flex-shrink-0 rounded-md border border-red-300 bg-white px-2.5 py-1.5 text-xs text-red-700 hover:bg-red-50" style={{ fontWeight: 500 }}>
-        {cta}
-      </button>
-    </div>
+    <section className={`${card} space-y-2 text-sm text-slate-600`}>
+      <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Privacy & data</div>
+      <p>Your lists, campaigns, notes, outreach log and support requests are private to this workspace. Creator profiles are public data that MUSHIN keeps for every customer.</p>
+      <p>To export or delete your workspace's data, or close your account, send a Support request with the topic “Data removal”. We'll confirm when it's done; nothing is deleted until then.</p>
+      <p>Creators who want their own profile removed can use the public removal request form, linked in the site footer.</p>
+      {onOpenSupport && <button onClick={onOpenSupport} className="rounded-md border border-slate-200 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50">Open Support</button>}
+    </section>
   );
 }

@@ -57,7 +57,7 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
               {view === "campaigns" && <Campaigns onOpenCreator={setOmniCreator} onGoToSearch={() => setView("search")} />}
               {view === "analytics" && <Analytics />}
               {view === "inbox" && <Inbox onGoToCampaigns={() => setView("campaigns")} />}
-              {view === "settings" && <Settings />}
+              {view === "settings" && <Settings onOpenSupport={() => setView("support")} />}
               {view === "billing" && <Billing checkoutResult={checkoutResult} />}
               {view === "support" && <Support />}
               {view === "activity" && <ActivityLog />}

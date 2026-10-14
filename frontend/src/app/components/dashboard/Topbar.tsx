@@ -76,6 +76,7 @@ export function Topbar({ credits, view, setView, onExit, onOpenCreator, onViewRe
             onClick={() => setOpen((v) => !v)}
             className="flex items-center gap-2.5 rounded-full py-1 pl-1 pr-2 transition-colors hover:bg-slate-100"
             aria-haspopup="menu"
+            aria-label="Account menu"
             aria-expanded={open}
           >
             {avatar ? (

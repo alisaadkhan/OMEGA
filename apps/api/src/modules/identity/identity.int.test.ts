@@ -97,5 +97,15 @@ describe("GET /v1/me", () => {
     expect(body.workspace).toMatchObject({ name: "Sana Riaz's workspace", role: "owner" });
 
     expect((await app.inject({ method: "GET", url: "/v1/me" })).statusCode).toBe(401);
+
+    // Settings: your own name; renaming the workspace needs owner or admin; members of this workspace only.
+    const auth = { authorization: `Bearer ${await iss.sign({ sub, email: "sana@mushin.pk", fullName: "Sana Riaz" })}` };
+    expect((await app.inject({ method: "PATCH", url: "/v1/me", headers: auth, payload: { displayName: "Sana R." } })).json().user.displayName).toBe("Sana R.");
+    expect((await app.inject({ method: "PATCH", url: "/v1/me", headers: auth, payload: { displayName: "" } })).statusCode).toBe(400);
+    expect((await app.inject({ method: "PATCH", url: "/v1/workspace", headers: auth, payload: { name: "Heritage Foods" } })).json().workspace.name).toBe("Heritage Foods");
+    const members = (await app.inject({ method: "GET", url: "/v1/workspace/members", headers: auth })).json() as { members: { id: string; role: string; name: string }[] };
+    expect(members.members).toEqual([expect.objectContaining({ id: sub, role: "owner", name: "Sana R." })]);
+    await ownerQuery(`update wp.workspace_members set role = 'member' where user_id = '${sub}'`);
+    expect((await app.inject({ method: "PATCH", url: "/v1/workspace", headers: auth, payload: { name: "Hijack" } })).statusCode).toBe(403);
   });
 });

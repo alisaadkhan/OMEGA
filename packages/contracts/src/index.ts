@@ -11,3 +11,5 @@ export * from "./lists";
 export * from "./campaigns";
 export * from "./analytics";
 export * from "./activity";
+export * from "./support";
+export * from "./staff-ops";
