@@ -55,7 +55,7 @@ const web = createSerperSearch({
 });
 if (!config.scraping.serperApiKey) logger.warn("SERPER_API_KEY not set: Find New Creators runs will fail and refund");
 const searchCache = createCachedSearch({ db, web, ...(config.scraping.youtubeSearch ? { youtube: createYouTubeSearch({ apiKey: config.scraping.youtubeApiKey, sink: createDbProviderCallSink(db), logger }) } : {}) });
-const liveRunner = createLiveRunner({ sourcePolicy: config.sourcePolicy, db, billing, pipeline, scraper, search: searchCache, llm, logger, contentResolutionMax: config.scraping.contentResolutionMax, extractionMultiplier: config.scraping.extractionMultiplier, profileConcurrency: config.scraping.profileConcurrency });
+const liveRunner = createLiveRunner({ sourcePolicy: config.sourcePolicy, db, billing, pipeline, scraper, search: searchCache, llm, logger, contentResolutionMax: config.scraping.contentResolutionMax, extractionMultiplier: config.scraping.extractionMultiplier, profileConcurrency: config.scraping.profileConcurrency, jobCostCap: config.scraping.jobCostCap });
 // Audience estimates run only for sources the operator enabled (AUDIENCE_SOURCES); otherwise queued jobs are refunded.
 const audienceRunner = createAudienceRunner({
   db,

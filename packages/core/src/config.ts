@@ -135,6 +135,11 @@ const workerSchema = sharedObject
     LIVE_EXTRACTION_MULTIPLIER_TIKTOK: z.coerce.number().min(1).max(4).default(1),
     // Profiles a live run processes at the same time (the AI assessment dominates; measured ~6 s per profile).
     LIVE_PROFILE_CONCURRENCY: z.coerce.number().int().min(1).max(8).default(3),
+    // Per-job cost cap: extra waves stop once a run's provider cost reaches quoted max credits × revenue per credit ÷
+    // the cost-to-price ratio (owner rule: price at least 3× cost). Revenue per credit defaults to the cheapest paid
+    // credit (Scale tier); the first wave always runs.
+    LIVE_REVENUE_PER_CREDIT_USD: z.coerce.number().positive().default(0.002029),
+    LIVE_COST_TO_PRICE_RATIO: z.coerce.number().min(1).default(3),
     APIFY_MONTHLY_BUDGET_USD: z.coerce.number().min(0).default(5),
     YOUTUBE_API_KEY: z.string().min(1).optional(),
     SERPER_API_KEY: z.string().min(1).optional(),
@@ -266,6 +271,8 @@ export type ScrapingConfig = {
   extractionMultiplier: { instagram: number; youtube: number; tiktok: number };
   /** Profiles a live run processes at the same time. */
   profileConcurrency: number;
+  /** Extra waves stop once a run's provider cost reaches quoted max credits × revenuePerCreditUsd ÷ costToPriceRatio. */
+  jobCostCap: { revenuePerCreditUsd: number; costToPriceRatio: number };
   apifyMonthlyBudgetUsd: number;
   youtubeApiKey: string | null;
   serperApiKey: string | null;
@@ -374,6 +381,7 @@ export function loadWorkerConfig(env: Env): WorkerConfig {
       youtubeSearch: v.LIVE_YOUTUBE_SEARCH === "video" && Boolean(v.YOUTUBE_API_KEY),
       extractionMultiplier: { instagram: v.LIVE_EXTRACTION_MULTIPLIER_INSTAGRAM, youtube: v.LIVE_EXTRACTION_MULTIPLIER_YOUTUBE, tiktok: v.LIVE_EXTRACTION_MULTIPLIER_TIKTOK },
       profileConcurrency: v.LIVE_PROFILE_CONCURRENCY,
+      jobCostCap: { revenuePerCreditUsd: v.LIVE_REVENUE_PER_CREDIT_USD, costToPriceRatio: v.LIVE_COST_TO_PRICE_RATIO },
       apifyMonthlyBudgetUsd: v.APIFY_MONTHLY_BUDGET_USD,
       youtubeApiKey: v.YOUTUBE_API_KEY ?? null,
       serperApiKey: v.SERPER_API_KEY ?? null,

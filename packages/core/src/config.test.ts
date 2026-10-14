@@ -206,6 +206,7 @@ describe("scraping and storage settings (worker only)", () => {
       youtubeSearch: true,
       extractionMultiplier: { instagram: 1, youtube: 1, tiktok: 1 },
       profileConcurrency: 3,
+      jobCostCap: { revenuePerCreditUsd: 0.002029, costToPriceRatio: 3 },
       apifyMonthlyBudgetUsd: 5,
       youtubeApiKey: "yt",
       serperApiKey: null,

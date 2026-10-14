@@ -38,3 +38,11 @@ export async function providerCallsSince(db: Db, provider: string, since: Date):
   );
   return Number(rows[0]?.n ?? 0);
 }
+
+/** Direct provider cost recorded so far for one job (USD), for the per-job cost cap. */
+export async function providerSpendForJob(db: Db, jobId: string): Promise<number> {
+  const rows = await db.withSystem((tx) =>
+    tx.select({ total: sql<string>`coalesce(sum(${providerCalls.costUsd}), 0)` }).from(providerCalls).where(eq(providerCalls.jobId, jobId)),
+  );
+  return Number(rows[0]?.total ?? 0);
+}

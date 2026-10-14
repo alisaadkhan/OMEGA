@@ -75,13 +75,13 @@ function llmReply(req: { input: string }) {
   };
 }
 
-function setup(o: { web?: FixtureWebSearch; scraper?: FixtureScraper; wrap?: (p: EnrichmentPipeline) => EnrichmentPipeline; maxAttempts?: number; model?: MockLlm; contentResolutionMax?: number; extractionMultiplier?: Partial<Record<"instagram" | "tiktok" | "youtube", number>>; profileConcurrency?: number } = {}) {
+function setup(o: { web?: FixtureWebSearch; scraper?: FixtureScraper; wrap?: (p: EnrichmentPipeline) => EnrichmentPipeline; maxAttempts?: number; model?: MockLlm; contentResolutionMax?: number; extractionMultiplier?: Partial<Record<"instagram" | "tiktok" | "youtube", number>>; profileConcurrency?: number; jobCostCap?: { revenuePerCreditUsd: number; costToPriceRatio: number } } = {}) {
   const web = o.web ?? new FixtureWebSearch(links("new_a", "new_b"));
   const scraper = o.scraper ?? igScraper();
   const model = o.model ?? llm();
   const base = createEnrichmentPipeline({ db, scraper, storage: new MemoryStorage(), llm: model, encryptionKey: TEST_KEY, logger, fetchImage: async () => new Response("", { status: 404 }) });
   const pipeline = o.wrap ? o.wrap(base) : base;
-  const runner = createLiveRunner({ db, billing, pipeline, scraper, search: createCachedSearch({ db, web }), llm: model, logger, ...(o.maxAttempts ? { maxAttempts: o.maxAttempts } : {}), ...(o.contentResolutionMax ? { contentResolutionMax: o.contentResolutionMax } : {}), ...(o.extractionMultiplier ? { extractionMultiplier: o.extractionMultiplier } : {}), ...(o.profileConcurrency ? { profileConcurrency: o.profileConcurrency } : {}) });
+  const runner = createLiveRunner({ db, billing, pipeline, scraper, search: createCachedSearch({ db, web }), llm: model, logger, ...(o.maxAttempts ? { maxAttempts: o.maxAttempts } : {}), ...(o.contentResolutionMax ? { contentResolutionMax: o.contentResolutionMax } : {}), ...(o.extractionMultiplier ? { extractionMultiplier: o.extractionMultiplier } : {}), ...(o.profileConcurrency ? { profileConcurrency: o.profileConcurrency } : {}), ...(o.jobCostCap ? { jobCostCap: o.jobCostCap } : {}) });
   return { runner, web, scraper, pipeline };
 }
 
@@ -422,6 +422,18 @@ describe("live runner", () => {
       expect(s.batchCalls).toHaveLength(1);
       expect(await discovery.get(c, id)).toMatchObject({ live: { new: 2, creditsCharged: 50 + 2 * 10 } });
       expect((await trailOf(id)).filter((r) => r.reason === "run_size_limit")).toHaveLength(5);
+    });
+
+    it("stops extra waves once the job's provider cost reaches its cap (quoted max × revenue per credit ÷ 3)", async () => {
+      const { runner, scraper: s } = setup({ web: pool(), scraper: scraper(), extractionMultiplier: { instagram: 2 }, jobCostCap: { revenuePerCreditUsd: 0.002029, costToPriceRatio: 3 } });
+      const c = await customer();
+      const id = await startRun(c, 5); // quoted 100 credits → cap USD 0.0676
+      await ownerQuery(`insert into platform.provider_calls (provider, operation, latency_ms, status, cost_usd, job_id) values ('apify', 'scrape_instagram', 1, 'ok', 0.07, '${id}')`);
+      await runner.run(id, c.workspaceId);
+      expect(s.batchCalls.map((b) => b.handles.length)).toEqual([5]); // the first wave always runs; no second wave
+      expect(await discovery.get(c, id)).toMatchObject({ status: "completed", live: { new: 2, creditsCharged: 50 + 2 * 10 } });
+      expect((await trailOf(id)).filter((r) => r.reason === "job_cost_cap").length).toBeGreaterThan(0);
+      expect(await balance(c)).toMatchObject({ reserved: 0 });
     });
 
     it("with a multiplier fetches the next-best candidates until the size is filled, and charges only what was delivered", async () => {

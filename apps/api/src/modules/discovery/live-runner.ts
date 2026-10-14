@@ -1,6 +1,6 @@
 import { searchFiltersSchema, type DiscoveryJobStep, type LiveSearch } from "@mushin/contracts";
 import { AppError, type Logger } from "@mushin/core";
-import type { Db, LivePrices, LiveProgress, TenantTx } from "@mushin/db";
+import { providerSpendForJob, type Db, type LivePrices, type LiveProgress, type TenantTx } from "@mushin/db";
 import { ProviderError, type Llm, type ProfileScraper } from "@mushin/integrations";
 import type { BillingService } from "../billing/index";
 import { findProfileByUrl, fitLabel, getSearchSettings, isVisibleCreator, rankCards, suppressedUrls, type CreatorPlatform, type SourcePolicy, type EnrichJob, type EnrichmentPipeline } from "../creators/index";
@@ -34,6 +34,11 @@ type Deps = {
   extractionMultiplier?: Partial<Record<CreatorPlatform, number>>;
   /** Profiles processed at the same time (default 1). */
   profileConcurrency?: number;
+  /**
+   * Per-job cost cap for extra extraction waves (owner 3× rule): no extra wave starts once the job's recorded provider
+   * cost reaches quoted maximum credits × revenue per credit ÷ ratio. Absent = no cap. The first wave always runs.
+   */
+  jobCostCap?: { revenuePerCreditUsd: number; costToPriceRatio: number };
 };
 
 /** G2: candidates after the cheap G1 gate needed before extraction (spec default 8); below it the run is `insufficient`. */
@@ -292,12 +297,22 @@ export function createLiveRunner(deps: Deps) {
       const fetchedBy: Record<CreatorPlatform, number> = { instagram: 0, tiktok: 0, youtube: 0 };
       let remaining = [...ordered];
       let fetchedCount = 0;
-      let stopReason: "provider_budget_exhausted" | "extra_wave_provider_failed" | null = null;
+      let stopReason: "provider_budget_exhausted" | "extra_wave_provider_failed" | "job_cost_cap" | null = null;
+      const quoteMaxCredits = prices.search + maxNew * Math.max(prices.instagram, prices.tiktok, prices.youtube);
       ordered.forEach((k, index) => trail.set(k.canonicalUrl, "selection", "pending", null, { detail: { selectionRank: index + 1 } }));
       for (let wave = 1; stopReason === null; wave++) {
         await checkCancel();
         const need = maxNew - (await deps.db.withWorkspace(workspaceId, (tx) => repo.countNew(tx, workspaceId, jobId)));
         if (need <= 0) break;
+        if (wave > 1 && deps.jobCostCap) {
+          const spentUsd = await providerSpendForJob(deps.db, jobId);
+          const capUsd = (quoteMaxCredits * deps.jobCostCap.revenuePerCreditUsd) / deps.jobCostCap.costToPriceRatio;
+          if (spentUsd >= capUsd) {
+            deps.logger.info({ jobId, spentUsd, capUsd, wave }, "per-job cost cap reached: no further extraction wave");
+            stopReason = "job_cost_cap";
+            break;
+          }
+        }
         const fresh: Kept[] = [];
         for (const k of remaining) {
           if (fresh.length >= need) break;
