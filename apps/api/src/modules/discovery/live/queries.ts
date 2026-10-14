@@ -1,5 +1,5 @@
 import type { LiveSearch } from "@mushin/contracts";
-import type { CreatorPlatform } from "../../creators/index";
+import { LIVE_PLACE_URDU, LIVE_TOPIC_TERMS, type CreatorPlatform } from "../../creators/index";
 
 export type PlannedQuery = { platform: CreatorPlatform; query: string; country: string; hl: string; round: 1 | 2 | 3; num: number };
 
@@ -7,27 +7,10 @@ export type PlannedQuery = { platform: CreatorPlatform; query: string; country: 
 const SITE: Record<CreatorPlatform, string> = { instagram: "site:instagram.com", tiktok: "site:tiktok.com/@", youtube: "site:youtube.com/@" };
 const ALL: CreatorPlatform[] = ["instagram", "tiktok", "youtube"];
 
-// Reviewed, deterministic Urdu/Roman Urdu equivalents. Unknown niches stay in their
-// original language; we never ask a model to invent operators or silently translate.
-const URDU_TERMS: Record<string, { roman: string; urdu: string }> = {
-  food: { roman: "khana foodie", urdu: "کھانا فوڈ" },
-  foodie: { roman: "khana foodie", urdu: "کھانا فوڈ" },
-  "food blogger": { roman: "khana blogger", urdu: "کھانے کا بلاگر" },
-  "street food": { roman: "street food khana", urdu: "اسٹریٹ فوڈ کھانا" },
-  beauty: { roman: "khubsurti beauty", urdu: "خوبصورتی بیوٹی" },
-  makeup: { roman: "makeup beauty", urdu: "میک اپ بیوٹی" },
-  bridal: { roman: "dulhan bridal", urdu: "دلہن برائیڈل" },
-  fashion: { roman: "libaas fashion", urdu: "لباس فیشن" },
-  travel: { roman: "safar travel", urdu: "سفر ٹریول" },
-  fitness: { roman: "warzish fitness", urdu: "ورزش فٹنس" },
-  technology: { roman: "technology tech", urdu: "ٹیکنالوجی ٹیک" },
-  tech: { roman: "technology tech", urdu: "ٹیکنالوجی ٹیک" },
-};
-
-const URDU_PLACES: Record<string, string> = {
-  lahore: "لاہور", karachi: "کراچی", islamabad: "اسلام آباد", rawalpindi: "راولپنڈی",
-  peshawar: "پشاور", faisalabad: "فیصل آباد", multan: "ملتان", quetta: "کوئٹہ",
-};
+// Reviewed, deterministic Urdu/Roman Urdu equivalents, shared with catalogue Search (creators/aliases.ts). Unknown
+// niches stay in their original language; we never ask a model to invent operators or silently translate.
+const URDU_TERMS = LIVE_TOPIC_TERMS;
+const URDU_PLACES = LIVE_PLACE_URDU;
 
 export const platformsFor = (s: LiveSearch): CreatorPlatform[] => (s.filters.platform ? [s.filters.platform] : ALL);
 

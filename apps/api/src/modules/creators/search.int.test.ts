@@ -53,7 +53,7 @@ async function customer(): Promise<TenantContext> {
   return { ...(await createTestWorkspace()), requestId: "req-search", role: "owner" };
 }
 
-const req = (text: string, filters: Record<string, unknown> = {}, page = 1) => searchRequestSchema.parse({ text, filters, page, confirmedCost: 0 });
+const req = (text: string, filters: Record<string, unknown> = {}, cursor?: string | null) => searchRequestSchema.parse({ text, filters, confirmedCost: 0, ...(cursor ? { cursor } : {}) });
 
 describe("search", () => {
   it("filters by every requested dimension and ranks by fit", async () => {
@@ -127,17 +127,23 @@ describe("search", () => {
     }
   });
 
-  it("pages results and says when there are few", async () => {
+  it("pages results by cursor (no duplicates, stale or foreign cursors refused) and says when there are few (CAT-004)", async () => {
     const ids: string[] = [];
     for (let i = 0; i < 26; i++) ids.push(await addCreator(db, { profiles: [{ followers: 10_000 + i * 1000, engagementRate: 5 }] }));
     await indexAll(ids);
     const c = await customer();
     const page1 = await creators.search(c, req(""));
-    const page2 = await creators.search(c, req("", {}, 2));
+    const page2 = await creators.search(c, req("", {}, page1.nextCursor));
     const nativePage1 = await postgresCreators.search(c, req(""));
-    const nativePage2 = await postgresCreators.search(c, req("", {}, 2));
+    const nativePage2 = await postgresCreators.search(c, req("", {}, nativePage1.nextCursor));
     expect([page1.results.length, page2.results.length, page1.total, page1.fewResults, page1.pageSize]).toEqual([24, 2, 26, false, 24]);
+    expect([page1.page, page2.page, page1.prevCursor, page2.nextCursor]).toEqual([1, 2, null, null]);
+    expect((await creators.search(c, req("", {}, page2.prevCursor))).results.map((r) => r.id)).toEqual(page1.results.map((r) => r.id));
     expect(new Set([...page1.results, ...page2.results].map((r) => r.id)).size).toBe(26);
+    // A cursor only works for the search it came from, and a made-up one is refused.
+    await expect(creators.search(c, req("bridal", {}, page1.nextCursor))).rejects.toMatchObject({ code: "VALIDATION_FAILED", details: { reason: "stale_cursor" } });
+    await expect(creators.search(c, req("", { verifiedOnly: true }, page1.nextCursor))).rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+    await expect(creators.search(c, req("", {}, "not-a-cursor"))).rejects.toMatchObject({ code: "VALIDATION_FAILED" });
     expect(nativePage1.results.map((r) => r.id)).toEqual(page1.results.map((r) => r.id));
     expect(nativePage2.results.map((r) => r.id)).toEqual(page2.results.map((r) => r.id));
   });

@@ -61,8 +61,9 @@ export function extraChips(extra: Partial<SearchFilters>): { key: ExtraKey; labe
 }
 
 /** The one place the screen's state becomes an API request. */
-export function requestFor(text: string, ui: UiFilters, page: number, confirmedCost: number): SearchRequest {
-  return { text: text.trim(), filters: toFilters(ui), page, confirmedCost };
+/** The first page of a search; later pages reuse the request with the cursor the API returned. */
+export function requestFor(text: string, ui: UiFilters, confirmedCost: number, cursor?: string): SearchRequest {
+  return { text: text.trim(), filters: toFilters(ui), confirmedCost, ...(cursor ? { cursor } : {}) };
 }
 
 /** Same request = same query key: re-running it must re-fetch, since setting an equal key fetches nothing. */

@@ -144,8 +144,8 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
     else setRequest(next);
   };
   /** Further pages of the same search are free (the server recognises the same logical search). */
-  const goToPage = (page: number) => {
-    if (request) setRequest({ ...request, page });
+  const goToPage = (cursor: string | null) => {
+    if (request && cursor) setRequest({ ...request, cursor });
   };
 
   const filtered = useMemo(() => {
@@ -179,7 +179,7 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
     if (searchCost === null) return;
     setMode(searchMode);
     setSelected(new Set());
-    submit(requestFor(query, uiFilters(), 1, searchCost));
+    submit(requestFor(query, uiFilters(), searchCost));
     if (query.trim()) {
       interpret.mutate(query.trim(), {
         onSuccess: (r) => {
@@ -203,7 +203,7 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
     setVerifiedOnly(next.verifiedOnly);
     setExtra(next.extra);
     toast.info("Applied MUSHIN's reading of your search. Edit the chips anytime.");
-    submit(requestFor(query, { ...uiFilters(), ...next }, 1, searchCost));
+    submit(requestFor(query, { ...uiFilters(), ...next }, searchCost));
   };
 
   const savePreset = () => {
@@ -228,7 +228,7 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
     setMinScore(p.filters.minAuthenticity !== undefined ? `${p.filters.minAuthenticity}+` : null);
     setContactOnly(p.filters.hasContact);
     setFreshOnly(p.filters.freshOnly);
-    setRequest({ text: p.query, filters: p.filters, page: 1, confirmedCost: searchCost });
+    setRequest({ text: p.query, filters: p.filters, confirmedCost: searchCost });
   };
 
   const compareList = filtered.filter((c) => selected.has(c.id)).slice(0, 5);
@@ -247,7 +247,7 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
       if (pendingQuery.current) setQuery(pendingQuery.current);
     }
     if (pendingQuery.current && searchCost !== null) {
-      setRequest(requestFor(pendingQuery.current, uiFilters(), 1, searchCost));
+      setRequest(requestFor(pendingQuery.current, uiFilters(), searchCost));
       pendingQuery.current = null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -754,8 +754,8 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
             {search.data && pageCount(search.data.total, search.data.pageSize) > 1 && (
               <div className="flex items-center justify-center gap-2 pt-2 text-xs text-slate-600">
                 <button
-                  onClick={() => goToPage(search.data.page - 1)}
-                  disabled={search.data.page <= 1}
+                  onClick={() => goToPage(search.data.prevCursor)}
+                  disabled={search.data.prevCursor === null}
                   className="rounded-md border border-slate-200 bg-white px-2.5 py-1 hover:bg-slate-50 disabled:opacity-40"
                   style={{ fontWeight: 500 }}
                 >
@@ -765,8 +765,8 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
                   Page {search.data.page} of {pageCount(search.data.total, search.data.pageSize)}
                 </span>
                 <button
-                  onClick={() => goToPage(search.data.page + 1)}
-                  disabled={search.data.page >= pageCount(search.data.total, search.data.pageSize)}
+                  onClick={() => goToPage(search.data.nextCursor)}
+                  disabled={search.data.nextCursor === null}
                   className="rounded-md border border-slate-200 bg-white px-2.5 py-1 hover:bg-slate-50 disabled:opacity-40"
                   style={{ fontWeight: 500 }}
                 >

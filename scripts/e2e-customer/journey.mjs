@@ -75,7 +75,7 @@ async function search(p, text) {
   return mainText(p);
 }
 const SEARCH_PRICE = 50;
-const apiSearch = (who, text, filters = {}, page = 1) => api(who, "POST", "/v1/search", { text, filters, page, confirmedCost: SEARCH_PRICE });
+const apiSearch = (who, text, filters = {}, cursor) => api(who, "POST", "/v1/search", { text, filters, confirmedCost: SEARCH_PRICE, ...(cursor ? { cursor } : {}) });
 const searchSpends = (ws) => Number(sql(`select count(*) from wp.credit_ledger where workspace_id = '${ws}' and action = 'search_existing' and kind = 'spend'`));
 const handles = (t) => [...new Set(t.match(/@[a-z0-9._]+/gi) ?? [])];
 async function openProfile(p, handle) {
@@ -152,7 +152,8 @@ if (phase === "main") {
   const apiFood = (await apiSearch("owner", "food")).json;
   check("search", "text search shows exactly the API's creators", apiFood.total > 0 && apiFood.results.every((r) => handles(t).includes(`@${r.handle}`)), `API ${apiFood.total}, UI ${handles(t).length}`);
   check("search", "AI reading unavailable does not block search (INT-002)", apiFood.total > 0);
-  const page2 = (await apiSearch("owner", "food", {}, 2)).json;
+  // The next page (by cursor) when there is one, otherwise the same search again: neither is a new paid search.
+  const page2 = (await apiSearch("owner", "food", {}, apiFood.nextCursor)).json;
   check("pricing", "search button shows the server price; a search is charged once; repeat and next page are free", priceShown && nothingOnOpen && spentOnce && apiFood.charged === false && page2.charged === false && searchSpends(ws) === spendsBefore + 1, `spends ${spendsBefore}→${searchSpends(ws)}; api charged ${apiFood.charged}/${page2.charged}`);
   const lahore = (await apiSearch("owner", "Lahore")).json;
   check("search", "different queries give different, query-related results", lahore.results.map((r) => r.id).join() !== apiFood.results.map((r) => r.id).join());

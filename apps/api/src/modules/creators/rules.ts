@@ -1,5 +1,13 @@
 import type { CreatorCard, InterpretResponse, SearchFilters } from "@mushin/contracts";
 import { sha256Hex } from "@mushin/core";
+import { CITY_CONCEPTS, cityForms } from "./aliases";
+
+/** City filter values for an exact-match index: every alias form plus the canonical spelling. */
+function cityFilterValues(value: string): string[] {
+  const forms = cityForms(value);
+  const concept = CITY_CONCEPTS.find((c) => c.forms.includes(forms[0] ?? ""));
+  return concept ? [concept.canonical, ...forms] : forms;
+}
 
 export type Freshness = "current" | "aging" | "stale";
 export type FreshnessThresholds = { currentDays: number; agingDays: number };
@@ -68,7 +76,8 @@ export function meiliFilter(f: SearchFilters, now: Date, freshCurrentDays: numbe
   const out: string[] = [];
   if (f.platform) out.push(`platforms = ${q(f.platform)}`);
   if (f.creatorCountry) out.push(`country = ${q(f.creatorCountry)}`);
-  if (f.creatorCity) out.push(`city = ${q(f.creatorCity)}`);
+  // Any reviewed alias of the city (lhr → Lahore); the stored value and canonical spelling are included as written.
+  if (f.creatorCity) out.push(`city IN [${[...new Set([f.creatorCity, ...cityFilterValues(f.creatorCity)])].map(q).join(", ")}]`);
   if (f.audienceCountry) out.push(`audience_countries = ${q(f.audienceCountry)}`);
   if (f.followersMin !== undefined) out.push(`followers >= ${f.followersMin}`);
   if (f.followersMax !== undefined) out.push(`followers <= ${f.followersMax}`);

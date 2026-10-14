@@ -21,6 +21,7 @@ import { cleanInterpretation, fenced, freshnessOf, isMinorProtected, meiliFilter
 import { toCards } from "./ranking";
 import { suppressedUrls } from "./suppressions";
 import { chargeCatalogSearch } from "./search-charge";
+import { decodeCursor, encodeCursor } from "./cursor";
 
 export type CreatorsDeps = {
   db: Db;
@@ -92,15 +93,17 @@ export function createCreatorsService(deps: CreatorsDeps) {
     const relevance = new Map(hits.map((h) => [h.id, h.rankingScore]));
     const rows = await deps.db.withTenant(tenant(ctx), (tx) => repo.cardRows(tx, hits.map((h) => h.id)));
     const cards = toCards(rows, req, settings, t, relevance);
-    const start = (req.page - 1) * settings.pageSize;
+    const start = decodeCursor(req, req.cursor, settings.pageSize);
     // Paid only once the search has answered; refused (no results returned) when the price or balance does not allow it.
     const charge = await chargeCatalogSearch({ db: deps.db, billing: deps.billing, now }, ctx, req);
     return {
       ...charge,
       results: cards.slice(start, start + settings.pageSize),
+      nextCursor: start + settings.pageSize < cards.length ? encodeCursor(req, start + settings.pageSize) : null,
+      prevCursor: start > 0 ? encodeCursor(req, Math.max(0, start - settings.pageSize)) : null,
       // A full pool means more creators matched than were scored; the index's estimate is then the better total.
       total: hits.length >= settings.candidatePool ? Math.max(cards.length, indexTotal) : cards.length,
-      page: req.page,
+      page: Math.floor(start / settings.pageSize) + 1,
       pageSize: settings.pageSize,
       fewResults: cards.length < settings.fewResults,
     };

@@ -86,7 +86,7 @@ describe("Meilisearch filter", () => {
     expect(meiliFilter(f, now, 7)).toEqual([
       'platforms = "tiktok"',
       'country = "PK"',
-      'city = "La\\"hore"',
+      'city IN ["La\\"hore", "la hore"]',
       'audience_countries = "AE"',
       "followers >= 10000",
       "followers <= 50000",

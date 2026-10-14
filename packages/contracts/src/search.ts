@@ -37,7 +37,8 @@ export type SearchFilters = z.output<typeof searchFiltersSchema>;
 export const searchRequestSchema = z.object({
   text: z.string().trim().max(300).default(""),
   filters: searchFiltersSchema,
-  page: z.number().int().min(1).max(50).default(1),
+  /** Opaque position from a previous answer (nextCursor/prevCursor); absent for the first page. */
+  cursor: z.string().min(1).max(200).optional(),
   /** The standalone search price the user was shown; a different current price is refused and charges nothing. */
   confirmedCost: z.number().int().min(0),
 });
@@ -68,8 +69,11 @@ export type CreatorCard = z.output<typeof creatorCardSchema>;
 export const searchResponseSchema = z.object({
   results: z.array(creatorCardSchema),
   total: z.number().int(),
+  /** 1-based page number for display only; pages are requested with the cursors. */
   page: z.number().int(),
   pageSize: z.number().int(),
+  nextCursor: z.string().nullable(),
+  prevCursor: z.string().nullable(),
   fewResults: z.boolean(),
   /** Whether this call started a new logical search and paid for it; further pages and repeats inside the window are free. */
   charged: z.boolean(),

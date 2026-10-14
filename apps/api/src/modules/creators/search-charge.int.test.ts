@@ -37,7 +37,7 @@ async function customer(credits: "trial" | "none" = "trial"): Promise<TenantCont
   if (credits === "trial") await db.withTenant(ws, (tx) => billing.startTrial(tx, ws.workspaceId));
   return { ...ws, requestId: "req-search-charge", role: "owner" };
 }
-const req = (text: string, filters: Record<string, unknown> = {}, page = 1, confirmedCost = 50) => searchRequestSchema.parse({ text, filters, page, confirmedCost });
+const req = (text: string, filters: Record<string, unknown> = {}, cursor?: string | null, confirmedCost = 50) => searchRequestSchema.parse({ text, filters, confirmedCost, ...(cursor ? { cursor } : {}) });
 const available = async (c: TenantContext) => (await billing.summary(c)).balance.available;
 const searchSpends = async (c: TenantContext) =>
   (await ownerQuery<{ n: number }>(`select count(*)::int n from wp.credit_ledger where workspace_id = '${c.workspaceId}' and action = 'search_existing' and kind = 'spend'`))[0]?.n ?? 0;
@@ -49,7 +49,7 @@ describe("catalogue search price", () => {
     expect(first).toMatchObject({ charged: true, creditsCharged: 50 });
     expect(first.results.map((r) => r.displayName)).toEqual(["Sana Bridal"]);
     expect(await available(c)).toBe(150);
-    for (const repeat of [req("Sana", {}, 2), req("  sana "), req("SANA")]) {
+    for (const repeat of [req("Sana"), req("  sana "), req("SANA")]) {
       expect(await creators.search(c, repeat)).toMatchObject({ charged: false, creditsCharged: 0 });
     }
     expect(await available(c)).toBe(150);
@@ -72,7 +72,7 @@ describe("catalogue search price", () => {
 
   it("refuses a stale confirmed price, an empty balance or a workspace without a plan, without charging", async () => {
     const c = await customer();
-    await expect(creators.search(c, req("Sana", {}, 1, 10))).rejects.toMatchObject({ code: "CONFLICT" });
+    await expect(creators.search(c, req("Sana", {}, null, 10))).rejects.toMatchObject({ code: "CONFLICT" });
     expect(await available(c)).toBe(200);
     expect((await ownerQuery<{ n: number }>(`select count(*)::int n from wp.catalog_search_charges`))[0]?.n).toBe(0);
     for (const text of ["a1", "a2", "a3", "a4"]) await creators.search(c, req(text)); // 4 × 50 spends the 200-credit trial
