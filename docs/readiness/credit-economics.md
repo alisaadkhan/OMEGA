@@ -58,6 +58,20 @@ largest quote (200). A run that delivers nothing earns nothing by policy, so its
 4. **Zero-result runs:** they are free to the customer and cost USD 0.001–0.065 each. Track the share of zero-result runs
    per platform; if it stays high, the per-job cap (1) also bounds this loss.
 
+## Owner decision 2026-10-14 (implemented)
+
+- **TikTok minimum (provisional):** a successful live run with TikTok in scope is charged at least **100 credits**,
+  never more than its quote; failed, empty and canceled runs keep the normal rule. 100 credits ≈ USD 0.203 of revenue
+  at the Scale-yearly rate, enough for the one measured USD 0.065 run under the 3× rule (96 needed). This does **not**
+  guarantee a margin: it rests on one measured run, and payment fees (Paddle's rate unverified) are not deducted.
+  Re-measure TikTok runs in an authorised capped pilot before making it final.
+- **Per-job cost cap** is enforced before every extraction batch, the first included, with per-profile estimates
+  (Instagram USD 0.0026, TikTok USD 0.011, YouTube USD 0); a TikTok-heavy size-10 run is therefore trimmed to the
+  profiles the cap allows instead of overspending.
+- **Add-by-link:** 50 credits for a new creator import only; a link that is (or turns out to be) a known creator, a
+  reuse of fresh data, or a failure costs nothing; an explicit refresh costs 50.
+- **Credits:** top-up credits never expire; monthly credits end at renewal (no rollover); top-ups are spent last.
+
 ## Limits of this analysis
 
 - One TikTok run and two Instagram pilot runs are a very small sample; costs vary with actor pricing, profile counts and

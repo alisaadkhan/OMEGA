@@ -114,6 +114,29 @@ Supporting checks on `099f349`:
 - `frontend` `vite build` succeeded.
 - Lint of `scripts/e2e-customer` is clean, and dependency-cruiser reports no violations.
 
+### Phone width and accessibility (2026-10-14/15)
+
+The after-restart phase now also checks, signed in as the owner: axe-core 4.10.2 (WCAG 2.1 A/AA, serious and critical
+findings) on Search, Lists and Campaigns at 1440 px, and at 390 × 844 the landing page, login, dashboard, Search (with
+results), Lists, Campaigns and Credits & billing. Each must be reachable, must not scroll sideways (page or main area),
+must have no visible element cut off at the screen edge, and must pass axe. That is 22 checks after the restart (6
+before) and 73 per run.
+
+| Run set | Commit | Result |
+|---|---|---|
+| After the per-job cost cap | `3ec6ec2` | postcap-1, postcap-3: 57/57; postcap-2: 56/57 (console error from a Vite hot reload when I edited a component during the run; not a product defect) |
+| Final, three in a row | `9157bc1` | 3 × 73/73 |
+
+Defects the new checks found, all fixed in `9157bc1`:
+
+| ID | Severity | Defect | Fix |
+|---|---|---|---|
+| D-3 | P1 | On phones the 240 px sidebar stayed open: content squeezed to about 150 px and the top bar (account menu) cut off | Below 768 px navigation is a drawer opened from the top bar's menu button (Escape closes it) |
+| D-4 | P2 | Grey text (slate-400 on white, about 2.6:1) below WCAG AA 4.5:1 in customer pages; amber/slate pill text just under 4.5:1 | Slate-500 for text on light backgrounds (dark cards keep slate-400); amber-800 and slate-600 pill text |
+| D-5 | P2 | List cards were a role=button containing the favourite button (nested interactive controls) | The list name is the card's stretched button; the star sits above it |
+| D-6 | P3 | Landing feature tabs ran past a 390 px screen | Smaller tab padding and no icons below 640 px |
+| T-1 | Test | "Dashboard cards equal API" failed only around midnight: the test computed the date range in UTC, the API uses Pakistan time | Test computes the range in Asia/Karachi |
+
 ## 5. Defects found and fixed
 
 | ID | Severity | Defect | Fix | Regression evidence |
