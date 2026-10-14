@@ -4,7 +4,8 @@ The central record of what is built, what is verified and what is blocked. It is
 - `traceability.csv`: the 59 canonical requirements → implementation → tests → status;
 - `acceptance-matrix.md`: module and integration results;
 - `search-backends.md`: local Meilisearch and the backend comparison;
-- `local-setup.md`: how to run and test everything.
+- `local-setup.md`: how to run and test everything;
+- `customer-e2e-report.md`: customer-side browser E2E (matrix, runs, defects, findings; harness in `scripts/e2e-customer/`).
 
 ## 1. Bottom line
 

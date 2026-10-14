@@ -1,0 +1,8 @@
+{
+  "name": "mushin-e2e-customer",
+  "private": true,
+  "description": "Customer-side browser journey (local only). Not a workspace package; install separately with npm install here.",
+  "dependencies": {
+    "playwright-core": "1.48.2"
+  }
+}
