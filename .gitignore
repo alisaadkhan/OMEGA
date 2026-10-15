@@ -27,3 +27,8 @@ Thumbs.db
 
 # Database CA certificates (downloaded from Supabase)
 certs/
+
+# Search evaluation packets and provider recordings (contain YouTube API data: delete by 2026-11-12)
+/eval-data/
+# Owner archive, never committed
+/frontend.zip

@@ -22,6 +22,7 @@ import { createStaffModule, createStaffTokens, recordStaffAudit } from "./module
 import { createStaffOpsModule } from "./modules/staffops";
 import { MemoryRateLimiter } from "./rate-limit/memory";
 import { ipRateLimitHook } from "./rate-limit/plugin";
+import { PostgresRateLimiter } from "./rate-limit/postgres";
 import { bucketsFromConfig, type RateLimiter } from "./rate-limit/types";
 import { createUpstashRateLimiter } from "./rate-limit/upstash";
 
@@ -33,13 +34,17 @@ const db = createDatabase(config.databaseUrl, { max: 10, applicationName: "mushi
 const buckets = bucketsFromConfig(config.rateLimit);
 const readiness: ReadinessCheck[] = [{ name: "database", check: () => db.ping() }];
 let limiter: RateLimiter;
-if (config.rateLimit.upstash) {
+if (config.rateLimit.store === "upstash" && config.rateLimit.upstash) {
   const upstash = createUpstashRateLimiter(config.rateLimit.upstash, buckets, logger);
   limiter = upstash.limiter;
   readiness.push({ name: "redis", check: () => upstash.ping() });
-} else {
-  logger.warn("UPSTASH_REDIS_REST_URL/TOKEN not set: using the in-memory rate limiter");
+} else if (config.rateLimit.store === "memory") {
+  logger.warn("RATE_LIMIT_STORE=memory: rate limits are counted per process (development only)");
   limiter = new MemoryRateLimiter(buckets);
+  readiness.push({ name: "redis", check: async () => "skipped" });
+} else {
+  // PostgreSQL counters (the Supabase target): shared by every API process; covered by the database readiness check.
+  limiter = new PostgresRateLimiter(db, buckets);
   readiness.push({ name: "redis", check: async () => "skipped" });
 }
 

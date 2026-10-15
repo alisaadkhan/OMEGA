@@ -27,7 +27,7 @@ describe("loadApiConfig", () => {
     expect(c.port).toBe(4000);
     expect(c.allowedOrigins).toEqual(["http://localhost:5173", "https://preview.mushin.pk", "https://staging.mushin.pk"]);
     expect(c.dataEncryptionKey).toHaveLength(32);
-    expect(c.rateLimit).toEqual({ windowMs: 60_000, maxRequests: 120, upstash: null });
+    expect(c.rateLimit).toEqual({ windowMs: 60_000, maxRequests: 120, store: "postgres", upstash: null });
     expect(c.idempotencyTtlHours).toBe(24);
     expect(c.catalogSearchBackend).toBe("postgres");
     expect(c.logLevel).toBe("info");
@@ -59,6 +59,20 @@ describe("loadApiConfig", () => {
     expect(() => loadApiConfig({ ...valid, UPSTASH_REDIS_REST_URL: "https://x.upstash.io" })).toThrow(/UPSTASH_REDIS_REST_TOKEN/);
     const c = loadApiConfig({ ...valid, UPSTASH_REDIS_REST_URL: "https://x.upstash.io", UPSTASH_REDIS_REST_TOKEN: "t" });
     expect(c.rateLimit.upstash).toEqual({ url: "https://x.upstash.io", token: "t" });
+  });
+
+  it("counts rate limits in PostgreSQL unless Upstash is configured or another store is chosen", () => {
+    const upstash = { UPSTASH_REDIS_REST_URL: "https://x.upstash.io", UPSTASH_REDIS_REST_TOKEN: "t" };
+    expect(loadApiConfig(valid).rateLimit.store).toBe("postgres");
+    expect(loadApiConfig({ ...valid, ...upstash }).rateLimit.store).toBe("upstash");
+    expect(loadApiConfig({ ...valid, ...upstash, RATE_LIMIT_STORE: "postgres" }).rateLimit.store).toBe("postgres");
+    expect(loadApiConfig({ ...valid, RATE_LIMIT_STORE: "memory" }).rateLimit.store).toBe("memory");
+    expect(() => loadApiConfig({ ...valid, RATE_LIMIT_STORE: "upstash" })).toThrow(/RATE_LIMIT_STORE: upstash needs/);
+    expect(() => loadApiConfig({ ...valid, RATE_LIMIT_STORE: "redis" })).toThrow(/RATE_LIMIT_STORE/);
+  });
+
+  it("refuses the per-process memory limiter in production", () => {
+    expect(() => loadApiConfig({ ...valid, NODE_ENV: "production", RATE_LIMIT_STORE: "memory" })).toThrow(/RATE_LIMIT_STORE: memory is for development/);
   });
 });
 

@@ -110,9 +110,20 @@ const apiSchema = sharedObject
     DATA_ENCRYPTION_KEY: encryptionKey,
     RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
     RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().positive().default(120),
+    // Where counters live. Unset: Upstash when configured (legacy), otherwise PostgreSQL (the Supabase target).
+    RATE_LIMIT_STORE: z.enum(["postgres", "upstash", "memory"]).optional(),
     IDEMPOTENCY_TTL_HOURS: z.coerce.number().int().positive().default(24),
   })
-  .superRefine(checkShared);
+  .superRefine(checkShared)
+  .superRefine((v, ctx) => {
+    if (v.RATE_LIMIT_STORE === "upstash" && !v.UPSTASH_REDIS_REST_URL) {
+      ctx.addIssue({ code: "custom", path: ["RATE_LIMIT_STORE"], message: "upstash needs UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN" });
+    }
+    // The in-memory limiter is per process: several API instances would each allow the full limit.
+    if (v.NODE_ENV === "production" && v.RATE_LIMIT_STORE === "memory") {
+      ctx.addIssue({ code: "custom", path: ["RATE_LIMIT_STORE"], message: "memory is for development and tests only" });
+    }
+  });
 
 const workerSchema = sharedObject
   .extend({
@@ -221,6 +232,10 @@ function paymentsFrom(v: SharedValues): PaymentsConfig {
   return { mode: "mock", webhookSecret: v.MOCK_PADDLE_WEBHOOK_SECRET ?? "", appUrl, publicApiUrl };
 }
 
+function rateLimitStore(chosen: "postgres" | "upstash" | "memory" | undefined, upstash: { url: string; token: string } | null): "postgres" | "upstash" | "memory" {
+  return chosen ?? (upstash ? "upstash" : "postgres");
+}
+
 function upstashFrom(v: SharedValues): { url: string; token: string } | null {
   return v.UPSTASH_REDIS_REST_URL && v.UPSTASH_REDIS_REST_TOKEN ? { url: v.UPSTASH_REDIS_REST_URL, token: v.UPSTASH_REDIS_REST_TOKEN } : null;
 }
@@ -304,7 +319,7 @@ export type ApiConfig = {
   /** Staff hardware keys: bound to the app's own origin (the admin console is served there, never from previews). */
   webauthn: { rpId: string; rpName: string; origins: string[] };
   dataEncryptionKey: Buffer;
-  rateLimit: { windowMs: number; maxRequests: number; upstash: { url: string; token: string } | null };
+  rateLimit: { windowMs: number; maxRequests: number; store: "postgres" | "upstash" | "memory"; upstash: { url: string; token: string } | null };
   idempotencyTtlHours: number;
   databaseCaPem: string | null;
   payments: PaymentsConfig;
@@ -331,7 +346,7 @@ export function loadApiConfig(env: Env): ApiConfig {
     staffJwtSecret: v.STAFF_JWT_SECRET,
     webauthn: { rpId: new URL(appUrl).hostname, rpName: "MUSHIN staff", origins: [appUrl] },
     dataEncryptionKey: Buffer.from(v.DATA_ENCRYPTION_KEY, "base64"),
-    rateLimit: { windowMs: v.RATE_LIMIT_WINDOW_MS, maxRequests: v.RATE_LIMIT_MAX_REQUESTS, upstash: upstashFrom(v) },
+    rateLimit: { windowMs: v.RATE_LIMIT_WINDOW_MS, maxRequests: v.RATE_LIMIT_MAX_REQUESTS, store: rateLimitStore(v.RATE_LIMIT_STORE, upstashFrom(v)), upstash: upstashFrom(v) },
     idempotencyTtlHours: v.IDEMPOTENCY_TTL_HOURS,
     databaseCaPem: readCaFile(v.DATABASE_SSL_CA_FILE),
     payments: paymentsFrom(v),
