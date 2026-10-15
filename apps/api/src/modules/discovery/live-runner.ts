@@ -327,11 +327,10 @@ export function createLiveRunner(deps: Deps) {
         await checkCancel();
         const need = maxNew - (await deps.db.withWorkspace(workspaceId, (tx) => repo.countNew(tx, workspaceId, jobId)));
         if (need <= 0) break;
-        if (deadline !== null && now().getTime() >= deadline) {
-          deps.logger.info({ jobId, wave, deadlineMs: deps.jobDeadlineMs }, "per-job deadline reached: no further extraction batch");
-          stopReason = "job_deadline";
-          break;
-        }
+        // Past the deadline no provider fetch starts. Profiles a previous attempt already fetched and archived (paid for)
+        // are still taken, so a retry after a crash keeps them instead of dropping paid work.
+        const pastDeadline = deadline !== null && now().getTime() >= deadline;
+        let deadlineSkipped = false;
         let budgetUsd = Infinity;
         if (deps.jobCostCap) {
           const spentUsd = Math.max(await providerSpendForJob(deps.db, jobId), spentBeforeExtraction + estimatedExtractionUsd);
@@ -348,6 +347,15 @@ export function createLiveRunner(deps: Deps) {
           if (fresh.length >= need) break;
           // After the first wave only platforms with a multiplier above 1 are fetched, and never past their cap.
           if (wave > 1 && (multiplierOf(k.platform) <= 1 || fetchedBy[k.platform] >= capOf(k.platform))) continue;
+          if (pastDeadline) {
+            if (!(await deps.pipeline.archived(jobId, k.canonicalUrl))) {
+              deadlineSkipped = true;
+              continue;
+            }
+            fresh.push(k);
+            fetchedBy[k.platform]++;
+            continue;
+          }
           if (profileUsdOf(k.platform) > budgetUsd + 1e-9) {
             overBudget = true;
             continue;
@@ -358,7 +366,10 @@ export function createLiveRunner(deps: Deps) {
           fetchedBy[k.platform]++;
         }
         if (fresh.length === 0) {
-          if (overBudget) {
+          if (pastDeadline && deadlineSkipped) {
+            deps.logger.info({ jobId, wave, deadlineMs: deps.jobDeadlineMs }, "per-job deadline reached: no further extraction batch");
+            stopReason = "job_deadline";
+          } else if (overBudget) {
             deps.logger.info({ jobId, capUsd, wave }, "per-job cost cap: no candidate's estimated cost fits; extraction stops");
             stopReason = "job_cost_cap";
           }

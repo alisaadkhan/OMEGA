@@ -295,3 +295,40 @@ web search and LLM calls, so it is a lower bound, not a provider invoice.
 **Evaluation data location.** The packets (`blind-b1`, `blind-b2`) and the 2026-10-13 recordings are in the git-ignored
 `eval-data/` folder of the repository. They hold YouTube API data: finish the ratings and delete the YouTube rows by
 2026-11-12.
+
+## Search freeze and the rating round (owner decision 2026-10-15)
+
+**Frozen baseline:** tag `search-freeze-2026-10-15` (`0ad9302`). Search code, ranking and the packets stay unchanged until
+the ratings are scored. Before any merge that could touch Search, run the freeze check. It needs a disposable
+`TEST_DATABASE_URL`; no provider is called and nothing is spent:
+
+    node --import tsx scripts/search-eval/freeze-check.ts <path>/testing/search_eval_queries_unlabeled.csv
+
+It re-runs Brain 1 (35 queries, corpus database `mushin_eval_disposable`) and Brain 2 (25 recorded briefs through the
+real runner, every provider key blank) with the clock pinned to the packet runs. It passes only if the regenerated
+sheets, keys and behaviour sheets match the packets byte for byte. A defect found while building it: both replays used
+the wall clock, so recorded posts aged and, two days later, one borderline Brain 2 creator fell below the minimum fit.
+The product is right to use the current time; the harnesses now take `EVAL_NOW` / `LIVE_REPLAY_NOW`.
+
+**Rating round, step by step:**
+1. Kits: `node --import tsx scripts/search-eval/make-rater-kits.ts eval-data/packets/blind-b1 eval-data/packets/blind-b2 eval-data/kits 2026-11-12`
+   writes `rater-A/`, `rater-B/` and `adjudicator/`. Each rater gets only their own Brain 1 and Brain 2 sheets plus the
+   instructions, never a key or the other rater's sheets. `kits-manifest.csv`, kept outside the kits, holds each sheet's
+   SHA-256.
+2. Send each folder to its person. The README tells them to fill only the rating and note columns, keep the files local
+   and delete every copy after returning them, and in any case before 2026-11-12.
+3. Put the returned sheets next to the packet (for example `eval-data/packets/blind-b1/brain1-rater-A.csv`), then run
+   `node --import tsx scripts/search-eval/score.ts eval-data/packets/blind-b1 brain1`. Do the same for `blind-b2 brain2`.
+   It reports Cohen's kappa and writes every disagreement to `<brain>-to-adjudicate.csv`.
+4. The adjudicator fills `final` and saves the file as `<brain>-adjudicated.csv`. Run `score.ts` again: it writes
+   `<brain>-report.md` with the gates (kappa ≥ 0.6, strict precision@5 ≥ 0.80, nDCG@10 ≥ 0.75, relevant-query coverage
+   ≥ 90%, every behaviour case correct). The report says "not met" unless all of them pass. Acceptance is the owner's
+   decision on that evidence. No rating is ever filled in by MUSHIN or its developers.
+5. Copy the two `*-report.md` files (aggregates only) into `eval-data/reports/`.
+
+**Deletion by 2026-11-12 (YouTube API data):** `node --import tsx scripts/search-eval/purge-eval-data.ts` lists what will be
+deleted: everything in `eval-data/` except `reports/`, plus the database `mushin_eval_disposable`. Add `--confirm` (and
+`PG_BIN`) to delete. On this machine, `npm run verify` fails after 2026-11-12 (Pakistan time) while that data still
+exists (`scripts/search-eval/retention.test.ts`). Older copies in earlier Claude sessions' temporary folders
+(`%TEMP%\claude\…\221a1bc7…\scratchpad\search-eval`, `…\7331cfc4…\scratchpad\eval`) are outside the project and must be
+deleted too. Each rater deletes their own copies.

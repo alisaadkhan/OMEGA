@@ -13,7 +13,11 @@
  * of them (e.g. to reproduce the 1× baseline). The production per-job cost cap (config defaults,
  * per-profile cost estimates) always applies. Profiles fetched per platform are counted, with their estimated cost.
  *
- * LIVE_DISCOVERY_REPLAY=1 LIVE_EVAL_OUT=<dir> [LIVE_REPLAY_BRIEFS=id,id] [LIVE_REPLAY_SIZE=5|10|20] [LIVE_REPLAY_LABEL=x]
+ * LIVE_REPLAY_NOW=<ISO time> pins the clock the runner and pipeline judge recency against (Campaign Fit counts posts from
+ * the last 90 days). Without it the replay uses the wall clock, so recorded posts age and borderline creators drop out
+ * on later days. The rating packets came from replay b2-det-1 at 2026-10-15T13:53:35.002Z; pin that to reproduce them.
+ *
+ * LIVE_DISCOVERY_REPLAY=1 LIVE_EVAL_OUT=<dir> [LIVE_REPLAY_BRIEFS=id,id] [LIVE_REPLAY_SIZE=5|10|20] [LIVE_REPLAY_LABEL=x] [LIVE_REPLAY_NOW=iso]
  */
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -38,6 +42,9 @@ const ALLOW_LIVE = process.env["LIVE_REPLAY_ALLOW_LIVE"] === "1";
 const LIVE_LLM = ALLOW_LIVE || process.env["LIVE_REPLAY_LIVE_LLM"] === "1";
 const SIZE = Number(process.env["LIVE_REPLAY_SIZE"] ?? "5") as 5 | 10 | 15;
 const EXTRACT_BUDGET_USD = Number(process.env["LIVE_REPLAY_EXTRACT_BUDGET_USD"] ?? "0");
+const PINNED = process.env["LIVE_REPLAY_NOW"] ? new Date(process.env["LIVE_REPLAY_NOW"]) : null;
+if (PINNED && Number.isNaN(PINNED.getTime())) throw new Error("LIVE_REPLAY_NOW must be an ISO date-time");
+const clock = PINNED ? { now: () => new Date(PINNED.getTime()) } : {};
 const ONLY = new Set((process.env["LIVE_REPLAY_BRIEFS"] ?? "").split(",").map((s) => s.trim()).filter(Boolean));
 
 async function readJson<T>(path: string): Promise<T | null> {
@@ -181,8 +188,8 @@ describe.skipIf(!enabled)("Live Discovery recorded-response replay through the r
         return { owners, costUsd: 0 };
       },
     };
-    const pipeline = createEnrichmentPipeline({ db, scraper, storage: new MemoryStorage(), llm, encryptionKey: TEST_KEY, logger, fetchImage: async () => new Response("", { status: 404 }) });
-    const runner = createLiveRunner({ db, billing, pipeline, scraper, search: createCachedSearch({ db, web }), llm, logger, maxAttempts: 1, contentResolutionMax: config.scraping.contentResolutionMax, extractionMultiplier: { ...config.scraping.extractionMultiplier, ...Object.fromEntries((process.env["LIVE_REPLAY_MULTIPLIER"] ?? "").split(",").filter(Boolean).map((pair) => { const [p, m] = pair.split("="); return [p, Number(m)]; })) }, jobCostCap: config.scraping.jobCostCap });
+    const pipeline = createEnrichmentPipeline({ db, scraper, storage: new MemoryStorage(), llm, encryptionKey: TEST_KEY, logger, fetchImage: async () => new Response("", { status: 404 }), ...clock });
+    const runner = createLiveRunner({ db, billing, pipeline, scraper, search: createCachedSearch({ db, web }), llm, logger, maxAttempts: 1, contentResolutionMax: config.scraping.contentResolutionMax, extractionMultiplier: { ...config.scraping.extractionMultiplier, ...Object.fromEntries((process.env["LIVE_REPLAY_MULTIPLIER"] ?? "").split(",").filter(Boolean).map((pair) => { const [p, m] = pair.split("="); return [p, Number(m)]; })) }, jobCostCap: config.scraping.jobCostCap, ...clock });
 
     const report: unknown[] = [];
     for (const brief of recorded.briefs.filter((b) => ONLY.size === 0 || ONLY.has(b.id))) {
@@ -223,7 +230,7 @@ describe.skipIf(!enabled)("Live Discovery recorded-response replay through the r
       };
       report.push(entry);
       process.stdout.write(`${JSON.stringify({ replay: { id: entry.id, outcome: entry.outcome, delivered: entry.delivered, trailRows: entry.trailRows, pendingAfter: entry.pendingAfter, misses: entry.misses } })}\n`);
-      await writeFile(join(OUT, "replays", `${LABEL}.json`), JSON.stringify({ label: LABEL, size: SIZE, at: new Date().toISOString(), briefs: report }, null, 1));
+      await writeFile(join(OUT, "replays", `${LABEL}.json`), JSON.stringify({ label: LABEL, size: SIZE, at: new Date().toISOString(), clock: PINNED?.toISOString() ?? "wall", briefs: report }, null, 1));
       expect(entry.pendingAfter).toBe(0);
       expect(balance.reserved).toBe(0);
     }

@@ -60,7 +60,11 @@ if (!queriesPath || !outDir) throw new Error("usage: run-brain1.ts <queries.csv>
 const db = createTestDatabase(); // refuses anything but a local database named with test/disposable
 const logger = createLogger({ level: "silent" });
 const billing = createBillingService({ db, payments: new MockPayments({ webhookSecret: "e".repeat(40), publicApiUrl: "http://eval.local", deliver: async () => {} }), cache: new MemoryAccessCache(), logger });
-const service = createCreatorsService({ db, index: new UnavailableSearchIndex(), nativeSearch: createPostgresCatalogSearch(db), llm: new MockLlm(() => ({})), billing, encryptionKey: Buffer.alloc(32), logger });
+// EVAL_NOW=<ISO time> pins the clock ranking judges freshness against, so a frozen baseline reproduces on later days
+// (the 2026-10-15 rating packet run was at 2026-10-15T13:59:07.039Z). Without it the wall clock is used.
+const pinned = process.env["EVAL_NOW"] ? new Date(process.env["EVAL_NOW"]) : null;
+if (pinned && Number.isNaN(pinned.getTime())) throw new Error("EVAL_NOW must be an ISO date-time");
+const service = createCreatorsService({ db, index: new UnavailableSearchIndex(), nativeSearch: createPostgresCatalogSearch(db), llm: new MockLlm(() => ({})), billing, encryptionKey: Buffer.alloc(32), logger, ...(pinned ? { now: () => new Date(pinned.getTime()) } : {}) });
 
 // An evaluation workspace with labelled credits in the disposable copy (searches are charged as in production).
 const ws = await createTestWorkspace();

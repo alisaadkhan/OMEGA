@@ -501,6 +501,76 @@ describe("live runner", () => {
       expect(await balance(c)).toMatchObject({ available: 200 - 70, reserved: 0 });
     });
 
+    it("a retry after the deadline keeps profiles the crashed attempt already paid for, fetches nothing new and settles once", async () => {
+      let skewMs = 0;
+      let crash = true;
+      const { runner, scraper: s } = setup({
+        web: pool(),
+        scraper: scraper(),
+        extractionMultiplier: { instagram: 2 },
+        jobDeadlineMs: 20 * 60_000,
+        now: () => new Date(Date.now() + skewMs),
+        wrap: (p) => ({
+          ...p,
+          processProfile: async (...args: Parameters<typeof p.processProfile>) => {
+            if (crash && args[0].handle === "open_2") {
+              // The worker dies mid-wave, after open_1 was saved; the retry happens after the deadline.
+              crash = false;
+              skewMs = 21 * 60_000;
+              throw new Error("worker crashed");
+            }
+            return p.processProfile(...args);
+          },
+        }),
+      });
+      const c = await customer();
+      const id = await startRun(c, 5);
+      await expect(runner.run(id, c.workspaceId)).rejects.toThrow(/crashed/);
+      await runner.run(id, c.workspaceId);
+      // One provider batch in total: the retry reused the first wave's archives and started no second wave.
+      expect(s.batchCalls.map((b) => b.handles.length)).toEqual([5]);
+      expect(await discovery.get(c, id)).toMatchObject({ status: "completed", outcome: "succeeded", live: { new: 2, creditsCharged: 50 + 2 * 10 } });
+      expect((await discovery.results(c, id, 0)).results.map((r) => r.handle).sort()).toEqual(["open_1", "open_2"]);
+      expect((await trailOf(id)).filter((r) => r.reason === "job_deadline").length).toBeGreaterThan(0);
+      expect(await balance(c)).toMatchObject({ available: 200 - 70, reserved: 0 });
+      // Running the finished job again (a duplicate delivery) changes nothing: no fetch, no second charge.
+      await runner.run(id, c.workspaceId);
+      expect(s.batchCalls).toHaveLength(1);
+      expect(await balance(c)).toMatchObject({ available: 200 - 70, reserved: 0 });
+      expect(await discovery.get(c, id)).toMatchObject({ live: { creditsCharged: 70 } });
+    });
+
+    it("a customer stop after the deadline settles once on what was delivered", async () => {
+      let skewMs = 0;
+      let job = "";
+      const { runner } = setup({
+        web: pool(),
+        scraper: scraper(),
+        extractionMultiplier: { instagram: 2 },
+        jobDeadlineMs: 20 * 60_000,
+        now: () => new Date(Date.now() + skewMs),
+        wrap: (p) => ({
+          ...p,
+          processProfile: async (...args: Parameters<typeof p.processProfile>) => {
+            const out = await p.processProfile(...args);
+            if (args[0].handle === "open_1") {
+              skewMs = 21 * 60_000;
+              await ownerQuery(`update wp.discovery_jobs set cancel_requested_at = now() where id = '${job}'`);
+            }
+            return out;
+          },
+        }),
+      });
+      const c = await customer();
+      job = await startRun(c, 5);
+      await runner.run(job, c.workspaceId);
+      await runner.run(job, c.workspaceId);
+      const done = await discovery.get(c, job);
+      expect(done.status).toBe("completed");
+      expect(done.live?.creditsCharged).toBe(50 + 10 * (done.live?.new ?? 0));
+      expect(await balance(c)).toMatchObject({ available: 200 - (done.live?.creditsCharged ?? 0), reserved: 0 });
+    });
+
     it("leaves runs inside the deadline unchanged", async () => {
       const { runner, scraper: s } = setup({ web: pool(), scraper: scraper(), extractionMultiplier: { instagram: 2 }, jobDeadlineMs: 20 * 60_000 });
       const c = await customer();
