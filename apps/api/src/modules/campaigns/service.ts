@@ -12,7 +12,7 @@ import {
 } from "@mushin/contracts";
 import { AppError, type TenantContext } from "@mushin/core";
 import type { Db } from "@mushin/db";
-import { rankCards, type SourcePolicy } from "../creators/index";
+import { rankCards, requestContactCheck, type SourcePolicy } from "../creators/index";
 import * as repo from "./repository";
 
 export type CampaignsDeps = { db: Db; now?: () => Date; sourcePolicy?: SourcePolicy };
@@ -169,6 +169,9 @@ export function createCampaignsService(deps: CampaignsDeps) {
     return deps.db.withTenant(tenant(ctx), async (tx) => {
       if (!(await repo.member(tx, ctx.workspaceId, id, creatorId))) throw new AppError("NOT_FOUND", "This creator is not in the campaign");
       const row = await repo.insertOutreach(tx, { workspaceId: ctx.workspaceId, campaignId: id, creatorId, channel: body.channel, outcome: body.outcome, note: body.note, occurredAt: at, loggedBy: ctx.userId });
+      // The first use of an email in a campaign queues the permitted check of the address the workspace revealed
+      // (format, domain, MX; no message is sent). The log itself records what the brand did, not delivery.
+      if (body.channel === "email") await requestContactCheck(tx, { workspaceId: ctx.workspaceId, creatorId, requestId: ctx.requestId });
       await repo.touchCampaign(tx, ctx.workspaceId, id);
       return toEvent(row);
     });

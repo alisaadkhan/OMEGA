@@ -22,8 +22,9 @@ const FILLER = new Set(
     "a about above account accounts all also and any are around at based below between by channel channels creator creators do does find finding follower followers for from " +
     "get give i in influencer influencers is less list look looking make makes me more need of on only or over page pages platform plus please profile profiles " +
     "named called related search searching show some than that the to under want we which who with content popular pakistani pakistan speaking making covering " +
+    // "Pakistan" in any script names the market, not a topic (the catalogue is Pakistan-first; country is a filter).
     "ke ka ki ko mein main me wala wale walay waly hai hain se aur " +
-    "میں کے کی کا کو اور سے والے والا والی"
+    "میں کے کی کا کو اور سے والے والا والی پاکستان پاکستانی"
   ).split(" "),
 );
 // Creator role words: kept for ranking, never required (a food creator's text may not say "vlogger").

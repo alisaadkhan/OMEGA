@@ -27,7 +27,7 @@ describe("creators repository", () => {
     const a = await createTestWorkspace();
     const rows = await db.withTenant(a, (tx) => repo.cardRows(tx, [visible, minor, erased]));
     expect(rows.map((r) => r.id)).toEqual([visible]);
-    expect(rows[0]?.hasContact).toBe(true);
+    expect(rows[0]?.contactStates).toEqual([{ kind: "email", status: "unverified" }]);
     const index = await db.withSystem((tx) => repo.indexRows(tx, [visible, minor, erased]));
     expect(index.filter(isIndexable).map((r) => r.id)).toEqual([visible]);
     const row = index.find((r) => r.id === visible);

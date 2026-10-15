@@ -1,4 +1,4 @@
-import type { CreatorCard, InterpretResponse, LookupResponse, SearchFilters, SearchRequest } from "@mushin/contracts";
+import type { ContactAvailability, CreatorCard, CreatorProfile, InterpretResponse, LookupResponse, SearchFilters, SearchRequest } from "@mushin/contracts";
 import { ApiError } from "./http";
 import type { Creator } from "../components/dashboard/CreatorProfilePanel";
 import type { ContactTrust } from "../components/dashboard/states";
@@ -191,6 +191,7 @@ export function toCreator(c: CreatorCard): Creator {
     tags: c.tags,
     followersFreshness: c.followersFreshness,
     hasContact: c.hasContact,
+    contactAvailability: c.contactAvailability,
   };
 }
 
@@ -218,13 +219,41 @@ export function matchToCreator(m: LookupResponse["matches"][number]): Creator {
     tags: [],
     followersFreshness: "stale",
     hasContact: false,
+    contactAvailability: null, // unknown until the profile loads
   };
 }
 
-export function uiTrust(trust: string): ContactTrust {
-  if (trust === "verified") return "verified";
-  if (trust === "likely") return "contactable";
-  return "unverified";
+/** What a search card says about reaching the creator; a public address is never presented as working. */
+export const CONTACT_AVAILABILITY_TEXT: Record<ContactAvailability, { label: string; title: string }> = {
+  email_unverified: { label: "Email available · Unverified", title: "An email was found on the creator's public profile. Nothing proves yet that it works." },
+  email_verified: { label: "Email available · Verified", title: "There is delivery or confirmation evidence for this email." },
+  email_invalid: { label: "Email invalid", title: "A check showed that the email found cannot receive mail." },
+  phone_unverified: { label: "Phone available · Unverified", title: "Only a phone number was found on the public profile. Nothing proves yet that it works." },
+  none: { label: "No contact info", title: "No usable contact details have been found for this creator." },
+};
+
+/** The badge for one contact follows what has been established about it, not where it was found. */
+export function uiContactState(status: string): ContactTrust {
+  if (status === "verified") return "verified";
+  if (status === "invalid") return "invalid";
+  return "unverified"; // unverified, or domain checked: the inbox itself is still unproven
+}
+
+const SOURCE_TEXT: Record<string, string> = { business_field: "From the profile's business email field", bio: "Written in the creator's bio" };
+const INVALID_TEXT: Record<string, string> = {
+  no_such_domain: "the email's domain does not exist",
+  null_mx: "the domain says it accepts no email",
+  no_mail_host: "the domain has no mail server",
+  malformed_or_reserved: "it is not a valid address",
+};
+
+/** Where a contact came from, when it was seen and what a check established, in one line. */
+export function contactEvidenceText(k: Pick<CreatorProfile["contacts"][number], "source" | "lastSeenAt" | "status" | "checkedAt" | "checkDetail">, formatDate: (iso: string) => string): string {
+  const seen = `${SOURCE_TEXT[k.source] ?? "Found on the public profile"} · seen ${formatDate(k.lastSeenAt)}`;
+  if (k.status === "invalid") return `${seen}. Checked ${k.checkedAt ? formatDate(k.checkedAt) : ""}: ${INVALID_TEXT[k.checkDetail ?? ""] ?? "it cannot receive mail"}. Do not use.`;
+  if (k.status === "domain_ok") return `${seen}. Checked ${k.checkedAt ? formatDate(k.checkedAt) : ""}: the domain accepts email, but that does not prove this inbox exists.`;
+  if (k.status === "verified") return `${seen}. Verified.`;
+  return `${seen}. Not checked: nothing proves yet that it works.`;
 }
 
 /** Opens the profile panel for a creator known only by id (job results, add-by-link); the panel loads the rest. */

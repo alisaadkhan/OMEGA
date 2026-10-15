@@ -28,6 +28,7 @@ describe("search contracts", () => {
       profiles: [],
       summary: { status: "generating", text: null, model: null, generatedAt: null },
       contacts: [],
+      contactAvailability: "none",
       revealed: false,
       revealCost: 5,
       refreshCost: 10,

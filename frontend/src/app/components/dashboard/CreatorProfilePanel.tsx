@@ -1,12 +1,12 @@
 import { AnimatePresence, motion } from "motion/react";
 import { X, Instagram, Youtube, Music2, MapPin, Mail, Phone, Sparkles, ShieldCheck,  Plus, ExternalLink, RefreshCw, GitCompare } from "lucide-react";
 import { useEffect, useState } from "react";
-import { FreshnessBadge, ContactTrustBadge, contactTrustNote, Unavailable, Spinner } from "./states";
+import { FreshnessBadge, ContactTrustBadge, Unavailable, Spinner } from "./states";
 import { useActiveJobs, useStartJob } from "../../api/discovery";
 import { isOpenJob, jobStatusText } from "../../api/discovery-mapping";
 import { useCreatorProfile, useForgetReveal, useRevealContact } from "../../api/search";
 import { useAuth } from "../../auth/AuthContext";
-import { formatCount, uiTrust } from "../../api/search-mapping";
+import { CONTACT_AVAILABILITY_TEXT, contactEvidenceText, formatCount, uiContactState } from "../../api/search-mapping";
 import { useConfirm, useToast } from "../../lib/toast";
 import { AudienceEstimate } from "./AudienceEstimate";
 import { SaveToListMenu } from "./SaveToListMenu";
@@ -42,6 +42,8 @@ export type Creator = {
   tags: string[];
   followersFreshness: "current" | "aging" | "stale";
   hasContact: boolean;
+  /** null when not known yet (a creator opened from a link before its profile loads). */
+  contactAvailability: import("@mushin/contracts").ContactAvailability | null;
 };
 
 /** Human-readable creator size band (§8.1). */
@@ -337,17 +339,23 @@ export function CreatorProfilePanel({ creator, onClose, onCompare }: { creator: 
                             Contact details are hidden: this creator may be under 18. This protection can only be lifted by MUSHIN staff.
                           </p>
                         ) : !p.hasContacts ? (
-                          <p className="text-[11px] text-slate-500">No contact details on file yet.</p>
+                          <>
+                            <p className="text-[11px] text-slate-600" style={{ fontWeight: 500 }}>{CONTACT_AVAILABILITY_TEXT[p.contactAvailability].label}</p>
+                            {p.contacts.map((ch) => (
+                              <p key={ch.id} className="text-[10px] text-slate-500">{ch.masked} — {contactEvidenceText(ch, relative)}</p>
+                            ))}
+                          </>
                         ) : (
                           <>
+                            <p className="text-[11px] text-slate-600" style={{ fontWeight: 500 }}>{CONTACT_AVAILABILITY_TEXT[p.contactAvailability].label}</p>
                             {p.contacts.map((ch) => (
                               <div key={ch.id} className="rounded-md border border-slate-200 bg-white px-3 py-2">
                                 <div className="flex items-center gap-2">
                                   {ch.kind === "email" ? <Mail className="h-3.5 w-3.5 text-slate-500" /> : <Phone className="h-3.5 w-3.5 text-slate-500" />}
                                   <span className={`text-slate-900 ${ch.kind === "phone" ? "tabular-nums" : ""}`} style={{ fontWeight: 500 }}>{ch.value ?? ch.masked}</span>
-                                  <span className="ml-auto"><ContactTrustBadge state={uiTrust(ch.trust)} /></span>
+                                  <span className="ml-auto"><ContactTrustBadge state={uiContactState(ch.status)} /></span>
                                 </div>
-                                {ch.value && <p className="mt-1 text-[10px] text-slate-500">{contactTrustNote(uiTrust(ch.trust))}</p>}
+                                <p className="mt-1 text-[10px] text-slate-500">{contactEvidenceText(ch, relative)}</p>
                               </div>
                             ))}
                             {p.revealed && (user?.role === "owner" || user?.role === "admin") && (

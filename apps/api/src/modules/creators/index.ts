@@ -37,6 +37,8 @@ export { getSearchSettings } from "./repository";
 export { suppress, suppressedUrls, urlHash } from "./suppressions";
 export type { ProcessHooks } from "./enrichment/pipeline";
 export { createRemovalService } from "./erasure/service";
+export { createContactChecker, requestContactCheck, type ContactChecker } from "./contact-checks";
+export { checkEmail, isUsableEmail, systemMailResolver, type MailResolver } from "./email-check";
 export type { RemovalActor, RemovalService } from "./erasure/service";
 export { createEraser } from "./erasure/eraser";
 export type { Eraser } from "./erasure/eraser";

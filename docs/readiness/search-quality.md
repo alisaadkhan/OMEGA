@@ -159,15 +159,55 @@ overlap with کھانا = food), کاشتکاری and کھیتی باڑی (farmi
 
 | # | Defect | Fix | Evidence |
 |---|---|---|---|
-| P1 | Coverage had no denominator: raters saw only what MUSHIN returned, so "no relevant creator exists" could not be judged | Pooled candidates per query (Brain 1: catalogue documents matching any query term; Brain 2: recorded profiles the run found but did not deliver) | Brain 1 packet 277 rows (63 results, 214 pooled); Brain 2 207 rows (77 delivered, 130 pooled) |
+| P1 | Coverage had no denominator: raters saw only what MUSHIN returned, so "no relevant creator exists" could not be judged | Pooled candidates per query (Brain 1: catalogue documents matching any query term; Brain 2: recorded profiles the run found but did not deliver) | Brain 1 packet 277 rows (63 results, 214 pooled; 273 after E10); Brain 2 207 rows (77 delivered, 130 pooled) |
 | P2 | Sheets showed rank, so raters could favour top rows; ratings were paired by row order, so a sorted sheet would silently misalign | Blind order, `row_id` join, key file; a sheet with changed rows is refused | Self-test on a copy with synthetic ratings: reversed sheet joined correctly (31 seeded disagreements found), deleted row refused, adjudication produced the gate report |
 | P3 | Behaviour cases (Q024, Q025, Q027, Q029–Q032) were rated for relevance, and pooling them used junk words ("https", "admin") | Behaviour-only scenarios judged on the behaviour sheet only | 10 Q024 rows and 51 pool rows removed |
 | P4 | Brain 2 replay ignored the production multipliers (ran 1× unless told) | Harness starts from config defaults; env overrides | Default replay: 77 delivered, 1,790 credits (matches the study) |
-| P5 | Brain 2 delivered order came from the trail table without ORDER BY | Order by result rank, as the customer sees it | Same creators in every brief; 2 briefs still swap equal-fit creators between replays because ties break on creator UUID (stable within one real job) |
+| P5 | Brain 2 delivered order came from the trail table without ORDER BY | Order by result rank, as the customer sees it | Same creators in every brief; 2 briefs still swapped equal-fit creators (fixed by P6) |
+| P6 | Live results with equal fit were ordered by creator UUID, which replays and re-imports mint anew | Production tie-break by platform and handle, then id (`compareLiveCards`, live-order.test) | Two consecutive replays: identical order in 25 of 25 briefs (was 23), 77 delivered and 1,790 credits each, no duplicates |
 
 Brain 2 pool excludes candidates rejected as possible minors and hidden creators. A pooled Brain 2 profile rated 2 is a
 creator the pipeline missed or wrongly rejected. **Retention:** both packets contain YouTube API data recorded
 2026-10-13; ratings must be finished, and the YouTube rows deleted, by 2026-11-12.
+
+## Search iteration 2026-10-15 (no spend; same corpus and recordings)
+
+| # | Finding | Stage | Hypothesis | Change | Before → after |
+|---|---|---|---|---|---|
+| E10 | Q035 "پاکستان میں اردو ادب کے تخلیق کار" required the word پاکستان, while English "Pakistani" is dropped as a market word | Query understanding | Country words were listed only in Latin script | پاکستان and پاکستانی treated like Pakistan/Pakistani (understand.test) | Q035 required groups 3 → 2; still 0 results (no literature creator in the corpus) |
+| E11 | Multi-word forms ("skin care", "home cooking", "اسلام آباد") matched their words anywhere in the text | Retrieval | `plainto_tsquery` ANDs the words; a phrase needs `phraseto_tsquery` | Forms matched as phrases (catalog-aliases.int: "hair care … glowing skin" no longer matches "skin care") | On the panel corpus only "home cooking" differed (5 → 2 documents, the 3 others still match "cooking"): 35 of 35 panel results unchanged |
+| E12 | Is anything still empty because of the pipeline? | All | Every empty query was re-diagnosed with the stage tool | None changed | 20 empty: 13 have no document matching every required term (data gap), 7 are refusals or behaviour cases. Q010 "book reviewers" returns a bridal shop ("Book your appointment"): a word-sense ambiguity left for the raters, not tuned away |
+
+Determinism: two Brain 1 runs and the packet run return identical result lists for 35 of 35 queries, with no duplicate
+creators. Latency on this machine today: p50 62–81 ms, p95 126–147 ms; the previous commit measured on the same machine
+at the same time was slower (p50 114–137, p95 175–237), so the change from the 2026-10-14 figure (p95 58 ms) is the
+environment, not the code. Packets regenerated from the current code: Brain 1 273 rows (63 results, 210 pooled), Brain 2
+207 rows (77 delivered, 130 pooled), from the deterministic replay `b2-det-1`.
+
+Brain 2's five empty briefs (replay `b2-det-1`): tt-streetfood-khi-roman and tt-education-urdu, every extracted profile
+was never recorded (replay limit; a live run is needed); ig-skincare-micro-khi, pool below the spec minimum because the
+links found were mostly posts about other people (resolving posts to their creators is off until the owner's terms
+review); yt-roman-tech and yt-finance-urdu, every candidate rejected on its own evidence (location, inactivity,
+relevance). Whether those rejections were right is exactly what the pooled Brain 2 rows let the raters judge.
+
+## Contact availability (2026-10-15)
+
+Search cards, the profile and the comparison view show one state per creator, derived from stored contacts' kind and
+status only (never their values, so it reveals nothing): "Email available · Unverified", "Email available · Verified"
+(nothing sets it yet), "Email invalid", "Phone available · Unverified" or "No contact info". Each contact on the profile
+shows where it was found (business email field or bio), when it was last seen and what a check established.
+- Extraction keeps only usable addresses: malformed strings, reserved example domains and file names ("logo@2x.png")
+  are dropped; nothing is inferred from a handle or name.
+- `trust` stays the source only. Business-field emails were labelled "Contactable: technical checks passed" though no
+  check had run; the badge now follows the verification status.
+- The check runs when a workspace that revealed the contacts first logs email outreach to the creator in a campaign
+  (`outreach.contact_check_requested`, worker): format, domain existence, MX or address record, null MX. Results:
+  domain_ok (still shown as unverified: it does not prove the inbox exists), invalid (with the reason), or check_failed
+  (DNS trouble; the address stays unchecked and is tried again). Every attempt is kept in `gcp.contact_checks` with the
+  requesting workspace; checks are erased with the contacts. No message is ever sent, and the outreach log claims
+  nothing about sending or delivery.
+- An invalid address drops out of the "has contact" filter, and a reveal of only invalid addresses is refused (no
+  charge). Tests: email-check.test, minors-links.test, contact-availability.int (6), search-mapping.test, E2E checks.
 
 ## Brain 2 (Live Discovery) on recorded provider responses (REPLAY, 2026-10-14, no spend)
 

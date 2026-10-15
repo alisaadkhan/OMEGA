@@ -37,13 +37,21 @@ ratings.
 |---|---|---|---|
 | 1 | Approve cooking, skincare, literature, agriculture with verified Urdu forms; test coverage, not ranking rules | Done: vocabulary only (no ranking weight, not sent to Live Discovery); every form tested. Urdu spellings checked against standard orthography; the corpus confirms only ریسپی, so a native-speaker check is still advisable | aliases.test; search-quality.md "Concept vocabulary" |
 | 2 | LLM hard cap USD 5 for the pilot, warning at 80%; no paid calls | Already enforced: default 5, warning at 80% once a month, 0 blocks all calls, production must set the cap explicitly. No paid calls made | budget.test, config.test |
-| 3 | Two-rater evaluation and adjudication first; no acceptance claim without the criteria | Blind packets ready (Brain 1: 277 rows, Brain 2: 207 rows, with pooled candidates so coverage is measurable), behaviour sheets, rater instructions, adjudication and gate report. No ratings yet | search-quality.md "Evaluation protocol log" |
+| 3 | Two-rater evaluation and adjudication first; no acceptance claim without the criteria | Blind packets ready (Brain 1: 273 rows, Brain 2: 207 rows, with pooled candidates so coverage is measurable), behaviour sheets, rater instructions, adjudication and gate report. No ratings yet | search-quality.md "Evaluation protocol log" |
 | 4 | Investigate intermittent API test failures; rerun verify and 3 E2E | The 3 skeleton-test failures (2026-10-14) did not recur: 3 targeted and 2 full runs under heavy CPU load passed (first app build 0.4–0.8 s against a 5 s limit); their error text was lost because the output was filtered, so full verify logs are now kept. Found and fixed a real cross-run defect: `search.int` restored a default price of 0 into the shared price table when its setup failed (Meilisearch down), failing 6 billing and pricing tests in the next run. It now captures prices first (`pinActionCosts`); a deliberately failed setup leaves the price at 50. Verify: 732 passed, 7 skipped; 3 consecutive E2E runs 73/73 each (final1015-1..3) | search.int; verify log; E2E results |
 | 5 | Supabase migration once Docker/WSL exists; keep current implementation until parity | Blocked: WSL and Docker still not installed (checked 2026-10-15) | — |
 | 6 | Supabase Auth as target identity; keep the hardware-key requirement for privileged staff actions | Recorded. Hardware-key (WebAuthn) step-up not built; TOTP-only admins stay refused | ops.int |
 | 7 | Removal requests under owner review; auditable process | Done: `npm run removal-review` (list, approve, reject) for the owner, same audit actions as the console plus channel, operator and reason; approval needs --confirm. Creators are hidden from customers as soon as a request arrives | erasure.int |
 | 8 | YouTube-derived metrics off; policy review before keeping disputed identifiers or enabling scores | Unchanged and in force (0029, 0031); legal review outstanding | source-policy.int |
 | 9 | TikTok price and multipliers provisional; no paid pilot | Unchanged; replay harness now uses the production multipliers by default | search-quality.md P4 |
+
+## Search phase 2026-10-15 (finish Search, contact availability): evidence
+
+- Code and pipeline tests: verify 751 passed, 7 skipped (live-provider tests); frontend build passes; 3 consecutive E2E
+  journeys 75/75 each (search1015-1..3), including the two new contact-availability checks.
+- Replay (recorded responses, not live): Brain 2 77 delivered over 25 briefs, 1,790 credits, deterministic order.
+- Human-validated Search quality: **pending** (no ratings). Search is not accepted.
+- Details: search-quality.md "Search iteration 2026-10-15" and "Contact availability".
 
 ## Search: baseline versus now
 
@@ -55,7 +63,8 @@ ratings.
 | Brain 2 delivered (25 recorded briefs, size 5) | 51 | 77 | Replay, Instagram 2× / YouTube 3× |
 | Brain 2 empty briefs | 8 | 5 | Replay; 2 are replay misses (TikTok), 1 is an insufficient pool, 2 are spec-rule rejections |
 | Brain 2 settlement | exact | exact | No credits left reserved, no pending trail rows |
-| Precision@5, nDCG@10, coverage | not measured | not measured | Needs two raters (blind packets: 277 Brain 1 and 207 Brain 2 rows) |
+| Brain 1 / Brain 2 determinism | — | identical results on repeated runs (35/35 queries, 25/25 briefs), no duplicates | search-quality.md E12, P6 |
+| Precision@5, nDCG@10, coverage | not measured | not measured | Needs two raters (blind packets: 273 Brain 1 and 207 Brain 2 rows) |
 
 ## YouTube retention: what is kept and why (decision 8)
 
@@ -84,7 +93,7 @@ inside the 30-day window. Whether that is itself a "derived metric" under III.E.
 | Item | Blocker | Unblock |
 |---|---|---|
 | Supabase target and its E2E | Docker/WSL not installed | Run `wsl --install` as admin, reboot, install Docker Desktop |
-| Search acceptance numbers | No human ratings | Two raters fill the blind packets (`brain1-rater-A/B.csv` 277 rows, `brain2-rater-A/B.csv` 207 rows, plus the behaviour sheets); a third person adjudicates. The packets hold YouTube API data: finish and delete by 2026-11-12 |
+| Search acceptance numbers | No human ratings | Two raters fill the blind packets (`brain1-rater-A/B.csv` 273 rows, `brain2-rater-A/B.csv` 207 rows, plus the behaviour sheets); a third person adjudicates. The packets hold YouTube API data: finish and delete by 2026-11-12 |
 | Live-provider quality, TikTok yield, real costs | No paid-test authorisation | Owner authorises a capped pilot (amount, providers) |
 | Paddle, Resend, real Supabase Auth | Vendor accounts | Owner provides sandbox accounts |
 | Admin console actions (removal review, provider usage, audit) | No WebAuthn hardware-key step-up | Build WebAuthn step-up for staff (fits Supabase Auth as identity). Meanwhile the owner decides removal requests with `npm run removal-review` |

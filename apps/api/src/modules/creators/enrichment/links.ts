@@ -1,3 +1,4 @@
+import { isUsableEmail } from "../email-check";
 import { normalizeProfileUrl } from "../rules";
 import type { StandardProfile } from "./standardize";
 
@@ -18,7 +19,11 @@ const normPhone = (v: string): string | null => {
   return digits.startsWith("+") ? digits : `+${n}`;
 };
 
-/** Business-contact fields are set by the account owner (likely); contacts typed in a bio are unverified (spec §5.6). */
+/**
+ * Business-contact fields are set by the account owner (likely); contacts typed in a bio are unverified (spec §5.6).
+ * `trust` records the source only: neither is evidence that the address works. Emails that are malformed, reserved or
+ * file names ("logo@2x.png") are not contacts and are dropped; nothing is ever inferred from a handle or name.
+ */
 export function extractContacts(p: StandardProfile): ExtractedContact[] {
   const out: ExtractedContact[] = [];
   const seen = new Set<string>();
@@ -28,10 +33,10 @@ export function extractContacts(p: StandardProfile): ExtractedContact[] {
     seen.add(key);
     out.push(c);
   };
-  if (p.businessEmail) add({ kind: "email", value: p.businessEmail.toLowerCase(), trust: "likely", source: "business_field" });
+  if (p.businessEmail && isUsableEmail(p.businessEmail)) add({ kind: "email", value: p.businessEmail.toLowerCase(), trust: "likely", source: "business_field" });
   const bizPhone = p.businessPhone ? normPhone(p.businessPhone) : null;
   if (bizPhone) add({ kind: "phone", value: bizPhone, trust: "likely", source: "business_field" });
-  for (const m of p.bio.match(EMAIL_RE) ?? []) add({ kind: "email", value: m.toLowerCase(), trust: "unverified", source: "bio" });
+  for (const m of (p.bio.match(EMAIL_RE) ?? []).filter(isUsableEmail)) add({ kind: "email", value: m.toLowerCase(), trust: "unverified", source: "bio" });
   for (const m of p.bio.match(PHONE_RE) ?? []) {
     const phone = normPhone(m);
     if (phone) add({ kind: "phone", value: phone, trust: "unverified", source: "bio" });

@@ -61,6 +61,8 @@ describe("contacts", () => {
       { kind: "phone", value: "+923217654321", trust: "unverified", source: "bio" },
     ]);
     expect(extractContacts(base({ bio: "Followers 1,234,567 and 2024 goals" }))).toEqual([]);
+    // Not addresses at all: an image file name, a reserved example domain, a malformed string. Never stored or shown.
+    expect(extractContacts(base({ bio: "Banner logo@2x.png · demo me@example.com · bad a..b@gmail.com" }))).toEqual([]);
   });
 });
 

@@ -1,4 +1,4 @@
-import type { CreatorCard, InterpretResponse, SearchFilters } from "@mushin/contracts";
+import type { ContactAvailability, CreatorCard, InterpretResponse, SearchFilters } from "@mushin/contracts";
 import { sha256Hex } from "@mushin/core";
 import { CITY_CONCEPTS, cityForms } from "./aliases";
 
@@ -178,6 +178,20 @@ export function fenced(tag: string, text: string): string {
   const safe = text.replace(/[<>]/g, (c) => (c === "<" ? "‹" : "›"));
   return `<${tag}>\n${safe}\n</${tag}>`;
 }
+
+/**
+ * One honest contact state for cards and profiles, from the kinds and statuses of the stored contacts only (no values,
+ * so it reveals nothing). A working-looking email wins over a phone; "invalid" is shown only when every email was shown
+ * not to work and there is no phone; a public address is never treated as verified.
+ */
+export function contactAvailability(contacts: readonly { kind: "email" | "phone"; status: string }[]): ContactAvailability {
+  const emails = contacts.filter((k) => k.kind === "email");
+  if (emails.some((k) => k.status === "verified")) return "email_verified";
+  if (emails.some((k) => k.status !== "invalid")) return "email_unverified";
+  if (contacts.some((k) => k.kind === "phone" && k.status !== "invalid")) return "phone_unverified";
+  return emails.length > 0 ? "email_invalid" : "none";
+}
+export const isContactable = (a: ContactAvailability): boolean => a !== "none" && a !== "email_invalid";
 
 export function maskContact(kind: "email" | "phone", value: string): string {
   if (kind === "email") {

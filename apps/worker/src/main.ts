@@ -4,13 +4,13 @@ import { createDatabase, createDbProviderCallSink, providerCallsSince, providerS
 import { createBudgetGuard, createYouTubeAudienceSource, createLlm, createObjectStorage, createPayments, createProfileScraper, createSearchIndex, createSearchLimitGuard, createSerperSearch, createYouTubeSearch } from "@mushin/integrations";
 import { createAudienceRunner } from "../../api/src/modules/audience/index";
 import { createBillingService, createRedisAccessCache, noAccessCache } from "../../api/src/modules/billing/index";
-import { createCreatorIndexer, createEnrichmentPipeline, createEraser, createSummaryWriter, getEnrichmentSettings, expireYoutubeApiData } from "../../api/src/modules/creators/index";
+import { createContactChecker, createCreatorIndexer, createEnrichmentPipeline, createEraser, createSummaryWriter, getEnrichmentSettings, expireYoutubeApiData, systemMailResolver } from "../../api/src/modules/creators/index";
 import { createCachedSearch, createDiscoveryRunner, createLiveRunner } from "../../api/src/modules/discovery/index";
 import { audienceHandlers } from "./audience-handlers";
 import { billingHandlers, notifyHandlers } from "./billing-handlers";
 import { creatorHandlers } from "./creator-handlers";
 import { discoveryHandlers } from "./discovery-handlers";
-import { erasureHandlers } from "./erasure-handlers";
+import { contactCheckHandlers, erasureHandlers } from "./erasure-handlers";
 import { startBoss } from "./boss";
 import { defaultHandlers } from "./handlers";
 import { startWorker } from "./worker";
@@ -65,6 +65,7 @@ const audienceRunner = createAudienceRunner({
 });
 if (config.audienceSources.length === 0) logger.info("AUDIENCE_SOURCES not set: audience estimates are off");
 const eraser = createEraser({ db, storage: pipeline.storage, logger });
+const contactChecker = createContactChecker({ db, encryptionKey: config.dataEncryptionKey, resolver: systemMailResolver(), logger });
 // PostgreSQL search is the default. When configured, Meilisearch is dual-written for rollback during the cutover.
 await indexer.ensureSettings().catch((err: unknown) => logger.error({ err }, "could not apply rollback search index settings"));
 // A newly enabled, emptied or restored Meilisearch would otherwise answer "no creators" until the nightly reconcile:
@@ -78,7 +79,7 @@ const worker = await startWorker({
   db,
   boss,
   logger,
-  handlers: { ...defaultHandlers(db), ...billingHandlers(billing), ...notifyHandlers(), ...creatorHandlers({ indexer, summaries, expireYoutube: () => expireYoutubeApiData(db, pipeline.storage ? { storage: pipeline.storage } : {}) }), ...discoveryHandlers({ runner, liveRunner, searchCache, pipeline }), ...erasureHandlers({ eraser }), ...audienceHandlers({ runner: audienceRunner }) },
+  handlers: { ...defaultHandlers(db), ...billingHandlers(billing), ...notifyHandlers(), ...creatorHandlers({ indexer, summaries, expireYoutube: () => expireYoutubeApiData(db, pipeline.storage ? { storage: pipeline.storage } : {}) }), ...discoveryHandlers({ runner, liveRunner, searchCache, pipeline }), ...erasureHandlers({ eraser }), ...contactCheckHandlers({ checker: contactChecker }), ...audienceHandlers({ runner: audienceRunner }) },
 });
 logger.info("worker started");
 

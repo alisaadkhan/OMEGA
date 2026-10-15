@@ -2,6 +2,16 @@ import { z } from "zod";
 
 export const creatorPlatformSchema = z.enum(["instagram", "tiktok", "youtube"]);
 export const freshnessSchema = z.enum(["current", "aging", "stale"]);
+/**
+ * What is known about reaching a creator, without revealing anything (2026-10-15). email_unverified: an address was
+ * found on the public profile but nothing proves it works ("Email available · Unverified"); email_verified: real
+ * delivery or confirmation evidence (nothing sets it yet); email_invalid: every email found was shown not to work and
+ * no other contact exists; phone_unverified: only a phone number; none: "No contact info".
+ */
+export const contactAvailabilitySchema = z.enum(["email_unverified", "email_verified", "email_invalid", "phone_unverified", "none"]);
+export type ContactAvailability = z.output<typeof contactAvailabilitySchema>;
+/** unverified: not checked; domain_ok: format and domain mail servers check out, the inbox is still unproven. */
+export const contactStatusSchema = z.enum(["unverified", "domain_ok", "invalid", "verified"]);
 export const fitLabelSchema = z.enum(["Best match", "Strong match", "Possible match", "Needs review"]);
 const iso = z.iso.datetime();
 const country = z.string().regex(/^[A-Z]{2}$/, "must be a 2-letter ISO country code");
@@ -60,6 +70,7 @@ export const creatorCardSchema = z.object({
   authenticityScore: z.number().int().nullable(),
   fakeFollowerPct: z.number().nullable(),
   hasContact: z.boolean(),
+  contactAvailability: contactAvailabilitySchema,
   followersFreshness: freshnessSchema,
   fitScore: z.number().int().min(0).max(100),
   fitLabel: fitLabelSchema,
@@ -167,7 +178,12 @@ export const creatorProfileSchema = z.object({
     /** Not computed for this source until its policy allows it (DATA-004: YouTube API data). */
     z.object({ status: z.literal("restricted"), reason: z.literal("youtube_api_policy") }),
   ]),
-  contacts: z.array(z.object({ id: z.uuid(), kind: z.enum(["email", "phone"]), masked: z.string(), trust: z.string(), value: z.string().nullable() })),
+  contacts: z.array(z.object({
+    id: z.uuid(), kind: z.enum(["email", "phone"]), masked: z.string(), trust: z.string(), value: z.string().nullable(),
+    /** Where it was found and when, and what has been established about it (with the latest check's outcome). */
+    source: z.string(), firstSeenAt: iso, lastSeenAt: iso, status: contactStatusSchema, checkedAt: iso.nullable(), checkDetail: z.string().nullable(),
+  })),
+  contactAvailability: contactAvailabilitySchema,
   revealed: z.boolean(),
   revealCost: z.number().int(),
   refreshCost: z.number().int(),

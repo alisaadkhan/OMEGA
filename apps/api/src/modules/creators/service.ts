@@ -18,7 +18,7 @@ import type { CatalogSearch } from "./postgres-search";
 import type { BillingService } from "../billing/index";
 import { interpretOutputSchema, interpretSystemPrompt } from "./prompts";
 import * as repo from "./repository";
-import { cleanInterpretation, fenced, freshnessOf, isMinorProtected, meiliFilter, normalizeProfileUrl, refreshActionFor, sourceHash } from "./rules";
+import { cleanInterpretation, contactAvailability, fenced, freshnessOf, isContactable, isMinorProtected, meiliFilter, normalizeProfileUrl, refreshActionFor, sourceHash } from "./rules";
 import { toCards } from "./ranking";
 import { suppressedUrls } from "./suppressions";
 import { chargeCatalogSearch } from "./search-charge";
@@ -292,7 +292,11 @@ export function createCreatorsService(deps: CreatorsDeps) {
               : c.assessmentStatus === "insufficient_data"
                 ? { status: "insufficient_data" as const }
                 : { status: "not_assessed" as const },
-        contacts: contacts.map((k) => ({ id: k.id, kind: k.kind, masked: k.masked, trust: k.trust, value: values.get(k.id) ?? null })),
+        contacts: contacts.map((k) => ({
+          id: k.id, kind: k.kind, masked: k.masked, trust: k.trust, value: values.get(k.id) ?? null, source: k.source,
+          firstSeenAt: k.firstSeenAt.toISOString(), lastSeenAt: k.lastSeenAt.toISOString(), status: k.status, checkedAt: iso(k.checkedAt), checkDetail: k.checkDetail,
+        })),
+        contactAvailability: contactAvailability(contacts),
         revealed,
         revealCost,
         refreshCost: refreshCost[refreshActionFor(c.primaryPlatform)],
@@ -300,7 +304,8 @@ export function createCreatorsService(deps: CreatorsDeps) {
         linkedAccounts: links,
         lastScrapedAt: iso(primary?.lastScrapedAt ?? null),
         minorProtected: isMinorProtected(c),
-        hasContacts: contacts.length > 0,
+        // Something worth revealing: not only addresses shown not to work.
+        hasContacts: isContactable(contactAvailability(contacts)),
         mergedInto: c.mergedIntoId,
       };
     });
@@ -312,7 +317,7 @@ export function createCreatorsService(deps: CreatorsDeps) {
       const c = await repo.getCreator(tx, id);
       if (!c || c.status !== "active") throw new AppError("NOT_FOUND", "Creator not found");
       if (isMinorProtected(c)) throw new AppError("FORBIDDEN", "Contact details of possible minors cannot be revealed.", { reason: "minor_protected" });
-      if ((await repo.contactSummaries(tx, id)).length === 0) {
+      if (!isContactable(contactAvailability(await repo.contactSummaries(tx, id)))) {
         throw new AppError("CONFLICT", "We have no contact details for this creator yet.", { reason: "no_contacts" });
       }
       // The reveal row comes first: a simultaneous duplicate waits on its key and then finds it, so only one request pays.

@@ -1,7 +1,7 @@
 import type { CreatorCard, SearchFilters } from "@mushin/contracts";
 import type { SystemTx, TenantTx } from "@mushin/db";
 import * as repo from "./repository";
-import { fitLabel, fitScore, freshnessOf } from "./rules";
+import { contactAvailability, fitLabel, fitScore, freshnessOf, isContactable } from "./rules";
 import { DEFAULT_SOURCE_POLICY, restrictsDerived, type SourcePolicy } from "./source-policy";
 
 type Tx = TenantTx | SystemTx;
@@ -52,7 +52,8 @@ export function toCards(rows: repo.CardRow[], req: { text: string; filters: Sear
         engagementRate,
         authenticityScore,
         fakeFollowerPct: restricted ? null : r.fakeFollowerPct,
-        hasContact: r.hasContact,
+        hasContact: isContactable(contactAvailability(r.contactStates)),
+        contactAvailability: contactAvailability(r.contactStates),
         followersFreshness,
         fitScore: score,
         fitLabel: fitLabel(score, settings.labels),

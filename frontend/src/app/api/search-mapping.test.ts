@@ -13,7 +13,9 @@ import {
   shouldRetrySearch,
   toCreator,
   toFilters,
-  uiTrust,
+  contactEvidenceText,
+  CONTACT_AVAILABILITY_TEXT,
+  uiContactState,
   withoutExtra,
   type UiFilters,
 } from "./search-mapping";
@@ -138,6 +140,7 @@ describe("search mapping", () => {
       authenticityScore: null,
       fakeFollowerPct: null,
       hasContact: true,
+      contactAvailability: "email_unverified",
       followersFreshness: "current",
       fitScore: 84,
       fitLabel: "Best match",
@@ -149,6 +152,18 @@ describe("search mapping", () => {
 
   it("formats counts and contact trust", () => {
     expect([formatCount(950), formatCount(18_400), formatCount(412_000), formatCount(1_200_000), formatCount(24_000_000)]).toEqual(["950", "18.4K", "412K", "1.2M", "24M"]);
-    expect([uiTrust("verified"), uiTrust("likely"), uiTrust("unverified")]).toEqual(["verified", "contactable", "unverified"]);
+    // The source ("likely" business field) never makes an address look checked; only its status does.
+    expect([uiContactState("verified"), uiContactState("domain_ok"), uiContactState("unverified"), uiContactState("invalid")]).toEqual(["verified", "unverified", "unverified", "invalid"]);
+  });
+
+  it("states contact availability honestly", () => {
+    expect(CONTACT_AVAILABILITY_TEXT.email_unverified.label).toBe("Email available · Unverified");
+    expect(CONTACT_AVAILABILITY_TEXT.none.label).toBe("No contact info");
+    expect(CONTACT_AVAILABILITY_TEXT.email_invalid.label).toBe("Email invalid");
+    const d = (iso: string) => iso.slice(0, 10);
+    const k = { source: "business_field", lastSeenAt: "2026-10-12T00:00:00.000Z", status: "unverified" as const, checkedAt: null, checkDetail: null };
+    expect(contactEvidenceText(k, d)).toBe("From the profile's business email field · seen 2026-10-12. Not checked: nothing proves yet that it works.");
+    expect(contactEvidenceText({ ...k, status: "domain_ok", checkedAt: "2026-10-15T00:00:00.000Z", checkDetail: "mx_found" }, d)).toContain("does not prove this inbox exists");
+    expect(contactEvidenceText({ ...k, source: "bio", status: "invalid", checkedAt: "2026-10-15T00:00:00.000Z", checkDetail: "no_such_domain" }, d)).toBe("Written in the creator's bio · seen 2026-10-12. Checked 2026-10-15: the email's domain does not exist. Do not use.");
   });
 });

@@ -19,6 +19,7 @@ const cardFor = (id: string): CreatorCard => ({
   authenticityScore: null,
   fakeFollowerPct: null,
   hasContact: false,
+  contactAvailability: "none",
   followersFreshness: "current",
   fitScore: 50,
   fitLabel: "Possible match",

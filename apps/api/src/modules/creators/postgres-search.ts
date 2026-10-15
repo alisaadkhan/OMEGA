@@ -33,7 +33,9 @@ export function createPostgresCatalogSearch(db: Db): CatalogSearch {
     // Recognised niche and city words (English, Roman Urdu, Urdu script, city short forms) match any of their reviewed
     // forms; a city also matches the creator's own declared city. Without a recognised word the query is unchanged.
     const groups = expandQuery(text);
-    const anyForm = (g: QueryGroup) => sql.join(g.forms.map((form) => sql`plainto_tsquery('simple', ${form})`), sql` || `);
+    // A multi-word form ("skin care", "home cooking", "اسلام آباد") must appear as that phrase, not as its words
+    // anywhere in the text; single-word forms match exactly as before.
+    const anyForm = (g: QueryGroup) => sql.join(g.forms.map((form) => sql`phraseto_tsquery('simple', ${form})`), sql` || `);
     const tsq = groups ? sql.join(groups.map((g) => sql`(${anyForm(g)})`), sql` && `) : sql`websearch_to_tsquery('simple', ${text})`;
     const wordMatch = groups
       ? sql.join(

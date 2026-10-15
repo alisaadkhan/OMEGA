@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { X, ArrowUpRight, Info } from "lucide-react";
 import type { Creator } from "./CreatorProfilePanel";
 import { FreshnessBadge } from "./states";
+import { CONTACT_AVAILABILITY_TEXT } from "../../api/search-mapping";
 
 /**
  * Compare creators — spec §9.
@@ -144,7 +145,7 @@ export function Compare({
                     <td className="px-6 py-2.5 text-xs text-slate-500" style={{ fontWeight: 500 }}>Contact</td>
                     {list.map((c) => (
                       <td key={c.id} className="border-l border-slate-100 px-4 py-2.5 text-xs text-slate-700">
-                        {c.hasContact ? "On file" : "—"}
+                        {c.contactAvailability ? CONTACT_AVAILABILITY_TEXT[c.contactAvailability].label : c.hasContact ? "On file" : "—"}
                       </td>
                     ))}
                   </tr>

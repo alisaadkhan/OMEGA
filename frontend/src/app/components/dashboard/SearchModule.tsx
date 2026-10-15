@@ -26,6 +26,8 @@ import {
   Wand2,
   Check,
   Mail,
+  Phone,
+  Ban,
   Clock,
 } from "lucide-react";
 import { CreatorProfilePanel, type Creator } from "./CreatorProfilePanel";
@@ -39,6 +41,7 @@ import {
   fromChips,
   pageCount,
   applySuggestion,
+  CONTACT_AVAILABILITY_TEXT,
   requestFor,
   sameRequest,
   searchErrorMessage,
@@ -887,7 +890,9 @@ function CreatorCard({
   onSelect: () => void;
   onOpen: () => void;
 }) {
-  const hasContact = creator.hasContact;
+  const contact = creator.contactAvailability ?? (creator.hasContact ? "email_unverified" : "none");
+  const contactText = CONTACT_AVAILABILITY_TEXT[contact];
+  const ContactIcon = contact === "email_invalid" ? Ban : contact === "phone_unverified" ? Phone : contact === "none" ? Clock : Mail;
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -966,15 +971,17 @@ function CreatorCard({
         <FreshnessBadge value={creator.followersFreshness} />
         <span
           className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] ${
-            hasContact
-              ? "border-sky-100 bg-sky-50 text-sky-700"
-              : "border-slate-200 bg-slate-50 text-slate-600"
+            contact === "email_invalid"
+              ? "border-rose-100 bg-rose-50 text-rose-700"
+              : contact === "none"
+                ? "border-slate-200 bg-slate-50 text-slate-600"
+                : "border-sky-100 bg-sky-50 text-sky-700"
           }`}
           style={{ fontWeight: 500 }}
-          title={hasContact ? "A contact channel is on file — trust shown on the profile" : "No usable contact on file yet"}
+          title={contactText.title}
         >
-          {hasContact ? <Mail className="h-3 w-3" strokeWidth={2} /> : <Clock className="h-3 w-3" strokeWidth={2} />}
-          {hasContact ? "Contact on file" : "No contact yet"}
+          <ContactIcon className="h-3 w-3" strokeWidth={2} />
+          {contactText.label}
         </span>
       </div>
 

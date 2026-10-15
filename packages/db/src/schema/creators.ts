@@ -83,6 +83,22 @@ export const creatorContacts = gcp.table("creator_contacts", {
   firstSeenAt: ts("first_seen_at").notNull().defaultNow(),
   lastSeenAt: ts("last_seen_at").notNull().defaultNow(),
   lastVerifiedAt: ts("last_verified_at"),
+  /** What has been established about the contact (migration 0032); `trust` says where it came from. */
+  status: text("status", { enum: ["unverified", "domain_ok", "invalid", "verified"] }).notNull().default("unverified"),
+  checkedAt: ts("checked_at"),
+  checkDetail: text("check_detail"),
+});
+
+/** Evidence of every contact check (migration 0032); deleted with the contact. */
+export const contactChecks = gcp.table("contact_checks", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  contactId: uuid("contact_id").notNull(),
+  creatorId: uuid("creator_id").notNull(),
+  requestedByWorkspaceId: uuid("requested_by_workspace_id"),
+  method: text("method", { enum: ["format_domain_mx"] }).notNull(),
+  result: text("result", { enum: ["domain_ok", "invalid", "check_failed"] }).notNull(),
+  detail: text("detail").notNull(),
+  checkedAt: ts("checked_at").notNull().defaultNow(),
 });
 
 export const enrichmentSnapshots = gcp.table("enrichment_snapshots", {

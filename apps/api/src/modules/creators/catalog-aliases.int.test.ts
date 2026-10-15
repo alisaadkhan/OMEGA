@@ -91,6 +91,14 @@ describe("catalogue search aliases (PostgreSQL)", () => {
     expect(await names("Karachi ke food vloggers")).toEqual(["Zulekha"]);
   });
 
+  it("matches a multi-word form only as that phrase, not as its words anywhere in the text", async () => {
+    const routine = await addCreator(db, { displayName: "Routine Rida", niches: [], city: null, profiles: [{ bio: "My skin care routine" }] });
+    const apart = await addCreator(db, { displayName: "Hair Hina", niches: [], city: null, profiles: [{ bio: "Hair care tips and glowing skin" }] });
+    const docs = (await db.withSystem((tx) => repo.indexRows(tx, [routine, apart]))).filter(isIndexable).map(toDocument);
+    await db.withSystem((tx) => repo.upsertPostgresSearchDocuments(tx, docs));
+    expect(await names("skin care")).toEqual(["Routine Rida"]);
+  });
+
   it("finds a misspelt city and leaves out exclusion clauses (panel Q007, Q023)", async () => {
     expect(await names("Islamabadd tech")).toEqual(["Tariq Reviews"]);
     expect(await names("Creators in Lahore only; do not show creators outside Lahore")).toEqual(["Ali Eats", "Kashif Bites"]);

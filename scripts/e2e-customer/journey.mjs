@@ -197,6 +197,8 @@ if (phase === "main") {
   const apiFood = (await apiSearch("owner", "food")).json;
   check("search", "text search shows exactly the API's creators", apiFood.total > 0 && apiFood.results.every((r) => handles(t).includes(`@${r.handle}`)), `API ${apiFood.total}, UI ${handles(t).length}`);
   check("search", "AI reading unavailable does not block search (INT-002)", apiFood.total > 0);
+  const LABELS = { email_unverified: "Email available · Unverified", email_verified: "Email available · Verified", email_invalid: "Email invalid", phone_unverified: "Phone available · Unverified", none: "No contact info" };
+  check("search", "every card states contact availability from the API, never a value or an unproven claim", apiFood.results.every((r) => r.contactAvailability in LABELS && t.includes(LABELS[r.contactAvailability])) && !/Contact on file|Contactable/.test(t) && !/[a-z0-9._%+-]+@[a-z0-9-]+[.][a-z]{2,}/i.test(t), [...new Set(apiFood.results.map((r) => r.contactAvailability))].join(", "));
   // The next page (by cursor) when there is one, otherwise the same search again: neither is a new paid search.
   const page2 = (await apiSearch("owner", "food", {}, apiFood.nextCursor)).json;
   check("pricing", "search button shows the server price; a search is charged once; repeat and next page are free", priceShown && nothingOnOpen && spentOnce && apiFood.charged === false && page2.charged === false && searchSpends(ws) === spendsBefore + 1, `spends ${spendsBefore}→${searchSpends(ws)}; api charged ${apiFood.charged}/${page2.charged}`);
@@ -215,6 +217,7 @@ if (phase === "main") {
   const rw = (await apiSearch("owner", "realwowboy")).json.results[0];
   const prof = (await api("owner", "GET", `/v1/creators/${rw.id}`)).json;
   check("profile", "profile shows the stored creator, no contact values", (await panel.innerText()).includes(prof.displayName) && prof.contacts.every((c) => c.value === null));
+  check("profile", "profile states contact availability and each contact source and check state", (await panel.innerText()).includes(LABELS[prof.contactAvailability]) && prof.contacts.every((c) => c.source && c.firstSeenAt && c.status), prof.contactAvailability);
   await shot(p, "03-profile");
 
   // ── 4. Lists ──

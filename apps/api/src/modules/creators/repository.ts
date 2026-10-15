@@ -71,7 +71,8 @@ export type CardRow = {
   followers: number | null;
   engagementRate: number | null;
   followersUpdatedAt: Date | null;
-  hasContact: boolean;
+  /** Kind and status of each stored contact (never the value). */
+  contactStates: { kind: "email" | "phone"; status: string }[];
 };
 
 /** Card data straight from Postgres; creators the index still lists but Postgres now hides are dropped here. */
@@ -83,7 +84,7 @@ export async function cardRows(tx: Tx, ids: string[]): Promise<CardRow[]> {
       c.authenticity_score as "authenticityScore", c.fake_follower_pct as "fakeFollowerPct",
       case when p.platform = 'youtube' and p.followers = 0 then null else p.followers end as followers,
       p.engagement_rate as "engagementRate", p.followers_updated_at as "followersUpdatedAt",
-      exists (select 1 from gcp.creator_contacts k where k.creator_id = c.id) as "hasContact"
+      coalesce((select jsonb_agg(jsonb_build_object('kind', k.kind, 'status', k.status)) from gcp.creator_contacts k where k.creator_id = c.id), '[]'::jsonb) as "contactStates"
     from gcp.creators c
     left join lateral (
       select pr.platform, pr.followers, pr.engagement_rate, pr.followers_updated_at from gcp.creator_profiles pr
@@ -186,7 +187,10 @@ export async function latestSnapshot(tx: Tx, creatorId: string): Promise<Snapsho
 /** Masked contact rows only: these columns are all the API role may read (migration 0009). */
 export function contactSummaries(tx: Tx, creatorId: string) {
   return tx
-    .select({ id: creatorContacts.id, kind: creatorContacts.kind, masked: creatorContacts.masked, trust: creatorContacts.trust })
+    .select({
+      id: creatorContacts.id, kind: creatorContacts.kind, masked: creatorContacts.masked, trust: creatorContacts.trust, source: creatorContacts.source,
+      firstSeenAt: creatorContacts.firstSeenAt, lastSeenAt: creatorContacts.lastSeenAt, status: creatorContacts.status, checkedAt: creatorContacts.checkedAt, checkDetail: creatorContacts.checkDetail,
+    })
     .from(creatorContacts)
     .where(eq(creatorContacts.creatorId, creatorId));
 }
@@ -347,7 +351,8 @@ export async function indexRows(tx: SystemTx, ids: string[]): Promise<IndexRow[]
       c.display_name as "displayName", c.name_variants as "nameVariants", c.primary_handle as "primaryHandle",
       c.primary_platform as "primaryPlatform", c.city, c.country, c.niches, c.tags, c.verified,
       c.authenticity_score as "authenticityScore",
-      exists (select 1 from gcp.creator_contacts k where k.creator_id = c.id) as "hasContact",
+      -- A contact shown not to work is not a way to reach the creator (the "has contact" filter).
+      exists (select 1 from gcp.creator_contacts k where k.creator_id = c.id and k.status <> 'invalid') as "hasContact",
       coalesce((
         select jsonb_agg(jsonb_build_object('platform', p.platform, 'handle', p.handle,
           'followers', case when p.platform = 'youtube' and p.followers = 0 then null else p.followers end,

@@ -207,7 +207,7 @@ const TRUST: Record<
     label: "Unverified",
     cls: "border-slate-200 bg-slate-50 text-slate-600",
     Icon: ShieldQuestion,
-    note: "Found from a public source but not checked enough.",
+    note: "Found on the public profile. Nothing proves yet that it works.",
   },
   contactable: {
     label: "Contactable",
@@ -231,7 +231,7 @@ const TRUST: Record<
     label: "Invalid — do not use",
     cls: "border-rose-100 bg-rose-50 text-rose-700",
     Icon: Ban,
-    note: "Repeated bounce or a known invalid result.",
+    note: "A check showed this address cannot receive mail.",
   },
   creator_confirmed: {
     label: "Creator confirmed",

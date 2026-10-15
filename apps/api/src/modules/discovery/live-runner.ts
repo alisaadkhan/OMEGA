@@ -1,4 +1,4 @@
-import { searchFiltersSchema, type DiscoveryJobStep, type LiveSearch } from "@mushin/contracts";
+import { searchFiltersSchema, type CreatorCard, type DiscoveryJobStep, type LiveSearch } from "@mushin/contracts";
 import { AppError, type Logger } from "@mushin/core";
 import { providerSpendForJob, type Db, type LivePrices, type LiveProgress, type TenantTx } from "@mushin/db";
 import { ProviderError, type Llm, type ProfileScraper } from "@mushin/integrations";
@@ -67,6 +67,15 @@ class RunCanceled extends Error {
 }
 
 /** Worker side of a live run (spec §4.2; Diagram 7). */
+/**
+ * Customer order of a live run: Campaign Fit, then the catalogue fit score; equal fit by platform and handle, which are
+ * the same for the same creators in every run (a creator id is not: replays and re-imports mint new ones), so the order
+ * customers and evaluations see is reproducible.
+ */
+export function compareLiveCards(a: CreatorCard, b: CreatorCard, campaignFit: Map<string, number | null>): number {
+  return (campaignFit.get(b.id) ?? b.fitScore) - (campaignFit.get(a.id) ?? a.fitScore) || b.fitScore - a.fitScore || `${a.platform}:${a.handle}`.localeCompare(`${b.platform}:${b.handle}`) || a.id.localeCompare(b.id);
+}
+
 export function createLiveRunner(deps: Deps) {
   const maxAttempts = deps.maxAttempts ?? 3;
   const now = deps.now ?? (() => new Date());
@@ -80,7 +89,7 @@ export function createLiveRunner(deps: Deps) {
       getSearchSettings(tx),
     ]);
     const campaignFit = new Map(rows.map((r) => [r.creatorId, r.campaignFit?.score ?? null]));
-    cards.sort((a, b) => (campaignFit.get(b.id) ?? b.fitScore) - (campaignFit.get(a.id) ?? a.fitScore) || b.fitScore - a.fitScore || a.id.localeCompare(b.id));
+    cards.sort((a, b) => compareLiveCards(a, b, campaignFit));
     await repo.setRanks(tx, job.workspaceId, job.id, cards.map((c, i) => {
       const score = campaignFit.get(c.id);
       return { creatorId: c.id, rank: i + 1, fitScore: score ?? c.fitScore, fitLabel: score === null || score === undefined ? c.fitLabel : fitLabel(score, settings.labels) };

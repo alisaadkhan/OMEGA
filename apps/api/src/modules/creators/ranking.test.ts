@@ -30,7 +30,7 @@ function row(id: string, displayName: string, primaryHandle: string, strong: boo
     followers: 100_000,
     engagementRate: strong ? 9 : 0.5,
     followersUpdatedAt: strong ? now : null,
-    hasContact: false,
+    contactStates: [],
   };
 }
 
