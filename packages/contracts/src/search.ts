@@ -77,8 +77,23 @@ export const creatorCardSchema = z.object({
 });
 export type CreatorCard = z.output<typeof creatorCardSchema>;
 
+/**
+ * Why a catalogue result matched (CAT-005): the query concept or word, the form found and the field it was found in.
+ * `exact: false` marks a close spelling of the creator's name. An empty list means the cause is not shown, not that the
+ * creator did not match. It explains a match; it never changes the order.
+ */
+export const matchReasonSchema = z.object({
+  term: z.string(),
+  matched: z.string(),
+  field: z.enum(["name", "handle", "niche", "city", "tag", "bio"]),
+  exact: z.boolean(),
+});
+export type MatchReason = z.output<typeof matchReasonSchema>;
+export const searchResultSchema = creatorCardSchema.extend({ matchedOn: z.array(matchReasonSchema) });
+export type SearchResult = z.output<typeof searchResultSchema>;
+
 export const searchResponseSchema = z.object({
-  results: z.array(creatorCardSchema),
+  results: z.array(searchResultSchema),
   total: z.number().int(),
   /** 1-based page number for display only; pages are requested with the cursors. */
   page: z.number().int(),

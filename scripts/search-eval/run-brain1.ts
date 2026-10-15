@@ -93,7 +93,7 @@ for (const r of rows) {
     const ms = Math.round(performance.now() - started);
     const top = out.results.slice(0, 10);
     const behaviourOnly = BEHAVIOUR_ONLY.has(scenario);
-    results.push({ caseId, scenario, behaviourOnly, text, filters, latencyMs: ms, total: out.total, results: top.map((c, i) => ({ rank: i + 1, id: c.id, displayName: c.displayName, handle: c.handle, platform: c.platform })) });
+    results.push({ caseId, scenario, behaviourOnly, text, filters, latencyMs: ms, total: out.total, results: top.map((c, i) => ({ rank: i + 1, id: c.id, displayName: c.displayName, handle: c.handle, platform: c.platform, matchedOn: c.matchedOn })) });
     const shown = behaviourOnly ? [] : top;
     const pooled = text.trim() && !behaviourOnly ? await pool(text, top.map((c) => c.id)) : [];
     const info = await describe([...top.map((c) => c.id), ...pooled]);

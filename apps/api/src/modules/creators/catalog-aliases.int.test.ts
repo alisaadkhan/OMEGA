@@ -52,6 +52,34 @@ const names = async (text: string, filters: Record<string, unknown> = {}) => {
 };
 
 describe("catalogue search aliases (PostgreSQL)", () => {
+  it("explains on each result where the query matched, without changing the results or their order (CAT-005)", async () => {
+    const run = async (text: string) => (await creators.search(await customer(), searchRequestSchema.parse({ text, filters: {}, confirmedCost: 0 }))).results;
+    const byName = (rows: Awaited<ReturnType<typeof run>>) => Object.fromEntries(rows.map((r) => [r.displayName, r.matchedOn]));
+    expect(byName(await run("khana lhr"))).toEqual({
+      "Ali Eats": [
+        { term: "food", matched: "food", field: "niche", exact: true },
+        { term: "Lahore", matched: "lahore", field: "city", exact: true },
+      ],
+      "Kashif Bites": [
+        { term: "food", matched: "food", field: "niche", exact: true },
+        { term: "Lahore", matched: "lahore", field: "bio", exact: true },
+      ],
+    });
+    expect((await run("Sana Malik"))[0]?.matchedOn).toEqual([
+      { term: "sana", matched: "sana", field: "name", exact: true },
+      { term: "malik", matched: "mullick", field: "name", exact: false },
+    ]);
+    // A typo that shares the name word's consonant skeleton is shown as a close spelling, never as an exact match.
+    expect((await run("Tariq Revews")).map((r) => r.matchedOn)).toEqual([
+      [
+        { term: "tariq", matched: "tariq", field: "name", exact: true },
+        { term: "revews", matched: "reviews", field: "name", exact: false },
+      ],
+    ]);
+    // A typo the explanation cannot place is left out rather than guessed.
+    expect((await run("gadgetz")).map((r) => r.matchedOn)).toEqual([[]]);
+  });
+
   it("finds the same food creators in English, Roman Urdu and Urdu script, and nothing else", async () => {
     for (const q of ["food", "khana", "کھانا"]) expect(await names(q), q).toEqual(["Ali Eats", "Kashif Bites"]);
   });

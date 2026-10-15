@@ -18,6 +18,7 @@ import {
   type TenantTx,
 } from "@mushin/db";
 import type { CreatorDocument } from "@mushin/integrations";
+import type { MatchFields } from "./match-reasons";
 import { isMinorProtected, maskContact, type FitWeights, type FreshnessThresholds, type LabelThresholds, type SummarySource } from "./rules";
 
 type Tx = TenantTx | SystemTx;
@@ -93,6 +94,15 @@ export async function cardRows(tx: Tx, ids: string[]): Promise<CardRow[]> {
     where c.id in ${ids} and ${VISIBLE}`);
   // Raw queries return timestamps as text.
   return rows.map((r) => ({ ...r, followersUpdatedAt: r.followersUpdatedAt === null ? null : new Date(r.followersUpdatedAt) }));
+}
+
+/** The text the search projection indexed for these creators (to explain matches on one page of results). */
+export async function matchFieldRows(tx: Tx, ids: string[]): Promise<(MatchFields & { id: string })[]> {
+  if (ids.length === 0) return [];
+  return tx.execute<MatchFields & { id: string }>(sql`
+    select d.creator_id as id, d.display_name as "displayName", d.name_variants as "nameVariants", d.handles, d.niches, d.tags, d.city, d.bio
+    from gcp.creator_search_documents d
+    where d.creator_id in ${ids}`);
 }
 
 export async function findIdByCanonicalUrl(tx: Tx, canonicalUrl: string): Promise<string | null> {

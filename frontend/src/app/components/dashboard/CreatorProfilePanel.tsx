@@ -16,6 +16,8 @@ import { relative } from "../../lib/time";
 /** Volume 4B — Creator Intelligence Profile. */
 
 export type Creator = {
+  /** Set on catalogue search cards: why the creator matched the query (CAT-005). */
+  matchedOn?: import("@mushin/contracts").MatchReason[];
   /** Set on cards found by Find New Creators (sub-project 4B). */
   discovery?: { isNew: boolean; reason: string | null };
   id: string;

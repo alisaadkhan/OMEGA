@@ -12,6 +12,7 @@ import {
   searchErrorMessage,
   shouldRetrySearch,
   toCreator,
+  matchSummary,
   toFilters,
   contactEvidenceText,
   CONTACT_AVAILABILITY_TEXT,
@@ -165,5 +166,19 @@ describe("search mapping", () => {
     expect(contactEvidenceText(k, d)).toBe("From the profile's business email field · seen 2026-10-12. Not checked: nothing proves yet that it works.");
     expect(contactEvidenceText({ ...k, status: "domain_ok", checkedAt: "2026-10-15T00:00:00.000Z", checkDetail: "mx_found" }, d)).toContain("does not prove this inbox exists");
     expect(contactEvidenceText({ ...k, source: "bio", status: "invalid", checkedAt: "2026-10-15T00:00:00.000Z", checkDetail: "no_such_domain" }, d)).toBe("Written in the creator's bio · seen 2026-10-12. Checked 2026-10-15: the email's domain does not exist. Do not use.");
+  });
+});
+
+describe("matchSummary (CAT-005)", () => {
+  it("says where each query term matched, the form used and a close name spelling; nothing when the cause is not shown", () => {
+    expect(
+      matchSummary([
+        { term: "Karachi", matched: "karachi", field: "city", exact: true },
+        { term: "food", matched: "khana", field: "bio", exact: true },
+        { term: "malik", matched: "mullick", field: "name", exact: false },
+      ]),
+    ).toBe("karachi in city · food (as khana) in bio · malik ≈ mullick in name");
+    expect(matchSummary([])).toBe("");
+    expect(matchSummary(undefined)).toBe("");
   });
 });

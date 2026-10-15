@@ -270,3 +270,28 @@ estimated extraction cost USD 0.46 → 0.54 across 25 briefs, exact settlement. 
 (`LIVE_EXTRACTION_MULTIPLIER_*`, overridable). **Not accepted:** whether the extra creators are relevant needs the
 two-person ratings of the 82 delivered rows (`brain2-rater-A/B.csv`); live provider behaviour and real cost need an
 authorised capped pilot.
+
+## Match explanations and baseline check (2026-10-15, no spend)
+
+**Why matched (CAT-005).** Each catalogue result now carries `matchedOn`: for every query concept or word, the reviewed
+form found and the creator field it was found in (name, handle, niche, city, tag, bio, checked in that order), read from
+the text the search projection indexed. A word met only by a close spelling of the creator's name is marked not exact
+("malek ≈ mullick in name"). A cause the explanation cannot place (a typo-tolerant match) is left out, never guessed.
+The card shows it as "Matched: karachi in city · food (as khana) in bio". It is computed after ranking for the page
+being returned, so it cannot change which creators are returned or their order. It reads only the creator's own fields,
+so it can never attribute a place from another person's post.
+
+**Baseline unchanged.** The Brain 1 panel (35 queries, corpus v2, `run-brain1.ts`) returned the same result lists as the
+rating-packet run for 35 of 35 queries, so the blind packets stay valid. 53 of 73 result rows are explained; the other 20
+are the text-free browse queries Q021 (filters only) and Q024 ("Find popular creators", all filler words), which have no
+query text to explain. Latency on this machine: p50 38 ms, p95 172 ms (noisy: other work was running).
+
+**Brain 2 funnel cost.** `brain2-sheets.ts` now adds profiles fetched, estimated extraction USD and estimated USD per
+delivered creator to `brain2-funnel.md`. Regenerating from replay `b2-det-1` reproduced the rater sheets, key and
+behaviour sheets byte for byte. Totals (REPLAY): 77 delivered over 25 briefs, 5 empty, 1,790 of 2,500 quoted credits
+charged, 187 profiles fetched, estimated extraction USD 0.54, about USD 0.007 per delivered creator. The estimate excludes
+web search and LLM calls, so it is a lower bound, not a provider invoice.
+
+**Evaluation data location.** The packets (`blind-b1`, `blind-b2`) and the 2026-10-13 recordings are in the git-ignored
+`eval-data/` folder of the repository. They hold YouTube API data: finish the ratings and delete the YouTube rows by
+2026-11-12.

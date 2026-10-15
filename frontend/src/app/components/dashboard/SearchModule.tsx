@@ -46,6 +46,8 @@ import {
   sameRequest,
   searchErrorMessage,
   toCreator,
+  searchResultToCreator,
+  matchSummary,
   toFilters,
   withoutExtra,
   type ChipState,
@@ -152,7 +154,7 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
   };
 
   const filtered = useMemo(() => {
-    const list = (search.data?.results ?? []).map(toCreator);
+    const list = (search.data?.results ?? []).map(searchResultToCreator);
     if (sortKey === "followers") return [...list].sort((a, b) => (a.followersNum === null ? 1 : b.followersNum === null ? -1 : b.followersNum - a.followersNum));
     if (sortKey === "engagement") return [...list].sort((a, b) => (a.engagement === null ? 1 : b.engagement === null ? -1 : b.engagement - a.engagement));
     if (sortKey === "freshness") return [...list].sort((a, b) => FRESH_RANK[a.followersFreshness] - FRESH_RANK[b.followersFreshness]);
@@ -967,6 +969,12 @@ function CreatorCard({
       <p className="mt-2.5 text-[11px] text-slate-500" style={{ lineHeight: 1.5 }}>
         {creator.fitLabel}
       </p>
+      {matchSummary(creator.matchedOn) && (
+        <p className="mt-1 text-[11px] text-slate-500" style={{ lineHeight: 1.5 }} data-testid="match-reasons">
+          <span className="text-slate-600" style={{ fontWeight: 500 }}>Matched: </span>
+          {matchSummary(creator.matchedOn)}
+        </p>
+      )}
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         <FreshnessBadge value={creator.followersFreshness} />
         <span

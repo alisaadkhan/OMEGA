@@ -1,4 +1,4 @@
-import type { ContactAvailability, CreatorCard, CreatorProfile, InterpretResponse, LookupResponse, SearchFilters, SearchRequest } from "@mushin/contracts";
+import type { ContactAvailability, CreatorCard, CreatorProfile, InterpretResponse, LookupResponse, MatchReason, SearchFilters, SearchRequest, SearchResult } from "@mushin/contracts";
 import { ApiError } from "./http";
 import type { Creator } from "../components/dashboard/CreatorProfilePanel";
 import type { ContactTrust } from "../components/dashboard/states";
@@ -193,6 +193,23 @@ export function toCreator(c: CreatorCard): Creator {
     hasContact: c.hasContact,
     contactAvailability: c.contactAvailability,
   };
+}
+
+/** A catalogue search result: the card plus why it matched. */
+export function searchResultToCreator(r: SearchResult): Creator {
+  return { ...toCreator(r), matchedOn: r.matchedOn };
+}
+
+const FIELD_TEXT: Record<MatchReason["field"], string> = { name: "name", handle: "handle", niche: "niche", city: "city", tag: "tag", bio: "bio" };
+
+/** "karachi in city · food (as khana) in bio · malik ≈ Mullick in name"; empty when the cause is not shown. */
+export function matchSummary(reasons: MatchReason[] | undefined): string {
+  return (reasons ?? [])
+    .map((r) => {
+      if (!r.exact) return `${r.term} ≈ ${r.matched} in ${FIELD_TEXT[r.field]}`;
+      return r.matched === r.term.toLowerCase() ? `${r.matched} in ${FIELD_TEXT[r.field]}` : `${r.term} (as ${r.matched}) in ${FIELD_TEXT[r.field]}`;
+    })
+    .join(" · ");
 }
 
 /** An omnibar match opens the same profile panel; the panel loads everything else itself. */

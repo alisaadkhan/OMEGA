@@ -24,6 +24,7 @@ import { suppressedUrls } from "./suppressions";
 import { chargeCatalogSearch } from "./search-charge";
 import { decodeCursor, encodeCursor } from "./cursor";
 import { understandQuery } from "./understand";
+import { matchReasons } from "./match-reasons";
 import { DEFAULT_SOURCE_POLICY, restrictsDerived, type SourcePolicy } from "./source-policy";
 
 export type CreatorsDeps = {
@@ -115,10 +116,17 @@ export function createCreatorsService(deps: CreatorsDeps) {
     const start = decodeCursor(req, req.cursor, settings.pageSize);
     // Paid only once the search has answered; refused (no results returned) when the price or balance does not allow it.
     const charge = await chargeCatalogSearch({ db: deps.db, billing: deps.billing, now }, ctx, req);
+    // Why each creator on this page matched (CAT-005), from the text the projection indexed; ordering is unchanged.
+    const page = cards.slice(start, start + settings.pageSize);
+    const fields = q.text ? new Map((await deps.db.withTenant(tenant(ctx), (tx) => repo.matchFieldRows(tx, page.map((c) => c.id)))).map((f) => [f.id, f])) : new Map();
+    const results = page.map((c) => {
+      const f = fields.get(c.id);
+      return { ...c, matchedOn: f ? matchReasons(q.text, f) : [] };
+    });
     return {
       ...charge,
       understood: { text: understood.text, filters: Object.fromEntries(Object.entries(understood.filters).filter(([k, v]) => v !== undefined && req.filters[k as keyof typeof req.filters] === undefined)) },
-      results: cards.slice(start, start + settings.pageSize),
+      results,
       nextCursor: start + settings.pageSize < cards.length ? encodeCursor(req, start + settings.pageSize) : null,
       prevCursor: start > 0 ? encodeCursor(req, Math.max(0, start - settings.pageSize)) : null,
       // A full pool means more creators matched than were scored; the index's estimate is then the better total.
