@@ -41,6 +41,13 @@ type Deps = {
    * batch only takes the candidates whose estimate still fits. Absent = no cap.
    */
   jobCostCap?: { revenuePerCreditUsd: number; costToPriceRatio: number; profileUsd?: Partial<Record<CreatorPlatform, number>> };
+  /**
+   * Per-job deadline (LIVE-004), in milliseconds from the job's creation, checked before every extraction batch: once it
+   * has passed no further batch starts, profiles already fetched are still processed, and the run settles normally on
+   * what it delivered. It must stay below the stuck-job sweep (stuck_job_minutes, default 30), which fails and refunds a
+   * whole run. Absent = no deadline.
+   */
+  jobDeadlineMs?: number;
 };
 
 /** G2: candidates after the cheap G1 gate needed before extraction (spec default 8); below it the run is `insufficient`. */
@@ -308,7 +315,8 @@ export function createLiveRunner(deps: Deps) {
       const fetchedBy: Record<CreatorPlatform, number> = { instagram: 0, tiktok: 0, youtube: 0 };
       let remaining = [...ordered];
       let fetchedCount = 0;
-      let stopReason: "provider_budget_exhausted" | "extra_wave_provider_failed" | "job_cost_cap" | null = null;
+      let stopReason: "provider_budget_exhausted" | "extra_wave_provider_failed" | "job_cost_cap" | "job_deadline" | null = null;
+      const deadline = deps.jobDeadlineMs === undefined ? null : job.createdAt.getTime() + deps.jobDeadlineMs;
       const quoteMaxCredits = prices.search + maxNew * Math.max(prices.instagram, prices.tiktok, prices.youtube);
       const capUsd = deps.jobCostCap ? (quoteMaxCredits * deps.jobCostCap.revenuePerCreditUsd) / deps.jobCostCap.costToPriceRatio : Infinity;
       const spentBeforeExtraction = deps.jobCostCap ? await providerSpendForJob(deps.db, jobId) : 0;
@@ -319,6 +327,11 @@ export function createLiveRunner(deps: Deps) {
         await checkCancel();
         const need = maxNew - (await deps.db.withWorkspace(workspaceId, (tx) => repo.countNew(tx, workspaceId, jobId)));
         if (need <= 0) break;
+        if (deadline !== null && now().getTime() >= deadline) {
+          deps.logger.info({ jobId, wave, deadlineMs: deps.jobDeadlineMs }, "per-job deadline reached: no further extraction batch");
+          stopReason = "job_deadline";
+          break;
+        }
         let budgetUsd = Infinity;
         if (deps.jobCostCap) {
           const spentUsd = Math.max(await providerSpendForJob(deps.db, jobId), spentBeforeExtraction + estimatedExtractionUsd);

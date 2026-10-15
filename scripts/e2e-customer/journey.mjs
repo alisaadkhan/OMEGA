@@ -197,6 +197,11 @@ if (phase === "main") {
   const apiFood = (await apiSearch("owner", "food")).json;
   check("search", "text search shows exactly the API's creators", apiFood.total > 0 && apiFood.results.every((r) => handles(t).includes(`@${r.handle}`)), `API ${apiFood.total}, UI ${handles(t).length}`);
   check("search", "AI reading unavailable does not block search (INT-002)", apiFood.total > 0);
+  // CAT-005: every result explains where "food" matched, and the card shows that explanation.
+  const explained = apiFood.results.filter((r) => r.matchedOn.some((m) => m.term === "food"));
+  // mainText collapses whitespace, so count the label itself (one per explained card).
+  const matchedLines = (t.match(/Matched: /g) ?? []).length;
+  check("search", "each result says where the query matched (API matchedOn shown on the card)", apiFood.results.length > 0 && explained.length === apiFood.results.length && matchedLines >= Math.min(explained.length, 10), `explained ${explained.length}/${apiFood.results.length}; card lines ${matchedLines}`);
   const LABELS = { email_unverified: "Email available · Unverified", email_verified: "Email available · Verified", email_invalid: "Email invalid", phone_unverified: "Phone available · Unverified", none: "No contact info" };
   check("search", "every card states contact availability from the API, never a value or an unproven claim", apiFood.results.every((r) => r.contactAvailability in LABELS && t.includes(LABELS[r.contactAvailability])) && !/Contact on file|Contactable/.test(t) && !/[a-z0-9._%+-]+@[a-z0-9-]+[.][a-z]{2,}/i.test(t), [...new Set(apiFood.results.map((r) => r.contactAvailability))].join(", "));
   // The next page (by cursor) when there is one, otherwise the same search again: neither is a new paid search.

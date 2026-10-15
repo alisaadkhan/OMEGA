@@ -137,6 +137,18 @@ Defects the new checks found, all fixed in `9157bc1`:
 | D-6 | P3 | Landing feature tabs ran past a 390 px screen | Smaller tab padding and no icons below 640 px |
 | T-1 | Test | "Dashboard cards equal API" failed only around midnight: the test computed the date range in UTC, the API uses Pakistan time | Test computes the range in Asia/Karachi |
 
+### After match explanations and PostgreSQL rate limits (2026-10-15)
+
+Code under test: `2b43654` plus the uncommitted per-job deadline (worker setting only; no browser effect). Staff
+operations (`10637c8`) and PostgreSQL rate limits (`ef03156`) are included: with Upstash blank the API now counts rate
+limits in PostgreSQL, so `mushin_e2e_template` (and `mushin_local`) were migrated to 0034 first (forward only).
+New check: every "food" result carries `matchedOn` from the API, and each card shows its "Matched: …" line (CAT-005).
+
+| Run set | Result |
+|---|---|
+| cat005-1 (stopped) | main 53/54: the new check counted lines in whitespace-collapsed page text (harness defect T-2, fixed by counting the label); after restart 22/22. Run 2 was stopped, and all three were re-run |
+| cat005b-1..3, three in a row | 3 × 76/76 (54 main + 22 after restart), including phone width, axe, no console errors, no 5xx |
+
 ## 5. Defects found and fixed
 
 | ID | Severity | Defect | Fix | Regression evidence |

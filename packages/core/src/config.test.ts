@@ -225,11 +225,14 @@ describe("scraping and storage settings (worker only)", () => {
       extractionMultiplier: { instagram: 2, youtube: 3, tiktok: 1 },
       profileConcurrency: 3,
       jobCostCap: { revenuePerCreditUsd: 0.002029, costToPriceRatio: 3, profileUsd: { instagram: 0.0026, tiktok: 0.011, youtube: 0 } },
+      jobDeadlineMs: 20 * 60_000,
       apifyMonthlyBudgetUsd: 5,
       youtubeApiKey: "yt",
       serperApiKey: null,
       serperMonthlySearchLimit: 2500,
     });
+    expect(loadWorkerConfig({ ...worker, LIVE_JOB_DEADLINE_MINUTES: "10" }).scraping.jobDeadlineMs).toBe(600_000);
+    expect(() => loadWorkerConfig({ ...worker, LIVE_JOB_DEADLINE_MINUTES: "0" })).toThrow(/LIVE_JOB_DEADLINE_MINUTES/);
     expect(loadWorkerConfig({ ...worker, APIFY_INSTAGRAM_POST_ACTOR_ID: "off" }).scraping).toMatchObject({ instagramPostActor: null, instagramPostBuild: null });
     expect(c.storage).toEqual({ url: "https://ref.supabase.co", serviceKey: "service" });
     expect(c.dataEncryptionKey.length).toBe(32);

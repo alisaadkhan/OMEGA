@@ -163,6 +163,10 @@ const workerSchema = sharedObject
     LIVE_PROFILE_USD_INSTAGRAM: z.coerce.number().min(0).default(0.0026),
     LIVE_PROFILE_USD_TIKTOK: z.coerce.number().min(0).default(0.011),
     LIVE_PROFILE_USD_YOUTUBE: z.coerce.number().min(0).default(0),
+    // Per-job deadline (LIVE-004), minutes from job creation, checked before each extraction batch. Kept below the
+    // stuck-job sweep (stuck_job_minutes, default 30), which fails and refunds the whole run. Measured live runs took
+    // about 2.5 minutes (2026-10-13). Provisional default; the owner may set another value.
+    LIVE_JOB_DEADLINE_MINUTES: z.coerce.number().min(1).max(240).default(20),
     APIFY_MONTHLY_BUDGET_USD: z.coerce.number().min(0).default(5),
     YOUTUBE_API_KEY: z.string().min(1).optional(),
     SERPER_API_KEY: z.string().min(1).optional(),
@@ -300,6 +304,8 @@ export type ScrapingConfig = {
   profileConcurrency: number;
   /** Before every batch: a run's provider cost may not pass quoted max credits × revenuePerCreditUsd ÷ costToPriceRatio. */
   jobCostCap: { revenuePerCreditUsd: number; costToPriceRatio: number; profileUsd: { instagram: number; tiktok: number; youtube: number } };
+  /** Before every extraction batch: no new batch once this many milliseconds have passed since the job was created. */
+  jobDeadlineMs: number;
   apifyMonthlyBudgetUsd: number;
   youtubeApiKey: string | null;
   serperApiKey: string | null;
@@ -416,6 +422,7 @@ export function loadWorkerConfig(env: Env): WorkerConfig {
         costToPriceRatio: v.LIVE_COST_TO_PRICE_RATIO,
         profileUsd: { instagram: v.LIVE_PROFILE_USD_INSTAGRAM, tiktok: v.LIVE_PROFILE_USD_TIKTOK, youtube: v.LIVE_PROFILE_USD_YOUTUBE },
       },
+      jobDeadlineMs: v.LIVE_JOB_DEADLINE_MINUTES * 60_000,
       apifyMonthlyBudgetUsd: v.APIFY_MONTHLY_BUDGET_USD,
       youtubeApiKey: v.YOUTUBE_API_KEY ?? null,
       serperApiKey: v.SERPER_API_KEY ?? null,

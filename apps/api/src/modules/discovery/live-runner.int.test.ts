@@ -75,13 +75,13 @@ function llmReply(req: { input: string }) {
   };
 }
 
-function setup(o: { web?: FixtureWebSearch; scraper?: FixtureScraper; wrap?: (p: EnrichmentPipeline) => EnrichmentPipeline; maxAttempts?: number; model?: MockLlm; contentResolutionMax?: number; extractionMultiplier?: Partial<Record<"instagram" | "tiktok" | "youtube", number>>; profileConcurrency?: number; jobCostCap?: { revenuePerCreditUsd: number; costToPriceRatio: number; profileUsd?: Partial<Record<"instagram" | "tiktok" | "youtube", number>> } } = {}) {
+function setup(o: { web?: FixtureWebSearch; scraper?: FixtureScraper; wrap?: (p: EnrichmentPipeline) => EnrichmentPipeline; maxAttempts?: number; model?: MockLlm; contentResolutionMax?: number; extractionMultiplier?: Partial<Record<"instagram" | "tiktok" | "youtube", number>>; profileConcurrency?: number; jobCostCap?: { revenuePerCreditUsd: number; costToPriceRatio: number; profileUsd?: Partial<Record<"instagram" | "tiktok" | "youtube", number>> }; jobDeadlineMs?: number; now?: () => Date } = {}) {
   const web = o.web ?? new FixtureWebSearch(links("new_a", "new_b"));
   const scraper = o.scraper ?? igScraper();
   const model = o.model ?? llm();
   const base = createEnrichmentPipeline({ db, scraper, storage: new MemoryStorage(), llm: model, encryptionKey: TEST_KEY, logger, fetchImage: async () => new Response("", { status: 404 }) });
   const pipeline = o.wrap ? o.wrap(base) : base;
-  const runner = createLiveRunner({ db, billing, pipeline, scraper, search: createCachedSearch({ db, web }), llm: model, logger, ...(o.maxAttempts ? { maxAttempts: o.maxAttempts } : {}), ...(o.contentResolutionMax ? { contentResolutionMax: o.contentResolutionMax } : {}), ...(o.extractionMultiplier ? { extractionMultiplier: o.extractionMultiplier } : {}), ...(o.profileConcurrency ? { profileConcurrency: o.profileConcurrency } : {}), ...(o.jobCostCap ? { jobCostCap: o.jobCostCap } : {}) });
+  const runner = createLiveRunner({ db, billing, pipeline, scraper, search: createCachedSearch({ db, web }), llm: model, logger, ...(o.maxAttempts ? { maxAttempts: o.maxAttempts } : {}), ...(o.contentResolutionMax ? { contentResolutionMax: o.contentResolutionMax } : {}), ...(o.extractionMultiplier ? { extractionMultiplier: o.extractionMultiplier } : {}), ...(o.profileConcurrency ? { profileConcurrency: o.profileConcurrency } : {}), ...(o.jobCostCap ? { jobCostCap: o.jobCostCap } : {}), ...(o.jobDeadlineMs !== undefined ? { jobDeadlineMs: o.jobDeadlineMs } : {}), ...(o.now ? { now: o.now } : {}) });
   return { runner, web, scraper, pipeline };
 }
 
@@ -464,6 +464,50 @@ describe("live runner", () => {
       expect(job.status).toBe("completed");
       expect((await trailOf(id)).filter((r) => r.reason === "job_cost_cap").length).toBeGreaterThan(0);
       expect(await balance(c)).toMatchObject({ reserved: 0 });
+    });
+
+    // LIVE-004: the deadline counts from the job's creation, as the stuck-job sweep does.
+    const age = (id: string, minutes: number) => ownerQuery(`update wp.discovery_jobs set created_at = now() - interval '${minutes} minutes' where id = '${id}'`);
+
+    it("starts no extraction batch once the job deadline has passed: nothing fetched, nothing charged, credits back", async () => {
+      const { runner, scraper: s } = setup({ web: pool(), scraper: scraper(), jobDeadlineMs: 20 * 60_000 });
+      const c = await customer();
+      const id = await startRun(c, 5);
+      await age(id, 21);
+      await runner.run(id, c.workspaceId);
+      expect(s.batchCalls).toEqual([]);
+      expect(await discovery.get(c, id)).toMatchObject({ status: "completed", outcome: "completed_empty", live: { creditsCharged: 0 } });
+      expect((await trailOf(id)).filter((r) => r.reason === "job_deadline").length).toBeGreaterThan(0);
+      expect(await balance(c)).toMatchObject({ available: 200, reserved: 0 });
+    });
+
+    it("stops extra waves at the deadline, keeps the creators already delivered and charges only those", async () => {
+      // The first wave runs inside the deadline; the clock then passes it before the second wave would start.
+      let skewMs = 0;
+      const { runner, scraper: s } = setup({
+        web: pool(),
+        scraper: scraper(),
+        extractionMultiplier: { instagram: 2 },
+        jobDeadlineMs: 20 * 60_000,
+        now: () => new Date(Date.now() + skewMs),
+        wrap: (p) => ({ ...p, processProfile: async (...args: Parameters<typeof p.processProfile>) => { const out = await p.processProfile(...args); skewMs = 21 * 60_000; return out; } }),
+      });
+      const c = await customer();
+      const id = await startRun(c, 5);
+      await runner.run(id, c.workspaceId);
+      expect(s.batchCalls.map((b) => b.handles.length)).toEqual([5]);
+      expect(await discovery.get(c, id)).toMatchObject({ status: "completed", outcome: "succeeded", live: { new: 2, creditsCharged: 50 + 2 * 10 } });
+      expect((await trailOf(id)).filter((r) => r.reason === "job_deadline").length).toBeGreaterThan(0);
+      expect(await balance(c)).toMatchObject({ available: 200 - 70, reserved: 0 });
+    });
+
+    it("leaves runs inside the deadline unchanged", async () => {
+      const { runner, scraper: s } = setup({ web: pool(), scraper: scraper(), extractionMultiplier: { instagram: 2 }, jobDeadlineMs: 20 * 60_000 });
+      const c = await customer();
+      const id = await startRun(c, 5);
+      await runner.run(id, c.workspaceId);
+      expect(s.batchCalls.map((b) => b.handles.length)).toEqual([5, 3]);
+      expect((await trailOf(id)).filter((r) => r.reason === "job_deadline")).toEqual([]);
     });
 
     it("with a multiplier fetches the next-best candidates until the size is filled, and charges only what was delivered", async () => {
