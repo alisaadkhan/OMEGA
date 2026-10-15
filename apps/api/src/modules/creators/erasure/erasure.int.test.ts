@@ -91,6 +91,28 @@ describe("staff review", () => {
   });
 });
 
+describe("owner review at the command line (console approval blocked, owner decision 2026-10-15)", () => {
+  it("approves and rejects with the same audit actions, recording channel, operator and reason, and no staff account", async () => {
+    await addCreator(db, { profiles: [{ platform: "instagram", handle: "owner_ok" }] });
+    const kept = await addCreator(db, { profiles: [{ platform: "instagram", handle: "owner_no" }] });
+    await removals.submit(request(["instagram.com/owner_ok"]));
+    await removals.submit(request(["instagram.com/owner_no"]));
+    const open = await removals.list("received");
+    const ok = open.find((r) => r.urls[0]?.includes("owner_ok"));
+    const no = open.find((r) => r.urls[0]?.includes("owner_no"));
+    await removals.approve(ok?.id ?? "", { ownerCli: { operator: "Owner", reason: "Verified from the creator's own account" } }, { ip: null, requestId: "owner-cli-1" });
+    await removals.reject(no?.id ?? "", "Not the requester's profile", { ownerCli: { operator: "Owner", reason: "Not the requester's profile" } }, { ip: null, requestId: "owner-cli-2" });
+    const audit = await ownerQuery<{ staff_id: string | null; action: string; metadata: Record<string, unknown> }>(`select staff_id, action, metadata from staff.audit_log order by action`);
+    expect(audit).toEqual([
+      { staff_id: null, action: "creators.removal.approved", metadata: { removalRequestId: ok?.id, creatorId: expect.any(String), channel: "owner-cli", operator: "Owner", reason: "Verified from the creator's own account" } },
+      { staff_id: null, action: "creators.removal.rejected", metadata: { removalRequestId: no?.id, creatorId: kept, channel: "owner-cli", operator: "Owner", reason: "Not the requester's profile" } },
+    ]);
+    expect(await status(kept)).toBe("active");
+    const ev = await ownerQuery<{ n: number }>(`select count(*)::int n from platform.outbox where event_type = 'erasure.creator_requested'`);
+    expect(ev[0]?.n).toBe(1);
+  });
+});
+
 describe("eraser", () => {
   it("erasure removes every listed row and blocks re-adding (Review Focus 5)", async () => {
     const storage = new MemoryStorage();

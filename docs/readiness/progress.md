@@ -1,7 +1,7 @@
 # MUSHIN progress record
 
 Current state against the owner's 2026-10-14 decisions. Evidence is bound to commits. Replay results are labelled as
-replay, never as live-provider measurements. Updated 2026-10-15.
+replay, never as live-provider measurements. Updated 2026-10-15 (second phase).
 
 ## Current objective and gates
 
@@ -31,6 +31,20 @@ ratings.
 | 12 | Customer workflows after Search acceptance; Resend only for confirmed emails; never fabricate delivery | Waiting on Search acceptance. Outreach today is a manual log with no "sent/delivered" state (verified) | campaigns contracts |
 | 13 | Staff: no hardware-key claim from TOTP; privileged access blocked until proven | Done: admin-only actions need a hardware-key factor; TOTP admins get 403 | ops.int, live-api.int |
 
+## Owner decisions 2026-10-15: state
+
+| # | Decision | State | Evidence |
+|---|---|---|---|
+| 1 | Approve cooking, skincare, literature, agriculture with verified Urdu forms; test coverage, not ranking rules | Done: vocabulary only (no ranking weight, not sent to Live Discovery); every form tested. Urdu spellings checked against standard orthography; the corpus confirms only ریسپی, so a native-speaker check is still advisable | aliases.test; search-quality.md "Concept vocabulary" |
+| 2 | LLM hard cap USD 5 for the pilot, warning at 80%; no paid calls | Already enforced: default 5, warning at 80% once a month, 0 blocks all calls, production must set the cap explicitly. No paid calls made | budget.test, config.test |
+| 3 | Two-rater evaluation and adjudication first; no acceptance claim without the criteria | Blind packets ready (Brain 1: 277 rows, Brain 2: 207 rows, with pooled candidates so coverage is measurable), behaviour sheets, rater instructions, adjudication and gate report. No ratings yet | search-quality.md "Evaluation protocol log" |
+| 4 | Investigate intermittent API test failures; rerun verify and 3 E2E | The 3 skeleton-test failures (2026-10-14) did not recur: 3 targeted and 2 full runs under heavy CPU load passed (first app build 0.4–0.8 s against a 5 s limit); their error text was lost because the output was filtered, so full verify logs are now kept. Found and fixed a real cross-run defect: `search.int` restored a default price of 0 into the shared price table when its setup failed (Meilisearch down), failing 6 billing and pricing tests in the next run. It now captures prices first (`pinActionCosts`); a deliberately failed setup leaves the price at 50. Verify: 732 passed, 7 skipped; 3 consecutive E2E runs 73/73 each (final1015-1..3) | search.int; verify log; E2E results |
+| 5 | Supabase migration once Docker/WSL exists; keep current implementation until parity | Blocked: WSL and Docker still not installed (checked 2026-10-15) | — |
+| 6 | Supabase Auth as target identity; keep the hardware-key requirement for privileged staff actions | Recorded. Hardware-key (WebAuthn) step-up not built; TOTP-only admins stay refused | ops.int |
+| 7 | Removal requests under owner review; auditable process | Done: `npm run removal-review` (list, approve, reject) for the owner, same audit actions as the console plus channel, operator and reason; approval needs --confirm. Creators are hidden from customers as soon as a request arrives | erasure.int |
+| 8 | YouTube-derived metrics off; policy review before keeping disputed identifiers or enabling scores | Unchanged and in force (0029, 0031); legal review outstanding | source-policy.int |
+| 9 | TikTok price and multipliers provisional; no paid pilot | Unchanged; replay harness now uses the production multipliers by default | search-quality.md P4 |
+
 ## Search: baseline versus now
 
 | Measure | Baseline | Now | How measured |
@@ -41,7 +55,7 @@ ratings.
 | Brain 2 delivered (25 recorded briefs, size 5) | 51 | 77 | Replay, Instagram 2× / YouTube 3× |
 | Brain 2 empty briefs | 8 | 5 | Replay; 2 are replay misses (TikTok), 1 is an insufficient pool, 2 are spec-rule rejections |
 | Brain 2 settlement | exact | exact | No credits left reserved, no pending trail rows |
-| Precision@5, nDCG@10, coverage | not measured | not measured | Needs two raters (93 Brain 1 and 82 Brain 2 rows ready) |
+| Precision@5, nDCG@10, coverage | not measured | not measured | Needs two raters (blind packets: 277 Brain 1 and 207 Brain 2 rows) |
 
 ## YouTube retention: what is kept and why (decision 8)
 
@@ -70,21 +84,18 @@ inside the 30-day window. Whether that is itself a "derived metric" under III.E.
 | Item | Blocker | Unblock |
 |---|---|---|
 | Supabase target and its E2E | Docker/WSL not installed | Run `wsl --install` as admin, reboot, install Docker Desktop |
-| Search acceptance numbers | No human ratings | Two raters fill `brain1-rater-A/B.csv` (93 rows) and `brain2-rater-A/B.csv` (82 rows); a third person adjudicates |
+| Search acceptance numbers | No human ratings | Two raters fill the blind packets (`brain1-rater-A/B.csv` 277 rows, `brain2-rater-A/B.csv` 207 rows, plus the behaviour sheets); a third person adjudicates. The packets hold YouTube API data: finish and delete by 2026-11-12 |
 | Live-provider quality, TikTok yield, real costs | No paid-test authorisation | Owner authorises a capped pilot (amount, providers) |
 | Paddle, Resend, real Supabase Auth | Vendor accounts | Owner provides sandbox accounts |
-| Admin console actions (removal review, provider usage, audit) | No WebAuthn hardware-key sign-in | Build WebAuthn sign-in for staff. Until then, removal requests cannot be approved in the console: the owner must decide how erasure deadlines are met meanwhile |
+| Admin console actions (removal review, provider usage, audit) | No WebAuthn hardware-key step-up | Build WebAuthn step-up for staff (fits Supabase Auth as identity). Meanwhile the owner decides removal requests with `npm run removal-review` |
 | Founder co-sign, two-person rule, consented impersonation | Not built (staff UI deferred) | Implement after Search acceptance |
 
 ## Owner decisions still needed
 
-- Approve or change the catalogue-only concepts added from the panel diagnosis: cooking, skincare, literature and
-  agriculture, with their Urdu forms.
 - Confirm the provisional multipliers (Instagram 2×, YouTube 3×) once the Brain 2 ratings exist.
-- Set the production `LLM_MONTHLY_BUDGET_USD` (production now refuses to start without it).
+- Production `LLM_MONTHLY_BUDGET_USD`: USD 5 is set for the controlled pilot; the production value is still to be set.
 - Legal review of keeping YouTube handles and URLs, and of Campaign Fit inside the 30-day window.
-- Staff identity: keep MUSHIN's own staff login or move it to Supabase.
-- How creator removal requests are processed while admin console actions are blocked.
+- Who the Search raters and adjudicator are.
 
 ## Next action
 

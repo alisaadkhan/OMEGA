@@ -48,14 +48,23 @@ Tooling: `scripts/search-eval/` (`run-brain1.ts`, `score.ts`, `metrics.ts` with 
 1. Copy the catalogue to a disposable database (`createdb -T mushin_local mushin_eval_disposable`); the runner refuses any
    other database.
 2. `run-brain1.ts <queries.csv> <out>` runs each query through the real search service (production ranking and charging)
-   and writes identical sheets `brain1-rater-A.csv` and `brain1-rater-B.csv` (top 10 per query).
-3. Two people rate independently (2 relevant, 1 partly, 0 not), without seeing each other's sheet.
-4. `score.ts <out>` reports agreement (Cohen's kappa) and writes the disagreements for a third person to adjudicate; with
-   `brain1-adjudicated.csv` it writes `brain1-report.md`: precision@5/@10 (strict and lenient), nDCG@10 over the pooled
-   judgements, zero-result and rejected rates, latency p50/p95. Recall is not reported (the pool is not a complete set).
+   and writes a **blind rating packet** (`sheets.ts`): per query, MUSHIN's top 10 mixed with up to 10 pooled candidates it
+   did not return (searchable catalogue creators matching any query word or concept form), in an order that hides rank
+   and source. `brain1-key.csv` maps rows back and is not given to raters. Behaviour-only panel cases (ambiguity, unsafe
+   URL, identity, metric freshness, contradictory range) get no relevance rows. `brain1-cases-A/B.csv` asks, per query,
+   whether the behaviour was right; `brain1-RATER-INSTRUCTIONS.txt` is the rubric.
+3. Two people rate independently (2 relevant, 1 partly, 0 not), without seeing each other's sheet or the key.
+4. `score.ts <out>` matches rows by `row_id` (raters may sort; a sheet with missing or extra rows is refused), reports
+   Cohen's kappa and writes every disagreement (rows and behaviour) to `brain1-to-adjudicate.csv`. A third person fills
+   `final` and saves `brain1-adjudicated.csv`; `score.ts` then writes `brain1-report.md` with the gates below.
+   Recall is not reported: the pool only holds creators whose text mentions a query term.
 
-Proposed thresholds, to be confirmed by the owner before the final run: mean lenient precision@5 ≥ 0.70, mean nDCG@10
-≥ 0.65, zero results on at most 15% of answerable queries, kappa ≥ 0.6 before metrics are trusted.
+**Acceptance gates** (owner, provisional, unchanged; the earlier proposal of 0.70 / 0.65 is withdrawn): rater kappa
+≥ 0.6; mean strict precision@5 ≥ 0.80 (only rating 2 counts); mean nDCG@10 ≥ 0.75 against every judged row for the query
+(results and pool); relevant-query coverage ≥ 90% (of the queries with a rating-2 creator anywhere in the judged pool,
+the share whose results contain one); every behaviour case judged correct. The report says "not met" unless all pass,
+and even then acceptance is the owner's decision on that evidence. Strict precision is used because the gates do not
+say otherwise; the lenient value is reported alongside.
 
 Status: the tooling works end to end on the 21-creator local catalogue, but that catalogue cannot measure quality (18
 YouTube, 3 TikTok, 0 Instagram creators; most panel queries have no relevant creator at all, so zeros are mostly true
@@ -101,7 +110,7 @@ or to a combination the pipeline should not require (defect).
 | E5 | Small result sets padded with off-topic creators ("book" → wedding photographer via "booking"; "urdu history" → gaming channels) | Retrieval (trigram fallback) | The typo fallback compares the whole query loosely and runs whenever the pool is not full | Fallback only when whole words find nothing, and every query word must be close on its own | Off-topic padding gone; Q004 lost 11 padded rows: all top-10 losses were off-topic (a Karachi filmmaker, a wedding photographer) except one real food creator, recovered by E6 |
 | E6 | "@karachifoodadventure" found only by the loose fallback | Indexing | Joined-up handles hide their words from full-text search | `handle_words`: English concept and city words inside a handle are indexed with the handle (Roman Urdu excluded: "khana" inside "khanam") | Recovered for "Karachi food" in all three scripts |
 | E7 | "Pakistani home cooking creators" 13 → 5 after E5 | Aliases | "home cooking" means cooking; requiring "home" drops cooking channels | Catalogue-only concept cooking (cooking, cook, recipe(s), home cooking, کوکنگ, ریسپی) | 23 results, cooking channels |
-| E8 | Urdu-script "اسکن کیئر" and "ادب" never match | Aliases | No Urdu forms for skincare/literature | Catalogue-only concepts skincare, literature, agriculture (pending owner review; not sent to Live Discovery) | Matched; results still 0 (no such creators in the corpus) |
+| E8 | Urdu-script "اسکن کیئر" and "ادب" never match | Aliases | No Urdu forms for skincare/literature | Catalogue-only concepts skincare, literature, agriculture (owner-approved 2026-10-15 as vocabulary only; not sent to Live Discovery) | Matched; results still 0 (no such creators in the corpus) |
 | E9 | "Food creators in Lahore with engagement above 3 percent" | Evaluation harness | Loader stored no engagement | Loader computes engagement like the pipeline | Filter now measurable: 2 results |
 
 Ranker version: `catalog-3-variants` (cursors from the old ranker are refused). Tests: aliases.test, understand.test,
@@ -125,9 +134,40 @@ catalog-aliases.int (name variants, joined handle, misspelt city, exclusion clau
 - *Not a search for creators, correctly empty or refused:* Q022 impossible range (refused), Q025 unverifiable attribute,
   Q027 internal URL, Q029–Q032 test-scenario descriptions.
 
-**Acceptance status: not accepted.** Precision@5, nDCG@10 and relevant-query coverage need the two-person ratings (93
-rows ready) and adjudication. The provisional gates (P@5 ≥ 0.80, nDCG@10 ≥ 0.75, ≥ 90% relevant-query coverage) are
-unchanged. Coverage can only be computed once raters mark which queries have a relevant creator.
+**Acceptance status: not accepted.** Precision@5, nDCG@10 and relevant-query coverage need the two-person ratings and
+adjudication of the blind packet (below). The "no suitable creator" explanations above are my diagnosis; the pooled
+rows let the raters confirm or refute them.
+
+## Concept vocabulary (owner decision 2026-10-15)
+
+Cooking, skincare, literature and agriculture are approved as catalogue query vocabulary only: a concept widens which
+documents match (any of its forms), carries no ranking weight (ranking is `ts_rank_cd` over the query text only), and is
+not sent to Live Discovery. `aliases.test` checks every form maps to its concept and that food/khana stay food.
+
+| Concept | Forms | Urdu-script check | Seen in the corpus (455 profiles) |
+|---|---|---|---|
+| skincare | skincare, skin care, اسکن کیئر, سکن کیئر | Transliterations of "skin care"; Urdu writes English s-clusters with a leading alif (اسکول), the shorter form is a common variant | English 2; Urdu 0 |
+| cooking | cooking, cook, recipe(s), home cooking, کوکنگ, ریسپی | Transliterations of "cooking" and "recipe" | ریسپی 3 bios; English 13+ |
+| literature | literature, adab, ادب | ادب (adab) is the standard Urdu word for literature | 0 |
+| agriculture | agriculture, farming, zaraat, زراعت | زراعت (zara'at) is the standard Urdu word for agriculture | 0 |
+
+The spellings were checked against standard Urdu orthography, not by a native-speaker reviewer, and the corpus confirms
+only ریسپی. Native phrases not added (none occur in the corpus; each would need review): کھانا پکانا (cooking; would
+overlap with کھانا = food), کاشتکاری and کھیتی باڑی (farming), ادبی (literary).
+
+## Evaluation protocol log (2026-10-15)
+
+| # | Defect | Fix | Evidence |
+|---|---|---|---|
+| P1 | Coverage had no denominator: raters saw only what MUSHIN returned, so "no relevant creator exists" could not be judged | Pooled candidates per query (Brain 1: catalogue documents matching any query term; Brain 2: recorded profiles the run found but did not deliver) | Brain 1 packet 277 rows (63 results, 214 pooled); Brain 2 207 rows (77 delivered, 130 pooled) |
+| P2 | Sheets showed rank, so raters could favour top rows; ratings were paired by row order, so a sorted sheet would silently misalign | Blind order, `row_id` join, key file; a sheet with changed rows is refused | Self-test on a copy with synthetic ratings: reversed sheet joined correctly (31 seeded disagreements found), deleted row refused, adjudication produced the gate report |
+| P3 | Behaviour cases (Q024, Q025, Q027, Q029–Q032) were rated for relevance, and pooling them used junk words ("https", "admin") | Behaviour-only scenarios judged on the behaviour sheet only | 10 Q024 rows and 51 pool rows removed |
+| P4 | Brain 2 replay ignored the production multipliers (ran 1× unless told) | Harness starts from config defaults; env overrides | Default replay: 77 delivered, 1,790 credits (matches the study) |
+| P5 | Brain 2 delivered order came from the trail table without ORDER BY | Order by result rank, as the customer sees it | Same creators in every brief; 2 briefs still swap equal-fit creators between replays because ties break on creator UUID (stable within one real job) |
+
+Brain 2 pool excludes candidates rejected as possible minors and hidden creators. A pooled Brain 2 profile rated 2 is a
+creator the pipeline missed or wrongly rejected. **Retention:** both packets contain YouTube API data recorded
+2026-10-13; ratings must be finished, and the YouTube rows deleted, by 2026-11-12.
 
 ## Brain 2 (Live Discovery) on recorded provider responses (REPLAY, 2026-10-14, no spend)
 

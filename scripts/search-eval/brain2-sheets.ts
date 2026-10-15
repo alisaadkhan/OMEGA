@@ -2,46 +2,68 @@
  * Brain 2 (Live Discovery) human evaluation from a recorded-response replay (no provider calls):
  *   node --import tsx scripts/search-eval/brain2-sheets.ts <recordings-dir> <replay-label> <out-dir>
  * Reads <recordings-dir>/baseline.json (briefs) and replays/<label>.json (written by live-replay.live.int.test.ts) and
- * writes brain2-rater-A.csv / brain2-rater-B.csv (delivered creators per brief, in delivery order), brain2-results.json
- * (for `score.ts <out-dir> brain2`) and brain2-funnel.md (outcomes, credits and the per-stage decision counts).
+ * writes the blind rating packet (sheets.ts): the delivered creators per brief mixed with up to EVAL_POOL_SIZE (default
+ * 10) recorded profiles the run found but did not deliver (rejected or not extracted). A pooled profile rated relevant
+ * is a creator the pipeline missed or wrongly rejected. Candidates rejected as possible minors and hidden creators are
+ * never shown. Also writes brain2-results.json (for `score.ts <out-dir> brain2`) and brain2-funnel.md.
  * These are REPLAY results: they measure the pipeline on recorded provider responses, not live provider quality.
  */
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { toCsv } from "./metrics";
-import { readRecordedProfiles } from "./recordings";
+import { readRecordedProfiles, type RecordedProfile } from "./recordings";
+import { writeRatingPacket, type CandidateRow, type CaseRow } from "./sheets";
 
 const [dir, label, out] = process.argv.slice(2);
 if (!dir || !label || !out) throw new Error("usage: brain2-sheets.ts <recordings-dir> <replay-label> <out-dir>");
-const BOM = String.fromCharCode(0xfeff);
+const POOL_SIZE = Number(process.env["EVAL_POOL_SIZE"] ?? 10);
+const NEVER_SHOWN = new Set(["minor_or_unclear", "hidden_creator"]);
+const STAGE_ORDER = ["fit", "relevance", "verification", "selection", "extraction", "cheap_gate", "normalization"];
 
 const briefs = (JSON.parse(readFileSync(join(dir, "baseline.json"), "utf8")) as { briefs: { id: string; text: string; filters: Record<string, unknown> }[] }).briefs;
-type Entry = { id: string; outcome: string | null; delivered: number; deliveredHandles: string[]; credits: { quoted: number; charged: number }; byOutcome: Record<string, number>; ms: number; misses: Record<string, number> };
+type Candidate = { key: string; stage: string; decision: string; reason: string | null };
+type Entry = { id: string; outcome: string | null; delivered: number; deliveredHandles: string[]; candidates?: Candidate[]; credits: { quoted: number; charged: number }; byOutcome: Record<string, number>; ms: number; misses: Record<string, number> };
 const replay = JSON.parse(readFileSync(join(dir, "replays", `${label}.json`), "utf8")) as { size: number; briefs: Entry[] };
+if (replay.briefs.some((e) => !e.candidates)) throw new Error(`replays/${label}.json has no candidate trail: re-run the replay with the current harness`);
 const byUrl = new Map(readRecordedProfiles(dir).profiles.map((p) => [p.url, p]));
+const describe = (p: RecordedProfile | undefined) => ({
+  displayName: p?.profile.displayName ?? "(not in recordings)",
+  handle: p?.profile.handle ?? "",
+  platform: p?.platform ?? "",
+  city: "unknown",
+  niches: "",
+  followers: p?.profile.followers == null ? "unknown" : String(p.profile.followers),
+  bio: p?.profile.bio ?? "",
+});
 
-const sheet: (string | number | null)[][] = [["case_id", "scenario", "query", "filters", "rank", "creator_id", "display_name", "handle", "platform", "city", "niches", "followers", "bio_excerpt", "rating_0_1_2", "note"]];
-const cases: unknown[] = [];
+const rows: CandidateRow[] = [];
+const cases: CaseRow[] = [];
+const queries = new Map<string, { query: string; expected: string }>();
+const results: unknown[] = [];
 const stageTotals: Record<string, number> = {};
-const lines: string[] = [`# Brain 2 replay funnel (${label}, size ${replay.size})`, "", "REPLAY on recorded provider responses; not a live-provider measurement.", "", "| Brief | Outcome | Delivered | Quoted | Charged | Missing recordings |", "|---|---|---|---|---|---|"];
+const lines: string[] = [`# Brain 2 replay funnel (${label}, size ${replay.size})`, "", "REPLAY on recorded provider responses; not a live-provider measurement.", "", "| Brief | Outcome | Delivered | Pooled | Quoted | Charged | Missing recordings |", "|---|---|---|---|---|---|---|"];
 for (const e of replay.briefs) {
   const brief = briefs.find((b) => b.id === e.id);
-  lines.push(`| ${e.id} | ${e.outcome ?? ""} | ${e.delivered} | ${e.credits.quoted} | ${e.credits.charged} | ${Object.entries(e.misses).filter(([, n]) => n > 0).map(([k, n]) => `${k} ${n}`).join(", ")} |`);
+  const expected = `Creators matching the brief; filters ${JSON.stringify(brief?.filters ?? {})}. Too few suitable creators is reported, not padded.`;
+  queries.set(e.id, { query: brief?.text ?? "", expected });
   for (const [k, n] of Object.entries(e.byOutcome)) {
-    const key = k.split(":").slice(1).join(":"); // stage:decision:reason, all platforms together
-    stageTotals[key] = (stageTotals[key] ?? 0) + n;
+    const stage = k.split(":").slice(1).join(":"); // stage:decision:reason, all platforms together
+    stageTotals[stage] = (stageTotals[stage] ?? 0) + n;
   }
-  cases.push({ caseId: e.id, scenario: "live_replay", latencyMs: e.ms, total: e.delivered, results: e.deliveredHandles.map((url, i) => ({ rank: i + 1, id: url })) });
-  if (e.deliveredHandles.length === 0) sheet.push([e.id, "live_replay", brief?.text ?? "", JSON.stringify(brief?.filters ?? {}), 0, "", `(${e.outcome ?? "no result"})`, "", "", "", "", "", "", "n/a", ""]);
-  for (const [i, url] of e.deliveredHandles.entries()) {
-    const p = byUrl.get(url);
-    sheet.push([e.id, "live_replay", brief?.text ?? "", JSON.stringify(brief?.filters ?? {}), i + 1, url, p?.profile.displayName ?? "(not in recordings)", p?.profile.handle ?? "", p?.platform ?? "", "", "", p?.profile.followers ?? "unknown", (p?.profile.bio ?? "").replace(/\s+/g, " ").slice(0, 160), "", ""]);
-  }
+  for (const [i, url] of e.deliveredHandles.entries()) rows.push({ caseId: e.id, creatorId: url, source: "result", rank: i + 1, profileUrl: url, ...describe(byUrl.get(url)) });
+  const delivered = new Set(e.deliveredHandles);
+  const pool = (e.candidates ?? [])
+    .filter((c) => !delivered.has(c.key) && byUrl.has(c.key) && !NEVER_SHOWN.has(c.reason ?? ""))
+    .sort((x, y) => STAGE_ORDER.indexOf(x.stage) - STAGE_ORDER.indexOf(y.stage) || x.key.localeCompare(y.key))
+    .slice(0, POOL_SIZE);
+  for (const c of pool) rows.push({ caseId: e.id, creatorId: c.key, source: "pool", rank: null, profileUrl: c.key, ...describe(byUrl.get(c.key)) });
+  cases.push({ caseId: e.id, query: brief?.text ?? "", expected, outcome: `${e.outcome ?? "no outcome"}: ${e.delivered} delivered of ${replay.size}; charged ${e.credits.charged} of ${e.credits.quoted} quoted credits` });
+  results.push({ caseId: e.id, scenario: "live_replay", latencyMs: e.ms, total: e.delivered });
+  lines.push(`| ${e.id} | ${e.outcome ?? ""} | ${e.delivered} | ${pool.length} | ${e.credits.quoted} | ${e.credits.charged} | ${Object.entries(e.misses).filter(([, n]) => n > 0).map(([k, n]) => `${k} ${n}`).join(", ")} |`);
 }
-lines.push("", "## Decisions across all briefs (stage:decision:reason → candidates)", "", ...Object.entries(stageTotals).sort((a, b) => b[1] - a[1]).map(([k, n]) => `- ${k}: ${n}`));
+lines.push("", "## Decisions across all briefs (stage:decision:reason → candidates)", "", ...Object.entries(stageTotals).sort((x, y) => y[1] - x[1]).map(([k, n]) => `- ${k}: ${n}`));
 
 mkdirSync(out, { recursive: true });
-for (const r of ["A", "B"]) writeFileSync(join(out, `brain2-rater-${r}.csv`), BOM + toCsv(sheet));
-writeFileSync(join(out, "brain2-results.json"), JSON.stringify({ label, cases }, null, 1));
+const packet = writeRatingPacket(out, "brain2", queries, rows, cases);
+writeFileSync(join(out, "brain2-results.json"), JSON.stringify({ label, poolSize: POOL_SIZE, cases: results }, null, 1));
 writeFileSync(join(out, "brain2-funnel.md"), lines.join("\n") + "\n");
-console.log(`${replay.briefs.length} briefs, ${sheet.length - 1} rows to rate → ${out}`);
+console.log(`${replay.briefs.length} briefs, ${packet.rows} rows to rate (${packet.pooled} pooled) → ${out}`);

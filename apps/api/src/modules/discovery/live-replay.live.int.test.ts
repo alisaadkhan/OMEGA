@@ -9,7 +9,8 @@
  * LIVE_REPLAY_EXTRACT_BUDGET_USD=<n> (default 0) lets profile extraction and Instagram post-author resolution run live
  * for recordings that do not exist, under that hard cap; their responses are recorded for later replays.
  *
- * LIVE_REPLAY_MULTIPLIER=instagram=2,tiktok=1 sets extraction multipliers; the production per-job cost cap (config defaults,
+ * Extraction multipliers are the production defaults (config); LIVE_REPLAY_MULTIPLIER=instagram=1,youtube=1 overrides some
+ * of them (e.g. to reproduce the 1× baseline). The production per-job cost cap (config defaults,
  * per-profile cost estimates) always applies. Profiles fetched per platform are counted, with their estimated cost.
  *
  * LIVE_DISCOVERY_REPLAY=1 LIVE_EVAL_OUT=<dir> [LIVE_REPLAY_BRIEFS=id,id] [LIVE_REPLAY_SIZE=5|10|20] [LIVE_REPLAY_LABEL=x]
@@ -181,7 +182,7 @@ describe.skipIf(!enabled)("Live Discovery recorded-response replay through the r
       },
     };
     const pipeline = createEnrichmentPipeline({ db, scraper, storage: new MemoryStorage(), llm, encryptionKey: TEST_KEY, logger, fetchImage: async () => new Response("", { status: 404 }) });
-    const runner = createLiveRunner({ db, billing, pipeline, scraper, search: createCachedSearch({ db, web }), llm, logger, maxAttempts: 1, contentResolutionMax: config.scraping.contentResolutionMax, extractionMultiplier: Object.fromEntries((process.env["LIVE_REPLAY_MULTIPLIER"] ?? "").split(",").filter(Boolean).map((pair) => { const [p, m] = pair.split("="); return [p, Number(m)]; })), jobCostCap: config.scraping.jobCostCap });
+    const runner = createLiveRunner({ db, billing, pipeline, scraper, search: createCachedSearch({ db, web }), llm, logger, maxAttempts: 1, contentResolutionMax: config.scraping.contentResolutionMax, extractionMultiplier: { ...config.scraping.extractionMultiplier, ...Object.fromEntries((process.env["LIVE_REPLAY_MULTIPLIER"] ?? "").split(",").filter(Boolean).map((pair) => { const [p, m] = pair.split("="); return [p, Number(m)]; })) }, jobCostCap: config.scraping.jobCostCap });
 
     const report: unknown[] = [];
     for (const brief of recorded.briefs.filter((b) => ONLY.size === 0 || ONLY.has(b.id))) {
@@ -199,8 +200,8 @@ describe.skipIf(!enabled)("Live Discovery recorded-response replay through the r
       await runner.run(jobId, c.workspaceId).catch(() => undefined);
       const job = await discovery.get(c, jobId);
       const results = await discovery.results(c, jobId, 0);
-      const trail = await ownerQuery<{ platform: string; stage: string; decision: string; reason: string | null; candidate_key: string; occurrences: number }>(
-        `select platform, stage, decision, reason, candidate_key, occurrences from wp.discovery_candidates where job_id = '${jobId}'`);
+      const trail = await ownerQuery<{ platform: string; stage: string; decision: string; reason: string | null; candidate_key: string; occurrences: number; creator_id: string | null }>(
+        `select platform, stage, decision, reason, candidate_key, occurrences, creator_id from wp.discovery_candidates where job_id = '${jobId}'`);
       const byOutcome: Record<string, number> = {};
       for (const r of trail) {
         const k = `${r.platform}:${r.stage}:${r.decision}:${r.reason ?? "-"}`;
@@ -209,7 +210,10 @@ describe.skipIf(!enabled)("Live Discovery recorded-response replay through the r
       const balance = (await billing.summary(c)).balance;
       const entry = {
         id: brief.id, mode: "REPLAY", size: SIZE, status: job.status, outcome: job.outcome, delivered: results.results.length,
-        deliveredHandles: trail.filter((r) => r.decision === "delivered").map((r) => r.candidate_key),
+        // In the order the customer sees them (result rank), not trail order.
+        deliveredHandles: results.results.map((res) => trail.find((r) => r.decision === "delivered" && r.creator_id === res.id)?.candidate_key ?? `${res.platform}:${res.handle}`),
+        // Every candidate and its last decision, so the rating packet can pool fetched-but-not-delivered profiles.
+        candidates: trail.map((r) => ({ key: r.candidate_key, platform: r.platform, stage: r.stage, decision: r.decision, reason: r.reason })),
         credits: { quoted: quote.maxCredits, charged: job.live?.creditsCharged ?? 0, reservedAfter: balance.reserved },
         trailRows: trail.length, pendingAfter: trail.filter((r) => r.decision === "pending").length, duplicates: trail.reduce((n, r) => n + r.occurrences - 1, 0),
         spendUsdSoFar: Math.round(spend.usd * 10000) / 10000, livePostsSoFar: spend.livePosts, liveProfilesSoFar: spend.liveProfiles,

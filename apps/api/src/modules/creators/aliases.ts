@@ -26,8 +26,10 @@ export const NICHE_CONCEPTS: readonly AliasConcept[] = [
   niche("travel", ["travel", "safar", "سفر", "ٹریول"], { roman: "safar travel", urdu: "سفر ٹریول" }),
   niche("fitness", ["fitness", "warzish", "ورزش", "فٹنس"], { roman: "warzish fitness", urdu: "ورزش فٹنس" }),
   niche("technology", ["technology", "tech", "ٹیکنالوجی", "ٹیک"], { roman: "technology tech", urdu: "ٹیکنالوجی ٹیک" }),
-  // Catalogue-only concepts added 2026-10-14 from the Brain 1 panel diagnosis (pending owner review; not sent to Live
-  // Discovery): the Urdu-script panel queries for skincare and literature could never match their English forms.
+  // Catalogue-only concepts from the Brain 1 panel diagnosis (2026-10-14), approved by the owner 2026-10-15 as query
+  // vocabulary only: they widen which documents match, carry no ranking weight, and are not sent to Live Discovery.
+  // Urdu forms are standard spellings (search-quality.md, "Concept vocabulary"): the Urdu-script panel queries for
+  // skincare and literature could never match their English forms.
   niche("skincare", ["skincare", "skin care", "اسکن کیئر", "سکن کیئر"]),
   // "home cooking" means cooking: requiring "home" lost 8 cooking channels on the panel corpus (Q014).
   niche("cooking", ["cooking", "cook", "recipe", "recipes", "home cooking", "کوکنگ", "ریسپی"]),

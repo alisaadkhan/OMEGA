@@ -1,6 +1,9 @@
 /**
  * Brain 1 (catalogue Search) human evaluation, step 1: run every panel query through the real search service and write
- * two identical, independent rating sheets (rater A and rater B) plus the raw results.
+ * the blind rating packet (sheets.ts): MUSHIN's top 10 per query mixed with up to EVAL_POOL_SIZE (default 10) pooled
+ * candidates it did not return (catalogue documents matching any of the query's words or concept forms), so raters can
+ * say whether a relevant creator existed at all. That makes relevant-query coverage measurable, and tests every "nothing
+ * suitable in the catalogue" claim. Pooling only finds creators whose text mentions a query term; that limit is stated.
  *
  * Runs only against a disposable local copy of a catalogue (never the database you work in):
  *   createdb -h localhost -p 54330 -U postgres -T mushin_local mushin_eval_disposable
@@ -16,12 +19,40 @@ import { AppError, createLogger, type TenantContext } from "@mushin/core";
 import { createTestDatabase, createTestWorkspace, ownerQuery } from "@mushin/db/testing";
 import { MockLlm, MockPayments, UnavailableSearchIndex } from "@mushin/integrations";
 import { createBillingService, MemoryAccessCache } from "../../apps/api/src/modules/billing/index";
-import { createCreatorsService, createPostgresCatalogSearch } from "../../apps/api/src/modules/creators/index";
-import { parseCsv, toCsv } from "./metrics";
+import { createCreatorsService, createPostgresCatalogSearch, expandQuery, understandQuery } from "../../apps/api/src/modules/creators/index";
+import { parseCsv } from "./metrics";
+import { BOM, writeRatingPacket, type CandidateRow, type CaseRow } from "./sheets";
 
-/** Byte-order mark so spreadsheet apps open the UTF-8 sheets (Urdu text) correctly. */
-const BOM = String.fromCharCode(0xfeff);
 const BOM_PREFIX = new RegExp(`^${BOM}`);
+const POOL_SIZE = Number(process.env["EVAL_POOL_SIZE"] ?? 10);
+/** Panel scenarios that test behaviour (refusal, ambiguity, identity, metric freshness), not topical relevance: judged on
+ * the behaviour sheet only, with no relevance rows and no part in precision, nDCG or coverage. */
+const BEHAVIOUR_ONLY = new Set(["conflicting_filters", "ambiguous", "unsupported_attribute", "url_security", "duplicate_identity", "cross_platform_identity", "stale_metric", "missing_metric"]);
+const lit = (v: string) => `'${v.replace(/'/g, "''")}'`;
+const PROFILE_URL: Record<string, (h: string) => string> = { instagram: (h) => `https://instagram.com/${h}`, tiktok: (h) => `https://tiktok.com/@${h}`, youtube: (h) => `https://youtube.com/@${h}` };
+
+/** What a rater sees about a creator: name, primary profile and its bio, read from the catalogue copy. */
+async function describe(ids: string[]): Promise<Map<string, Omit<CandidateRow, "caseId" | "creatorId" | "source" | "rank">>> {
+  if (!ids.length) return new Map();
+  const rows = await ownerQuery<{ id: string; display_name: string; handle: string; platform: string; url: string | null; city: string | null; niches: string[]; followers: number | null; bio: string | null }>(
+    `select distinct on (c.id) c.id, c.display_name, p.handle, p.platform, p.canonical_url url, c.city, c.niches, p.followers, p.bio
+     from gcp.creators c join gcp.creator_profiles p on p.creator_id = c.id where c.id in (${ids.map(lit).join(", ")})
+     order by c.id, (p.platform = c.primary_platform) desc, p.followers desc nulls last`);
+  return new Map(rows.map((x) => [x.id, { displayName: x.display_name, handle: x.handle, platform: x.platform, profileUrl: x.url ?? PROFILE_URL[x.platform]?.(x.handle) ?? "", city: x.city ?? "unknown", niches: x.niches.join("; "), followers: x.followers === null ? "unknown" : String(x.followers), bio: x.bio ?? "" }]));
+}
+
+/** Searchable catalogue creators (same exclusions as Search: active, no unreviewed minor) matching ANY of the query's words or concept forms, best text rank first, not yet returned. */
+async function pool(text: string, exclude: string[]): Promise<string[]> {
+  const u = understandQuery(text);
+  const forms = [...new Set((expandQuery(u.text) ?? u.text.split(" ").filter(Boolean).map((w) => ({ forms: [w] }))).flatMap((g) => g.forms))];
+  if (!forms.length || POOL_SIZE <= 0) return [];
+  const ts = forms.map((x) => `plainto_tsquery('simple', ${lit(x)})`).join(" || ");
+  const rows = await ownerQuery<{ id: string }>(
+    `select d.creator_id id from gcp.creator_search_documents d join gcp.creators c on c.id = d.creator_id
+     where c.status = 'active' and not (c.is_minor and c.minor_override_by_staff_id is null) and d.search_vector @@ (${ts})${exclude.length ? ` and d.creator_id not in (${exclude.map(lit).join(", ")})` : ""}
+     order by ts_rank_cd(d.search_vector, ${ts}) desc, d.creator_id limit ${POOL_SIZE}`);
+  return rows.map((x) => x.id);
+}
 
 const [queriesPath, outDir] = process.argv.slice(2);
 if (!queriesPath || !outDir) throw new Error("usage: run-brain1.ts <queries.csv> <out-dir>");
@@ -42,13 +73,17 @@ const price = (await ownerQuery<{ credits: number }>(`select credits from platfo
 const [header, ...rows] = parseCsv(readFileSync(queriesPath, "utf8").replace(BOM_PREFIX, ""));
 const col = (name: string) => header?.indexOf(name) ?? -1;
 const results: unknown[] = [];
-const sheet: (string | number | null)[][] = [["case_id", "scenario", "query", "filters", "rank", "creator_id", "display_name", "handle", "platform", "city", "niches", "followers", "bio_excerpt", "rating_0_1_2", "note"]];
+const candidates: CandidateRow[] = [];
+const cases: CaseRow[] = [];
+const queries = new Map<string, { query: string; expected: string }>();
 
 for (const r of rows) {
   const caseId = r[col("case_id")] ?? "";
   const scenario = r[col("scenario")] ?? "";
   const text = r[col("query_text")] ?? "";
   const filtersRaw = (r[col("filters_json")] ?? "").trim();
+  const expected = (r[col("hard_constraints")] ?? "").trim();
+  queries.set(caseId, { query: text || `(no text; filters ${filtersRaw})`, expected });
   const started = performance.now();
   try {
     // The panel's filters_json is the EXPECTED reading of the query (for raters), not something a user set: the search
@@ -57,21 +92,29 @@ for (const r of rows) {
     const out = await service.search(ctx, searchRequestSchema.parse({ text, filters, confirmedCost: price }));
     const ms = Math.round(performance.now() - started);
     const top = out.results.slice(0, 10);
-    results.push({ caseId, scenario, text, filters, latencyMs: ms, total: out.total, results: top.map((c, i) => ({ rank: i + 1, id: c.id, displayName: c.displayName, handle: c.handle, platform: c.platform })) });
-    if (top.length === 0) sheet.push([caseId, scenario, text, filtersRaw, 0, "", "(no results)", "", "", "", "", "", "", "n/a", ""]);
-    for (const [i, c] of top.entries()) {
-      const bio = (await ownerQuery<{ bio: string | null }>(`select bio from gcp.creator_profiles where creator_id = '${c.id}' order by followers desc nulls last limit 1`))[0]?.bio ?? "";
-      sheet.push([caseId, scenario, text, filtersRaw, i + 1, c.id, c.displayName, c.handle, c.platform, c.city ?? "unknown", c.niches.join("; "), c.followers ?? "unknown", bio.replace(/\s+/g, " ").slice(0, 160), "", ""]);
+    const behaviourOnly = BEHAVIOUR_ONLY.has(scenario);
+    results.push({ caseId, scenario, behaviourOnly, text, filters, latencyMs: ms, total: out.total, results: top.map((c, i) => ({ rank: i + 1, id: c.id, displayName: c.displayName, handle: c.handle, platform: c.platform })) });
+    const shown = behaviourOnly ? [] : top;
+    const pooled = text.trim() && !behaviourOnly ? await pool(text, top.map((c) => c.id)) : [];
+    const info = await describe([...top.map((c) => c.id), ...pooled]);
+    for (const [i, c] of shown.entries()) {
+      const d = info.get(c.id);
+      if (d) candidates.push({ caseId, creatorId: c.id, source: "result", rank: i + 1, ...d });
     }
+    for (const id of pooled) {
+      const d = info.get(id);
+      if (d) candidates.push({ caseId, creatorId: id, source: "pool", rank: null, ...d });
+    }
+    cases.push({ caseId, query: queries.get(caseId)?.query ?? text, expected, outcome: top.length ? `${out.total} result(s), first: ${top.slice(0, 5).map((c) => `${c.displayName} (${c.platform})`).join("; ")}` : "no results" });
   } catch (err) {
     const reason = err instanceof AppError ? `${err.code}: ${err.message}` : err instanceof Error ? err.message.split("\n")[0] : String(err);
     results.push({ caseId, scenario, text, filtersRaw, rejected: reason, latencyMs: Math.round(performance.now() - started) });
-    sheet.push([caseId, scenario, text, filtersRaw, 0, "", `(request rejected: ${reason})`, "", "", "", "", "", "", "n/a", ""]);
+    cases.push({ caseId, query: queries.get(caseId)?.query ?? text, expected, outcome: `refused: ${reason}` });
   }
 }
 
 mkdirSync(outDir, { recursive: true });
-writeFileSync(join(outDir, "brain1-results.json"), JSON.stringify({ at: new Date().toISOString(), price, cases: results }, null, 2));
-for (const rater of ["A", "B"]) writeFileSync(join(outDir, `brain1-rater-${rater}.csv`), BOM + toCsv(sheet));
-console.log(`${rows.length} queries, ${sheet.length - 1} rows to rate → ${outDir}`);
+writeFileSync(join(outDir, "brain1-results.json"), JSON.stringify({ at: new Date().toISOString(), price, poolSize: POOL_SIZE, cases: results }, null, 2));
+const packet = writeRatingPacket(outDir, "brain1", queries, candidates, cases);
+console.log(`${rows.length} queries, ${packet.rows} rows to rate (${packet.pooled} pooled) → ${outDir}`);
 await db.close();

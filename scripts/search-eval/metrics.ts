@@ -72,3 +72,30 @@ export function parseCsv(text: string): string[][] {
   if (row.some((x) => x !== "")) rows.push(row);
   return rows;
 }
+
+/**
+ * Acceptance gates (owner, provisional, 2026-10-14): mean strict precision@5, mean nDCG@10 over the pooled judgements and
+ * relevant-query coverage, trusted only when the two raters agree (kappa) and every behaviour case passes.
+ */
+export const ACCEPTANCE_GATES = { kappa: 0.6, precisionAt5: 0.8, ndcgAt10: 0.75, coverage: 0.9, behaviour: 1 } as const;
+
+export type GateResult = { name: string; value: number | null; threshold: number; pass: boolean };
+export const gate = (name: string, value: number | null, threshold: number): GateResult => ({ name, value, threshold, pass: value !== null && value >= threshold - 1e-9 });
+
+/**
+ * Relevant-query coverage: of the queries with at least one fully relevant creator anywhere in the judged pool (MUSHIN's
+ * results plus the pooled candidates), the share whose returned results include one.
+ */
+export function relevantCoverage(cases: { judged: Rating[]; returned: Rating[] }[]): { answerable: number; covered: number; share: number | null } {
+  const answerable = cases.filter((c) => c.judged.includes(2));
+  const covered = answerable.filter((c) => c.returned.includes(2)).length;
+  return { answerable: answerable.length, covered, share: answerable.length ? covered / answerable.length : null };
+}
+
+/** FNV-1a: a stable order for rating sheets that hides each row's rank and whether it was returned or pooled. */
+function fnv1a(text: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193) >>> 0;
+  return h;
+}
+export const blindOrder = <T>(items: T[], key: (t: T) => string): T[] => [...items].sort((a, b) => fnv1a(key(a)) - fnv1a(key(b)) || key(a).localeCompare(key(b)));

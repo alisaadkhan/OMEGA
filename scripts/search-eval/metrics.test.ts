@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cohensKappa, mean, ndcgAt, parseCsv, percentile, precisionAt, toCsv, type Rating } from "./metrics";
+import { blindOrder, cohensKappa, gate, mean, ndcgAt, parseCsv, percentile, precisionAt, relevantCoverage, toCsv, type Rating } from "./metrics";
 
 describe("search evaluation metrics", () => {
   it("precision@k: strict counts only fully relevant results; no results is not a precision", () => {
@@ -32,5 +32,27 @@ describe("search evaluation metrics", () => {
   it("CSV round-trips quotes, commas, new lines and Urdu text", () => {
     const rows = [["q", "text"], ["Q002", 'لاہور، "اسکن کیئر"\nline two']];
     expect(parseCsv(toCsv(rows))).toEqual(rows);
+  });
+
+  it("coverage counts only queries with a relevant creator somewhere in the judged pool", () => {
+    expect(relevantCoverage([
+      { judged: [2, 0, 2], returned: [2, 0] }, // covered
+      { judged: [0, 2], returned: [0] }, // relevant creator pooled but not returned: a miss
+      { judged: [0, 1], returned: [] }, // nothing fully relevant exists: not answerable
+    ])).toEqual({ answerable: 2, covered: 1, share: 0.5 });
+    expect(relevantCoverage([{ judged: [1], returned: [1] }]).share).toBeNull();
+  });
+
+  it("a gate passes only at or above its threshold and never without a value", () => {
+    expect(gate("p", 0.8, 0.8).pass).toBe(true);
+    expect(gate("p", 0.79, 0.8).pass).toBe(false);
+    expect(gate("p", null, 0.8).pass).toBe(false);
+  });
+
+  it("blind order is stable and does not follow the input order", () => {
+    const keys = Array.from({ length: 20 }, (_, i) => `Q001:${i}`);
+    const once = blindOrder(keys, (k) => k);
+    expect(blindOrder([...keys].reverse(), (k) => k)).toEqual(once);
+    expect(once).not.toEqual(keys);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cityForms, closestWord, editDistance, handleWords, expandQuery, LIVE_PLACE_URDU, LIVE_TOPIC_TERMS, normalizeQuery } from "./aliases";
+import { cityForms, closestWord, editDistance, handleWords, expandQuery, LIVE_PLACE_URDU, LIVE_TOPIC_TERMS, NICHE_CONCEPTS, normalizeQuery } from "./aliases";
 
 describe("reviewed search aliases", () => {
   it("normalises case, punctuation and Unicode without dropping Urdu letters", () => {
@@ -58,6 +58,15 @@ describe("reviewed search aliases", () => {
   it("matches the Urdu-script forms of skincare and literature (panel Q002, Q035)", () => {
     expect(expandQuery("لاہور اسکن کیئر")?.map((g) => g.canonical)).toEqual(["Lahore", "skincare"]);
     expect(expandQuery("اردو ادب")?.map((g) => g.canonical)).toEqual(["اردو", "literature"]);
+  });
+
+  it("maps every form of the approved catalogue concepts, and nothing else, to that concept", () => {
+    for (const c of NICHE_CONCEPTS.filter((n) => ["skincare", "cooking", "literature", "agriculture"].includes(n.canonical))) {
+      expect(c.live).toBeUndefined(); // catalogue only: never sent to Live Discovery
+      for (const form of c.forms) expect(expandQuery(form)).toEqual([{ kind: "niche", canonical: c.canonical, forms: [...c.forms] }]);
+    }
+    expect(expandQuery("food")?.[0]?.canonical).toBe("food"); // "food" and "khana" stay food, not cooking
+    expect(expandQuery("کھانا")?.[0]?.canonical).toBe("food");
   });
 
   it("reads English concept and city words inside joined-up handles, not Roman Urdu ones or already separated words", () => {

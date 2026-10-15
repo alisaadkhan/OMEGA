@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { searchFiltersSchema, searchRequestSchema } from "@mushin/contracts";
 import { createLogger, type TenantContext } from "@mushin/core";
-import { createTestDatabase, createTestWorkspace, ownerQuery, resetTables } from "@mushin/db/testing";
+import { createTestDatabase, createTestWorkspace, ownerQuery, pinActionCosts, resetTables } from "@mushin/db/testing";
 import { MockLlm, MockPayments, testSearchIndex, UnavailableSearchIndex } from "@mushin/integrations";
 import { createBillingService, MemoryAccessCache } from "../billing/index";
 import { isIndexable, toDocument } from "./projection";
@@ -23,15 +23,15 @@ const creators = createCreatorsService({ db, index, llm, billing, encryptionKey:
 const postgresCreators = createCreatorsService({ db, index, nativeSearch: createPostgresCatalogSearch(db), llm, billing, encryptionKey: TEST_KEY, logger });
 
 // These tests check what search finds, not what it costs (search-charge.int.test.ts covers the price): searching is
-// free for this file and the owner price is put back afterwards.
-let searchPrice = 0;
+// free for this file and the owner price is put back afterwards. The price is captured before anything else can fail, so a
+// failed setup (e.g. Meilisearch down) can never "restore" a wrong price into the table every later run shares.
+let restorePrices: (() => Promise<void>) | undefined;
 beforeAll(async () => {
+  restorePrices = await pinActionCosts({ search_existing: 0 });
   await index.ensureSettings();
-  searchPrice = (await ownerQuery<{ credits: number }>(`select credits from platform.credit_action_costs where action = 'search_existing'`))[0]?.credits ?? 0;
-  await ownerQuery(`update platform.credit_action_costs set credits = 0 where action = 'search_existing'`);
 });
 afterAll(async () => {
-  await ownerQuery(`update platform.credit_action_costs set credits = ${searchPrice} where action = 'search_existing'`);
+  await restorePrices?.();
   await index.drop();
   await db.close();
 });

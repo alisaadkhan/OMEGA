@@ -51,7 +51,7 @@ export async function otherOpenRequests(tx: SystemTx, creatorId: string, exceptI
   return rows.length;
 }
 
-export async function finishRequest(tx: SystemTx, id: string, status: "processed" | "rejected", staffId: string, note: string | null): Promise<void> {
+export async function finishRequest(tx: SystemTx, id: string, status: "processed" | "rejected", staffId: string | null, note: string | null): Promise<void> {
   await tx.update(removalRequests).set({ status, handledByStaffId: staffId, staffNote: note, processedAt: sql`now()` }).where(eq(removalRequests.id, id));
 }
 
