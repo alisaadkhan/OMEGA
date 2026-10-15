@@ -10,13 +10,17 @@
  */
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { MIN_FOLLOWERS } from "../../apps/api/src/modules/creators/index";
 import { readRecordedProfiles, type RecordedProfile } from "./recordings";
 import { writeRatingPacket, type CandidateRow, type CaseRow } from "./sheets";
 
 const [dir, label, out] = process.argv.slice(2);
 if (!dir || !label || !out) throw new Error("usage: brain2-sheets.ts <recordings-dir> <replay-label> <out-dir>");
 const POOL_SIZE = Number(process.env["EVAL_POOL_SIZE"] ?? 10);
-const NEVER_SHOWN = new Set(["minor_or_unclear", "hidden_creator"]);
+// Never pooled: creators the product may not show (possible minors, hidden) or that fail creator eligibility (elig-1).
+const NEVER_SHOWN = new Set(["minor_or_unclear", "hidden_creator", "below_follower_minimum", "followers_unknown", "followers_stale", "inactive", "invalid_profile_url"]);
+/** A recorded profile the product could deliver under elig-1: a known count at or above the minimum. */
+const meetsMinimum = (p: RecordedProfile | undefined) => p?.profile.followers != null && p.profile.followers >= MIN_FOLLOWERS && !(p.platform === "youtube" && p.profile.followers === 0);
 const STAGE_ORDER = ["fit", "relevance", "verification", "selection", "extraction", "cheap_gate", "normalization"];
 
 const briefs = (JSON.parse(readFileSync(join(dir, "baseline.json"), "utf8")) as { briefs: { id: string; text: string; filters: Record<string, unknown> }[] }).briefs;
@@ -54,7 +58,7 @@ for (const e of replay.briefs) {
   for (const [i, url] of e.deliveredHandles.entries()) rows.push({ caseId: e.id, creatorId: url, source: "result", rank: i + 1, profileUrl: url, ...describe(byUrl.get(url)) });
   const delivered = new Set(e.deliveredHandles);
   const pool = (e.candidates ?? [])
-    .filter((c) => !delivered.has(c.key) && byUrl.has(c.key) && !NEVER_SHOWN.has(c.reason ?? ""))
+    .filter((c) => !delivered.has(c.key) && byUrl.has(c.key) && !NEVER_SHOWN.has(c.reason ?? "") && meetsMinimum(byUrl.get(c.key)))
     .sort((x, y) => STAGE_ORDER.indexOf(x.stage) - STAGE_ORDER.indexOf(y.stage) || x.key.localeCompare(y.key))
     .slice(0, POOL_SIZE);
   for (const c of pool) rows.push({ caseId: e.id, creatorId: c.key, source: "pool", rank: null, profileUrl: c.key, ...describe(byUrl.get(c.key)) });

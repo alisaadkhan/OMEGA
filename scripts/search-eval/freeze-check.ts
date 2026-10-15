@@ -22,8 +22,12 @@ if (!queries) {
   console.error("usage: freeze-check.ts <queries.csv>");
   process.exit(2);
 }
-const B1_AT = "2026-10-15T13:59:07.039Z"; // brain1-results.json "at" of the packet run
-const B2_AT = "2026-10-15T13:53:35.002Z"; // replay b2-det-1 "at"
+// Current packets: creator eligibility policy elig-1, both brains run with the clock pinned to the same instant.
+// (The superseded pre-eligibility packets blind-b1/blind-b2 used 2026-10-15T13:59:07.039Z and 13:53:35.002Z.)
+const B1_AT = "2026-10-16T12:00:00.000Z";
+const B2_AT = "2026-10-16T12:00:00.000Z";
+const B1_PACKET = "blind-b1-elig1";
+const B2_PACKET = "blind-b2-elig1";
 const stamp = new Date().toISOString().replace(/[:.]/g, "-");
 const node = (args: string[], env: Record<string, string>) =>
   execFileSync(process.execPath, args, { cwd: repo, env: { ...process.env, ...env }, stdio: ["ignore", "pipe", "inherit"] }).toString();
@@ -39,7 +43,7 @@ node(["--import", "tsx", "scripts/search-eval/run-brain1.ts", queries, b1Out], {
   TEST_DATABASE_SSL_CA_FILE: "",
 });
 for (const f of ["brain1-rater-A.csv", "brain1-rater-B.csv", "brain1-key.csv", "brain1-cases-A.csv"]) {
-  if (!same(join(b1Out, f), join(evalDir, "packets", "blind-b1", f))) failures.push(`Brain 1 ${f} differs`);
+  if (!same(join(b1Out, f), join(evalDir, "packets", B1_PACKET, f))) failures.push(`Brain 1 ${f} differs`);
 }
 
 // Brain 2
@@ -56,7 +60,7 @@ node([join(repo, "node_modules", "vitest", "vitest.mjs"), "run", "apps/api/src/m
 const b2Out = join(evalDir, "runs", label);
 node(["--import", "tsx", "scripts/search-eval/brain2-sheets.ts", join(evalDir, "recordings"), label, b2Out], {});
 for (const f of ["brain2-rater-A.csv", "brain2-rater-B.csv", "brain2-key.csv", "brain2-cases-A.csv"]) {
-  if (!same(join(b2Out, f), join(evalDir, "packets", "blind-b2", f))) failures.push(`Brain 2 ${f} differs`);
+  if (!same(join(b2Out, f), join(evalDir, "packets", B2_PACKET, f))) failures.push(`Brain 2 ${f} differs`);
 }
 
 if (failures.length) {

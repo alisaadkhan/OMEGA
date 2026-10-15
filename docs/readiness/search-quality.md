@@ -311,14 +311,14 @@ the wall clock, so recorded posts aged and, two days later, one borderline Brain
 The product is right to use the current time; the harnesses now take `EVAL_NOW` / `LIVE_REPLAY_NOW`.
 
 **Rating round, step by step:**
-1. Kits: `node --import tsx scripts/search-eval/make-rater-kits.ts eval-data/packets/blind-b1 eval-data/packets/blind-b2 eval-data/kits 2026-11-12`
+1. Kits: `node --import tsx scripts/search-eval/make-rater-kits.ts eval-data/packets/blind-b1-elig1 eval-data/packets/blind-b2-elig1 eval-data/kits 2026-11-12`
    writes `rater-A/`, `rater-B/` and `adjudicator/`. Each rater gets only their own Brain 1 and Brain 2 sheets plus the
    instructions, never a key or the other rater's sheets. `kits-manifest.csv`, kept outside the kits, holds each sheet's
    SHA-256.
 2. Send each folder to its person. The README tells them to fill only the rating and note columns, keep the files local
    and delete every copy after returning them, and in any case before 2026-11-12.
-3. Put the returned sheets next to the packet (for example `eval-data/packets/blind-b1/brain1-rater-A.csv`), then run
-   `node --import tsx scripts/search-eval/score.ts eval-data/packets/blind-b1 brain1`. Do the same for `blind-b2 brain2`.
+3. Put the returned sheets next to the packet (for example `eval-data/packets/blind-b1-elig1/brain1-rater-A.csv`), then run
+   `node --import tsx scripts/search-eval/score.ts eval-data/packets/blind-b1-elig1 brain1`. Do the same for `blind-b2-elig1 brain2`.
    It reports Cohen's kappa and writes every disagreement to `<brain>-to-adjudicate.csv`.
 4. The adjudicator fills `final` and saves the file as `<brain>-adjudicated.csv`. Run `score.ts` again: it writes
    `<brain>-report.md` with the gates (kappa ≥ 0.6, strict precision@5 ≥ 0.80, nDCG@10 ≥ 0.75, relevant-query coverage
@@ -332,3 +332,27 @@ deleted: everything in `eval-data/` except `reports/`, plus the database `mushin
 exists (`scripts/search-eval/retention.test.ts`). Older copies in earlier Claude sessions' temporary folders
 (`%TEMP%\claude\…\221a1bc7…\scratchpad\search-eval`, `…\7331cfc4…\scratchpad\eval`) are outside the project and must be
 deleted too. Each rater deletes their own copies.
+
+## Creator eligibility elig-1 and the rebuilt packets (2026-10-16)
+
+The owner's 10,000-follower minimum (policy elig-1, `creators/eligibility.ts`) changes the result universe, so the
+packets were rebuilt and the earlier ones marked superseded. Both brains ran with the clock pinned to
+2026-10-16T12:00:00Z on the same corpus and recordings. **Metrics before and after are under different policies and are
+not directly comparable.**
+
+| Measure | Pre-eligibility packets (2026-10-15) | elig-1 packets (2026-10-16) |
+|---|---|---|
+| Corpus creators eligible | n/a (all 455 searchable) | 204 of 455 (243 below 10k, 8 unknown count) |
+| Brain 1 queries with results (35) | 15 | 11 (Q008, Q012, Q013, Q015 now empty: every matching creator is below 10k) |
+| Brain 1 rows to rate | 273 (210 pooled) | 222 (169 pooled, eligible creators only) |
+| Brain 2 delivered / empty briefs (REPLAY) | 77 / 5 | 53 / 9 (26 candidates rejected below the minimum) |
+| Brain 2 credits charged (REPLAY) | 1,790 of 2,500 | 1,320 of 2,500 (settlement exact, nothing reserved) |
+| Brain 2 estimated extraction USD per delivered | 0.0070 | 0.0106 (extra waves replace rejected creators) |
+| Brain 2 rows to rate | 207 (130 pooled) | 131 (78 pooled, recorded counts ≥ 10k only) |
+
+Empty results are reported, never padded, and the threshold is not lowered. Pools for coverage now draw only on
+creators that pass elig-1, so a relevant creator below the minimum is not counted as "missed". Current packets:
+`eval-data/packets/blind-b1-elig1` and `blind-b2-elig1`. Rater kits were rebuilt in `eval-data/kits`; the old kits are in
+`kits-pre-elig1` with a notice to delete them. The freeze check targets the elig-1 packets (tag
+`search-freeze-2026-10-16-elig1`). Human ratings are still required; the gates are unchanged (kappa ≥ 0.6, strict P@5
+≥ 0.80, nDCG@10 ≥ 0.75, coverage ≥ 90%), and whether they remain appropriate after the policy change is the owner's call.
