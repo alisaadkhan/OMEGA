@@ -1,35 +1,36 @@
 import { Search, ShieldCheck, Gauge, Workflow, Sparkles, Users } from "lucide-react";
 
+/** What the product does today. Every line maps to a working, tested capability (plans-claims.test.ts). */
 const features = [
   {
     icon: Search,
     title: "Creator discovery",
-    desc: "Search creators across Instagram, TikTok, and YouTube with niche, audience, and engagement filters — plus lookalike and semantic discovery.",
+    desc: "Search MUSHIN's catalogue of Instagram, TikTok and YouTube creators in English, Roman Urdu or Urdu, with platform, city, follower and engagement filters. Find new creators from a brief, with the price quoted before you confirm.",
   },
   {
     icon: ShieldCheck,
     title: "Suspicious Activity Signals",
-    desc: "Surface unusual follower growth, engagement patterns, and anomalies worth reviewing — signals to investigate, not verdicts.",
+    desc: "Unusual follower growth or engagement patterns worth reviewing, each shown with the evidence behind it. Signals to investigate, not verdicts.",
   },
   {
     icon: Gauge,
-    title: "Creator Fit Score",
-    desc: "A score for how closely a creator matches your campaign. Each score includes a reasoning panel so you can see what contributed.",
+    title: "Creator Fit",
+    desc: "How closely a creator matches your search or brief, with the reasons shown alongside the score.",
   },
   {
     icon: Sparkles,
-    title: "Refresh creator data",
-    desc: "Audience Details (AI-estimated), growth history, niche analysis, and summaries — labeled by confidence level.",
+    title: "Fresh, sourced data",
+    desc: "Follower counts, engagement and summaries carry the date they were observed, so stale numbers are marked, not hidden.",
   },
   {
     icon: Workflow,
-    title: "Campaign operations",
-    desc: "Pipelines, approvals, outreach, and creator lists in one place. Move work out of spreadsheets and Slack threads.",
+    title: "Campaign tracking",
+    desc: "Lists, campaign stages, agreed fees and a manual outreach log in one place.",
   },
   {
     icon: Users,
-    title: "Workspace collaboration",
-    desc: "Shared lists, campaigns, and permissions across brand and agency teams. Built for multi-org enterprise use.",
+    title: "Workspace roles",
+    desc: "Owner, admin and member roles decide who can buy credits, see the ledger and manage the workspace.",
   },
 ];
 
@@ -52,8 +53,9 @@ export function Features() {
               >
                 {f.title}
               </h3>
-              <p className="mt-2 text-sm text-slate-600" style={{ lineHeight: 1.6 }}
-                 dangerouslySetInnerHTML={{ __html: f.desc }} />
+              <p className="mt-2 text-sm text-slate-600" style={{ lineHeight: 1.6 }}>
+                {f.desc}
+              </p>
             </div>
           ))}
         </div>

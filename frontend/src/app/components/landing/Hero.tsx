@@ -96,7 +96,7 @@ export function Hero({ onPrimary }: { onPrimary?: () => void } = {}) {
             <div className="grid grid-cols-12 gap-0">
               <aside className="col-span-3 hidden border-r border-slate-100 bg-slate-50/40 p-4 md:block">
                 <div className="mb-4 h-3 w-24 rounded bg-slate-200" />
-                {["Overview", "Workflows", "Signals", "Audiences", "Reports", "Integrations"].map((n, i) => (
+                {["Overview", "Search", "Lists", "Campaigns", "Credits", "Support"].map((n, i) => (
                   <div
                     key={n}
                     className={`mb-1 flex items-center gap-2 rounded-md px-2 py-2 ${

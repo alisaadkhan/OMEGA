@@ -39,7 +39,7 @@ try {
       from wp.campaign_creators m cross join generate_series(1, 5) g;
     analyze;`);
   const lists = createListsService({ db });
-  const campaigns = createCampaignsService({ db });
+  const campaigns = createCampaignsService({ db, planLimits: async () => ({ entitlements: { campaignLimit: null } }) });
   const analytics = createAnalyticsService({ db });
   const activity = createActivityService({ db });
   const firstList = (await lists.index(ctx)).lists[0]?.id ?? randomUUID();

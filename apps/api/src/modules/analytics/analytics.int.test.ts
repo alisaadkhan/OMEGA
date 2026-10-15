@@ -11,7 +11,7 @@ import { createAnalyticsService } from "./index";
 const db = createTestDatabase();
 const analytics = createAnalyticsService({ db });
 const activity = createActivityService({ db });
-const campaigns = createCampaignsService({ db });
+const campaigns = createCampaignsService({ db, planLimits: async () => ({ entitlements: { campaignLimit: null } }) });
 const lists = createListsService({ db });
 beforeEach(resetTables);
 afterAll(() => db.close());

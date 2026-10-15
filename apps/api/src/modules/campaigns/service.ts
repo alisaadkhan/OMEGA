@@ -15,7 +15,8 @@ import type { Db } from "@mushin/db";
 import { rankCards, requestContactCheck, type SourcePolicy } from "../creators/index";
 import * as repo from "./repository";
 
-export type CampaignsDeps = { db: Db; now?: () => Date; sourcePolicy?: SourcePolicy };
+/** `planLimits` reads the workspace's plan entitlements (billing `getAccess`); required so the limit is enforced here. */
+export type CampaignsDeps = { db: Db; planLimits: (ctx: TenantContext) => Promise<{ entitlements: { campaignLimit: number | null } }>; now?: () => Date; sourcePolicy?: SourcePolicy };
 
 const FEE_KIND_FOR: Record<PipelineStage, "estimated" | "quoted" | "agreed"> = { identified: "estimated", contacted: "estimated", negotiating: "quoted", confirmed: "agreed" };
 const MAX_CLOCK_SKEW_MS = 5 * 60_000;
@@ -100,8 +101,13 @@ export function createCampaignsService(deps: CampaignsDeps) {
   }
 
   async function create(ctx: TenantContext, body: Required<CreateCampaign>): Promise<CampaignSummary> {
+    const limit = (await deps.planLimits(ctx)).entitlements.campaignLimit;
     return deps.db.withTenant(tenant(ctx), async (tx) => {
       if ((await repo.countCampaigns(tx, ctx.workspaceId)) >= repo.MAX_CAMPAIGNS) throw new AppError("CONFLICT", `A workspace can keep up to ${repo.MAX_CAMPAIGNS} campaigns.`);
+      // The plan's campaign limit counts open campaigns (not completed ones); no plan means no new campaigns.
+      if (limit !== null && (await repo.countOpenCampaigns(tx, ctx.workspaceId)) >= limit) {
+        throw new AppError("ENTITLEMENT_REQUIRED", limit === 0 ? "Your workspace needs an active plan to create campaigns." : `Your plan includes up to ${limit} open campaigns. Complete one or upgrade to add another.`, { reason: "plan_limit", key: "campaigns", limit });
+      }
       const row = await repo.insertCampaign(tx, { ...body, workspaceId: ctx.workspaceId, createdBy: ctx.userId });
       return summaryOf(tx, ctx, row.id);
     });

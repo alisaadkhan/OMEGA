@@ -1,12 +1,19 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import type { TenantContext } from "@mushin/core";
+import { createLogger, type TenantContext } from "@mushin/core";
 import { createTestDatabase, createTestWorkspace, dbError, ownerQuery, resetTables } from "@mushin/db/testing";
+import { MockPayments } from "@mushin/integrations";
+import { createBillingService, MemoryAccessCache } from "../billing/index";
 import { addCreator } from "../creators/test-fixtures";
 import { createCampaignsService } from "./index";
 
 const db = createTestDatabase();
-const campaigns = createCampaignsService({ db });
+// Most tests are about the pipeline, not the plan: unlimited unless a test sets a limit.
+let campaignLimit: number | null = null;
+const campaigns = createCampaignsService({ db, planLimits: async () => ({ entitlements: { campaignLimit } }) });
+beforeEach(() => {
+  campaignLimit = null;
+});
 beforeEach(resetTables);
 afterAll(() => db.close());
 
@@ -16,6 +23,23 @@ async function customer(): Promise<TenantContext> {
 const base = { status: "draft", platform: null, client: "", objective: "", notes: "", budgetMinor: null, startDate: null, endDate: null } as const;
 
 describe("campaigns", () => {
+  it("enforces the plan's open-campaign limit on the server; completed campaigns do not count; no plan, no new campaign", async () => {
+    const logger = createLogger({ level: "silent" });
+    const cache = new MemoryAccessCache();
+    const billing = createBillingService({ db, payments: new MockPayments({ webhookSecret: "s".repeat(40), publicApiUrl: "http://api.test", deliver: async () => {} }), cache, logger });
+    const planned = createCampaignsService({ db, planLimits: billing.getAccess });
+    const c = await customer();
+    await expect(planned.create(c, { ...base, name: "No plan yet" })).rejects.toMatchObject({ code: "ENTITLEMENT_REQUIRED", details: { key: "campaigns", limit: 0 } });
+    await db.withTenant(c, (tx) => billing.startTrial(tx, c.workspaceId)); // trial = Starter: 3 open campaigns
+    await cache.invalidate(c.workspaceId); // in production the trial starts with the workspace, before any access read
+    const made = [];
+    for (const name of ["One", "Two", "Three"]) made.push(await planned.create(c, { ...base, name }));
+    await expect(planned.create(c, { ...base, name: "Four" })).rejects.toMatchObject({ code: "ENTITLEMENT_REQUIRED", details: { key: "campaigns", limit: 3 } });
+    await planned.update(c, made[0]?.id ?? "", { status: "completed" });
+    expect(await planned.create(c, { ...base, name: "Four" })).toMatchObject({ name: "Four" });
+    expect((await planned.index(c)).campaigns).toHaveLength(4);
+  });
+
   it("creates and edits a campaign; dates must be in order", async () => {
     const c = await customer();
     const made = await campaigns.create(c, { ...base, name: "Eid Bridal", client: "Heritage", budgetMinor: 50_000_000, startDate: "2026-11-01", endDate: "2026-11-30" });

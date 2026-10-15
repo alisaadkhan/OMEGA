@@ -19,7 +19,7 @@ const logger = createLogger({ level: "silent" });
 const payments = new MockPayments({ webhookSecret: "s".repeat(40), publicApiUrl: "http://api.test", deliver: async () => {} });
 const billing = createBillingService({ db, payments, cache: new MemoryAccessCache(), logger });
 const creators = createCreatorsService({ db, index: new UnavailableSearchIndex(), nativeSearch: createPostgresCatalogSearch(db), llm: new MockLlm(() => ({})), billing, encryptionKey: TEST_KEY, logger });
-const campaigns = createCampaignsService({ db });
+const campaigns = createCampaignsService({ db, planLimits: async () => ({ entitlements: { campaignLimit: null } }) });
 const indexer = createCreatorIndexer({ db, index: null, logger });
 beforeEach(resetTables);
 afterAll(() => db.close());

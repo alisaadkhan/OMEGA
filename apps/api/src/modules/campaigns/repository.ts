@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, ne, sql } from "drizzle-orm";
 import { campaignCreators, campaigns, outreachEvents, type TenantTx } from "@mushin/db";
 
 export type CampaignRow = typeof campaigns.$inferSelect;
@@ -67,6 +67,11 @@ export async function summaries(tx: TenantTx, workspaceId: string, o: { campaign
     agreedFeesMinor: Number(r["agreedFeesMinor"]),
     containsCreator: (r["containsCreator"] as boolean | null) ?? null,
   }));
+}
+
+export async function countOpenCampaigns(tx: TenantTx, workspaceId: string): Promise<number> {
+  const [r] = await tx.select({ n: sql<number>`count(*)::int` }).from(campaigns).where(and(eq(campaigns.workspaceId, workspaceId), ne(campaigns.status, "completed")));
+  return r?.n ?? 0;
 }
 
 export async function countCampaigns(tx: TenantTx, workspaceId: string): Promise<number> {

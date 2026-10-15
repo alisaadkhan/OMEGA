@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { PLANS } from "../lib/plans";
+import { CAMPAIGN_LIMITS, PLANS } from "../lib/plans";
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 const migration = read("../../../../packages/db/migrations/0005_billing.sql");
@@ -23,6 +23,13 @@ describe("public plan claims", () => {
     }
   });
 
+  it("states each plan's campaign limit exactly as the server's entitlement", () => {
+    for (const id of ["explorer", "growth", "scale"] as const) {
+      const row = migration.match(new RegExp(String.raw`\('${id}'[\s\S]*?"campaignLimit": (null|\d+)`));
+      expect(row?.[1], id).toBe(String(CAMPAIGN_LIMITS[id]));
+    }
+  });
+
   it("uses the approved public names while keeping the persisted ids", () => {
     expect(PLANS.map((p) => [p.id, p.name])).toEqual([
       ["explorer", "STARTER"],
@@ -37,6 +44,11 @@ describe("public plan claims", () => {
     for (const claim of [/audience details/i, /AI-estimated/i, /outreach emails/i, /data export/i, /roll ?over/i, /\d+ campaigns/i]) {
       expect(features).not.toMatch(claim);
       expect(pages.replace(/\/\*[\s\S]*?\*\//g, "")).not.toMatch(claim);
+    }
+    // The landing feature grid and hero illustration name only shipped capabilities.
+    const landing = [read("../components/landing/Features.tsx"), read("../components/landing/Hero.tsx")].join(" ").replace(/\/\*[\s\S]*?\*\//g, "");
+    for (const claim of [/AI-estimated/i, /audience details/i, /lookalike/i, /semantic/i, /approvals/i, /enterprise/i, /multi-org/i, /Integrations/, /Audiences/, /dangerouslySetInnerHTML/]) {
+      expect(landing, String(claim)).not.toMatch(claim);
     }
     // Catalogue search is a paid action now; the landing page must not call it free.
     expect(read("../components/landing/Metrics.tsx")).not.toMatch(/for free/i);

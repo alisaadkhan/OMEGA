@@ -20,8 +20,9 @@ export type Plan = {
 
 /**
  * The public pricing cards. Prices and credits mirror `platform.plans` (checked by plans-claims.test.ts); the persisted
- * id of Starter stays `explorer`. Every feature listed here works on every plan today. Not listed because they are not
- * available yet: audience demographics, outreach email sending, data export and per-plan campaign limits.
+ * id of Starter stays `explorer`. Every feature listed here works on every plan today; the campaign limit is the
+ * server-enforced `campaignLimit` entitlement. Not listed because they are not available yet: audience demographics,
+ * outreach email sending and data export.
  */
 const FEATURES: PlanFeature[] = [
   { key: "existing", label: "Search Existing Creators", note: "Each new search uses credits; further pages and repeats within 30 minutes are free." },
@@ -32,6 +33,11 @@ const FEATURES: PlanFeature[] = [
   { key: "outreach_log", label: "Outreach log", note: "Record your outreach by hand. MUSHIN does not send emails yet." },
 ];
 
+/** The same features with the plan's open-campaign limit (null: no limit), as enforced by the API. */
+const withCampaignLimit = (limit: number | null): PlanFeature[] =>
+  FEATURES.map((f) => (f.key === "campaigns" ? { ...f, value: limit === null ? "Unlimited" : `Up to ${limit} open`, note: "Completed campaigns don't count." } : f));
+export const CAMPAIGN_LIMITS: Record<Plan["id"], number | null> = { explorer: 3, growth: null, scale: null };
+
 export const PLANS: Plan[] = [
   {
     id: "explorer",
@@ -41,7 +47,7 @@ export const PLANS: Plan[] = [
     monthly: 4900,
     yearly: 3900,
     credits: 2500,
-    features: FEATURES,
+    features: withCampaignLimit(CAMPAIGN_LIMITS.explorer),
     cta: "Start free trial",
   },
   {
@@ -52,7 +58,7 @@ export const PLANS: Plan[] = [
     monthly: 12900,
     yearly: 10900,
     credits: 12000,
-    features: FEATURES,
+    features: withCampaignLimit(CAMPAIGN_LIMITS.growth),
     cta: "Upgrade to Growth",
     highlight: true,
   },
@@ -64,7 +70,7 @@ export const PLANS: Plan[] = [
     monthly: 24900,
     yearly: 19900,
     credits: 35000,
-    features: FEATURES,
+    features: withCampaignLimit(CAMPAIGN_LIMITS.scale),
     cta: "Choose Scale",
   },
 ];
