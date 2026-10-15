@@ -11,8 +11,8 @@ export function AdminApp({ onSignOut, onExit }: { onSignOut: () => void; onExit:
   const { admin } = useAdminAuth();
   if (!admin) return null;
 
-  const RoleIcon = admin.role === "admin" ? Shield : LifeBuoy;
-  const roleLabel = admin.role === "admin" ? "Admin" : "Support";
+  const RoleIcon = admin.role === "support" ? LifeBuoy : Shield;
+  const roleLabel = admin.role === "super_admin" ? "Super Admin" : admin.role === "admin" ? "Admin" : "Support";
 
   return (
     <div className="flex h-screen flex-col bg-slate-50/40">

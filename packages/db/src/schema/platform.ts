@@ -1,4 +1,4 @@
-import { integer, jsonb, numeric, pgSchema, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, integer, jsonb, numeric, pgSchema, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 export const platformSchema = pgSchema("platform");
 const ts = (name: string) => timestamp(name, { withTimezone: true, mode: "date" });
@@ -48,3 +48,12 @@ export const idempotencyKeys = platformSchema.table(
   },
   (t) => [primaryKey({ columns: [t.workspaceId, t.key] })],
 );
+
+/** Provider families an Admin can pause (migration 0033); the worker refuses a paused family's calls. */
+export const providerControls = platformSchema.table("provider_controls", {
+  provider: text("provider", { enum: ["apify", "serper", "llm", "youtube"] }).primaryKey(),
+  paused: boolean("paused").notNull().default(false),
+  reason: text("reason"),
+  changedBy: uuid("changed_by"),
+  changedAt: timestamp("changed_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+});

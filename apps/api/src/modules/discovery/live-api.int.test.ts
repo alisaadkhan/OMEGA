@@ -15,6 +15,7 @@ import { addCreator, TEST_KEY } from "../creators/test-fixtures";
 import { createIdentityModule } from "../identity/index";
 import { createPlatformModule } from "../platform/index";
 import { createStaffModule, createStaffTokens, recordStaffAudit } from "../staff/index";
+import { TEST_WEBAUTHN } from "../staff/test-fixtures";
 import { createDiscoveryModule, createDiscoveryService } from "./index";
 
 const db = createTestDatabase();
@@ -30,7 +31,7 @@ async function setup(o: { removalLimit?: number } = {}) {
   const big = { limit: 1000, windowSeconds: 60 };
   const limiter = new MemoryRateLimiter({ ip: big, user: big, auth: { limit: o.removalLimit ?? 1000, windowSeconds: 60 }, ai: big, jobs: { limit: 1000, windowSeconds: 3600 }, workspaceJobs: { limit: 100_000, windowSeconds: 3600 } });
   const tokens = createStaffTokens("r".repeat(48));
-  const staff = createStaffModule({ db, tokens, encryptionKey: TEST_KEY });
+  const staff = createStaffModule({ db, tokens, encryptionKey: TEST_KEY, webauthn: TEST_WEBAUTHN });
   const creators = createCreatorsService({ db, index: createSearchIndex(null, logger), llm: new MockLlm(() => ({})), billing, encryptionKey: TEST_KEY, logger });
   const removals = createRemovalService({ db, encryptionKey: TEST_KEY, audit: recordStaffAudit });
   const iss = await createTestIssuer();

@@ -11,6 +11,7 @@ export const supportTickets = wp.table("support_tickets", {
   category: text("category", { enum: ["search", "discovery", "billing", "account", "data_removal", "other"] }).notNull(),
   status: text("status", { enum: ["open", "waiting_on_customer", "resolved", "closed"] }).notNull().default("open"),
   lastMessageAt: ts("last_message_at").notNull().defaultNow(),
+  assignedStaffId: uuid("assigned_staff_id"),
   createdAt: ts("created_at").notNull().defaultNow(),
   updatedAt: ts("updated_at").notNull().defaultNow(),
 });
@@ -19,9 +20,24 @@ export const supportMessages = wp.table("support_messages", {
   id: uuid("id").primaryKey().defaultRandom(),
   ticketId: uuid("ticket_id").notNull(),
   workspaceId: uuid("workspace_id").notNull(),
-  authorKind: text("author_kind", { enum: ["customer", "staff"] }).notNull(),
+  authorKind: text("author_kind", { enum: ["customer", "staff", "internal"] }).notNull(),
   authorUserId: uuid("author_user_id"),
   authorStaffId: uuid("author_staff_id"),
   body: text("body").notNull(),
+  createdAt: ts("created_at").notNull().defaultNow(),
+});
+
+/** Consented, read-only, time-boxed support access to a workspace (migration 0033). */
+export const supportAccessRequests = wp.table("support_access_requests", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").notNull(),
+  staffId: uuid("staff_id").notNull(),
+  staffName: text("staff_name").notNull(),
+  purpose: text("purpose").notNull(),
+  status: text("status", { enum: ["requested", "granted", "declined", "ended", "expired"] }).notNull().default("requested"),
+  decidedBy: uuid("decided_by"),
+  decidedAt: ts("decided_at"),
+  expiresAt: ts("expires_at"),
+  endedAt: ts("ended_at"),
   createdAt: ts("created_at").notNull().defaultNow(),
 });

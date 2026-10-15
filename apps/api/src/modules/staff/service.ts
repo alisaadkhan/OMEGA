@@ -123,6 +123,12 @@ export function createStaffService(o: { db: Db; tokens: StaffTokens; encryptionK
       return toSession(outcome.staff, outcome.refreshToken);
     },
 
+    /** The staff account still exists, is active and still has this role (tokens carry the role they were issued with). */
+    async isActive(staffId: string, role: StaffRole): Promise<boolean> {
+      const staff = await o.db.withSystem((tx) => repo.findStaffById(tx, staffId));
+      return staff?.status === "active" && staff.role === role;
+    },
+
     async getProfile(staffId: string): Promise<StaffProfile> {
       const staff = await o.db.withSystem((tx) => repo.findStaffById(tx, staffId));
       if (!staff || staff.status !== "active") throw invalidSession();

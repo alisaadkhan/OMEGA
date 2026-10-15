@@ -28,7 +28,10 @@ export const ticketReplySchema = z.object({ body });
 export const ticketCustomerStatusSchema = z.object({ status: z.enum(["open", "closed"]) });
 
 // ── Staff (admin console) ──────────────────────────────────────────────────────────────────────────────────────
-export const staffTicketSummarySchema = ticketSummarySchema.extend({ workspaceId: z.uuid(), workspaceName: z.string() });
+const assignee = { assignedStaffId: z.uuid().nullable(), assignedStaffName: z.string().nullable() };
+export const staffTicketSummarySchema = ticketSummarySchema.extend({ workspaceId: z.uuid(), workspaceName: z.string(), ...assignee });
+/** Staff see internal notes in the thread (authorKind "internal"); customers never receive them. */
+export const staffTicketMessageSchema = ticketMessageSchema.extend({ authorKind: z.enum(["customer", "staff", "internal"]) });
 export const staffTicketDetailSchema = z.object({
   id: z.uuid(),
   workspaceId: z.uuid(),
@@ -38,8 +41,11 @@ export const staffTicketDetailSchema = z.object({
   status: ticketStatusSchema,
   createdAt: iso,
   lastMessageAt: iso,
-  messages: z.array(ticketMessageSchema),
+  ...assignee,
+  messages: z.array(staffTicketMessageSchema),
 });
+export const staffTicketNoteSchema = z.object({ body });
+export const staffTicketAssignSchema = z.object({ assigneeId: z.uuid().nullable() });
 export const staffTicketListSchema = z.object({ tickets: z.array(staffTicketSummarySchema) });
 export const staffTicketUpdateSchema = z
   .object({ body: z.string().trim().max(5000).optional(), status: ticketStatusSchema.optional() })

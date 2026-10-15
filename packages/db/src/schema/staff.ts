@@ -1,4 +1,4 @@
-import { bigint, integer, jsonb, pgSchema, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { bigint, boolean, integer, jsonb, pgSchema, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 export const staffSchema = pgSchema("staff");
 const ts = (name: string) => timestamp(name, { withTimezone: true, mode: "date" });
@@ -9,8 +9,8 @@ export const staffUsers = staffSchema.table("staff_users", {
   name: text("name").notNull(),
   passwordHash: text("password_hash").notNull(),
   totpSecretEncrypted: text("totp_secret_encrypted").notNull(),
-  role: text("role", { enum: ["admin", "support"] }).notNull(),
-  status: text("status", { enum: ["active", "disabled"] }).notNull().default("active"),
+  role: text("role", { enum: ["support", "admin", "super_admin"] }).notNull(),
+  status: text("status", { enum: ["active", "disabled", "suspended"] }).notNull().default("active"),
   failedLoginCount: integer("failed_login_count").notNull().default(0),
   lockedUntil: ts("locked_until"),
   lastLoginAt: ts("last_login_at"),
@@ -42,4 +42,51 @@ export const auditLog = staffSchema.table("audit_log", {
   ip: text("ip"),
   requestId: text("request_id"),
   createdAt: ts("created_at").notNull().defaultNow(),
+});
+
+/** WebAuthn hardware keys of Admin and Super Admin staff (migration 0033). */
+export const webauthnCredentials = staffSchema.table("webauthn_credentials", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  staffId: uuid("staff_id").notNull().references(() => staffUsers.id),
+  credentialId: text("credential_id").notNull(),
+  publicKey: text("public_key").notNull(),
+  signCount: bigint("sign_count", { mode: "number" }).notNull().default(0),
+  transports: text("transports").array().notNull().default([]),
+  aaguid: text("aaguid"),
+  nickname: text("nickname").notNull(),
+  createdAt: ts("created_at").notNull().defaultNow(),
+  lastUsedAt: ts("last_used_at"),
+  revokedAt: ts("revoked_at"),
+});
+
+export const webauthnChallenges = staffSchema.table("webauthn_challenges", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  staffId: uuid("staff_id").notNull().references(() => staffUsers.id),
+  kind: text("kind", { enum: ["registration", "authentication"] }).notNull(),
+  challenge: text("challenge").notNull(),
+  expiresAt: ts("expires_at").notNull(),
+  usedAt: ts("used_at"),
+  createdAt: ts("created_at").notNull().defaultNow(),
+});
+
+export const approvalActions = ["credits.grant", "staff.role.change", "staff.suspend", "provider.cap.change", "workspace.suspend"] as const;
+/** Two-person approvals for high-impact staff actions (migration 0033). */
+export const approvals = staffSchema.table("approvals", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  actionType: text("action_type", { enum: approvalActions }).notNull(),
+  targetType: text("target_type").notNull(),
+  targetId: text("target_id").notNull(),
+  payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+  reason: text("reason").notNull(),
+  requiresSuperAdmin: boolean("requires_super_admin").notNull(),
+  requestedBy: uuid("requested_by").notNull(),
+  decidedBy: uuid("decided_by"),
+  decisionNote: text("decision_note"),
+  status: text("status", { enum: ["pending", "approved", "rejected", "expired", "executed", "failed"] }).notNull().default("pending"),
+  result: jsonb("result").$type<Record<string, unknown>>(),
+  idempotencyKey: text("idempotency_key").notNull(),
+  expiresAt: ts("expires_at").notNull(),
+  createdAt: ts("created_at").notNull().defaultNow(),
+  decidedAt: ts("decided_at"),
+  executedAt: ts("executed_at"),
 });

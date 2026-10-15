@@ -1,7 +1,7 @@
 import { Redis } from "@upstash/redis";
 import { createLogger, loadApiConfig } from "@mushin/core";
-import { createDatabase, createDbProviderCallSink, providerSpendSince, UNVERIFIED_TLS_WARNING } from "@mushin/db";
-import { createLlm, createPayments, createSearchIndex } from "@mushin/integrations";
+import { createDatabase, createDbProviderCallSink, providerPaused, providerSpendSince, UNVERIFIED_TLS_WARNING } from "@mushin/db";
+import { createLlm, createPayments, createSearchIndex, pausableLlm } from "@mushin/integrations";
 import { buildApp } from "./app";
 import { createCustomerGuard } from "./auth/customer-guard";
 import { createCustomerTokenVerifier, remoteJwks } from "./auth/customer-token";
@@ -19,6 +19,7 @@ import { createIdentityModule } from "./modules/identity";
 import { createListsModule, createListsService } from "./modules/lists";
 import { createPlatformModule } from "./modules/platform";
 import { createStaffModule, createStaffTokens, recordStaffAudit } from "./modules/staff";
+import { createStaffOpsModule } from "./modules/staffops";
 import { MemoryRateLimiter } from "./rate-limit/memory";
 import { ipRateLimitHook } from "./rate-limit/plugin";
 import { bucketsFromConfig, type RateLimiter } from "./rate-limit/types";
@@ -52,7 +53,7 @@ const nativeSearch = createPostgresCatalogSearch(db);
 if (config.catalogSearchBackend === "meilisearch") readiness.push({ name: "search", check: config.search ? () => searchIndex.ping() : async () => "skipped" });
 // Every hosted-LLM call is checked against the monthly LLM budget (recorded Groq + Ollama spend).
 const llmSpentSince = async (since: Date) => (await providerSpendSince(db, "groq", since)) + (await providerSpendSince(db, "ollama", since));
-const llm = createLlm(config.llm, { sink: createDbProviderCallSink(db), logger, budget: { budgetUsd: config.llmMonthlyBudgetUsd, spentSince: llmSpentSince } });
+const llm = pausableLlm(createLlm(config.llm, { sink: createDbProviderCallSink(db), logger, budget: { budgetUsd: config.llmMonthlyBudgetUsd, spentSince: llmSpentSince } }), () => providerPaused(db, "llm"));
 const creators = createCreatorsService({
   db,
   index: searchIndex,
@@ -64,7 +65,7 @@ const creators = createCreatorsService({
   sourcePolicy: config.sourcePolicy,
 });
 const identity = createIdentityModule({ db, startTrial: billing.startTrial });
-const staff = createStaffModule({ db, tokens: createStaffTokens(config.staffJwtSecret), encryptionKey: config.dataEncryptionKey });
+const staff = createStaffModule({ db, tokens: createStaffTokens(config.staffJwtSecret), encryptionKey: config.dataEncryptionKey, webauthn: config.webauthn });
 const removals = createRemovalService({ db, encryptionKey: config.dataEncryptionKey, audit: recordStaffAudit });
 const platform = createPlatformModule({ db, ttlHours: config.idempotencyTtlHours });
 const guards: Guards = {
@@ -93,6 +94,7 @@ const app = await buildApp({
     createActivityModule({ service: createActivityService({ db }) }),
     createSupportModule({ service: createSupportService({ db }) }),
     createOpsModule({ db, requireStaff: staff.requireStaff }),
+    createStaffOpsModule({ db, billing, requireStaff: staff.requireStaff, createStaffAccount: staff.createStaffAccount }),
     createAudienceModule({ service: createAudienceService({ db, billing, sources: config.audienceSources }), limiter }),
   ],
   readiness,

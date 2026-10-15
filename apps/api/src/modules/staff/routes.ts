@@ -38,15 +38,21 @@ export function setRefreshCookie(reply: FastifyReply, token: string): void {
   });
 }
 
-export function createRequireStaff(tokens: StaffTokens) {
+/**
+ * Staff authorization chain (staff spec §3): valid token → active staff account with the token's role (checked on every
+ * request, so a suspension or role change applies at once) → role permits the action → hardware-key step-up when the
+ * action needs it. Customer workspace roles never reach here.
+ */
+export function createRequireStaff(tokens: StaffTokens, isActive: (staffId: string, role: StaffPrincipal["role"]) => Promise<boolean>) {
   return (action: StaffAction): PreHandler =>
     async (req) => {
       const token = bearerToken(req);
       if (!token) throw new AppError("UNAUTHENTICATED", "Admin authentication required");
       const principal = await tokens.verifyAccess(token);
+      if (!(await isActive(principal.staffId, principal.role))) throw new AppError("UNAUTHENTICATED", "Your staff access has changed. Please sign in again.");
       if (!can(principal.role, action)) throw new AppError("FORBIDDEN", "You do not have permission to do this");
       if (HARDWARE_KEY_ACTIONS.has(action) && !principal.factors.includes("hwk")) {
-        throw new AppError("FORBIDDEN", "This admin action needs a hardware security key sign-in, which is not available yet.", { reason: "hardware_key_required" });
+        throw new AppError("FORBIDDEN", "This action needs your security key. Confirm with it, then try again.", { reason: "hardware_key_required" });
       }
       req.staff = principal;
     };

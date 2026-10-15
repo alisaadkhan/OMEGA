@@ -37,9 +37,9 @@ import { discoveryCandidates, discoveryEstimates, discoveryJobs, discoveryResult
 import { users, workspaceMembers, workspaces } from "./identity";
 import { listMembers, lists } from "./lists";
 import { campaignCreators, campaigns, outreachEvents } from "./campaigns";
-import { supportMessages, supportTickets } from "./support";
-import { idempotencyKeys, outbox, providerCalls } from "./platform";
-import { auditLog, staffSessions, staffUsers } from "./staff";
+import { supportAccessRequests, supportMessages, supportTickets } from "./support";
+import { idempotencyKeys, outbox, providerCalls, providerControls } from "./platform";
+import { approvals, auditLog, staffSessions, staffUsers, webauthnChallenges, webauthnCredentials } from "./staff";
 
 export * from "./audience";
 export * from "./billing";
@@ -60,8 +60,12 @@ export const ALL_TABLES = [
   staffUsers,
   staffSessions,
   auditLog,
+  webauthnCredentials,
+  webauthnChallenges,
+  approvals,
   outbox,
   providerCalls,
+  providerControls,
   idempotencyKeys,
   plans,
   topupPacks,
@@ -103,6 +107,7 @@ export const ALL_TABLES = [
   outreachEvents,
   supportTickets,
   supportMessages,
+  supportAccessRequests,
   removalRequests,
   creatorSuppressions,
   audienceEstimates,

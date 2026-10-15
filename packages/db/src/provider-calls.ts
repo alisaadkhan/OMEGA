@@ -1,7 +1,7 @@
 import { and, eq, gte, sql } from "drizzle-orm";
 import type { ProviderCallSink } from "@mushin/core";
 import type { Db } from "./database";
-import { providerCalls } from "./schema";
+import { providerCalls, providerControls } from "./schema";
 
 export function createDbProviderCallSink(db: Db): ProviderCallSink {
   return {
@@ -45,4 +45,10 @@ export async function providerSpendForJob(db: Db, jobId: string): Promise<number
     tx.select({ total: sql<string>`coalesce(sum(${providerCalls.costUsd}), 0)` }).from(providerCalls).where(eq(providerCalls.jobId, jobId)),
   );
   return Number(rows[0]?.total ?? 0);
+}
+
+/** Whether operations paused this provider family (platform.provider_controls); a missing row means not paused. */
+export async function providerPaused(db: Db, provider: "apify" | "serper" | "llm"): Promise<boolean> {
+  const rows = await db.withSystem((tx) => tx.select({ paused: providerControls.paused }).from(providerControls).where(eq(providerControls.provider, provider)));
+  return rows[0]?.paused === true;
 }

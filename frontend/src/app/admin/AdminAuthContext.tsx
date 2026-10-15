@@ -3,7 +3,7 @@ import { staffLoginResponseSchema, staffSessionResponseSchema } from "@mushin/co
 import { adminRequest, adminToken, refreshAdminSession, setAdminToken } from "./adminApi";
 import { z } from "zod";
 
-export type AdminRole = "admin" | "support";
+export type AdminRole = "support" | "admin" | "super_admin";
 export type AdminUser = { id: string; name: string; email: string; role: AdminRole };
 
 type Ctx = {

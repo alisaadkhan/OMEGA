@@ -301,6 +301,8 @@ export type ApiConfig = {
   databaseUrl: string;
   auth: { issuer: string; audience: string; jwksUri: string };
   staffJwtSecret: string;
+  /** Staff hardware keys: bound to the app's own origin (the admin console is served there, never from previews). */
+  webauthn: { rpId: string; rpName: string; origins: string[] };
   dataEncryptionKey: Buffer;
   rateLimit: { windowMs: number; maxRequests: number; upstash: { url: string; token: string } | null };
   idempotencyTtlHours: number;
@@ -327,6 +329,7 @@ export function loadApiConfig(env: Env): ApiConfig {
     databaseUrl: v.DATABASE_URL,
     auth: { issuer: v.JWT_ISSUER, audience: v.JWT_AUDIENCE, jwksUri: v.JWKS_URI },
     staffJwtSecret: v.STAFF_JWT_SECRET,
+    webauthn: { rpId: new URL(appUrl).hostname, rpName: "MUSHIN staff", origins: [appUrl] },
     dataEncryptionKey: Buffer.from(v.DATA_ENCRYPTION_KEY, "base64"),
     rateLimit: { windowMs: v.RATE_LIMIT_WINDOW_MS, maxRequests: v.RATE_LIMIT_MAX_REQUESTS, upstash: upstashFrom(v) },
     idempotencyTtlHours: v.IDEMPOTENCY_TTL_HOURS,

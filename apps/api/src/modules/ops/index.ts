@@ -91,9 +91,9 @@ export function createOpsModule(o: { db: Db; requireStaff: (action: StaffAction)
     app.get("/admin/v1/ops/workspaces", { preHandler: o.requireStaff("ops.workspaces.read") }, async (req, reply) => {
       const { q } = parseInput(staffWorkspaceQuerySchema, req.query);
       const list = staffWorkspaceListSchema.parse({ workspaces: await json((tx) => tx.execute(sql`select platform.staff_workspaces(${q}) v`)) }).workspaces;
-      const admin = staffOf(req).role === "admin";
       if (q) await audit(req, "ops.workspaces.searched", { query: q, results: list.length });
-      return sendOk(reply, staffWorkspaceListSchema, { workspaces: list.map((w) => ({ ...w, ownerEmail: admin ? w.ownerEmail : maskEmail(w.ownerEmail) })) });
+      // The function already masks the owner email for every staff role.
+      return sendOk(reply, staffWorkspaceListSchema, { workspaces: list });
     });
 
     app.get("/admin/v1/support/tickets", { preHandler: o.requireStaff("support.tickets.read") }, async (req, reply) => {

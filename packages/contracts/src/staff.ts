@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const staffRoleSchema = z.enum(["admin", "support"]);
+export const staffRoleSchema = z.enum(["support", "admin", "super_admin"]);
 
 export const staffLoginRequestSchema = z.object({
   email: z.string().trim().toLowerCase().min(3).max(254),
@@ -27,3 +27,17 @@ export const staffSessionResponseSchema = z.object({
 });
 
 export const staffMeResponseSchema = z.object({ staff: staffProfileSchema });
+
+// ── Hardware keys (WebAuthn) and step-up ──
+export const staffKeySchema = z.object({ id: z.uuid(), nickname: z.string(), createdAt: z.string(), lastUsedAt: z.string().nullable() });
+export const staffSecuritySchema = z.object({
+  /** Factors proven in this session: "otp" (TOTP) and, after a step-up, "hwk" (hardware key). */
+  factors: z.array(z.enum(["otp", "hwk"])),
+  keys: z.array(staffKeySchema),
+  /** Whether this role's actions need a hardware key (Admin and Super Admin). */
+  hardwareKeyRequired: z.boolean(),
+});
+/** WebAuthn options/responses are the standard JSON shapes; @simplewebauthn validates them in depth. */
+export const webauthnOptionsResponseSchema = z.object({ options: z.record(z.string(), z.unknown()) });
+export const webauthnRegisterRequestSchema = z.object({ response: z.record(z.string(), z.unknown()), nickname: z.string().trim().min(1).max(60) });
+export const webauthnStepUpRequestSchema = z.object({ response: z.record(z.string(), z.unknown()) });

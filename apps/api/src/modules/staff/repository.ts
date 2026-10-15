@@ -1,5 +1,6 @@
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { auditLog, staffSessions, staffUsers, type SystemTx } from "@mushin/db";
+import type { StaffRole } from "./tokens";
 
 export type StaffRow = typeof staffUsers.$inferSelect;
 
@@ -20,7 +21,7 @@ export async function findStaffByIdForUpdate(tx: SystemTx, id: string): Promise<
 
 export async function insertStaff(
   tx: SystemTx,
-  s: { email: string; name: string; passwordHash: string; totpSecretEncrypted: string; role: "admin" | "support" },
+  s: { email: string; name: string; passwordHash: string; totpSecretEncrypted: string; role: StaffRole },
 ): Promise<string> {
   const rows = await tx.insert(staffUsers).values(s).returning({ id: staffUsers.id });
   const id = rows[0]?.id;
@@ -106,7 +107,7 @@ export async function revokeFamily(tx: SystemTx, familyId: string): Promise<void
 
 export async function audit(
   tx: SystemTx,
-  e: { staffId: string | null; action: string; metadata?: Record<string, unknown>; ip: string | null; requestId: string | null },
+  e: { staffId: string | null; action: string; metadata?: Record<string, unknown>; workspaceId?: string | null; targetType?: string; targetId?: string; ip: string | null; requestId: string | null },
 ): Promise<void> {
-  await tx.insert(auditLog).values({ staffId: e.staffId, action: e.action, metadata: e.metadata ?? {}, ip: e.ip, requestId: e.requestId });
+  await tx.insert(auditLog).values({ staffId: e.staffId, action: e.action, metadata: e.metadata ?? {}, workspaceId: e.workspaceId ?? null, targetType: e.targetType ?? null, targetId: e.targetId ?? null, ip: e.ip, requestId: e.requestId });
 }

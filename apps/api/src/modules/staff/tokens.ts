@@ -1,7 +1,8 @@
 import { SignJWT, jwtVerify, type JWTPayload } from "jose";
 import { AppError } from "@mushin/core";
 
-export type StaffRole = "admin" | "support";
+export type StaffRole = "support" | "admin" | "super_admin";
+export const STAFF_ROLES: readonly StaffRole[] = ["support", "admin", "super_admin"];
 /** Second factors proven at sign-in: "otp" (TOTP) today; "hwk" (WebAuthn hardware key) once that sign-in exists. */
 export type StaffFactor = "otp" | "hwk";
 export type StaffPrincipal = { staffId: string; role: StaffRole; factors: StaffFactor[] };
@@ -46,10 +47,10 @@ export function createStaffTokens(secret: string, now: () => Date = () => new Da
     async verifyAccess(token: string): Promise<StaffPrincipal> {
       const p = await verify(token, "access");
       const role = p["role"];
-      if (role !== "admin" && role !== "support") throw new AppError("UNAUTHENTICATED", "Invalid or expired staff token");
+      if (!STAFF_ROLES.includes(role as StaffRole)) throw new AppError("UNAUTHENTICATED", "Invalid or expired staff token");
       const amr = Array.isArray(p["amr"]) ? (p["amr"] as unknown[]) : [];
       const factors = amr.filter((f): f is StaffFactor => f === "otp" || f === "hwk");
-      return { staffId: p.sub, role, factors };
+      return { staffId: p.sub, role: role as StaffRole, factors };
     },
     async verifyChallenge(token: string): Promise<string> {
       return (await verify(token, "totp_challenge")).sub;

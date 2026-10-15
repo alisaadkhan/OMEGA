@@ -14,6 +14,7 @@ import { addCreator, TEST_KEY } from "../creators/test-fixtures";
 import { createIdentityModule } from "../identity/index";
 import { createPlatformModule } from "../platform/index";
 import { createStaffModule, createStaffTokens } from "../staff/index";
+import { TEST_WEBAUTHN } from "../staff/test-fixtures";
 import { createSupportModule, createSupportService } from "../support/index";
 import { createOpsModule, maskEmail } from "./index";
 
@@ -30,7 +31,7 @@ async function setup() {
   const big = { limit: 1000, windowSeconds: 60 };
   const limiter = new MemoryRateLimiter({ ip: big, user: big, auth: big, ai: big, jobs: big, workspaceJobs: big });
   const tokens = createStaffTokens("r".repeat(48));
-  const staff = createStaffModule({ db, tokens, encryptionKey: TEST_KEY });
+  const staff = createStaffModule({ db, tokens, encryptionKey: TEST_KEY, webauthn: TEST_WEBAUTHN });
   const iss = await createTestIssuer();
   const app = await buildTestApp({
     guards: { customer: createCustomerGuard({ verify: createCustomerTokenVerifier(iss), resolveTenant: identity.resolveTenant, limiter }), idempotent: platform.requireIdempotencyKey },
@@ -110,7 +111,11 @@ describe("support tickets and staff operations", () => {
     const bySupport = (await app.inject({ method: "GET", url: "/admin/v1/ops/workspaces?q=ayesha", headers: support })).json() as { workspaces: { ownerEmail: string }[] };
     const byAdmin = (await app.inject({ method: "GET", url: "/admin/v1/ops/workspaces?q=ayesha", headers: admin })).json() as { workspaces: { ownerEmail: string }[] };
     expect(bySupport.workspaces[0]?.ownerEmail).toBe(maskEmail("ayesha@brand.pk"));
-    expect(byAdmin.workspaces[0]?.ownerEmail).toBe("ayesha@brand.pk");
+    // Every staff role sees a masked owner email (staff spec: redacted lookup); an exact address still finds the workspace.
+    expect(byAdmin.workspaces[0]?.ownerEmail).toBe(maskEmail("ayesha@brand.pk"));
+    const exact = (await app.inject({ method: "GET", url: "/admin/v1/ops/workspaces?q=AYESHA%40brand.pk", headers: support })).json() as { workspaces: unknown[] };
+    expect(exact.workspaces).toHaveLength(1);
+    expect(((await app.inject({ method: "GET", url: "/admin/v1/ops/workspaces?q=%40brand.pk", headers: support })).json() as { workspaces: unknown[] }).workspaces).toEqual([]);
     expect((await app.inject({ method: "GET", url: "/admin/v1/ops/jobs?status=stuck", headers: support })).json()).toEqual({ jobs: [] });
 
     await ownerQuery(`insert into platform.provider_calls (provider, operation, latency_ms, status, cost_usd) values ('serper', 'search', 420, 'ok', 0.001), ('serper', 'search', 900, 'error', 0)`);

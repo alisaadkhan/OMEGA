@@ -21,7 +21,8 @@ const NAV: { id: AdminView; label: string; icon: typeof X; roles: ("admin" | "su
   { id: "audit", label: "Audit log", icon: History, roles: ["admin"] },
 ];
 
-export function AdminConsole({ onExit, role }: { onExit: () => void; role: "admin" | "support" }) {
+export function AdminConsole({ onExit, role: staffRole }: { onExit: () => void; role: "admin" | "support" | "super_admin" }) {
+  const role = staffRole === "super_admin" ? "admin" : staffRole;
   const [view, setView] = useState<AdminView>("overview");
   const items = NAV.filter((n) => n.roles.includes(role));
   return (

@@ -17,7 +17,7 @@ const config = loadApiConfig(process.env);
 if (!config.databaseCaPem) console.warn(UNVERIFIED_TLS_WARNING);
 const db = createDatabase(config.databaseUrl, { max: 1, applicationName: "mushin-create-admin", caPem: config.databaseCaPem });
 try {
-  const staff = createStaffModule({ db, tokens: createStaffTokens(config.staffJwtSecret), encryptionKey: config.dataEncryptionKey });
+  const staff = createStaffModule({ db, tokens: createStaffTokens(config.staffJwtSecret), encryptionKey: config.dataEncryptionKey, webauthn: config.webauthn });
   const acct = await staff.createStaffAccount({ email: values.email, name: values.name, role: values.role });
   console.log(`\nCreated ${values.role} ${values.email}`);
   console.log(`Temporary password (shown once): ${acct.password}`);

@@ -3,10 +3,11 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { createTestDatabase, ownerQuery, resetTables } from "@mushin/db/testing";
 import { buildTestApp } from "../../test-support/app";
 import { createStaffModule } from "./index";
+import { TEST_WEBAUTHN } from "./test-fixtures";
 import { createStaffTokens } from "./tokens";
 
 const db = createTestDatabase();
-const staff = createStaffModule({ db, tokens: createStaffTokens("r".repeat(48)), encryptionKey: Buffer.alloc(32, 3) });
+const staff = createStaffModule({ db, tokens: createStaffTokens("r".repeat(48)), encryptionKey: Buffer.alloc(32, 3), webauthn: TEST_WEBAUTHN });
 
 beforeEach(resetTables);
 afterAll(() => db.close());

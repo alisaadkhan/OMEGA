@@ -60,7 +60,7 @@ export function dbError(pattern: RegExp): (err: unknown) => boolean {
 }
 
 /** Config tables hold migration seeds; tests must not wipe them. */
-const KEEP = ["schema_migrations", "plans", "topup_packs", "credit_action_costs", "billing_settings", "niches", "search_settings", "enrichment_settings"];
+const KEEP = ["schema_migrations", "plans", "topup_packs", "credit_action_costs", "billing_settings", "niches", "search_settings", "enrichment_settings", "provider_controls"];
 
 /** Empties every app table except seeded config (owner privilege; app roles cannot truncate append-only tables). */
 export async function resetTables(): Promise<void> {

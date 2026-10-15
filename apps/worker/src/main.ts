@@ -1,7 +1,7 @@
 import { Redis } from "@upstash/redis";
 import { createLogger, loadWorkerConfig } from "@mushin/core";
-import { createDatabase, createDbProviderCallSink, providerCallsSince, providerSpendSince, UNVERIFIED_TLS_WARNING } from "@mushin/db";
-import { createBudgetGuard, createYouTubeAudienceSource, createLlm, createObjectStorage, createPayments, createProfileScraper, createSearchIndex, createSearchLimitGuard, createSerperSearch, createYouTubeSearch } from "@mushin/integrations";
+import { createDatabase, createDbProviderCallSink, providerCallsSince, providerPaused, providerSpendSince, UNVERIFIED_TLS_WARNING } from "@mushin/db";
+import { createBudgetGuard, createYouTubeAudienceSource, createLlm, pausableGuard, pausableLlm, createObjectStorage, createPayments, createProfileScraper, createSearchIndex, createSearchLimitGuard, createSerperSearch, createYouTubeSearch } from "@mushin/integrations";
 import { createAudienceRunner } from "../../api/src/modules/audience/index";
 import { createBillingService, createRedisAccessCache, noAccessCache } from "../../api/src/modules/billing/index";
 import { createContactChecker, createCreatorIndexer, createEnrichmentPipeline, createEraser, createSummaryWriter, getEnrichmentSettings, expireYoutubeApiData, systemMailResolver } from "../../api/src/modules/creators/index";
@@ -29,7 +29,8 @@ const searchIndex = config.search ? createSearchIndex(config.search, logger) : n
 const indexer = createCreatorIndexer({ db, index: searchIndex, logger, sourcePolicy: config.sourcePolicy });
 // Every hosted-LLM call is checked against the monthly LLM budget (recorded Groq + Ollama spend).
 const llmSpentSince = async (since: Date) => (await providerSpendSince(db, "groq", since)) + (await providerSpendSince(db, "ollama", since));
-const llm = createLlm(config.llm, { sink: createDbProviderCallSink(db), logger, budget: { budgetUsd: config.llmMonthlyBudgetUsd, spentSince: llmSpentSince } });
+// Operations can pause a provider family from the staff console (platform.provider_controls); paused means refused.
+const llm = pausableLlm(createLlm(config.llm, { sink: createDbProviderCallSink(db), logger, budget: { budgetUsd: config.llmMonthlyBudgetUsd, spentSince: llmSpentSince } }), () => providerPaused(db, "llm"));
 const summaries = createSummaryWriter({ db, llm, logger });
 const enrichment = await db.withSystem((tx) => getEnrichmentSettings(tx));
 const scraper = createProfileScraper({
@@ -39,7 +40,7 @@ const scraper = createProfileScraper({
   youtubeApiKey: config.scraping.youtubeApiKey,
   tiktokVideos: enrichment.tiktokRecentVideos,
   youtubeVideos: enrichment.recentPosts,
-  spendGuard: createBudgetGuard({ budgetUsd: config.scraping.apifyMonthlyBudgetUsd, spentSince: (since) => providerSpendSince(db, "apify", since) }),
+  spendGuard: pausableGuard(createBudgetGuard({ budgetUsd: config.scraping.apifyMonthlyBudgetUsd, spentSince: (since) => providerSpendSince(db, "apify", since) }), () => providerPaused(db, "apify"), "Apify"),
   sink: createDbProviderCallSink(db),
   logger,
 });
@@ -49,7 +50,7 @@ const pipeline = createEnrichmentPipeline({ db, scraper, storage: createObjectSt
 const runner = createDiscoveryRunner({ db, billing, pipeline, logger });
 const web = createSerperSearch({
   apiKey: config.scraping.serperApiKey,
-  limit: createSearchLimitGuard({ limit: config.scraping.serperMonthlySearchLimit, countSince: (since) => providerCallsSince(db, "serper", since) }),
+  limit: pausableGuard(createSearchLimitGuard({ limit: config.scraping.serperMonthlySearchLimit, countSince: (since) => providerCallsSince(db, "serper", since) }), () => providerPaused(db, "serper"), "Serper"),
   sink: createDbProviderCallSink(db),
   logger,
 });
