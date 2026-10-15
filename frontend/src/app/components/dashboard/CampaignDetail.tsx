@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ArrowLeft, CalendarClock, MessageSquareText, Pencil, Trash2, Undo2, UserMinus, Users, XCircle } from "lucide-react";
 import type { CampaignCreator, PipelineStage, UpdateCampaignCreator } from "@mushin/contracts";
 import { rupees, toMinor, useCampaign, useDeleteCampaign, useRemoveFromCampaign, useUpdateCampaign, useUpdateCampaignCreator } from "../../api/campaigns";
@@ -101,6 +101,20 @@ function MemberCard({ m, campaignId, onOutreach, onOpenCreator }: { m: CampaignC
   const confirm = useConfirm();
   const toast = useToast();
   const [fee, setFee] = useState<string | null>(null);
+  // The fee editor commits once. Enter blurs the field, and the browser fires blur again when the field is removed; a
+  // second save carried the same version and was refused (409), so a following stage change was lost (E2E f78-1).
+  const feeOpen = useRef(false);
+  const openFee = () => {
+    feeOpen.current = true;
+    setFee(m.feeMinor === null ? "" : String(Math.round(m.feeMinor / 100)));
+  };
+  const commitFee = (text: string) => {
+    if (!feeOpen.current) return;
+    feeOpen.current = false;
+    setFee(null);
+    const v = toMinor(text);
+    if (v !== m.feeMinor) change({ feeMinor: v });
+  };
   const card = toCreator(m.creator);
 
   function change(patch: Omit<UpdateCampaignCreator, "expectedVersion">) {
@@ -152,12 +166,18 @@ function MemberCard({ m, campaignId, onOutreach, onOpenCreator }: { m: CampaignC
             aria-label="Fee in rupees"
             value={fee}
             onChange={(e) => setFee(e.target.value)}
-            onBlur={() => { const v = toMinor(fee); setFee(null); if (v !== m.feeMinor) change({ feeMinor: v }); }}
-            onKeyDown={(e) => (e.key === "Enter" ? (e.target as HTMLInputElement).blur() : e.key === "Escape" && setFee(null))}
+            onBlur={() => commitFee(fee)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commitFee(fee);
+              else if (e.key === "Escape") {
+                feeOpen.current = false;
+                setFee(null);
+              }
+            }}
             className="w-24 rounded border border-indigo-300 px-1 py-0.5"
           />
         ) : (
-          <button onClick={() => setFee(m.feeMinor === null ? "" : String(Math.round(m.feeMinor / 100)))} className="text-left text-[11px] text-slate-700 hover:text-indigo-700" title="Edit fee">
+          <button onClick={openFee} className="text-left text-[11px] text-slate-700 hover:text-indigo-700" title="Edit fee">
             {FEE_LABEL[m.feeKind]} fee: <span style={{ fontWeight: 600 }}>{rupees(m.feeMinor)}</span>
           </button>
         )}

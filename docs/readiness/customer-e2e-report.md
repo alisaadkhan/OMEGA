@@ -149,6 +149,16 @@ New check: every "food" result carries `matchedOn` from the API, and each card s
 | cat005-1 (stopped) | main 53/54: the new check counted lines in whitespace-collapsed page text (harness defect T-2, fixed by counting the label); after restart 22/22. Run 2 was stopped, and all three were re-run |
 | cat005b-1..3, three in a row | 3 × 76/76 (54 main + 22 after restart), including phone width, axe, no console errors, no 5xx |
 
+### Dashboard badges, campaign fee editor, page metadata (2026-10-16)
+
+| Run set | Result and what it found |
+|---|---|
+| f78-1 (stopped) | main 53/55, after restart 21/22. **Real defect D-7:** the campaign fee editor saved twice (Enter blurs the field; Chrome blurs it again when the field is removed). The second PATCH carried the old version and got a 409, and the following stage change ("confirmed") was never sent, so the stage was lost. Timing-dependent, which is why earlier runs passed. Fixed in `CampaignDetail.tsx` (the editor commits once); new check: a single editor never gets a stale-version 409 |
+| fix3-1 (stopped) | main 56/57. **Harness defect T-3:** "creators added from a list selection" read the campaign after a fixed 1.5 s, but the add took over 4 s because I ran a production build at the same time. The journey now waits for the add response instead of a fixed delay |
+| fix4-1..3, three in a row | 3 × 79/79 (57 main + 22 after restart): new checks for the dashboard badges, page title and no stale-version conflicts, plus phone width, axe, no console errors, no 5xx |
+
+Also fixed: `index.html` still had Figma template metadata ("High-End SaaS Landing Page", "attract enterprise customers and investors") and now names MUSHIN (new check). The top bar fell back to an invented person ("Ahmed Raza Khan", "AR") when the account had no name; it now shows the account's own name or email.
+
 ## 5. Defects found and fixed
 
 | ID | Severity | Defect | Fix | Regression evidence |
@@ -168,10 +178,10 @@ Both fixes are in commit `099f349`.
 | F-4 | P2 | **Spec conflict:** the documentation pack's role matrix lets members view the credit ledger, but the repo billing spec and the code restrict it to owner/admin. The E2E follows the code. |
 | F-5 | P2 | The rate limit is 120 requests/min per IP and per user by default. That may be tight for several staff behind one office NAT. The Upstash limiter fails open. |
 | F-6 | P2 | The paid-start limit (20/h per user) lives in remote Upstash and survives database resets. Local testers can hit it unexpectedly. |
-| F-7 | P3 | The dashboard credit card shows "Healthy" while the balance is still loading. |
-| F-8 | P3 | The subscription card may read "Inactive" during the trial (observed once; to verify). |
+| F-7 | P3 | **Fixed (2026-10-16).** Worse than reported: "Healthy" was fixed text, shown even at 0 credits. The badge now follows the server's credit meter (Healthy / Running low / Very low) and is hidden while loading (`lib/billing-status.ts`, billing-status.test, E2E check). |
+| F-8 | P3 | **Fixed (2026-10-16).** Cause: before the summary loaded the badge fell through to "Inactive". Now hidden while loading, and every status has its own label (Trial, Active, Ends at period end, Payment due, Canceled, Expired). |
 | F-9 | P3 | Inner dashboard sections have no URLs (`#/dashboard` keeps the internal view), so a section cannot be bookmarked or opened directly. |
-| F-10 | P3 | One 404 per run from a static asset (favicon or a mock-checkout asset); harmless but noisy. |
+| F-10 | P3 | **Fixed (2026-10-16).** Both were browser favicon requests (the app page and the mock checkout page declared none). Each now declares an icon. |
 
 The staff hierarchy (Support → Admin → Super Admin = owners) is a documented gap. The code has staff roles
 `support` and `admin` only, and no Super Admin. Nothing was changed here (out of scope).

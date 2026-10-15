@@ -10,6 +10,7 @@ import { Logo } from "../landing/Logo";
 import type { Creator } from "./CreatorProfilePanel";
 import { JobTray } from "./JobTray";
 import { Omnibar } from "./Omnibar";
+import { accountInitials, accountLabel } from "../../lib/billing-status";
 
 type Props = {
   credits: number;
@@ -37,9 +38,10 @@ const METER_STYLES = {
 
 export function Topbar({ credits, view, setView, onExit, onOpenCreator, onViewResults, onOpenNav }: Props) {
   const { user, logout } = useAuth();
-  const name = user?.name ?? "Ahmed Raza Khan";
-  const email = user?.email ?? "ahmed@mushin.pk";
-  const initials = user?.initials ?? "AR";
+  // Never an invented person: the account's own name, else its email (finding: a placeholder name was shown).
+  const name = accountLabel(user);
+  const email = user?.email ?? "";
+  const initials = user?.initials ?? accountInitials(name);
   const avatar = user?.avatar;
   const [open, setOpen] = useState(false);
   const meter = useBillingSummary().data?.balance.meter ?? "normal";

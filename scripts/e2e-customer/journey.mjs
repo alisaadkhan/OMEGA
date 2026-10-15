@@ -76,6 +76,8 @@ const session = (who) => ({ access_token: ids[who].token, token_type: "bearer", 
 const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: true });
 const consoleErrors = [];
 const serverErrors = [];
+// Campaign member edits refused as stale (409): each one is a lost customer edit unless someone else really edited.
+const campaignConflicts = [];
 const staffCallsFromCustomerPages = [];
 const openPages = [];
 const dbg = (m) => appendFileSync(new URL(`debug-${label}-${phase}.log`, here), `${new Date().toISOString()} ${m}\n`);
@@ -87,6 +89,7 @@ async function pageAs(who, viewport = { width: 1440, height: 950 }) {
   p.on("pageerror", (e) => consoleErrors.push(`${who}: ${e.message}`));
   p.on("console", (m) => { if (m.type() === "error" && !/Failed to load resource|status of 4\d\d|AuthApiError|Invalid Refresh Token|supabase\.co/.test(m.text())) consoleErrors.push(`${who}: ${m.text()}`); });
   p.on("response", (r) => { if (r.status() >= 500 && r.url().includes(":4000")) serverErrors.push(`${r.status()} ${r.url()}`); });
+  p.on("response", (r) => { if (r.status() === 409 && r.request().method() === "PATCH" && /\/v1\/campaigns\/[^/]+\/creators\//.test(r.url())) campaignConflicts.push(r.url()); });
   p.on("request", (r) => { if (r.url().includes("/admin/v1/")) staffCallsFromCustomerPages.push(r.url()); });
   openPages.push(p);
   p.on("close", () => openPages.splice(openPages.indexOf(p), 1));
@@ -163,6 +166,13 @@ if (phase === "main") {
   await shot(p, "01-dashboard");
   let t = await mainText(p);
   check("dashboard", "first visit: real trial balance and honest empty cards", (await api("owner", "GET", "/v1/billing/summary")).json.balance.available === 200 && /No lists yet/.test(t) && /No campaigns yet/.test(t) && !/\bSample\b|Illustrative/.test(t));
+  // F-7/F-8: badges follow the server (meter and status), never fixed text; a trial is never shown as "Inactive".
+  const billSum = (await api("owner", "GET", "/v1/billing/summary")).json;
+  const creditBadgeText = (await p.getByTestId("credit-badge").innerText().catch(() => "")).trim();
+  const subBadgeText = (await p.getByTestId("subscription-badge").innerText().catch(() => "")).trim();
+  const meterLabel = { normal: "Healthy", amber: "Running low", red: "Very low" }[billSum.balance.meter];
+  check("dashboard", "credit and subscription badges match the server's meter and status", creditBadgeText === meterLabel && billSum.status === "trialing" && subBadgeText === "Trial" && !/Inactive/.test(t), `credit "${creditBadgeText}" (meter ${billSum.balance.meter}); subscription "${subBadgeText}" (${billSum.status})`);
+  check("dashboard", "page title and description name MUSHIN, not template text", /MUSHIN/.test(await p.title()) && !/High-End SaaS/.test(await p.title()), await p.title());
   await p.reload();
   await p.getByRole("heading", { name: /Welcome back/ }).waitFor({ timeout: 30000 });
   check("auth", "reload on a direct dashboard URL restores the session", p.url().includes("#/dashboard"));
@@ -267,8 +277,10 @@ if (phase === "main") {
   await p.getByRole("button", { name: /Food shortlist/ }).first().click();
   await p.getByLabel("Select all").check();
   await p.getByRole("button", { name: /Add 2 to a campaign/ }).click();
+  // Wait for the add itself, not a fixed delay: under load it took over 4 s (run fix3-1, harness defect T-3).
+  const added = p.waitForResponse((r) => r.request().method() === "POST" && /\/v1\/campaigns\/[^/]+\/creators$/.test(r.url()), { timeout: 30000 });
   await p.getByRole("dialog", { name: "Add to campaign" }).getByRole("button", { name: /Eid food push/ }).click();
-  await p.waitForTimeout(1500);
+  await added;
   check("campaigns", "creators added from a list selection", (await api("owner", "GET", `/v1/campaigns/${k.id}`)).json.creatorCount === 2);
   await nav(p, "Campaigns");
   await p.getByRole("button", { name: /Eid food push/ }).first().click();
@@ -286,6 +298,7 @@ if (phase === "main") {
   await p.waitForTimeout(1200);
   let kd = (await api("owner", "GET", `/v1/campaigns/${k.id}`)).json;
   check("campaigns", "stage, fee (agreed) and declined outcome persist; totals exclude declined", kd.stageCounts.confirmed === 1 && kd.declinedCount === 1 && kd.agreedFeesMinor === 4_000_000);
+  check("campaigns", "one person editing a campaign never gets a stale-version conflict (fee saved once)", campaignConflicts.length === 0, campaignConflicts.slice(0, 2).join(" | "));
   await card("Realwowboy").getByRole("button", { name: "Outreach" }).click();
   const op = p.getByRole("dialog", { name: /Outreach for/ });
   await op.getByLabel("Channel").selectOption("email");
