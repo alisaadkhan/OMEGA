@@ -110,3 +110,27 @@ inside the 30-day window. Whether that is itself a "derived metric" under III.E.
 
 Rate the search sheets (people needed). Meanwhile, the next code work is the WebAuthn staff sign-in and, once Docker is
 installed, `supabase init` and porting migrations 0001–0031.
+
+## 2026-10-15 (evening): Search evidence, Supabase-target rate limits, deadline
+
+Two Claude sessions now work in this repository with split ownership. This one owns Search, Live Discovery, rate limits,
+Supabase preparation and the progress and traceability records. The staff-operations session owns staff, admin UI,
+identity, team and privacy, and outreach email (see `staff-operations.md`). Integration tests here run on
+`mushin_test_claude`.
+
+| Commit | What | Evidence |
+|---|---|---|
+| `10637c8` (other session) | Staff operations: Super Admin, WebAuthn step-up, approvals, ops controls, consented support access | its own verify, 775 passed |
+| `ef03156` | Rate limits in PostgreSQL (`rate_limit_hit`, 0034): the Supabase-map target already running; default when Upstash is not set; fails closed | verify 784 passed, 7 skipped |
+| `2b43654` | Catalogue match explanations (CAT-005); Brain 2 funnel cost per delivered creator | verify 792 passed; Brain 1 panel identical 35/35 to the rating packets; Brain 2 sheets byte-identical |
+| `feb3f17` | Per-job Live Discovery deadline (LIVE-004, default 20 min, provisional) | live-runner.int 32/32; E2E 3 × 76/76 |
+
+Databases: `mushin_e2e_template` and `mushin_local` migrated to 0034 (forward only, nothing removed).
+
+Unchanged blockers: Search acceptance needs two raters and an adjudicator (packets in `eval-data/packets`, YouTube rows to
+delete by 2026-11-12). The Supabase stack needs WSL 2 + Docker (still not installed on 2026-10-15). Real providers,
+Paddle, Resend and Supabase Auth need owner authorisation or accounts. Demographics: the 10.8 documentation review stands;
+the next free step (Phyllo sandbox shape test) needs a Phyllo account.
+
+Owner decision needed: the two sessions received different orders. This one: Search acceptance before other customer
+modules. The other: continue invitations, privacy, Resend test mode and billing now, without waiting for ratings.
