@@ -5,6 +5,7 @@ import { compareLiveCards } from "./live-runner";
 const card = (id: string, handle: string, fitScore: number, platform: CreatorCard["platform"] = "instagram"): CreatorCard => ({
   id, displayName: handle, handle, platform, avatarUrl: null, city: null, country: null, niches: [], tags: [], verified: false, followers: null, engagementRate: null,
   authenticityScore: null, fakeFollowerPct: null, hasContact: false, contactAvailability: "none", followersFreshness: "current", fitScore, fitLabel: "Possible match",
+  eligibility: { eligible: true, version: "elig-1", reasons: [], qualifyingPlatforms: [platform], flags: [] },
 });
 
 describe("live result order", () => {

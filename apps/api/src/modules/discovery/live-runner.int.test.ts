@@ -419,6 +419,43 @@ describe("live runner", () => {
     });
   });
 
+  describe("creator eligibility (elig-1) before delivery", () => {
+    // small_* profiles report 9,999 followers, edge_* exactly 10,000; everything else the fixture's 946,416.
+    const counted = (handle: string) => {
+      const [one] = profile(handle);
+      const original = (one as Record<string, unknown> | undefined)?.["followersCount"];
+      return [{ ...one, followersCount: handle.startsWith("small_") ? 9_999 : handle.startsWith("edge_") ? 10_000 : original }];
+    };
+    const scraper = () => new FixtureScraper({ instagram: (req: ScrapeRequest) => ({ provider: "apify", raw: counted(req.handle), costUsd: 0.0026 }) });
+
+    it("delivers and charges only creators whose own profile has at least 10,000 followers; the rest are saved, not delivered", async () => {
+      const { runner } = setup({ web: new FixtureWebSearch(links("small_1", "edge_1", "big_1", "small_2", "big_2")), scraper: scraper() });
+      const c = await customer();
+      const id = await startRun(c, 5);
+      await runner.run(id, c.workspaceId);
+      const delivered = (await discovery.results(c, id, 0)).results.map((r) => r.handle).sort();
+      expect(delivered).toContain("edge_1");
+      expect(delivered.filter((h) => h.startsWith("small_"))).toEqual([]);
+      const trail = await trailOf(id);
+      expect(trail.filter((r) => r.reason === "below_follower_minimum").map((r) => r.candidate_key).sort()).toEqual(["https://instagram.com/small_1", "https://instagram.com/small_2"]);
+      const job = await discovery.get(c, id);
+      expect(job.live?.creditsCharged).toBe(50 + 10 * (job.live?.new ?? 0));
+      expect(await balance(c)).toMatchObject({ reserved: 0 });
+      // Saved, not deleted: the small creators exist but are not eligible for customers.
+      expect((await ownerQuery<{ n: number }>("select count(*)::int as n from gcp.creator_profiles where handle like 'small_%'"))[0]?.n).toBe(2);
+    });
+
+    it("refuses a known creator whose stored count is below the minimum", async () => {
+      const first = setup({ web: new FixtureWebSearch(links("small_k")), scraper: scraper() });
+      const c = await customer();
+      await first.runner.run(await startRun(c, 5), c.workspaceId);
+      const again = setup({ web: new FixtureWebSearch(links("small_k")), scraper: scraper() });
+      const id = await startRun(c, 5);
+      await again.runner.run(id, c.workspaceId);
+      expect((await discovery.results(c, id, 0)).results.map((r) => r.handle)).not.toContain("small_k");
+    });
+  });
+
   describe("extraction waves", () => {
     // Three private accounts first, then good ones: the size (5) is filled only if more profiles may be fetched.
     const scraper = () => new FixtureScraper({

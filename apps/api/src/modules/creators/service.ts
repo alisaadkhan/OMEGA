@@ -25,6 +25,7 @@ import { chargeCatalogSearch } from "./search-charge";
 import { decodeCursor, encodeCursor } from "./cursor";
 import { understandQuery } from "./understand";
 import { matchReasons } from "./match-reasons";
+import { creatorEligibility } from "./eligibility";
 import { DEFAULT_SOURCE_POLICY, restrictsDerived, type SourcePolicy } from "./source-policy";
 
 export type CreatorsDeps = {
@@ -159,7 +160,7 @@ export function createCreatorsService(deps: CreatorsDeps) {
       ids = id ? [id] : [];
     } else {
       ids = (await fromIndex(
-        () => deps.index.search({ text: q, filter: [], limit: 8 }),
+        () => deps.index.search({ text: q, filter: meiliFilter(searchFiltersShape.parse({}), now(), 0), limit: 8 }),
         (s) => s.search({ text: q, filters: searchFiltersShape.parse({}), freshCurrentDays: 0, now: now(), limit: 8 }, tenant(ctx)),
       )).hits.map((h) => h.id);
     }
@@ -305,6 +306,7 @@ export function createCreatorsService(deps: CreatorsDeps) {
           firstSeenAt: k.firstSeenAt.toISOString(), lastSeenAt: k.lastSeenAt.toISOString(), status: k.status, checkedAt: iso(k.checkedAt), checkDetail: k.checkDetail,
         })),
         contactAvailability: contactAvailability(contacts),
+        eligibility: profileEligibilityView(c, profiles, t),
         revealed,
         revealCost,
         refreshCost: refreshCost[refreshActionFor(c.primaryPlatform)],
@@ -355,3 +357,20 @@ export function createCreatorsService(deps: CreatorsDeps) {
 }
 
 export type CreatorsService = ReturnType<typeof createCreatorsService>;
+
+/** The profile view of eligibility (elig-1): the creator verdict and each profile's own (no counts beyond what the profile shows). */
+function profileEligibilityView(
+  c: { status: string; isMinor: boolean; minorOverrideByStaffId: string | null },
+  profiles: { platform: "instagram" | "tiktok" | "youtube"; canonicalUrl: string; followers: number | null; followersUpdatedAt: Date | null; lastPostAt: Date | null }[],
+  now: Date,
+) {
+  const e = creatorEligibility(c, profiles.map((p) => ({ ...p, followers: p.platform === "youtube" && p.followers === 0 ? null : p.followers })), now);
+  return {
+    eligible: e.eligible,
+    version: e.version,
+    reasons: e.reasons,
+    qualifyingPlatforms: e.qualifyingPlatforms,
+    flags: e.flags,
+    profiles: e.profiles.map((p) => ({ platform: p.platform, qualifies: p.qualifies, reasons: p.reasons, flags: p.flags })),
+  };
+}

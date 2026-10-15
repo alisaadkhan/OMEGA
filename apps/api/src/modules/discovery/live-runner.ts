@@ -3,7 +3,7 @@ import { AppError, type Logger } from "@mushin/core";
 import { providerSpendForJob, type Db, type LivePrices, type LiveProgress, type TenantTx } from "@mushin/db";
 import { ProviderError, type Llm, type ProfileScraper } from "@mushin/integrations";
 import type { BillingService } from "../billing/index";
-import { findProfileByUrl, fitLabel, getSearchSettings, isVisibleCreator, rankCards, suppressedUrls, type CreatorPlatform, type SourcePolicy, type EnrichJob, type EnrichmentPipeline } from "../creators/index";
+import { findProfileByUrl, fitLabel, getSearchSettings, profileEligibility, isVisibleCreator, rankCards, suppressedUrls, type CreatorPlatform, type SourcePolicy, type EnrichJob, type EnrichmentPipeline } from "../creators/index";
 import { notifyFinished, releaseHeld } from "./finish";
 import type { CachedSearch } from "./live/cache";
 import { evaluateCampaignFit } from "./fit";
@@ -143,6 +143,14 @@ export function createLiveRunner(deps: Deps) {
     // provider run already started is not interrupted (and is not claimed to be); its profiles are simply not processed.
     const checkCancel = async () => {
       if (await deps.db.withWorkspace(workspaceId, (tx) => repo.cancelRequested(tx, workspaceId, jobId))) throw new RunCanceled();
+    };
+    // Creator eligibility (elig-1) before delivery: the profile that was found must itself have a recent count of at
+    // least 10,000 followers/subscribers. A creator below it is saved (nothing is deleted) but not delivered or charged.
+    const eligibleProfile = (k: Kept, p: { followers: number | null; recentPosts: { postedAt: Date }[] }, observedAt: Date) => {
+      const latest = p.recentPosts.reduce<Date | null>((max, x) => (max === null || x.postedAt > max ? x.postedAt : max), null);
+      const e = profileEligibility({ platform: k.platform, canonicalUrl: k.canonicalUrl, followers: k.platform === "youtube" && p.followers === 0 ? null : p.followers, followersUpdatedAt: observedAt, lastPostAt: latest }, now());
+      if (!e.qualifies) trail.set(k.canonicalUrl, "verification", "rejected", e.reasons[0] ?? "ineligible");
+      return e.qualifies;
     };
     const profileJob = (k: Kept): EnrichJob => ({ jobId, workspaceId, platform: k.platform, handle: k.handle, canonicalUrl: k.canonicalUrl, requestId: job.requestId });
 
@@ -295,7 +303,7 @@ export function createLiveRunner(deps: Deps) {
           }
           const campaignFit = evaluateCampaignFit(search, k, stored.profile, false, now(), stored.fetchedAt);
           trail.fit(k.canonicalUrl, campaignFit, known.creatorId);
-          if (campaignFit.eligible) {
+          if (campaignFit.eligible && eligibleProfile(k, stored.profile, stored.fetchedAt)) {
             if (await recordKnown(known.creatorId, k.reason, campaignFit)) trail.set(k.canonicalUrl, "delivery", "delivered", "known_creator");
             else trail.set(k.canonicalUrl, "delivery", "duplicate", "already_in_results");
           }
@@ -431,8 +439,9 @@ export function createLiveRunner(deps: Deps) {
               const visible = await isVisibleCreator(tx, saved.creatorId);
               const campaignFit = evaluateCampaignFit(search, f.k, saved.profile, !visible, now());
               trail.fit(f.k.canonicalUrl, campaignFit, saved.creatorId);
-              if (campaignFit.eligible && visible) trail.set(f.k.canonicalUrl, "delivery", "duplicate", "already_in_results");
-              if (campaignFit.eligible && visible && await repo.insertResult(tx, workspaceId, jobId, { creatorId: saved.creatorId, isNew, credits: isNew ? prices[f.k.platform] : 0, reason: f.k.reason, campaignFit })) {
+              const deliverable = campaignFit.eligible && visible && eligibleProfile(f.k, saved.profile, now());
+              if (deliverable) trail.set(f.k.canonicalUrl, "delivery", "duplicate", "already_in_results");
+              if (deliverable && await repo.insertResult(tx, workspaceId, jobId, { creatorId: saved.creatorId, isNew, credits: isNew ? prices[f.k.platform] : 0, reason: f.k.reason, campaignFit })) {
                 trail.set(f.k.canonicalUrl, "delivery", "delivered", isNew ? "new_creator" : "known_creator", { detail: { credits: isNew ? prices[f.k.platform] : 0 } });
                 const results = await repo.resultCreatorIds(tx, workspaceId, jobId);
                 const qualified = await rerank(tx, job, search);

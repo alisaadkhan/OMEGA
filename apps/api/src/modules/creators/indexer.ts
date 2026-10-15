@@ -1,6 +1,7 @@
 import type { Logger } from "@mushin/core";
 import type { Db } from "@mushin/db";
 import type { SearchIndex } from "@mushin/integrations";
+import { ELIGIBILITY_VERSION } from "./eligibility";
 import { isIndexable, toDocument } from "./projection";
 import * as repo from "./repository";
 import { applyDocumentPolicy, DEFAULT_SOURCE_POLICY, type SourcePolicy } from "./source-policy";
@@ -27,7 +28,7 @@ export function createCreatorIndexer(o: { db: Db; index: SearchIndex | null; log
 
   async function reconcile(): Promise<{ upserted: number; removed: number }> {
     const wanted = new Map((await o.db.withSystem((tx) => repo.indexState(tx))).map((r) => [r.id, r.updatedEpoch]));
-    const postgres = new Map((await o.db.withSystem((tx) => repo.postgresSearchState(tx))).map((r) => [r.id, r.updatedEpoch]));
+    const postgres = new Map((await o.db.withSystem((tx) => repo.postgresSearchState(tx, ELIGIBILITY_VERSION))).map((r) => [r.id, r.updatedEpoch]));
     const postgresOutdated = [...wanted].filter(([id, at]) => postgres.get(id) !== at).map(([id]) => id);
     const postgresLeftover = [...postgres.keys()].filter((id) => !wanted.has(id));
     for (let i = 0; i < postgresOutdated.length; i += BATCH) await sync(postgresOutdated.slice(i, i + BATCH));
@@ -36,7 +37,7 @@ export function createCreatorIndexer(o: { db: Db; index: SearchIndex | null; log
     let outdated = postgresOutdated.length;
     let leftover = postgresLeftover.length;
     if (o.index) {
-      const present = await o.index.listIds();
+      const present = await o.index.listIds(ELIGIBILITY_VERSION);
       const meiliOutdated = [...wanted].filter(([id, at]) => present.get(id) !== at).map(([id]) => id);
       const meiliLeftover = [...present.keys()].filter((id) => !wanted.has(id));
       for (let i = 0; i < meiliOutdated.length; i += BATCH) await sync(meiliOutdated.slice(i, i + BATCH));

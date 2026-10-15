@@ -9,7 +9,8 @@ import { Spinner } from "./states";
  * Several creators (a search selection): pick a list to add them all to. `variant="icon"` loads lists only when opened,
  * so a page of result cards makes no requests until one is used.
  */
-export function SaveToListMenu({ creatorIds, variant = "button", label = "Save" }: { creatorIds: string[]; variant?: "button" | "icon"; label?: string }) {
+/** `blockedReason`: the creator(s) may not be saved (creator eligibility); the control stays visible, disabled, with the reason. */
+export function SaveToListMenu({ creatorIds, variant = "button", label = "Save", blockedReason = null }: { creatorIds: string[]; variant?: "button" | "icon"; label?: string; blockedReason?: string | null }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const ref = useRef<HTMLDivElement>(null);
@@ -53,6 +54,13 @@ export function SaveToListMenu({ creatorIds, variant = "button", label = "Save" 
     create.mutate({ name: n }, { onSuccess: (l) => { setName(""); addTo(l.id, l.name); }, onError: fail("Couldn't create the list") });
   }
 
+  if (blockedReason) {
+    return (
+      <button disabled title={blockedReason} aria-label={`Save to a list: ${blockedReason}`} className="inline-flex cursor-not-allowed items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-500">
+        <Bookmark className="h-3.5 w-3.5" strokeWidth={1.75} /> {variant === "icon" ? null : label}
+      </button>
+    );
+  }
   return (
     <div className="relative" ref={ref}>
       {variant === "icon" ? (

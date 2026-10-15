@@ -29,7 +29,11 @@ export function createPostgresCatalogSearch(db: Db): CatalogSearch {
   async function search(query: CatalogSearchQuery, ctx: Pick<TenantContext, "userId" | "workspaceId">) {
     const limit = Math.max(1, Math.min(1000, Math.trunc(query.limit)));
     const text = query.text.trim();
-    const conditions = [sql`c.status = 'active' and not (c.is_minor and c.minor_override_by_staff_id is null)`];
+    // Creator eligibility (elig-1) before ranking: eligible documents whose evidence has not expired.
+    const conditions = [
+      sql`c.status = 'active' and not (c.is_minor and c.minor_override_by_staff_id is null)`,
+      sql`d.eligible and d.eligible_until_epoch > ${Math.floor(query.now.getTime() / 1000)}`,
+    ];
     // Recognised niche and city words (English, Roman Urdu, Urdu script, city short forms) match any of their reviewed
     // forms; a city also matches the creator's own declared city. Without a recognised word the query is unchanged.
     const groups = expandQuery(text);

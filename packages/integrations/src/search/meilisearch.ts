@@ -17,6 +17,8 @@ const SETTINGS = {
     "authenticity_score",
     "has_contact",
     "followers_updated_epoch",
+    "eligible",
+    "eligible_until",
   ],
   sortableAttributes: ["followers", "engagement_rate", "authenticity_score"],
   typoTolerance: { enabled: true, minWordSizeForTypos: { oneTypo: 4, twoTypos: 8 } },
@@ -117,17 +119,17 @@ export class MeilisearchIndex implements SearchIndex {
     }
   }
 
-  async listIds(): Promise<Map<string, number>> {
+  async listIds(eligibilityVersion?: string): Promise<Map<string, number>> {
     const out = new Map<string, number>();
     for (let offset = 0; ; offset += 1000) {
-      let page: { results: { id: string; updated_epoch?: number }[]; total: number };
+      let page: { results: { id: string; updated_epoch?: number; eligibility_version?: string }[]; total: number };
       try {
-        page = await this.call(`${this.base}/documents/fetch`, "POST", { fields: ["id", "updated_epoch"], limit: 1000, offset });
+        page = await this.call(`${this.base}/documents/fetch`, "POST", { fields: ["id", "updated_epoch", "eligibility_version"], limit: 1000, offset });
       } catch (err) {
         if (err instanceof MeiliHttpError && err.code === "index_not_found") return out;
         throw err;
       }
-      for (const d of page.results) out.set(d.id, d.updated_epoch ?? 0);
+      for (const d of page.results) out.set(d.id, eligibilityVersion && d.eligibility_version !== eligibilityVersion ? -1 : (d.updated_epoch ?? 0));
       if (offset + 1000 >= page.total) return out;
     }
   }

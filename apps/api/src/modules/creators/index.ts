@@ -13,7 +13,8 @@ export { createCreatorIndexer } from "./indexer";
 export type { CreatorIndexer } from "./indexer";
 export { createSummaryWriter } from "./summaries";
 export type { SummaryWriter } from "./summaries";
-export { insertCreator, isVisibleCreator } from "./repository";
+export { ineligibleCreatorIds, insertCreator, isVisibleCreator } from "./repository";
+export { creatorEligibility, DEFAULT_ELIGIBILITY, ELIGIBILITY_VERSION, ineligibleError, MIN_FOLLOWERS, profileEligibility, type EligibilityProfile } from "./eligibility";
 export type { NewCreator } from "./repository";
 
 export function createCreatorsModule(o: { service: CreatorsService; limiter: RateLimiter; removals?: RemovalService; requireStaff?: (action: StaffAction) => PreHandler }): AppModule {

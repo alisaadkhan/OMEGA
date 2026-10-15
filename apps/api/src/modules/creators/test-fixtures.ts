@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
+import { createLogger } from "@mushin/core";
 import type { Db } from "@mushin/db";
+import { createCreatorIndexer } from "./indexer";
 import { insertCreator, type NewCreator, type NewProfile } from "./repository";
 
 /** Encryption key for fixture contacts (tests only). */
@@ -30,4 +32,11 @@ export function fixtureCreator(over: Partial<Omit<NewCreator, "profiles">> & { p
 
 export function addCreator(db: Db, over: Parameters<typeof fixtureCreator>[0] = {}): Promise<string> {
   return db.withSystem((tx) => insertCreator(tx, fixtureCreator(over), TEST_KEY));
+}
+
+/** A fixture creator indexed as the worker would index it, so eligibility (elig-1) is evaluated (50,000 fresh followers by default). */
+export async function addIndexedCreator(db: Db, over: Parameters<typeof fixtureCreator>[0] = {}): Promise<string> {
+  const id = await addCreator(db, over);
+  await createCreatorIndexer({ db, index: null, logger: createLogger({ level: "silent" }) }).sync([id]);
+  return id;
 }

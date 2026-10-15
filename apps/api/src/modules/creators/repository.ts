@@ -19,6 +19,7 @@ import {
 } from "@mushin/db";
 import type { CreatorDocument } from "@mushin/integrations";
 import type { MatchFields } from "./match-reasons";
+import { creatorEligibility, ELIGIBILITY_VERSION, type CreatorEligibility, type EligibilityProfile } from "./eligibility";
 import { isMinorProtected, maskContact, type FitWeights, type FreshnessThresholds, type LabelThresholds, type SummarySource } from "./rules";
 
 type Tx = TenantTx | SystemTx;
@@ -74,12 +75,14 @@ export type CardRow = {
   followersUpdatedAt: Date | null;
   /** Kind and status of each stored contact (never the value). */
   contactStates: { kind: "email" | "phone"; status: string }[];
+  /** Creator eligibility (elig-1) from the stored creator and profiles, as of the read (the same function builds the index). */
+  eligibility: CreatorEligibility;
 };
 
 /** Card data straight from Postgres; creators the index still lists but Postgres now hides are dropped here. */
 export async function cardRows(tx: Tx, ids: string[]): Promise<CardRow[]> {
   if (ids.length === 0) return [];
-  const rows = await tx.execute<Omit<CardRow, "followersUpdatedAt"> & { followersUpdatedAt: string | Date | null }>(sql`
+  const rows = await tx.execute<Omit<CardRow, "followersUpdatedAt" | "eligibility"> & { followersUpdatedAt: string | Date | null }>(sql`
     select c.id, c.display_name as "displayName", c.primary_handle as "primaryHandle", c.primary_platform as "primaryPlatform",
       c.avatar_url as "avatarUrl", c.city, c.country, c.niches, c.tags, c.verified,
       c.authenticity_score as "authenticityScore", c.fake_follower_pct as "fakeFollowerPct",
@@ -93,7 +96,8 @@ export async function cardRows(tx: Tx, ids: string[]): Promise<CardRow[]> {
     ) p on true
     where c.id in ${ids} and ${VISIBLE}`);
   // Raw queries return timestamps as text.
-  return rows.map((r) => ({ ...r, followersUpdatedAt: r.followersUpdatedAt === null ? null : new Date(r.followersUpdatedAt) }));
+  const eligibility = await eligibilityOf(tx, rows.map((r) => r.id), new Date());
+  return rows.map((r) => ({ ...r, followersUpdatedAt: r.followersUpdatedAt === null ? null : new Date(r.followersUpdatedAt), eligibility: eligibility.get(r.id) ?? notEvaluated() }));
 }
 
 /** The text the search projection indexed for these creators (to explain matches on one page of results). */
@@ -342,7 +346,7 @@ export type IndexRow = {
   verified: boolean;
   authenticityScore: number | null;
   hasContact: boolean;
-  profiles: { platform: Platform; handle: string; followers: number | null; engagementRate: number | null; bio: string | null; followersUpdatedAt: string | null }[];
+  profiles: { platform: Platform; handle: string; canonicalUrl: string; followers: number | null; engagementRate: number | null; bio: string | null; followersUpdatedAt: string | null; lastPostAt: string | null }[];
   audience: AudienceRow | null;
   updatedEpoch: number;
 };
@@ -364,7 +368,7 @@ export async function indexRows(tx: SystemTx, ids: string[]): Promise<IndexRow[]
       -- A contact shown not to work is not a way to reach the creator (the "has contact" filter).
       exists (select 1 from gcp.creator_contacts k where k.creator_id = c.id and k.status <> 'invalid') as "hasContact",
       coalesce((
-        select jsonb_agg(jsonb_build_object('platform', p.platform, 'handle', p.handle,
+        select jsonb_agg(jsonb_build_object('platform', p.platform, 'handle', p.handle, 'canonicalUrl', p.canonical_url, 'lastPostAt', p.last_post_at,
           'followers', case when p.platform = 'youtube' and p.followers = 0 then null else p.followers end,
           'engagementRate', p.engagement_rate, 'bio', p.bio, 'followersUpdatedAt', p.followers_updated_at) order by p.followers desc)
         from gcp.creator_profiles p where p.creator_id = c.id), '[]'::jsonb) as profiles,
@@ -380,11 +384,13 @@ export async function upsertPostgresSearchDocuments(tx: SystemTx, docs: CreatorD
   await tx.execute(sql`
     insert into gcp.creator_search_documents (
       creator_id, display_name, name_variants, primary_handle, handles, platforms, city, country, niches, tags, bio,
-      followers, engagement_rate, verified, authenticity_score, has_contact, followers_updated_epoch, updated_epoch, search_text, search_vector
+      followers, engagement_rate, verified, authenticity_score, has_contact, followers_updated_epoch, updated_epoch,
+      eligible, eligible_until_epoch, eligibility_version, eligibility_reasons, eligibility_flags, qualifying_platforms, search_text, search_vector
     )
     select d.id, d.display_name, d.name_variants, d.primary_handle, d.handles, d.platforms, d.city, d.country,
       d.niches, d.tags, d.bio, d.followers, d.engagement_rate, d.verified, d.authenticity_score, d.has_contact,
       d.followers_updated_epoch, d.updated_epoch,
+      d.eligible, d.eligible_until, d.eligibility_version, d.eligibility_reasons, d.eligibility_flags, d.qualifying_platforms,
       coalesce(d.display_name, '') || ' ' || coalesce(array_to_string(d.name_variants, ' '), '') || ' ' || coalesce(d.primary_handle, '') || ' ' ||
         coalesce(array_to_string(d.handles, ' '), '') || ' ' || coalesce(array_to_string(d.handle_words, ' '), '') || ' ' || coalesce(array_to_string(d.niches, ' '), '') || ' ' ||
         coalesce(array_to_string(d.tags, ' '), '') || ' ' || coalesce(d.bio, ''),
@@ -396,7 +402,8 @@ export async function upsertPostgresSearchDocuments(tx: SystemTx, docs: CreatorD
     from jsonb_to_recordset(${records}::jsonb) as d(
       id uuid, display_name text, name_variants text[], primary_handle text, handles text[], handle_words text[], platforms text[], city text,
       country text, niches text[], tags text[], bio text, followers bigint, engagement_rate double precision,
-      verified boolean, authenticity_score smallint, has_contact boolean, followers_updated_epoch bigint, updated_epoch bigint
+      verified boolean, authenticity_score smallint, has_contact boolean, followers_updated_epoch bigint, updated_epoch bigint,
+      eligible boolean, eligible_until bigint, eligibility_version text, eligibility_reasons text[], eligibility_flags text[], qualifying_platforms text[]
     )
     on conflict (creator_id) do update set
       display_name = excluded.display_name, name_variants = excluded.name_variants, primary_handle = excluded.primary_handle,
@@ -404,6 +411,8 @@ export async function upsertPostgresSearchDocuments(tx: SystemTx, docs: CreatorD
       niches = excluded.niches, tags = excluded.tags, bio = excluded.bio, followers = excluded.followers,
       engagement_rate = excluded.engagement_rate, verified = excluded.verified, authenticity_score = excluded.authenticity_score,
       has_contact = excluded.has_contact, followers_updated_epoch = excluded.followers_updated_epoch, updated_epoch = excluded.updated_epoch,
+      eligible = excluded.eligible, eligible_until_epoch = excluded.eligible_until_epoch, eligibility_version = excluded.eligibility_version,
+      eligibility_reasons = excluded.eligibility_reasons, eligibility_flags = excluded.eligibility_flags, qualifying_platforms = excluded.qualifying_platforms,
       search_text = excluded.search_text, search_vector = excluded.search_vector
   `);
 }
@@ -413,8 +422,13 @@ export async function removePostgresSearchDocuments(tx: SystemTx, ids: string[])
   await tx.execute(sql`delete from gcp.creator_search_documents where creator_id in ${ids}`);
 }
 
-export async function postgresSearchState(tx: SystemTx): Promise<{ id: string; updatedEpoch: number }[]> {
-  const rows = await tx.execute<{ id: string; updatedEpoch: number | string }>(sql`select creator_id as id, updated_epoch as "updatedEpoch" from gcp.creator_search_documents`);
+/** With `eligibilityVersion`, a document built under another eligibility policy reports -1, so the reconcile rebuilds it. */
+export async function postgresSearchState(tx: SystemTx, eligibilityVersion?: string): Promise<{ id: string; updatedEpoch: number }[]> {
+  const rows = await tx.execute<{ id: string; updatedEpoch: number | string }>(
+    eligibilityVersion
+      ? sql`select creator_id as id, case when eligibility_version is distinct from ${eligibilityVersion} then -1 else updated_epoch end as "updatedEpoch" from gcp.creator_search_documents`
+      : sql`select creator_id as id, updated_epoch as "updatedEpoch" from gcp.creator_search_documents`,
+  );
   return rows.map((row) => ({ id: row.id, updatedEpoch: Number(row.updatedEpoch) }));
 }
 
@@ -541,3 +555,24 @@ export async function insertCreator(tx: SystemTx, c: NewCreator, encryptionKey: 
   await writeOutbox(tx, { eventType: "creator.changed", aggregateType: "creator", aggregateId: row.id, workspaceId: null, payload: { creatorId: row.id }, requestId: null });
   return row.id;
 }
+
+/** Eligibility (elig-1) of each creator from its stored record and profiles, as of `now`. */
+export async function eligibilityOf(tx: Tx, ids: string[], now: Date): Promise<Map<string, CreatorEligibility>> {
+  if (ids.length === 0) return new Map();
+  const rows = await tx.execute<{ id: string; status: string; isMinor: boolean; minorOverrideByStaffId: string | null; profiles: EligibilityProfile[] }>(sql`
+    select c.id, c.status, c.is_minor as "isMinor", c.minor_override_by_staff_id as "minorOverrideByStaffId",
+      coalesce((select jsonb_agg(jsonb_build_object('platform', p.platform, 'canonicalUrl', p.canonical_url,
+        'followers', case when p.platform = 'youtube' and p.followers = 0 then null else p.followers end,
+        'followersUpdatedAt', p.followers_updated_at, 'lastPostAt', p.last_post_at))
+        from gcp.creator_profiles p where p.creator_id = c.id), '[]'::jsonb) as profiles
+    from gcp.creators c where c.id in ${ids}`);
+  return new Map(rows.map((r) => [r.id, creatorEligibility(r, r.profiles, now)]));
+}
+
+/** Of these creators, the ones that may not be added to a list or campaign (elig-1); unknown ids count as not eligible. */
+export async function ineligibleCreatorIds(tx: Tx, ids: string[], now: Date): Promise<string[]> {
+  const e = await eligibilityOf(tx, ids, now);
+  return ids.filter((id) => !e.get(id)?.eligible);
+}
+
+const notEvaluated = (): CreatorEligibility => ({ version: ELIGIBILITY_VERSION, eligible: false, reasons: ["no_profile"], eligibleUntil: null, qualifyingPlatforms: [], flags: [], profiles: [] });

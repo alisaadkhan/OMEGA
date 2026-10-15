@@ -67,6 +67,8 @@ export const creatorProfiles = gcp.table("creator_profiles", {
   engagementUpdatedAt: ts("engagement_updated_at"),
   audienceUpdatedAt: ts("audience_updated_at"),
   lastScrapedAt: ts("last_scraped_at"),
+  /** Latest public post seen (eligibility activity evidence); null when not known. */
+  lastPostAt: ts("last_post_at"),
   createdAt: ts("created_at").notNull().defaultNow(),
   updatedAt: ts("updated_at").notNull().defaultNow(),
 });

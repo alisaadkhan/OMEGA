@@ -1,7 +1,7 @@
 import { searchFiltersSchema, type CreateList, type ListDetail, type ListSummary, type UpdateList } from "@mushin/contracts";
 import { AppError, type TenantContext } from "@mushin/core";
 import type { Db } from "@mushin/db";
-import { rankCards, type SourcePolicy } from "../creators/index";
+import { ineligibleCreatorIds, ineligibleError, rankCards, type SourcePolicy } from "../creators/index";
 import * as repo from "./repository";
 
 export type ListsDeps = { db: Db; now?: () => Date; sourcePolicy?: SourcePolicy };
@@ -95,6 +95,9 @@ export function createListsService(deps: ListsDeps) {
       const unique = [...new Set(creatorIds)];
       const visible = await repo.visibleCreatorIds(tx, unique);
       if (visible.length !== unique.length) throw new AppError("VALIDATION_FAILED", "Some of these creators can't be saved (not found or no longer available).", { field: "creatorIds" });
+      // Creator eligibility (elig-1) is enforced here too, so a direct API call cannot save a creator search would hide.
+      const ineligible = await ineligibleCreatorIds(tx, unique, now());
+      if (ineligible.length > 0) throw ineligibleError(ineligible);
       if ((await repo.countMembers(tx, ctx.workspaceId, id)) + unique.length > repo.MAX_MEMBERS) {
         throw new AppError("CONFLICT", `A list can hold up to ${repo.MAX_MEMBERS} creators.`);
       }

@@ -23,6 +23,7 @@ const cardFor = (id: string): CreatorCard => ({
   followersFreshness: "current",
   fitScore: 50,
   fitLabel: "Possible match",
+  eligibility: { eligible: true, version: "elig-1", reasons: [], qualifyingPlatforms: ["instagram"], flags: [] },
 });
 
 const job = (over: Partial<DiscoveryJob> = {}): DiscoveryJob => ({

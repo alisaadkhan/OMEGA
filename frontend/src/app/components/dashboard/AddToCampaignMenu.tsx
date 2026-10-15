@@ -8,7 +8,8 @@ import { Spinner } from "./states";
  * "Add to campaign" for one creator (shows which campaigns already include it) or a selection. Adding only: removing a
  * creator deletes their pipeline data, so that happens inside the campaign with a confirmation.
  */
-export function AddToCampaignMenu({ creatorIds, label = "Add to campaign", onGoToCampaigns }: { creatorIds: string[]; label?: string; onGoToCampaigns?: () => void }) {
+/** `blockedReason`: the creator(s) may not be added (creator eligibility); shown disabled with the reason. */
+export function AddToCampaignMenu({ creatorIds, label = "Add to campaign", onGoToCampaigns, blockedReason = null }: { creatorIds: string[]; label?: string; onGoToCampaigns?: () => void; blockedReason?: string | null }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const single = creatorIds.length === 1 ? (creatorIds[0] ?? null) : null;
@@ -29,6 +30,13 @@ export function AddToCampaignMenu({ creatorIds, label = "Add to campaign", onGoT
       onError: (err) => toast.error("Couldn't add to the campaign", err instanceof Error ? err.message : undefined),
     });
 
+  if (blockedReason) {
+    return (
+      <button disabled title={blockedReason} aria-label={`${label}: ${blockedReason}`} className="inline-flex cursor-not-allowed items-center gap-1 rounded-md bg-slate-200 px-2.5 py-1 text-xs text-slate-500" style={{ fontWeight: 500 }}>
+        <Plus className="h-3 w-3" strokeWidth={2} /> {label}
+      </button>
+    );
+  }
   return (
     <div className="relative" ref={ref}>
       <button onClick={() => setOpen((v) => !v)} aria-expanded={open} className="inline-flex items-center gap-1 rounded-md bg-slate-900 px-2.5 py-1 text-xs text-white transition-colors hover:bg-slate-800" style={{ fontWeight: 500 }}>

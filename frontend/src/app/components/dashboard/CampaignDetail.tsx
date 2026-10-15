@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { ineligibleText } from "../../lib/eligibility";
 import { ArrowLeft, CalendarClock, MessageSquareText, Pencil, Trash2, Undo2, UserMinus, Users, XCircle } from "lucide-react";
 import type { CampaignCreator, PipelineStage, UpdateCampaignCreator } from "@mushin/contracts";
 import { rupees, toMinor, useCampaign, useDeleteCampaign, useRemoveFromCampaign, useUpdateCampaign, useUpdateCampaignCreator } from "../../api/campaigns";
@@ -139,6 +140,9 @@ function MemberCard({ m, campaignId, onOutreach, onOpenCreator }: { m: CampaignC
         <span className="min-w-0">
           <span className="block truncate text-xs text-slate-900" style={{ fontWeight: 600 }}>{m.creator.displayName}</span>
           <span className="block truncate text-[11px] text-slate-500">@{m.creator.handle} · {m.creator.platform}</span>
+          {!m.creator.eligibility.eligible && (
+            <span className="block text-[11px] text-amber-800" data-testid="member-ineligible">{ineligibleText(m.creator.eligibility)} · kept in this campaign</span>
+          )}
         </span>
       </button>
       <div className="mt-2 grid grid-cols-2 gap-1.5">

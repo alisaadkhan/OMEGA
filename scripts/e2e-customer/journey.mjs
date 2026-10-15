@@ -214,6 +214,16 @@ if (phase === "main") {
   check("search", "each result says where the query matched (API matchedOn shown on the card)", apiFood.results.length > 0 && explained.length === apiFood.results.length && matchedLines >= Math.min(explained.length, 10), `explained ${explained.length}/${apiFood.results.length}; card lines ${matchedLines}`);
   const LABELS = { email_unverified: "Email available · Unverified", email_verified: "Email available · Verified", email_invalid: "Email invalid", phone_unverified: "Phone available · Unverified", none: "No contact info" };
   check("search", "every card states contact availability from the API, never a value or an unproven claim", apiFood.results.every((r) => r.contactAvailability in LABELS && t.includes(LABELS[r.contactAvailability])) && !/Contact on file|Contactable/.test(t) && !/[a-z0-9._%+-]+@[a-z0-9-]+[.][a-z]{2,}/i.test(t), [...new Set(apiFood.results.map((r) => r.contactAvailability))].join(", "));
+  // Creator eligibility (elig-1): every result meets the 10,000 minimum; a food creator below it is absent, cannot be saved
+  // through the API, and its profile says why. Vicky Panda (5,990 YouTube subscribers) matches "food" but is below.
+  const smallId = sql("select c.id from gcp.creators c join gcp.creator_profiles p on p.creator_id = c.id where p.handle = 'vicky.pandafood'");
+  check("eligibility", "every search result meets the 10,000-follower minimum; a matching creator below it is absent", apiFood.results.length > 0 && apiFood.results.every((r) => r.eligibility.eligible && r.eligibility.qualifyingPlatforms.length > 0) && !apiFood.results.some((r) => r.handle === "vicky.pandafood") && !handles(t).includes("@vicky.pandafood"), `results ${apiFood.results.length}`);
+  const anyList = (await api("owner", "POST", "/v1/lists", { name: `Elig ${label}`, description: "" })).json;
+  const refused = await api("owner", "POST", `/v1/lists/${anyList.id}/members`, { creatorIds: [smallId] });
+  check("eligibility", "the API refuses to save a creator below the minimum (direct call)", refused.status === 400 && refused.json?.error?.details?.reason === "creator_ineligible", `${refused.status} ${JSON.stringify(refused.json?.error?.details ?? {})}`);
+  const smallProfile = (await api("owner", "GET", `/v1/creators/${smallId}`)).json;
+  check("eligibility", "the profile states the creator is below the minimum, with the reason", smallProfile.eligibility?.eligible === false && smallProfile.eligibility.reasons.includes("below_follower_minimum"), JSON.stringify(smallProfile.eligibility?.reasons));
+  await api("owner", "DELETE", `/v1/lists/${anyList.id}`);
   // The next page (by cursor) when there is one, otherwise the same search again: neither is a new paid search.
   const page2 = (await apiSearch("owner", "food", {}, apiFood.nextCursor)).json;
   check("pricing", "search button shows the server price; a search is charged once; repeat and next page are free", priceShown && nothingOnOpen && spentOnce && apiFood.charged === false && page2.charged === false && searchSpends(ws) === spendsBefore + 1, `spends ${spendsBefore}→${searchSpends(ws)}; api charged ${apiFood.charged}/${page2.charged}`);

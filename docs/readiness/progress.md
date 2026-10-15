@@ -134,3 +134,34 @@ the next free step (Phyllo sandbox shape test) needs a Phyllo account.
 
 Owner decision needed: the two sessions received different orders. This one: Search acceptance before other customer
 modules. The other: continue invitations, privacy, Resend test mode and billing now, without waiting for ratings.
+
+## 2026-10-16: creator eligibility elig-1 (owner requirement), in progress
+
+Earlier the same day: `2dd9b69` fixed the campaign fee double-save found by E2E (D-7), dashboard badges (F-7/F-8), the
+invented top-bar identity, the template page metadata and the favicon 404s (F-10); E2E 3 × 79/79, verify 804 passed.
+The staff-operations session ended; its unmerged work is safe on branch `team-privacy` in `MUSHIN-team`.
+
+**Hypothesis and measurable outcome.** A shared server-side policy (`creators/eligibility.ts`, version `elig-1`)
+filters creators before ranking. It requires at least one own profile with a known count of 10,000 or more followers
+or subscribers, observed within 90 days, on a valid supported profile URL, and not known to be inactive for more than
+90 days. Unknown activity is flagged `activity_unverified`, never invented. Applied in Search, Live Discovery delivery,
+list and campaign additions and the profile API, so only qualifying creators reach customers and saved records are
+labelled, not deleted. Results shrink by the measured share and are never padded.
+
+**Baseline before enforcement** (`scripts/eligibility-report.ts`, counts only):
+
+| Catalogue | Eligible creators | Instagram profiles | TikTok profiles | YouTube profiles |
+|---|---|---|---|---|
+| mushin_local | 12 of 21 active (9 below 10k, 1 protected minor) | none | 2 of 3 | 10 of 18 |
+| corpus v2 (evaluation) | 204 of 455 (243 below 10k, 8 unknown count) | 67 of 104 | 13 of 23 | 124 of 328 |
+
+Every eligible creator is currently `activity_unverified`, because post dates were not stored before this change. The
+rating packets made under the pre-eligibility policy must be regenerated and labelled; human ratings are still
+required.
+
+**Result (elig-1 implemented).** Enforced in catalogue Search (both backends, expiry without re-indexing), Live Discovery
+delivery (rejected with the reason; not delivered or charged), list and campaign additions (`creator_ineligible`, direct
+API calls included), profiles (per-profile verdicts) and the UI (banner, disabled save/add with the reason, saved members
+labelled and kept). Evidence: verify 826 passed, 7 skipped; E2E 3 × 82/82; local "food" search 9 → 5 results. Not yet
+done: rating packets regenerated under elig-1 (next step), catalogue creator/business classification as a gate, a staff
+coverage view (report script only).

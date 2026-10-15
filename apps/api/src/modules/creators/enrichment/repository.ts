@@ -146,6 +146,9 @@ export async function saveEnrichment(tx: Tx, i: SaveInput): Promise<{ creatorId:
   const a = i.assessment?.value ?? null;
   let creatorId: string;
   let profileId: string;
+  // Activity evidence for eligibility: the newest dated public post in this fetch (posts arrive newest first). A fetch
+  // without dated posts keeps the earlier date, which still ages out of the activity window.
+  const latestPost = p.recentPosts.reduce<Date | null>((max, x) => (max === null || x.postedAt > max ? x.postedAt : max), null);
   const metricTimes = { followersUpdatedAt: sql`now()`, engagementUpdatedAt: sql`now()`, audienceUpdatedAt: a ? sql`now()` : sql`${creatorProfiles.audienceUpdatedAt}`, lastScrapedAt: sql`now()` };
 
   if (!existing) {
@@ -191,6 +194,7 @@ export async function saveEnrichment(tx: Tx, i: SaveInput): Promise<{ creatorId:
         engagementUpdatedAt: new Date(),
         audienceUpdatedAt: a ? new Date() : null,
         lastScrapedAt: new Date(),
+        lastPostAt: latestPost,
       })
       .returning({ id: creatorProfiles.id });
     if (!pr) throw new Error("profile insert returned no row");
@@ -211,6 +215,7 @@ export async function saveEnrichment(tx: Tx, i: SaveInput): Promise<{ creatorId:
         avgViews: i.metrics.avgViews,
         bio: p.bio,
         ...metricTimes,
+        lastPostAt: latestPost ?? sql`${creatorProfiles.lastPostAt}`,
       })
       .where(eq(creatorProfiles.id, profileId));
     await tx

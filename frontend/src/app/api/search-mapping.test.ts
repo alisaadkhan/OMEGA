@@ -145,6 +145,7 @@ describe("search mapping", () => {
       followersFreshness: "current",
       fitScore: 84,
       fitLabel: "Best match",
+      eligibility: { eligible: true, version: "elig-1", reasons: [], qualifyingPlatforms: ["instagram"], flags: [] },
     });
     expect(c).toMatchObject({ id: "6f1c2a4e-8a51-4c0e-9d0a-2b7f4f1e9a10", name: "Sana Riaz", followers: "412K", niche: "Lifestyle · Bridal", authenticity: null, score: 84, fitLabel: "Best match", hasContact: true });
     expect(c.avatar.startsWith("data:image/svg+xml,")).toBe(true);

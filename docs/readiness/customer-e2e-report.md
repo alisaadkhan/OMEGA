@@ -159,6 +159,20 @@ New check: every "food" result carries `matchedOn` from the API, and each card s
 
 Also fixed: `index.html` still had Figma template metadata ("High-End SaaS Landing Page", "attract enterprise customers and investors") and now names MUSHIN (new check). The top bar fell back to an invented person ("Ahmed Raza Khan", "AR") when the account had no name; it now shows the account's own name or email.
 
+### Creator eligibility elig-1 (2026-10-16)
+
+The template was migrated to 0037 (forward only); the worker rebuilt every search document at start-up under the policy.
+Three new checks: every "food" result meets the 10,000 minimum and Vicky Panda (5,990 subscribers, matches "food") is
+absent from API and UI; a direct API call to save her to a list is refused (400, `creator_ineligible`, policy elig-1);
+her profile states `below_follower_minimum`. The "food" search went from 9 to 5 results.
+
+| Run set | Result |
+|---|---|
+| elig-1..3, three in a row | 3 × 82/82 (60 main + 22 after restart) |
+
+Fixture note: the template's follower counts were observed on 2026-10-13, so under the 90-day rule its creators stop being
+eligible on about 2027-01-11; the template must be refreshed (or the journey given a pinned clock) before then.
+
 ## 5. Defects found and fixed
 
 | ID | Severity | Defect | Fix | Regression evidence |

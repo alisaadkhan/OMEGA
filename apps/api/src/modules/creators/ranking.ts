@@ -57,6 +57,7 @@ export function toCards(rows: repo.CardRow[], req: { text: string; filters: Sear
         followersFreshness,
         fitScore: score,
         fitLabel: fitLabel(score, settings.labels),
+        eligibility: cardEligibility(r.eligibility),
       };
     })
     // An unknown count cannot satisfy an explicit numeric follower filter.
@@ -69,4 +70,9 @@ export async function rankCards(tx: Tx, ids: string[], filters: SearchFilters, n
   if (ids.length === 0) return [];
   const settings = await repo.getSearchSettings(tx);
   return toCards(await repo.cardRows(tx, ids), { text: "", filters }, settings, now, new Map(), policy);
+}
+
+/** The customer-facing part of a creator's eligibility (no per-profile detail). */
+export function cardEligibility(e: repo.CardRow["eligibility"]): CreatorCard["eligibility"] {
+  return { eligible: e.eligible, version: e.version, reasons: e.reasons, qualifyingPlatforms: e.qualifyingPlatforms, flags: e.flags };
 }

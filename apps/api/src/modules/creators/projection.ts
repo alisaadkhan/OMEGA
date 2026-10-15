@@ -1,6 +1,7 @@
 import { truncate } from "@mushin/core";
 import type { CreatorDocument } from "@mushin/integrations";
 import { handleWords } from "./aliases";
+import { creatorEligibility } from "./eligibility";
 import type { IndexRow } from "./repository";
 import { isMinorProtected } from "./rules";
 
@@ -10,6 +11,17 @@ export function isIndexable(r: IndexRow): boolean {
 }
 
 export function toDocument(r: IndexRow): CreatorDocument {
+  return documentAt(r, new Date());
+}
+
+/** The search document as of `now` (eligibility depends on how old the evidence is). */
+export function documentAt(r: IndexRow, now: Date): CreatorDocument {
+  // Eligibility (policy elig-1) is decided here, before ranking; the counts are the stored ones (YouTube 0 = hidden = unknown).
+  const eligibility = creatorEligibility(
+    r,
+    r.profiles.map((p) => ({ platform: p.platform, canonicalUrl: p.canonicalUrl, followers: p.followers, followersUpdatedAt: p.followersUpdatedAt, lastPostAt: p.lastPostAt })),
+    now,
+  );
   const primary = r.profiles.find((p) => p.platform === r.primaryPlatform) ?? r.profiles[0];
   const followersAt = primary?.followersUpdatedAt ? Math.floor(new Date(primary.followersUpdatedAt).getTime() / 1000) : null;
   const knownFollowers = r.profiles.map((p) => (p.platform === "youtube" && p.followers === 0 ? null : p.followers)).filter((v): v is number => v !== null);
@@ -36,5 +48,11 @@ export function toDocument(r: IndexRow): CreatorDocument {
     audience_countries: [],
     followers_updated_epoch: followersAt,
     updated_epoch: r.updatedEpoch,
+    eligible: eligibility.eligible,
+    eligible_until: eligibility.eligibleUntil ? Math.floor(eligibility.eligibleUntil.getTime() / 1000) : null,
+    eligibility_version: eligibility.version,
+    eligibility_reasons: eligibility.reasons,
+    eligibility_flags: eligibility.flags,
+    qualifying_platforms: eligibility.qualifyingPlatforms,
   };
 }

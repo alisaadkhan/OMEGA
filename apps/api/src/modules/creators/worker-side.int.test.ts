@@ -90,6 +90,12 @@ function leftoverDoc(id: string) {
     audience_countries: [],
     followers_updated_epoch: null,
     updated_epoch: 1,
+    eligible: false,
+    eligible_until: null,
+    eligibility_version: "elig-1",
+    eligibility_reasons: ["below_follower_minimum"],
+    eligibility_flags: [],
+    qualifying_platforms: [],
   };
 }
 

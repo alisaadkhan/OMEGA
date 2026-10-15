@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { blockedReasonFor, ineligibleText } from "../../lib/eligibility";
 import { ArrowLeft, Download, FolderPlus, ListChecks, Pencil, Star, Trash2, Users } from "lucide-react";
 import type { ListMember, ListSummary } from "@mushin/contracts";
 import { useCreateList, useDeleteList, useList, useLists, useRemoveFromList, useSetListNote, useUpdateList } from "../../api/lists";
@@ -243,7 +244,7 @@ function ListDetail({ id, onBack, onOpenCreator, onGoToSearch }: { id: string; o
             <div className="flex items-center justify-between border-b border-slate-200 bg-indigo-50/60 px-4 py-2 text-xs text-indigo-900">
               <span>{selected.size} selected</span>
               <span className="flex items-center gap-1.5">
-                <AddToCampaignMenu creatorIds={[...selected]} label={`Add ${selected.size} to a campaign`} />
+                <AddToCampaignMenu creatorIds={[...selected]} label={`Add ${selected.size} to a campaign`} blockedReason={blockedReasonFor(l.members.filter((m) => selected.has(m.creator.id)).map((m) => m.creator.eligibility))} />
                 <button onClick={() => onRemove([...selected])} disabled={remove.isPending} className="rounded-md border border-red-200 bg-white px-2.5 py-1 text-red-700 hover:bg-red-50 disabled:opacity-50">Remove from list</button>
               </span>
             </div>
@@ -274,7 +275,13 @@ function ListDetail({ id, onBack, onOpenCreator, onGoToSearch }: { id: string; o
                       <td className="px-3 py-2">
                         <button onClick={() => onOpenCreator(c)} className="flex items-center gap-2 text-left">
                           <img src={c.avatar} alt="" className="h-7 w-7 rounded-full object-cover" />
-                          <span><span className="block text-slate-900" style={{ fontWeight: 600 }}>{m.creator.displayName}</span><span className="text-slate-500">@{m.creator.handle}</span></span>
+                          <span>
+                            <span className="block text-slate-900" style={{ fontWeight: 600 }}>{m.creator.displayName}</span>
+                            <span className="text-slate-500">@{m.creator.handle}</span>
+                            {!m.creator.eligibility.eligible && (
+                              <span className="mt-0.5 block text-[11px] text-amber-800" data-testid="member-ineligible">{ineligibleText(m.creator.eligibility)} · kept on this list</span>
+                            )}
+                          </span>
                         </button>
                       </td>
                       <td className="px-3 py-2 capitalize text-slate-600">{m.creator.platform}</td>
