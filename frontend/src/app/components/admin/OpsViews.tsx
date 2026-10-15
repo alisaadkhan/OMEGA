@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { providerUsageSchema, staffAuditListSchema, staffJobDetailSchema, staffJobListSchema, staffOverviewSchema, staffWorkspaceListSchema } from "@mushin/contracts";
 import { adminRequest } from "../../admin/adminApi";
 import { ErrorState, LoadingBlock } from "../dashboard/states";
+import { JobActions } from "./OpsControls";
 
 /** Staff operations views (canonical spec pages 20–23): instrumented values only, never a default "healthy". */
 const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" }) : "—");
@@ -49,7 +50,7 @@ export function OpsOverview() {
   );
 }
 
-export function OpsJobs() {
+export function OpsJobs({ canAct = false }: { canAct?: boolean }) {
   const [status, setStatus] = useState<"" | "open" | "failed" | "stuck">("");
   const [openId, setOpenId] = useState<string | null>(null);
   const q = useQuery({ queryKey: ["admin", "jobs", status], queryFn: () => adminRequest(`/admin/v1/ops/jobs?limit=100${status ? `&status=${status}` : ""}`, staffJobListSchema) });
@@ -61,7 +62,7 @@ export function OpsJobs() {
         {(["", "open", "failed", "stuck"] as const).map((s) => <button key={s} onClick={() => setStatus(s)} aria-pressed={status === s} className={`rounded-md px-2.5 py-1 ${status === s ? "bg-slate-900 text-white" : "border border-slate-200 text-slate-700"}`}>{s || "All"}</button>)}
       </div>
       {q.isPending ? <LoadingBlock lines={5} /> : q.isError ? <ErrorState body={errorBody(q.error)} onRetry={() => void q.refetch()} /> : q.data.jobs.length === 0 ? <p className="text-sm text-slate-500">No jobs match.</p> : (
-        <Table head={["Created", "Workspace", "Kind", "Status", "Brief / handle", "Found (new)", "Charged / max", "Error", ""]}>
+        <Table head={["Created", "Workspace", "Kind", "Status", "Brief / handle", "Found (new)", "Charged / max", "Error", "", ...(canAct ? ["Actions"] : [])]}>
           {q.data.jobs.map((j) => (
             <tr key={j.id} className={openId === j.id ? "bg-indigo-50/50" : ""}>
               <td className="px-3 py-2 text-slate-500">{when(j.createdAt)}</td>
@@ -73,6 +74,7 @@ export function OpsJobs() {
               <td className="px-3 py-2 tabular-nums">{j.creditsCharged} / {j.maxCost}</td>
               <td className="max-w-[14rem] truncate px-3 py-2 text-red-700" title={j.errorMessage ?? ""}>{j.errorCode ?? ""}</td>
               <td className="px-3 py-2"><button onClick={() => setOpenId(openId === j.id ? null : j.id)} className="text-indigo-600 hover:underline">{openId === j.id ? "Hide" : "Funnel"}</button></td>
+              {canAct && <td className="px-3 py-2"><JobActions id={j.id} kind={j.kind} status={j.status} cancelRequested={j.cancelRequested} createdAt={j.createdAt} /></td>}
             </tr>
           ))}
         </Table>

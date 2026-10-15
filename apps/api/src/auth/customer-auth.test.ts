@@ -19,7 +19,9 @@ describe("customer token verifier", () => {
     const { iss, verify } = await setup();
     const sub = randomUUID();
     const identity = await verify(await iss.sign({ sub, email: "Ahmed@Mushin.PK", fullName: "Ahmed Raza" }));
-    expect(identity).toEqual({ userId: sub, email: "ahmed@mushin.pk", fullName: "Ahmed Raza" });
+    expect(identity).toEqual({ userId: sub, email: "ahmed@mushin.pk", fullName: "Ahmed Raza", emailVerified: true });
+    // Only an explicit true counts as a confirmed email (Supabase user_metadata.email_verified).
+    expect((await verify(await iss.sign({ sub, email: "a@mushin.pk", emailVerified: false }))).emailVerified).toBe(false);
   });
 
   it.each([

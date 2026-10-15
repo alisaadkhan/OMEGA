@@ -12,7 +12,9 @@ declare module "fastify" {
   }
 }
 
-export type ResolveTenant = (identity: CustomerIdentity, requestId: string) => Promise<TenantContext>;
+/** `workspaceId`: the workspace the client asked for (X-Workspace-Id); honoured only if the user is a member. */
+export type ResolveTenant = (identity: CustomerIdentity, requestId: string, workspaceId?: string) => Promise<TenantContext>;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function createCustomerGuard(o: {
   verify: CustomerTokenVerifier;
@@ -26,7 +28,9 @@ export function createCustomerGuard(o: {
     const r = await o.limiter.limit("user", identity.userId);
     if (!r.allowed) throw rateLimitError(r.retryAfterSeconds);
     req.customer = identity;
-    req.tenant = await o.resolveTenant(identity, req.id);
+    const asked = req.headers["x-workspace-id"];
+    const workspaceId = typeof asked === "string" && UUID.test(asked) ? asked.toLowerCase() : undefined;
+    req.tenant = await o.resolveTenant(identity, req.id, workspaceId);
   };
 }
 

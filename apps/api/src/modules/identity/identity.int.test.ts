@@ -16,6 +16,7 @@ const person = (over: Partial<CustomerIdentity> = {}): CustomerIdentity => ({
   userId: randomUUID(),
   email: "ayesha@mushin.pk",
   fullName: "Ayesha Malik",
+  emailVerified: true,
   ...over,
 });
 

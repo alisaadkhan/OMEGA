@@ -34,7 +34,7 @@ import {
 } from "./creators";
 import { audienceEstimates, audienceJobs } from "./audience";
 import { discoveryCandidates, discoveryEstimates, discoveryJobs, discoveryResults, serperCache } from "./discovery";
-import { users, workspaceMembers, workspaces } from "./identity";
+import { users, workspaceInvitations, workspaceMembers, workspaces } from "./identity";
 import { listMembers, lists } from "./lists";
 import { campaignCreators, campaigns, outreachEvents } from "./campaigns";
 import { supportAccessRequests, supportMessages, supportTickets } from "./support";
@@ -57,6 +57,7 @@ export const ALL_TABLES = [
   users,
   workspaces,
   workspaceMembers,
+  workspaceInvitations,
   staffUsers,
   staffSessions,
   auditLog,

@@ -111,3 +111,8 @@ export async function audit(
 ): Promise<void> {
   await tx.insert(auditLog).values({ staffId: e.staffId, action: e.action, metadata: e.metadata ?? {}, workspaceId: e.workspaceId ?? null, targetType: e.targetType ?? null, targetId: e.targetId ?? null, ip: e.ip, requestId: e.requestId });
 }
+
+export async function countActiveSuperAdmins(tx: SystemTx): Promise<number> {
+  const rows = await tx.select({ n: sql<number>`count(*)::int` }).from(staffUsers).where(and(eq(staffUsers.role, "super_admin"), eq(staffUsers.status, "active")));
+  return Number(rows[0]?.n ?? 0);
+}

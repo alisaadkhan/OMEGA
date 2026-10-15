@@ -4,14 +4,19 @@ import type { WorkspaceRole } from "@mushin/core";
 
 export type Membership = { workspaceId: string; role: WorkspaceRole };
 
-export async function findMembership(tx: UserTx | TenantTx, userId: string): Promise<Membership | null> {
+/** The requested workspace when the user is a member of it, otherwise their oldest membership (deleted workspaces have none). */
+export async function findMembership(tx: UserTx | TenantTx, userId: string, requested?: string): Promise<Membership | null> {
   const rows = await tx
     .select({ workspaceId: workspaceMembers.workspaceId, role: workspaceMembers.role })
     .from(workspaceMembers)
     .where(eq(workspaceMembers.userId, userId))
-    .orderBy(asc(workspaceMembers.createdAt))
-    .limit(1);
-  return rows[0] ?? null;
+    .orderBy(asc(workspaceMembers.createdAt));
+  return rows.find((r) => r.workspaceId === requested) ?? rows[0] ?? null;
+}
+
+export async function userStatus(tx: UserTx, userId: string): Promise<string | null> {
+  const [r] = await tx.select({ status: users.status }).from(users).where(eq(users.id, userId));
+  return r?.status ?? null;
 }
 
 /** Serializes provisioning per user inside the current transaction. */

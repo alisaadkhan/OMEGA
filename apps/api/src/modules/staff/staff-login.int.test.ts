@@ -136,4 +136,18 @@ describe("staff login + TOTP", () => {
     const rows = await ownerQuery<{ p: boolean }>(`select has_table_privilege('mushin_app', 'staff.staff_users', 'select') as p`);
     expect(rows[0]?.p).toBe(false);
   });
+
+  it("bootstraps the first Super Admin once, then only as an audited recovery; operator and reason are required", async () => {
+    await expect(staff.bootstrapSuperAdmin({ email: "owner@mushin.pk", name: "Owner", operator: "", reason: "Initial platform owner", recovery: false })).rejects.toThrow(/operator/);
+    const first = await staff.bootstrapSuperAdmin({ email: "owner@mushin.pk", name: "Owner", operator: "Owner", reason: "Initial platform owner", recovery: false });
+    await expect(staff.bootstrapSuperAdmin({ email: "second@mushin.pk", name: "Second", operator: "Owner", reason: "Second owner without recovery", recovery: false })).rejects.toThrow(/already exist/);
+    const rescue = await staff.bootstrapSuperAdmin({ email: "rescue@mushin.pk", name: "Rescue", operator: "Owner", reason: "Lost hardware key; restoring access", recovery: true });
+    const rows = await ownerQuery<{ id: string; role: string }>(`select id, role from staff.staff_users where role = 'super_admin' order by created_at`);
+    expect(rows.map((r) => r.id)).toEqual([first.id, rescue.id]);
+    const audit = await ownerQuery<{ staff_id: string | null; target_id: string; metadata: Record<string, unknown> }>(`select staff_id, target_id, metadata from staff.audit_log where action = 'staff.super_admin.bootstrapped' order by created_at`);
+    expect(audit).toEqual([
+      { staff_id: null, target_id: first.id, metadata: { operator: "Owner", reason: "Initial platform owner", recovery: false, existingActive: 0 } },
+      { staff_id: null, target_id: rescue.id, metadata: { operator: "Owner", reason: "Lost hardware key; restoring access", recovery: true, existingActive: 1 } },
+    ]);
+  });
 });

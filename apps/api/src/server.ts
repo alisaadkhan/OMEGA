@@ -69,7 +69,7 @@ const creators = createCreatorsService({
   logger,
   sourcePolicy: config.sourcePolicy,
 });
-const identity = createIdentityModule({ db, startTrial: billing.startTrial });
+const identity = createIdentityModule({ db, startTrial: billing.startTrial, appUrl: config.appUrl, onWorkspaceErased: (id) => accessCache.invalidate(id) });
 const staff = createStaffModule({ db, tokens: createStaffTokens(config.staffJwtSecret), encryptionKey: config.dataEncryptionKey, webauthn: config.webauthn });
 const removals = createRemovalService({ db, encryptionKey: config.dataEncryptionKey, audit: recordStaffAudit });
 const platform = createPlatformModule({ db, ttlHours: config.idempotencyTtlHours });

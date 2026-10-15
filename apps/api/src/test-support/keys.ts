@@ -5,6 +5,8 @@ export type TestClaims = {
   sub?: string;
   email?: string | null;
   fullName?: string;
+  /** Supabase's user_metadata.email_verified; true unless a test says otherwise. */
+  emailVerified?: boolean;
   issuer?: string;
   audience?: string;
   expiresIn?: string;
@@ -21,7 +23,7 @@ export async function createTestIssuer() {
   async function sign(claims: TestClaims = {}): Promise<string> {
     const body: Record<string, unknown> = { role: "authenticated" };
     if (claims.email !== null) body["email"] = claims.email ?? "ahmed@mushin.pk";
-    if (claims.fullName) body["user_metadata"] = { full_name: claims.fullName };
+    body["user_metadata"] = { ...(claims.fullName ? { full_name: claims.fullName } : {}), email_verified: claims.emailVerified ?? true };
     return new SignJWT(body)
       .setProtectedHeader({ alg: "ES256", kid })
       .setSubject(claims.sub ?? randomUUID())

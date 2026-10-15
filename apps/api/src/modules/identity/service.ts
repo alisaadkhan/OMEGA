@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Db, TenantTx } from "@mushin/db";
-import type { TenantContext } from "@mushin/core";
+import { AppError, type TenantContext } from "@mushin/core";
 import type { CustomerIdentity } from "../../auth/customer-token";
 import * as repo from "./repository";
 
@@ -12,8 +12,10 @@ export function workspaceNameFor(identity: CustomerIdentity): string {
 export type StartTrial = (tx: TenantTx, workspaceId: string) => Promise<void>;
 
 export function createIdentityService(db: Db, startTrial: StartTrial) {
-  async function resolveTenant(identity: CustomerIdentity, requestId: string): Promise<TenantContext> {
-    const existing = await db.withUser(identity.userId, (tx) => repo.findMembership(tx, identity.userId));
+  async function resolveTenant(identity: CustomerIdentity, requestId: string, requested?: string): Promise<TenantContext> {
+    const { existing, status } = await db.withUser(identity.userId, async (tx) => ({ existing: await repo.findMembership(tx, identity.userId, requested), status: await repo.userStatus(tx, identity.userId) }));
+    // A deleted account stays deleted: signing in again does not bring it (or a fresh workspace) back.
+    if (status === "deleted") throw new AppError("FORBIDDEN", "This account was deleted.", { reason: "account_deleted" });
     if (existing) return { requestId, userId: identity.userId, ...existing };
 
     const workspaceId = randomUUID();

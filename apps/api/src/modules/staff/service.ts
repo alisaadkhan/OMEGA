@@ -123,6 +123,23 @@ export function createStaffService(o: { db: Db; tokens: StaffTokens; encryptionK
       return toSession(outcome.staff, outcome.refreshToken);
     },
 
+    /**
+     * Out-of-band Super Admin bootstrap (staff spec §2): run only from the owner's command line with database
+     * credentials, never reachable from the API. The first Super Admin can be created once; while an active Super Admin
+     * exists, another is created only with `recovery` (a lost-access recovery), and every run is audited with the
+     * operator and reason.
+     */
+    async bootstrapSuperAdmin(input: { email: string; name: string; operator: string; reason: string; recovery: boolean }) {
+      if (input.operator.trim().length < 2 || input.reason.trim().length < 12) throw new Error("operator (2+ characters) and reason (12+ characters) are required");
+      const active = await o.db.withSystem((tx) => repo.countActiveSuperAdmins(tx));
+      if (active > 0 && !input.recovery) throw new Error(`${active} active Super Admin(s) already exist; use --recovery only to restore lost access`);
+      const acct = await this.createStaffAccount({ email: input.email, name: input.name, role: "super_admin" });
+      await o.db.withSystem((tx) =>
+        repo.audit(tx, { staffId: null, action: "staff.super_admin.bootstrapped", targetType: "staff", targetId: acct.id, metadata: { operator: input.operator.trim(), reason: input.reason.trim(), recovery: input.recovery, existingActive: active }, ip: null, requestId: null }),
+      );
+      return acct;
+    },
+
     /** The staff account still exists, is active and still has this role (tokens carry the role they were issued with). */
     async isActive(staffId: string, role: StaffRole): Promise<boolean> {
       const staff = await o.db.withSystem((tx) => repo.findStaffById(tx, staffId));

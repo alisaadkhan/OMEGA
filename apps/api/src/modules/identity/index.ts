@@ -1,15 +1,30 @@
 import type { Db } from "@mushin/db";
 import type { ResolveTenant } from "../../auth/customer-guard";
 import type { AppModule } from "../../http/types";
+import { createPrivacyService } from "./privacy";
 import { registerIdentityRoutes } from "./routes";
+import { createTeamService } from "./team";
+import { registerTeamRoutes } from "./team-routes";
 import { createIdentityService, type StartTrial } from "./service";
 
 export type { StartTrial };
 
-export function createIdentityModule(o: { db: Db; startTrial: StartTrial }): { resolveTenant: ResolveTenant; module: AppModule } {
+/**
+ * `appUrl` builds invitation links; `onWorkspaceErased` clears per-workspace caches (the billing access cache) after a
+ * deletion.
+ */
+export function createIdentityModule(o: { db: Db; startTrial: StartTrial; appUrl?: string; onWorkspaceErased?: (workspaceId: string) => Promise<void> }): { resolveTenant: ResolveTenant; module: AppModule } {
   const service = createIdentityService(o.db, o.startTrial);
+  const team = createTeamService({ db: o.db, appUrl: o.appUrl ?? "http://localhost:5173" });
+  const privacy = createPrivacyService({ db: o.db, ...(o.onWorkspaceErased ? { onWorkspaceErased: o.onWorkspaceErased } : {}) });
   return {
     resolveTenant: service.resolveTenant,
-    module: { name: "identity", register: (app, guards) => registerIdentityRoutes(app, guards, service, o.db) },
+    module: {
+      name: "identity",
+      register: (app, guards) => {
+        registerIdentityRoutes(app, guards, service, o.db);
+        registerTeamRoutes(app, guards, team, privacy);
+      },
+    },
   };
 }
