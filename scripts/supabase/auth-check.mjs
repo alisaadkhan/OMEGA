@@ -55,6 +55,22 @@ const created = await fetch(`${AUTH}/admin/users`, { method: "POST", headers: { 
 const unconfirmed = await created.json();
 check("a user whose metadata claims email_verified but whose address is unconfirmed is reported unconfirmed", created.status === 200 && JSON.stringify(await verifyEmail(unconfirmed.id)) === JSON.stringify({ email: unconfirmedEmail, confirmed: false }), `${created.status}`);
 
+// Audit SEC-13: deleting the account through the API also removes the Supabase Auth user, so the address can sign up again.
+const leaverEmail = `leaver-${randomUUID().slice(0, 8)}@example.com`;
+const leaverSignup = await auth("/signup", { email: leaverEmail, password });
+const leaver = leaverSignup.json?.access_token ? leaverSignup.json : (await auth("/token?grant_type=password", { email: leaverEmail, password })).json;
+const leaverId = JSON.parse(Buffer.from(leaver.access_token.split(".")[1], "base64url").toString()).sub;
+await me(leaver.access_token);
+const deletion = await fetch(`${API}/v1/me/delete`, { method: "POST", headers: { authorization: `Bearer ${leaver.access_token}`, "content-type": "application/json", "idempotency-key": randomUUID() }, body: JSON.stringify({ confirmEmail: leaverEmail }) });
+const deletionBody = await deletion.json().catch(() => null);
+check("account deletion through the API reports the Supabase Auth user deleted", deletion.status === 200 && deletionBody?.identityProviderAccount === "deleted", `${deletion.status} ${deletionBody?.identityProviderAccount ?? JSON.stringify(deletionBody?.error ?? {})}`);
+check("the Auth server no longer has that user", (await verifyEmail(leaverId)) === null);
+check("the deleted user's old password no longer signs in", (await auth("/token?grant_type=password", { email: leaverEmail, password })).status >= 400);
+const again = await auth("/signup", { email: leaverEmail, password });
+const againSession = again.json?.access_token ? again.json : (await auth("/token?grant_type=password", { email: leaverEmail, password })).json;
+const againMe = await me(againSession?.access_token);
+check("the same address can sign up again and gets a fresh account", againMe.status === 200 && againMe.json?.user?.id !== leaverId && againMe.json?.user?.email === leaverEmail, `${againMe.status}`);
+
 const signout = await fetch(`${AUTH}/logout`, { method: "POST", headers: { apikey: key, authorization: `Bearer ${session.access_token}` } });
 check("sign-out revokes the refresh token", signout.status === 204 && (await auth("/token?grant_type=refresh_token", { refresh_token: refreshed.json?.refresh_token ?? session.refresh_token })).status >= 400);
 // The API verifies access tokens statelessly: a signed-out access token stays valid until it expires (jwt_expiry).

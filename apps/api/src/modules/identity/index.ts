@@ -1,5 +1,5 @@
 import type { Db } from "@mushin/db";
-import type { VerifyEmail } from "../../auth/auth-admin";
+import type { DeleteIdentity, VerifyEmail } from "../../auth/auth-admin";
 import type { ResolveTenant } from "../../auth/customer-guard";
 import type { AppModule } from "../../http/types";
 import { createPrivacyService } from "./privacy";
@@ -12,12 +12,25 @@ export type { StartTrial };
 
 /**
  * `appUrl` builds invitation links; `onWorkspaceErased` clears per-workspace caches (the billing access cache) after a
- * deletion.
+ * deletion; `deleteIdentity` removes a deleted account's Supabase Auth user (audit SEC-13).
  */
-export function createIdentityModule(o: { db: Db; startTrial: StartTrial; appUrl?: string; verifyEmail?: VerifyEmail | null; onWorkspaceErased?: (workspaceId: string) => Promise<void> }): { resolveTenant: ResolveTenant; module: AppModule } {
+export function createIdentityModule(o: {
+  db: Db;
+  startTrial: StartTrial;
+  appUrl?: string;
+  verifyEmail?: VerifyEmail | null;
+  deleteIdentity?: DeleteIdentity | null;
+  onIdentityDeleteFailed?: (userId: string) => void;
+  onWorkspaceErased?: (workspaceId: string) => Promise<void>;
+}): { resolveTenant: ResolveTenant; module: AppModule } {
   const service = createIdentityService(o.db, o.startTrial);
   const team = createTeamService({ db: o.db, appUrl: o.appUrl ?? "http://localhost:5173", verifyEmail: o.verifyEmail ?? null });
-  const privacy = createPrivacyService({ db: o.db, ...(o.onWorkspaceErased ? { onWorkspaceErased: o.onWorkspaceErased } : {}) });
+  const privacy = createPrivacyService({
+    db: o.db,
+    deleteIdentity: o.deleteIdentity ?? null,
+    ...(o.onIdentityDeleteFailed ? { onIdentityDeleteFailed: o.onIdentityDeleteFailed } : {}),
+    ...(o.onWorkspaceErased ? { onWorkspaceErased: o.onWorkspaceErased } : {}),
+  });
   return {
     resolveTenant: service.resolveTenant,
     module: {

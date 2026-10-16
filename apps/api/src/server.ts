@@ -4,7 +4,7 @@ import { createLogger, loadApiConfig } from "@mushin/core";
 import { createDatabase, createDbProviderCallSink, providerPaused, providerSpendSince, UNVERIFIED_TLS_WARNING } from "@mushin/db";
 import { createLlm, createPayments, createSearchIndex, MockEmailProvider, pausableLlm, ResendEmailProvider } from "@mushin/integrations";
 import { buildApp } from "./app";
-import { createSupabaseEmailVerification } from "./auth/auth-admin";
+import { createSupabaseEmailVerification, createSupabaseIdentityDeletion } from "./auth/auth-admin";
 import { createCustomerGuard } from "./auth/customer-guard";
 import { createCustomerTokenVerifier, remoteJwks } from "./auth/customer-token";
 import type { Guards, ReadinessCheck } from "./http/types";
@@ -98,6 +98,9 @@ const identity = createIdentityModule({
   startTrial: billing.startTrial,
   appUrl: config.appUrl,
   verifyEmail: config.authAdmin ? createSupabaseEmailVerification(config.authAdmin) : null,
+  deleteIdentity: config.authAdmin ? createSupabaseIdentityDeletion(config.authAdmin) : null,
+  // The account is already deleted in MUSHIN; an operator removes the Auth user by this id (no email is logged).
+  onIdentityDeleteFailed: (userId) => logger.error({ userId, alert: "identity_delete_failed" }, "Deleted account's Supabase Auth user was not removed"),
   onWorkspaceErased: (id) => accessCache.invalidate(id),
 });
 const staff = createStaffModule({ db, tokens: createStaffTokens(config.staffJwtSecret), encryptionKey: config.dataEncryptionKey, webauthn: config.webauthn });

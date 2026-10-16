@@ -10,6 +10,9 @@ LOG="$(node -p "require('os').tmpdir()")/mushin-supabase-auth-api.log"
 cd "$REPO" && source scripts/e2e-customer/env.sh
 export DATABASE_URL=postgres://postgres@localhost:54330/mushin_auth_disposable DIRECT_URL=postgres://postgres@localhost:54330/mushin_auth_disposable
 export PORT=4200 SUPABASE_URL=http://127.0.0.1:54321 JWKS_URI=http://127.0.0.1:54321/auth/v1/.well-known/jwks.json JWT_ISSUER=http://127.0.0.1:54321/auth/v1 RATE_LIMIT_STORE=memory
+# The local stack's own service key (a fixed local development key), so the API can delete Auth users (audit SEC-13).
+SUPABASE_SERVICE_ROLE_KEY="$(npx supabase status -o json 2>/dev/null | node -e 'let s="";process.stdin.on("data",(d)=>(s+=d)).on("end",()=>{const j=JSON.parse(s);process.stdout.write(j.SECRET_KEY??j.SERVICE_ROLE_KEY??"")})')"
+export SUPABASE_SERVICE_ROLE_KEY
 node --import tsx packages/db/src/migrate-cli.ts > /dev/null || exit 1
 node --env-file-if-exists=.env --import tsx apps/api/src/server.ts > "$LOG" 2>&1 &
 API_PID=$!

@@ -141,7 +141,8 @@ export function PrivacySection({ role, workspaceName, email, onOpenSupport }: { 
     setBusy(true);
     try {
       const r = await apiRequest(path, deletionResultSchema, { method: "POST", body });
-      setResult(r.retained);
+      // Audit SEC-13: the sign-in login is removed with the account; say so plainly when the provider did not do it.
+      setResult(r.identityProviderAccount === "not_deleted_requires_provider" ? [...r.retained, "Your sign-in login could not be removed automatically. It can no longer open MUSHIN, and MUSHIN staff will remove it."] : r.retained);
       after();
     } catch (err) {
       toast.error("Not deleted", errText(err));
@@ -178,7 +179,7 @@ export function PrivacySection({ role, workspaceName, email, onOpenSupport }: { 
       )}
       <form className="space-y-2 rounded-lg border border-red-200 p-3" onSubmit={(e) => { e.preventDefault(); void remove("/v1/me/delete", { confirmEmail }, () => { selectWorkspace(null); setAccountDeleted(true); }); }}>
         <div className="text-red-800" style={{ fontWeight: 600 }}>Delete my account</div>
-        <p className="text-xs">Ends your access to every workspace and erases your profile. Workspaces you own alone are deleted too; if others use a workspace you own, transfer ownership first. Your sign-in login is held by our sign-in provider and is not removed automatically yet; ask Support if you want it removed too.</p>
+        <p className="text-xs">Ends your access to every workspace and erases your profile. Workspaces you own alone are deleted too; if others use a workspace you own, transfer ownership first. Your sign-in login is removed too, so the address can be used again later.</p>
         <label className="block text-xs">Type your email <span className="font-mono">{email}</span> to confirm<input value={confirmEmail} onChange={(e) => setConfirmEmail(e.target.value)} className="mt-1 block w-full max-w-md rounded-md border border-slate-200 px-2.5 py-1.5 text-sm" /></label>
         <button type="submit" disabled={busy || confirmEmail.trim().toLowerCase() !== email.toLowerCase()} className="rounded-md bg-red-600 px-3 py-1.5 text-xs text-white disabled:opacity-50">Delete my account</button>
       </form>

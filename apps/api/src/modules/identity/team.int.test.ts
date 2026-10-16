@@ -10,7 +10,7 @@ import { buildTestApp } from "../../test-support/app";
 import { createTestIssuer } from "../../test-support/keys";
 import { createBillingService, MemoryAccessCache } from "../billing/index";
 import { createPlatformModule } from "../platform/index";
-import { EmailCheckUnavailable, type VerifyEmail } from "../../auth/auth-admin";
+import { EmailCheckUnavailable, type DeleteIdentity, type VerifyEmail } from "../../auth/auth-admin";
 import { createIdentityModule } from "./index";
 
 const db = createTestDatabase();
@@ -25,13 +25,21 @@ const verifyEmail: VerifyEmail = async (userId) => {
   if (authDown) throw new EmailCheckUnavailable("down");
   return authRecords.get(userId) ?? null;
 };
+/** Supabase Auth users that still exist (audit SEC-13): deleting an account must remove its user here. */
+const authUsers = new Set<string>();
+const identityFailures: string[] = [];
+const deleteIdentity: DeleteIdentity = async (userId) => {
+  if (authDown) return false;
+  authUsers.delete(userId);
+  return true;
+};
 
 async function setup(o: { verify?: VerifyEmail | null } = {}) {
   authDown = false;
   const logger = createLogger({ level: "silent" });
   const billing = createBillingService({ db, payments: new MockPayments({ webhookSecret: "t".repeat(40), publicApiUrl: "http://api.test", deliver: async () => {} }), cache: new MemoryAccessCache(), logger });
   const erased: string[] = [];
-  const identity = createIdentityModule({ db, startTrial: billing.startTrial, appUrl: "https://app.mushin.test", verifyEmail: o.verify === undefined ? verifyEmail : o.verify, onWorkspaceErased: async (id) => void erased.push(id) });
+  const identity = createIdentityModule({ db, startTrial: billing.startTrial, appUrl: "https://app.mushin.test", verifyEmail: o.verify === undefined ? verifyEmail : o.verify, deleteIdentity, onIdentityDeleteFailed: (id) => void identityFailures.push(id), onWorkspaceErased: async (id) => void erased.push(id) });
   const platform = createPlatformModule({ db, ttlHours: 24 });
   const big = { limit: 1000, windowSeconds: 60 };
   const iss = await createTestIssuer();
@@ -244,11 +252,24 @@ describe("privacy self-service", () => {
     expect((await call("POST", "/v1/me/delete", owner.h, { confirmEmail: "nope@brand.pk" })).statusCode).toBe(400);
     expect((await call("POST", "/v1/me/delete", owner.h, { confirmEmail: "owner@brand.pk" })).json().error.details).toMatchObject({ reason: "owner_of_shared_workspace" });
     await call("POST", "/v1/workspace/transfer-ownership", owner.h, { userId: mona.userId });
+    authUsers.add(owner.userId);
     const res = (await call("POST", "/v1/me/delete", owner.h, { confirmEmail: "owner@brand.pk" })).json();
-    expect(res).toMatchObject({ deleted: true, identityProviderAccount: "not_deleted_requires_provider" });
+    expect(res).toMatchObject({ deleted: true, identityProviderAccount: "deleted" });
+    expect(authUsers.has(owner.userId)).toBe(false); // the sign-in identity is gone too (audit SEC-13)
     const [u] = await ownerQuery<{ email: string; status: string; display_name: string | null }>(`select email, status, display_name from wp.users where id = '${owner.userId}'`);
     expect(u).toEqual({ email: `deleted+${owner.userId}@invalid`, status: "deleted", display_name: null });
     expect((await call("GET", "/v1/me", owner.h)).json().error.details).toMatchObject({ reason: "account_deleted" });
     expect((await call("GET", "/v1/me", { ...mona.h, "x-workspace-id": owner.workspaceId })).json().workspace).toMatchObject({ id: owner.workspaceId, role: "owner" });
+  });
+
+  it("reports, and flags for operators, a sign-in identity the provider did not delete (audit SEC-13)", async () => {
+    const { call, person } = await setup();
+    const solo = await person("solo@brand.pk");
+    identityFailures.length = 0;
+    authDown = true;
+    const res = (await call("POST", "/v1/me/delete", solo.h, { confirmEmail: "solo@brand.pk" })).json();
+    authDown = false;
+    expect(res).toMatchObject({ deleted: true, identityProviderAccount: "not_deleted_requires_provider" });
+    expect(identityFailures).toEqual([solo.userId]);
   });
 });

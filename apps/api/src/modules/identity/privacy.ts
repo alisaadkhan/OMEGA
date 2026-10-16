@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { AppError, type TenantContext } from "@mushin/core";
 import type { Db } from "@mushin/db";
+import type { DeleteIdentity } from "../../auth/auth-admin";
 import type { CustomerIdentity } from "../../auth/customer-token";
 
 /** Workspace tables in an export, read through the tenant role (row-level security keeps them to this workspace). */
@@ -19,7 +20,15 @@ const RETAINED = [
  * Customer privacy self-service (readiness H8): an export of the workspace's own data, workspace deletion and account
  * deletion. Revealed contact values are not exported (they are third parties' data); staff-only notes never are.
  */
-export function createPrivacyService(deps: { db: Db; onWorkspaceErased?: (workspaceId: string) => Promise<void>; now?: () => Date }) {
+export function createPrivacyService(deps: {
+  db: Db;
+  onWorkspaceErased?: (workspaceId: string) => Promise<void>;
+  /** Removes the sign-in identity at the provider (audit SEC-13); null when the API has no Auth admin access. */
+  deleteIdentity?: DeleteIdentity | null;
+  /** Called when the provider deletion failed, so operators can finish it (the database deletion stands). */
+  onIdentityDeleteFailed?: (userId: string) => void;
+  now?: () => Date;
+}) {
   const now = deps.now ?? (() => new Date());
   const tenant = (ctx: TenantContext) => ({ userId: ctx.userId, workspaceId: ctx.workspaceId });
 
@@ -75,8 +84,8 @@ export function createPrivacyService(deps: { db: Db; onWorkspaceErased?: (worksp
 
     /**
      * Deletes the signed-in person's account. Refused while they own a workspace that still has other members (ownership
-     * moves first) or own one with a paid subscription. The sign-in identity is held by the identity provider; removing
-     * it there needs the provider's admin access, which this deployment does not hold, so it is reported, not claimed.
+     * moves first) or own one with a paid subscription. After the database scrub the sign-in identity is removed from
+     * Supabase Auth with the service key (audit SEC-13). The answer says whether that happened; it is never claimed.
      */
     async deleteAccount(ctx: TenantContext, identity: CustomerIdentity, confirmEmail: string) {
       if (confirmEmail !== identity.email) throw new AppError("VALIDATION_FAILED", "Type your account email exactly to confirm.", { field: "confirmEmail" });
@@ -86,7 +95,9 @@ export function createPrivacyService(deps: { db: Db; onWorkspaceErased?: (worksp
         throw new AppError("CONFLICT", r?.v.reason === "subscription_active" ? "A workspace you own still has a paid subscription. Cancel it first (Billing)." : "You own a workspace that other people still use. Transfer ownership first (Settings › Workspace & team).", { reason: r?.v.reason ?? "refused" });
       }
       for (const id of r.v.erasedWorkspaces ?? []) await deps.onWorkspaceErased?.(id);
-      return { deleted: true as const, retained: RETAINED, identityProviderAccount: "not_deleted_requires_provider" as const };
+      const identityGone = deps.deleteIdentity ? await deps.deleteIdentity(ctx.userId) : false;
+      if (!identityGone) deps.onIdentityDeleteFailed?.(ctx.userId);
+      return { deleted: true as const, retained: RETAINED, identityProviderAccount: identityGone ? ("deleted" as const) : ("not_deleted_requires_provider" as const) };
     },
   };
 }
