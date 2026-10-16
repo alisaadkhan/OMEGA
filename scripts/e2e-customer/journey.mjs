@@ -135,6 +135,9 @@ async function openProfile(p, handle) {
 }
 const closeAll = async (p) => { for (let i = 0; i < 2; i++) { await p.keyboard.press("Escape"); await p.waitForTimeout(250); } };
 
+// Fixture creators from the synthetic catalogue (scripts/e2e-fixtures/catalogue.ts, audit OPS-02).
+const FX = { main: "fxhomecook", mainPartial: "fxhomecoo", mainName: "Fixture Home Cook", second: "fxfoodlahore", secondName: "Fixture Food Lahore", small: "fxsmallfood" };
+
 if (phase === "main") {
   // ── Setup through the API: first sign-in provisions each workspace; teammates are added by fixture ──
   for (const who of ["owner", "outsider"]) await api(who, "GET", "/v1/me");
@@ -221,9 +224,9 @@ if (phase === "main") {
   const LABELS = { email_unverified: "Email available · Unverified", email_verified: "Email available · Verified", email_invalid: "Email invalid", phone_unverified: "Phone available · Unverified", none: "No contact info" };
   check("search", "every card states contact availability from the API, never a value or an unproven claim", apiFood.results.every((r) => r.contactAvailability in LABELS && t.includes(LABELS[r.contactAvailability])) && !/Contact on file|Contactable/.test(t) && !/[a-z0-9._%+-]+@[a-z0-9-]+[.][a-z]{2,}/i.test(t), [...new Set(apiFood.results.map((r) => r.contactAvailability))].join(", "));
   // Creator eligibility (elig-1): every result meets the 10,000 minimum; a food creator below it is absent, cannot be saved
-  // through the API, and its profile says why. Vicky Panda (5,990 YouTube subscribers) matches "food" but is below.
-  const smallId = sql("select c.id from gcp.creators c join gcp.creator_profiles p on p.creator_id = c.id where p.handle = 'vicky.pandafood'");
-  check("eligibility", "every search result meets the 10,000-follower minimum; a matching creator below it is absent", apiFood.results.length > 0 && apiFood.results.every((r) => r.eligibility.eligible && r.eligibility.qualifyingPlatforms.length > 0) && !apiFood.results.some((r) => r.handle === "vicky.pandafood") && !handles(t).includes("@vicky.pandafood"), `results ${apiFood.results.length}`);
+  // through the API, and its profile says why. The small food fixture (5,990 YouTube subscribers) matches "food" but is below.
+  const smallId = sql(`select c.id from gcp.creators c join gcp.creator_profiles p on p.creator_id = c.id where p.handle = '${FX.small}'`);
+  check("eligibility", "every search result meets the 10,000-follower minimum; a matching creator below it is absent", apiFood.results.length > 0 && apiFood.results.every((r) => r.eligibility.eligible && r.eligibility.qualifyingPlatforms.length > 0) && !apiFood.results.some((r) => r.handle === FX.small) && !handles(t).includes(`@${FX.small}`), `results ${apiFood.results.length}`);
   const anyList = (await api("owner", "POST", "/v1/lists", { name: `Elig ${label}`, description: "" })).json;
   const refused = await api("owner", "POST", `/v1/lists/${anyList.id}/members`, { creatorIds: [smallId] });
   check("eligibility", "the API refuses to save a creator below the minimum (direct call)", refused.status === 400 && refused.json?.error?.details?.reason === "creator_ineligible", `${refused.status} ${JSON.stringify(refused.json?.error?.details ?? {})}`);
@@ -235,7 +238,7 @@ if (phase === "main") {
   check("pricing", "search button shows the server price; a search is charged once; repeat and next page are free", priceShown && nothingOnOpen && spentOnce && apiFood.charged === false && page2.charged === false && searchSpends(ws) === spendsBefore + 1, `spends ${spendsBefore}→${searchSpends(ws)}; api charged ${apiFood.charged}/${page2.charged}`);
   const lahore = (await apiSearch("owner", "Lahore")).json;
   check("search", "different queries give different, query-related results", lahore.results.map((r) => r.id).join() !== apiFood.results.map((r) => r.id).join());
-  check("search", "partial handle finds the creator", handles(await search(p, "realwowbo")).includes("@realwowboy"));
+  check("search", "partial handle finds the creator", handles(await search(p, FX.mainPartial)).includes(`@${FX.main}`));
   await p.getByRole("button", { name: "youtube", exact: true }).first().click();
   const yt = (await apiSearch("owner", "food", { platform: "youtube" })).json;
   t = await search(p, "food");
@@ -244,8 +247,8 @@ if (phase === "main") {
   t = await search(p, "zzqx nothing matches this");
   check("search", "empty result is explained and offers live discovery", /No creators match/.test(t) && /Find new creators/i.test(t));
   check("search", "malformed input is rejected by the API", (await apiSearch("owner", "x".repeat(400))).status === 400);
-  const panel = await openProfile(p, "realwowboy");
-  const rw = (await apiSearch("owner", "realwowboy")).json.results[0];
+  const panel = await openProfile(p, FX.main);
+  const rw = (await apiSearch("owner", FX.main)).json.results[0];
   const prof = (await api("owner", "GET", `/v1/creators/${rw.id}`)).json;
   check("profile", "profile shows the stored creator, no contact values", (await panel.innerText()).includes(prof.displayName) && prof.contacts.every((c) => c.value === null));
   check("profile", "profile states contact availability and each contact source and check state", (await panel.innerText()).includes(LABELS[prof.contactAvailability]) && prof.contacts.every((c) => c.source && c.firstSeenAt && c.status), prof.contactAvailability);
@@ -258,7 +261,7 @@ if (phase === "main") {
   await saveMenu.getByRole("button", { name: "Add" }).click();
   await p.waitForTimeout(1500);
   await closeAll(p);
-  const fb = await openProfile(p, "foodiesbyashirr");
+  const fb = await openProfile(p, FX.second);
   await fb.getByRole("button", { name: /^Save/ }).click();
   await p.getByRole("dialog", { name: "Save to lists" }).getByRole("menuitemcheckbox", { name: /Food shortlist/ }).click();
   await p.waitForTimeout(1500);
@@ -267,7 +270,7 @@ if (phase === "main") {
   check("lists", "two creators saved from profiles", list?.count === 2);
   await nav(p, "Lists");
   await p.getByRole("button", { name: /Food shortlist/ }).first().click();
-  await p.getByText("@realwowboy").first().waitFor();
+  await p.getByText(`@${FX.main}`).first().waitFor();
   await p.getByRole("button", { name: "Add note" }).first().click();
   await p.getByLabel(/Note for/).fill("Shortlisted for Eid");
   await p.keyboard.press("Enter");
@@ -302,20 +305,20 @@ if (phase === "main") {
   await p.getByRole("button", { name: /Eid food push/ }).first().click();
   await p.getByRole("heading", { name: "Eid food push" }).waitFor();
   const card = (n) => p.locator("article", { hasText: n });
-  await card("Realwowboy").getByLabel("Stage").selectOption("negotiating");
+  await card(FX.mainName).getByLabel("Stage").selectOption("negotiating");
   await p.waitForTimeout(1000);
-  await card("Realwowboy").getByTitle("Edit fee").click();
-  await card("Realwowboy").getByLabel("Fee in rupees").fill("40000");
-  await card("Realwowboy").getByLabel("Fee in rupees").press("Enter");
+  await card(FX.mainName).getByTitle("Edit fee").click();
+  await card(FX.mainName).getByLabel("Fee in rupees").fill("40000");
+  await card(FX.mainName).getByLabel("Fee in rupees").press("Enter");
   await p.waitForTimeout(1000);
-  await card("Realwowboy").getByLabel("Stage").selectOption("confirmed");
+  await card(FX.mainName).getByLabel("Stage").selectOption("confirmed");
   await p.waitForTimeout(1000);
-  await card("Foodies by Ashir").getByRole("button", { name: "Mark declined" }).click();
+  await card(FX.secondName).getByRole("button", { name: "Mark declined" }).click();
   await p.waitForTimeout(1200);
   let kd = (await api("owner", "GET", `/v1/campaigns/${k.id}`)).json;
   check("campaigns", "stage, fee (agreed) and declined outcome persist; totals exclude declined", kd.stageCounts.confirmed === 1 && kd.declinedCount === 1 && kd.agreedFeesMinor === 4_000_000);
   check("campaigns", "one person editing a campaign never gets a stale-version conflict (fee saved once)", campaignConflicts.length === 0, campaignConflicts.slice(0, 2).join(" | "));
-  await card("Realwowboy").getByRole("button", { name: "Outreach" }).click();
+  await card(FX.mainName).getByRole("button", { name: "Outreach" }).click();
   const op = p.getByRole("dialog", { name: /Outreach for/ });
   await op.getByLabel("Channel").selectOption("email");
   await op.getByLabel("What happened").selectOption("agreed");
@@ -405,7 +408,7 @@ if (phase === "main") {
   const sum = (await api("owner", "GET", `/v1/analytics/summary?from=${from}&to=${today}`)).json;
   check("dashboard", "dashboard cards equal API and database", t.includes("Food shortlist") && t.includes("Eid food push") && sum.outreach.total === 1 && sum.pipeline.byStage.confirmed === 1 && sum.lists.savedCreators === 2, `text has list ${t.includes("Food shortlist")} campaign ${t.includes("Eid food push")}; api outreach ${sum.outreach.total} confirmed ${sum.pipeline.byStage.confirmed} saved ${sum.lists.savedCreators}; range ${from}..${today}`);
   const feed = (await api("owner", "GET", "/v1/activity?limit=50")).json.events.map((e) => e.text).join(" | ");
-  check("activity", "activity shows real actions only (feed and dashboard card)", /logged that Realwowboy agreed/.test(feed) && /created the campaign Eid food push/.test(feed) && /Find New Creators run/.test(t) && !/SSO group sync|auto top-up/.test(t));
+  check("activity", "activity shows real actions only (feed and dashboard card)", feed.includes(`logged that ${FX.mainName} agreed`) && /created the campaign Eid food push/.test(feed) && /Find New Creators run/.test(t) && !/SSO group sync|auto top-up/.test(t));
 
   // ── 9. Support ──
   await menu(p, "Support");
@@ -677,7 +680,7 @@ if (phase === "main") {
   await p.getByRole("button", { name: /Eid food push/ }).first().click();
   await p.getByRole("heading", { name: "Eid food push" }).waitFor();
   check("a11y", "Campaign detail: no serious or critical WCAG 2.2 A/AA issues (desktop)", (await axeFindings(p)).length === 0, (await axeFindings(p)).join(" | "));
-  const profileDialog = await openProfile(p, "realwowboy");
+  const profileDialog = await openProfile(p, FX.main);
   await p.waitForTimeout(600);
   const dialogFound = await axeFindings(p);
   check("a11y", "Creator profile dialog: no serious or critical WCAG 2.2 A/AA issues (desktop)", dialogFound.length === 0, dialogFound.join(" | "));

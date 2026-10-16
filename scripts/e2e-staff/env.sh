@@ -21,3 +21,12 @@ export RATE_LIMIT_MAX_REQUESTS=2000
 export RATE_LIMIT_STORE=memory
 export UPSTASH_REDIS_REST_URL=
 export UPSTASH_REDIS_REST_TOKEN=
+# Fixed, non-secret values so a run never depends on a developer's .env (audit OPS-02).
+export SUPABASE_URL=http://localhost:4998
+export DATA_ENCRYPTION_KEY=bXVzaGluLWUyZS1maXhlZC1rZXktbm90LXNlY3JldCE=
+export STAFF_JWT_SECRET=e2e-staff-jwt-secret-fixed-value-not-a-secret
+export MOCK_PADDLE_WEBHOOK_SECRET=e2e-mock-paddle-webhook-secret-not-a-secret
+export PADDLE_API_KEY=
+export PADDLE_CLIENT_TOKEN=
+export PADDLE_WEBHOOK_SECRET=
+export ALERT_WEBHOOK_URL=

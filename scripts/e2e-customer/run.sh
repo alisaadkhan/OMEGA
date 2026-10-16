@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # One full customer E2E run from a clean state. Usage: run.sh <label>
-# Needs: PG_BIN (PostgreSQL client binaries), E2E_SUPABASE_REF, auth-stub.mjs running, Meilisearch and the frontend dev server (:5173).
+# Needs: PG_BIN (PostgreSQL client binaries), E2E_SUPABASE_REF, auth-stub.mjs running, Meilisearch and the frontend dev server (:5173),
+# and the template from scripts/e2e-fixtures/build-template.sh (synthetic catalogue; E2E_TEMPLATE overrides it).
 set -u
 LABEL=$1
 H="$(cd "$(dirname "$0")" && pwd)"
@@ -21,7 +22,7 @@ start() {
 }
 stop
 "$B/psql" -h localhost -p 54330 -U postgres -d postgres -qAtc "select pg_terminate_backend(pid) from pg_stat_activity where datname = 'mushin_e2e'" >/dev/null
-"$B/dropdb" -h localhost -p 54330 -U postgres --if-exists mushin_e2e && "$B/createdb" -h localhost -p 54330 -U postgres -T mushin_e2e_template mushin_e2e || exit 1
+"$B/dropdb" -h localhost -p 54330 -U postgres --if-exists mushin_e2e && "$B/createdb" -h localhost -p 54330 -U postgres -T "${E2E_TEMPLATE:-mushin_e2e_synthetic_template}" mushin_e2e || exit 1
 start main || exit 1
 cd "$H" && node journey.mjs "$LABEL" main
 stop; start restart || exit 1

@@ -13,13 +13,13 @@ psql() { "$B/psql" -h localhost -p 54330 -U postgres -d "$DB" -Atc "$1"; }
 "$B/dropdb" -h localhost -p 54330 -U postgres --if-exists "$DB" && "$B/createdb" -h localhost -p 54330 -U postgres "$DB" || exit 1
 cd "$REPO" && source scripts/e2e-customer/env.sh
 export DATABASE_URL="postgres://postgres@localhost:54330/$DB" DIRECT_URL="postgres://postgres@localhost:54330/$DB" PORT=4300 RATE_LIMIT_STORE=memory
-export ALERT_WEBHOOK_URL=http://127.0.0.1:4998/hook
+export ALERT_WEBHOOK_URL=http://127.0.0.1:4997/hook
 node --import tsx packages/db/src/migrate-cli.ts > /dev/null || exit 1
 
 node -e '
 require("http").createServer((req, res) => { let b = ""; req.on("data", (d) => (b += d)).on("end", () => {
   require("fs").appendFileSync(process.argv[1], JSON.stringify({ at: Date.now(), body: JSON.parse(b || "{}") }) + "\n"); res.writeHead(204); res.end(); }); })
-  .listen(4998, "127.0.0.1");' "$T/received.jsonl" &
+  .listen(4997, "127.0.0.1");' "$T/received.jsonl" &
 RECEIVER=$!
 cleanup() { kill "$RECEIVER" "${API:-}" "${WORKER:-}" 2>/dev/null; }
 trap cleanup EXIT

@@ -15,7 +15,7 @@ export { createSummaryWriter } from "./summaries";
 export type { SummaryWriter } from "./summaries";
 export { ineligibleCreatorIds, insertCreator, isVisibleCreator } from "./repository";
 export { creatorEligibility, DEFAULT_ELIGIBILITY, ELIGIBILITY_VERSION, ineligibleError, MIN_FOLLOWERS, profileEligibility, type EligibilityProfile } from "./eligibility";
-export type { NewCreator } from "./repository";
+export type { NewCreator, NewProfile } from "./repository";
 
 export function createCreatorsModule(o: { service: CreatorsService; limiter: RateLimiter; removals?: RemovalService; requireStaff?: (action: StaffAction) => PreHandler }): AppModule {
   const extra = o.removals && o.requireStaff ? { removals: o.removals, requireStaff: o.requireStaff } : undefined;
