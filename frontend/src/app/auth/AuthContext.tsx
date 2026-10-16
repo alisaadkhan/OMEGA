@@ -3,7 +3,7 @@ import type { Session } from "@supabase/supabase-js";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { meResponseSchema, type MeResponse } from "@mushin/contracts";
 import { apiRequest } from "../api/client";
-import { supabase } from "../lib/supabase";
+import { linkResultFromUrl, supabase } from "../lib/supabase";
 
 export type AuthUser = { id: string; name: string; email: string; avatar: string; initials: string; role: "owner" | "admin" | "member" };
 export type AuthStatus = "loading" | "signedIn" | "signedOut";
@@ -15,6 +15,10 @@ type AuthContextValue = {
   signup: (name: string, email: string, password: string) => Promise<{ needsConfirmation: boolean }>;
   logout: () => Promise<void>;
   requestPasswordReset: (email: string) => Promise<void>;
+  /** Sets a new password for the signed-in person (after a recovery link, audit UX-02). */
+  updatePassword: (password: string) => Promise<void>;
+  /** Why an email link failed (expired, already used), when the Auth server said so. */
+  linkError: string | null;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -50,11 +54,19 @@ function messageOf(error: { message: string }): string {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
+  const [linkError, setLinkError] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    void supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data } = supabase.auth.onAuthStateChange((_event, next) => {
+    // getSession waits for the client's own code exchange from the URL; only then is the code removed from it.
+    void supabase.auth.getSession().then(({ data }) => {
+      const { error } = linkResultFromUrl();
+      if (error) setLinkError(error); // kept: a second run (StrictMode) finds the address already cleaned
+      setSession(data.session);
+    });
+    const { data } = supabase.auth.onAuthStateChange((event, next) => {
+      // A recovery link always ends on the set-new-password screen, wherever the redirect landed.
+      if (event === "PASSWORD_RECOVERY") window.location.hash = "/reset-password";
       setSession(next);
       if (!next) queryClient.removeQueries({ queryKey: ["me"] });
     });
@@ -94,9 +106,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       queryClient.clear();
     },
     async requestPasswordReset(email) {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/#/login` });
+      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/#/reset-password` });
       if (error) throw new Error(messageOf(error));
     },
+    async updatePassword(password) {
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) throw new Error(messageOf(error));
+    },
+    linkError,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

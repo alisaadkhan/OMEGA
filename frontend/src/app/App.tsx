@@ -13,6 +13,7 @@ import { Dashboard } from "./components/dashboard/Dashboard";
 import { Login } from "./components/auth/Login";
 import { Signup } from "./components/auth/Signup";
 import { ForgotPassword } from "./components/auth/ForgotPassword";
+import { ResetPassword } from "./components/auth/ResetPassword";
 import { AdminLogin } from "./components/admin/AdminLogin";
 import { AdminApp } from "./components/admin/AdminApp";
 import { RemoveMyData } from "./components/public/RemoveMyData";
@@ -22,7 +23,7 @@ import { AuthProvider, useAuth } from "./auth/AuthContext";
 import { AdminAuthProvider, useAdminAuth } from "./admin/AdminAuthContext";
 import { ToastProvider, ConfirmProvider } from "./lib/toast";
 
-type Route = "landing" | "dashboard" | "login" | "signup" | "forgot" | "admin-login" | "admin" | "remove-my-data" | "invite" | LegalDoc;
+type Route = "landing" | "dashboard" | "login" | "signup" | "forgot" | "reset-password" | "admin-login" | "admin" | "remove-my-data" | "invite" | LegalDoc;
 const LEGAL_DOCS: readonly LegalDoc[] = ["terms", "privacy", "refunds", "creator-data"];
 
 /**
@@ -39,6 +40,7 @@ function useHashRoute(initial: Route): [Route, (r: Route) => void] {
     if (h === "login") return "login";
     if (h === "signup") return "signup";
     if (h === "forgot") return "forgot";
+    if (h === "reset-password") return "reset-password";
     if (h === "dashboard") return "dashboard";
     if (h === "remove-my-data") return "remove-my-data";
     if ((LEGAL_DOCS as readonly string[]).includes(h)) return h as LegalDoc;
@@ -160,6 +162,12 @@ function Shell() {
         {route === "forgot" && (
           <motion.div key="forgot" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
             <ForgotPassword goLogin={() => setRoute("login")} />
+          </motion.div>
+        )}
+
+        {route === "reset-password" && (
+          <motion.div key="reset-password" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
+            <ResetPassword onDone={() => setRoute("dashboard")} goForgot={() => setRoute("forgot")} />
           </motion.div>
         )}
 
