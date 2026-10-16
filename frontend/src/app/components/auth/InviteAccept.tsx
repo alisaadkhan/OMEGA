@@ -41,7 +41,17 @@ export function InviteAccept({ token, goLogin, goSignup, onJoined }: { token: st
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     if (status !== "signedIn") return;
-    apiRequest("/v1/invitations/preview", invitationPreviewSchema, { method: "POST", body: { token } }).then(setPreview, (err: unknown) => setError(err instanceof Error ? err.message : "This invitation link is not valid."));
+    apiRequest("/v1/invitations/preview", invitationPreviewSchema, { method: "POST", body: { token } }).then(
+      (p) => {
+        // A used, revoked or expired link must not keep sending later sign-ins back here.
+        if (p.status !== "pending") clearPending();
+        setPreview(p);
+      },
+      (err: unknown) => {
+        clearPending();
+        setError(err instanceof Error ? err.message : "This invitation link is not valid.");
+      },
+    );
   }, [status, token]);
 
   const accept = async () => {

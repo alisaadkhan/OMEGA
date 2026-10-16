@@ -139,7 +139,8 @@ if (phase === "main") {
   // ── Setup through the API: first sign-in provisions each workspace; teammates are added by fixture ──
   for (const who of ["owner", "outsider"]) await api(who, "GET", "/v1/me");
   const ws = sql(`select workspace_id from wp.workspace_members where user_id = '${ids.owner.sub}'`);
-  // Invitations are not implemented, so admin and member join the owner's workspace through a database fixture.
+  // Admin and member join through a database fixture so every run starts the same; the invitation flow itself is
+  // exercised through the UI in section 10b.
   sql(`insert into wp.users (id, email, display_name) values ('${ids.admin.sub}', '${ids.admin.email}', '${ids.admin.name}'), ('${ids.member.sub}', '${ids.member.email}', '${ids.member.name}');
        insert into wp.workspace_members (workspace_id, user_id, role) values ('${ws}', '${ids.admin.sub}', 'admin'), ('${ws}', '${ids.member.sub}', 'member');`);
   writeFileSync(new URL(`state-${label}.json`, here), JSON.stringify({ ws }));
@@ -435,6 +436,85 @@ if (phase === "main") {
   check("isolation", "another workspace gets 404 on every private record (no data leak)", outsiderBlocked.every((s) => s === 404), outsiderBlocked.join(","));
   check("isolation", "another workspace's activity, lists and analytics are empty", (await api("outsider", "GET", "/v1/activity")).json.events.length === 0 && (await api("outsider", "GET", "/v1/lists")).json.lists.length === 0);
   check("isolation", "the catalog itself stays globally searchable", (await apiSearch("outsider", "food")).json.total === apiFood.total);
+
+  // ── 10b. Team: an invitation link joins only the invited, confirmed email; removal; export; account deletion ──
+  const own = await pageAs("owner");
+  await own.goto("http://localhost:5173/#/dashboard");
+  await own.getByRole("heading", { name: /Welcome back, Olivia/ }).waitFor({ timeout: 30000 });
+  await menu(own, "Settings");
+  const teamTab = async () => { await own.getByRole("button", { name: "Workspace & team" }).click(); await own.getByLabel("Invite by email").waitFor({ timeout: 15000 }); };
+  await teamTab();
+  await own.getByLabel("Invite by email").fill(ids.invitee.email);
+  await own.getByRole("button", { name: "Create invitation" }).click();
+  const linkBox = own.getByRole("status").filter({ hasText: "Send this link to" });
+  await linkBox.waitFor({ timeout: 15000 });
+  const token = ((await linkBox.locator(".font-mono").innerText()).trim().split("/#/invite/")[1] ?? "");
+  check("team", "owner creates an invitation link in Settings (shown once; no email is sent)", /^[A-Za-z0-9_-]{40,}$/.test(token) && sql(`select count(*) from wp.workspace_invitations where workspace_id = '${ws}' and email = '${ids.invitee.email}' and status = 'pending'`) === "1");
+  check("a11y", "Settings › Workspace & team with an open invitation: no serious or critical WCAG 2.2 A/AA issues", (await axeFindings(own)).length === 0, (await axeFindings(own)).join(" | "));
+  const inviteUrl = `http://localhost:5173/#/invite/${token}`;
+
+  const stranger = await pageAs("outsider");
+  await stranger.goto(inviteUrl);
+  await stranger.getByText(`Only ${ids.invitee.email} can accept this invitation`).waitFor({ timeout: 30000 });
+  const forced = await api("outsider", "POST", "/v1/invitations/accept", { token });
+  check("team", "someone else opening the link cannot join (the page says why; the API refuses)", forced.status === 403 && forced.json?.error?.details?.reason === "invitation_invalid" && sql(`select count(*) from wp.workspace_members where workspace_id = '${ws}' and user_id = '${ids.outsider.sub}'`) === "0", `${forced.status}`);
+  await stranger.context().close();
+
+  const inv = await pageAs("invitee");
+  await inv.goto(inviteUrl);
+  const join = inv.getByRole("button", { name: /^Join / });
+  await join.waitFor({ timeout: 30000 });
+  check("a11y", "Invitation page: no serious or critical WCAG 2.2 A/AA issues", (await axeFindings(inv)).length === 0, (await axeFindings(inv)).join(" | "));
+  await join.click();
+  await inv.getByRole("heading", { name: /Welcome back/ }).waitFor({ timeout: 30000 });
+  await menu(inv, "Settings");
+  await inv.getByRole("button", { name: "Workspace & team" }).click();
+  await inv.getByLabel("Current workspace").waitFor({ timeout: 15000 });
+  const wsName = sql(`select name from wp.workspaces where id = '${ws}'`);
+  check("team", "the invited person joins as a member and works in the owner's workspace (switcher offers both)",
+    sql(`select role from wp.workspace_members where workspace_id = '${ws}' and user_id = '${ids.invitee.sub}'`) === "member" && (await inv.getByLabel("Workspace name").inputValue()) === wsName && (await inv.getByLabel("Current workspace").locator("option").count()) === 2 && (await inv.getByLabel("Workspace name").isDisabled()),
+    wsName);
+  check("team", "the used link cannot be used again", (await api("invitee", "POST", "/v1/invitations/accept", { token })).status === 403);
+
+  await own.reload();
+  await own.getByRole("heading", { name: /Welcome back, Olivia/ }).waitFor({ timeout: 30000 }).catch(() => {});
+  await menu(own, "Settings");
+  await teamTab();
+  await own.getByRole("listitem").filter({ hasText: ids.invitee.email }).getByRole("button", { name: "Remove" }).click();
+  await own.getByRole("alertdialog").getByRole("button", { name: "Remove" }).click();
+  for (let i = 0; i < 30 && sql(`select count(*) from wp.workspace_members where workspace_id = '${ws}' and user_id = '${ids.invitee.sub}'`) !== "0"; i++) await own.waitForTimeout(300);
+  check("team", "the owner removes the new member in Settings; they lose access at once", sql(`select count(*) from wp.workspace_members where workspace_id = '${ws}' and user_id = '${ids.invitee.sub}'`) === "0" && (await api("invitee", "GET", "/v1/me", undefined, { "x-workspace-id": ws })).json?.workspace.id !== ws);
+
+  await own.getByRole("button", { name: "Support access" }).click();
+  await own.waitForTimeout(600);
+  check("a11y", "Settings › Support access: no serious or critical WCAG 2.2 A/AA issues", (await axeFindings(own)).length === 0, (await axeFindings(own)).join(" | "));
+  await own.getByRole("button", { name: "Privacy & data" }).click();
+  const exportButton = own.getByRole("button", { name: "Download export" });
+  await exportButton.waitFor({ timeout: 15000 });
+  check("a11y", "Settings › Privacy & data: no serious or critical WCAG 2.2 A/AA issues", (await axeFindings(own)).length === 0, (await axeFindings(own)).join(" | "));
+  const [download] = await Promise.all([own.waitForEvent("download", { timeout: 20000 }), exportButton.click()]);
+  const exported = JSON.parse(readFileSync(await download.path(), "utf8"));
+  check("privacy", "the owner downloads the workspace export: this workspace's lists and campaigns, members, no staff notes",
+    exported.format === "mushin.workspace-export.v1" && exported.workspace.id === ws && exported.tables.lists.some((l) => l.name === "Food shortlist") && exported.tables.campaigns.length === 1 && exported.tables.members.length === 3,
+    `${download.suggestedFilename()} lists ${exported.tables?.lists?.length} members ${exported.tables?.members?.length}`);
+  await own.context().close();
+
+  await inv.reload();
+  await inv.getByRole("heading", { name: /Welcome back/ }).waitFor({ timeout: 30000 });
+  await menu(inv, "Settings");
+  await inv.getByRole("button", { name: "Privacy & data" }).click();
+  await inv.getByLabel(/Type your email/).fill(ids.invitee.email);
+  await inv.getByRole("button", { name: "Delete my account" }).click();
+  await inv.getByText("What was kept, and why:").waitFor({ timeout: 20000 });
+  const gone = await api("invitee", "GET", "/v1/me");
+  check("privacy", "a person deletes their own account in Settings; it stays deleted and their sole workspace is erased",
+    gone.status === 403 && gone.json?.error?.details?.reason === "account_deleted" && sql(`select status from wp.users where id = '${ids.invitee.sub}'`) === "deleted" && sql(`select count(*) from wp.workspaces where owner_user_id = '${ids.invitee.sub}' and status = 'active'`) === "0",
+    `${gone.status}`);
+  await inv.getByRole("button", { name: "Sign out" }).click();
+  await inv.waitForTimeout(1500);
+  const sessionLeft = await inv.evaluate((k) => localStorage.getItem(k), `sb-${ref}-auth-token`);
+  check("privacy", "after deleting the account the person is signed out (session cleared, not on the dashboard)", sessionLeft === null && !inv.url().includes("#/dashboard"), inv.url());
+  await inv.context().close();
 
   // ── 11. Sign out ──
   await p.getByRole("button", { name: "Account menu" }).click();
