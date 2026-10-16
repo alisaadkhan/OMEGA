@@ -483,7 +483,8 @@ if (phase === "main") {
   await own.getByRole("listitem").filter({ hasText: ids.invitee.email }).getByRole("button", { name: "Remove" }).click();
   await own.getByRole("alertdialog").getByRole("button", { name: "Remove" }).click();
   for (let i = 0; i < 30 && sql(`select count(*) from wp.workspace_members where workspace_id = '${ws}' and user_id = '${ids.invitee.sub}'`) !== "0"; i++) await own.waitForTimeout(300);
-  check("team", "the owner removes the new member in Settings; they lose access at once", sql(`select count(*) from wp.workspace_members where workspace_id = '${ws}' and user_id = '${ids.invitee.sub}'`) === "0" && (await api("invitee", "GET", "/v1/me", undefined, { "x-workspace-id": ws })).json?.workspace.id !== ws);
+  const stale = await api("invitee", "GET", "/v1/me", undefined, { "x-workspace-id": ws });
+  check("team", "the owner removes the new member in Settings; they lose access at once (403, never redirected: audit SEC-04)", sql(`select count(*) from wp.workspace_members where workspace_id = '${ws}' and user_id = '${ids.invitee.sub}'`) === "0" && stale.status === 403 && stale.json?.error?.details?.reason === "workspace_access_denied", `${stale.status}`);
 
   await own.getByRole("button", { name: "Support access" }).click();
   await own.waitForTimeout(600);
@@ -501,6 +502,8 @@ if (phase === "main") {
 
   await inv.reload();
   await inv.getByRole("heading", { name: /Welcome back/ }).waitFor({ timeout: 30000 });
+  // The tab still had the owner's workspace selected: the API refused it, the app forgot it and says so.
+  check("team", "a removed member's open tab is told it lost access and lands in their own workspace", await inv.getByText(/You no longer have access to the workspace you were working in/).first().waitFor({ timeout: 15000 }).then(() => true, () => false));
   await menu(inv, "Settings");
   await inv.getByRole("button", { name: "Privacy & data" }).click();
   await inv.getByLabel(/Type your email/).fill(ids.invitee.email);

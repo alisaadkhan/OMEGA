@@ -2,7 +2,7 @@ import type { z } from "zod";
 import type { ErrorCode } from "@mushin/contracts";
 import { supabase } from "../lib/supabase";
 import { ApiError, readApiResponse } from "./http";
-import { selectedWorkspace } from "./workspace";
+import { dropInaccessibleWorkspace, selectedWorkspace } from "./workspace";
 
 export { ApiError };
 
@@ -29,7 +29,27 @@ export async function apiRequest<S extends z.ZodType>(
   } catch {
     throw new ApiError("NETWORK", "Can't reach the server. Check your connection and try again.", 0, null);
   }
+  await guardWorkspace(res, workspace);
   return readApiResponse(res, schema);
+}
+
+/**
+ * Audit SEC-04: a request must act in the workspace this tab shows. A refused workspace is forgotten and the app
+ * reloads into the person's own workspace with a notice; a response from any other workspace is treated as an error.
+ */
+async function guardWorkspace(res: Response, selected: string | null): Promise<void> {
+  if (res.status === 403) {
+    const body = (await res.clone().json().catch(() => null)) as { error?: { details?: { reason?: string } } } | null;
+    if (body?.error?.details?.reason === "workspace_access_denied") {
+      dropInaccessibleWorkspace();
+      window.location.reload();
+      throw new ApiError("FORBIDDEN", "You no longer have access to that workspace.", 403, res.headers.get("x-request-id"));
+    }
+  }
+  const actedIn = res.headers.get("x-workspace-id");
+  if (selected && actedIn && actedIn !== selected) {
+    throw new ApiError("CONFLICT", "This request reached a different workspace than the one on screen. Reload the page.", res.status, res.headers.get("x-request-id"));
+  }
 }
 
 /** Downloads a file the API serves (for example a data export) and hands it to the browser as a save. */

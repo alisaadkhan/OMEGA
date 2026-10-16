@@ -9,6 +9,6 @@ export async function registerSecurity(app: FastifyInstance, allowedOrigins: str
     credentials: true,
     methods: ["GET", "POST", "PATCH", "PUT", "DELETE"],
     allowedHeaders: ["authorization", "content-type", "idempotency-key", "x-request-id", "x-workspace-id"],
-    exposedHeaders: ["x-request-id", "retry-after", "idempotent-replayed"],
+    exposedHeaders: ["x-request-id", "retry-after", "idempotent-replayed", "x-workspace-id"],
   });
 }

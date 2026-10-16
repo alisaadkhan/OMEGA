@@ -63,8 +63,16 @@ describe("workspace invitations and workspace selection", () => {
     const mine = (await call("GET", "/v1/me/workspaces", sara.h)).json().workspaces as { id: string; role: string }[];
     expect(mine.map((w) => [w.id, w.role])).toEqual([[sara.workspaceId, "owner"], [owner.workspaceId, "member"]]);
     expect((await call("GET", "/v1/me", { ...sara.h, "x-workspace-id": owner.workspaceId })).json().workspace).toMatchObject({ id: owner.workspaceId, role: "member" });
-    // A workspace the person does not belong to is ignored, never entered.
-    expect((await call("GET", "/v1/me", { ...stranger.h, "x-workspace-id": owner.workspaceId })).json().workspace.id).toBe(stranger.workspaceId);
+    // A workspace the person does not belong to is refused, never entered and never swapped for another (audit SEC-04).
+    const denied = await call("GET", "/v1/me", { ...stranger.h, "x-workspace-id": owner.workspaceId });
+    expect(denied.statusCode).toBe(403);
+    expect(denied.json().error.details).toMatchObject({ reason: "workspace_access_denied", workspaceId: owner.workspaceId });
+    expect(denied.headers["x-workspace-id"]).toBeUndefined();
+    // Without a header the person works in their own workspace, and every response names the workspace it acted in.
+    const own = await call("GET", "/v1/me", stranger.h);
+    expect(own.headers["x-workspace-id"]).toBe(stranger.workspaceId);
+    expect((await call("GET", "/v1/me", { ...sara.h, "x-workspace-id": owner.workspaceId })).headers["x-workspace-id"]).toBe(owner.workspaceId);
+    expect((await call("GET", "/v1/me", { ...stranger.h, "x-workspace-id": "not-a-uuid" })).statusCode).toBe(400);
   });
 
   it("owners invite admins, admins invite members only, members cannot invite; revoked links stop working", async () => {
@@ -101,7 +109,8 @@ describe("member roles, removal and ownership", () => {
     expect((await call("PATCH", `/v1/workspace/members/${mona.userId}`, owner.h, { role: "admin" })).statusCode).toBe(204);
     expect((await call("DELETE", `/v1/workspace/members/${mona.userId}`, adam.inWs)).statusCode).toBe(403); // admins remove members only
     expect((await call("DELETE", `/v1/workspace/members/${max.userId}`, mona.inWs)).statusCode).toBe(204);
-    expect((await call("GET", "/v1/me", max.inWs)).json().workspace.id).toBe(max.workspaceId); // removed: back in own workspace
+    expect((await call("GET", "/v1/me", max.inWs)).json().error.details).toMatchObject({ reason: "workspace_access_denied" }); // removed: refused, not redirected
+    expect((await call("POST", "/v1/workspace/invitations", max.inWs, { email: "z@brand.pk" })).statusCode).toBe(403); // no write lands anywhere
     expect((await call("DELETE", `/v1/workspace/members/${owner.userId}`, owner.h)).statusCode).toBe(409); // the owner cannot leave
     expect((await call("DELETE", `/v1/workspace/members/${adam.userId}`, adam.inWs)).statusCode).toBe(204); // anyone else may leave
     expect((await call("POST", "/v1/workspace/transfer-ownership", mona.inWs, { userId: mona.userId })).statusCode).toBe(403);
@@ -157,8 +166,8 @@ describe("privacy self-service", () => {
     expect((await ownerQuery(`select count(*)::int n from wp.credit_ledger where workspace_id = '${owner.workspaceId}'`))[0]).toMatchObject({ n: expect.any(Number) });
     expect((await ownerQuery<{ n: number }>(`select count(*)::int n from wp.credit_ledger where workspace_id = '${owner.workspaceId}'`))[0]?.n).toBeGreaterThan(0); // trial grant kept
     expect((await ownerQuery<{ status: string }>(`select status from wp.workspaces where id = '${owner.workspaceId}'`))[0]?.status).toBe("deleted");
-    // Former members cannot enter it any more; they land in their own workspace.
-    expect((await call("GET", "/v1/me", inWs)).json().workspace.id).toBe(mona.workspaceId);
+    // Former members cannot enter it any more, and are not redirected to another workspace either.
+    expect((await call("GET", "/v1/me", inWs)).json().error.details).toMatchObject({ reason: "workspace_access_denied" });
     // The owner's next sign-in provisions a fresh workspace, but not a second free trial (regression: 0036).
     const fresh = (await call("GET", "/v1/me", owner.h)).json().workspace.id as string;
     expect(fresh).not.toBe(owner.workspaceId);

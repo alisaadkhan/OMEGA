@@ -4,14 +4,17 @@ import type { WorkspaceRole } from "@mushin/core";
 
 export type Membership = { workspaceId: string; role: WorkspaceRole };
 
-/** The requested workspace when the user is a member of it, otherwise their oldest membership (deleted workspaces have none). */
+/**
+ * The requested workspace if the user is a member of it, or null; without a request, their oldest membership (deleted
+ * workspaces have none). Never another workspace than the one requested (audit SEC-04).
+ */
 export async function findMembership(tx: UserTx | TenantTx, userId: string, requested?: string): Promise<Membership | null> {
   const rows = await tx
     .select({ workspaceId: workspaceMembers.workspaceId, role: workspaceMembers.role })
     .from(workspaceMembers)
     .where(eq(workspaceMembers.userId, userId))
     .orderBy(asc(workspaceMembers.createdAt));
-  return rows.find((r) => r.workspaceId === requested) ?? rows[0] ?? null;
+  return requested === undefined ? (rows[0] ?? null) : (rows.find((r) => r.workspaceId === requested) ?? null);
 }
 
 export async function userStatus(tx: UserTx, userId: string): Promise<string | null> {

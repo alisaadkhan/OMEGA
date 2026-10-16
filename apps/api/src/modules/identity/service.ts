@@ -17,6 +17,11 @@ export function createIdentityService(db: Db, startTrial: StartTrial) {
     // A deleted account stays deleted: signing in again does not bring it (or a fresh workspace) back.
     if (status === "deleted") throw new AppError("FORBIDDEN", "This account was deleted.", { reason: "account_deleted" });
     if (existing) return { requestId, userId: identity.userId, ...existing };
+    // A workspace was asked for and this person is not (or no longer) a member: refuse, never switch silently to
+    // another workspace (audit SEC-04). The client drops its stale selection and asks again without one.
+    if (requested !== undefined) {
+      throw new AppError("FORBIDDEN", "You don't have access to that workspace (any more). Choose another workspace.", { reason: "workspace_access_denied", workspaceId: requested });
+    }
 
     const workspaceId = randomUUID();
     const membership = await db.withTenant({ userId: identity.userId, workspaceId }, async (tx) => {

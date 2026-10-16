@@ -72,7 +72,7 @@ describe("identity provisioning", () => {
 });
 
 describe("GET /v1/me", () => {
-  it("returns the signed-in user's profile and workspace, ignoring client-supplied workspace ids", async () => {
+  it("returns the signed-in user's profile and workspace; a workspace id the user does not belong to is refused", async () => {
     const iss = await createTestIssuer();
     const guard = createCustomerGuard({
       verify: createCustomerTokenVerifier({ issuer: iss.issuer, audience: iss.audience, keys: iss.keys }),
@@ -87,11 +87,13 @@ describe("GET /v1/me", () => {
     });
     const app = await buildTestApp({ guards: { ...noGuards(), customer: guard }, modules: [identity.module] });
     const sub = randomUUID();
-    const res = await app.inject({
-      method: "GET",
-      url: "/v1/me",
-      headers: { authorization: `Bearer ${await iss.sign({ sub, email: "sana@mushin.pk", fullName: "Sana Riaz" })}`, "x-workspace-id": randomUUID() },
-    });
+    const token = `Bearer ${await iss.sign({ sub, email: "sana@mushin.pk", fullName: "Sana Riaz" })}`;
+    // Audit SEC-04: a foreign workspace id is refused and nothing is created or switched.
+    const refused = await app.inject({ method: "GET", url: "/v1/me", headers: { authorization: token, "x-workspace-id": randomUUID() } });
+    expect(refused.statusCode).toBe(403);
+    expect(refused.json().error.details).toMatchObject({ reason: "workspace_access_denied" });
+    expect(await ownerQuery(`select 1 from wp.workspace_members where user_id = '${sub}'`)).toEqual([]);
+    const res = await app.inject({ method: "GET", url: "/v1/me", headers: { authorization: token } });
     expect(res.statusCode).toBe(200);
     const body = res.json();
     expect(body.user).toEqual({ id: sub, email: "sana@mushin.pk", displayName: "Sana Riaz", avatarUrl: null });

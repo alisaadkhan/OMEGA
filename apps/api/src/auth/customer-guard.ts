@@ -21,7 +21,7 @@ export function createCustomerGuard(o: {
   resolveTenant: ResolveTenant;
   limiter: RateLimiter;
 }): PreHandler {
-  return async (req) => {
+  return async (req, reply) => {
     const token = bearerToken(req);
     if (!token) throw new AppError("UNAUTHENTICATED", "Authentication required");
     const identity = await o.verify(token);
@@ -29,8 +29,12 @@ export function createCustomerGuard(o: {
     if (!r.allowed) throw rateLimitError(r.retryAfterSeconds);
     req.customer = identity;
     const asked = req.headers["x-workspace-id"];
-    const workspaceId = typeof asked === "string" && UUID.test(asked) ? asked.toLowerCase() : undefined;
-    req.tenant = await o.resolveTenant(identity, req.id, workspaceId);
+    if (asked !== undefined && (typeof asked !== "string" || !UUID.test(asked))) {
+      throw new AppError("VALIDATION_FAILED", "X-Workspace-Id must be a workspace id", { field: "x-workspace-id" });
+    }
+    req.tenant = await o.resolveTenant(identity, req.id, asked?.toLowerCase());
+    // The workspace this request acted in, so the client can confirm it is the one on screen (audit SEC-04).
+    void reply.header("x-workspace-id", req.tenant.workspaceId);
   };
 }
 
