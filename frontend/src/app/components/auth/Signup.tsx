@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { LEGAL_VERSION } from "@mushin/contracts";
+import { rememberLegalAcceptance } from "../../api/legal";
 import { motion } from "motion/react";
 import { ArrowRight, Check } from "lucide-react";
 import { Button } from "../ui/button";
@@ -16,6 +18,8 @@ export function Signup({ onSuccess, goLogin }: Props) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  // Audit UX-01: consent is an explicit, unticked choice; the accepted version is recorded after sign-in.
+  const [agreed, setAgreed] = useState(false);
 
   const strength = Math.min(100, Math.round((password.length / 12) * 100));
 
@@ -25,6 +29,11 @@ export function Signup({ onSuccess, goLogin }: Props) {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (!agreed) {
+      setError("Please read and accept the Terms and the Privacy Policy to create an account.");
+      return;
+    }
+    rememberLegalAcceptance();
     setSubmitting(true);
     try {
       const { needsConfirmation } = await signup(name, email, password);
@@ -139,9 +148,14 @@ export function Signup({ onSuccess, goLogin }: Props) {
         </StaggerItem>
 
         <StaggerItem index={5}>
-          <p className="text-center text-[11px] text-slate-500">
-            By creating an account you agree to the Terms and Privacy Policy.
-          </p>
+          <label className="flex items-start gap-2 text-[11px] text-slate-600">
+            <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-0.5" aria-describedby="legal-draft-note" />
+            <span>
+              I accept the <a href="#/terms" target="_blank" rel="noreferrer" className="text-indigo-700 underline">Terms of Service</a> and the{" "}
+              <a href="#/privacy" target="_blank" rel="noreferrer" className="text-indigo-700 underline">Privacy Policy</a>.
+              <span id="legal-draft-note" className="block text-slate-500">These are drafts pending legal review (version {LEGAL_VERSION}).</span>
+            </span>
+          </label>
         </StaggerItem>
       </form>
     </AuthShell>

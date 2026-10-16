@@ -145,6 +145,11 @@ if (phase === "main") {
        insert into wp.workspace_members (workspace_id, user_id, role) values ('${ws}', '${ids.admin.sub}', 'admin'), ('${ws}', '${ids.member.sub}', 'member');`);
   writeFileSync(new URL(`state-${label}.json`, here), JSON.stringify({ ws }));
   check("setup", "admin and member resolve into the owner's workspace", (await api("admin", "GET", "/v1/me")).json?.workspace.id === ws && (await api("member", "GET", "/v1/me")).json?.workspace.role === "member");
+  // Audit UX-01: these people accepted the Terms at sign-up (recorded through the API); the outsider accepts in the UI.
+  const legalVersion = (await api("owner", "GET", "/v1/me")).json?.legal.currentVersion;
+  const staleLegal = await api("owner", "POST", "/v1/me/legal-acceptance", { version: "2020-01-01" });
+  for (const who of ["owner", "admin", "member", "invitee"]) await api(who, "POST", "/v1/me/legal-acceptance", { version: legalVersion });
+  check("legal", "only the current Terms version can be accepted, and acceptance is recorded per person", staleLegal.status === 400 && sql(`select legal_version from wp.users where id = '${ids.owner.sub}'`) === legalVersion, legalVersion);
 
   // ── 1. Auth: protected route, session restore, direct URL, expired session ──
   let p = await pageAs(null);
@@ -327,6 +332,15 @@ if (phase === "main") {
   const outsiderPage = await pageAs("outsider");
   await outsiderPage.goto("http://localhost:5173/#/dashboard");
   await outsiderPage.getByRole("heading", { name: /Welcome back/ }).waitFor({ timeout: 30000 });
+  // Audit UX-01: someone who has not accepted the Terms is asked before using the app; the version is recorded.
+  const gate = outsiderPage.getByRole("dialog", { name: "Before you continue" });
+  await gate.waitFor({ timeout: 15000 });
+  const gateBlocked = await gate.getByRole("button", { name: "Accept and continue" }).isDisabled();
+  check("a11y", "Terms acceptance dialog: no serious or critical WCAG 2.2 A/AA issues", (await axeFindings(outsiderPage)).length === 0, (await axeFindings(outsiderPage)).join(" | "));
+  await gate.getByRole("checkbox").check();
+  await gate.getByRole("button", { name: "Accept and continue" }).click();
+  await gate.waitFor({ state: "detached", timeout: 15000 });
+  check("legal", "a person who has not accepted the Terms is asked first (button disabled until ticked), then recorded", gateBlocked && sql(`select legal_version is not null from wp.users where id = '${ids.outsider.sub}'`) === "t");
   await search(outsiderPage, "Lahore food vlogger"); // 200 trial credits - 50 = 150 left
   await outsiderPage.getByRole("button", { name: /Find New Creators/ }).first().click();
   await outsiderPage.getByRole("button", { name: "Up to 15", exact: true }).click();
@@ -673,7 +687,7 @@ if (phase === "main") {
   // ── Phone width (390 × 844): pages fit without sideways scrolling, navigation works, and axe passes ──
   const phone = { width: 390, height: 844 };
   const pub = await pageAs(null, phone);
-  for (const route of ["#/", "#/login"]) {
+  for (const route of ["#/", "#/login", "#/signup", "#/terms", "#/privacy", "#/refunds", "#/creator-data"]) {
     await pub.goto(`http://localhost:5173/${route}`);
     await pub.waitForTimeout(1500);
     const off = await widthOffenders(pub);

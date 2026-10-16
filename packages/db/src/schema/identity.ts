@@ -11,6 +11,9 @@ export const users = wp.table("users", {
   status: text("status", { enum: ["active", "suspended", "deleted"] }).notNull().default("active"),
   preferences: jsonb("preferences").$type<Record<string, unknown>>().notNull().default({}),
   deletedAt: ts("deleted_at"),
+  /** The Terms/Privacy version accepted and when (0044, audit UX-01). */
+  legalVersion: text("legal_version"),
+  legalAcceptedAt: ts("legal_accepted_at"),
   /** Set when this person's first own workspace received the free trial; a later workspace gets none (0036). */
   trialGrantedAt: ts("trial_granted_at"),
   createdAt: ts("created_at").notNull().defaultNow(),

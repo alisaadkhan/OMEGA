@@ -58,13 +58,13 @@ export function Footer() {
           ))}
         </div>
         <div className="mt-14 flex flex-col items-start justify-between gap-4 border-t border-slate-200 pt-8 text-xs text-slate-500 sm:flex-row sm:items-center">
-          <div>© {new Date().getFullYear()} Mushin Technologies, Inc. All rights reserved.</div>
-          <div className="flex gap-6">
-            <a href="#" className="hover:text-slate-900">Privacy</a>
+          <div>© {new Date().getFullYear()} MUSHIN</div>
+          <div className="flex flex-wrap gap-x-6 gap-y-2">
+            <a href="#/privacy" className="hover:text-slate-900">Privacy</a>
+            <a href="#/terms" className="hover:text-slate-900">Terms</a>
+            <a href="#/refunds" className="hover:text-slate-900">Credits & refunds</a>
+            <a href="#/creator-data" className="hover:text-slate-900">Creator data</a>
             <a href="#/remove-my-data" className="hover:text-slate-900">Remove my data</a>
-            <a href="#" className="hover:text-slate-900">Terms</a>
-            <a href="#" className="hover:text-slate-900">Security</a>
-            <a href="#" className="hover:text-slate-900">DPA</a>
             <a href="#/admin/login" className="text-slate-500 hover:text-slate-900">Staff</a>
           </div>
         </div>

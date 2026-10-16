@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { LegalGate } from "./LegalGate";
 import { takeWorkspaceNotice } from "../../api/workspace";
 import { AnimatePresence, motion } from "motion/react";
 import { Sidebar, type DashView } from "./Sidebar";
@@ -70,6 +71,7 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
         <main className="min-w-0 flex-1 overflow-y-auto px-4 py-5 sm:px-8 sm:py-8">
           <div className="-mx-4 -mt-5 mb-4 empty:hidden sm:-mx-8 sm:-mt-8"><SupportAccessBanner canManage={canManageAccess} onOpen={() => { setSettingsTab("access"); setView("settings"); }} /></div>
           {workspaceNotice && <p role="status" className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900">{workspaceNotice}</p>}
+          <LegalGate />
           <BillingStatusBanner onChoosePlan={() => setView("billing")} />
           <AnimatePresence mode="wait">
             <motion.div

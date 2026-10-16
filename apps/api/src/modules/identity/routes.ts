@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
-import { meResponseSchema, updateMeSchema, updateWorkspaceSchema, workspaceMembersSchema } from "@mushin/contracts";
+import { acceptLegalSchema, LEGAL_VERSION, meResponseSchema, updateMeSchema, updateWorkspaceSchema, workspaceMembersSchema } from "@mushin/contracts";
 import { AppError, type TenantContext } from "@mushin/core";
 import type { Db } from "@mushin/db";
 import { tenantOf } from "../../auth/customer-guard";
@@ -13,8 +13,20 @@ export function registerIdentityRoutes(app: FastifyInstance, guards: Guards, ser
   const me = async (ctx: TenantContext) => {
     const m = await service.getMe(ctx);
     if (!m) throw new AppError("NOT_FOUND", "Account not found");
-    return { user: { id: m.userId, email: m.email, displayName: m.displayName, avatarUrl: m.avatarUrl }, workspace: { id: m.workspaceId, name: m.workspaceName, role: m.role } };
+    return {
+      user: { id: m.userId, email: m.email, displayName: m.displayName, avatarUrl: m.avatarUrl },
+      workspace: { id: m.workspaceId, name: m.workspaceName, role: m.role },
+      legal: { acceptedVersion: m.legalVersion, acceptedAt: m.legalAcceptedAt ? m.legalAcceptedAt.toISOString() : null, currentVersion: LEGAL_VERSION },
+    };
   };
+
+  // Audit UX-01: the person accepts the published Terms and Privacy Policy; only the current version can be accepted.
+  app.post("/v1/me/legal-acceptance", { preHandler: guards.customer }, async (req, reply) => {
+    const ctx = tenantOf(req);
+    const { version } = parseInput(acceptLegalSchema, req.body);
+    await db.withTenant(tenant(ctx), (tx) => tx.execute(sql`update wp.users set legal_version = ${version}, legal_accepted_at = now() where id = ${ctx.userId}`));
+    return sendOk(reply, meResponseSchema, await me(ctx));
+  });
 
   app.get("/v1/me", { preHandler: guards.customer }, async (req, reply) => sendOk(reply, meResponseSchema, await me(tenantOf(req))));
 

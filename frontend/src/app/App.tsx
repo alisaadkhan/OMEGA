@@ -16,12 +16,14 @@ import { ForgotPassword } from "./components/auth/ForgotPassword";
 import { AdminLogin } from "./components/admin/AdminLogin";
 import { AdminApp } from "./components/admin/AdminApp";
 import { RemoveMyData } from "./components/public/RemoveMyData";
+import { LegalPage, type LegalDoc } from "./components/public/LegalPage";
 import { InviteAccept, inviteTokenFromHash } from "./components/auth/InviteAccept";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 import { AdminAuthProvider, useAdminAuth } from "./admin/AdminAuthContext";
 import { ToastProvider, ConfirmProvider } from "./lib/toast";
 
-type Route = "landing" | "dashboard" | "login" | "signup" | "forgot" | "admin-login" | "admin" | "remove-my-data" | "invite";
+type Route = "landing" | "dashboard" | "login" | "signup" | "forgot" | "admin-login" | "admin" | "remove-my-data" | "invite" | LegalDoc;
+const LEGAL_DOCS: readonly LegalDoc[] = ["terms", "privacy", "refunds", "creator-data"];
 
 /**
  * Simple hash-based router. Reads `#/path` from the URL so
@@ -39,6 +41,7 @@ function useHashRoute(initial: Route): [Route, (r: Route) => void] {
     if (h === "forgot") return "forgot";
     if (h === "dashboard") return "dashboard";
     if (h === "remove-my-data") return "remove-my-data";
+    if ((LEGAL_DOCS as readonly string[]).includes(h)) return h as LegalDoc;
     if (h.startsWith("invite/")) return "invite";
     return initial;
   };
@@ -111,6 +114,12 @@ function Shell() {
               <CTA onPrimary={goPrimary} />
             </main>
             <Footer />
+          </motion.div>
+        )}
+
+        {(LEGAL_DOCS as readonly string[]).includes(route) && (
+          <motion.div key={route} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
+            <LegalPage doc={route as LegalDoc} onBack={() => setRoute(user ? "dashboard" : "landing")} />
           </motion.div>
         )}
 

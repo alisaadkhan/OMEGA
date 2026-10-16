@@ -1,3 +1,4 @@
+import { LEGAL_VERSION } from "@mushin/contracts";
 import { randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
@@ -99,6 +100,14 @@ describe("GET /v1/me", () => {
     expect(body.workspace).toMatchObject({ name: "Sana Riaz's workspace", role: "owner" });
 
     expect((await app.inject({ method: "GET", url: "/v1/me" })).statusCode).toBe(401);
+
+    // Audit UX-01: acceptance of the published Terms and Privacy Policy is recorded per person and per version.
+    expect(body.legal).toEqual({ acceptedVersion: null, acceptedAt: null, currentVersion: LEGAL_VERSION });
+    const stale = await app.inject({ method: "POST", url: "/v1/me/legal-acceptance", headers: { authorization: token }, payload: { version: "2020-01-01" } });
+    expect(stale.statusCode).toBe(400);
+    const accepted = await app.inject({ method: "POST", url: "/v1/me/legal-acceptance", headers: { authorization: token }, payload: { version: LEGAL_VERSION } });
+    expect(accepted.json().legal).toMatchObject({ acceptedVersion: LEGAL_VERSION, currentVersion: LEGAL_VERSION, acceptedAt: expect.any(String) });
+    expect((await ownerQuery<{ v: string }>(`select legal_version v from wp.users where id = '${sub}'`))[0]?.v).toBe(LEGAL_VERSION);
 
     // Settings: your own name; renaming the workspace needs owner or admin; members of this workspace only.
     const auth = { authorization: `Bearer ${await iss.sign({ sub, email: "sana@mushin.pk", fullName: "Sana Riaz" })}` };

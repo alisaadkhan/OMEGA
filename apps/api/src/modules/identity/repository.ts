@@ -59,6 +59,8 @@ export async function getMe(tx: TenantTx, ids: { userId: string; workspaceId: st
       email: users.email,
       displayName: users.displayName,
       avatarUrl: users.avatarUrl,
+      legalVersion: users.legalVersion,
+      legalAcceptedAt: users.legalAcceptedAt,
       workspaceId: workspaces.id,
       workspaceName: workspaces.name,
       role: workspaceMembers.role,
