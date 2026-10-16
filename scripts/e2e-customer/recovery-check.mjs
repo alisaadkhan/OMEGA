@@ -1,4 +1,4 @@
-/* global process, console, fetch, setTimeout -- Node script */
+/* global process, console, fetch, setTimeout, URL -- Node script */
 // Password recovery in a real browser against the LOCAL Supabase stack (audit UX-02): the "Forgot password" form, the
 // recovery email caught by the local Mailpit, the link opened in the same browser (PKCE code exchange), the new password
 // saved on #/reset-password, and the link refused when used again. Nothing leaves this machine.

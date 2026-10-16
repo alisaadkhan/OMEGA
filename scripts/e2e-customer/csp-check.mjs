@@ -1,4 +1,4 @@
-/* global process, console, URL -- Node script */
+/* global process, console, fetch, URL, document, window -- Node script; the page callbacks run in the browser */
 // The production build under its own security headers (audit SEC-14): serves frontend/dist with the headers from
 // dist/_headers exactly as the static host would, opens the public pages in Chrome and fails on any Content-Security-
 // Policy violation or a page that does not render. Local only. Usage: node csp-check.mjs  (after `vite build`)
