@@ -10,7 +10,9 @@ import { Support } from "./Support";
 import { ActivityLog } from "./ActivityLog";
 import { Lists } from "./Lists";
 import { Campaigns } from "./Campaigns";
-import { Settings } from "./Settings";
+import { Settings, type SettingsTab } from "./Settings";
+import { SupportAccessBanner } from "./SupportAccessSettings";
+import { useAuth } from "../../auth/AuthContext";
 import { Analytics } from "./Analytics";
 import { Inbox } from "./Inbox";
 import { useCredits } from "../../../app/lib/credits";
@@ -18,6 +20,9 @@ import { CreatorProfilePanel, type Creator } from "./CreatorProfilePanel";
 
 export function Dashboard({ onExit }: { onExit: () => void }) {
   const [view, setView] = useState<DashView>("overview");
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>("profile");
+  const { user } = useAuth();
+  const canManageAccess = user?.role === "owner" || user?.role === "admin";
   const credits = useCredits();
   const [omniCreator, setOmniCreator] = useState<Creator | null>(null);
   const [liveJobId, setLiveJobId] = useState<string | null>(null);
@@ -60,6 +65,7 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
           }}
         />
         <main className="min-w-0 flex-1 overflow-y-auto px-4 py-5 sm:px-8 sm:py-8">
+          <div className="-mx-4 -mt-5 mb-4 empty:hidden sm:-mx-8 sm:-mt-8"><SupportAccessBanner canManage={canManageAccess} onOpen={() => { setSettingsTab("access"); setView("settings"); }} /></div>
           <BillingStatusBanner onChoosePlan={() => setView("billing")} />
           <AnimatePresence mode="wait">
             <motion.div
@@ -75,7 +81,7 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
               {view === "campaigns" && <Campaigns onOpenCreator={setOmniCreator} onGoToSearch={() => setView("search")} />}
               {view === "analytics" && <Analytics />}
               {view === "inbox" && <Inbox onGoToCampaigns={() => setView("campaigns")} />}
-              {view === "settings" && <Settings onOpenSupport={() => setView("support")} />}
+              {view === "settings" && <Settings key={settingsTab} initialTab={settingsTab} onOpenSupport={() => setView("support")} />}
               {view === "billing" && <Billing checkoutResult={checkoutResult} />}
               {view === "support" && <Support />}
               {view === "activity" && <ActivityLog />}

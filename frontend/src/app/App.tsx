@@ -16,11 +16,12 @@ import { ForgotPassword } from "./components/auth/ForgotPassword";
 import { AdminLogin } from "./components/admin/AdminLogin";
 import { AdminApp } from "./components/admin/AdminApp";
 import { RemoveMyData } from "./components/public/RemoveMyData";
+import { InviteAccept, inviteTokenFromHash } from "./components/auth/InviteAccept";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 import { AdminAuthProvider, useAdminAuth } from "./admin/AdminAuthContext";
 import { ToastProvider, ConfirmProvider } from "./lib/toast";
 
-type Route = "landing" | "dashboard" | "login" | "signup" | "forgot" | "admin-login" | "admin" | "remove-my-data";
+type Route = "landing" | "dashboard" | "login" | "signup" | "forgot" | "admin-login" | "admin" | "remove-my-data" | "invite";
 
 /**
  * Simple hash-based router. Reads `#/path` from the URL so
@@ -38,6 +39,7 @@ function useHashRoute(initial: Route): [Route, (r: Route) => void] {
     if (h === "forgot") return "forgot";
     if (h === "dashboard") return "dashboard";
     if (h === "remove-my-data") return "remove-my-data";
+    if (h.startsWith("invite/")) return "invite";
     return initial;
   };
   const [route, setRoute] = useState<Route>(initial);
@@ -68,6 +70,13 @@ function Shell() {
   const [route, setRoute] = useHashRoute("landing");
 
   const goPrimary = () => setRoute(user ? "dashboard" : "signup");
+  // After signing in or up, a pending invitation link takes precedence over the dashboard.
+  const afterAuth = () => {
+    const pending = inviteTokenFromHash();
+    if (pending) window.location.hash = `/invite/${pending}`;
+    else setRoute("dashboard");
+  };
+  const inviteToken = route === "invite" ? inviteTokenFromHash() : null;
 
   // Guard admin route — if not signed in as admin, bounce to admin-login
   useEffect(() => {
@@ -117,10 +126,16 @@ function Shell() {
           </motion.div>
         )}
 
+        {route === "invite" && inviteToken && (
+          <motion.div key="invite" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
+            <InviteAccept token={inviteToken} goLogin={() => setRoute("login")} goSignup={() => setRoute("signup")} onJoined={() => { setRoute("dashboard"); window.location.reload(); }} />
+          </motion.div>
+        )}
+
         {route === "login" && (
           <motion.div key="login" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
             <Login
-              onSuccess={() => setRoute("dashboard")}
+              onSuccess={afterAuth}
               goSignup={() => setRoute("signup")}
               goForgot={() => setRoute("forgot")}
             />
@@ -129,7 +144,7 @@ function Shell() {
 
         {route === "signup" && (
           <motion.div key="signup" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
-            <Signup onSuccess={() => setRoute("dashboard")} goLogin={() => setRoute("login")} />
+            <Signup onSuccess={afterAuth} goLogin={() => setRoute("login")} />
           </motion.div>
         )}
 
