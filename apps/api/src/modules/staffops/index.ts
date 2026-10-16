@@ -179,3 +179,6 @@ export function createStaffOpsModule(o: {
 
   return { name: "staffops", register };
 }
+
+export { createStaffActions } from "./actions";
+export { createAlertNotifier, createLogSender, createWebhookSender, type AlertNotifier } from "./alert-notifier";
