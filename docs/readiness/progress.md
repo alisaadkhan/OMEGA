@@ -165,3 +165,24 @@ API calls included), profiles (per-profile verdicts) and the UI (banner, disable
 labelled and kept). Evidence: verify 826 passed, 7 skipped; E2E 3 × 82/82; local "food" search 9 → 5 results. Not yet
 done: rating packets regenerated under elig-1 (next step), catalogue creator/business classification as a gate, a staff
 coverage view (report script only).
+
+## 2026-10-16: state at the end of this session (resume here)
+
+Master commits this session: `2dd9b69` (campaign fee double-save D-7, dashboard badges F-7/F-8, placeholder identity,
+page metadata, favicons F-10), `9503764` (creator eligibility elig-1), `947a464` (evaluation pools and packets under
+elig-1; tag `search-freeze-2026-10-16-elig1`), `0df288e` (bundle secret scan, prepared CI, restore drill, API security
+tests, multi-instance rate limits), `d35763e` (WCAG 2.2 axe across every customer page; fixes A-1..A-3;
+release-readiness checklist), `d018bdd` (staff eligibility coverage endpoint; bounded local load check), plus this
+record and the hosting recommendation. Last full verify: 836 passed, 7 skipped (live-provider suites). Last E2E: 3 × 90/90.
+
+**Next actions, in order:**
+1. Owner: give the rater kits in `eval-data/kits` (elig-1 packets) to two raters and an adjudicator; score with
+   `scripts/search-eval/score.ts`; delete the evaluation data by 2026-11-12 (`purge-eval-data.ts --confirm`; also the old
+   copies in the earlier Claude temp folders). Run `freeze-check.ts` before any merge that touches Search.
+2. Owner decision: finish and integrate branch `team-privacy` (one commit `a5faa1e` and uncommitted invitation/team UI
+   in `../MUSHIN-team`). It needs a review, a verify run and E2E before merging into master. It reserves migrations 0035 and 0036.
+3. When WSL 2 and Docker exist: `supabase init`, port migrations 0001–0034, 0037 (plus 0035/0036 when merged), then follow
+   the migration map §7.
+4. With accounts: real Supabase Auth test project, Paddle sandbox, Resend test domain; a capped paid Brain 2 pilot only
+   with owner authorisation.
+5. E2E fixture refresh before about 2027-01-11 (template follower counts expire under the 90-day rule).

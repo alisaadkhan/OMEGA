@@ -35,6 +35,23 @@ an account, a credential, people or Docker), **not tested**. Nothing has been de
 | Load and recovery | partial | `scripts/load-check.ts` 2026-10-16, local disposable stack, 200 requests per endpoint at concurrency 10, all 200: search repeat p50/p95/p99 81/95/231 ms (target p95 800), lists 35/46/47, campaigns 33/49/56, creator profile 55/64/82, billing summary 47/60/69 (targets p95 300). Earlier 100k search benchmark. Rate limits shared across instances; worker crash/retry/deadline tests. Single machine, small catalogue: no hosted or large-scale load test yet. |
 | Legal: privacy policy, terms, YouTube identifiers, provider redistribution rights | blocked | Unresolved; must not be presumed passed. |
 
+### Hosting recommendation (proposal, nothing provisioned)
+
+Smallest setup that fits the Supabase direction and keeps the Vite frontend. Prices are 2026 third-party summaries
+(checked 2026-10-16) and **must be confirmed on each vendor's pricing page** before committing.
+
+| Part | Now (current stack) | After the Supabase migration | Estimated monthly cost |
+|---|---|---|---|
+| Database, Auth, storage, backups | Supabase Pro, region nearest Pakistan (confirm Mumbai availability) | same | about USD 25 base incl. a Micro compute; PITR is a paid add-on (price not confirmed) |
+| Frontend (static Vite build) | Cloudflare Pages: static requests free and unlimited; fingerprinted `/assets/*` cached immutable, `index.html` no-cache | same | USD 0 on the free plan (500 builds/month reported) |
+| API + worker (Fastify, pg-boss) | One small always-on container each, near Pakistan: Fly.io (about USD 2–5 per small machine, metered) or Render Starter (about USD 7 per service plus a workspace fee) | Removed: Edge Functions + pgmq/pg_cron replace them | USD 5–15 |
+| Search | PostgreSQL (default); Meilisearch not deployed (no measured need) | PostgreSQL | USD 0 |
+| Rate limits | PostgreSQL counters (`RATE_LIMIT_STORE=postgres`); Upstash not needed | same | USD 0 |
+
+Expected total about USD 30–40 a month before usage, excluding provider spend (Apify, Serper, LLM, all capped), Paddle
+fees and any PITR add-on. Sources: supabase.com/pricing (via 2026 summaries), Cloudflare Pages limits docs, Fly.io and
+Render pricing summaries.
+
 ## 1. Bottom line
 
 MUSHIN is a working, locally verified MVP codebase. Search (catalog and live discovery), lists, campaigns with a manual outreach log, analytics, activity, settings, customer support and a staff console all run end to end through the real UI, API, worker and database. Automated: 661 tests pass, 0 fail. Real-UI journeys: 69 of 69 checks pass across six journeys.
