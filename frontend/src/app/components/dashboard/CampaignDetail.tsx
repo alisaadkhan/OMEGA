@@ -151,7 +151,7 @@ function MemberCard({ m, campaignId, onOutreach, onOpenCreator }: { m: CampaignC
             {STAGES.map((s) => <option key={s} value={s}>{STAGE_LABEL[s]}</option>)}
           </select>
         ) : (
-          <span className="rounded bg-slate-100 px-1 py-0.5 text-center text-[11px] text-slate-500">Declined at {STAGE_LABEL[m.stage]}</span>
+          <span className="rounded bg-slate-100 px-1 py-0.5 text-center text-[11px] text-slate-700">Declined at {STAGE_LABEL[m.stage]}</span>
         )}
         <select aria-label="Priority" value={m.priority} disabled={save.isPending} onChange={(e) => change({ priority: e.target.value as CampaignCreator["priority"] })} className={select}>
           <option value="low">Low priority</option>

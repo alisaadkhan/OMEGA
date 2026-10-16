@@ -1,4 +1,4 @@
-# MUSHIN readiness report (2026-10-14, HEAD 07580ef)
+# MUSHIN readiness report (sections 1–7: 2026-10-14, HEAD 07580ef; section 0: 2026-10-16)
 
 The central record of what is built, what is verified and what is blocked. It is backed by:
 - `traceability.csv`: the 59 canonical requirements → implementation → tests → status;
@@ -8,6 +8,32 @@ The central record of what is built, what is verified and what is blocked. It is
 - `customer-e2e-report.md`: customer-side browser E2E (matrix, runs, defects, findings; harness in `scripts/e2e-customer/`);
 - `credit-economics.md`: owner prices versus measured provider cost (3× rule, TikTok shortfall, proposed caps);
 - `supabase-migration-map.md`: every route, job, schedule, transaction and rate limit mapped to the approved Supabase target.
+
+## 0. Release-readiness checklist (updated 2026-10-16, master)
+
+Status words: **ready** (done and verified here), **partial** (built, some evidence missing), **blocked** (needs the owner,
+an account, a credential, people or Docker), **not tested**. Nothing has been deployed; no production system exists.
+
+| Gate | Status | Evidence / what closes it |
+|---|---|---|
+| Architecture and hosting choice | blocked | Supabase is the direction; current stack Fastify + pg-boss + PostgreSQL runs locally only. Hosting provider and region not chosen (owner). |
+| Separate dev/staging/prod configuration and secrets | partial | Config validation refuses unsafe production settings (TLS CA, Paddle keys, LLM cap, memory rate limiter). No staging or production environment exists. |
+| CI, clean build, migrations, smoke tests | partial | `.github/workflows/ci.yml` prepared (verify on disposable PostgreSQL 17 + Meilisearch 1.55, frontend build, secret scan), **not run**: no GitHub remote. Locally: verify 835 passed. |
+| Rollback plan | partial | Forward-only migrations; the Fastify stack stays until Supabase parity (migration map §7). No deployment to roll back yet. |
+| DNS / TLS / domain / CDN | not tested | Not provisioned. API sends `Cache-Control: private, no-store`; static asset caching must be set on the chosen host (fingerprinted `/assets/*` immutable, `index.html` no-cache). |
+| Auth redirect URLs, email templates, auth rate limits | blocked | Real Supabase Auth never exercised (needs a test project). |
+| Database RLS, indexes, retention jobs | partial | RLS on every workspace table with isolation tests; security tests (cross-workspace 404s, mass assignment) pass; Supabase Security Advisor not run (needs the project). |
+| Backup and restore | partial | Local drill passed (`scripts/restore-drill.ts`: 62 tables / 899 rows identical). Hosted PITR and a hosted restore drill: blocked. `DATA_ENCRYPTION_KEY` needs its own backup. |
+| Observability and alerts | blocked | Structured logs with request ids; no error-reporting service, metrics or alert channel configured. Provider 80% / hard caps are logged only. |
+| Provider caps and kill switches | partial | Apify, Serper and LLM monthly caps; per-job cost cap and 20-minute deadline; provider pause (staff, on team-privacy branch). Production cap values: owner. Provider terms review (Apify actors): owner. |
+| Billing (Paddle sandbox, webhooks, refunds) | blocked | Mock provider only; webhook idempotency tested locally. Needs a Paddle sandbox account. |
+| Search acceptance | blocked | Human ratings needed (packets `blind-b1-elig1`, `blind-b2-elig1`; delete YouTube data by 2026-11-12). Search is **not accepted**. |
+| Creator eligibility (10,000 minimum) | ready | elig-1 enforced in search, Live Discovery delivery, lists, campaigns, profiles; E2E 3 × 82/82. |
+| Contact privacy and empty states | ready | Contact values only after an explicit reveal; empty and below-minimum states are shown truthfully (E2E). |
+| Accessibility and phone width | partial | axe (WCAG 2.0–2.2 A/AA serious/critical) on every customer page and the profile dialog, phone width on the main pages (E2E). Manual keyboard and screen-reader review: not done. |
+| Security tests | partial | Bundle secret scan, API object/property/function authorization, injection and header tests pass. No external penetration test or dependency audit in CI yet. |
+| Load and recovery | partial | Search 100k benchmark and CRM read timings (earlier); rate limits shared across instances; worker crash/retry/deadline tests. No load test against a hosted environment. |
+| Legal: privacy policy, terms, YouTube identifiers, provider redistribution rights | blocked | Unresolved; must not be presumed passed. |
 
 ## 1. Bottom line
 

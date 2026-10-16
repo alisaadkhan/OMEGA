@@ -10,13 +10,13 @@ import { createRequire } from "node:module";
 import { chromium } from "playwright-core";
 
 const AXE = readFileSync(createRequire(import.meta.url).resolve("axe-core/axe.min.js"), "utf8");
-/** Serious and critical WCAG 2 A/AA findings of axe-core on the current page, as "rule-id (count)". */
+/** Serious and critical WCAG 2.0–2.2 A/AA findings of axe-core on the current page, as "rule-id (count)". */
 async function axeFindings(p) {
   // Entry animations fade content in; measuring mid-fade reports contrast for semi-transparent text.
   await p.waitForTimeout(1200);
   await p.addScriptTag({ content: AXE });
   const out = await p.evaluate(async () => {
-    const r = await globalThis.axe.run(document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] } });
+    const r = await globalThis.axe.run(document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22a", "wcag22aa"] } });
     return r.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => `${v.id} (${v.nodes.length}): ${[...new Set(v.nodes.map((n) => n.html.replace(/\s+/g, " ").slice(0, 110)))].slice(0, 8).join(" ; ")}`);
   });
   return out;
@@ -458,13 +458,37 @@ if (phase === "main") {
   await p.getByRole("heading", { name: "Eid food push" }).waitFor();
   check("restart", "campaign pipeline persists", /Rs 40,000 agreed/.test(await mainText(p)));
   check("restart", "catalog search answers after restart (index reconciled)", (await apiSearch("owner", "food")).json.total > 0 && sql(`select count(*) from wp.credit_reservations where status = 'held'`) === "0");
-  // Accessibility (axe-core, WCAG 2.1 A/AA, serious and critical) on the main customer pages at desktop width.
-  for (const name of ["Search", "Lists", "Campaigns"]) {
+  // Accessibility (axe-core, WCAG 2.0–2.2 A/AA, serious and critical) on every customer page and the main dialogs at
+  // desktop width: the sidebar pages, the profile-menu pages, a campaign's detail and a creator profile.
+  await p.getByRole("button", { name: "Dashboard", exact: true }).first().click();
+  await p.getByRole("heading", { name: /Welcome back/ }).waitFor({ timeout: 15000 });
+  await p.waitForTimeout(400);
+  check("a11y", "Dashboard: no serious or critical WCAG 2.2 A/AA issues (desktop)", (await axeFindings(p)).length === 0, (await axeFindings(p)).join(" | "));
+  for (const name of ["Search", "Lists", "Campaigns", "Credits & billing"]) {
     await nav(p, name);
     await p.waitForTimeout(400);
     const found = await axeFindings(p);
-    check("a11y", `${name}: no serious or critical WCAG 2.1 A/AA issues (desktop)`, found.length === 0, found.join(" | "));
+    check("a11y", `${name}: no serious or critical WCAG 2.2 A/AA issues (desktop)`, found.length === 0, found.join(" | "));
   }
+  for (const item of ["Analytics", "Activity", "Settings", "Support"]) {
+    if (item === "Activity") {
+      await p.getByRole("button", { name: "Account menu" }).click();
+      await p.getByRole("menuitem", { name: "Activity" }).click();
+      await p.getByRole("heading", { name: "Activity log" }).waitFor({ timeout: 15000 });
+    } else await menu(p, item);
+    await p.waitForTimeout(400);
+    const found = await axeFindings(p);
+    check("a11y", `${item}: no serious or critical WCAG 2.2 A/AA issues (desktop)`, found.length === 0, found.join(" | "));
+  }
+  await nav(p, "Campaigns");
+  await p.getByRole("button", { name: /Eid food push/ }).first().click();
+  await p.getByRole("heading", { name: "Eid food push" }).waitFor();
+  check("a11y", "Campaign detail: no serious or critical WCAG 2.2 A/AA issues (desktop)", (await axeFindings(p)).length === 0, (await axeFindings(p)).join(" | "));
+  const profileDialog = await openProfile(p, "realwowboy");
+  await p.waitForTimeout(600);
+  const dialogFound = await axeFindings(p);
+  check("a11y", "Creator profile dialog: no serious or critical WCAG 2.2 A/AA issues (desktop)", dialogFound.length === 0, dialogFound.join(" | "));
+  await profileDialog.getByRole("button", { name: "Close" }).click();
   await p.context().close();
 
   // ── Phone width (390 × 844): pages fit without sideways scrolling, navigation works, and axe passes ──

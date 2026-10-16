@@ -173,6 +173,25 @@ her profile states `below_follower_minimum`. The "food" search went from 9 to 5 
 Fixture note: the template's follower counts were observed on 2026-10-13, so under the 90-day rule its creators stop being
 eligible on about 2027-01-11; the template must be refreshed (or the journey given a pinned clock) before then.
 
+### Accessibility coverage widened (2026-10-16)
+
+axe now runs WCAG 2.0–2.2 A/AA (serious and critical) on every customer page at desktop width (Dashboard, Search, Lists,
+Campaigns, Credits & billing, Analytics, Activity, Settings, Support), on a campaign's detail and on the creator profile
+dialog, plus the existing phone-width pages. The first run found three real defects, all fixed:
+
+| ID | Defect | Fix |
+|---|---|---|
+| A-1 | Analytics: a definition list held a decorative bar between term and value (WCAG 1.3.1) | The bar moved inside the value, hidden from screen readers |
+| A-2 | Campaign detail: "Declined at …" label slate-500 on slate-100, below 4.5:1 | slate-700 (about 9:1) |
+| A-3 | Search: the three action buttons were laid over the input (about 460 px of buttons in 160 px of padding), hiding typed text and shrinking the input's tap target below WCAG 2.2 2.5.8 on phones | Buttons sit beside the input on wide screens and wrap below it on narrow ones; the input has an accessible name |
+
+| Run set | Result |
+|---|---|
+| a11y-probe (first run) | main 60/60; after restart 27/30 (A-1, A-2, A-3) |
+| a11y-1..3 (this session's labels; earlier sessions reused these names), three in a row | 3 × 90/90 (60 main + 30 after restart) |
+
+Still manual and not done: keyboard-only walkthrough, screen-reader pass, 200% zoom.
+
 ## 5. Defects found and fixed
 
 | ID | Severity | Defect | Fix | Regression evidence |

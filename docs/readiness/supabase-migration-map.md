@@ -16,10 +16,11 @@ The map above was drawn at `b39eb6e` (28 migrations). Since then:
 | Contact availability checks | 0032 `gcp.contact_checks`; worker `outreach.contact_check_requested` | Port the table; the DNS/MX check is a short `creator` queue step (Deno `Deno.resolveDns` replaces `node:dns`) |
 | Staff operations: Super Admin, WebAuthn, approvals, provider controls, ticket notes/assignment, consented support access | 0033; `modules/staff`, `modules/staffops` (22 staffops routes + 6 security routes under `/admin/v1`, 4 customer routes under `/v1/support/access-requests`) | Tables and security-definer functions are plain PostgreSQL keyed by `staff.staff_users.id`: port as is, then map staff identity to `auth.users` (section 6). WebAuthn verification (`@simplewebauthn/server`) must be checked under Deno before `staff-api` is ported |
 | Rate-limit counters | 0034 `platform.rate_limit_counters`, `platform.rate_limit_hit()`; `RATE_LIMIT_STORE=postgres` | **Done ahead of the port**: this is the section 5 target (`rate_limit_hit`), already running on the current stack and tested (`postgres.int`). Functions call it with the same arguments; Upstash is removed at cutover |
+| Creator eligibility elig-1 | 0037 (projection columns, `creator_profiles.last_post_at`, YouTube retention trigger); `creators/eligibility.ts` (pure TypeScript) | Port the migration as is. The policy module ports unchanged to the shared domain package and is used by `customer-api` (search filter, list and campaign guards, profile) and `worker-tick` (projection, delivery gate). Search filters `eligible and eligible_until_epoch > now` in SQL, so no scheduled recompute is needed |
 | Catalogue match explanations | `modules/creators/match-reasons.ts` (pure TypeScript) | Ports unchanged into the shared domain package |
 
-Migrations to port as the baseline are now 0001–0034, plus any migrations other sessions add (0035 and 0036 are
-reserved for team invitations/privacy and outreach email).
+Migrations to port as the baseline are now 0001–0034 and 0037 on master. 0035 (team and privacy) and 0036 (outreach email)
+are reserved by the team-privacy branch and are not on master yet; reconcile their final content before porting.
 
 ## 0. Status and blockers
 

@@ -313,17 +313,21 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
         </div>
       </div>
 
-      {/* Search bar */}
-      <div className="relative">
+      {/* Search bar: the input keeps its full width; the actions sit beside it on wide screens and wrap below it on narrow
+          ones (they used to be laid over the input, hiding typed text and shrinking its tap target below WCAG 2.5.8). */}
+      <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+        <div className="relative min-w-0 flex-1">
         <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && runSearch("fast")}
           placeholder="Find Pakistani creators — e.g. bridal Lahore 50k+ engagement 5%+…"
-          className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-40 text-sm text-slate-900 shadow-sm transition-all placeholder:text-slate-400 focus:border-indigo-300 focus:outline-none focus:ring-4 focus:ring-indigo-100"
+          aria-label="Search creators"
+          className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-3 text-sm text-slate-900 shadow-sm transition-all placeholder:text-slate-400 focus:border-indigo-300 focus:outline-none focus:ring-4 focus:ring-indigo-100"
         />
-        <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1.5">
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
           <button
             onClick={() => setDrawerOpen(true)}
             className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-700 transition-colors hover:bg-slate-50"
