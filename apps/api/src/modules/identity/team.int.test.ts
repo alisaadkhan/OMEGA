@@ -159,6 +159,36 @@ describe("privacy self-service", () => {
     expect((await ownerQuery<{ status: string }>(`select status from wp.workspaces where id = '${owner.workspaceId}'`))[0]?.status).toBe("deleted");
     // Former members cannot enter it any more; they land in their own workspace.
     expect((await call("GET", "/v1/me", inWs)).json().workspace.id).toBe(mona.workspaceId);
+    // The owner's next sign-in provisions a fresh workspace, but not a second free trial (regression: 0036).
+    const fresh = (await call("GET", "/v1/me", owner.h)).json().workspace.id as string;
+    expect(fresh).not.toBe(owner.workspaceId);
+    expect(await ownerQuery(`select 1 from wp.subscriptions where workspace_id = '${fresh}'`)).toEqual([]);
+    expect(await ownerQuery(`select 1 from wp.credit_lots where workspace_id = '${fresh}'`)).toEqual([]);
+  });
+
+  it("gives a person who only ever joined by invitation their own trial once, and only once", async () => {
+    const { call, person, invite, tokenOf } = await setup();
+    const owner = await person("owner@brand.pk");
+    const mona = await person("mona@brand.pk");
+    await call("POST", "/v1/invitations/accept", mona.h, { token: tokenOf((await invite(owner.h, "mona@brand.pk")).acceptUrl) });
+    const trials = async () => (await ownerQuery<{ n: number }>(`select count(*)::int n from wp.subscriptions s join wp.workspaces w on w.id = s.workspace_id where w.owner_user_id = '${mona.userId}'`))[0]?.n;
+    expect(await trials()).toBe(1); // their first own workspace
+    const name = (await call("GET", "/v1/me", mona.h)).json().workspace.name as string;
+    expect((await call("POST", "/v1/workspace/delete", mona.h, { confirmName: name })).statusCode).toBe(200);
+    // Leaving the last workspace too means the next request provisions a new one of their own: it gets no trial.
+    expect((await call("DELETE", `/v1/workspace/members/${mona.userId}`, { ...mona.h, "x-workspace-id": owner.workspaceId })).statusCode).toBe(204);
+    const fresh = (await call("GET", "/v1/me", mona.h)).json().workspace as { id: string; role: string };
+    expect(fresh.role).toBe("owner");
+    expect(fresh.id).not.toBe(mona.workspaceId);
+    expect(await trials()).toBe(1);
+  });
+
+  it("erases every workspace table except the billing records that are kept on purpose", async () => {
+    // A table added later with a workspace_id must be erased or deliberately kept; this fails until it is one or the other.
+    const kept = ["checkouts", "credit_ledger", "credit_lots", "credit_reservations", "entitlement_usage", "payments", "subscriptions"];
+    const tables = (await ownerQuery<{ t: string }>(`select table_name t from information_schema.columns where table_schema = 'wp' and column_name = 'workspace_id' and table_name in (select table_name from information_schema.tables where table_schema = 'wp' and table_type = 'BASE TABLE')`)).map((r) => r.t);
+    const [fn] = await ownerQuery<{ src: string }>(`select prosrc src from pg_proc where proname = 'erase_workspace'`);
+    expect(tables.filter((t) => !kept.includes(t) && !fn?.src.includes(`'${t}'`)).sort()).toEqual([]);
   });
 
   it("deletes an account only once shared workspaces have a new owner; the account then stays deleted", async () => {

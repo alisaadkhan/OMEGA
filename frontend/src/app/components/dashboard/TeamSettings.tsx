@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { createdInvitationSchema, deletionResultSchema, invitationListSchema, myWorkspacesSchema, workspaceExportSchema, workspaceMembersSchema } from "@mushin/contracts";
 import { apiRequest } from "../../api/client";
-import { selectedWorkspace, selectWorkspace } from "../../api/workspace";
+import { selectWorkspace } from "../../api/workspace";
 import { useAuth } from "../../auth/AuthContext";
 import { relative } from "../../lib/time";
 import { useConfirm, useToast } from "../../lib/toast";
@@ -114,7 +114,9 @@ export function WorkspaceSwitcher({ current }: { current: string }) {
 /** Export, workspace deletion and account deletion, each stating exactly what happens and what is kept. */
 export function PrivacySection({ role, workspaceName, email, onOpenSupport }: { role: Role; workspaceName: string; email: string; onOpenSupport?: (() => void) | undefined }) {
   const toast = useToast();
+  const { logout } = useAuth();
   const [busy, setBusy] = useState(false);
+  const [accountDeleted, setAccountDeleted] = useState(false);
   const [confirmName, setConfirmName] = useState("");
   const [confirmEmail, setConfirmEmail] = useState("");
   const [result, setResult] = useState<string[] | null>(null);
@@ -153,6 +155,7 @@ export function PrivacySection({ role, workspaceName, email, onOpenSupport }: { 
         <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Deleted</div>
         <p>What was kept, and why:</p>
         <ul className="list-disc pl-5">{result.map((r) => <li key={r}>{r}</li>)}</ul>
+        {accountDeleted && <button onClick={() => void logout().finally(() => { window.location.hash = "/"; })} className="rounded-md bg-slate-900 px-3 py-1.5 text-xs text-white" style={{ fontWeight: 600 }}>Sign out</button>}
       </section>
     );
   }
@@ -173,14 +176,13 @@ export function PrivacySection({ role, workspaceName, email, onOpenSupport }: { 
           <button type="submit" disabled={busy || confirmName.trim() !== workspaceName} className="rounded-md bg-red-600 px-3 py-1.5 text-xs text-white disabled:opacity-50">Delete workspace</button>
         </form>
       )}
-      <form className="space-y-2 rounded-lg border border-red-200 p-3" onSubmit={(e) => { e.preventDefault(); void remove("/v1/me/delete", { confirmEmail }, () => { selectWorkspace(null); }); }}>
+      <form className="space-y-2 rounded-lg border border-red-200 p-3" onSubmit={(e) => { e.preventDefault(); void remove("/v1/me/delete", { confirmEmail }, () => { selectWorkspace(null); setAccountDeleted(true); }); }}>
         <div className="text-red-800" style={{ fontWeight: 600 }}>Delete my account</div>
         <p className="text-xs">Ends your access to every workspace and erases your profile. Workspaces you own alone are deleted too; if others use a workspace you own, transfer ownership first. Your sign-in login is held by our sign-in provider and is not removed automatically yet; ask Support if you want it removed too.</p>
         <label className="block text-xs">Type your email <span className="font-mono">{email}</span> to confirm<input value={confirmEmail} onChange={(e) => setConfirmEmail(e.target.value)} className="mt-1 block w-full max-w-md rounded-md border border-slate-200 px-2.5 py-1.5 text-sm" /></label>
         <button type="submit" disabled={busy || confirmEmail.trim().toLowerCase() !== email.toLowerCase()} className="rounded-md bg-red-600 px-3 py-1.5 text-xs text-white disabled:opacity-50">Delete my account</button>
       </form>
       {onOpenSupport && <button onClick={onOpenSupport} className="rounded-md border border-slate-200 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50">Ask Support about your data</button>}
-      <p className="text-[11px] text-slate-500">Selected workspace on this device: {selectedWorkspace() ?? "default"}</p>
     </section>
   );
 }

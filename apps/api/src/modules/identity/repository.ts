@@ -31,6 +31,16 @@ export async function upsertUser(tx: TenantTx, u: { id: string; email: string; d
     .onConflictDoUpdate({ target: users.id, set: { email: u.email } });
 }
 
+/** Marks the person's one free trial as used; false when it already was (they get no second trial). */
+export async function claimTrial(tx: TenantTx, userId: string): Promise<boolean> {
+  const rows = await tx
+    .update(users)
+    .set({ trialGrantedAt: sql`now()` })
+    .where(sql`${users.id} = ${userId} and ${users.trialGrantedAt} is null`)
+    .returning({ id: users.id });
+  return rows.length > 0;
+}
+
 export async function insertWorkspace(tx: TenantTx, w: { id: string; name: string; ownerUserId: string }): Promise<void> {
   await tx.insert(workspaces).values(w);
 }

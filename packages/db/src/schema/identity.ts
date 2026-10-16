@@ -11,6 +11,8 @@ export const users = wp.table("users", {
   status: text("status", { enum: ["active", "suspended", "deleted"] }).notNull().default("active"),
   preferences: jsonb("preferences").$type<Record<string, unknown>>().notNull().default({}),
   deletedAt: ts("deleted_at"),
+  /** Set when this person's first own workspace received the free trial; a later workspace gets none (0036). */
+  trialGrantedAt: ts("trial_granted_at"),
   createdAt: ts("created_at").notNull().defaultNow(),
   updatedAt: ts("updated_at").notNull().defaultNow(),
 });

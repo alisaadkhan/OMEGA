@@ -26,7 +26,8 @@ export function createIdentityService(db: Db, startTrial: StartTrial) {
       await repo.upsertUser(tx, { id: identity.userId, email: identity.email, displayName: identity.fullName });
       await repo.insertWorkspace(tx, { id: workspaceId, name: workspaceNameFor(identity), ownerUserId: identity.userId });
       await repo.insertMember(tx, { workspaceId, userId: identity.userId, role: "owner" });
-      await startTrial(tx, workspaceId);
+      // One free trial per person: a workspace provisioned after deleting or leaving an earlier one starts without it.
+      if (await repo.claimTrial(tx, identity.userId)) await startTrial(tx, workspaceId);
       return { workspaceId, role: "owner" as const };
     });
     return { requestId, userId: identity.userId, ...membership };
