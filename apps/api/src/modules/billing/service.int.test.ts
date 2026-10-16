@@ -335,6 +335,16 @@ describe("credit lots (owner decision 2026-10-14)", () => {
     const c = await trialCustomer();
     await expect(ownerQuery(`insert into wp.credit_lots (workspace_id, source, amount, remaining, expires_at) values ('${c.workspaceId}', 'monthly', 10, 10, null)`)).rejects.toThrow(/credit_lots_expiry_rule/);
   });
+
+  it("the database refuses an expiry on a top-up that still holds credits (audit BIL-04)", async () => {
+    const c = await trialCustomer();
+    const insert = (remaining: number) => ownerQuery(`insert into wp.credit_lots (workspace_id, source, amount, remaining, expires_at) values ('${c.workspaceId}', 'topup', 10, ${remaining}, now() + interval '1 year')`);
+    await expect(insert(10)).rejects.toThrow(/credit_lots_topup_never_expires/);
+    const [lot] = await ownerQuery<{ id: string }>(`insert into wp.credit_lots (workspace_id, source, amount, remaining, expires_at) values ('${c.workspaceId}', 'topup', 10, 10, null) returning id`);
+    await expect(ownerQuery(`update wp.credit_lots set expires_at = now() where id = '${lot?.id}'`)).rejects.toThrow(/credit_lots_topup_never_expires/);
+    // A spent lot from before the rule (dated under the old 12-month expiry) can still be zeroed by the expiry job.
+    await expect(insert(0)).resolves.toBeDefined();
+  });
 });
 
 describe("jobs", () => {

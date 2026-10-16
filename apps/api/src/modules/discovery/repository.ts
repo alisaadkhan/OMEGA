@@ -161,6 +161,16 @@ export async function openLiveJobFor(tx: TenantTx, workspaceId: string, searchHa
   return rows[0] ?? null;
 }
 
+/** Any open live run in the workspace: only one runs at a time (audit BIL-06, migration 0045). */
+export async function openLiveJobIn(tx: TenantTx, workspaceId: string): Promise<JobRow | null> {
+  const rows = await tx
+    .select()
+    .from(discoveryJobs)
+    .where(and(eq(discoveryJobs.workspaceId, workspaceId), eq(discoveryJobs.kind, "live"), inArray(discoveryJobs.status, [...OPEN])))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
 export type ResultRow = typeof discoveryResults.$inferSelect;
 
 /** One result per creator per run, numbered in arrival order for polling (spec §3.1). Runs are processed one at a time. */

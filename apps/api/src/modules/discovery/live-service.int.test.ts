@@ -60,8 +60,10 @@ describe("starting live runs", () => {
       expect((await estimate(c, search(), size)).maxCredits).toBe(max);
       expect((await estimate(c, search({ platform: "tiktok" }), size)).maxCredits).toBe(max);
     }
-    await startLive(c, search(), 5);
+    const first = await startLive(c, search(), 5);
     expect(await balance(c)).toMatchObject({ available: 100, reserved: 100 });
+    if (first.body.status !== "started") throw new Error("expected started");
+    await ownerQuery(`update wp.discovery_jobs set status = 'completed' where id = '${first.body.job.id}'`); // its hold stays until settled
     const expensive = await estimate(c, search({ platform: "instagram" }), 15);
     expect(expensive.maxCredits).toBe(200);
     await expect(discovery.start(c, { kind: "live", estimateId: expensive.estimateId })).rejects.toMatchObject({ code: "INSUFFICIENT_CREDITS" });
@@ -73,9 +75,26 @@ describe("starting live runs", () => {
     const outs = await Promise.all(Array.from({ length: 4 }, () => discovery.start(c, { kind: "live", estimateId: quote.estimateId })));
     expect(new Set(outs.map((o) => (o.body.status === "started" ? o.body.job.id : "")))).toHaveProperty("size", 1);
     expect(await balance(c)).toMatchObject({ available: 100, reserved: 100 });
+  });
+
+  it("runs one live discovery per workspace at a time, without holding credits for the second (audit BIL-06)", async () => {
+    const c = await customer();
+    const firstId = await started(c, search({ platform: "instagram" }), 5);
     const second = await estimate(c, search({ platform: "youtube" }), 5); // a different brief, not a duplicate of the first
-    const other = await discovery.start(c, { kind: "live", estimateId: second.estimateId });
-    expect(other.httpStatus).toBe(202);
+    await expect(discovery.start(c, { kind: "live", estimateId: second.estimateId })).rejects.toMatchObject({
+      code: "CONFLICT",
+      details: { reason: "live_run_in_progress", jobId: firstId },
+    });
+    expect(await balance(c)).toMatchObject({ available: 100, reserved: 100 });
+    // Concurrent confirmations of different briefs: exactly one starts.
+    const d = await customer();
+    const quotes = await Promise.all([search({ platform: "youtube" }), search({ platform: "instagram" })].map((s) => estimate(d, s, 5)));
+    const outs = await Promise.allSettled(quotes.map((q) => discovery.start(d, { kind: "live", estimateId: q.estimateId })));
+    expect(outs.filter((o) => o.status === "fulfilled")).toHaveLength(1);
+    expect(outs.filter((o) => o.status === "rejected").map((o) => (o as PromiseRejectedResult).reason)).toEqual([expect.objectContaining({ code: "CONFLICT" })]);
+    // Once the run finishes, the next brief starts.
+    await ownerQuery(`update wp.discovery_jobs set status = 'completed' where id = '${firstId}'`);
+    expect((await discovery.start(c, { kind: "live", estimateId: second.estimateId })).httpStatus).toBe(202);
   });
 
   it("returns the existing job for a duplicate brief confirmation without a second hold or outbox event", async () => {

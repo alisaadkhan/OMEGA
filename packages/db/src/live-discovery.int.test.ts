@@ -27,6 +27,16 @@ describe("migration 0012", () => {
     await expect(liveJob(ws.workspaceId, ws.userId)).rejects.toSatisfy(dbError(/discovery_jobs_one_open_live/));
   });
 
+  it("allows one open live run per workspace, whatever the brief (audit BIL-06, migration 0045)", async () => {
+    const a = await createTestWorkspace();
+    const b = await createTestWorkspace();
+    const first = await liveJob(a.workspaceId, a.userId);
+    await expect(liveJob(a.workspaceId, a.userId, "b".repeat(64))).rejects.toSatisfy(dbError(/discovery_jobs_one_open_live_per_workspace/));
+    expect(await liveJob(b.workspaceId, b.userId, "b".repeat(64))).toMatch(/^[0-9a-f-]{36}$/); // other workspaces are unaffected
+    await ownerQuery(`update wp.discovery_jobs set status = 'completed' where id = '${first}'`);
+    expect(await liveJob(a.workspaceId, a.userId, "b".repeat(64))).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
   it("keeps each workspace's results private (RLS) and lets only the worker write them", async () => {
     const a = await createTestWorkspace();
     const b = await createTestWorkspace();

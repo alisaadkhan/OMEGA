@@ -29,6 +29,13 @@ const isOneOpenViolation = (err: unknown) => {
  */
 const mayBeDuplicate = (err: unknown) => isOneOpenViolation(err) || (err instanceof AppError && err.code === "INSUFFICIENT_CREDITS");
 
+/** Audit BIL-06: one live run per workspace at a time; a second brief waits until the first finishes or is cancelled. */
+const liveRunInProgress = (jobId: string) =>
+  new AppError("CONFLICT", "A Live Discovery run is already in progress in this workspace. Wait for it to finish or cancel it, then start the next one.", {
+    reason: "live_run_in_progress",
+    jobId,
+  });
+
 export function searchHash(search: LiveSearch, maxNew: LiveRunSize): string {
   return sha256Hex(stableJson({ text: search.text.trim().toLowerCase(), filters: search.filters, maxNew }));
 }
@@ -186,6 +193,8 @@ export function createDiscoveryService(deps: DiscoveryDeps) {
           await repo.consumeEstimate(tx, ctx.workspaceId, estimate.id, open.id);
           return { httpStatus: 200 as const, body: { status: "started" as const, job: repo.toApiJob(open) } };
         }
+        const running = await repo.openLiveJobIn(tx, ctx.workspaceId);
+        if (running) throw liveRunInProgress(running.id); // checked before any credits are held
         const jobId = randomUUID();
         const held = await deps.billing.engine.reserveAmount(
           tx,
@@ -214,8 +223,14 @@ export function createDiscoveryService(deps: DiscoveryDeps) {
       if (!mayBeDuplicate(err)) throw err;
       const open = await deps.db.withTenant(tenant(ctx), async (tx) => {
         const estimate = await repo.estimateForUpdate(tx, ctx.workspaceId, estimateId);
-        return estimate ? repo.openLiveJobFor(tx, ctx.workspaceId, estimate.searchHash) : null;
+        if (!estimate) return null;
+        return (await repo.openLiveJobFor(tx, ctx.workspaceId, estimate.searchHash)) ?? { other: await repo.openLiveJobIn(tx, ctx.workspaceId) };
       });
+      if (open && "other" in open) {
+        // A run for a different brief started at the same moment and won the one-run-per-workspace index.
+        if (open.other && isOneOpenViolation(err)) throw liveRunInProgress(open.other.id);
+        throw err;
+      }
       if (!open) throw err;
       return { httpStatus: 200, body: { status: "started", job: repo.toApiJob(open) } };
     }

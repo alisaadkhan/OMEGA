@@ -11,7 +11,7 @@ afterAll(() => db.close());
 async function lot(workspaceId: string, remaining: number) {
   const rows = await ownerQuery<{ id: string }>(`
     insert into wp.credit_lots (workspace_id, source, amount, remaining, expires_at)
-    values ('${workspaceId}', 'topup', ${remaining}, ${remaining}, now() + interval '30 days') returning id`);
+    values ('${workspaceId}', 'topup', ${remaining}, ${remaining}, null) returning id`);
   return rows[0]?.id ?? "";
 }
 
@@ -51,7 +51,7 @@ describe("billing schema", () => {
       inApi(sql`insert into wp.credit_lots (workspace_id, source, amount, remaining, expires_at) values (${ws.workspaceId}, 'trial', 200, 200, now() + interval '14 days')`),
     ).rejects.toSatisfy(dbError(/duplicate key/));
     await expect(
-      inApi(sql`insert into wp.credit_lots (workspace_id, source, amount, remaining, expires_at) values (${ws.workspaceId}, 'topup', 5000, 5000, now() + interval '1 year')`),
+      inApi(sql`insert into wp.credit_lots (workspace_id, source, amount, remaining, expires_at) values (${ws.workspaceId}, 'topup', 5000, 5000, null)`),
     ).rejects.toSatisfy(dbError(/row-level security/));
     await expect(inApi(sql`update wp.credit_lots set amount = 99999`)).rejects.toSatisfy(dbError(/permission denied/));
     await expect(

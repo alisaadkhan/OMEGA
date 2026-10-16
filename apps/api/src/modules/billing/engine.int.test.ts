@@ -51,7 +51,7 @@ describe("reserve, commit, release", () => {
   it("holds credits, then spends the soonest-expiring lot first", async () => {
     const ws = await trialWorkspace();
     const topup = await inWorker(ws, (tx) =>
-      engine.grant(tx, ws.workspaceId, { source: "topup", amount: 100, expiresAt: minutes(60 * 24 * 365), sourceRef: "txn:1" }),
+      engine.grant(tx, ws.workspaceId, { source: "topup", amount: 100, expiresAt: null, sourceRef: "txn:1" }),
     );
     const { reservationId } = await inWs(ws, (tx) => engine.reserve(tx, ws.workspaceId, findNew(), actor));
     expect(await inWs(ws, (tx) => engine.balance(tx, ws.workspaceId))).toMatchObject({ available: 288, reserved: 12 });
@@ -113,7 +113,7 @@ describe("reserve, commit, release", () => {
 describe("plans and access", () => {
   it("spends only top-up credits from a hold placed without a plan, though other lots are unexpired", async () => {
     const ws = await trialWorkspace(); // the trial lot stays valid until day 14
-    await inWorker(ws, (tx) => engine.grant(tx, ws.workspaceId, { source: "topup", amount: 100, expiresAt: minutes(60 * 24 * 365), sourceRef: "txn:scope" }));
+    await inWorker(ws, (tx) => engine.grant(tx, ws.workspaceId, { source: "topup", amount: 100, expiresAt: null, sourceRef: "txn:scope" }));
     await ownerQuery(`update wp.subscriptions set status = 'canceled' where workspace_id = '${ws.workspaceId}'`);
     const { reservationId } = await inWs(ws, (tx) => engine.reserve(tx, ws.workspaceId, findNew(), actor));
     await inWs(ws, (tx) => engine.commit(tx, ws.workspaceId, reservationId, actor));
@@ -136,7 +136,7 @@ describe("plans and access", () => {
       code: "ENTITLEMENT_REQUIRED",
       details: { reason: "no_active_plan" },
     });
-    await inWorker(ws, (tx) => engine.grant(tx, ws.workspaceId, { source: "topup", amount: 20, expiresAt: minutes(1000), sourceRef: "txn:2" }));
+    await inWorker(ws, (tx) => engine.grant(tx, ws.workspaceId, { source: "topup", amount: 20, expiresAt: null, sourceRef: "txn:2" }));
     expect(await inWs(ws, (tx) => engine.balance(tx, ws.workspaceId))).toMatchObject({ available: 20, topupRemaining: 20 });
     await expect(inWs(ws, (tx) => engine.reserve(tx, ws.workspaceId, findNew(), actor))).resolves.toMatchObject({ amount: 12 });
   });
@@ -150,7 +150,7 @@ describe("plans and access", () => {
 
   it("grants each source reference once", async () => {
     const ws = await trialWorkspace();
-    const g = { source: "topup" as const, amount: 50, expiresAt: minutes(1000), sourceRef: "txn:dup" };
+    const g = { source: "topup" as const, amount: 50, expiresAt: null, sourceRef: "txn:dup" };
     expect(await inWorker(ws, (tx) => engine.grant(tx, ws.workspaceId, g))).toEqual(expect.any(String));
     expect(await inWorker(ws, (tx) => engine.grant(tx, ws.workspaceId, g))).toBeNull();
   });
