@@ -351,7 +351,7 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
             onClick={() => setCreditConfirmOpen(true)}
             className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 px-3 text-xs text-amber-800 transition-all hover:-translate-y-px hover:shadow-md"
             style={{ fontWeight: 500 }}
-            title={costs ? `Find New Creators · searches Google in real time · ${costs.find_new} credits plus ${costs.live_creator} per new creator, quoted before you confirm; nothing is charged if none is found` : "Find New Creators · quoted before you confirm"}
+            title={costs ? `Find New Creators · searches Google in real time · ${costs.find_new} credits when it delivers creators, plus ${costs.live_creator} per new creator, never more than the quote you confirm; nothing if it delivers none` : "Find New Creators · quoted before you confirm"}
           >
             <Radio className="h-3.5 w-3.5" strokeWidth={2} />
             Find New Creators

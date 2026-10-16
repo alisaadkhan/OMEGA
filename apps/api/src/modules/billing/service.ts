@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import { TIKTOK_LIVE_MINIMUM_CREDITS } from "@mushin/contracts";
 import type {
   BillingInterval,
   BillingPlans,
@@ -150,6 +151,7 @@ export function createBillingService(deps: BillingDeps) {
         audience_estimate: cost("audience_estimate"),
       },
       annualBilling: (await repo.getSettings(tx)).annualBillingEnabled,
+      liveTiktokMinimum: TIKTOK_LIVE_MINIMUM_CREDITS,
       availability: deps.capabilities ?? CAPABILITIES_OFF,
     };
   }

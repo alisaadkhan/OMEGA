@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { LiveEstimate, LiveRunSize, LiveSearch } from "@mushin/contracts";
-import { useBillingSummary } from "../../api/billing";
+import { useBillingPlans, useBillingSummary } from "../../api/billing";
+import { liveDiscoveryRule } from "../../lib/plans";
 import { useCreateLiveEstimate, useStartJob } from "../../api/discovery";
 import { livePlatformsText, liveSummary } from "../../api/discovery-mapping";
 import { useToast } from "../../lib/toast";
@@ -11,6 +12,7 @@ const SIZES: LiveRunSize[] = [5, 10, 15];
 export function FindNewDialog({ open, onOpenChange, search, onStarted }: { open: boolean; onOpenChange: (o: boolean) => void; search: LiveSearch; onStarted: (jobId: string) => void }) {
   const [size, setSize] = useState<LiveRunSize>(10);
   const billing = useBillingSummary();
+  const pricing = useBillingPlans();
   const estimate = useCreateLiveEstimate();
   const start = useStartJob();
   const toast = useToast();
@@ -74,7 +76,7 @@ export function FindNewDialog({ open, onOpenChange, search, onStarted }: { open:
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 px-4" onClick={() => onOpenChange(false)}>
       <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="text-slate-900" style={{ fontSize: 15, fontWeight: 600 }}>Find new creators</div>
-        <p className="mt-1 text-xs text-slate-500">MUSHIN searches Google for “{liveSummary(search)}”, fetches the profiles it doesn’t know yet and assesses them. Creators MUSHIN already knows are free.</p>
+        <p className="mt-1 text-xs text-slate-500">MUSHIN searches Google for “{liveSummary(search)}”, fetches the profiles it doesn’t know yet and assesses them. Creators MUSHIN already knows carry no per-creator charge.</p>
         {/* The platforms set the price (TikTok's is higher): show them so a widened scope can't go unnoticed. */}
         <div className="mt-3 flex justify-between rounded-md border border-slate-200 px-3 py-2 text-xs text-slate-700">
           <span>Platforms searched</span>
@@ -89,10 +91,10 @@ export function FindNewDialog({ open, onOpenChange, search, onStarted }: { open:
           ))}
         </div>
         <div className="mt-4 space-y-1 rounded-lg border border-slate-200 bg-slate-50/60 p-3 text-xs text-slate-600">
-          <div className="flex justify-between"><span>Creators MUSHIN already knows</span><span>free</span></div>
+          <div className="flex justify-between"><span>Creators MUSHIN already knows</span><span>no per-creator charge</span></div>
           <div className="flex justify-between border-t border-slate-200 pt-1 text-slate-900" style={{ fontWeight: 600 }}><span>Server quote · up to {size} new creators</span><span>{estimate.isPending ? "Preparing…" : `${max ?? "—"} credits`}</span></div>
           {currentQuote && <p className="pt-1 text-[11px] text-slate-500">Quote expires {new Date(currentQuote.expiresAt).toLocaleTimeString()}.</p>}
-          <p className="pt-1 text-[11px] text-slate-500">You’re charged only for creators actually added; the rest comes back when the search finishes. If nothing is found, nothing is charged.</p>
+          <p className="pt-1 text-[11px] text-slate-500" data-testid="live-charging-rule">{pricing.data ? liveDiscoveryRule(pricing.data) : "The final charge is settled when the run finishes, never above this quote; unused credits come back."} Unused credits come back when the run finishes.</p>
           {currentQuote?.minimumCredits !== undefined && <p className="pt-1 text-[11px] text-slate-500">With TikTok included, a search that finds creators costs at least {currentQuote.minimumCredits} credits.</p>}
         </div>
         {quoteError !== null && <p className="mt-2 text-xs text-red-600">{quoteError instanceof Error ? quoteError.message : "Add a specific creator topic and a city, country or language to continue."}</p>}

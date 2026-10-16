@@ -12,7 +12,9 @@ import * as repo from "./repository";
  * measured TikTok run cost USD 0.065, which needs 96 credits under the 3× rule). It never exceeds the quote and does not
  * guarantee a margin; re-measure before making it final. Failed, empty and canceled runs keep the normal rule.
  */
-export const TIKTOK_LIVE_MINIMUM_CREDITS = 100;
+/** The value lives in @mushin/contracts so the pricing copy and the settlement share it (audit BIL-01). */
+export { TIKTOK_LIVE_MINIMUM_CREDITS } from "@mushin/contracts";
+import { TIKTOK_LIVE_MINIMUM_CREDITS } from "@mushin/contracts";
 
 export type DiscoveryDeps = { db: Db; billing: Pick<BillingService, "engine">; now?: () => Date; sourcePolicy?: SourcePolicy };
 

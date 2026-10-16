@@ -27,14 +27,26 @@ export type PlanFeature = {
 
 const fmt = (n: number) => new Intl.NumberFormat("en-PK").format(n);
 
+/** The pricing facts the copy needs, all from the server catalogue. */
+export type PricingFacts = Pick<BillingPlans, "availability" | "actionCosts" | "liveTiktokMinimum">;
+
+/**
+ * Live Discovery charging, worded exactly as the server settles it (audit BIL-01): base fee when at least one creator is
+ * delivered (already-known creators included), plus each new creator, a TikTok minimum, never above the quote.
+ */
+export function liveDiscoveryRule(f: Pick<PricingFacts, "actionCosts" | "liveTiktokMinimum">): string {
+  return `A run that delivers at least one creator costs ${fmt(f.actionCosts.find_new)} credits plus ${fmt(f.actionCosts.live_creator)} for each new creator, and at least ${fmt(f.liveTiktokMinimum)} when TikTok is included, never more than the quote you confirm. If it delivers no creator, it costs nothing.`;
+}
+
 /** The feature rows of one plan, derived from its server entitlements and the server's capability switches. */
-export function planFeatures(plan: CatalogPlan, availability: Availability): PlanFeature[] {
+export function planFeatures(plan: CatalogPlan, facts: PricingFacts): PlanFeature[] {
+  const availability: Availability = facts.availability;
   const e = plan.entitlements;
   const emails = e.outreachEmailsPerMonth;
   const audienceIncluded = e.audienceViewsPerMonth !== 0;
   return [
     { key: "existing", label: "Creator discovery", value: "Included", included: true, note: "Each new search uses credits; further pages and repeats within 30 minutes are free." },
-    { key: "new", label: "Live creator discovery", value: "Included", included: true, note: "Quoted before you confirm. You pay only for new creators actually added; nothing if none is found." },
+    { key: "new", label: "Live creator discovery", value: "Included", included: true, note: `Quoted before you confirm. ${liveDiscoveryRule(facts)}` },
     { key: "contact", label: "Creator contact information", value: "Included", included: true, note: "Revealing a creator's contact details uses credits; only stored, public contact details are shown." },
     { key: "lists", label: "Saved creators and lists", value: "Included", included: true },
     { key: "campaigns", label: "Campaigns", value: e.campaignLimit === null ? "Unlimited" : `Up to ${e.campaignLimit}`, included: true, ...(e.campaignLimit === null ? {} : { note: "Archived campaigns don't count towards the limit." }) },

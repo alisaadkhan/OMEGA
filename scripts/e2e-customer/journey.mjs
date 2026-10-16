@@ -342,6 +342,8 @@ if (phase === "main") {
   const quote = (await p.locator("div.max-w-md").innerText()).replace(/\s+/g, " ");
   const jobsBefore = sql(`select count(*) from wp.discovery_jobs`);
   check("discovery", "quote names platforms and price before anything is reserved", /Platforms searched/.test(quote) && /\d+ credits/.test(quote) && jobsBefore === "0", `jobs ${jobsBefore}; ${quote.slice(0, 200)}`);
+  check("discovery", "the quote states the charging rule the server settles by (audit BIL-01)",
+    /A run that delivers at least one creator costs 50 credits plus 10 for each new creator, and at least 100 when TikTok is included, never more than the quote you confirm\. If it delivers no creator, it costs nothing\./.test(quote) && !/already knows are free|charged only for creators/i.test(quote), quote.slice(0, 160));
   await p.getByRole("button", { name: /Confirm · at most/ }).click();
   let final = "";
   for (let i = 0; i < 40; i++) {

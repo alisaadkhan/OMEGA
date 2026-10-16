@@ -264,7 +264,7 @@ export function Billing({ checkoutResult }: { checkoutResult?: "success" | "fail
                     {p.monthlyCredits.toLocaleString()} credits / month · charged {formatMoney(billingInterval === "month" ? p.charge.monthly : p.charge.yearly)}
                   </div>
                   <ul className="mt-3 space-y-1 text-xs" aria-label={`What ${p.name} includes`}>
-                    {planFeatures(p, plans.data.availability).map((f) => (
+                    {planFeatures(p, plans.data).map((f) => (
                       <li key={f.key} className={`flex justify-between gap-2 ${f.included ? "text-slate-700" : "text-slate-500"}`}>
                         <span>{f.label}</span>
                         <span className="text-right" style={{ fontWeight: 600 }}>{f.value}{f.status === "coming_soon" ? " · coming soon" : f.status === "test_mode" ? " · test mode" : ""}</span>

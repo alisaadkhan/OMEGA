@@ -48,6 +48,13 @@ export const capabilitiesSchema = z.object({
 });
 export type Capabilities = z.infer<typeof capabilitiesSchema>;
 
+/**
+ * Live Discovery settlement (owner decisions 2026-10-14 #1 and #3; audit BIL-01): when a run delivers at least one
+ * creator it costs the base fee (action find_new) plus each new creator (live_creator), at least this many credits when
+ * TikTok is in scope, and never more than the confirmed quote. If it delivers nothing it costs nothing.
+ */
+export const TIKTOK_LIVE_MINIMUM_CREDITS = 100;
+
 export const moneySchema = z.object({ amountMinor: z.number().int().nonnegative(), currency: z.string().length(3) });
 
 export const billingSummarySchema = z.object({
@@ -94,6 +101,8 @@ export const billingPlansSchema = z.object({
   actionCosts: z.record(creditActionSchema, z.number().int().nonnegative()),
   /** False until the owner approves annual prices (OD-002): yearly prices are not offered and yearly checkout is refused. */
   annualBilling: z.boolean(),
+  /** Minimum charge of a successful Live Discovery run with TikTok in scope (see TIKTOK_LIVE_MINIMUM_CREDITS). */
+  liveTiktokMinimum: z.number().int().positive(),
   availability: capabilitiesSchema,
 });
 export type BillingPlans = z.infer<typeof billingPlansSchema>;

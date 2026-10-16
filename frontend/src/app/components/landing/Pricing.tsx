@@ -21,7 +21,7 @@ import {
   Download,
 } from "lucide-react";
 import { apiRequest } from "../../api/client";
-import { PLAN_COPY, planFeatures, rupees, type Availability, type CatalogPlan } from "../../lib/plans";
+import { PLAN_COPY, planFeatures, rupees, type CatalogPlan, type PricingFacts } from "../../lib/plans";
 
 const featureIcons = {
   existing: Search,
@@ -146,7 +146,7 @@ export function Pricing({ onPrimary }: { onPrimary?: () => void } = {}) {
         ) : (
           <div className="mt-14 grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-stretch">
             {catalog.data.plans.map((t, i) => (
-              <TierCard key={t.id} tier={t} availability={catalog.data.availability} index={i} billing={billing} onPrimary={onPrimary} />
+              <TierCard key={t.id} tier={t} facts={catalog.data} index={i} billing={billing} onPrimary={onPrimary} />
             ))}
           </div>
         )}
@@ -237,13 +237,13 @@ function FeatureTooltip({ note }: { note: string }) {
 
 function TierCard({
   tier,
-  availability,
+  facts,
   index,
   billing,
   onPrimary,
 }: {
   tier: CatalogPlan;
-  availability: Availability;
+  facts: PricingFacts;
   index: number;
   billing: "monthly" | "yearly";
   onPrimary?: (() => void) | undefined;
@@ -254,7 +254,7 @@ function TierCard({
   const monthly = rupees(tier.display.monthly.amountMinor);
   const yearlyPerMonth = rupees(tier.display.yearlyPerMonth.amountMinor);
   const price = billing === "yearly" ? yearlyPerMonth : monthly;
-  const features = planFeatures(tier, availability);
+  const features = planFeatures(tier, facts);
 
   return (
     <motion.div
