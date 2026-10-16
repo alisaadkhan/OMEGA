@@ -57,7 +57,7 @@ export function ProviderControls() {
               <span className="w-20 text-slate-900" style={{ fontWeight: 600 }}>{p.provider}</span>
               <span className={`rounded-full px-2 py-0.5 text-[10px] ${p.paused ? "bg-amber-100 text-amber-900" : "bg-slate-100 text-slate-700"}`}>{p.paused ? "paused" : "running"}</span>
               <span className="flex-1 text-slate-500">{p.changedBy ? `${p.paused ? "Paused" : "Resumed"} by ${p.changedBy}, ${when(p.changedAt)}${p.reason ? `: ${p.reason}` : ""}` : "Never changed"}</span>
-              {p.controllable ? <ReasonAction label={p.paused ? "Resume" : "Pause"} confirmLabel={p.paused ? "Resume" : "Pause provider"} destructive={!p.paused} onSubmit={(reason) => set(p.provider, !p.paused, reason)} /> : <span className="text-slate-400">Not pausable from the console</span>}
+              {p.controllable ? <ReasonAction label={p.paused ? "Resume" : "Pause"} confirmLabel={p.paused ? "Resume" : "Pause provider"} destructive={!p.paused} onSubmit={(reason) => set(p.provider, !p.paused, reason)} /> : <span className="text-slate-500">Not pausable from the console</span>}
             </li>
           ))}
         </ul>

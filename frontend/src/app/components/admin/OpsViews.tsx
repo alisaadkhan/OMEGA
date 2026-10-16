@@ -108,7 +108,7 @@ export function OpsWorkspaces() {
       {r.isPending ? <LoadingBlock lines={4} /> : r.isError ? <ErrorState body={errorBody(r.error)} onRetry={() => void r.refetch()} /> : r.data.workspaces.length === 0 ? <p className="text-sm text-slate-500">No workspaces match.</p> : (
         <Table head={["Workspace", "Owner", "Members", "Subscription", "Jobs (30 days)", "Open tickets", "Created"]}>
           {r.data.workspaces.map((w) => (
-            <tr key={w.id}><td className="px-3 py-2"><div style={{ fontWeight: 600 }}>{w.name}</div><div className="text-[10px] text-slate-400">{w.id}</div></td><td className="px-3 py-2">{w.ownerEmail}</td><td className="px-3 py-2 tabular-nums">{w.members}</td><td className="px-3 py-2">{w.subscriptionStatus ?? "none"}</td><td className="px-3 py-2 tabular-nums">{w.jobs30d}</td><td className="px-3 py-2 tabular-nums">{w.openTickets}</td><td className="px-3 py-2 text-slate-500">{when(w.createdAt)}</td></tr>
+            <tr key={w.id}><td className="px-3 py-2"><div style={{ fontWeight: 600 }}>{w.name}</div><div className="text-[10px] text-slate-500">{w.id}</div></td><td className="px-3 py-2">{w.ownerEmail}</td><td className="px-3 py-2 tabular-nums">{w.members}</td><td className="px-3 py-2">{w.subscriptionStatus ?? "none"}</td><td className="px-3 py-2 tabular-nums">{w.jobs30d}</td><td className="px-3 py-2 tabular-nums">{w.openTickets}</td><td className="px-3 py-2 text-slate-500">{when(w.createdAt)}</td></tr>
           ))}
         </Table>
       )}

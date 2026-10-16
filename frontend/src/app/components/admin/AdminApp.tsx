@@ -22,7 +22,7 @@ export function AdminApp({ onSignOut, onExit }: { onSignOut: () => void; onExit:
             <LogoMark variant="dark" size={24} />
             <span style={{ fontSize: 13, fontWeight: 600, letterSpacing: "0.04em" }}>MUSHIN · OPS</span>
           </button>
-          <span className="hidden text-[11px] text-white/40 sm:inline">mushin.io / admin</span>
+          <span className="hidden text-[11px] text-white/60 sm:inline">mushin.io / admin</span>
         </div>
         <div className="flex items-center gap-3">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] text-white/80">
