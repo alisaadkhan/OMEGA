@@ -59,11 +59,27 @@ export function dbError(pattern: RegExp): (err: unknown) => boolean {
   };
 }
 
+/**
+ * The integration suite truncates every application table, so it must never run against a database that holds data
+ * worth keeping, even a disposable one: the Search evaluation corpus (mushin_eval_*) was emptied this way on
+ * 2026-10-16 when the freeze check's Brain 2 replay inherited TEST_DATABASE_URL. Corpus scripts that only read or add
+ * use createTestDatabase; anything that truncates calls this first.
+ */
+export function assertTruncatableTestDatabaseUrl(value: string): string {
+  assertDisposableTestDatabaseUrl(value);
+  const database = decodeURIComponent(new URL(value).pathname.replace(/^\//, ""));
+  if (/^mushin_eval|eval_disposable|_corpus/i.test(database)) {
+    throw new Error(`Refusing to truncate ${database}: it holds the Search evaluation corpus. Use a separate test database (e.g. mushin_test_claude).`);
+  }
+  return value;
+}
+
 /** Config tables hold migration seeds; tests must not wipe them. */
 const KEEP = ["schema_migrations", "plans", "topup_packs", "credit_action_costs", "billing_settings", "niches", "search_settings", "enrichment_settings", "provider_controls"];
 
 /** Empties every app table except seeded config (owner privilege; app roles cannot truncate append-only tables). */
 export async function resetTables(): Promise<void> {
+  assertTruncatableTestDatabaseUrl(process.env["TEST_DATABASE_URL"] ?? "");
   const rows = await ownerQuery<{ t: string }>(
     `select format('%I.%I', schemaname, tablename) as t from pg_tables
      where schemaname in ('wp','staff','platform','gcp')

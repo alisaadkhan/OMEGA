@@ -6,11 +6,14 @@
  *   Brain 2: the 25 recorded briefs through the real runner, every provider key blank (replay only, no spend);
  * then compares the regenerated blind sheets, keys and behaviour sheets byte for byte with the packets.
  *
- *   PG test database: TEST_DATABASE_URL (disposable, e.g. mushin_test_claude) for the Brain 2 replay
+ *   Brain 1 reads the corpus database mushin_eval_disposable. The Brain 2 replay runs the integration test runner,
+ *   which TRUNCATES its database: it uses FREEZE_REPLAY_TEST_DATABASE_URL (default mushin_test_claude), never
+ *   TEST_DATABASE_URL, and refuses the corpus (on 2026-10-16 an inherited TEST_DATABASE_URL emptied the corpus).
  *   node --import tsx scripts/search-eval/freeze-check.ts <queries.csv>
  * Exit code 0 only when both match.
  */
 import { execFileSync } from "node:child_process";
+import { assertTruncatableTestDatabaseUrl } from "@mushin/db/testing";
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -46,7 +49,8 @@ for (const f of ["brain1-rater-A.csv", "brain1-rater-B.csv", "brain1-key.csv", "
   if (!same(join(b1Out, f), join(evalDir, "packets", B1_PACKET, f))) failures.push(`Brain 1 ${f} differs`);
 }
 
-// Brain 2
+// Brain 2 (on its own truncatable test database, never the corpus)
+const replayDb = assertTruncatableTestDatabaseUrl(process.env["FREEZE_REPLAY_TEST_DATABASE_URL"] ?? "postgres://postgres@localhost:54330/mushin_test_claude");
 const label = `freeze-b2-${stamp}`;
 const blank = { SERPER_API_KEY: "", APIFY_TOKEN: "", GROQ_API_KEY: "", OLLAMA_API_KEY: "", YOUTUBE_API_KEY: "", LIVE_REPLAY_ALLOW_LIVE: "", LIVE_REPLAY_LIVE_LLM: "", LIVE_REPLAY_EXTRACT_BUDGET_USD: "0" };
 node([join(repo, "node_modules", "vitest", "vitest.mjs"), "run", "apps/api/src/modules/discovery/live-replay.live.int.test.ts"], {
@@ -55,6 +59,7 @@ node([join(repo, "node_modules", "vitest", "vitest.mjs"), "run", "apps/api/src/m
   LIVE_EVAL_OUT: join(evalDir, "recordings"),
   LIVE_REPLAY_LABEL: label,
   LIVE_REPLAY_NOW: B2_AT,
+  TEST_DATABASE_URL: replayDb,
   TEST_DATABASE_SSL_CA_FILE: "",
 });
 const b2Out = join(evalDir, "runs", label);

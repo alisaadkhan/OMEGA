@@ -299,10 +299,21 @@ web search and LLM calls, so it is a lower bound, not a provider invoice.
 ## Search freeze and the rating round (owner decision 2026-10-15)
 
 **Frozen baseline:** tag `search-freeze-2026-10-15` (`0ad9302`). Search code, ranking and the packets stay unchanged until
-the ratings are scored. Before any merge that could touch Search, run the freeze check. It needs a disposable
-`TEST_DATABASE_URL`; no provider is called and nothing is spent:
+the ratings are scored. Before any merge that could touch Search, run the freeze check. No provider is called and
+nothing is spent. Brain 1 reads the corpus `mushin_eval_disposable`. The Brain 2 replay runs the test runner, which
+**truncates** its database, so it uses `FREEZE_REPLAY_TEST_DATABASE_URL` (default `mushin_test_claude`), never the
+corpus:
 
     node --import tsx scripts/search-eval/freeze-check.ts <path>/testing/search_eval_queries_unlabeled.csv
+
+**Incident 2026-10-16/17 (corpus emptied, recovered).** The check was run with `TEST_DATABASE_URL` set to the corpus.
+The Brain 2 replay inherited it, and the test runner truncated the corpus. The guard allowed it because the name
+contains "disposable". The afternoon check still passed because Brain 1 ran before the truncation; the evening check
+found every Brain 1 query empty. The corpus was rebuilt from the recordings with the original creator ids
+(`load-corpus.ts --keep-ids eval-data/packets/corpus-manifest-v2.json`, 455 creators). The freeze check then
+reproduced both packets byte for byte, so the rating packets and kits remain valid. Prevention: the test runner
+(global setup and `resetTables`) now refuses any `mushin_eval*` database, and the freeze check gives Brain 2 its own
+database.
 
 It re-runs Brain 1 (35 queries, corpus database `mushin_eval_disposable`) and Brain 2 (25 recorded briefs through the
 real runner, every provider key blank) with the clock pinned to the packet runs. It passes only if the regenerated

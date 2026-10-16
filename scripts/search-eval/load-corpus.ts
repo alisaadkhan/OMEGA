@@ -10,14 +10,22 @@
  * Retention: YouTube API data may be kept 30 days (recorded 2026-10-13 → delete by 2026-11-12). Drop the disposable
  * database after the panel; never load this into a shared or production database.
  */
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { createLogger } from "@mushin/core";
 import { createTestDatabase } from "@mushin/db/testing";
 import { createCreatorIndexer, insertCreator, profileMetrics } from "../../apps/api/src/modules/creators/index";
 import { readRecordedProfiles } from "./recordings";
 
 const [dir, manifestPath] = process.argv.slice(2);
-if (!dir || !manifestPath) throw new Error("usage: load-corpus.ts <recordings-dir> <manifest.json>");
+if (!dir || !manifestPath) throw new Error("usage: load-corpus.ts <recordings-dir> <manifest.json> [--keep-ids <original-manifest.json>]");
+// Restoring a lost corpus (2026-10-17): reuse each creator's original id from an earlier manifest, so the rating
+// packets (which name creators by id) still describe it.
+const keepIdsAt = process.argv.indexOf("--keep-ids");
+const keep = new Map<string, string>();
+if (keepIdsAt > 0) {
+  const original = JSON.parse(readFileSync(process.argv[keepIdsAt + 1] ?? "", "utf8")) as { creators: { creatorId: string; platform: string; handle: string; file: string }[] };
+  for (const c of original.creators) keep.set(`${c.platform}:${c.handle}:${c.file}`, c.creatorId);
+}
 const db = createTestDatabase(); // refuses anything but a local database named with test/disposable
 
 const manifest: { creatorId: string; platform: string; handle: string; file: string; fetchedAt: string }[] = [];
@@ -31,6 +39,7 @@ for (const { platform, file, fetchedAt, profile: p } of recorded.profiles) {
       insertCreator(
         tx,
         {
+          ...(keep.has(`${platform}:${p.handle}:${file}`) ? { id: keep.get(`${platform}:${p.handle}:${file}`) } : {}),
           displayName: p.displayName || p.handle,
           primaryHandle: p.handle,
           primaryPlatform: platform,
