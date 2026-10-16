@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { providerUsageSchema, staffAuditListSchema, staffJobDetailSchema, staffJobListSchema, staffOverviewSchema, staffWorkspaceListSchema } from "@mushin/contracts";
+import { eligibilityCoverageSchema, providerUsageSchema, staffAuditListSchema, staffJobDetailSchema, staffJobListSchema, staffOverviewSchema, staffWorkspaceListSchema } from "@mushin/contracts";
 import { adminRequest } from "../../admin/adminApi";
 import { ErrorState, LoadingBlock } from "../dashboard/states";
 import { JobActions } from "./OpsControls";
@@ -43,10 +43,60 @@ export function OpsOverview() {
               <dl className="mt-2 grid grid-cols-2 gap-y-1 sm:grid-cols-4">{Object.entries(q.data.jobs24h).map(([k, v]) => <div key={k}><dt className="inline text-slate-500">{k}: </dt><dd className="inline tabular-nums text-slate-900">{v}</dd></div>)}</dl>
             )}
           </div>
+          <EligibilityCoverageCard />
           <p className="mt-4 text-[11px] text-slate-500">Backups, uptime and provider quota are not instrumented in this console. Check Supabase and the provider dashboards directly.</p>
         </>
       )}
     </div>
+  );
+}
+
+const REASONS: Record<string, string> = {
+  below_follower_minimum: "Below 10,000 followers",
+  followers_unknown: "Follower count unknown",
+  followers_stale: "Count older than 90 days",
+  inactive: "No post in 90 days",
+  invalid_profile_url: "Not an own profile link",
+  no_profile: "No profile",
+  minor_protected: "Protected (possible minor)",
+  creator_not_active: "Creator removed or merged",
+  evidence_expired: "Count or post date expired since indexing",
+};
+
+/** How much of the catalogue customers can see under the creator minimum. Counts only, never creator data. */
+function EligibilityCoverageCard() {
+  const q = useQuery({ queryKey: ["admin", "eligibility"], queryFn: () => adminRequest("/admin/v1/ops/eligibility", eligibilityCoverageSchema) });
+  return (
+    <section className="mt-4 rounded-xl border border-slate-200 bg-white p-4 text-xs shadow-sm" aria-label="Creator eligibility coverage">
+      <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Creators customers can see (10,000-follower minimum)</div>
+      {q.isPending ? <LoadingBlock lines={2} /> : q.isError ? <ErrorState body={errorBody(q.error)} onRetry={() => void q.refetch()} /> : (
+        <>
+          <p className="mt-1 text-slate-600">
+            <span className="tabular-nums text-slate-900" style={{ fontWeight: 700 }}>{q.data.eligible}</span> of <span className="tabular-nums">{q.data.total}</span> creators in the search catalogue qualify (policy {q.data.policy}).
+            {" "}{q.data.activityUnverified > 0 && <>{q.data.activityUnverified} of them have no recorded post date yet (activity unverified).</>}
+          </p>
+          {q.data.byReason.length === 0 && q.data.eligible < q.data.total && (
+            // Documents written before the eligibility rules carry no verdict until the worker re-indexes them.
+            <p className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-amber-900" role="status">{q.data.total - q.data.eligible} creators have not been evaluated yet. The worker evaluates them when it next starts; until then they are hidden from customers.</p>
+          )}
+          <div className="mt-3 grid gap-4 sm:grid-cols-2">
+            <div>
+              <div className="text-[11px] uppercase tracking-wide text-slate-500">Qualifying creators by platform</div>
+              {q.data.byPlatform.length === 0 ? <p className="mt-1 text-slate-500">None.</p> : (
+                <dl className="mt-1 space-y-0.5">{q.data.byPlatform.map((p) => <div key={p.platform} className="flex justify-between gap-2"><dt className="capitalize text-slate-600">{p.platform}</dt><dd className="tabular-nums text-slate-900">{p.eligibleCreators}</dd></div>)}</dl>
+              )}
+            </div>
+            <div>
+              <div className="text-[11px] uppercase tracking-wide text-slate-500">Why creators are hidden</div>
+              {q.data.byReason.length === 0 ? <p className="mt-1 text-slate-500">None hidden.</p> : (
+                <dl className="mt-1 space-y-0.5">{q.data.byReason.map((r) => <div key={r.reason} className="flex justify-between gap-2"><dt className="text-slate-600">{REASONS[r.reason] ?? r.reason}</dt><dd className="tabular-nums text-slate-900">{r.creators}</dd></div>)}</dl>
+              )}
+            </div>
+          </div>
+          <p className="mt-2 text-[11px] text-slate-500">As of {when(q.data.at)}. A creator can be hidden for more than one reason.</p>
+        </>
+      )}
+    </section>
   );
 }
 

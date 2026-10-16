@@ -45,6 +45,7 @@ async function apiToken(who) {
 const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: true });
 const serverErrors = [];
 const pageErrors = [];
+const coverageCards = {};
 const ADMIN_ONLY = ["Providers", "Removal requests", "Approvals", "Staff", "Audit log"];
 const EVERYONE = ["Overview", "Jobs", "Workspaces", "Workspace access", "Support queue", "Security"];
 
@@ -67,6 +68,9 @@ for (const who of ["super1", "support"]) {
   await p.getByText("MUSHIN · OPS").waitFor({ timeout: 30000 });
   const role = staff[who].role === "super_admin" ? "Super Admin" : "Support";
   check("staff", `${role} signs in with password and authenticator code`, await p.getByText(role, { exact: true }).first().isVisible());
+  const card = p.getByRole("region", { name: "Creator eligibility coverage" });
+  await card.getByText(/creators in the search catalogue qualify/).waitFor({ timeout: 20000 }).catch(() => {});
+  coverageCards[who] = (await card.innerText().catch(() => "")).replace(/\s+/g, " ");
 
   if (who === "super1") {
     // Admin sections need a security key. Chrome's virtual authenticator stands in for a hardware key (WebAuthn).
@@ -111,6 +115,10 @@ for (const who of ["super1", "support"]) {
 }
 
 const supportToken = await apiToken("support");
+const coverage = await (await fetch(`${API}/admin/v1/ops/eligibility`, { headers: { authorization: `Bearer ${supportToken}` } })).json();
+check("eligibility", "the Overview coverage card shows the API's counts to Super Admin and Support (counts only)",
+  coverage.total > 0 && ["super1", "support"].every((w) => coverageCards[w]?.includes(`${coverage.eligible} of ${coverage.total} creators in the search catalogue qualify`)) && !(coverageCards.support ?? "@").includes("@"),
+  `${coverage.eligible}/${coverage.total} | ${(coverageCards.support ?? "").slice(0, 160)}`);
 const blocked = await Promise.all(["/admin/v1/staff", "/admin/v1/audit", "/admin/v1/ops/provider-controls"].map(async (path) => (await fetch(`${API}${path}`, { headers: { authorization: `Bearer ${supportToken}` } })).status));
 check("roles", "Support is refused staff management, the audit log and provider controls (API 403)", blocked.every((s) => s === 403), blocked.join(","));
 const adminToken = await apiToken("admin");
