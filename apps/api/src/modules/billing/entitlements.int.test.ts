@@ -133,3 +133,26 @@ describe("refunds and chargebacks (provisional policy, OD-009)", () => {
     expect(await ownerQuery(`select 1 from wp.payment_adjustments`)).toEqual([]);
   });
 });
+
+describe("financial records are protected from deletion (audit BIL-05)", () => {
+  it("a workspace is never hard-deleted, even by the database owner; erasing it keeps every financial record", async () => {
+    const c = await customer();
+    await buy(c, { kind: "subscription", planId: "growth", interval: "month" });
+    await expect(ownerQuery(`delete from wp.workspaces where id = '${c.workspaceId}'`)).rejects.toThrow(/never hard-deleted/);
+    const before = await ownerQuery<{ n: number }>(`select (select count(*) from wp.credit_ledger where workspace_id = '${c.workspaceId}') + (select count(*) from wp.payments where workspace_id = '${c.workspaceId}') + (select count(*) from wp.subscriptions where workspace_id = '${c.workspaceId}') as n`);
+    await ownerQuery(`select platform.erase_workspace('${c.workspaceId}')`);
+    const after = await ownerQuery<{ n: number; status: string }>(`select (select count(*) from wp.credit_ledger where workspace_id = '${c.workspaceId}') + (select count(*) from wp.payments where workspace_id = '${c.workspaceId}') + (select count(*) from wp.subscriptions where workspace_id = '${c.workspaceId}') as n, (select status from wp.workspaces where id = '${c.workspaceId}') as status`);
+    expect(Number(after[0]?.n)).toBe(Number(before[0]?.n));
+    expect(Number(before[0]?.n)).toBeGreaterThan(2);
+    expect(after[0]?.status).toBe("deleted");
+    // Even with the trigger disabled (a careless maintenance script), the foreign keys still refuse.
+    await expect(ownerQuery(`alter table wp.workspaces disable trigger workspaces_no_delete; delete from wp.workspaces where id = '${c.workspaceId}'`)).rejects.toThrow(/violates foreign key|restrict/);
+    await ownerQuery(`alter table wp.workspaces enable trigger workspaces_no_delete`);
+  });
+
+  it("no financial table cascades on workspace deletion", async () => {
+    const rows = await ownerQuery<{ t: string; rule: string }>(`select c.conrelid::regclass::text t, c.confdeltype::text rule from pg_constraint c where c.contype = 'f' and c.confrelid = 'wp.workspaces'::regclass and c.conrelid::regclass::text in ('wp.credit_ledger','wp.credit_lots','wp.credit_reservations','wp.payments','wp.payment_adjustments','wp.subscriptions','wp.checkouts','wp.entitlement_usage') order by 1`);
+    expect(rows).toHaveLength(8);
+    expect(rows.filter((r) => r.rule !== "r")).toEqual([]);
+  });
+});
