@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createLogger, type TenantContext } from "@mushin/core";
 import { createTestDatabase, createTestWorkspace, ownerQuery, resetTables } from "@mushin/db/testing";
 import { MockPayments } from "@mushin/integrations";
@@ -23,6 +23,9 @@ beforeEach(() => {
 });
 
 const days = (n: number) => new Date(clock.getTime() + n * 86_400_000);
+const allowAnnual = () => ownerQuery(`update platform.billing_settings set annual_billing_enabled = true`);
+// A platform setting survives resetTables: always switch annual billing back off.
+afterEach(() => ownerQuery(`update platform.billing_settings set annual_billing_enabled = false`));
 
 /** Applies every webhook the mock has "sent", in order, the way the worker would. */
 async function flush() {
@@ -178,6 +181,7 @@ describe("webhook safety (Review Focus 2)", () => {
 
 describe("plan changes", () => {
   it("upgrades to a new interval now: the period restarts and the new plan's full allowance replaces the old", async () => {
+    await allowAnnual(); // yearly billing is preserved but off until the owner approves annual prices (OD-002)
     const c = await trialCustomer();
     await subscribe(c, "growth");
     clock = days(15);
@@ -217,6 +221,7 @@ describe("plan changes", () => {
   });
 
   it("gives a mid-year upgrade's extra credits until the end of the current credit month", async () => {
+    await allowAnnual(); // yearly billing is preserved but off until the owner approves annual prices (OD-002)
     const c = await trialCustomer();
     await subscribe(c, "explorer", "year");
     clock = new Date("2026-11-07T10:00:01Z");
@@ -348,6 +353,7 @@ describe("jobs", () => {
   });
 
   it("grants a yearly plan's credits month by month", async () => {
+    await allowAnnual(); // yearly billing is preserved but off until the owner approves annual prices (OD-002)
     const c = await trialCustomer();
     await subscribe(c, "explorer", "year");
     const first = await ownerQuery<{ expires: string }>(`select to_char(expires_at at time zone 'UTC', 'YYYY-MM-DD') expires from wp.credit_lots where source = 'monthly'`);

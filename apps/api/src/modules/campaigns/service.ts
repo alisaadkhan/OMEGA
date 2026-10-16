@@ -11,7 +11,7 @@ import {
   type UpdateCampaignCreator,
 } from "@mushin/contracts";
 import { AppError, type TenantContext } from "@mushin/core";
-import type { Db } from "@mushin/db";
+import type { Db, TenantTx } from "@mushin/db";
 import { ineligibleCreatorIds, ineligibleError, rankCards, requestContactCheck, type SourcePolicy } from "../creators/index";
 import * as repo from "./repository";
 
@@ -34,6 +34,7 @@ function toSummary(r: repo.SummaryRow): CampaignSummary {
     currency: "PKR",
     startDate: r.startDate,
     endDate: r.endDate,
+    archivedAt: r.archivedAt ? r.archivedAt.toISOString() : null,
     creatorCount: r.creatorCount,
     stageCounts: { identified: r.identified, contacted: r.contacted, negotiating: r.negotiating, confirmed: r.confirmed },
     declinedCount: r.declinedCount,
@@ -104,20 +105,42 @@ export function createCampaignsService(deps: CampaignsDeps) {
     const limit = (await deps.planLimits(ctx)).entitlements.campaignLimit;
     return deps.db.withTenant(tenant(ctx), async (tx) => {
       if ((await repo.countCampaigns(tx, ctx.workspaceId)) >= repo.MAX_CAMPAIGNS) throw new AppError("CONFLICT", `A workspace can keep up to ${repo.MAX_CAMPAIGNS} campaigns.`);
-      // The plan's campaign limit counts open campaigns (not completed ones); no plan means no new campaigns.
-      if (limit !== null && (await repo.countOpenCampaigns(tx, ctx.workspaceId)) >= limit) {
-        throw new AppError("ENTITLEMENT_REQUIRED", limit === 0 ? "Your workspace needs an active plan to create campaigns." : `Your plan includes up to ${limit} open campaigns. Complete one or upgrade to add another.`, { reason: "plan_limit", key: "campaigns", limit });
-      }
+      await assertBelowLimit(tx, ctx.workspaceId, limit);
       const row = await repo.insertCampaign(tx, { ...body, workspaceId: ctx.workspaceId, createdBy: ctx.userId });
       return summaryOf(tx, ctx, row.id);
     });
   }
 
+  /**
+   * The plan's campaign limit counts campaigns that are not archived (owner rule 2026-10-16); no plan means no new
+   * campaigns. Taken under a per-workspace lock so two concurrent creations cannot both pass. A workspace already above
+   * a lower plan's limit keeps everything; it only cannot add more until it archives some.
+   */
+  async function assertBelowLimit(tx: TenantTx, workspaceId: string, limit: number | null) {
+    if (limit === null) return;
+    await repo.lockCampaignLimit(tx, workspaceId);
+    const used = await repo.countCampaignsForLimit(tx, workspaceId);
+    if (used >= limit) {
+      throw new AppError(
+        "ENTITLEMENT_REQUIRED",
+        limit === 0 ? "Your workspace needs an active plan to create campaigns." : `Your plan includes up to ${limit} campaigns that are not archived. Archive one or upgrade to add another.`,
+        { reason: "plan_limit", key: "campaigns", limit, used },
+      );
+    }
+  }
+
   async function update(ctx: TenantContext, id: string, patch: UpdateCampaign): Promise<CampaignSummary> {
+    // Un-archiving takes a slot again, so it is checked against the plan like a new campaign.
+    const limit = patch.status !== undefined && patch.status !== "archived" ? (await deps.planLimits(ctx)).entitlements.campaignLimit : null;
     return deps.db.withTenant(tenant(ctx), async (tx) => {
       const current = await repo.lockCampaign(tx, ctx.workspaceId, id);
       if (!current) throw notFound();
       const clean = Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined)) as Partial<repo.CampaignRow>;
+      if (clean.status === "archived" && current.status !== "archived") clean.archivedAt = now();
+      if (clean.status !== undefined && clean.status !== "archived" && current.status === "archived") {
+        await assertBelowLimit(tx, ctx.workspaceId, limit);
+        clean.archivedAt = null;
+      }
       const start = clean.startDate !== undefined ? clean.startDate : current.startDate;
       const end = clean.endDate !== undefined ? clean.endDate : current.endDate;
       if (start && end && end < start) throw new AppError("VALIDATION_FAILED", "The end date must be on or after the start date", { field: "endDate" });

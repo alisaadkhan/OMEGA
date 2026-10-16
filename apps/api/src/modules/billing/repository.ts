@@ -9,6 +9,7 @@ import {
   creditLedger,
   creditLots,
   creditReservations,
+  paymentAdjustments,
   plans,
   subscriptions,
   topupPacks,
@@ -18,7 +19,7 @@ import {
 } from "@mushin/db";
 import type { LedgerCursor, LotForSpend } from "./rules";
 
-type AnyTx = TenantTx | SystemTx;
+export type AnyTx = TenantTx | SystemTx;
 
 export type LotSource = (typeof creditLots.$inferSelect)["source"];
 export type SettingsRow = typeof billingSettings.$inferSelect;
@@ -425,4 +426,43 @@ export async function incrementUsage(
       where ${limit}::int is null or wp.entitlement_usage.count < ${limit}::int
     returning count`);
   return rows.length === 1;
+}
+
+// ── refunds and chargebacks (0038) ─────────────────────────────────────────
+export type RevocableLot = { id: string; amount: number; remaining: number };
+
+export async function getPayment(tx: TenantTx, workspaceId: string, paymentId: string): Promise<PaymentRow | null> {
+  const [r] = await tx.select().from(billingPayments).where(and(eq(billingPayments.workspaceId, workspaceId), eq(billingPayments.id, paymentId))).for("update");
+  return r ?? null;
+}
+
+export async function adjustmentApplied(tx: TenantTx, providerAdjustmentId: string): Promise<boolean> {
+  return (await tx.select({ id: paymentAdjustments.id }).from(paymentAdjustments).where(eq(paymentAdjustments.providerAdjustmentId, providerAdjustmentId)).limit(1)).length === 1;
+}
+
+/** The lots a top-up payment granted. */
+export function lotsOfPayment(tx: TenantTx, workspaceId: string, paymentId: string): Promise<RevocableLot[]> {
+  return tx
+    .select({ id: creditLots.id, amount: creditLots.amount, remaining: creditLots.remaining })
+    .from(creditLots)
+    .where(and(eq(creditLots.workspaceId, workspaceId), eq(creditLots.paymentId, paymentId)))
+    .orderBy(asc(creditLots.createdAt));
+}
+
+/** The monthly-credit lots still valid now: what the subscription payment of the current period granted. */
+export function currentMonthlyLots(tx: TenantTx, workspaceId: string, now: Date): Promise<RevocableLot[]> {
+  return tx
+    .select({ id: creditLots.id, amount: creditLots.amount, remaining: creditLots.remaining })
+    .from(creditLots)
+    .where(and(eq(creditLots.workspaceId, workspaceId), eq(creditLots.source, "monthly"), gt(creditLots.expiresAt, now)))
+    .orderBy(asc(creditLots.createdAt));
+}
+
+export async function reduceLot(tx: TenantTx, workspaceId: string, lotId: string, amount: number): Promise<void> {
+  await tx.update(creditLots).set({ remaining: sql`${creditLots.remaining} - ${amount}` }).where(and(eq(creditLots.workspaceId, workspaceId), eq(creditLots.id, lotId)));
+}
+
+export async function recordAdjustment(tx: TenantTx, a: typeof paymentAdjustments.$inferInsert, refundedMinor: number, status: string): Promise<void> {
+  await tx.insert(paymentAdjustments).values(a);
+  await tx.update(billingPayments).set({ refundedMinor, status }).where(and(eq(billingPayments.workspaceId, a.workspaceId), eq(billingPayments.id, a.paymentId)));
 }

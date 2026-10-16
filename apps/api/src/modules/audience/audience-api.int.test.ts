@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { createLogger } from "@mushin/core";
-import { createTestDatabase, resetTables } from "@mushin/db/testing";
+import { createTestDatabase, ownerQuery, resetTables } from "@mushin/db/testing";
 import { MockPayments } from "@mushin/integrations";
 import { createCustomerGuard } from "../../auth/customer-guard";
 import { createCustomerTokenVerifier } from "../../auth/customer-token";
@@ -34,7 +34,13 @@ async function setup() {
     },
     modules: [platform.module, identity.module, createAudienceModule({ service: createAudienceService({ db, billing, sources: ["youtube"] }), limiter })],
   });
-  const user = async () => ({ authorization: `Bearer ${await iss.sign({ sub: randomUUID(), email: `${randomUUID().slice(0, 6)}@mushin.pk`, fullName: "Owner" })}` });
+  // Each user's workspace is put on Growth (audience details are a Growth/Scale entitlement since 2026-10-16).
+  const user = async () => {
+    const h = { authorization: `Bearer ${await iss.sign({ sub: randomUUID(), email: `${randomUUID().slice(0, 6)}@mushin.pk`, fullName: "Owner" })}` };
+    const ws = (await app.inject({ method: "GET", url: "/v1/me", headers: h })).json().workspace.id as string;
+    await ownerQuery(`update wp.subscriptions set status = 'active', plan_id = 'growth', billing_interval = 'month', current_period_start = now(), current_period_end = now() + interval '1 month' where workspace_id = '${ws}'`);
+    return h;
+  };
   return { app, user };
 }
 

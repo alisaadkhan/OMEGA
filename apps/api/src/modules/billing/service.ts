@@ -1,7 +1,9 @@
+import { sql } from "drizzle-orm";
 import type {
   BillingInterval,
   BillingPlans,
   BillingSummary,
+  Capabilities,
   CheckoutRequest,
   CreditAction,
   Entitlements,
@@ -18,11 +20,19 @@ import { createCreditEngine, type SpendRequest } from "./engine";
 import * as repo from "./repository";
 import { addMonths, classifyChange, daysLeft, decodeCursor, effectiveStatus, encodeCursor, lostAccessFor, spendScope } from "./rules";
 
-export type BillingDeps = { db: Db; payments: Payments; cache: AccessCache; logger: Logger; now?: () => Date };
+/** `capabilities`: the server-wide switches (see capabilitiesSchema); omitted means everything gated stays off. */
+export type BillingDeps = { db: Db; payments: Payments; cache: AccessCache; logger: Logger; now?: () => Date; capabilities?: Capabilities };
+const CAPABILITIES_OFF: Capabilities = { audienceDetails: false, outreachEmail: "off", export: false };
 export type Customer = TenantContext & { email: string };
 
 const BILLING_ROLES = new Set<TenantContext["role"]>(["owner", "admin"]);
 const NO_ENTITLEMENTS: Entitlements = { audienceViewsPerMonth: 0, outreachEmailsPerMonth: 0, campaignLimit: 0, export: false };
+
+function refuseUnapprovedAnnual(settings: repo.SettingsRow, interval: BillingInterval) {
+  if (interval === "year" && !settings.annualBillingEnabled) {
+    throw new AppError("VALIDATION_FAILED", "Annual billing is not available yet. Choose monthly billing.", { reason: "annual_billing_unavailable", field: "interval" });
+  }
+}
 
 function requireBillingRole(ctx: TenantContext) {
   if (!BILLING_ROLES.has(ctx.role)) throw new AppError("FORBIDDEN", "Only the workspace owner or an admin can manage billing");
@@ -98,50 +108,55 @@ export function createBillingService(deps: BillingDeps) {
     return deps.db.withTenant(tenant(ctx), (tx) => repo.getActionCost(tx, action));
   }
 
-  async function plans(ctx: TenantContext): Promise<BillingPlans> {
-    return deps.db.withTenant(tenant(ctx), async (tx) => {
-      const planRows = await repo.listPlans(tx);
-      const packRows = await repo.listPacks(tx);
-      const costs = new Map((await repo.listActionCosts(tx)).map((c) => [c.action, c.credits]));
-      const cost = (a: CreditAction) => {
-        const value = costs.get(a);
-        if (value === undefined) throw new Error(`no credit cost configured for ${a}`);
-        return value;
-      };
-      return {
-        plans: planRows.map((p) => ({
-          id: p.id,
-          name: p.name,
-          monthlyCredits: p.monthlyCredits,
-          display: {
-            monthly: { amountMinor: p.displayMonthlyMinor, currency: p.displayCurrency },
-            yearlyPerMonth: { amountMinor: p.displayYearlyMonthlyMinor, currency: p.displayCurrency },
-          },
-          charge: {
-            monthly: { amountMinor: p.chargeMonthlyMinor, currency: p.chargeCurrency },
-            yearly: { amountMinor: p.chargeYearlyMinor, currency: p.chargeCurrency },
-          },
-          entitlements: p.entitlements,
-        })),
-        topupPacks: packRows.map((k) => ({
-          id: k.id,
-          credits: k.credits,
-          display: { amountMinor: k.displayPriceMinor, currency: k.displayCurrency },
-          charge: { amountMinor: k.chargePriceMinor, currency: k.chargeCurrency },
-          validityMonths: null,
-        })),
-        actionCosts: {
-          search_existing: cost("search_existing"),
-          find_new: cost("find_new"),
-          live_creator: cost("live_creator"),
-          reveal_contact: cost("reveal_contact"),
-          refresh_data: cost("refresh_data"),
-          refresh_tiktok: cost("refresh_tiktok"),
-          audience_estimate: cost("audience_estimate"),
+  /** The plan catalogue (platform.plans is the only source of plans, prices and entitlements). */
+  async function catalogue(tx: repo.AnyTx): Promise<BillingPlans> {
+    const planRows = await repo.listPlans(tx);
+    const packRows = await repo.listPacks(tx);
+    const costs = new Map((await repo.listActionCosts(tx)).map((c) => [c.action, c.credits]));
+    const cost = (a: CreditAction) => {
+      const value = costs.get(a);
+      if (value === undefined) throw new Error(`no credit cost configured for ${a}`);
+      return value;
+    };
+    return {
+      plans: planRows.map((p) => ({
+        id: p.id,
+        name: p.name,
+        monthlyCredits: p.monthlyCredits,
+        display: {
+          monthly: { amountMinor: p.displayMonthlyMinor, currency: p.displayCurrency },
+          yearlyPerMonth: { amountMinor: p.displayYearlyMonthlyMinor, currency: p.displayCurrency },
         },
-      };
-    });
+        charge: {
+          monthly: { amountMinor: p.chargeMonthlyMinor, currency: p.chargeCurrency },
+          yearly: { amountMinor: p.chargeYearlyMinor, currency: p.chargeCurrency },
+        },
+        entitlements: p.entitlements,
+      })),
+      topupPacks: packRows.map((k) => ({
+        id: k.id,
+        credits: k.credits,
+        display: { amountMinor: k.displayPriceMinor, currency: k.displayCurrency },
+        charge: { amountMinor: k.chargePriceMinor, currency: k.chargeCurrency },
+        validityMonths: null,
+      })),
+      actionCosts: {
+        search_existing: cost("search_existing"),
+        find_new: cost("find_new"),
+        live_creator: cost("live_creator"),
+        reveal_contact: cost("reveal_contact"),
+        refresh_data: cost("refresh_data"),
+        refresh_tiktok: cost("refresh_tiktok"),
+        audience_estimate: cost("audience_estimate"),
+      },
+      annualBilling: (await repo.getSettings(tx)).annualBillingEnabled,
+      availability: deps.capabilities ?? CAPABILITIES_OFF,
+    };
   }
+
+  const plans = (ctx: TenantContext): Promise<BillingPlans> => deps.db.withTenant(tenant(ctx), catalogue);
+  /** The same catalogue for signed-out visitors (pricing page): plan and price data only, nothing per workspace. */
+  const publicPlans = (): Promise<BillingPlans> => deps.db.withSystem(catalogue);
 
   async function ledger(ctx: TenantContext, q: { cursor?: string | undefined; limit: number }): Promise<LedgerPage> {
     requireBillingRole(ctx);
@@ -231,6 +246,7 @@ export function createBillingService(deps: BillingDeps) {
         return { checkout, price };
       }
       if (isPaying(sub)) throw new AppError("CONFLICT", "You already have a subscription. Change your plan instead.");
+      refuseUnapprovedAnnual(await repo.getSettings(tx), req.interval);
       const plan = await repo.getPlan(tx, req.planId);
       if (!plan || !plan.active) throw new AppError("NOT_FOUND", "That plan is not available");
       const price = priceForPlan(plan, req.interval);
@@ -268,6 +284,7 @@ export function createBillingService(deps: BillingDeps) {
         throw new AppError("CONFLICT", "There is no active subscription to change. Choose a plan instead.");
       }
       if (sub.cancelAtPeriodEnd) throw new AppError("CONFLICT", "Your subscription is set to end at the end of this period.");
+      if (sub.billingInterval !== "year") refuseUnapprovedAnnual(await repo.getSettings(tx), req.interval);
       const current = await repo.getPlan(tx, sub.planId);
       const target = await repo.getPlan(tx, req.planId);
       if (!current || !target || !target.active) throw new AppError("NOT_FOUND", "That plan is not available");
@@ -321,7 +338,7 @@ export function createBillingService(deps: BillingDeps) {
         eventType: "billing.webhook_received",
         aggregateType: "webhook_event",
         aggregateId: id,
-        workspaceId: event.kind === "ignored" ? null : event.workspaceId,
+        workspaceId: event.kind === "ignored" || event.kind === "adjustment.approved" ? null : event.workspaceId,
         payload: { webhookEventId: id },
         requestId,
       });
@@ -463,8 +480,46 @@ export function createBillingService(deps: BillingDeps) {
     });
   }
 
+  /**
+   * An approved refund or chargeback (provisional policy until OD-009): mark the payment, remove the unspent credits it
+   * granted (a top-up's own lot; for a subscription payment, the current period's monthly credits) in proportion to the
+   * amount returned, and record what had already been spent as a shortfall. Applied once per provider adjustment.
+   * Entitlements follow the subscription events the provider sends with it (a chargeback normally cancels).
+   */
+  async function onAdjustment(e: Extract<PaymentEvent, { kind: "adjustment.approved" }>): Promise<string | null> {
+    const [owner] = await deps.db.withSystem((tx) => tx.execute<{ v: { paymentId: string; workspaceId: string } | null }>(sql`select platform.payment_owner(${e.transactionId}) v`));
+    if (!owner?.v) {
+      deps.logger.warn({ eventId: e.eventId, transactionId: e.transactionId }, "refund or chargeback for a transaction MUSHIN has not recorded; nothing changed");
+      return null;
+    }
+    const { paymentId, workspaceId } = owner.v;
+    await deps.db.withWorkspace(workspaceId, async (tx) => {
+      await repo.lockCredits(tx, workspaceId);
+      if (await repo.adjustmentApplied(tx, e.adjustmentId)) return;
+      const payment = await repo.getPayment(tx, workspaceId, paymentId);
+      if (!payment) return;
+      const lots = payment.kind === "topup" ? await repo.lotsOfPayment(tx, workspaceId, paymentId) : await repo.currentMonthlyLots(tx, workspaceId, now());
+      const granted = lots.reduce((n, l) => n + l.amount, 0);
+      const share = e.full || payment.amountMinor === 0 ? 1 : Math.min(1, e.amountMinor / payment.amountMinor);
+      const target = Math.floor(granted * share);
+      const label = e.action === "chargeback" ? "Chargeback" : "Refund";
+      const { removed, shortfall } = await engine.revoke(tx, workspaceId, lots, target, `${e.action}:${e.adjustmentId}`, `${label}: credits from the returned payment removed`);
+      const refunded = Math.min(payment.amountMinor, payment.refundedMinor + e.amountMinor);
+      const status = e.action === "chargeback" ? "charged_back" : refunded >= payment.amountMinor ? "refunded" : "partially_refunded";
+      await repo.recordAdjustment(tx, { workspaceId, paymentId, providerAdjustmentId: e.adjustmentId, action: e.action, amountMinor: e.amountMinor, creditsRemoved: removed, creditsShortfall: shortfall }, refunded, status);
+      await notify(tx, workspaceId, e.action === "chargeback" ? "payment_charged_back" : "payment_refunded", { paymentId, creditsRemoved: removed });
+      if (shortfall > 0) deps.logger.warn({ workspaceId, paymentId, shortfall }, "refunded credits had already been spent; recorded as a shortfall");
+    });
+    return workspaceId;
+  }
+
   async function applyEvent(e: PaymentEvent): Promise<void> {
     if (e.kind === "ignored") return;
+    if (e.kind === "adjustment.approved") {
+      const workspaceId = await onAdjustment(e);
+      if (workspaceId) await deps.cache.invalidate(workspaceId);
+      return;
+    }
     if (e.kind === "transaction.completed") await onTransaction(e);
     else if (e.kind === "transaction.payment_failed") await onPaymentFailed(e);
     else await onSubscription(e);
@@ -647,6 +702,7 @@ export function createBillingService(deps: BillingDeps) {
     startTrial: engine.startTrial,
     summary,
     plans,
+    publicPlans,
     actionCost,
     ledger,
     invoices,

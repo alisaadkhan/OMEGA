@@ -56,6 +56,7 @@ export async function summaries(tx: TenantTx, workspaceId: string, o: { campaign
     startDate: (r["start_date"] as string | null) ?? null,
     endDate: (r["end_date"] as string | null) ?? null,
     createdBy: r["created_by"] as string,
+    archivedAt: r["archived_at"] ? new Date(r["archived_at"] as string) : null,
     createdAt: new Date(r["created_at"] as string),
     updatedAt: new Date(r["updated_at"] as string),
     creatorCount: Number(r["creatorCount"]),
@@ -69,9 +70,15 @@ export async function summaries(tx: TenantTx, workspaceId: string, o: { campaign
   }));
 }
 
-export async function countOpenCampaigns(tx: TenantTx, workspaceId: string): Promise<number> {
-  const [r] = await tx.select({ n: sql<number>`count(*)::int` }).from(campaigns).where(and(eq(campaigns.workspaceId, workspaceId), ne(campaigns.status, "completed")));
+/** Campaigns that count towards the plan limit: every campaign that is not archived (owner rule 2026-10-16). */
+export async function countCampaignsForLimit(tx: TenantTx, workspaceId: string): Promise<number> {
+  const [r] = await tx.select({ n: sql<number>`count(*)::int` }).from(campaigns).where(and(eq(campaigns.workspaceId, workspaceId), ne(campaigns.status, "archived")));
   return r?.n ?? 0;
+}
+
+/** Serialises campaign creation and un-archiving per workspace, so concurrent requests cannot pass the limit together. */
+export async function lockCampaignLimit(tx: TenantTx, workspaceId: string): Promise<void> {
+  await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${"campaign-limit:" + workspaceId}, 0))`);
 }
 
 export async function countCampaigns(tx: TenantTx, workspaceId: string): Promise<number> {

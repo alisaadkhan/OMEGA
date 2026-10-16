@@ -1,7 +1,8 @@
+import { createHmac } from "node:crypto";
 import { Redis } from "@upstash/redis";
 import { createLogger, loadApiConfig } from "@mushin/core";
 import { createDatabase, createDbProviderCallSink, providerPaused, providerSpendSince, UNVERIFIED_TLS_WARNING } from "@mushin/db";
-import { createLlm, createPayments, createSearchIndex, pausableLlm } from "@mushin/integrations";
+import { createLlm, createPayments, createSearchIndex, MockEmailProvider, pausableLlm, ResendEmailProvider } from "@mushin/integrations";
 import { buildApp } from "./app";
 import { createCustomerGuard } from "./auth/customer-guard";
 import { createCustomerTokenVerifier, remoteJwks } from "./auth/customer-token";
@@ -16,7 +17,9 @@ import { createSupportModule, createSupportService } from "./modules/support";
 import { createAnalyticsModule, createAnalyticsService } from "./modules/analytics";
 import { createCampaignsModule, createCampaignsService } from "./modules/campaigns";
 import { createIdentityModule } from "./modules/identity";
+import { createExportsModule } from "./modules/exports";
 import { createListsModule, createListsService } from "./modules/lists";
+import { createOutreachModule } from "./modules/outreach";
 import { createPlatformModule } from "./modules/platform";
 import { createStaffModule, createStaffTokens, recordStaffAudit } from "./modules/staff";
 import { createStaffOpsModule } from "./modules/staffops";
@@ -52,7 +55,27 @@ const payments = createPayments(config.payments, { sink: createDbProviderCallSin
 const accessCache = config.rateLimit.upstash
   ? createRedisAccessCache(new Redis({ url: config.rateLimit.upstash.url, token: config.rateLimit.upstash.token }), logger)
   : noAccessCache;
-const billing = createBillingService({ db, payments, cache: accessCache, logger });
+// Server-wide switches that plans cannot override (owner plan model 2026-10-16): audience details need an approved
+// data source; outreach email a configured provider (test mode delivers nothing); export is built and on.
+const capabilities = {
+  audienceDetails: config.audienceSources.length > 0,
+  outreachEmail: config.outreachEmail.mode === "off" ? ("off" as const) : config.outreachEmail.mode === "test" ? ("test" as const) : ("live" as const),
+  export: true,
+};
+const billing = createBillingService({ db, payments, cache: accessCache, logger, capabilities });
+const emailProvider =
+  config.outreachEmail.mode === "resend" ? new ResendEmailProvider({ apiKey: config.outreachEmail.apiKey }) : config.outreachEmail.mode === "test" ? new MockEmailProvider() : null;
+const outreach = createOutreachModule({
+  db,
+  billing,
+  provider: emailProvider,
+  from: config.outreachEmail.mode === "off" ? "" : config.outreachEmail.from,
+  encryptionKey: config.dataEncryptionKey,
+  unsubscribeKey: createHmac("sha256", config.dataEncryptionKey).update("mushin:outreach-unsubscribe").digest(),
+  appUrl: config.appUrl,
+  webhookSecret: config.outreachEmail.mode === "resend" ? config.outreachEmail.webhookSecret : null,
+  logger,
+});
 const searchIndex = createSearchIndex(config.search, logger);
 const nativeSearch = createPostgresCatalogSearch(db);
 if (config.catalogSearchBackend === "meilisearch") readiness.push({ name: "search", check: config.search ? () => searchIndex.ping() : async () => "skipped" });
@@ -95,6 +118,8 @@ const app = await buildApp({
     createDiscoveryModule({ service: createDiscoveryService({ db, billing, sourcePolicy: config.sourcePolicy }), limiter }),
     createListsModule({ service: createListsService({ db, sourcePolicy: config.sourcePolicy }) }),
     createCampaignsModule({ service: createCampaignsService({ db, planLimits: billing.getAccess, sourcePolicy: config.sourcePolicy }) }),
+    outreach.module,
+    createExportsModule({ db, billing, enabled: capabilities.export }),
     createAnalyticsModule({ service: createAnalyticsService({ db }) }),
     createActivityModule({ service: createActivityService({ db }) }),
     createSupportModule({ service: createSupportService({ db }) }),

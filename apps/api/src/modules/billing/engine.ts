@@ -9,7 +9,7 @@ import {
   lostAccessFor,
   meterAlert,
   meterState,
-  monthStart,
+  allowancePeriodStart,
   spendScope,
   type Allocation,
 } from "./rules";
@@ -293,9 +293,33 @@ export function createCreditEngine(o: { now?: () => Date } = {}) {
       return rows.length;
     }),
     reconcile: (tx: TenantTx, workspaceId: string) => repo.lotLedgerMismatches(tx, workspaceId),
-    useEntitlement: locked((tx, workspaceId, key: "audience_views" | "outreach_emails", limit: number | null) =>
-      repo.incrementUsage(tx, workspaceId, key, monthStart(now()), limit),
-    ),
+    useEntitlement: locked(async (tx, workspaceId, key: "audience_views" | "outreach_emails", limit: number | null) => {
+      const period = allowancePeriodStart(await repo.getSubscription(tx, workspaceId), now());
+      return repo.incrementUsage(tx, workspaceId, key, period.toISOString().slice(0, 10), limit);
+    }),
+    /**
+     * Removes up to `target` credits from the given lots (refund or chargeback of the payment that granted them). Never
+     * more than a lot still holds, and never credits already held for running work, so the balance cannot go negative
+     * and a held charge can still be settled. Each removal is an `adjust` ledger row on its lot.
+     */
+    revoke: locked(async (tx, workspaceId, lots: repo.RevocableLot[], target: number, ref: string, note: string) => {
+      const t = now();
+      let headroom = Math.max(0, (await repo.sumRemaining(tx, workspaceId, t, "all")) - (await repo.sumHeld(tx, workspaceId)));
+      let left = Math.max(0, target);
+      let removed = 0;
+      for (const lot of lots) {
+        const take = Math.min(lot.remaining, left, headroom);
+        if (take <= 0) continue;
+        await repo.reduceLot(tx, workspaceId, lot.id, take);
+        await repo.insertLedger(tx, [{ workspaceId, amount: -take, kind: "adjust", lotId: lot.id, sourceRef: ref, note, actorUserId: null }]);
+        removed += take;
+        left -= take;
+        headroom -= take;
+      }
+      return { removed, shortfall: Math.max(0, target) - removed };
+    }),
+    /** The allowance period now in effect for this workspace (see rules.allowancePeriodStart). */
+    allowancePeriod: async (tx: TenantTx, workspaceId: string) => allowancePeriodStart(await repo.getSubscription(tx, workspaceId), now()),
   };
 }
 

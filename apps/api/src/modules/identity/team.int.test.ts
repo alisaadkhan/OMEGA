@@ -185,7 +185,7 @@ describe("privacy self-service", () => {
 
   it("erases every workspace table except the billing records that are kept on purpose", async () => {
     // A table added later with a workspace_id must be erased or deliberately kept; this fails until it is one or the other.
-    const kept = ["checkouts", "credit_ledger", "credit_lots", "credit_reservations", "entitlement_usage", "payments", "subscriptions"];
+    const kept = ["checkouts", "credit_ledger", "credit_lots", "credit_reservations", "entitlement_usage", "payment_adjustments", "payments", "subscriptions"];
     const tables = (await ownerQuery<{ t: string }>(`select table_name t from information_schema.columns where table_schema = 'wp' and column_name = 'workspace_id' and table_name in (select table_name from information_schema.tables where table_schema = 'wp' and table_type = 'BASE TABLE')`)).map((r) => r.t);
     const [fn] = await ownerQuery<{ src: string }>(`select prosrc src from pg_proc where proname = 'erase_workspace'`);
     expect(tables.filter((t) => !kept.includes(t) && !fn?.src.includes(`'${t}'`)).sort()).toEqual([]);

@@ -4,7 +4,9 @@ import { creatorCardSchema } from "./search";
 const iso = z.iso.datetime();
 const day = z.iso.date();
 
-export const campaignStatusSchema = z.enum(["draft", "active", "paused", "completed"]);
+/** Archived campaigns keep their history and do not count towards a plan's campaign limit. */
+export const campaignStatusSchema = z.enum(["draft", "active", "paused", "completed", "archived"]);
+const newCampaignStatusSchema = campaignStatusSchema.exclude(["archived"]);
 export const campaignPlatformSchema = z.enum(["instagram", "tiktok", "youtube", "mixed"]);
 export const pipelineStageSchema = z.enum(["identified", "contacted", "negotiating", "confirmed"]);
 export const campaignOutcomeSchema = z.enum(["open", "declined"]);
@@ -33,7 +35,7 @@ const datesInOrder = (v: { startDate?: string | null; endDate?: string | null })
 const datesMessage = { message: "The end date must be on or after the start date", path: ["endDate"] };
 
 export const createCampaignSchema = z
-  .object({ ...campaignFields, status: campaignStatusSchema.default("draft"), platform: campaignPlatformSchema.nullable().default(null), client: campaignFields.client.default(""), objective: campaignFields.objective.default(""), notes: campaignFields.notes.default(""), budgetMinor: money.nullable().default(null), startDate: day.nullable().default(null), endDate: day.nullable().default(null) })
+  .object({ ...campaignFields, status: newCampaignStatusSchema.default("draft"), platform: campaignPlatformSchema.nullable().default(null), client: campaignFields.client.default(""), objective: campaignFields.objective.default(""), notes: campaignFields.notes.default(""), budgetMinor: money.nullable().default(null), startDate: day.nullable().default(null), endDate: day.nullable().default(null) })
   .refine(datesInOrder, datesMessage);
 export type CreateCampaign = z.input<typeof createCampaignSchema>;
 export const updateCampaignSchema = z
@@ -56,6 +58,7 @@ export const campaignSummarySchema = z.object({
   currency: z.literal("PKR"),
   startDate: day.nullable(),
   endDate: day.nullable(),
+  archivedAt: iso.nullable(),
   creatorCount: z.number().int().nonnegative(),
   stageCounts: z.record(pipelineStageSchema, z.number().int().nonnegative()),
   declinedCount: z.number().int().nonnegative(),

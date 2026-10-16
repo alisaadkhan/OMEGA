@@ -8,6 +8,7 @@ import {
   creditLots,
   creditReservations,
   entitlementUsage,
+  paymentAdjustments,
   plans,
   subscriptions,
   topupPacks,
@@ -35,8 +36,8 @@ import {
 import { audienceEstimates, audienceJobs } from "./audience";
 import { discoveryCandidates, discoveryEstimates, discoveryJobs, discoveryResults, serperCache } from "./discovery";
 import { users, workspaceInvitations, workspaceMembers, workspaces } from "./identity";
-import { listMembers, lists } from "./lists";
-import { campaignCreators, campaigns, outreachEvents } from "./campaigns";
+import { dataExports, listMembers, lists } from "./lists";
+import { campaignCreators, campaigns, outreachEmails, outreachEvents } from "./campaigns";
 import { supportAccessRequests, supportMessages, supportTickets } from "./support";
 import { idempotencyKeys, outbox, providerCalls, providerControls } from "./platform";
 import { approvals, auditLog, staffSessions, staffUsers, webauthnChallenges, webauthnCredentials } from "./staff";
@@ -81,6 +82,7 @@ export const ALL_TABLES = [
   creditReservations,
   creditLedger,
   entitlementUsage,
+  paymentAdjustments,
   creators,
   creatorProfiles,
   creatorContacts,
@@ -103,9 +105,11 @@ export const ALL_TABLES = [
   serperCache,
   lists,
   listMembers,
+  dataExports,
   campaigns,
   campaignCreators,
   outreachEvents,
+  outreachEmails,
   supportTickets,
   supportMessages,
   supportAccessRequests,

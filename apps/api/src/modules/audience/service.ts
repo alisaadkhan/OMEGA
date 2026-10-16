@@ -17,6 +17,7 @@ const MESSAGES = {
   source_disabled: "Audience estimates are turned off on this MUSHIN deployment until their data source is approved.",
   platform_unsupported: "Audience estimates are available for YouTube channels only. Instagram and TikTok need an approved data source first.",
   creator_protected: "Audience estimates are not available for creators who may be under 18.",
+  plan_required: "Audience details are included in the Growth and Scale plans.",
 } as const;
 
 const isOneOpenViolation = (err: unknown) => {
@@ -28,7 +29,8 @@ export function createAudienceService(deps: AudienceDeps) {
   const now = deps.now ?? (() => new Date());
   const tenant = (ctx: TenantContext) => ({ userId: ctx.userId, workspaceId: ctx.workspaceId });
 
-  async function stateIn(tx: TenantTx, ctx: TenantContext, creatorId: string): Promise<AudienceState> {
+  /** `included`: the plan has audience details (the server-wide source switch is checked separately, first). */
+  async function stateIn(tx: TenantTx, ctx: TenantContext, creatorId: string, included: boolean): Promise<AudienceState> {
     const t = await repo.target(tx, creatorId);
     if (!t || !t.active) throw new AppError("NOT_FOUND", "Creator not found");
     const availability = t.minorProtected
@@ -37,7 +39,9 @@ export function createAudienceService(deps: AudienceDeps) {
         ? ("platform_unsupported" as const)
         : !deps.sources.includes("youtube")
           ? ("source_disabled" as const)
-          : ("available" as const);
+          : !included
+            ? ("plan_required" as const)
+            : ("available" as const);
     const [cost] = Object.values(await deps.billing.engine.costs(tx, ["audience_estimate"]));
     const job = await repo.latestJob(tx, ctx.workspaceId, creatorId);
     // A protected creator's earlier estimate is not shown either.
@@ -54,8 +58,11 @@ export function createAudienceService(deps: AudienceDeps) {
   }
 
   /** Reading never computes or charges anything. */
+  const included = async (ctx: TenantContext) => (await deps.billing.getAccess(ctx)).entitlements.audienceViewsPerMonth !== 0;
+
   async function state(ctx: TenantContext, creatorId: string): Promise<AudienceState> {
-    return deps.db.withTenant(tenant(ctx), (tx) => stateIn(tx, ctx, creatorId));
+    const plan = await included(ctx);
+    return deps.db.withTenant(tenant(ctx), (tx) => stateIn(tx, ctx, creatorId, plan));
   }
 
   /**
@@ -66,7 +73,7 @@ export function createAudienceService(deps: AudienceDeps) {
     const access = await deps.billing.getAccess(ctx);
     try {
       return await deps.db.withTenant(tenant(ctx), async (tx) => {
-        const current = await stateIn(tx, ctx, creatorId);
+        const current = await stateIn(tx, ctx, creatorId, access.entitlements.audienceViewsPerMonth !== 0);
         if (current.availability !== "available") throw new AppError("CONFLICT", current.availabilityMessage ?? "Audience estimates are not available.", { reason: current.availability });
         if (current.estimate || (current.job && (current.job.status === "queued" || current.job.status === "running"))) return { httpStatus: 200 as const, body: current };
         // D5: requesting an audience estimate opens the creator's audience section; the first time each month counts.
@@ -92,7 +99,7 @@ export function createAudienceService(deps: AudienceDeps) {
           requestId: ctx.requestId,
         });
         await writeOutbox(tx, { eventType: "audience.estimate_requested", aggregateType: "audience_job", aggregateId: jobId, workspaceId: ctx.workspaceId, payload: { jobId }, requestId: ctx.requestId });
-        return { httpStatus: 202 as const, body: await stateIn(tx, ctx, creatorId) };
+        return { httpStatus: 202 as const, body: await stateIn(tx, ctx, creatorId, true) };
       });
     } catch (err) {
       // A simultaneous request created the job first; this transaction (and its reservation) rolled back.

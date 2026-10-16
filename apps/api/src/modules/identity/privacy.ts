@@ -7,6 +7,7 @@ import type { CustomerIdentity } from "../../auth/customer-token";
 const EXPORT_TABLES = [
   "lists", "list_members", "campaigns", "campaign_creators", "outreach_events", "saved_searches", "support_tickets", "support_messages",
   "discovery_jobs", "discovery_results", "contact_reveals", "audience_views", "catalog_search_charges", "subscriptions", "payments", "credit_lots", "credit_ledger",
+  "outreach_emails", "payment_adjustments",
 ] as const;
 /** Stated to the customer after a deletion; the retention period itself is an open owner decision. */
 const RETAINED = [

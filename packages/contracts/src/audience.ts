@@ -95,7 +95,8 @@ export type AudienceJob = z.output<typeof audienceJobSchema>;
 export const audienceStateSchema = z.object({
   creatorId: z.uuid(),
   platform: creatorPlatformSchema.nullable(),
-  availability: z.enum(["available", "source_disabled", "platform_unsupported", "creator_protected"]),
+  /** plan_required: the workspace's plan does not include audience details (Growth and Scale do). */
+  availability: z.enum(["available", "source_disabled", "platform_unsupported", "creator_protected", "plan_required"]),
   availabilityMessage: z.string().nullable(),
   /** The current price of a new estimate, in credits (the quote the user confirms). */
   cost: count,

@@ -73,6 +73,25 @@ describe("parsePaddleEvent", () => {
       parsePaddleEvent({ event_id: "evt_4", event_type: "transaction.completed", occurred_at: "2026-10-07T10:00:00Z", data: { id: "txn_x", custom_data: null } }),
     ).toMatchObject({ kind: "ignored" });
   });
+
+  it("reads approved refunds and chargebacks; pending, rejected and credit adjustments change nothing", () => {
+    const adj = (data: Record<string, unknown>, type = "adjustment.updated") =>
+      parsePaddleEvent({ event_id: "evt_a", event_type: type, occurred_at: "2026-10-07T10:00:00Z", data: { id: "adj_1", transaction_id: "txn_1", type: "full", totals: { total: "4600" }, ...data } });
+    expect(adj({ action: "refund", status: "approved" })).toEqual({
+      kind: "adjustment.approved",
+      eventId: "evt_a",
+      occurredAt: new Date("2026-10-07T10:00:00Z"),
+      adjustmentId: "adj_1",
+      action: "refund",
+      transactionId: "txn_1",
+      amountMinor: 4600,
+      full: true,
+    });
+    expect(adj({ action: "chargeback", status: "approved", type: "partial" }, "adjustment.created")).toMatchObject({ action: "chargeback", full: false });
+    for (const other of [{ action: "refund", status: "pending_approval" }, { action: "refund", status: "rejected" }, { action: "credit", status: "approved" }, { action: "chargeback_warning", status: "approved" }]) {
+      expect(adj(other)).toMatchObject({ kind: "ignored" });
+    }
+  });
 });
 
 describe("MockPayments", () => {

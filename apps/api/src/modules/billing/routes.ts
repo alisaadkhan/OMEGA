@@ -23,6 +23,12 @@ export function registerBillingRoutes(app: FastifyInstance, guards: Guards, serv
 
   app.get("/v1/billing/summary", read, async (req, reply) => sendOk(reply, billingSummarySchema, await service.summary(tenantOf(req))));
   app.get("/v1/billing/plans", read, async (req, reply) => sendOk(reply, billingPlansSchema, await service.plans(tenantOf(req))));
+  // The pricing page for signed-out visitors: the same catalogue, nothing per workspace or person, so a short shared
+  // cache is safe (a plan change reaches every visitor within five minutes).
+  app.get("/v1/public/plans", async (_req, reply) => {
+    void reply.header("cache-control", "public, max-age=300");
+    return sendOk(reply, billingPlansSchema, await service.publicPlans());
+  });
   app.get("/v1/billing/ledger", read, async (req, reply) => {
     const q = parseInput(ledgerQuerySchema, req.query);
     return sendOk(reply, ledgerPageSchema, await service.ledger(tenantOf(req), q));

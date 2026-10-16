@@ -96,6 +96,22 @@ export function monthStart(date: Date): string {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-01`;
 }
 
+/**
+ * Start of the allowance period that monthly plan limits (outreach emails, audience views) reset on: the paid
+ * subscription's current billing period, or the current credit month of a yearly plan. Without a paid period (trial,
+ * no plan) it falls back to the calendar month. Owner rule 2026-10-16: limits follow the billing period, not a
+ * calendar date.
+ */
+export function allowancePeriodStart(
+  sub: { status: string; billingInterval: "month" | "year" | null; currentPeriodStart: Date | null; nextCreditGrantAt: Date | null } | null,
+  now: Date,
+): Date {
+  const paying = sub?.status === "active" || sub?.status === "past_due";
+  if (!paying || !sub?.currentPeriodStart) return new Date(`${monthStart(now)}T00:00:00Z`);
+  if (sub.billingInterval === "year" && sub.nextCreditGrantAt) return addMonths(sub.nextCreditGrantAt, -1);
+  return sub.currentPeriodStart;
+}
+
 /** `at` is the row's exact created_at in UTC with microseconds: rows written in one transaction share it. */
 export type LedgerCursor = { at: string; id: string };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

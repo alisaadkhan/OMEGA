@@ -14,6 +14,8 @@ export function defaultHandlers(db: Db): HandlerRegistry {
       logger.info({ deleted: deleted[0]?.n ?? 0 }, "purged expired idempotency keys");
       const counters = await db.withSystem((tx) => tx.execute<{ n: number }>(sql`select platform.rate_limit_purge() as n`));
       logger.info({ deleted: counters[0]?.n ?? 0 }, "purged old rate-limit windows");
+      const exports = await db.withSystem((tx) => tx.execute<{ n: number }>(sql`select platform.purge_expired_exports() as n`));
+      logger.info({ purged: exports[0]?.n ?? 0 }, "removed expired data export files");
     },
   };
 }

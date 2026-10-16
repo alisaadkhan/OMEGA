@@ -35,6 +35,19 @@ export const entitlementsSchema = z.object({
 });
 export type Entitlements = z.infer<typeof entitlementsSchema>;
 
+/**
+ * Capabilities switched on or off for every workspace by the server, independent of plans: audience details need an
+ * approved data source, outreach email a configured and authorised provider. A plan entitlement is usable only when
+ * the capability is also available.
+ */
+export const capabilitiesSchema = z.object({
+  audienceDetails: z.boolean(),
+  /** "test": sends are recorded through a mock provider and nothing is delivered (development only). */
+  outreachEmail: z.enum(["off", "test", "live"]),
+  export: z.boolean(),
+});
+export type Capabilities = z.infer<typeof capabilitiesSchema>;
+
 export const moneySchema = z.object({ amountMinor: z.number().int().nonnegative(), currency: z.string().length(3) });
 
 export const billingSummarySchema = z.object({
@@ -79,6 +92,9 @@ export const billingPlansSchema = z.object({
     }),
   ),
   actionCosts: z.record(creditActionSchema, z.number().int().nonnegative()),
+  /** False until the owner approves annual prices (OD-002): yearly prices are not offered and yearly checkout is refused. */
+  annualBilling: z.boolean(),
+  availability: capabilitiesSchema,
 });
 export type BillingPlans = z.infer<typeof billingPlansSchema>;
 

@@ -32,6 +32,15 @@ const subscription = z.object({
   scheduled_change: z.object({ action: z.string() }).nullish(),
 });
 
+const adjustment = z.object({
+  id: z.string().min(1),
+  action: z.string(),
+  transaction_id: z.string().min(1),
+  status: z.string(),
+  type: z.string().nullish(),
+  totals: z.object({ total: z.string().regex(/^\d+$/) }),
+});
+
 function parseData<S extends z.ZodType>(schema: S, data: unknown, type: string): z.output<S> {
   const result = schema.safeParse(data);
   if (!result.success) throw new WebhookPayloadError(`unexpected ${type} payload: ${result.error.issues[0]?.message ?? "invalid"}`);
@@ -52,6 +61,12 @@ export function parsePaddleEvent(payload: unknown): PaymentEvent {
   if (!env.success) throw new WebhookPayloadError("not a Paddle event");
   const { event_id: eventId, event_type: type, occurred_at: occurredAtRaw, data } = env.data;
   const occurredAt = new Date(occurredAtRaw);
+  if (type === "adjustment.created" || type === "adjustment.updated") {
+    // Only an approved refund or chargeback changes anything; credits, warnings, reversals and pending ones do not.
+    const a = parseData(adjustment, data, type);
+    if (a.status !== "approved" || (a.action !== "refund" && a.action !== "chargeback")) return { kind: "ignored", eventId, occurredAt, eventType: type };
+    return { kind: "adjustment.approved", eventId, occurredAt, adjustmentId: a.id, action: a.action, transactionId: a.transaction_id, amountMinor: Number(a.totals.total), full: a.type !== "partial" };
+  }
   const handled = type === "transaction.completed" || type === "transaction.payment_failed" || isSubscriptionEvent(type);
   const owner = withCustomData.safeParse(data);
   if (!handled || !owner.success) return { kind: "ignored", eventId, occurredAt, eventType: type };

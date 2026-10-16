@@ -61,6 +61,8 @@ export const billingSettings = platform.table("billing_settings", {
   meterAmberPct: integer("meter_amber_pct").notNull(),
   meterRedPct: integer("meter_red_pct").notNull(),
   trialEndingNoticeDays: integer("trial_ending_notice_days").notNull(),
+  /** Off until the owner approves annual prices (OD-002): yearly checkouts and changes are refused. */
+  annualBillingEnabled: boolean("annual_billing_enabled").notNull().default(false),
   updatedAt: ts("updated_at").notNull().defaultNow(),
 });
 
@@ -150,8 +152,23 @@ export const billingPayments = wp.table("payments", {
   status: text("status").notNull(),
   invoiceUrl: text("invoice_url"),
   checkoutId: uuid("checkout_id"),
+  /** Amount refunded or charged back so far (0038). */
+  refundedMinor: money("refunded_minor").notNull().default(0),
   createdAt: ts("created_at").notNull().defaultNow(),
   updatedAt: ts("updated_at").notNull().defaultNow(),
+});
+
+/** Refunds and chargebacks applied once each (0038; provisional policy until OD-009). */
+export const paymentAdjustments = wp.table("payment_adjustments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").notNull(),
+  paymentId: uuid("payment_id").notNull(),
+  providerAdjustmentId: text("provider_adjustment_id").notNull(),
+  action: text("action", { enum: ["refund", "chargeback"] }).notNull(),
+  amountMinor: money("amount_minor").notNull(),
+  creditsRemoved: integer("credits_removed").notNull(),
+  creditsShortfall: integer("credits_shortfall").notNull(),
+  createdAt: ts("created_at").notNull().defaultNow(),
 });
 
 export const creditLots = wp.table("credit_lots", {

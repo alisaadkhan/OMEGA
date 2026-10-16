@@ -41,6 +41,21 @@ export type PaymentEvent =
     })
   | (EventBase & { kind: "transaction.payment_failed"; transactionId: string; checkoutId: string | null })
   | (EventBase & { kind: SubscriptionEventType; subscription: SubscriptionSnapshot })
+  /**
+   * An approved refund or chargeback of a transaction (Paddle adjustment.created / adjustment.updated). It carries no
+   * workspace: the receiver finds it through the stored transaction. Shape from Paddle's documentation, not yet
+   * verified against a sandbox delivery.
+   */
+  | {
+      kind: "adjustment.approved";
+      eventId: string;
+      occurredAt: Date;
+      adjustmentId: string;
+      action: "refund" | "chargeback";
+      transactionId: string;
+      amountMinor: number;
+      full: boolean;
+    }
   | { kind: "ignored"; eventId: string; occurredAt: Date; eventType: string };
 
 export type CheckoutInput = { checkoutId: string; workspaceId: string; customerEmail: string; price: PriceRef };

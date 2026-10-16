@@ -35,9 +35,16 @@ class FakeYouTube implements YouTubeAudienceSource {
 }
 const pkHeavy = () => [...Array(45).fill("PK"), ...Array(10).fill("AE"), ...Array(5).fill("US"), ...Array(140).fill(null)] as (string | null)[];
 
-async function customer(): Promise<TenantContext> {
+/**
+ * A workspace on Growth (audience details are a Growth/Scale entitlement since 2026-10-16), still holding its 200
+ * trial credits, so the balances below stay small and exact. `plan: "trial"` keeps the Starter trial.
+ */
+async function customer(plan: "growth" | "trial" = "growth"): Promise<TenantContext> {
   const ws = await createTestWorkspace();
   await db.withTenant(ws, (tx) => billing.startTrial(tx, ws.workspaceId));
+  if (plan === "growth") {
+    await ownerQuery(`update wp.subscriptions set status = 'active', plan_id = 'growth', billing_interval = 'month', current_period_start = now(), current_period_end = now() + interval '1 month' where workspace_id = '${ws.workspaceId}'`);
+  }
   return { ...ws, requestId: `req-${randomUUID().slice(0, 8)}`, role: "owner" };
 }
 const balance = async (c: TenantContext) => (await billing.summary(c)).balance;
@@ -100,11 +107,18 @@ describe("requesting an estimate", () => {
     expect((await ownerQuery<{ n: number }>(`select count(*)::int n from wp.credit_reservations where action = 'audience_estimate'`))[0]?.n).toBe(1);
   });
 
-  it("counts the plan's monthly audience views (trial: 5 creators) before reserving anything", async () => {
-    const c = await customer();
-    for (let i = 0; i < 5; i++) await audience.request(c, await youtubeCreator(), 5);
-    await expect(audience.request(c, await youtubeCreator(), 5)).rejects.toMatchObject({ code: "ENTITLEMENT_REQUIRED" });
-    expect(await balance(c)).toMatchObject({ available: 175, reserved: 25 });
+  it("is not part of Starter (or its trial): the state says so and a request is refused before anything is reserved", async () => {
+    const c = await customer("trial");
+    const id = await youtubeCreator();
+    expect(await audience.state(c, id)).toMatchObject({ availability: "plan_required", availabilityMessage: expect.stringMatching(/Growth and Scale/) });
+    await expect(audience.request(c, id, 5)).rejects.toMatchObject({ details: { reason: "plan_required" } });
+    expect(await balance(c)).toMatchObject({ available: 200, reserved: 0 });
+  });
+
+  it("is switched off for every plan by the server switch, whatever the plan includes", async () => {
+    const off = createAudienceService({ db, billing, sources: [] });
+    const c = await customer("growth");
+    expect(await off.state(c, await youtubeCreator())).toMatchObject({ availability: "source_disabled" });
   });
 });
 

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { createCampaignSchema } from "@mushin/contracts";
 import { createLogger, type TenantContext } from "@mushin/core";
 import { createTestDatabase, createTestWorkspace, dbError, ownerQuery, resetTables } from "@mushin/db/testing";
 import { MockPayments } from "@mushin/integrations";
@@ -23,21 +24,51 @@ async function customer(): Promise<TenantContext> {
 const base = { status: "draft", platform: null, client: "", objective: "", notes: "", budgetMinor: null, startDate: null, endDate: null } as const;
 
 describe("campaigns", () => {
-  it("enforces the plan's open-campaign limit on the server; completed campaigns do not count; no plan, no new campaign", async () => {
+  it("enforces the plan's campaign limit on the server: archived campaigns do not count, completed ones do; no plan, no new campaign", async () => {
     const logger = createLogger({ level: "silent" });
     const cache = new MemoryAccessCache();
     const billing = createBillingService({ db, payments: new MockPayments({ webhookSecret: "s".repeat(40), publicApiUrl: "http://api.test", deliver: async () => {} }), cache, logger });
     const planned = createCampaignsService({ db, planLimits: billing.getAccess });
     const c = await customer();
     await expect(planned.create(c, { ...base, name: "No plan yet" })).rejects.toMatchObject({ code: "ENTITLEMENT_REQUIRED", details: { key: "campaigns", limit: 0 } });
-    await db.withTenant(c, (tx) => billing.startTrial(tx, c.workspaceId)); // trial = Starter: 3 open campaigns
+    await db.withTenant(c, (tx) => billing.startTrial(tx, c.workspaceId)); // trial = Starter: 3 campaigns
     await cache.invalidate(c.workspaceId); // in production the trial starts with the workspace, before any access read
     const made = [];
     for (const name of ["One", "Two", "Three"]) made.push(await planned.create(c, { ...base, name }));
-    await expect(planned.create(c, { ...base, name: "Four" })).rejects.toMatchObject({ code: "ENTITLEMENT_REQUIRED", details: { key: "campaigns", limit: 3 } });
+    await expect(planned.create(c, { ...base, name: "Four" })).rejects.toMatchObject({ code: "ENTITLEMENT_REQUIRED", details: { key: "campaigns", limit: 3, used: 3 } });
+    // Completing a campaign keeps its slot; archiving frees it and keeps the record.
     await planned.update(c, made[0]?.id ?? "", { status: "completed" });
-    expect(await planned.create(c, { ...base, name: "Four" })).toMatchObject({ name: "Four" });
+    await expect(planned.create(c, { ...base, name: "Four" })).rejects.toMatchObject({ code: "ENTITLEMENT_REQUIRED" });
+    const archived = await planned.update(c, made[0]?.id ?? "", { status: "archived" });
+    expect(archived).toMatchObject({ status: "archived", archivedAt: expect.any(String) });
+    const four = await planned.create(c, { ...base, name: "Four" });
+    // Un-archiving takes a slot again: refused while the plan is full, allowed once one is free.
+    await expect(planned.update(c, made[0]?.id ?? "", { status: "active" })).rejects.toMatchObject({ code: "ENTITLEMENT_REQUIRED" });
+    await planned.update(c, four.id, { status: "archived" });
+    expect(await planned.update(c, made[0]?.id ?? "", { status: "active" })).toMatchObject({ status: "active", archivedAt: null });
     expect((await planned.index(c)).campaigns).toHaveLength(4);
+    // A request cannot create a campaign already archived (it would never take a slot).
+    expect(createCampaignSchema.safeParse({ name: "Sneaky", status: "archived" }).success).toBe(false);
+  });
+
+  it("holds the campaign limit under concurrent creation", async () => {
+    const limited = createCampaignsService({ db, planLimits: async () => ({ entitlements: { campaignLimit: 3 } }) });
+    const c = await customer();
+    const results = await Promise.allSettled(Array.from({ length: 8 }, (_, i) => limited.create(c, { ...base, name: `Burst ${i}` })));
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(3);
+    expect(results.filter((r) => r.status === "rejected").every((r) => (r as PromiseRejectedResult).reason.code === "ENTITLEMENT_REQUIRED")).toBe(true);
+  });
+
+  it("keeps every campaign when a workspace is above a lower plan's limit (downgrade), and only blocks new ones", async () => {
+    let limit: number | null = null;
+    const svc = createCampaignsService({ db, planLimits: async () => ({ entitlements: { campaignLimit: limit } }) });
+    const c = await customer();
+    for (let i = 0; i < 5; i += 1) await svc.create(c, { ...base, name: `Growth ${i}` });
+    limit = 3; // downgraded to Starter
+    expect((await svc.index(c)).campaigns).toHaveLength(5);
+    await expect(svc.create(c, { ...base, name: "Sixth" })).rejects.toMatchObject({ code: "ENTITLEMENT_REQUIRED", details: { limit: 3, used: 5 } });
+    const first = (await svc.index(c)).campaigns[0];
+    expect(await svc.update(c, first?.id ?? "", { name: "Renamed" })).toMatchObject({ name: "Renamed" }); // editing still works
   });
 
   it("creates and edits a campaign; dates must be in order", async () => {

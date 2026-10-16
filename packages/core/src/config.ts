@@ -113,6 +113,14 @@ const apiSchema = sharedObject
     // Where counters live. Unset: Upstash when configured (legacy), otherwise PostgreSQL (the Supabase target).
     RATE_LIMIT_STORE: z.enum(["postgres", "upstash", "memory"]).optional(),
     IDEMPOTENCY_TTL_HOURS: z.coerce.number().int().positive().default(24),
+    // Outreach email (owner decision 2026-10-16): off by default. "test" records sends through a mock provider and
+    // delivers nothing (never in production). "resend" sends for real and needs every key below plus
+    // OUTREACH_EMAIL_SENDS_AUTHORIZED=yes, which the owner sets only after authorising real sends.
+    OUTREACH_EMAIL_MODE: z.enum(["off", "test", "resend"]).default("off"),
+    OUTREACH_EMAIL_FROM: z.string().min(3).max(200).optional(),
+    RESEND_API_KEY: z.string().min(1).optional(),
+    RESEND_WEBHOOK_SECRET: z.string().regex(/^whsec_[A-Za-z0-9+/=]+$/, "must be the whsec_ signing secret").optional(),
+    OUTREACH_EMAIL_SENDS_AUTHORIZED: z.enum(["yes", "no"]).default("no"),
   })
   .superRefine(checkShared)
   .superRefine((v, ctx) => {
@@ -122,6 +130,17 @@ const apiSchema = sharedObject
     // The in-memory limiter is per process: several API instances would each allow the full limit.
     if (v.NODE_ENV === "production" && v.RATE_LIMIT_STORE === "memory") {
       ctx.addIssue({ code: "custom", path: ["RATE_LIMIT_STORE"], message: "memory is for development and tests only" });
+    }
+    if (v.OUTREACH_EMAIL_MODE === "test" && v.NODE_ENV === "production") {
+      ctx.addIssue({ code: "custom", path: ["OUTREACH_EMAIL_MODE"], message: "test mode delivers nothing and is for development only" });
+    }
+    if (v.OUTREACH_EMAIL_MODE === "resend") {
+      for (const key of ["RESEND_API_KEY", "RESEND_WEBHOOK_SECRET", "OUTREACH_EMAIL_FROM"] as const) {
+        if (!v[key]) ctx.addIssue({ code: "custom", path: [key], message: "required when OUTREACH_EMAIL_MODE=resend" });
+      }
+      if (v.OUTREACH_EMAIL_SENDS_AUTHORIZED !== "yes") {
+        ctx.addIssue({ code: "custom", path: ["OUTREACH_EMAIL_SENDS_AUTHORIZED"], message: "real outreach email needs the owner's authorisation (set to yes)" });
+      }
     }
   });
 
@@ -335,7 +354,13 @@ export type ApiConfig = {
   llm: LlmProviderConfig[];
   llmMonthlyBudgetUsd: number;
   audienceSources: "youtube"[];
+  outreachEmail: OutreachEmailConfig;
 };
+
+export type OutreachEmailConfig =
+  | { mode: "off" }
+  | { mode: "test"; from: string }
+  | { mode: "resend"; from: string; apiKey: string; webhookSecret: string };
 
 export function loadApiConfig(env: Env): ApiConfig {
   const v = parse(apiSchema, env);
@@ -362,6 +387,12 @@ export function loadApiConfig(env: Env): ApiConfig {
     search: searchFrom(v, v.MEILISEARCH_SEARCH_KEY),
     llm: llmFrom(v),
     audienceSources: [...new Set(v.AUDIENCE_SOURCES)],
+    outreachEmail:
+      v.OUTREACH_EMAIL_MODE === "resend" && v.RESEND_API_KEY && v.RESEND_WEBHOOK_SECRET && v.OUTREACH_EMAIL_FROM
+        ? { mode: "resend", from: v.OUTREACH_EMAIL_FROM, apiKey: v.RESEND_API_KEY, webhookSecret: v.RESEND_WEBHOOK_SECRET }
+        : v.OUTREACH_EMAIL_MODE === "test"
+          ? { mode: "test", from: v.OUTREACH_EMAIL_FROM ?? "MUSHIN test <outreach@test.mushin.invalid>" }
+          : { mode: "off" },
   };
 }
 

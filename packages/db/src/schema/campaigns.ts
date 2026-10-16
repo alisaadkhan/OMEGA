@@ -8,7 +8,7 @@ export const campaigns = wp.table("campaigns", {
   id: uuid("id").primaryKey().defaultRandom(),
   workspaceId: uuid("workspace_id").notNull(),
   name: text("name").notNull(),
-  status: text("status", { enum: ["draft", "active", "paused", "completed"] }).notNull().default("draft"),
+  status: text("status", { enum: ["draft", "active", "paused", "completed", "archived"] }).notNull().default("draft"),
   platform: text("platform", { enum: ["instagram", "tiktok", "youtube", "mixed"] }),
   client: text("client").notNull().default(""),
   objective: text("objective").notNull().default(""),
@@ -18,6 +18,8 @@ export const campaigns = wp.table("campaigns", {
   startDate: day("start_date"),
   endDate: day("end_date"),
   createdBy: uuid("created_by").notNull(),
+  /** Set exactly while status is archived (0038). */
+  archivedAt: ts("archived_at"),
   createdAt: ts("created_at").notNull().defaultNow(),
   updatedAt: ts("updated_at").notNull().defaultNow(),
 });
@@ -55,4 +57,27 @@ export const outreachEvents = wp.table("outreach_events", {
   occurredAt: ts("occurred_at").notNull().defaultNow(),
   loggedBy: uuid("logged_by").notNull(),
   createdAt: ts("created_at").notNull().defaultNow(),
+});
+
+/** Outreach emails sent through MUSHIN (0039): the quota record per billing period; see the migration header. */
+export const outreachEmails = wp.table("outreach_emails", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").notNull(),
+  campaignId: uuid("campaign_id").notNull(),
+  creatorId: uuid("creator_id").notNull(),
+  contactId: uuid("contact_id").notNull(),
+  requestedBy: uuid("requested_by").notNull(),
+  idempotencyKey: text("idempotency_key").notNull(),
+  recipientHash: text("recipient_hash").notNull(),
+  recipientMasked: text("recipient_masked").notNull(),
+  subject: text("subject").notNull(),
+  body: text("body").notNull(),
+  mode: text("mode", { enum: ["test", "resend"] }).notNull(),
+  status: text("status", { enum: ["requested", "accepted", "delivered", "bounced", "complained", "failed"] }).notNull().default("requested"),
+  providerMessageId: text("provider_message_id"),
+  failureReason: text("failure_reason"),
+  periodStart: ts("period_start").notNull(),
+  statusAt: ts("status_at").notNull().defaultNow(),
+  createdAt: ts("created_at").notNull().defaultNow(),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
 });
