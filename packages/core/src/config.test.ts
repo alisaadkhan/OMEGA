@@ -61,14 +61,21 @@ describe("loadApiConfig", () => {
     expect(c.rateLimit.upstash).toEqual({ url: "https://x.upstash.io", token: "t" });
   });
 
-  it("counts rate limits in PostgreSQL unless Upstash is configured or another store is chosen", () => {
+  it("counts rate limits in PostgreSQL unless another store is chosen explicitly (audit SEC-06)", () => {
     const upstash = { UPSTASH_REDIS_REST_URL: "https://x.upstash.io", UPSTASH_REDIS_REST_TOKEN: "t" };
     expect(loadApiConfig(valid).rateLimit.store).toBe("postgres");
-    expect(loadApiConfig({ ...valid, ...upstash }).rateLimit.store).toBe("upstash");
+    // Upstash variables alone no longer select the fail-open store.
+    expect(loadApiConfig({ ...valid, ...upstash }).rateLimit.store).toBe("postgres");
+    expect(loadApiConfig({ ...valid, ...upstash, RATE_LIMIT_STORE: "upstash" }).rateLimit.store).toBe("upstash");
     expect(loadApiConfig({ ...valid, ...upstash, RATE_LIMIT_STORE: "postgres" }).rateLimit.store).toBe("postgres");
     expect(loadApiConfig({ ...valid, RATE_LIMIT_STORE: "memory" }).rateLimit.store).toBe("memory");
     expect(() => loadApiConfig({ ...valid, RATE_LIMIT_STORE: "upstash" })).toThrow(/RATE_LIMIT_STORE: upstash needs/);
     expect(() => loadApiConfig({ ...valid, RATE_LIMIT_STORE: "redis" })).toThrow(/RATE_LIMIT_STORE/);
+  });
+
+  it("trusts no proxy unless TRUSTED_PROXIES names one (audit SEC-05)", () => {
+    expect(loadApiConfig(valid).trustedProxies).toEqual([]);
+    expect(loadApiConfig({ ...valid, TRUSTED_PROXIES: " 10.0.0.0/8, 192.168.1.5 ," }).trustedProxies).toEqual(["10.0.0.0/8", "192.168.1.5"]);
   });
 
   it("refuses the per-process memory limiter in production", () => {

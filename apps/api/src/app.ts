@@ -11,6 +11,8 @@ import type { AppModule, Guards, OnRequestHook, ReadinessCheck } from "./http/ty
 export type AppDeps = {
   logger: Logger;
   allowedOrigins: string[];
+  /** Proxies whose X-Forwarded-For is believed (audit SEC-05); empty or absent = none, the socket address is used. */
+  trustedProxies?: string[];
   guards: Guards;
   modules: AppModule[];
   readiness: ReadinessCheck[];
@@ -22,6 +24,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   const logger: FastifyBaseLogger = deps.logger;
   const app = Fastify({
     loggerInstance: logger,
+    trustProxy: deps.trustedProxies && deps.trustedProxies.length > 0 ? deps.trustedProxies : false,
     genReqId: requestIdFrom,
     requestIdHeader: false,
     bodyLimit: 1_048_576,

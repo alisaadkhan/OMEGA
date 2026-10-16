@@ -114,3 +114,24 @@ describe("API skeleton", () => {
     expect(res.json()).toEqual({ status: "degraded", checks: { database: "ok", redis: "down" } });
   });
 });
+
+describe("client address (audit SEC-05)", () => {
+  const ipApp = (trustedProxies?: string[]) =>
+    buildTestApp({ trustedProxies, modules: [{ name: "ip", register(app) { app.get("/v1/ip", async (req) => ({ ip: req.ip })); } }] });
+
+  it("ignores X-Forwarded-For when no proxy is trusted, so a caller cannot pick its own rate-limit bucket", async () => {
+    const app = await ipApp();
+    const res = await app.inject({ method: "GET", url: "/v1/ip", remoteAddress: "203.0.113.9", headers: { "x-forwarded-for": "198.51.100.1" } });
+    expect(res.json().ip).toBe("203.0.113.9");
+    await app.close();
+  });
+
+  it("uses the forwarded address only when the request comes from a trusted proxy", async () => {
+    const app = await ipApp(["10.0.0.0/8"]);
+    const viaProxy = await app.inject({ method: "GET", url: "/v1/ip", remoteAddress: "10.1.2.3", headers: { "x-forwarded-for": "198.51.100.1" } });
+    expect(viaProxy.json().ip).toBe("198.51.100.1");
+    const direct = await app.inject({ method: "GET", url: "/v1/ip", remoteAddress: "203.0.113.9", headers: { "x-forwarded-for": "198.51.100.1" } });
+    expect(direct.json().ip).toBe("203.0.113.9");
+    await app.close();
+  });
+});

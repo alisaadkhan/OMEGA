@@ -110,8 +110,12 @@ const apiSchema = sharedObject
     DATA_ENCRYPTION_KEY: encryptionKey,
     RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
     RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().positive().default(120),
-    // Where counters live. Unset: Upstash when configured (legacy), otherwise PostgreSQL (the Supabase target).
+    // Where counters live: PostgreSQL unless chosen otherwise (Upstash fails open, so only on purpose; audit SEC-06).
     RATE_LIMIT_STORE: z.enum(["postgres", "upstash", "memory"]).optional(),
+    // Proxies whose X-Forwarded-For the API believes (audit SEC-05): comma-separated IPs/CIDRs, or "loopback".
+    // Empty (default): the client address is the connecting socket and forwarded headers are ignored, so nobody can
+    // choose their own rate-limit bucket. Set it to the hosting proxy's addresses in production.
+    TRUSTED_PROXIES: z.string().default(""),
     IDEMPOTENCY_TTL_HOURS: z.coerce.number().int().positive().default(24),
     // Supabase Auth admin access (service key): the trusted record of a user's confirmed email (audit SEC-03), used to
     // accept invitations. Required in production; without it invitations cannot be accepted (fail closed).
@@ -261,8 +265,12 @@ function paymentsFrom(v: SharedValues): PaymentsConfig {
   return { mode: "mock", webhookSecret: v.MOCK_PADDLE_WEBHOOK_SECRET ?? "", appUrl, publicApiUrl };
 }
 
-function rateLimitStore(chosen: "postgres" | "upstash" | "memory" | undefined, upstash: { url: string; token: string } | null): "postgres" | "upstash" | "memory" {
-  return chosen ?? (upstash ? "upstash" : "postgres");
+/**
+ * PostgreSQL unless another store is chosen explicitly (audit SEC-06): Upstash fails open when unreachable, so it must
+ * never be selected just because its variables happen to be present.
+ */
+function rateLimitStore(chosen: "postgres" | "upstash" | "memory" | undefined): "postgres" | "upstash" | "memory" {
+  return chosen ?? "postgres";
 }
 
 function upstashFrom(v: SharedValues): { url: string; token: string } | null {
@@ -361,6 +369,8 @@ export type ApiConfig = {
   llmMonthlyBudgetUsd: number;
   audienceSources: "youtube"[];
   outreachEmail: OutreachEmailConfig;
+  /** Proxies trusted for X-Forwarded-For (audit SEC-05); empty = none. */
+  trustedProxies: string[];
   /** Supabase Auth admin access for trusted email checks (audit SEC-03); null when not configured. */
   authAdmin: { url: string; serviceKey: string } | null;
 };
@@ -385,7 +395,7 @@ export function loadApiConfig(env: Env): ApiConfig {
     staffJwtSecret: v.STAFF_JWT_SECRET,
     webauthn: { rpId: new URL(appUrl).hostname, rpName: "MUSHIN staff", origins: [appUrl] },
     dataEncryptionKey: Buffer.from(v.DATA_ENCRYPTION_KEY, "base64"),
-    rateLimit: { windowMs: v.RATE_LIMIT_WINDOW_MS, maxRequests: v.RATE_LIMIT_MAX_REQUESTS, store: rateLimitStore(v.RATE_LIMIT_STORE, upstashFrom(v)), upstash: upstashFrom(v) },
+    rateLimit: { windowMs: v.RATE_LIMIT_WINDOW_MS, maxRequests: v.RATE_LIMIT_MAX_REQUESTS, store: rateLimitStore(v.RATE_LIMIT_STORE), upstash: upstashFrom(v) },
     idempotencyTtlHours: v.IDEMPOTENCY_TTL_HOURS,
     databaseCaPem: readCaFile(v.DATABASE_SSL_CA_FILE),
     payments: paymentsFrom(v),
@@ -401,6 +411,7 @@ export function loadApiConfig(env: Env): ApiConfig {
         : v.OUTREACH_EMAIL_MODE === "test"
           ? { mode: "test", from: v.OUTREACH_EMAIL_FROM ?? "MUSHIN test <outreach@test.mushin.invalid>" }
           : { mode: "off" },
+    trustedProxies: v.TRUSTED_PROXIES.split(",").map((s) => s.trim()).filter(Boolean),
     authAdmin: v.SUPABASE_SERVICE_ROLE_KEY ? { url: v.SUPABASE_URL.replace(/\/+$/, ""), serviceKey: v.SUPABASE_SERVICE_ROLE_KEY } : null,
   };
 }

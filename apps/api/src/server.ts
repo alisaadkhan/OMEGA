@@ -115,6 +115,7 @@ const guards: Guards = {
 const app = await buildApp({
   logger,
   allowedOrigins: config.allowedOrigins,
+  trustedProxies: config.trustedProxies,
   guards,
   modules: [
     platform.module,
