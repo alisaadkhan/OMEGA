@@ -186,3 +186,42 @@ record and the hosting recommendation. Last full verify: 836 passed, 7 skipped (
 4. With accounts: real Supabase Auth test project, Paddle sandbox, Resend test domain; a capped paid Brain 2 pilot only
    with owner authorisation.
 5. E2E fixture refresh before about 2027-01-11 (template follower counts expire under the 90-day rule).
+
+## 2026-10-16 (afternoon): owner decisions carried out (resume here)
+
+Owner decisions: Search stays the primary gate and frozen; finish, review, test and merge `team-privacy`; the 90-day
+count rule is confirmed (activity stays separate); inventory the YouTube evaluation copies now and purge them after
+the evaluation; WSL 2, Docker and test accounts are the owner's; no paid calls, real email, payments or deploys.
+
+| Item | Result | Evidence |
+|---|---|---|
+| team-privacy merged | `master` fast-forwarded to the reviewed branch (rollback tag `pre-team-privacy-merge-2026-10-16` = `596b0c5`). Peer WIP committed as `d221be8` before review | verify 846/7 skipped on the branch and on master; E2E below |
+| Review defect R-1 (high) | Deleting a workspace or leaving every workspace re-provisioned a new workspace with a **second free trial and credits**, repeatably. Fixed: one trial per person (`0036_trial_once_per_user.sql`, `wp.users.trial_granted_at`, backfilled) | `team.int.test.ts`: both new tests fail without the fix and pass with it |
+| Review fixes R-2..R-4 | Erase-coverage guard test (every `wp` table with `workspace_id` is erased or deliberately kept); account deletion offers Sign out; a raw workspace-id debug line removed; dead invitation links no longer redirect later sign-ins | `team.int.test.ts`; E2E 10b |
+| Staff console contrast A-4 | Header `mushin.io / admin` (about 3.7:1), "Not pausable…" and workspace ids raised to ≥ 4.5:1 | staff E2E axe, every section |
+| Team browser journey | Invitation link in Settings; another signed-in person cannot join (UI and API 403); the invited confirmed email joins and switches workspace; link single-use; owner removes them; export download; account deletion and sign-out; axe on the new pages | customer E2E 3 × 102/102 on master (72 main + 30 after restart) |
+| Staff browser smoke (new) | `scripts/e2e-staff/run.sh`: password + authenticator sign-in for Super Admin and Support; role sections; key registration and step-up with Chrome's virtual authenticator; audit shows both bootstraps; Support and keyless Admin refused (403); eligibility coverage card equals the API (12 of 20); axe on all sections | 3 × 31/31 on master |
+| Eligibility coverage UI | Overview card over `/admin/v1/ops/eligibility` (counts only); says "not evaluated yet" when documents predate the worker reconcile | staff E2E |
+| 90-day rule | Confirmed by the owner; a test pins that count freshness and posting activity are independent | `eligibility.test.ts` |
+| Evaluation data | Inventory of every copy: [youtube-eval-data-inventory.md](youtube-eval-data-inventory.md). `purge-eval-data.ts --also <dir>` covers the old temp copies; `--verify` exits 1 while anything remains. Nothing deleted yet (rating data still needed) | dry run and verify run |
+| Rating process | Independence rules, workload (413 judgements per rater) and a timetable ending 2026-11-10 in search-quality.md | |
+| Search freeze | `freeze-check.ts`: Brain 1 and Brain 2 reproduce the packets byte for byte | |
+
+Final evidence on `master`: verify 847 passed, 7 skipped; customer E2E 3 × 102/102; staff E2E 3 × 31/31; production
+build and bundle secret scan pass. Not exercised: real Supabase sign-up and email confirmation (stub tokens carry
+`email_verified`), real invitation email (links are shown to copy; no email provider), identity-provider account
+deletion (reported as not done), a physical security key.
+
+Environment notes: the machine restarted. Local PostgreSQL was started again with its own data directory, and
+Meilisearch with `npm run meili:start`. `mushin_local` is migrated to 0037 but its search documents show 0 eligible
+until the worker next starts. The disposable databases `mushin_test_team_claude`, `mushin_e2e_team` and
+`mushin_e2e_team_template` and the worktree `../MUSHIN-team` (branch `team-privacy`, merged) can be removed. An
+untracked `supabase/` folder (created 14:36, Supabase CLI state including `.temp/start-secrets`) was left untouched
+and is not committed.
+
+**Next actions, in order:**
+1. Owner: name rater A, rater B and the adjudicator by 2026-10-20 and send the kits (timetable in search-quality.md).
+2. After the reports: run the purge with both `--also` folders, then `--verify`, and collect written deletion
+   confirmations, by 2026-11-10.
+3. When WSL 2 and Docker are ready: Supabase port of 0001–0037 (migration map); only then run the Supabase integration tests.
+4. With test accounts: real sign-up and email confirmation through invitations, Paddle sandbox, Resend test domain.

@@ -19,8 +19,11 @@ The map above was drawn at `b39eb6e` (28 migrations). Since then:
 | Creator eligibility elig-1 | 0037 (projection columns, `creator_profiles.last_post_at`, YouTube retention trigger); `creators/eligibility.ts` (pure TypeScript) | Port the migration as is. The policy module ports unchanged to the shared domain package and is used by `customer-api` (search filter, list and campaign guards, profile) and `worker-tick` (projection, delivery gate). Search filters `eligible and eligible_until_epoch > now` in SQL, so no scheduled recompute is needed |
 | Catalogue match explanations | `modules/creators/match-reasons.ts` (pure TypeScript) | Ports unchanged into the shared domain package |
 
-Migrations to port as the baseline are now 0001–0034 and 0037 on master. 0035 (team and privacy) and 0036 (outreach email)
-are reserved by the team-privacy branch and are not on master yet; reconcile their final content before porting.
+Migrations to port as the baseline are now 0001–0037, all on master since 2026-10-16. 0035 (team and privacy:
+invitations, workspace and account deletion, workspace switcher) and 0036 (one free trial per person,
+`wp.users.trial_granted_at`) were merged from the team-privacy branch. 0036 was used for the trial fix, not outreach
+email. On a database already at 0037 they apply out of order without conflict. On Supabase, 0035's account deletion
+must also remove the Auth user (`auth.admin.deleteUser`), which this local build reports as not done.
 
 ## 0. Status and blockers
 
