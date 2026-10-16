@@ -28,7 +28,7 @@ export SUPABASE_SERVICE_ROLE_KEY=e2e-service-key-not-a-secret
 # Fixed, non-secret values so a run never depends on a developer's .env (audit OPS-02): the synthetic template's contact
 # details are encrypted with this key (build-template.sh), and the mock payment provider is always used.
 export APP_URL=http://localhost:5173
-export DATA_ENCRYPTION_KEY=bXVzaGluLWUyZS1maXhlZC1rZXktbm90LXNlY3JldCE=
+export DATA_ENCRYPTION_KEY="$(node -p 'Buffer.from("mushin-e2e-fixed-key-not-secret!").toString("base64")')" # 32 bytes, readable on purpose
 export STAFF_JWT_SECRET=e2e-staff-jwt-secret-fixed-value-not-a-secret
 export MOCK_PADDLE_WEBHOOK_SECRET=e2e-mock-paddle-webhook-secret-not-a-secret
 export PADDLE_API_KEY=
