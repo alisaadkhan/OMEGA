@@ -3,6 +3,7 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import type { Invitation } from "@mushin/contracts";
 import { AppError, type TenantContext } from "@mushin/core";
 import { workspaceInvitations, workspaceMembers, workspaces, type Db } from "@mushin/db";
+import { EmailCheckUnavailable, type VerifyEmail } from "../../auth/auth-admin";
 import type { CustomerIdentity } from "../../auth/customer-token";
 
 const INVITE_DAYS = 7;
@@ -14,7 +15,8 @@ const hash = (token: string) => createHash("sha256").update(token).digest("hex")
  * transfer. Roles: the owner manages everything; an admin invites and removes members only; a member can leave.
  * There is no seat limit in any plan, so none is enforced.
  */
-export function createTeamService(deps: { db: Db; appUrl: string; now?: () => Date }) {
+/** `verifyEmail`: the Auth server's record of the user's email (audit SEC-03); null when not configured (fail closed). */
+export function createTeamService(deps: { db: Db; appUrl: string; verifyEmail: VerifyEmail | null; now?: () => Date }) {
   const now = deps.now ?? (() => new Date());
   const tenant = (ctx: TenantContext) => ({ userId: ctx.userId, workspaceId: ctx.workspaceId });
   const managers = (ctx: TenantContext) => {
@@ -78,8 +80,17 @@ export function createTeamService(deps: { db: Db; appUrl: string; now?: () => Da
 
     /** Joins the workspace when the signed-in, verified email is the invited one; a forwarded link does not work. */
     async accept(identity: CustomerIdentity, token: string): Promise<{ workspaceId: string; role: "owner" | "admin" | "member" }> {
-      if (!identity.emailVerified) throw new AppError("FORBIDDEN", "Confirm your email address first, then open the invitation again.", { reason: "email_unverified" });
-      const [r] = await deps.db.withSystem((tx) => tx.execute<{ v: { workspaceId: string; role: "owner" | "admin" | "member" } | null }>(sql`select platform.accept_invitation(${hash(token)}, ${identity.userId}, ${identity.email}, ${identity.fullName}) v`));
+      // The confirmed address comes from the Auth server's record, never from the token's user_metadata (SEC-03).
+      if (!deps.verifyEmail) throw new AppError("CONFLICT", "Invitations cannot be accepted on this server yet: the sign-in service's admin access is not configured.", { reason: "email_check_unavailable" });
+      let verified: Awaited<ReturnType<VerifyEmail>>;
+      try {
+        verified = await deps.verifyEmail(identity.userId);
+      } catch (err) {
+        if (err instanceof EmailCheckUnavailable) throw new AppError("PROVIDER_UNAVAILABLE", "The email address could not be checked right now. Try again in a minute.", { reason: "email_check_unavailable" });
+        throw err;
+      }
+      if (!verified?.confirmed || verified.email !== identity.email) throw new AppError("FORBIDDEN", "Confirm your email address first, then open the invitation again.", { reason: "email_unverified" });
+      const [r] = await deps.db.withSystem((tx) => tx.execute<{ v: { workspaceId: string; role: "owner" | "admin" | "member" } | null }>(sql`select platform.accept_invitation(${hash(token)}, ${identity.userId}, ${verified.email}, ${identity.fullName}) v`));
       if (!r?.v) throw new AppError("FORBIDDEN", "This invitation is not valid for your account: it may have expired, been revoked or been sent to a different email address.", { reason: "invitation_invalid" });
       return r.v;
     },

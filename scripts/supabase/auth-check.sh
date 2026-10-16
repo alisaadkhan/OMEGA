@@ -14,7 +14,7 @@ node --import tsx packages/db/src/migrate-cli.ts > /dev/null || exit 1
 node --env-file-if-exists=.env --import tsx apps/api/src/server.ts > "$LOG" 2>&1 &
 API_PID=$!
 for i in $(seq 1 60); do curl -s -m 2 http://localhost:4200/health/ready | grep -q '"database":"ok"' && break; sleep 1; done
-node "$H/auth-check.mjs"
+node --import tsx "$H/auth-check.mjs"
 STATUS=$?
 kill "$API_PID" 2>/dev/null
 exit $STATUS

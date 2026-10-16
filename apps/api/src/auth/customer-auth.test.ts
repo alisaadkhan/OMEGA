@@ -19,9 +19,9 @@ describe("customer token verifier", () => {
     const { iss, verify } = await setup();
     const sub = randomUUID();
     const identity = await verify(await iss.sign({ sub, email: "Ahmed@Mushin.PK", fullName: "Ahmed Raza" }));
-    expect(identity).toEqual({ userId: sub, email: "ahmed@mushin.pk", fullName: "Ahmed Raza", emailVerified: true });
-    // Only an explicit true counts as a confirmed email (Supabase user_metadata.email_verified).
-    expect((await verify(await iss.sign({ sub, email: "a@mushin.pk", emailVerified: false }))).emailVerified).toBe(false);
+    expect(identity).toEqual({ userId: sub, email: "ahmed@mushin.pk", fullName: "Ahmed Raza" });
+    // Audit SEC-03: user-editable user_metadata.email_verified is not read at all; nothing in the identity can claim it.
+    expect(Object.keys(await verify(await iss.sign({ sub, email: "a@mushin.pk", emailVerified: true })))).toEqual(["userId", "email", "fullName"]);
   });
 
   it.each([

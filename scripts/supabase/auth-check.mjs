@@ -31,7 +31,7 @@ check("the access token is ES256-signed with a published key id (JWKS), not a sh
 const first = await me(session.access_token);
 check("the API accepts the Supabase token and provisions the user's workspace", first.status === 200 && first.json?.user?.email === email && typeof first.json?.workspace?.id === "string", `${first.status}`);
 check("the API records the name from Supabase user metadata", first.json?.user?.displayName === "Auth Check" || first.json?.user?.name === "Auth Check", JSON.stringify(first.json?.user ?? {}).slice(0, 120));
-check("Supabase marks the address confirmed in user metadata (invitations rely on it)", claims.user_metadata?.email_verified === true, `email_verified=${claims.user_metadata?.email_verified}`);
+check("Supabase also copies email_verified into user metadata (informational only; never trusted, audit SEC-03)", claims.user_metadata?.email_verified === true, `email_verified=${claims.user_metadata?.email_verified}`);
 
 const refreshed = await auth("/token?grant_type=refresh_token", { refresh_token: session.refresh_token });
 const second = await me(refreshed.json?.access_token);
@@ -43,6 +43,17 @@ check("a token with changed claims is refused", (await me(tampered)).status === 
 const forged = `${Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url")}.${p}.${s}`;
 check("a token re-labelled HS256 (algorithm confusion) is refused", (await me(forged)).status === 401);
 check("no token is refused", (await me(null)).status === 401);
+
+// Audit SEC-03 against the real Auth server: user_metadata is user-editable, the Auth record is not.
+const { createSupabaseEmailVerification } = await import("../../apps/api/src/auth/auth-admin.ts");
+const verifyEmail = createSupabaseEmailVerification({ url: status.API_URL, serviceKey: status.SECRET_KEY ?? status.SERVICE_ROLE_KEY });
+const edited = await fetch(`${AUTH}/user`, { method: "PUT", headers: { apikey: key, authorization: `Bearer ${session.access_token}`, "content-type": "application/json" }, body: JSON.stringify({ data: { email_verified: true, role_claim: "forged" } }) });
+check("a signed-in user can write their own user_metadata (why it must never prove anything)", edited.status === 200 && (await edited.json()).user_metadata?.role_claim === "forged");
+check("the Auth server's record confirms this user's email, read with the service key", JSON.stringify(await verifyEmail(claims.sub)) === JSON.stringify({ email, confirmed: true }));
+const unconfirmedEmail = `unconfirmed-${randomUUID().slice(0, 8)}@example.com`;
+const created = await fetch(`${AUTH}/admin/users`, { method: "POST", headers: { apikey: status.SECRET_KEY ?? status.SERVICE_ROLE_KEY, authorization: `Bearer ${status.SECRET_KEY ?? status.SERVICE_ROLE_KEY}`, "content-type": "application/json" }, body: JSON.stringify({ email: unconfirmedEmail, password, email_confirm: false, user_metadata: { email_verified: true } }) });
+const unconfirmed = await created.json();
+check("a user whose metadata claims email_verified but whose address is unconfirmed is reported unconfirmed", created.status === 200 && JSON.stringify(await verifyEmail(unconfirmed.id)) === JSON.stringify({ email: unconfirmedEmail, confirmed: false }), `${created.status}`);
 
 const signout = await fetch(`${AUTH}/logout`, { method: "POST", headers: { apikey: key, authorization: `Bearer ${session.access_token}` } });
 check("sign-out revokes the refresh token", signout.status === 204 && (await auth("/token?grant_type=refresh_token", { refresh_token: refreshed.json?.refresh_token ?? session.refresh_token })).status >= 400);

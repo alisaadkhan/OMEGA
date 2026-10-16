@@ -29,7 +29,20 @@ for (const [role, p] of Object.entries(people)) {
 const dir = process.env.E2E_OUT ?? join(tmpdir(), "mushin-e2e");
 mkdirSync(dir, { recursive: true });
 writeFileSync(join(dir, "identities.json"), JSON.stringify(out));
+// Supabase Auth admin lookup (audit SEC-03): the API reads a user's confirmed email here, with the service key.
+export const E2E_SERVICE_KEY = "e2e-service-key-not-a-secret";
+const confirmedAt = new Date().toISOString();
 createServer((req, res) => {
+  const admin = /^\/auth\/v1\/admin\/users\/([0-9a-f-]{36})$/.exec(req.url ?? "");
+  if (admin) {
+    if (req.headers.apikey !== E2E_SERVICE_KEY || req.headers.authorization !== `Bearer ${E2E_SERVICE_KEY}`) {
+      res.writeHead(401);
+      return res.end();
+    }
+    const p = Object.values(people).find((x) => x.sub === admin[1]);
+    res.writeHead(p ? 200 : 404, { "content-type": "application/json" });
+    return res.end(p ? JSON.stringify({ id: p.sub, email: p.email, email_confirmed_at: confirmedAt }) : "{}");
+  }
   if (req.url === "/jwks.json") {
     res.writeHead(200, { "content-type": "application/json" });
     res.end(JSON.stringify({ keys: [jwk] }));

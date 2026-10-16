@@ -10,6 +10,7 @@ import { buildTestApp } from "../../test-support/app";
 import { createTestIssuer } from "../../test-support/keys";
 import { createBillingService, MemoryAccessCache } from "../billing/index";
 import { createPlatformModule } from "../platform/index";
+import { EmailCheckUnavailable, type VerifyEmail } from "../../auth/auth-admin";
 import { createIdentityModule } from "./index";
 
 const db = createTestDatabase();
@@ -17,11 +18,20 @@ beforeEach(resetTables);
 afterAll(() => db.close());
 
 type H = Record<string, string>;
-async function setup() {
+/** The Auth server's records (audit SEC-03): the only trusted evidence of a confirmed email. */
+const authRecords = new Map<string, { email: string; confirmed: boolean }>();
+let authDown = false;
+const verifyEmail: VerifyEmail = async (userId) => {
+  if (authDown) throw new EmailCheckUnavailable("down");
+  return authRecords.get(userId) ?? null;
+};
+
+async function setup(o: { verify?: VerifyEmail | null } = {}) {
+  authDown = false;
   const logger = createLogger({ level: "silent" });
   const billing = createBillingService({ db, payments: new MockPayments({ webhookSecret: "t".repeat(40), publicApiUrl: "http://api.test", deliver: async () => {} }), cache: new MemoryAccessCache(), logger });
   const erased: string[] = [];
-  const identity = createIdentityModule({ db, startTrial: billing.startTrial, appUrl: "https://app.mushin.test", onWorkspaceErased: async (id) => void erased.push(id) });
+  const identity = createIdentityModule({ db, startTrial: billing.startTrial, appUrl: "https://app.mushin.test", verifyEmail: o.verify === undefined ? verifyEmail : o.verify, onWorkspaceErased: async (id) => void erased.push(id) });
   const platform = createPlatformModule({ db, ttlHours: 24 });
   const big = { limit: 1000, windowSeconds: 60 };
   const iss = await createTestIssuer();
@@ -30,9 +40,11 @@ async function setup() {
     modules: [platform.module, identity.module],
   });
   const call = (method: "GET" | "POST" | "PATCH" | "DELETE", url: string, headers: H, payload?: object) => app.inject(payload === undefined ? { method, url, headers } : { method, url, headers, payload });
-  const person = async (email: string, o: { emailVerified?: boolean; sub?: string } = {}) => {
+  /** `confirmed`: what the Auth server records; the token itself always claims user_metadata.email_verified = true. */
+  const person = async (email: string, o: { confirmed?: boolean; sub?: string } = {}) => {
     const sub = o.sub ?? randomUUID();
-    const h = { authorization: `Bearer ${await iss.sign({ sub, email, fullName: email.split("@")[0] ?? "x", ...(o.emailVerified === undefined ? {} : { emailVerified: o.emailVerified }) })}` };
+    authRecords.set(sub, { email: email.toLowerCase(), confirmed: o.confirmed ?? true });
+    const h = { authorization: `Bearer ${await iss.sign({ sub, email, fullName: email.split("@")[0] ?? "x", emailVerified: true })}` };
     const me = (await call("GET", "/v1/me", h)).json() as { workspace: { id: string }; user: { id: string } };
     return { h, sub, userId: me.user.id, workspaceId: me.workspace.id };
   };
@@ -52,10 +64,17 @@ describe("workspace invitations and workspace selection", () => {
 
     const stranger = await person("mallory@evil.pk");
     expect((await call("POST", "/v1/invitations/accept", stranger.h, { token })).json().error.details).toMatchObject({ reason: "invitation_invalid" });
-    const unverified = await person("sara@agency.pk", { emailVerified: false });
+    // Audit SEC-03: the token claims user_metadata.email_verified = true (users can set that themselves) but the Auth
+    // server has not confirmed the address: refused.
+    const unverified = await person("sara@agency.pk", { confirmed: false });
     expect((await call("POST", "/v1/invitations/accept", unverified.h, { token })).json().error.details).toMatchObject({ reason: "email_unverified" });
+    // If the Auth check cannot be made, nobody is let in.
+    authDown = true;
+    const down = await call("POST", "/v1/invitations/accept", unverified.h, { token });
+    expect([down.statusCode, down.json().error.details.reason]).toEqual([503, "email_check_unavailable"]);
+    authDown = false;
 
-    const sara = await person("sara@agency.pk", { sub: unverified.sub }); // same account, email now confirmed
+    const sara = await person("sara@agency.pk", { sub: unverified.sub }); // same account, email now confirmed by the Auth server
     expect((await call("POST", "/v1/invitations/preview", sara.h, { token })).json()).toMatchObject({ role: "member", status: "pending" });
     expect((await call("POST", "/v1/invitations/accept", sara.h, { token })).json()).toEqual({ workspaceId: owner.workspaceId, role: "member" });
     expect((await call("POST", "/v1/invitations/accept", sara.h, { token })).statusCode).toBe(403); // used once
@@ -91,6 +110,23 @@ describe("workspace invitations and workspace selection", () => {
     await call("POST", "/v1/invitations/accept", mona.h, { token: tokenOf(again.acceptUrl) });
     expect((await call("POST", "/v1/workspace/invitations", { ...mona.h, "x-workspace-id": owner.workspaceId }, { email: "y@brand.pk" })).statusCode).toBe(403);
     expect(((await call("GET", "/v1/workspace/invitations", owner.h)).json().invitations as { status: string }[]).map((i) => i.status).sort()).toEqual(["accepted", "accepted", "revoked"]);
+  });
+});
+
+describe("trusted email verification (audit SEC-03)", () => {
+  it("cannot accept when the Auth server's email differs from the token's, or when no Auth admin access is configured", async () => {
+    const { call, person, invite, tokenOf } = await setup();
+    const owner = await person("owner@brand.pk");
+    const token = tokenOf((await invite(owner.h, "sara@agency.pk")).acceptUrl);
+    const sara = await person("sara@agency.pk");
+    authRecords.set(sara.sub, { email: "someone.else@agency.pk", confirmed: true }); // the account's confirmed address is another one
+    expect((await call("POST", "/v1/invitations/accept", sara.h, { token })).json().error.details).toMatchObject({ reason: "email_unverified" });
+
+    const noAdmin = await setup({ verify: null });
+    const o2 = await noAdmin.person("owner2@brand.pk");
+    const t2 = noAdmin.tokenOf((await noAdmin.invite(o2.h, "mona@brand.pk")).acceptUrl);
+    const mona = await noAdmin.person("mona@brand.pk");
+    expect((await noAdmin.call("POST", "/v1/invitations/accept", mona.h, { token: t2 })).json().error.details).toMatchObject({ reason: "email_check_unavailable" });
   });
 });
 

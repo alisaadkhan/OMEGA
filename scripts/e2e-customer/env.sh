@@ -22,3 +22,6 @@ export UPSTASH_REDIS_REST_URL=
 export UPSTASH_REDIS_REST_TOKEN=
 # Outreach email in test mode: a mock provider records sends; nothing is delivered (never allowed in production).
 export OUTREACH_EMAIL_MODE=test
+# Supabase Auth admin lookups go to the auth stub (trusted email verification, audit SEC-03); a fixed test key, never a real one.
+export SUPABASE_URL=http://localhost:4999
+export SUPABASE_SERVICE_ROLE_KEY=e2e-service-key-not-a-secret

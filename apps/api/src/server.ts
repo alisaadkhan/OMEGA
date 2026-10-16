@@ -4,6 +4,7 @@ import { createLogger, loadApiConfig } from "@mushin/core";
 import { createDatabase, createDbProviderCallSink, providerPaused, providerSpendSince, UNVERIFIED_TLS_WARNING } from "@mushin/db";
 import { createLlm, createPayments, createSearchIndex, MockEmailProvider, pausableLlm, ResendEmailProvider } from "@mushin/integrations";
 import { buildApp } from "./app";
+import { createSupabaseEmailVerification } from "./auth/auth-admin";
 import { createCustomerGuard } from "./auth/customer-guard";
 import { createCustomerTokenVerifier, remoteJwks } from "./auth/customer-token";
 import type { Guards, ReadinessCheck } from "./http/types";
@@ -92,7 +93,13 @@ const creators = createCreatorsService({
   logger,
   sourcePolicy: config.sourcePolicy,
 });
-const identity = createIdentityModule({ db, startTrial: billing.startTrial, appUrl: config.appUrl, onWorkspaceErased: (id) => accessCache.invalidate(id) });
+const identity = createIdentityModule({
+  db,
+  startTrial: billing.startTrial,
+  appUrl: config.appUrl,
+  verifyEmail: config.authAdmin ? createSupabaseEmailVerification(config.authAdmin) : null,
+  onWorkspaceErased: (id) => accessCache.invalidate(id),
+});
 const staff = createStaffModule({ db, tokens: createStaffTokens(config.staffJwtSecret), encryptionKey: config.dataEncryptionKey, webauthn: config.webauthn });
 const removals = createRemovalService({ db, encryptionKey: config.dataEncryptionKey, audit: recordStaffAudit });
 const platform = createPlatformModule({ db, ttlHours: config.idempotencyTtlHours });

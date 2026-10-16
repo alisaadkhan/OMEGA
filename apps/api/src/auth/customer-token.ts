@@ -1,8 +1,11 @@
 import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from "jose";
 import { AppError } from "@mushin/core";
 
-/** emailVerified: the identity provider confirmed the address (Supabase user_metadata.email_verified === true). */
-export type CustomerIdentity = { userId: string; email: string; fullName: string | null; emailVerified: boolean };
+/**
+ * What a verified customer token says. There is deliberately no "email verified" field: Supabase puts that in
+ * user-editable user_metadata (audit SEC-03); checks that need it ask the Auth server (auth-admin.ts).
+ */
+export type CustomerIdentity = { userId: string; email: string; fullName: string | null };
 export type CustomerTokenVerifier = (token: string) => Promise<CustomerIdentity>;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -31,7 +34,6 @@ export function createCustomerTokenVerifier(o: { issuer: string; audience: strin
     const meta = payload["user_metadata"];
     const rawName = isRecord(meta) ? meta["full_name"] : undefined;
     const fullName = typeof rawName === "string" && rawName.trim() ? rawName.trim().slice(0, 120) : null;
-    const emailVerified = isRecord(meta) && meta["email_verified"] === true;
-    return { userId: sub.toLowerCase(), email: email.toLowerCase(), fullName, emailVerified };
+    return { userId: sub.toLowerCase(), email: email.toLowerCase(), fullName };
   };
 }

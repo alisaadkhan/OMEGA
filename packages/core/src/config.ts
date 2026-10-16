@@ -113,6 +113,9 @@ const apiSchema = sharedObject
     // Where counters live. Unset: Upstash when configured (legacy), otherwise PostgreSQL (the Supabase target).
     RATE_LIMIT_STORE: z.enum(["postgres", "upstash", "memory"]).optional(),
     IDEMPOTENCY_TTL_HOURS: z.coerce.number().int().positive().default(24),
+    // Supabase Auth admin access (service key): the trusted record of a user's confirmed email (audit SEC-03), used to
+    // accept invitations. Required in production; without it invitations cannot be accepted (fail closed).
+    SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
     // Outreach email (owner decision 2026-10-16): off by default. "test" records sends through a mock provider and
     // delivers nothing (never in production). "resend" sends for real and needs every key below plus
     // OUTREACH_EMAIL_SENDS_AUTHORIZED=yes, which the owner sets only after authorising real sends.
@@ -130,6 +133,9 @@ const apiSchema = sharedObject
     // The in-memory limiter is per process: several API instances would each allow the full limit.
     if (v.NODE_ENV === "production" && v.RATE_LIMIT_STORE === "memory") {
       ctx.addIssue({ code: "custom", path: ["RATE_LIMIT_STORE"], message: "memory is for development and tests only" });
+    }
+    if (v.NODE_ENV === "production" && !v.SUPABASE_SERVICE_ROLE_KEY) {
+      ctx.addIssue({ code: "custom", path: ["SUPABASE_SERVICE_ROLE_KEY"], message: "required in production (trusted email verification for invitations)" });
     }
     if (v.OUTREACH_EMAIL_MODE === "test" && v.NODE_ENV === "production") {
       ctx.addIssue({ code: "custom", path: ["OUTREACH_EMAIL_MODE"], message: "test mode delivers nothing and is for development only" });
@@ -355,6 +361,8 @@ export type ApiConfig = {
   llmMonthlyBudgetUsd: number;
   audienceSources: "youtube"[];
   outreachEmail: OutreachEmailConfig;
+  /** Supabase Auth admin access for trusted email checks (audit SEC-03); null when not configured. */
+  authAdmin: { url: string; serviceKey: string } | null;
 };
 
 export type OutreachEmailConfig =
@@ -393,6 +401,7 @@ export function loadApiConfig(env: Env): ApiConfig {
         : v.OUTREACH_EMAIL_MODE === "test"
           ? { mode: "test", from: v.OUTREACH_EMAIL_FROM ?? "MUSHIN test <outreach@test.mushin.invalid>" }
           : { mode: "off" },
+    authAdmin: v.SUPABASE_SERVICE_ROLE_KEY ? { url: v.SUPABASE_URL.replace(/\/+$/, ""), serviceKey: v.SUPABASE_SERVICE_ROLE_KEY } : null,
   };
 }
 
