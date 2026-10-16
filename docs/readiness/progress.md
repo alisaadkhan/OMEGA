@@ -253,3 +253,53 @@ Final evidence on `aad0dce`: verify 875 passed, 7 skipped; build and bundle secr
 3 × (86 + 30) = 116/116; staff E2E 3 × 31/31.
 
 Next: the owner's audit `MUSHIN_AUDIT_2026-10-16` (credential containment and P0 fixes) is the next task.
+
+## 2026-10-17: audit MUSHIN_AUDIT_2026-10-16 (security and release readiness) (resume here)
+
+Audit snapshot 1398cee; work on `master` from `5fc412f` to `HEAD`. Every fix has a regression test that fails without
+it, or a recorded drill. New migrations 0041–0047.
+
+| Audit item | State | Evidence |
+|---|---|---|
+| SEC-01 credential containment | **Owner action**: rotate every credential in `MUSHIN.zip` (it holds `.env`, `.env.meilisearch`, Supabase start secrets); then `scripts/revoke-staff-sessions.ts` | tooling: `scripts/package-source.ts` (git archive + secret scan, CI step), revoke-all |
+| SEC-02 staff step-up proven on the server | Fixed | 0041 `staff.step_ups`; webauthn.int |
+| SEC-03 invitations trust only the Auth record | Fixed | auth-admin; auth-check 17/17 on local Supabase |
+| SEC-04 foreign `X-Workspace-Id` refused | Fixed | 403 `workspace_access_denied`; per-tab selection |
+| SEC-05 trusted proxies | Fixed | `TRUSTED_PROXIES` (default none); app.test |
+| SEC-06 rate limits fail closed | Fixed | PostgreSQL store by default; config.test |
+| SEC-07 first security key | Fixed | 0047 one-time enrolment codes (CLI only), alert on every enrolment; webauthn.int; staff E2E |
+| SEC-13 account deletion removes the Auth user | Fixed | team.int; auth-check (re-sign-up with the same address) |
+| SEC-14 SPA security headers | Fixed | `dist/_headers` (CSP, frame-ancestors none, HSTS…); csp-check 7/7 in Chrome. Found and fixed: Google Fonts (visitor IPs to Google), development React in local builds (root `.env` NODE_ENV), zod eval probe |
+| BIL-01 Live Discovery pricing copy | Fixed | plans.ts `liveDiscoveryRule`; E2E quote text |
+| BIL-04 top-ups never expire (database) | Fixed | 0045 check; service.int |
+| BIL-05 financial records survive workspace deletion | Fixed | 0042 RESTRICT + trigger |
+| BIL-06 one live run per workspace | Fixed | 0045 index; 409 `live_run_in_progress` before any hold; live-service.int |
+| SRCH-04/05 paid-run records, shared spend caps | Fixed | 0043; reconciler hourly |
+| UX-01 legal pages and consent | Fixed (drafts) | `#/terms` etc., recorded acceptance (0044). **Counsel review (D-13)** |
+| UX-02 password recovery | Fixed | PKCE, `#/reset-password`, failed-link screen; recovery-check 10/10 (Chrome + Mailpit, local Supabase). Sign-up confirmation with real SMTP: staging |
+| OPS-01 CI without `.env` | Fixed locally | clean clone passes; **hosted remote needed** to run CI |
+| OPS-02 reproducible E2E | Fixed | `npm run e2e:template` (synthetic catalogue, fixed non-secret env); old real-data template left for the owner to delete |
+| OPS-03 alert delivery | Fixed | `ALERT_WEBHOOK_URL` (required in production), worker heartbeat, events, test alert; drill: worker stopped → critical in 289 s |
+| ADR-0001 target architecture | Proposed | `adr-0001-target-architecture.md`; **owner decides D-01** |
+| SEC-08, SRCH-06/07/08, SEC-16 | Waiting | touch Search, frozen until ratings |
+
+### Release-readiness matrix
+
+| Area | Feature complete | Integration verified | Release candidate | Production deployed |
+|---|---|---|---|---|
+| Customer app (search, lists, campaigns, outreach log, billing UI) | Yes | Yes, locally (E2E, mock payments) | No: Search not rated; Paddle sandbox untested | No |
+| Live Discovery | Yes | Replay and one live run (13 Oct) | No: Search not rated | No |
+| Billing and entitlements | Yes | Mock provider only | No: Paddle account, refund policy (OD-009), retention (OD-013) | No |
+| Sign-in (Supabase Auth) | Yes | Local Supabase stack (auth-check, recovery-check) | No: hosted project, SMTP | No |
+| Staff console and security | Yes | Local (staff E2E, virtual key) | No: real hardware keys untested | No |
+| Alerts and operations | Yes | Local drill | No: webhook channel, error tracker, uptime check, host | No |
+| Legal and privacy | Drafts | — | No: counsel review, legal entity name | No |
+| Hosting, backups, restore | No | No | No: host choice (D-01), hosted Supabase, backups/PITR drill | No |
+
+Nothing is production deployed. No paid calls, real email, payments or deploys were made.
+
+Final evidence on HEAD (2026-10-17): verify 915 passed, 7 skipped; frontend build, bundle secret scan and csp-check
+7/7 pass; Search freeze check intact (35 + 25, byte for byte); customer E2E 3 × (91 + 40) = 393/393 and staff E2E 3 × 31/31, all on the synthetic template.
+
+Incident (2026-10-17, fixed): a freeze check run with `TEST_DATABASE_URL` set to the eval database truncated the
+evaluation corpus; it was rebuilt with its original ids (freeze check intact) and test helpers now refuse `mushin_eval*`.
