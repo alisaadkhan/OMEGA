@@ -19,7 +19,7 @@ The map above was drawn at `b39eb6e` (28 migrations). Since then:
 | Creator eligibility elig-1 | 0037 (projection columns, `creator_profiles.last_post_at`, YouTube retention trigger); `creators/eligibility.ts` (pure TypeScript) | Port the migration as is. The policy module ports unchanged to the shared domain package and is used by `customer-api` (search filter, list and campaign guards, profile) and `worker-tick` (projection, delivery gate). Search filters `eligible and eligible_until_epoch > now` in SQL, so no scheduled recompute is needed |
 | Catalogue match explanations | `modules/creators/match-reasons.ts` (pure TypeScript) | Ports unchanged into the shared domain package |
 
-Migrations to port as the baseline are now 0001–0037, all on master since 2026-10-16. 0035 (team and privacy:
+Migrations to port as the baseline are now 0001–0040 (0038 plan entitlements, 0039 outreach email, 0040 data exports added 2026-10-16), all on master. 0035 (team and privacy:
 invitations, workspace and account deletion, workspace switcher) and 0036 (one free trial per person,
 `wp.users.trial_granted_at`) were merged from the team-privacy branch. 0036 was used for the trial fix, not outreach
 email. On a database already at 0037 they apply out of order without conflict. On Supabase, 0035's account deletion
@@ -29,7 +29,12 @@ must also remove the Auth user (`auth.admin.deleteUser`), which this local build
 
 | Item | Status |
 |---|---|
-| Local Supabase stack (`supabase start`) | **Blocked**: needs Docker Desktop with WSL 2 on this machine (owner installing). Supabase CLI and Deno are installed after that. |
+| Local Supabase stack (`supabase start`) | **Running** (2026-10-16): Docker Desktop on WSL 2, Supabase CLI 2.121.0 through npx, project `MUSHIN`, PostgreSQL 17.11 on :54322, API on :54321. `supabase/config.toml` from `supabase init` (nothing existed to overwrite). Deno not installed (needed for Edge Functions). |
+| Stage 1: schema on Supabase PostgreSQL | **Passed**. All 40 migrations apply as the non-superuser `postgres` role, and the whole suite passes against a disposable database inside the stack: 873 passed, 7 skipped. That covers row-level security, credit and billing invariants, concurrency and entitlements. Log: `eval-data/logs/supabase-parity-2.log`. |
+| Stage 2: Supabase CLI migration workflow | **Passed**. `scripts/supabase/sync-migrations.ts` copies `packages/db/migrations` unchanged into `supabase/migrations`. It also adds a prelude that does what the hand-written runner does first (the `platform` schema and ledger). `supabase db reset --local` builds all 41 from scratch. A unit test fails if the folders drift. Supabase's `anon`, `authenticated` and `service_role` have no usage on `wp`, `gcp`, `platform` or `staff`, and every `wp` table has row-level security. |
+| Stage 3: Supabase Auth | **Passed locally** (`scripts/supabase/auth-check.sh`, 10/10). Covers sign-up, an ES256 token verified by the API through Supabase's JWKS, workspace provisioning, `email_verified` in user metadata, refresh, and refusal of tampered, re-labelled HS256 and missing tokens. Sign-out revokes the refresh token. Finding: access tokens are verified statelessly, so one stays valid until it expires (3,600 s). Not yet checked: hosted Auth emails and providers (needs a dev project). |
+| Stage 4: API routes to Edge Functions | **Not started**. Fastify stays the running API until parity (owner rule). Deno is needed. |
+| Stage 5: pg-boss to Supabase Queues (pgmq) and pg_cron/pg_net | **Not started**. `pgmq 1.5.1`, `pg_cron 1.6.4` and `pg_net 0.20.4` are available in the local stack, not yet installed. |
 | Isolated dev/staging project | Not created. Needed for real Auth emails and deployed-function checks; never production. |
 | Production cutover | Not before the gates in section 9 pass and the owner has reviewed the migration report. |
 
