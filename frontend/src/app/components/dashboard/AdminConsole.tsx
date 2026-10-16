@@ -63,7 +63,7 @@ export function AdminConsole({ onExit, role, staffId }: { onExit: () => void; ro
           <main className="flex-1 overflow-y-auto bg-white px-6 py-6">
             {view === "overview" && (
               <>
-                <OpsAlerts />
+                <OpsAlerts canTest={admin} />
                 <OpsOverview />
               </>
             )}

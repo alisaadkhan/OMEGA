@@ -27,6 +27,7 @@ export const STAFF_PERMISSIONS = {
   "staff.webauthn.manage": ADMIN,
   "creators.removal.review": ADMIN,
   "ops.providers.read": ADMIN,
+  "ops.alerts.test": ADMIN,
   "ops.providers.control": ADMIN,
   "ops.jobs.retry": ADMIN,
   "ops.jobs.cancel": ADMIN,

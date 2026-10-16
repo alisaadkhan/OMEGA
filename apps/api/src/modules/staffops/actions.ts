@@ -18,6 +18,8 @@ export const ALERT_THRESHOLDS = {
   failedJobs1h: { warning: 3, critical: 10 },
   providerErrorShare: { warning: 0.2, critical: 0.5, minCalls: 5 },
   oldestRemovalDays: { warning: 7, critical: 21 },
+  // The worker's heartbeat job runs every minute (audit OPS-03); missing for this long means its queue is not running.
+  workerHeartbeatSeconds: { warning: 180, critical: 300 },
 } as const;
 
 /** Operations actions (staff spec §4): each checks its preconditions, needs a reason, is idempotent and audited. */
@@ -143,6 +145,8 @@ export function createStaffActions(deps: { db: Db; now?: () => Date }) {
         if (calls >= ALERT_THRESHOLDS.providerErrorShare.minCalls) push(`provider_${provider}`, level(errors / calls, ALERT_THRESHOLDS.providerErrorShare), `${provider}: ${errors} of ${calls} calls failed in the last hour.`);
       }
       push("removals", level(m.oldestRemovalDays, ALERT_THRESHOLDS.oldestRemovalDays), `The oldest open creator removal request is ${m.oldestRemovalDays ?? 0} day(s) old.`);
+      if (m.workerHeartbeatSeconds === null) alerts.push({ key: "worker", severity: "critical", message: "The background worker has never reported: no jobs, billing renewals or live runs are processed." });
+      else push("worker", level(m.workerHeartbeatSeconds, ALERT_THRESHOLDS.workerHeartbeatSeconds), `The background worker last reported ${m.workerHeartbeatSeconds} s ago: jobs may not be running.`);
       for (const p of m.pausedProviders) alerts.push({ key: `paused_${p}`, severity: "warning", message: `${p} is paused by operations.` });
       return { ...m, alerts };
     },

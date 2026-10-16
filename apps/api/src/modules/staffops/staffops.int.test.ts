@@ -30,7 +30,9 @@ beforeEach(async () => {
 afterAll(() => db.close());
 
 type H = Record<string, string>;
+let testAlerts = 0;
 async function setup() {
+  testAlerts = 0;
   const payments = new MockPayments({ webhookSecret: "h".repeat(40), publicApiUrl: "http://api.test", deliver: async () => {} });
   const billing = createBillingService({ db, payments, cache: new MemoryAccessCache(), logger });
   const identity = createIdentityModule({ db, startTrial: billing.startTrial });
@@ -48,7 +50,7 @@ async function setup() {
       staff.module,
       createSupportModule({ service: createSupportService({ db }) }),
       createOpsModule({ db, requireStaff: staff.requireStaff }),
-      createStaffOpsModule({ db, billing, requireStaff: staff.requireStaff, createStaffAccount: staff.createStaffAccount, now }),
+      createStaffOpsModule({ db, billing, requireStaff: staff.requireStaff, createStaffAccount: staff.createStaffAccount, now, alerts: { notifier: { sendTest: async () => void testAlerts++ }, channel: "webhook" } }),
     ],
   });
   const call = (method: "GET" | "POST" | "PUT" | "PATCH", url: string, headers: H, payload?: object) => app.inject(payload === undefined ? { method, url, headers } : { method, url, headers, payload });
@@ -220,6 +222,17 @@ describe("operations controls", () => {
     await ownerQuery(`insert into wp.discovery_jobs (id, workspace_id, kind, requested_by, platform, handle, canonical_url, status, attempts, cost, credits_charged, created_at)
       values ('${randomUUID()}', '${workspaceId}', 'add_by_url', '${m?.user_id}', 'instagram', 'a', 'https://instagram.com/a', 'queued', 0, 50, 0, now() - interval '2 hours')`);
     expect((await call("GET", "/admin/v1/ops/alerts", support.h)).json().alerts).toEqual(expect.arrayContaining([expect.objectContaining({ key: "stuck_jobs", severity: "warning" })]));
+  });
+
+  it("lets an Admin send a test alert, audited; Support cannot (audit OPS-03)", async () => {
+    const { call, signIn } = await setup();
+    const [support, admin] = [await signIn("support"), await signIn("admin")];
+    expect((await call("POST", "/admin/v1/ops/alerts/test", support.h, {})).statusCode).toBe(403);
+    expect((await call("POST", "/admin/v1/ops/alerts/test", admin.totp, {})).statusCode).toBe(403); // hardware-key step-up needed
+    const res = await call("POST", "/admin/v1/ops/alerts/test", admin.h, {});
+    expect(res.json()).toEqual({ sent: true, channel: "webhook" });
+    expect(testAlerts).toBe(1);
+    expect(await audit("ops.alerts.test_sent")).toEqual([expect.objectContaining({ staff_id: admin.id, metadata: { channel: "webhook" } })]);
   });
 });
 

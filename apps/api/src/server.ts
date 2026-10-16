@@ -1,7 +1,7 @@
 import { createHmac } from "node:crypto";
 import { Redis } from "@upstash/redis";
 import { createLogger, loadApiConfig } from "@mushin/core";
-import { createDatabase, createDbProviderCallSink, providerPaused, providerSpendSince, UNVERIFIED_TLS_WARNING } from "@mushin/db";
+import { createDatabase, createDbProviderCallSink, providerPaused, providerSpendSince, recordAlertEvent, UNVERIFIED_TLS_WARNING } from "@mushin/db";
 import { createLlm, createPayments, createSearchIndex, MockEmailProvider, pausableLlm, ResendEmailProvider } from "@mushin/integrations";
 import { buildApp } from "./app";
 import { createSupabaseEmailVerification, createSupabaseIdentityDeletion } from "./auth/auth-admin";
@@ -24,6 +24,8 @@ import { createOutreachModule } from "./modules/outreach";
 import { createPlatformModule } from "./modules/platform";
 import { createStaffModule, createStaffTokens, recordStaffAudit } from "./modules/staff";
 import { createStaffOpsModule } from "./modules/staffops";
+import { createStaffActions } from "./modules/staffops/actions";
+import { createAlertNotifier, createLogSender, createWebhookSender } from "./modules/staffops/alert-notifier";
 import { MemoryRateLimiter } from "./rate-limit/memory";
 import { ipRateLimitHook } from "./rate-limit/plugin";
 import { PostgresRateLimiter } from "./rate-limit/postgres";
@@ -100,12 +102,25 @@ const identity = createIdentityModule({
   verifyEmail: config.authAdmin ? createSupabaseEmailVerification(config.authAdmin) : null,
   deleteIdentity: config.authAdmin ? createSupabaseIdentityDeletion(config.authAdmin) : null,
   // The account is already deleted in MUSHIN; an operator removes the Auth user by this id (no email is logged).
-  onIdentityDeleteFailed: (userId) => logger.error({ userId, alert: "identity_delete_failed" }, "Deleted account's Supabase Auth user was not removed"),
+  onIdentityDeleteFailed: (userId) => {
+    logger.error({ userId, alert: "identity_delete_failed" }, "Deleted account's Supabase Auth user was not removed");
+    void db
+      .withSystem((tx) => recordAlertEvent(tx, { key: "identity_delete_failed", severity: "warning", message: `A deleted account's sign-in identity was not removed from Supabase Auth. See the API log entry "identity_delete_failed".` }))
+      .catch(() => undefined);
+  },
   onWorkspaceErased: (id) => accessCache.invalidate(id),
 });
 const staff = createStaffModule({ db, tokens: createStaffTokens(config.staffJwtSecret), encryptionKey: config.dataEncryptionKey, webauthn: config.webauthn });
 const removals = createRemovalService({ db, encryptionKey: config.dataEncryptionKey, audit: recordStaffAudit });
 const platform = createPlatformModule({ db, ttlHours: config.idempotencyTtlHours });
+// Audit OPS-03: alerts reach the team's webhook (logged only when none is configured, i.e. development).
+const alertNotifier = createAlertNotifier({
+  db,
+  current: async () => (await createStaffActions({ db }).alerts()).alerts,
+  send: config.alertWebhookUrl ? createWebhookSender({ url: config.alertWebhookUrl }) : createLogSender(logger),
+  environment: `${config.nodeEnv} ${new URL(config.appUrl).host}`,
+  logger,
+});
 const guards: Guards = {
   customer: createCustomerGuard({
     verify: createCustomerTokenVerifier({ issuer: config.auth.issuer, audience: config.auth.audience, keys: remoteJwks(config.auth.jwksUri) }),
@@ -135,7 +150,7 @@ const app = await buildApp({
     createActivityModule({ service: createActivityService({ db }) }),
     createSupportModule({ service: createSupportService({ db }) }),
     createOpsModule({ db, requireStaff: staff.requireStaff }),
-    createStaffOpsModule({ db, billing, requireStaff: staff.requireStaff, createStaffAccount: staff.createStaffAccount }),
+    createStaffOpsModule({ db, billing, requireStaff: staff.requireStaff, createStaffAccount: staff.createStaffAccount, alerts: { notifier: alertNotifier, channel: config.alertWebhookUrl ? "webhook" : "log" } }),
     createAudienceModule({ service: createAudienceService({ db, billing, sources: config.audienceSources }), limiter }),
   ],
   readiness,
@@ -144,6 +159,7 @@ const app = await buildApp({
 
 const shutdown = async (signal: string) => {
   logger.info({ signal }, "shutting down");
+  alertNotifier.stop();
   await app.close();
   await db.close();
   process.exit(0);
@@ -152,3 +168,4 @@ process.once("SIGINT", () => void shutdown("SIGINT"));
 process.once("SIGTERM", () => void shutdown("SIGTERM"));
 
 await app.listen({ port: config.port, host: "0.0.0.0" });
+alertNotifier.start();

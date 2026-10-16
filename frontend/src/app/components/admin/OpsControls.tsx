@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { jobActionResultSchema, providerControlListSchema, staffAlertsSchema, staffAuditListSchema } from "@mushin/contracts";
+import { alertTestResultSchema, jobActionResultSchema, providerControlListSchema, staffAlertsSchema, staffAuditListSchema } from "@mushin/contracts";
 import { adminRequest } from "../../admin/adminApi";
 import { useToast } from "../../lib/toast";
 import { ErrorState, LoadingBlock } from "../dashboard/states";
@@ -10,14 +10,31 @@ import { ReasonAction, errText } from "./staff-ui";
 const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" }) : "—");
 
 /** Thresholds crossed now, with the measured values; an empty list says only that no threshold is crossed. */
-export function OpsAlerts() {
+export function OpsAlerts({ canTest = false }: { canTest?: boolean }) {
+  const toast = useToast();
+  const [testing, setTesting] = useState(false);
+  // Audit OPS-03: alerts are also delivered to the team's channel; this proves the channel works.
+  const sendTest = async () => {
+    setTesting(true);
+    try {
+      const r = await adminRequest("/admin/v1/ops/alerts/test", alertTestResultSchema, { method: "POST", body: {} });
+      toast.success(r.channel === "webhook" ? "Test alert sent to the team channel" : "No alert channel is configured: the test alert went to the server log");
+    } catch (err) {
+      toast.error("Test alert not sent", errText(err));
+    } finally {
+      setTesting(false);
+    }
+  };
   const q = useQuery({ queryKey: ["admin", "alerts"], queryFn: () => adminRequest("/admin/v1/ops/alerts", staffAlertsSchema), refetchInterval: 30_000 });
   if (q.isPending) return <LoadingBlock lines={2} />;
   if (q.isError) return <ErrorState body={errText(q.error)} onRetry={() => void q.refetch()} />;
   const a = q.data;
   return (
     <section className="mb-4 rounded-xl border border-slate-200 bg-white p-4 text-xs shadow-sm" aria-label="Alerts">
-      <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Alerts</div>
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Alerts</div>
+        {canTest && <button onClick={() => void sendTest()} disabled={testing} className="min-h-[28px] rounded-md border border-slate-200 px-2.5 text-xs text-slate-700 hover:bg-slate-50 disabled:opacity-50">Send test alert</button>}
+      </div>
       {a.alerts.length === 0 ? <p className="mt-1 text-slate-500">No alert threshold is crossed right now. This covers only what is measured below.</p> : (
         <ul className="mt-2 space-y-1">
           {a.alerts.map((x) => <li key={x.key} className={`rounded-md px-2 py-1 ${x.severity === "critical" ? "bg-red-50 text-red-800" : "bg-amber-50 text-amber-900"}`}><span style={{ fontWeight: 600 }}>{x.severity === "critical" ? "Critical" : "Warning"}:</span> {x.message}</li>)}
@@ -29,6 +46,7 @@ export function OpsAlerts() {
         <div><dt className="inline">Failed jobs (1 h): </dt><dd className="inline tabular-nums">{a.failedJobs1h}</dd></div>
         <div><dt className="inline">Approvals waiting: </dt><dd className="inline tabular-nums">{a.pendingApprovals}</dd></div>
         <div><dt className="inline">Removal requests open: </dt><dd className="inline tabular-nums">{a.pendingRemovals}{a.oldestRemovalDays !== null ? ` (oldest ${a.oldestRemovalDays} days)` : ""}</dd></div>
+        <div><dt className="inline">Worker last reported: </dt><dd className="inline tabular-nums">{a.workerHeartbeatSeconds === null ? "never" : `${a.workerHeartbeatSeconds} s ago`}</dd></div>
         <div><dt className="inline">Paused providers: </dt><dd className="inline">{a.pausedProviders.length ? a.pausedProviders.join(", ") : "none"}</dd></div>
         <div className="sm:col-span-3"><dt className="inline">Recorded spend this month (USD): </dt><dd className="inline tabular-nums">{Object.keys(a.monthSpendUsd).length ? Object.entries(a.monthSpendUsd).map(([k, v]) => `${k} ${v.toFixed(4)}`).join(" · ") : "none recorded"}</dd></div>
       </dl>

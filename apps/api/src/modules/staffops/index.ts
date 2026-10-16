@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import {
+  alertTestResultSchema,
   approvalDecisionSchema,
   approvalListSchema,
   approvalRequestSchema,
@@ -35,6 +36,7 @@ import type { BillingService } from "../billing/index";
 import { can, recordStaffAudit, type StaffAction, type StaffPrincipal } from "../staff/index";
 import { createSupportAccess } from "./access";
 import { createStaffActions } from "./actions";
+import type { AlertNotifier } from "./alert-notifier";
 import { createApprovals } from "./approvals";
 
 const idParams = z.object({ id: z.uuid() });
@@ -50,6 +52,8 @@ export function createStaffOpsModule(o: {
   billing: Pick<BillingService, "engine">;
   requireStaff: (action: StaffAction) => PreHandler;
   createStaffAccount: (input: { email: string; name: string; role: "support" }) => Promise<{ id: string; password: string; totpSecret: string; totpUri: string }>;
+  /** Alert delivery (audit OPS-03); its channel is "webhook" when ALERT_WEBHOOK_URL is set, otherwise the log. */
+  alerts?: { notifier: Pick<AlertNotifier, "sendTest">; channel: "webhook" | "log" };
   now?: () => Date;
 }): AppModule {
   const deps = { db: o.db, ...(o.now ? { now: o.now } : {}) };
@@ -65,6 +69,17 @@ export function createStaffOpsModule(o: {
     const r = o.requireStaff;
     // ── Alerts, providers, jobs ──
     app.get("/admin/v1/ops/alerts", { preHandler: r("ops.alerts.read") }, async (_req, reply) => sendOk(reply, staffAlertsSchema, await actions.alerts()));
+    // Proves the alert channel works: a fixed test message, no alert state, audited (audit OPS-03).
+    app.post("/admin/v1/ops/alerts/test", { preHandler: r("ops.alerts.test") }, async (req, reply) => {
+      if (!o.alerts) throw new AppError("NOT_FOUND", "Alert delivery is not configured");
+      try {
+        await o.alerts.notifier.sendTest();
+      } catch {
+        throw new AppError("PROVIDER_UNAVAILABLE", "The alert channel did not accept the test message. Check ALERT_WEBHOOK_URL.");
+      }
+      await o.db.withSystem((tx) => recordStaffAudit(tx, { staffId: staffOf(req).staffId, action: "ops.alerts.test_sent", metadata: { channel: o.alerts?.channel ?? "log" }, ...meta(req) }));
+      return sendOk(reply, alertTestResultSchema, { sent: true, channel: o.alerts.channel });
+    });
     app.get("/admin/v1/ops/provider-controls", { preHandler: r("ops.providers.read") }, async (_req, reply) => sendOk(reply, providerControlListSchema, { providers: await actions.providers() }));
     app.put("/admin/v1/ops/provider-controls/:provider", { preHandler: r("ops.providers.control") }, async (req, reply) => {
       const { provider } = parseInput(z.object({ provider: pausableProviderSchema }), req.params);

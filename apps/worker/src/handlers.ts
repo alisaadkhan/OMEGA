@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import type { Db } from "@mushin/db";
+import { recordWorkerHeartbeat, type Db } from "@mushin/db";
 import type { HandlerRegistry } from "./dispatcher";
 
 export function defaultHandlers(db: Db, o: { reconcileProviderRuns?: () => Promise<void> } = {}): HandlerRegistry {
@@ -7,6 +7,9 @@ export function defaultHandlers(db: Db, o: { reconcileProviderRuns?: () => Promi
     // Audit SRCH-04: paid provider runs left open by a crash or deploy are settled (and aborted past their deadline).
     "system.reconcile_provider_runs": async () => {
       await o.reconcileProviderRuns?.();
+    },
+    "system.heartbeat": async () => {
+      await db.withSystem((tx) => recordWorkerHeartbeat(tx));
     },
     "system.ping": async (data, { logger }) => {
       logger.info({ payload: data.payload }, "system.ping handled");

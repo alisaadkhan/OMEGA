@@ -14,7 +14,7 @@ import type {
   PlanChangeResponse,
 } from "@mushin/contracts";
 import { AppError, type Logger, type TenantContext } from "@mushin/core";
-import { writeOutbox, type Db, type TenantTx } from "@mushin/db";
+import { recordAlertEvent, writeOutbox, type Db, type SystemTx, type TenantTx } from "@mushin/db";
 import { isMockPayments, parsePaddleEvent, type PaymentEvent, type Payments, type PriceRef, type SubscriptionRef } from "@mushin/integrations";
 import type { Access, AccessCache } from "./access-cache";
 import { createCreditEngine, type SpendRequest } from "./engine";
@@ -554,7 +554,11 @@ export function createBillingService(deps: BillingDeps) {
       case "reconcile":
         await deps.db.withWorkspace(workspaceId, async (tx) => {
           const mismatches = await engine.reconcile(tx, workspaceId);
-          if (mismatches.length > 0) deps.logger.error({ workspaceId, mismatches }, "credit lots do not match the ledger");
+          if (mismatches.length > 0) {
+            deps.logger.error({ workspaceId, mismatches }, "credit lots do not match the ledger");
+            // Audit OPS-03: operators are told; the workspace id stays in the log. withWorkspace runs as the worker role.
+            await recordAlertEvent(tx as unknown as SystemTx, { key: "credit_mismatch", severity: "critical", message: `Credit lots do not match the ledger in a workspace (${mismatches.length} difference(s)). See the log entry "credit lots do not match the ledger".` });
+          }
           await repo.setNextDue(tx, workspaceId, job, later(DAY));
         });
         return;

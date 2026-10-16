@@ -85,9 +85,14 @@ export const staffAlertsSchema = z.object({
   pendingApprovals: z.number().int(),
   pendingRemovals: z.number().int(),
   oldestRemovalDays: z.number().int().nullable(),
+  /** Seconds since the worker's queue last ran its heartbeat job; null = never (audit OPS-03). */
+  workerHeartbeatSeconds: z.number().int().nullable(),
   /** Thresholds crossed now; an empty list means none crossed, not that everything is healthy. */
   alerts: z.array(z.object({ key: z.string(), severity: z.enum(["warning", "critical"]), message: z.string() })),
 });
+
+/** Result of "send a test alert" (audit OPS-03): where it went. */
+export const alertTestResultSchema = z.object({ sent: z.literal(true), channel: z.enum(["webhook", "log"]) });
 
 // ── Consented, read-only support access ──
 export const supportAccessStatusSchema = z.enum(["requested", "granted", "declined", "ended", "expired"]);

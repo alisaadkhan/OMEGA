@@ -128,6 +128,9 @@ const apiSchema = sharedObject
     RESEND_API_KEY: z.string().min(1).optional(),
     RESEND_WEBHOOK_SECRET: z.string().regex(/^whsec_[A-Za-z0-9+/=]+$/, "must be the whsec_ signing secret").optional(),
     OUTREACH_EMAIL_SENDS_AUTHORIZED: z.enum(["yes", "no"]).default("no"),
+    // Where alerts go (audit OPS-03): an incoming-webhook URL of the team's chat (Slack- and Discord-compatible JSON).
+    // Unset: alerts are only logged (development). Required in production, over HTTPS. The URL is a secret.
+    ALERT_WEBHOOK_URL: z.url().optional(),
   })
   .superRefine(checkShared)
   .superRefine((v, ctx) => {
@@ -140,6 +143,12 @@ const apiSchema = sharedObject
     }
     if (v.NODE_ENV === "production" && !v.SUPABASE_SERVICE_ROLE_KEY) {
       ctx.addIssue({ code: "custom", path: ["SUPABASE_SERVICE_ROLE_KEY"], message: "required in production (trusted email verification for invitations)" });
+    }
+    if (v.NODE_ENV === "production" && !v.ALERT_WEBHOOK_URL) {
+      ctx.addIssue({ code: "custom", path: ["ALERT_WEBHOOK_URL"], message: "required in production so alerts reach a person (audit OPS-03)" });
+    }
+    if (v.ALERT_WEBHOOK_URL && v.NODE_ENV === "production" && !v.ALERT_WEBHOOK_URL.startsWith("https://")) {
+      ctx.addIssue({ code: "custom", path: ["ALERT_WEBHOOK_URL"], message: "must use https" });
     }
     if (v.OUTREACH_EMAIL_MODE === "test" && v.NODE_ENV === "production") {
       ctx.addIssue({ code: "custom", path: ["OUTREACH_EMAIL_MODE"], message: "test mode delivers nothing and is for development only" });
@@ -369,6 +378,8 @@ export type ApiConfig = {
   llmMonthlyBudgetUsd: number;
   audienceSources: "youtube"[];
   outreachEmail: OutreachEmailConfig;
+  /** Incoming-webhook URL for alerts (audit OPS-03); null = logged only. */
+  alertWebhookUrl: string | null;
   /** Proxies trusted for X-Forwarded-For (audit SEC-05); empty = none. */
   trustedProxies: string[];
   /** Supabase Auth admin access for trusted email checks (audit SEC-03); null when not configured. */
@@ -411,6 +422,7 @@ export function loadApiConfig(env: Env): ApiConfig {
         : v.OUTREACH_EMAIL_MODE === "test"
           ? { mode: "test", from: v.OUTREACH_EMAIL_FROM ?? "MUSHIN test <outreach@test.mushin.invalid>" }
           : { mode: "off" },
+    alertWebhookUrl: v.ALERT_WEBHOOK_URL ?? null,
     trustedProxies: v.TRUSTED_PROXIES.split(",").map((s) => s.trim()).filter(Boolean),
     authAdmin: v.SUPABASE_SERVICE_ROLE_KEY ? { url: v.SUPABASE_URL.replace(/\/+$/, ""), serviceKey: v.SUPABASE_SERVICE_ROLE_KEY } : null,
   };
