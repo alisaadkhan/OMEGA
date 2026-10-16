@@ -2,6 +2,7 @@ import { defineConfig, loadEnv } from 'vite'
 import path from 'path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
+import { headersFile } from './security-headers'
 
 function figmaAssetResolver() {
   return {
@@ -11,6 +12,18 @@ function figmaAssetResolver() {
         const filename = id.replace('figma:asset/', '')
         return path.resolve(__dirname, 'src/assets', filename)
       }
+    },
+  }
+}
+
+/** Writes dist/_headers (audit SEC-14) for the Supabase project this build talks to. */
+function securityHeadersFile(supabaseUrl: string | undefined) {
+  return {
+    name: 'mushin-security-headers',
+    apply: 'build' as const,
+    generateBundle(this: { emitFile: (f: { type: 'asset'; fileName: string; source: string }) => void }) {
+      if (!supabaseUrl) throw new Error('VITE_SUPABASE_URL must be set to build the security headers')
+      this.emitFile({ type: 'asset', fileName: '_headers', source: headersFile(supabaseUrl) })
     },
   }
 }
@@ -26,6 +39,7 @@ export default defineConfig(({ mode }) => {
       // Tailwind is not being actively used – do not remove them
       react(),
       tailwindcss(),
+      securityHeadersFile(rootEnv.VITE_SUPABASE_URL),
     ],
     resolve: {
       alias: {
