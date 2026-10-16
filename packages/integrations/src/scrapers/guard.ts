@@ -33,3 +33,40 @@ export function createBudgetGuard(o: { spentSince: (since: Date) => Promise<numb
     },
   };
 }
+
+/**
+ * Where reservations live (audit SRCH-05): checked and written atomically for all processes (PostgreSQL in production,
+ * packages/db createDbReservationLedger). `reserve` admits the amount only if this month's recorded use plus every open
+ * reservation plus the amount stays within `limit`, and returns a release function; otherwise null.
+ */
+export type ReservationLedger = {
+  reserve(r: { provider: "apify" | "serper"; amount: number; limit: number; measure: "cost_usd" | "calls"; since: Date; leaseMs: number }): Promise<
+    { release: () => Promise<void> } | { refused: { used: number; open: number } }
+  >;
+};
+
+/** Leases outlive the longest run (180 s wait + abort) by a wide margin; a crashed process frees its share after this. */
+export const RESERVATION_LEASE_MS = 30 * 60_000;
+
+/**
+ * Monthly provider cap shared by every process (audit SRCH-05): Apify in USD (worst case per run, as before) or Serper
+ * in searches. Same contract as the per-process guards it replaces; fails closed when the ledger cannot be reached.
+ */
+export function createSharedSpendGuard(o: { ledger: ReservationLedger; provider: "apify" | "serper"; limit: number; perUnit: number; label: string; now?: () => Date }): SpendGuard {
+  return {
+    async begin(units = 1) {
+      const t = (o.now ?? (() => new Date()))();
+      const since = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth(), 1));
+      const r = await o.ledger.reserve({ provider: o.provider, amount: units * o.perUnit, limit: o.limit, measure: o.provider === "apify" ? "cost_usd" : "calls", since, leaseMs: RESERVATION_LEASE_MS });
+      if ("refused" in r) {
+        throw new ProviderError(false, "spend_cap", `Monthly ${o.label} limit of ${o.limit} reached (${r.refused.used} used, ${r.refused.open} in progress)`);
+      }
+      let released = false;
+      return () => {
+        if (released) return;
+        released = true;
+        void r.release();
+      };
+    },
+  };
+}

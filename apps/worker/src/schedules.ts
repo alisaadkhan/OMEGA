@@ -17,6 +17,7 @@ const billing = (key: string, cron: string): Schedule => ({ queue: "billing", ke
 /** Umbrella spec §7.3. Daily billing jobs run grants before mock renewals; downgrades run hourly, ahead of each period end. */
 export const SCHEDULES: Schedule[] = [
   // Hourly: expired idempotency keys, old rate-limit windows and expired data export files (kept at most 24 h + 1 h).
+  { queue: "system", key: "reconcile_provider_runs", cron: "40 * * * *", data: data("reconcile_provider_runs", "system.reconcile_provider_runs", {}) },
   { queue: "system", key: "purge_expired", cron: "15 * * * *", data: data("purge_expired", "system.purge_expired", {}) },
   billing("release_abandoned", "* * * * *"),
   billing("expire_lots", "5 * * * *"),

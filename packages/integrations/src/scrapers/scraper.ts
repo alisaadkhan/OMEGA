@@ -1,7 +1,8 @@
+import { createHash } from "node:crypto";
 import type { Logger, ProviderCallSink } from "@mushin/core";
 import { instrumented } from "../instrumented";
 import { createApifyClient } from "./apify";
-import { ProviderError, type PostOwnerResult, type ProfileScraper, type ScrapeRequest, type ScrapeResult, type SpendGuard } from "./types";
+import { ProviderError, type PostOwnerResult, type ProfileScraper, type ProviderRunStore, type ScrapeRequest, type ScrapeResult, type SpendGuard } from "./types";
 import { fetchYouTubeChannel } from "./youtube";
 
 type Options = {
@@ -16,7 +17,19 @@ type Options = {
   sleep?: (ms: number) => Promise<void>;
   /** How long to wait for an Apify run before stopping it (default 180 s). */
   apifyMaxWaitMs?: number;
+  /** Durable run records (audit SRCH-04): with a job id, a retried batch resumes its run instead of paying again. */
+  runs?: ProviderRunStore;
+  /** Hard limits Apify enforces on each run (audit SRCH-04). */
+  apifyRunLimits?: { timeoutSecs: number; maxTotalChargeUsd: number };
 };
+
+/** Default per-run limits: a little over the 180 s wait, and well above a normal batch's cost (~$0.02-0.10). */
+export const APIFY_RUN_LIMITS = { timeoutSecs: 300, maxTotalChargeUsd: 1 };
+
+/** A stable key for one paid batch of one job: retries of the same batch get the same key. */
+export function apifyRunKey(jobId: string, actor: string, input: unknown): string {
+  return `apify:${jobId}:${actor}:${createHash("sha256").update(JSON.stringify(input)).digest("hex").slice(0, 32)}`;
+}
 
 const NO_DOWNLOADS = { shouldDownloadVideos: false, shouldDownloadCovers: false, shouldDownloadAvatars: false, shouldDownloadSubtitles: false };
 
@@ -82,6 +95,26 @@ export function createProfileScraper(o: Options): ProfileScraper {
   }
 
   async function runApify(req: ScrapeRequest, actor: string, input: unknown, apify: ReturnType<typeof createApifyClient>, maxWaitMs?: number, build?: string, operation = `scrape_${req.platform}`): Promise<ScrapeResult> {
+    // Audit SRCH-04: claim the run first, so a retry of this batch resumes the same paid run.
+    const jobId = req.ctx?.jobId ?? null;
+    const runKey = o.runs && jobId ? apifyRunKey(jobId, actor, input) : null;
+    const claimed = runKey && o.runs ? await o.runs.claim({ runKey, actor, jobId, workspaceId: req.ctx?.workspaceId ?? null }) : null;
+    const prior = claimed && !claimed.created ? claimed.run : null;
+    // A finished run whose cost is recorded: read its items again, never record its cost twice.
+    const alreadyPaid = prior?.status === "succeeded" && prior.costRecorded;
+    const resumeRunId = prior?.externalRunId && (prior.status === "running" || prior.status === "starting" || alreadyPaid) ? prior.externalRunId : undefined;
+    const limits = o.apifyRunLimits ?? APIFY_RUN_LIMITS;
+    const start = {
+      ...(maxWaitMs === undefined ? {} : { maxWaitMs }),
+      ...(build ? { build } : {}),
+      ...(resumeRunId ? { resumeRunId } : {}),
+      timeoutSecs: limits.timeoutSecs,
+      maxTotalChargeUsd: limits.maxTotalChargeUsd,
+      ...(runKey && o.runs ? { onStarted: (id: string) => o.runs?.attach(runKey, id) ?? Promise.resolve() } : {}),
+    };
+    const settle = async (status: "succeeded" | "failed", costUsd: number | null) => {
+      if (runKey && o.runs && !alreadyPaid) await o.runs.finish(runKey, status, costUsd).catch((err: unknown) => o.logger.error({ err, runKey }, "could not record the Apify run's end"));
+    };
     const out = await instrumented(
       {
         provider: "apify",
@@ -91,12 +124,15 @@ export function createProfileScraper(o: Options): ProfileScraper {
         sink: o.sink,
         logger: o.logger,
         ctx: req.ctx,
-        usage: (r: { items: unknown[]; costUsd: number }) => ({ model: actor, units: r.items.length, costUsd: r.costUsd }),
+        usage: (r: { items: unknown[]; costUsd: number }) => ({ model: actor, units: r.items.length, costUsd: alreadyPaid ? 0 : r.costUsd }),
       },
-      () => apify.runActor(actor, input, { ...(maxWaitMs === undefined ? {} : { maxWaitMs }), ...(build ? { build } : {}) }),
+      () => apify.runActor(actor, input, start),
     ).catch(async (err: unknown) => {
       // A failed run can still have been charged; record it so the monthly spend cap counts it (spec §4).
       const pe = providerErrorOf(err);
+      // Only a run Apify reported as ended (it then carries its final cost) is settled here; after a network error the
+      // run may still be going, so it stays open for the retry or the reconciler.
+      if (pe && pe.costUsd > 0) await settle("failed", pe.costUsd);
       if (pe && pe.costUsd > 0) {
         await o.sink
           .record({
@@ -118,7 +154,8 @@ export function createProfileScraper(o: Options): ProfileScraper {
       }
       return unwrap(err);
     });
-    return { provider: "apify", raw: out.items, costUsd: out.costUsd };
+    await settle("succeeded", out.costUsd);
+    return { provider: "apify", raw: out.items, costUsd: alreadyPaid ? 0 : out.costUsd };
   }
 
   async function youtubeProfile(req: ScrapeRequest): Promise<ScrapeResult> {

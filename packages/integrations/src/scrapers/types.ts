@@ -41,3 +41,20 @@ export class ProviderError extends Error {
 
 /** Admits paid work (`units` runs, default 1), or throws spend_cap; call the returned function once its cost is recorded. */
 export type SpendGuard = { begin(units?: number): Promise<() => void> };
+
+/**
+ * Durable record of paid provider runs (audit SRCH-04), implemented in PostgreSQL (packages/db). A run is claimed by a
+ * stable key (job + actor + exact input) before the provider is called, so a retry finds it and resumes it instead of
+ * paying again; its cost is recorded once.
+ */
+export type ProviderRunRecord = { runKey: string; externalRunId: string | null; status: "starting" | "running" | "succeeded" | "failed" | "aborted" | "unknown"; costRecorded: boolean };
+export interface ProviderRunStore {
+  /** The existing run for this key, or a new one claimed now (status "starting"). */
+  claim(r: { runKey: string; actor: string; jobId: string | null; workspaceId: string | null }): Promise<{ run: ProviderRunRecord; created: boolean }>;
+  /** The provider returned its run id: stored before any waiting. */
+  attach(runKey: string, externalRunId: string): Promise<void>;
+  /** Terminal state and the cost recorded for it (once). */
+  finish(runKey: string, status: "succeeded" | "failed" | "aborted" | "unknown", costUsd: number | null): Promise<void>;
+  /** Runs still open since before `before` (for the reconciler). */
+  open(before: Date): Promise<(ProviderRunRecord & { actor: string; jobId: string | null; workspaceId: string | null; startedAt: Date })[]>;
+}

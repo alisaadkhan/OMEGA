@@ -1,7 +1,7 @@
 import { Redis } from "@upstash/redis";
 import { createLogger, loadWorkerConfig } from "@mushin/core";
-import { createDatabase, createDbProviderCallSink, providerCallsSince, providerPaused, providerSpendSince, UNVERIFIED_TLS_WARNING } from "@mushin/db";
-import { createBudgetGuard, createYouTubeAudienceSource, createLlm, pausableGuard, pausableLlm, createObjectStorage, createPayments, createProfileScraper, createSearchIndex, createSearchLimitGuard, createSerperSearch, createYouTubeSearch } from "@mushin/integrations";
+import { createDatabase, createDbProviderCallSink, createDbProviderRunStore, createDbReservationLedger, providerPaused, providerSpendSince, UNVERIFIED_TLS_WARNING } from "@mushin/db";
+import { createApifyClient, createSharedSpendGuard, reconcileApifyRuns, createYouTubeAudienceSource, createLlm, pausableGuard, pausableLlm, createObjectStorage, createPayments, createProfileScraper, createSearchIndex, createSerperSearch, createYouTubeSearch } from "@mushin/integrations";
 import { createAudienceRunner } from "../../api/src/modules/audience/index";
 import { createBillingService, createRedisAccessCache, noAccessCache } from "../../api/src/modules/billing/index";
 import { createContactChecker, createCreatorIndexer, createEnrichmentPipeline, createEraser, createSummaryWriter, getEnrichmentSettings, expireYoutubeApiData, systemMailResolver } from "../../api/src/modules/creators/index";
@@ -33,6 +33,8 @@ const llmSpentSince = async (since: Date) => (await providerSpendSince(db, "groq
 const llm = pausableLlm(createLlm(config.llm, { sink: createDbProviderCallSink(db), logger, budget: { budgetUsd: config.llmMonthlyBudgetUsd, spentSince: llmSpentSince } }), () => providerPaused(db, "llm"));
 const summaries = createSummaryWriter({ db, llm, logger });
 const enrichment = await db.withSystem((tx) => getEnrichmentSettings(tx));
+const reservations = createDbReservationLedger(db);
+const providerRuns = createDbProviderRunStore(db);
 const scraper = createProfileScraper({
   apify: config.scraping.apifyToken
     ? { token: config.scraping.apifyToken, instagramActor: config.scraping.instagramActor, ...(config.scraping.instagramBuild ? { instagramBuild: config.scraping.instagramBuild } : {}), tiktokActor: config.scraping.tiktokActor, ...(config.scraping.tiktokBuild ? { tiktokBuild: config.scraping.tiktokBuild } : {}), ...(config.scraping.instagramPostActor ? { instagramPostActor: config.scraping.instagramPostActor } : {}), ...(config.scraping.instagramPostBuild ? { instagramPostBuild: config.scraping.instagramPostBuild } : {}) }
@@ -40,17 +42,25 @@ const scraper = createProfileScraper({
   youtubeApiKey: config.scraping.youtubeApiKey,
   tiktokVideos: enrichment.tiktokRecentVideos,
   youtubeVideos: enrichment.recentPosts,
-  spendGuard: pausableGuard(createBudgetGuard({ budgetUsd: config.scraping.apifyMonthlyBudgetUsd, spentSince: (since) => providerSpendSince(db, "apify", since) }), () => providerPaused(db, "apify"), "Apify"),
+  // Audit SRCH-05: the monthly cap is reserved in PostgreSQL, so it holds across every worker process.
+  spendGuard: pausableGuard(createSharedSpendGuard({ ledger: reservations, provider: "apify", limit: config.scraping.apifyMonthlyBudgetUsd, perUnit: 0.05, label: "Apify budget (USD)" }), () => providerPaused(db, "apify"), "Apify"),
+  // Audit SRCH-04: paid runs are recorded before waiting, resumed on retry, capped by Apify, reconciled hourly.
+  runs: providerRuns,
   sink: createDbProviderCallSink(db),
   logger,
 });
+const reconcileProviderRuns = async () => {
+  if (!config.scraping.apifyToken) return;
+  const tally = await reconcileApifyRuns({ runs: providerRuns, apify: createApifyClient({ token: config.scraping.apifyToken }), sink: createDbProviderCallSink(db), logger });
+  if (tally.settled + tally.aborted + tally.unknown > 0) logger.warn(tally, "reconciled Apify runs left open by an earlier failure");
+};
 if (!config.scraping.apifyToken) logger.warn("APIFY_TOKEN not set: Instagram and TikTok jobs will fail and refund");
 if (!config.scraping.youtubeApiKey) logger.warn("YOUTUBE_API_KEY not set: YouTube jobs will fail and refund");
 const pipeline = createEnrichmentPipeline({ db, scraper, storage: createObjectStorage(config.storage, logger), llm, encryptionKey: config.dataEncryptionKey, logger });
 const runner = createDiscoveryRunner({ db, billing, pipeline, logger });
 const web = createSerperSearch({
   apiKey: config.scraping.serperApiKey,
-  limit: pausableGuard(createSearchLimitGuard({ limit: config.scraping.serperMonthlySearchLimit, countSince: (since) => providerCallsSince(db, "serper", since) }), () => providerPaused(db, "serper"), "Serper"),
+  limit: pausableGuard(createSharedSpendGuard({ ledger: reservations, provider: "serper", limit: config.scraping.serperMonthlySearchLimit, perUnit: 1, label: "Serper search limit" }), () => providerPaused(db, "serper"), "Serper"),
   sink: createDbProviderCallSink(db),
   logger,
 });
@@ -80,7 +90,7 @@ const worker = await startWorker({
   db,
   boss,
   logger,
-  handlers: { ...defaultHandlers(db), ...billingHandlers(billing), ...notifyHandlers(), ...creatorHandlers({ indexer, summaries, expireYoutube: () => expireYoutubeApiData(db, pipeline.storage ? { storage: pipeline.storage } : {}) }), ...discoveryHandlers({ runner, liveRunner, searchCache, pipeline }), ...erasureHandlers({ eraser }), ...contactCheckHandlers({ checker: contactChecker }), ...audienceHandlers({ runner: audienceRunner }) },
+  handlers: { ...defaultHandlers(db, { reconcileProviderRuns }), ...billingHandlers(billing), ...notifyHandlers(), ...creatorHandlers({ indexer, summaries, expireYoutube: () => expireYoutubeApiData(db, pipeline.storage ? { storage: pipeline.storage } : {}) }), ...discoveryHandlers({ runner, liveRunner, searchCache, pipeline }), ...erasureHandlers({ eraser }), ...contactCheckHandlers({ checker: contactChecker }), ...audienceHandlers({ runner: audienceRunner }) },
 });
 logger.info("worker started");
 
