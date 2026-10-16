@@ -28,11 +28,11 @@ an account, a credential, people or Docker), **not tested**. Nothing has been de
 | Provider caps and kill switches | partial | Apify, Serper and LLM monthly caps; per-job cost cap and 20-minute deadline; provider pause (staff, on team-privacy branch). Production cap values: owner. Provider terms review (Apify actors): owner. |
 | Billing (Paddle sandbox, webhooks, refunds) | blocked | Mock provider only; webhook idempotency tested locally. Needs a Paddle sandbox account. |
 | Search acceptance | blocked | Human ratings needed (packets `blind-b1-elig1`, `blind-b2-elig1`; delete YouTube data by 2026-11-12). Search is **not accepted**. |
-| Creator eligibility (10,000 minimum) | ready | elig-1 enforced in search, Live Discovery delivery, lists, campaigns, profiles; E2E 3 × 82/82. |
+| Creator eligibility (10,000 minimum) | ready | elig-1 enforced in search, Live Discovery delivery, lists, campaigns, profiles; E2E 3 × 82/82. Staff coverage endpoint `GET /admin/v1/ops/eligibility` (counts only); its console page waits for the staff UI. |
 | Contact privacy and empty states | ready | Contact values only after an explicit reveal; empty and below-minimum states are shown truthfully (E2E). |
-| Accessibility and phone width | partial | axe (WCAG 2.0–2.2 A/AA serious/critical) on every customer page and the profile dialog, phone width on the main pages (E2E). Manual keyboard and screen-reader review: not done. |
+| Accessibility and phone width | partial | axe (WCAG 2.0–2.2 A/AA serious/critical) on every customer page, campaign detail and the profile dialog, phone width on the main pages: E2E 3 × 90/90 after fixing A-1..A-3. Manual keyboard, screen-reader and zoom review: not done. |
 | Security tests | partial | Bundle secret scan, API object/property/function authorization, injection and header tests pass. No external penetration test or dependency audit in CI yet. |
-| Load and recovery | partial | Search 100k benchmark and CRM read timings (earlier); rate limits shared across instances; worker crash/retry/deadline tests. No load test against a hosted environment. |
+| Load and recovery | partial | `scripts/load-check.ts` 2026-10-16, local disposable stack, 200 requests per endpoint at concurrency 10, all 200: search repeat p50/p95/p99 81/95/231 ms (target p95 800), lists 35/46/47, campaigns 33/49/56, creator profile 55/64/82, billing summary 47/60/69 (targets p95 300). Earlier 100k search benchmark. Rate limits shared across instances; worker crash/retry/deadline tests. Single machine, small catalogue: no hosted or large-scale load test yet. |
 | Legal: privacy policy, terms, YouTube identifiers, provider redistribution rights | blocked | Unresolved; must not be presumed passed. |
 
 ## 1. Bottom line

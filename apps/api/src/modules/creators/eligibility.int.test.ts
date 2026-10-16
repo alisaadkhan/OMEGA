@@ -132,4 +132,17 @@ describe("creator eligibility in catalogue search (elig-1)", () => {
     const other = await lists.create(c, { name: "Other", description: "" });
     await expect(lists.addMembers(c, other.id, [id])).rejects.toMatchObject({ details: { reason: "creator_ineligible" } });
   });
+
+  it("reports coverage for operations as counts only: totals, reasons and qualifying platforms", async () => {
+    await add("Big One", 50_000);
+    await add("Small One", 9_000);
+    await add("Unknown One", null);
+    await addCreator(db, { displayName: "YT Big", profiles: [{ platform: "youtube", followers: 20_000, bio: "x" }] });
+    await indexer.reconcile();
+    const r = await creators.eligibilityCoverage();
+    expect(r).toMatchObject({ policy: "elig-1", total: 4, eligible: 2, activityUnverified: 2 });
+    expect(r.byReason).toEqual(expect.arrayContaining([{ reason: "below_follower_minimum", creators: 1 }, { reason: "followers_unknown", creators: 1 }]));
+    expect(r.byPlatform).toEqual([{ platform: "instagram", eligibleCreators: 1 }, { platform: "youtube", eligibleCreators: 1 }]);
+    expect(JSON.stringify(r)).not.toMatch(/Big One|Small One|creator_/);
+  });
 });

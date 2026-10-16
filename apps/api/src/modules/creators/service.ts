@@ -9,6 +9,7 @@ import {
   type SearchFilters,
   type SearchRequest,
   type SearchResponse,
+  type EligibilityCoverage,
 } from "@mushin/contracts";
 import { AppError, decryptSecret, type Logger, type TenantContext } from "@mushin/core";
 import { and, eq } from "drizzle-orm";
@@ -25,7 +26,7 @@ import { chargeCatalogSearch } from "./search-charge";
 import { decodeCursor, encodeCursor } from "./cursor";
 import { understandQuery } from "./understand";
 import { matchReasons } from "./match-reasons";
-import { creatorEligibility } from "./eligibility";
+import { creatorEligibility, ELIGIBILITY_VERSION } from "./eligibility";
 import { DEFAULT_SOURCE_POLICY, restrictsDerived, type SourcePolicy } from "./source-policy";
 
 export type CreatorsDeps = {
@@ -353,7 +354,13 @@ export function createCreatorsService(deps: CreatorsDeps) {
     await deps.db.withTenant(tenant(ctx), (tx) => tx.delete(contactReveals).where(and(eq(contactReveals.workspaceId, ctx.workspaceId), eq(contactReveals.creatorId, creatorId))));
   }
 
-  return { search, interpret, lookup, listSaved, createSaved, deleteSaved, profile, reveal, forgetReveal };
+  /** Staff coverage report (counts only) under the eligibility policy. */
+  async function eligibilityCoverage(): Promise<EligibilityCoverage> {
+    const t = now();
+    return { policy: ELIGIBILITY_VERSION, at: t.toISOString(), ...(await deps.db.withSystem((tx) => repo.eligibilityCoverage(tx, t))) };
+  }
+
+  return { search, interpret, lookup, listSaved, createSaved, deleteSaved, profile, reveal, forgetReveal, eligibilityCoverage };
 }
 
 export type CreatorsService = ReturnType<typeof createCreatorsService>;

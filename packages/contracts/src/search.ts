@@ -70,6 +70,18 @@ export const creatorEligibilitySchema = z.object({
 });
 export type CreatorEligibilityView = z.output<typeof creatorEligibilitySchema>;
 
+/** Staff coverage report under the eligibility policy: counts only, never creator data. */
+export const eligibilityCoverageSchema = z.object({
+  policy: z.string(),
+  at: z.iso.datetime(),
+  total: z.number().int(),
+  eligible: z.number().int(),
+  activityUnverified: z.number().int(),
+  byReason: z.array(z.object({ reason: z.string(), creators: z.number().int() })),
+  byPlatform: z.array(z.object({ platform: z.string(), eligibleCreators: z.number().int() })),
+});
+export type EligibilityCoverage = z.output<typeof eligibilityCoverageSchema>;
+
 export const creatorCardSchema = z.object({
   id: z.uuid(),
   displayName: z.string(),

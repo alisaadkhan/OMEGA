@@ -576,3 +576,28 @@ export async function ineligibleCreatorIds(tx: Tx, ids: string[], now: Date): Pr
 }
 
 const notEvaluated = (): CreatorEligibility => ({ version: ELIGIBILITY_VERSION, eligible: false, reasons: ["no_profile"], eligibleUntil: null, qualifyingPlatforms: [], flags: [], profiles: [] });
+
+/** Catalogue coverage under the eligibility policy, counts only (no creator data): for the staff coverage report. */
+export async function eligibilityCoverage(tx: Tx, now: Date): Promise<{
+  total: number;
+  eligible: number;
+  activityUnverified: number;
+  byReason: { reason: string; creators: number }[];
+  byPlatform: { platform: string; eligibleCreators: number }[];
+}> {
+  const at = Math.floor(now.getTime() / 1000);
+  const [totals] = await tx.execute<{ total: number; eligible: number; activity_unverified: number }>(sql`
+    select count(*)::int as total,
+      count(*) filter (where eligible and eligible_until_epoch > ${at})::int as eligible,
+      count(*) filter (where eligible and eligible_until_epoch > ${at} and 'activity_unverified' = any (eligibility_flags))::int as activity_unverified
+    from gcp.creator_search_documents`);
+  const byReason = await tx.execute<{ reason: string; creators: number }>(sql`
+    select reason, count(*)::int as creators from (
+      select unnest(case when eligible and eligible_until_epoch <= ${at} then array['evidence_expired'] else eligibility_reasons end) as reason
+      from gcp.creator_search_documents) r
+    group by reason order by creators desc, reason`);
+  const byPlatform = await tx.execute<{ platform: string; eligibleCreators: number }>(sql`
+    select p as platform, count(*)::int as "eligibleCreators" from gcp.creator_search_documents d, unnest(d.qualifying_platforms) p
+    where d.eligible and d.eligible_until_epoch > ${at} group by p order by p`);
+  return { total: totals?.total ?? 0, eligible: totals?.eligible ?? 0, activityUnverified: totals?.activity_unverified ?? 0, byReason: [...byReason], byPlatform: [...byPlatform] };
+}
