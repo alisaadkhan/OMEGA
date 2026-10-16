@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { createLogger, loadWorkerConfig } from "@mushin/core";
 import { MemoryProviderCallSink } from "../memory-sink";
 import { createObjectStorage, RAW_PAYLOAD_BUCKET } from "../storage";
@@ -9,10 +9,17 @@ import { createSearchLimitGuard, createSerperSearch } from "../websearch";
 
 // Spends about $0.02 of Apify (spec §10). Run: LIVE_SCRAPE_TESTS=1 npx vitest run --project int packages/integrations/src/scrapers/scrapers.live.int.test.ts
 describe.skipIf(process.env["LIVE_SCRAPE_TESTS"] !== "1")("live scrapers and storage (LIVE_SCRAPE_TESTS=1)", () => {
-  const config = loadWorkerConfig(process.env);
+  // Built in beforeAll, not while the file is collected: a skipped suite must not need provider settings (audit OPS-01:
+  // a clean checkout without .env failed at collection).
   const logger = createLogger({ level: "silent" });
   const sink = new MemoryProviderCallSink();
-  const scraper = createProfileScraper({
+  let config: ReturnType<typeof loadWorkerConfig>;
+  let scraper: ReturnType<typeof createProfileScraper>;
+  beforeAll(() => {
+    config = loadWorkerConfig(process.env);
+    scraper = makeScraper(config);
+  });
+  const makeScraper = (config: ReturnType<typeof loadWorkerConfig>) => createProfileScraper({
     apify: config.scraping.apifyToken ? { token: config.scraping.apifyToken, instagramActor: config.scraping.instagramActor, ...(config.scraping.instagramBuild ? { instagramBuild: config.scraping.instagramBuild } : {}), tiktokActor: config.scraping.tiktokActor, ...(config.scraping.tiktokBuild ? { tiktokBuild: config.scraping.tiktokBuild } : {}) } : null,
     youtubeApiKey: config.scraping.youtubeApiKey,
     tiktokVideos: 3,
