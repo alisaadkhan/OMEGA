@@ -60,6 +60,11 @@ export function CampaignDetail({ id, onBack, onOpenCreator, onGoToSearch }: { id
           </div>
           <div className="flex shrink-0 gap-1.5">
             <button onClick={() => setEditing(true)} className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-50"><Pencil className="h-3.5 w-3.5" /> Edit</button>
+            {c.status === "archived" ? (
+              <button onClick={() => update.mutate({ id, patch: { status: "paused" } }, { onSuccess: () => toast.success(`Restored ${c.name}`), onError: (err) => toast.error("Couldn't restore the campaign", err instanceof Error ? err.message : undefined) })} className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-50">Restore</button>
+            ) : (
+              <button onClick={() => update.mutate({ id, patch: { status: "archived" } }, { onSuccess: () => toast.success(`Archived ${c.name}. It no longer counts towards your plan's campaign limit.`), onError: (err) => toast.error("Couldn't archive the campaign", err instanceof Error ? err.message : undefined) })} className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-50">Archive</button>
+            )}
             <button onClick={() => void onDelete()} className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-white px-2.5 py-1.5 text-xs text-red-700 hover:bg-red-50"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
           </div>
         </div>

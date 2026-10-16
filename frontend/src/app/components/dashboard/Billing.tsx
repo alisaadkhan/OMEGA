@@ -4,6 +4,7 @@ import { ArrowUpRight, BarChart3, Check, CheckCircle2, Lock, Mail, Plus, Radio, 
 import type { BillingInterval, CreditAction, PlanId } from "@mushin/contracts";
 import { AnimatedNumber } from "./AnimatedNumber";
 import { COPY } from "../../lib/copy";
+import { planFeatures } from "../../lib/plans";
 import { useConfirm } from "../../lib/toast";
 import {
   useBillingPlans,
@@ -57,7 +58,10 @@ export function Billing({ checkoutResult }: { checkoutResult?: "success" | "fail
   const cancel = useCancelSubscription();
   const refresh = useRefreshBilling();
   const confirm = useConfirm();
-  const [billingInterval, setBillingInterval] = useState<BillingInterval>("month");
+  const [chosenInterval, setBillingInterval] = useState<BillingInterval>("month");
+  // Yearly billing is offered only once the owner approves annual prices (the server catalogue says so).
+  const annual = plans.data?.annualBilling === true;
+  const billingInterval: BillingInterval = annual ? chosenInterval : "month";
   const [showPlans, setShowPlans] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -237,13 +241,13 @@ export function Billing({ checkoutResult }: { checkoutResult?: "success" | "fail
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Plans</div>
-            <div className="inline-flex rounded-md border border-slate-200 p-0.5 text-xs">
+            {annual && <div className="inline-flex rounded-md border border-slate-200 p-0.5 text-xs">
               {(["month", "year"] as const).map((i) => (
                 <button key={i} onClick={() => setBillingInterval(i)} className={`rounded px-2.5 py-1 ${billingInterval === i ? "bg-slate-900 text-white" : "text-slate-600"}`}>
                   {i === "month" ? "Monthly" : "Yearly"}
                 </button>
               ))}
-            </div>
+            </div>}
           </div>
           <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
             {plans.data.plans.map((p) => {
@@ -259,6 +263,14 @@ export function Billing({ checkoutResult }: { checkoutResult?: "success" | "fail
                   <div className="mt-1 text-xs text-slate-500">
                     {p.monthlyCredits.toLocaleString()} credits / month · charged {formatMoney(billingInterval === "month" ? p.charge.monthly : p.charge.yearly)}
                   </div>
+                  <ul className="mt-3 space-y-1 text-xs" aria-label={`What ${p.name} includes`}>
+                    {planFeatures(p, plans.data.availability).map((f) => (
+                      <li key={f.key} className={`flex justify-between gap-2 ${f.included ? "text-slate-700" : "text-slate-500"}`}>
+                        <span>{f.label}</span>
+                        <span className="text-right" style={{ fontWeight: 600 }}>{f.value}{f.status === "coming_soon" ? " · coming soon" : f.status === "test_mode" ? " · test mode" : ""}</span>
+                      </li>
+                    ))}
+                  </ul>
                   <button
                     disabled={busy || current}
                     onClick={() => choosePlan(p.id)}

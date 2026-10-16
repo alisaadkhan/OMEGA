@@ -20,3 +20,5 @@ export RATE_LIMIT_MAX_REQUESTS=2000
 # In-memory rate limiter (reset with each run); no remote Upstash calls during E2E.
 export UPSTASH_REDIS_REST_URL=
 export UPSTASH_REDIS_REST_TOKEN=
+# Outreach email in test mode: a mock provider records sends; nothing is delivered (never allowed in production).
+export OUTREACH_EMAIL_MODE=test

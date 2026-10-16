@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ExportButton } from "./ExportButton";
 import { CalendarDays, Megaphone, Plus, Users } from "lucide-react";
 import type { CampaignSummary, CreateCampaign } from "@mushin/contracts";
 import { rupees, toMinor, useCampaigns, useCreateCampaign } from "../../api/campaigns";
@@ -18,11 +19,12 @@ export function Campaigns({ onOpenCreator, onGoToSearch }: { onOpenCreator: (c: 
   return openId ? <CampaignDetail id={openId} onBack={() => setOpenId(null)} onOpenCreator={onOpenCreator} onGoToSearch={onGoToSearch} /> : <CampaignIndex onOpen={setOpenId} />;
 }
 
-export const STATUS_LABEL = { draft: "Draft", active: "Active", paused: "Paused", completed: "Completed" } as const;
-export const STATUS_TONE = { draft: "bg-slate-100 text-slate-700", active: "bg-emerald-50 text-emerald-700", paused: "bg-amber-50 text-amber-800", completed: "bg-indigo-50 text-indigo-700" } as const;
+export const STATUS_LABEL = { draft: "Draft", active: "Active", paused: "Paused", completed: "Completed", archived: "Archived" } as const;
+export const STATUS_TONE = { draft: "bg-slate-100 text-slate-700", active: "bg-emerald-50 text-emerald-700", paused: "bg-amber-50 text-amber-800", completed: "bg-indigo-50 text-indigo-700", archived: "bg-slate-100 text-slate-600" } as const;
 export const STAGE_LABEL = { identified: "Identified", contacted: "Contacted", negotiating: "Negotiating", confirmed: "Confirmed" } as const;
 
-export type CampaignFormValue = Required<Omit<CreateCampaign, "budgetMinor">> & { budgetMinor: number | null };
+/** `archived` appears only when editing an archived campaign (archiving and restoring have their own buttons). */
+export type CampaignFormValue = Required<Omit<CreateCampaign, "budgetMinor" | "status">> & { budgetMinor: number | null; status: keyof typeof STATUS_LABEL };
 
 export function CampaignForm({ initial, submitLabel, busy, onSubmit, onCancel }: { initial?: Partial<CampaignFormValue>; submitLabel: string; busy: boolean; onSubmit: (v: CampaignFormValue) => void; onCancel: () => void }) {
   const [v, setV] = useState({
@@ -70,7 +72,7 @@ export function CampaignForm({ initial, submitLabel, busy, onSubmit, onCancel }:
       <label className={label} style={{ fontWeight: 600 }}>
         Status
         <select value={v.status} onChange={(e) => setV((x) => ({ ...x, status: e.target.value as CampaignFormValue["status"] }))} className={input}>
-          {Object.entries(STATUS_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+          {Object.entries(STATUS_LABEL).filter(([k]) => k !== "archived" || initial?.status === "archived").map(([k, l]) => <option key={k} value={k}>{l}</option>)}
         </select>
       </label>
       <label className={label} style={{ fontWeight: 600 }}>
@@ -153,16 +155,19 @@ function CampaignIndex({ onOpen }: { onOpen: (id: string) => void }) {
           <h1 className="text-slate-900" style={{ fontSize: 26, fontWeight: 700 }}>Campaigns</h1>
           <p className="mt-1 text-sm text-slate-500">Track creators from first contact to confirmed, with fees and an outreach log.</p>
         </div>
-        <button onClick={() => setCreating(true)} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-sm text-white hover:bg-slate-800" style={{ fontWeight: 600 }}>
-          <Plus className="h-4 w-4" /> New campaign
-        </button>
+        <div className="flex items-center gap-2">
+          <ExportButton kind="campaigns" />
+          <button onClick={() => setCreating(true)} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-sm text-white hover:bg-slate-800" style={{ fontWeight: 600 }}>
+            <Plus className="h-4 w-4" /> New campaign
+          </button>
+        </div>
       </div>
       {creating && (
         <CampaignForm
           submitLabel="Create campaign"
           busy={create.isPending}
           onCancel={() => setCreating(false)}
-          onSubmit={(v) => create.mutate(v, { onSuccess: (c) => { setCreating(false); toast.success(`Created ${c.name}`); onOpen(c.id); }, onError: (err) => toast.error("Couldn't create the campaign", err instanceof Error ? err.message : undefined) })}
+          onSubmit={(v) => create.mutate({ ...v, status: v.status === "archived" ? "draft" : v.status }, { onSuccess: (c) => { setCreating(false); toast.success(`Created ${c.name}`); onOpen(c.id); }, onError: (err) => toast.error("Couldn't create the campaign", err instanceof Error ? err.message : undefined) })}
         />
       )}
       {campaigns.isPending ? (

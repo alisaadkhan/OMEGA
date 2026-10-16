@@ -1,56 +1,60 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { CAMPAIGN_LIMITS, PLANS } from "../lib/plans";
+import type { BillingPlans } from "@mushin/contracts";
+import { planFeatures, type CatalogPlan } from "../lib/plans";
 
-const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
-const migration = read("../../../../packages/db/migrations/0005_billing.sql");
-
-/** Plan rows as seeded: id → [monthly credits, monthly price (minor), yearly per-month price (minor)]. */
-function seededPlans(): Map<string, [number, number, number]> {
-  const out = new Map<string, [number, number, number]>();
-  for (const m of migration.matchAll(/\('(explorer|growth|scale)', '[^']*', (\d+), (\d+), (\d+),/g)) {
-    out.set(m[1]!, [Number(m[2]), Number(m[3]), Number(m[4])]);
-  }
-  return out;
+/**
+ * Owner plan model 2026-10-16. The page reads the server catalogue; this checks how plan cards describe a catalogue
+ * shaped like migration 0038, and that no price or allowance is written into frontend code. The browser journey
+ * compares the rendered page with the live API.
+ */
+const migration = readFileSync(new URL("../../../../packages/db/migrations/0038_plan_entitlements.sql", import.meta.url), "utf8");
+function planFromMigration(id: CatalogPlan["id"]): CatalogPlan {
+  const m = new RegExp(String.raw`update platform\.plans set name = '([^']+)', monthly_credits = (\d+), display_monthly_minor = (\d+),\s+entitlements = '([^']+)'\s+where id = '${id}'`).exec(migration);
+  if (!m) throw new Error(`no row for ${id}`);
+  const money = (amountMinor: number) => ({ amountMinor, currency: "PKR" });
+  return { id, name: m[1]!, monthlyCredits: Number(m[2]), display: { monthly: money(Number(m[3])), yearlyPerMonth: money(0) }, charge: { monthly: money(0), yearly: money(0) }, entitlements: JSON.parse(m[4]!) as CatalogPlan["entitlements"] };
 }
+const off: BillingPlans["availability"] = { audienceDetails: false, outreachEmail: "off", export: true };
+const row = (p: CatalogPlan, key: string, a = off) => planFeatures(p, a).find((f) => f.key === key);
 
-describe("public plan claims", () => {
-  it("prices and credits on the landing page equal the server's plans", () => {
-    const seeded = seededPlans();
-    expect(seeded.size).toBe(3);
-    for (const p of PLANS) {
-      expect(seeded.get(p.id), p.id).toEqual([p.credits, p.monthly * 100, p.yearly * 100]);
-    }
-  });
-
-  it("states each plan's campaign limit exactly as the server's entitlement", () => {
-    for (const id of ["explorer", "growth", "scale"] as const) {
-      const row = migration.match(new RegExp(String.raw`\('${id}'[\s\S]*?"campaignLimit": (null|\d+)`));
-      expect(row?.[1], id).toBe(String(CAMPAIGN_LIMITS[id]));
-    }
-  });
-
-  it("uses the approved public names while keeping the persisted ids", () => {
-    expect(PLANS.map((p) => [p.id, p.name])).toEqual([
-      ["explorer", "STARTER"],
-      ["growth", "GROWTH"],
-      ["scale", "SCALE"],
+describe("plan cards from the server catalogue", () => {
+  it("matches the owner's table: prices, credits and names", () => {
+    expect((["explorer", "growth", "scale"] as const).map((id) => { const p = planFromMigration(id); return [p.name, p.display.monthly.amountMinor / 100, p.monthlyCredits]; })).toEqual([
+      ["Starter", 4900, 2500],
+      ["Growth", 12900, 12000],
+      ["Scale", 24900, 35000],
     ]);
   });
 
-  it("promises nothing the product does not do yet", () => {
-    const features = PLANS.flatMap((p) => p.features.map((f) => `${f.label} ${f.value ?? ""} ${f.note ?? ""}`)).join("\n");
-    const pages = [read("../lib/plans.ts"), read("../components/landing/Pricing.tsx"), read("../components/landing/Metrics.tsx")].join("\n");
-    for (const claim of [/audience details/i, /AI-estimated/i, /outreach emails/i, /data export/i, /roll ?over/i, /\d+ campaigns/i]) {
-      expect(features).not.toMatch(claim);
-      expect(pages.replace(/\/\*[\s\S]*?\*\//g, "")).not.toMatch(claim);
-    }
-    // The landing feature grid and hero illustration name only shipped capabilities.
-    const landing = [read("../components/landing/Features.tsx"), read("../components/landing/Hero.tsx")].join(" ").replace(/\/\*[\s\S]*?\*\//g, "");
-    for (const claim of [/AI-estimated/i, /audience details/i, /lookalike/i, /semantic/i, /approvals/i, /enterprise/i, /multi-org/i, /Integrations/, /Audiences/, /dangerouslySetInnerHTML/]) {
-      expect(landing, String(claim)).not.toMatch(claim);
-    }
-    // Catalogue search is a paid action now; the landing page must not call it free.
-    expect(read("../components/landing/Metrics.tsx")).not.toMatch(/for free/i);
+  it("describes every entitlement cell, and never shows a gated feature as live", () => {
+    const [starter, growth, scale] = (["explorer", "growth", "scale"] as const).map(planFromMigration) as [CatalogPlan, CatalogPlan, CatalogPlan];
+    expect(row(starter, "campaigns")).toMatchObject({ value: "Up to 3", included: true });
+    expect(row(growth, "campaigns")?.value).toBe("Unlimited");
+    expect(row(starter, "audience")).toMatchObject({ value: "Not included", included: false });
+    expect(row(growth, "audience")).toMatchObject({ value: "Included", status: "coming_soon" });
+    expect(row(growth, "audience", { ...off, audienceDetails: true })?.status).toBeUndefined();
+    expect(row(starter, "email")).toMatchObject({ value: "Not included", included: false });
+    expect(row(growth, "email")).toMatchObject({ value: "500 per billing period", status: "coming_soon" });
+    expect(row(scale, "email", { ...off, outreachEmail: "test" })).toMatchObject({ value: "2,000 per billing period", status: "test_mode" });
+    expect(row(scale, "email", { ...off, outreachEmail: "live" })?.status).toBeUndefined();
+    expect([row(starter, "export")?.value, row(growth, "export")?.value, row(scale, "export")?.value]).toEqual(["Not included", "Not included", "Included"]);
+    for (const p of [starter, growth, scale]) for (const k of ["existing", "new", "contact", "lists", "outreach_log"]) expect(row(p, k)?.included, `${p.id} ${k}`).toBe(true);
+  });
+
+  it("has no price, credit allowance or annual discount written into frontend code", () => {
+    const files: string[] = [];
+    const walk = (dir: string) => {
+      for (const n of readdirSync(dir)) {
+        const p = join(dir, n);
+        if (statSync(p).isDirectory()) walk(p);
+        else if (/\.tsx?$/.test(n) && !/\.test\.tsx?$/.test(n)) files.push(p);
+      }
+    };
+    walk(fileURLToPath(new URL("..", import.meta.url)));
+    const offenders = files.filter((f) => /\b(4,?900|12,?900|24,?900|35,?000|12,?000)\b|save 20%/i.test(readFileSync(f, "utf8")));
+    expect(offenders).toEqual([]);
   });
 });

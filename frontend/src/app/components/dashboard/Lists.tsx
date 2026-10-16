@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ExportButton } from "./ExportButton";
 import { blockedReasonFor, ineligibleText } from "../../lib/eligibility";
 import { ArrowLeft, Download, FolderPlus, ListChecks, Pencil, Star, Trash2, Users } from "lucide-react";
 import type { ListMember, ListSummary } from "@mushin/contracts";
@@ -78,9 +79,12 @@ function ListIndex({ onOpen, onGoToSearch }: { onOpen: (id: string) => void; onG
           <h1 className="text-slate-900" style={{ fontSize: 26, fontWeight: 700 }}>Lists</h1>
           <p className="mt-1 text-sm text-slate-500">Shortlists of saved creators, private to your workspace.</p>
         </div>
-        <button onClick={() => setCreating(true)} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-sm text-white hover:bg-slate-800" style={{ fontWeight: 600 }}>
-          <FolderPlus className="h-4 w-4" /> New list
-        </button>
+        <div className="flex items-center gap-2">
+          <ExportButton kind="lists" />
+          <button onClick={() => setCreating(true)} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-sm text-white hover:bg-slate-800" style={{ fontWeight: 600 }}>
+            <FolderPlus className="h-4 w-4" /> New list
+          </button>
+        </div>
       </div>
       {creating && (
         <ListForm

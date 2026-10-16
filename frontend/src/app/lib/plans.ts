@@ -1,76 +1,67 @@
+import type { BillingPlans } from "@mushin/contracts";
+
+/**
+ * Presentation only (owner plan model 2026-10-16). Prices, credits, entitlements and what is switched on all come
+ * from the server catalogue (GET /v1/public/plans, platform.plans); nothing here decides what a plan includes.
+ */
+export type CatalogPlan = BillingPlans["plans"][number];
+export type Availability = BillingPlans["availability"];
+export type PlanId = CatalogPlan["id"];
+
+export const PLAN_COPY: Record<PlanId, { tagline: string; positioning: string; cta: string; highlight?: boolean }> = {
+  explorer: { tagline: "For freelancers and solo brands", positioning: "Everything you need to start finding the right creators.", cta: "Start free trial" },
+  growth: { tagline: "For active brands and agencies", positioning: "More credits, unlimited campaigns and outreach email.", cta: "Choose Growth", highlight: true },
+  scale: { tagline: "For agencies operating at volume", positioning: "The most credits, more outreach email and data export.", cta: "Choose Scale" },
+};
+
 export type PlanFeature = {
-  key: "existing" | "new" | "contact" | "campaigns" | "lists" | "outreach_log";
+  key: "existing" | "new" | "contact" | "lists" | "campaigns" | "audience" | "email" | "export" | "outreach_log";
   label: string;
-  value?: string;
+  /** What the plan gives; "Not included" when it does not. */
+  value: string;
+  included: boolean;
+  /** Included in the plan but not usable yet on this server (honest status, never shown as live). */
+  status?: "coming_soon" | "test_mode";
   note?: string;
 };
 
-export type Plan = {
-  id: "explorer" | "growth" | "scale";
-  name: string;
-  tagline: string;
-  positioning: string;
-  monthly: number;
-  yearly: number;
-  credits: number;
-  features: PlanFeature[];
-  cta: string;
-  highlight?: boolean;
-};
+const fmt = (n: number) => new Intl.NumberFormat("en-PK").format(n);
 
-/**
- * The public pricing cards. Prices and credits mirror `platform.plans` (checked by plans-claims.test.ts); the persisted
- * id of Starter stays `explorer`. Every feature listed here works on every plan today; the campaign limit is the
- * server-enforced `campaignLimit` entitlement. Not listed because they are not available yet: audience demographics,
- * outreach email sending and data export.
- */
-const FEATURES: PlanFeature[] = [
-  { key: "existing", label: "Search Existing Creators", note: "Each new search uses credits; further pages and repeats within 30 minutes are free." },
-  { key: "new", label: "Find New Creators", note: "Quoted before you confirm. You pay only for new creators actually added; nothing if none is found." },
-  { key: "contact", label: "Reveal Contact Information" },
-  { key: "lists", label: "Lists" },
-  { key: "campaigns", label: "Campaigns" },
-  { key: "outreach_log", label: "Outreach log", note: "Record your outreach by hand. MUSHIN does not send emails yet." },
-];
+/** The feature rows of one plan, derived from its server entitlements and the server's capability switches. */
+export function planFeatures(plan: CatalogPlan, availability: Availability): PlanFeature[] {
+  const e = plan.entitlements;
+  const emails = e.outreachEmailsPerMonth;
+  const audienceIncluded = e.audienceViewsPerMonth !== 0;
+  return [
+    { key: "existing", label: "Creator discovery", value: "Included", included: true, note: "Each new search uses credits; further pages and repeats within 30 minutes are free." },
+    { key: "new", label: "Live creator discovery", value: "Included", included: true, note: "Quoted before you confirm. You pay only for new creators actually added; nothing if none is found." },
+    { key: "contact", label: "Creator contact information", value: "Included", included: true, note: "Revealing a creator's contact details uses credits; only stored, public contact details are shown." },
+    { key: "lists", label: "Saved creators and lists", value: "Included", included: true },
+    { key: "campaigns", label: "Campaigns", value: e.campaignLimit === null ? "Unlimited" : `Up to ${e.campaignLimit}`, included: true, ...(e.campaignLimit === null ? {} : { note: "Archived campaigns don't count towards the limit." }) },
+    {
+      key: "audience",
+      label: "Audience details",
+      value: audienceIncluded ? "Included" : "Not included",
+      included: audienceIncluded,
+      ...(audienceIncluded && !availability.audienceDetails
+        ? { status: "coming_soon" as const, note: "Not available yet: it starts once an approved, accurate data source is in place. MUSHIN never shows invented demographics." }
+        : {}),
+    },
+    {
+      key: "email",
+      label: "Outreach emails",
+      value: emails === 0 ? "Not included" : emails === null ? "Unlimited" : `${fmt(emails)} per billing period`,
+      included: emails !== 0,
+      ...(emails !== 0 && availability.outreachEmail === "off"
+        ? { status: "coming_soon" as const, note: "Sending through MUSHIN is not live yet. Until then, contact creators directly and log it in the campaign." }
+        : emails !== 0 && availability.outreachEmail === "test"
+          ? { status: "test_mode" as const, note: "Test mode: emails are recorded but not delivered." }
+          : {}),
+    },
+    { key: "export", label: "Data export", value: e.export ? "Included" : "Not included", included: e.export, ...(e.export ? { note: "CSV of your lists and campaigns, available for 24 hours." } : {}), ...(e.export && !availability.export ? { status: "coming_soon" as const } : {}) },
+    { key: "outreach_log", label: "Outreach log", value: "Included", included: true, note: "Record outreach you do outside MUSHIN by hand." },
+  ];
+}
 
-/** The same features with the plan's open-campaign limit (null: no limit), as enforced by the API. */
-const withCampaignLimit = (limit: number | null): PlanFeature[] =>
-  FEATURES.map((f) => (f.key === "campaigns" ? { ...f, value: limit === null ? "Unlimited" : `Up to ${limit} open`, note: "Completed campaigns don't count." } : f));
-export const CAMPAIGN_LIMITS: Record<Plan["id"], number | null> = { explorer: 3, growth: null, scale: null };
-
-export const PLANS: Plan[] = [
-  {
-    id: "explorer",
-    name: "STARTER",
-    tagline: "For freelancers and solo brands",
-    positioning: "Everything you need to start finding the right creators.",
-    monthly: 4900,
-    yearly: 3900,
-    credits: 2500,
-    features: withCampaignLimit(CAMPAIGN_LIMITS.explorer),
-    cta: "Start free trial",
-  },
-  {
-    id: "growth",
-    name: "GROWTH",
-    tagline: "For active brands and agencies",
-    positioning: "The same tools with nearly five times the credits.",
-    monthly: 12900,
-    yearly: 10900,
-    credits: 12000,
-    features: withCampaignLimit(CAMPAIGN_LIMITS.growth),
-    cta: "Upgrade to Growth",
-    highlight: true,
-  },
-  {
-    id: "scale",
-    name: "SCALE",
-    tagline: "For agencies operating at volume",
-    positioning: "The most credits, for teams running several brands.",
-    monthly: 24900,
-    yearly: 19900,
-    credits: 35000,
-    features: withCampaignLimit(CAMPAIGN_LIMITS.scale),
-    cta: "Choose Scale",
-  },
-];
+/** Rupees from PKR minor units (paisa). */
+export const rupees = (minor: number) => Math.round(minor / 100);

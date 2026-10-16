@@ -516,6 +516,100 @@ if (phase === "main") {
   check("privacy", "after deleting the account the person is signed out (session cleared, not on the dashboard)", sessionLeft === null && !inv.url().includes("#/dashboard"), inv.url());
   await inv.context().close();
 
+  // ── 10c. Plans and entitlements (owner plan model 2026-10-16; payments and email are mocks) ──
+  // The signed-out pricing page shows exactly the server catalogue (prices, credits, every feature cell).
+  const catalog = await (await fetch("http://localhost:4000/v1/public/plans")).json();
+  const pub = await pageAs(null);
+  await pub.goto("http://localhost:5173/#/");
+  await pub.locator("[data-plan] [data-feature]").first().waitFor({ timeout: 30000 });
+  const fmt = (n) => new Intl.NumberFormat("en-PK").format(n);
+  const expectCell = (p, key) => {
+    const e = p.entitlements;
+    if (key === "campaigns") return e.campaignLimit === null ? "Unlimited" : `Up to ${e.campaignLimit}`;
+    if (key === "audience") return e.audienceViewsPerMonth === 0 ? "Not included" : "Included";
+    if (key === "email") return e.outreachEmailsPerMonth === 0 ? "Not included" : e.outreachEmailsPerMonth === null ? "Unlimited" : `${fmt(e.outreachEmailsPerMonth)} per billing period`;
+    if (key === "export") return e.export ? "Included" : "Not included";
+    return "Included";
+  };
+  const pageMismatches = [];
+  for (const p of catalog.plans) {
+    const card = pub.locator(`[data-plan="${p.id}"]`);
+    if ((await card.locator('[data-role="price"]').innerText()).trim() !== fmt(p.display.monthly.amountMinor / 100)) pageMismatches.push(`${p.id} price`);
+    if ((await card.locator('[data-role="credits"]').innerText()).trim() !== fmt(p.monthlyCredits)) pageMismatches.push(`${p.id} credits`);
+    for (const key of ["existing", "new", "contact", "lists", "campaigns", "audience", "email", "export", "outreach_log"]) {
+      const cell = card.locator(`[data-feature="${key}"]`);
+      if ((await cell.getAttribute("data-value")) !== expectCell(p, key)) pageMismatches.push(`${p.id} ${key}`);
+      const status = await cell.getAttribute("data-status");
+      if (key === "audience" && p.entitlements.audienceViewsPerMonth !== 0 && !catalog.availability.audienceDetails && status !== "coming_soon") pageMismatches.push(`${p.id} audience shown live`);
+      if (key === "email" && p.entitlements.outreachEmailsPerMonth !== 0 && catalog.availability.outreachEmail === "test" && status !== "test_mode") pageMismatches.push(`${p.id} email not marked test mode`);
+    }
+  }
+  const pricingText = await pub.locator("#pricing").innerText();
+  check("plans", "the pricing page shows exactly the server catalogue: prices, credits and every feature cell", pageMismatches.length === 0 && catalog.plans.map((x) => x.name).join() === "Starter,Growth,Scale", pageMismatches.join(", "));
+  check("plans", "no annual price, discount or payment method the server does not offer", !catalog.annualBilling && !/yearly|save 20%|JazzCash|EasyPaisa/i.test(pricingText));
+  check("a11y", "Pricing: no serious or critical WCAG 2.2 A/AA issues", (await axeFindings(pub)).length === 0, (await axeFindings(pub)).join(" | "));
+  await pub.context().close();
+
+  // Starter (bought in section 7): at most 3 campaigns that are not archived; archiving frees a slot.
+  const pl = await pageAs("owner");
+  await pl.goto("http://localhost:5173/#/dashboard");
+  await pl.getByRole("heading", { name: /Welcome back, Olivia/ }).waitFor({ timeout: 30000 });
+  check("plans", "the workspace is on Starter", (await api("owner", "GET", "/v1/billing/summary")).json.plan?.name === "Starter");
+  const made = [];
+  for (let i = 0; i < 5; i++) {
+    const r = await api("owner", "POST", "/v1/campaigns", { name: `Starter slot ${i}` });
+    made.push(r.status);
+    if (r.status !== 201) break;
+  }
+  const blocked = (await api("owner", "POST", "/v1/campaigns", { name: "Over the limit" })).json;
+  check("plans", "Starter: the API creates campaigns up to 3 and then refuses (ENTITLEMENT_REQUIRED, plan_limit)", made.filter((s) => s === 201).length === 2 && blocked?.error?.code === "ENTITLEMENT_REQUIRED" && blocked?.error?.details?.limit === 3, made.join(","));
+  await nav(pl, "Campaigns");
+  await pl.getByRole("button", { name: "New campaign" }).first().click();
+  await pl.getByLabel("Campaign name").fill("Fourth from the UI");
+  await pl.getByRole("button", { name: "Create campaign" }).click();
+  await pl.getByText(/up to 3 campaigns that are not archived/).first().waitFor({ timeout: 15000 });
+  check("plans", "Starter: the UI shows the server's limit message", true);
+  await pl.getByRole("button", { name: "Cancel" }).first().click().catch(() => {});
+  await pl.getByRole("button", { name: /Starter slot 0/ }).first().click();
+  await pl.getByRole("heading", { name: "Starter slot 0" }).waitFor();
+  await pl.getByRole("button", { name: "Archive" }).click();
+  await pl.getByText("Archived", { exact: true }).first().waitFor({ timeout: 15000 });
+  const afterArchive = await api("owner", "POST", "/v1/campaigns", { name: "After archiving" });
+  check("plans", "Starter: archiving a campaign frees a slot and keeps the campaign", afterArchive.status === 201 && sql(`select status from wp.campaigns where workspace_id = '${ws}' and name = 'Starter slot 0'`) === "archived");
+  check("plans", "Starter: restoring an archived campaign while full is refused", (await api("owner", "PATCH", `/v1/campaigns/${sql(`select id from wp.campaigns where workspace_id = '${ws}' and name = 'Starter slot 0'`)}`, { status: "active" })).json?.error?.code === "ENTITLEMENT_REQUIRED");
+
+  // Starter: no data export and no outreach email, refused by the API and explained in the UI.
+  const exportDenied = (await api("owner", "POST", "/v1/exports", { kind: "lists" }, { "idempotency-key": `e2e-x1-${label}` })).json;
+  await nav(pl, "Lists");
+  await pl.getByRole("button", { name: "Export CSV" }).click();
+  await pl.getByText(/Data export is included in the Scale plan/).first().waitFor({ timeout: 15000 });
+  check("plans", "Starter: data export is refused by the API and the UI says it is a Scale feature", exportDenied?.error?.details?.reason === "plan_feature");
+  const emailDenied = (await api("owner", "POST", `/v1/campaigns/${k.id}/creators/${rw.id}/emails`, { contactId: rw.id, subject: "Hi", body: "Hello", confirm: true }, { "idempotency-key": `e2e-m1-${label}` })).json;
+  await nav(pl, "Campaigns");
+  await pl.getByRole("button", { name: /Eid food push/ }).first().click();
+  await pl.getByRole("heading", { name: "Eid food push" }).waitFor();
+  await pl.getByRole("button", { name: /Outreach|Log outreach/ }).first().click();
+  await pl.getByText("Your plan does not include outreach emails").first().waitFor({ timeout: 15000 });
+  check("plans", "Starter: outreach email is refused by the API and the panel says the plan does not include it", emailDenied?.error?.details?.reason === "plan_feature");
+  await pl.keyboard.press("Escape");
+
+  // Upgrade to Scale (mock provider; effective now): export works, the email panel unlocks, nothing is deleted.
+  const campaignsBefore = sql(`select count(*) from wp.campaigns where workspace_id = '${ws}'`);
+  const change = await api("owner", "POST", "/v1/billing/subscription/change", { planId: "scale", interval: "month" }, { "idempotency-key": `e2e-up-${label}` });
+  let plan = null;
+  for (let i = 0; i < 30; i++) { plan = (await api("owner", "GET", "/v1/billing/summary")).json.plan?.name; if (plan === "Scale") break; await new Promise((r) => setTimeout(r, 1000)); }
+  check("plans", "upgrade to Scale applies after the (mock) provider confirms it; every campaign is kept", change.status === 202 && plan === "Scale" && sql(`select count(*) from wp.campaigns where workspace_id = '${ws}'`) === campaignsBefore, `${change.status} ${plan}`);
+  check("plans", "Scale: unlimited campaigns (a restore that was refused on Starter now works)", (await api("owner", "PATCH", `/v1/campaigns/${sql(`select id from wp.campaigns where workspace_id = '${ws}' and name = 'Starter slot 0'`)}`, { status: "paused" })).status === 200);
+  await pl.reload();
+  await pl.getByRole("heading", { name: /Welcome back, Olivia/ }).waitFor({ timeout: 30000 });
+  await nav(pl, "Lists");
+  const [csvDownload] = await Promise.all([pl.waitForEvent("download", { timeout: 20000 }), pl.getByRole("button", { name: "Export CSV" }).click()]);
+  const csvText = readFileSync(await csvDownload.path(), "utf8");
+  check("plans", "Scale: the lists export downloads as CSV with the workspace's list and no contact values", /^"List","List description"/.test(csvText) && csvText.includes("Food shortlist") && !/@[a-z0-9-]+\.[a-z]{2,}/i.test(csvText), csvDownload.suggestedFilename());
+  const usage = (await api("owner", "GET", "/v1/outreach/usage")).json;
+  check("plans", "Scale: 2,000 outreach emails per billing period, in test mode (nothing is delivered)", usage.limit === 2000 && usage.used === 0 && usage.mode === "test");
+  await pl.context().close();
+
   // ── 11. Sign out ──
   await p.getByRole("button", { name: "Account menu" }).click();
   await p.getByRole("menuitem", { name: /Sign out|Log out/ }).click().catch(() => {});

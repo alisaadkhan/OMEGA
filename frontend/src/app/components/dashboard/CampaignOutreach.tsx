@@ -3,6 +3,7 @@ import { Copy, Mail, X } from "lucide-react";
 import type { CampaignCreator, LogOutreach } from "@mushin/contracts";
 import { useLogOutreach, useOutreachLog } from "../../api/campaigns";
 import { useToast } from "../../lib/toast";
+import { SendEmailSection } from "./SendEmail";
 import { ErrorState, Spinner } from "./states";
 
 export const OUTCOME_LABEL = { attempted: "Reached out", replied: "Replied", no_response: "No response", declined: "Declined", agreed: "Agreed" } as const;
@@ -65,11 +66,12 @@ export function OutreachPanel({ campaignId, member, onClose }: { campaignId: str
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
           <div>
             <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Outreach · {member.creator.displayName}</div>
-            <div className="text-[11px] text-slate-500">MUSHIN doesn't send messages. Use a template in your own email or DM, then log what happened.</div>
+            <div className="text-[11px] text-slate-500">Send an email through MUSHIN where your plan and this server allow it, or use a template in your own email or DM and log what happened.</div>
           </div>
           <button onClick={onClose} aria-label="Close" className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100"><X className="h-4 w-4" /></button>
         </div>
         <div className="flex-1 space-y-5 overflow-y-auto p-5">
+          <SendEmailSection campaignId={campaignId} creatorId={member.creator.id} creatorName={member.creator.displayName} />
           <section>
             <div className="mb-2 flex gap-1">
               {TEMPLATES.map((t) => (

@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { motion } from "motion/react";
+import { billingPlansSchema } from "@mushin/contracts";
 import {
   ArrowRight,
   Compass,
@@ -15,8 +17,11 @@ import {
   Mail,
   FolderOpen,
   Info,
+  Users,
+  Download,
 } from "lucide-react";
-import { PLANS, type Plan as Tier } from "../../lib/plans";
+import { apiRequest } from "../../api/client";
+import { PLAN_COPY, planFeatures, rupees, type Availability, type CatalogPlan } from "../../lib/plans";
 
 const featureIcons = {
   existing: Search,
@@ -24,18 +29,28 @@ const featureIcons = {
   contact: Phone,
   campaigns: FolderOpen,
   lists: FolderOpen,
+  audience: Users,
+  email: Mail,
+  export: Download,
   outreach_log: Mail,
 } as const;
 
 const tierIcons = { explorer: Compass, growth: Activity, scale: Layers } as const;
 
-const tiers = PLANS;
+/** The server's plan catalogue (platform.plans): every price, allowance and feature on this page comes from it. */
+export function usePublicPlans() {
+  return useQuery({ queryKey: ["public-plans"], queryFn: () => apiRequest("/v1/public/plans", billingPlansSchema), staleTime: 5 * 60_000 });
+}
 
 const formatPkr = (n: number) =>
   new Intl.NumberFormat("en-PK", { maximumFractionDigits: 0 }).format(n);
 
 export function Pricing({ onPrimary }: { onPrimary?: () => void } = {}) {
-  const [billing, setBilling] = useState<"monthly" | "yearly">("yearly");
+  const catalog = usePublicPlans();
+  const [chosen, setBilling] = useState<"monthly" | "yearly">("monthly");
+  // Yearly prices are offered only once the owner approves annual billing (the server says so).
+  const annual = catalog.data?.annualBilling === true;
+  const billing = annual ? chosen : "monthly";
 
   return (
     <section
@@ -83,13 +98,13 @@ export function Pricing({ onPrimary }: { onPrimary?: () => void } = {}) {
             </span>
           </h2>
           <p className="mt-4 text-white/70" style={{ fontSize: "1.0625rem", lineHeight: 1.6 }}>
-            Pick a monthly credit allowance. Upgrade, downgrade, or cancel any time.
+            Pick a monthly credit allowance. Upgrades apply now; downgrades and cancellations at the end of the billing period.
           </p>
         </div>
 
-        {/* Billing toggle */}
+        {/* Billing toggle (only when annual billing is approved) */}
         <div className="mt-8 flex flex-col items-center gap-3">
-          <div
+          {annual && <div
             role="tablist"
             className="relative flex items-center rounded-full border border-white/10 bg-white/[0.04] p-1 text-xs backdrop-blur"
           >
@@ -111,19 +126,30 @@ export function Pricing({ onPrimary }: { onPrimary?: () => void } = {}) {
                     className="absolute inset-0 rounded-full bg-white"
                   />
                 )}
-                <span className="relative">{b === "yearly" ? "Yearly · save 20%" : "Monthly"}</span>
+                <span className="relative">{b === "yearly" ? "Yearly" : "Monthly"}</span>
               </button>
             ))}
-          </div>
-          <div className="text-[11px] text-white/50">Prices in Pakistani Rupees · JazzCash · EasyPaisa · card</div>
+          </div>}
+          <div className="text-[11px] text-white/50">Prices in Pakistani Rupees, per month</div>
         </div>
 
         {/* Tiers */}
-        <div className="mt-14 grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-stretch">
-          {tiers.map((t, i) => (
-            <TierCard key={t.id} tier={t} index={i} billing={billing} onPrimary={onPrimary} />
-          ))}
-        </div>
+        {catalog.isPending ? (
+          <div className="mt-14 grid grid-cols-1 gap-6 lg:grid-cols-3" aria-busy="true" aria-label="Loading plans">
+            {[0, 1, 2].map((i) => <div key={i} className="h-[560px] animate-pulse rounded-2xl border border-white/[0.08] bg-white/[0.03]" />)}
+          </div>
+        ) : catalog.isError ? (
+          <div className="mx-auto mt-14 max-w-md rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center" role="alert">
+            <p className="text-sm text-white/80">Plans could not be loaded.</p>
+            <button onClick={() => void catalog.refetch()} className="mt-3 rounded-md border border-white/20 px-3 py-1.5 text-xs text-white hover:bg-white/10">Try again</button>
+          </div>
+        ) : (
+          <div className="mt-14 grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-stretch">
+            {catalog.data.plans.map((t, i) => (
+              <TierCard key={t.id} tier={t} availability={catalog.data.availability} index={i} billing={billing} onPrimary={onPrimary} />
+            ))}
+          </div>
+        )}
 
         {/* Enterprise strip */}
         <motion.div
@@ -164,8 +190,8 @@ export function Pricing({ onPrimary }: { onPrimary?: () => void } = {}) {
         <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-white/50">
           <TrustPill>14-day free trial · no card</TrustPill>
           <TrustPill>Cancel anytime</TrustPill>
-          <TrustPill>Monthly credits reset each billing period</TrustPill>
-          
+          <TrustPill>Monthly credits reset each billing period and do not roll over</TrustPill>
+          <TrustPill>Top-up credits never expire</TrustPill>
         </div>
       </div>
     </section>
@@ -211,21 +237,28 @@ function FeatureTooltip({ note }: { note: string }) {
 
 function TierCard({
   tier,
+  availability,
   index,
   billing,
   onPrimary,
 }: {
-  tier: Tier;
+  tier: CatalogPlan;
+  availability: Availability;
   index: number;
   billing: "monthly" | "yearly";
-  onPrimary?: () => void;
+  onPrimary?: (() => void) | undefined;
 }) {
-  const isHighlight = !!tier.highlight;
+  const copy = PLAN_COPY[tier.id];
+  const isHighlight = !!copy.highlight;
   const Icon = tierIcons[tier.id];
-  const price = billing === "yearly" ? tier.yearly : tier.monthly;
+  const monthly = rupees(tier.display.monthly.amountMinor);
+  const yearlyPerMonth = rupees(tier.display.yearlyPerMonth.amountMinor);
+  const price = billing === "yearly" ? yearlyPerMonth : monthly;
+  const features = planFeatures(tier, availability);
 
   return (
     <motion.div
+      data-plan={tier.id}
       initial={{ opacity: 0, y: 14 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-80px" }}
@@ -267,10 +300,10 @@ function TierCard({
         </div>
 
         <div className="mt-6 text-white" style={{ fontSize: "0.875rem", fontWeight: 600, letterSpacing: "0.14em" }}>
-          {tier.name}
+          {tier.name.toUpperCase()}
         </div>
         <div className="mt-1 text-sm text-white/60" style={{ lineHeight: 1.55 }}>
-          {tier.tagline}
+          {copy.tagline}
         </div>
 
         {/* Price */}
@@ -278,6 +311,7 @@ function TierCard({
           <div className="flex items-baseline gap-1.5">
             <span className="text-white/70" style={{ fontSize: "1rem" }}>Rs.</span>
             <span
+              data-role="price"
               className="tabular-nums"
               style={{ fontSize: "2.75rem", fontWeight: 600, letterSpacing: "-0.035em", lineHeight: 1 }}
             >
@@ -289,10 +323,10 @@ function TierCard({
             {billing === "yearly" ? (
               <>
                 Billed yearly at <span className="tabular-nums text-white/70">Rs. {formatPkr(price * 12)}</span> ·{" "}
-                <span className="tabular-nums text-emerald-300">save Rs. {formatPkr((tier.monthly - tier.yearly) * 12)}</span>
+                <span className="tabular-nums text-emerald-300">save Rs. {formatPkr((monthly - yearlyPerMonth) * 12)}</span>
               </>
             ) : (
-              <>Billed monthly · switch to yearly to save 20%</>
+              <>Billed monthly</>
             )}
           </div>
         </div>
@@ -309,10 +343,11 @@ function TierCard({
         <div className="flex items-end justify-between gap-2">
           <div>
             <div
+              data-role="credits"
               className={`tabular-nums leading-none ${isHighlight ? "text-[#A78BFA]" : "text-white"}`}
               style={{ fontSize: "2rem", fontWeight: 700, letterSpacing: "-0.03em" }}
             >
-              {new Intl.NumberFormat("en-PK").format(tier.credits)}
+              {new Intl.NumberFormat("en-PK").format(tier.monthlyCredits)}
             </div>
             <div className="mt-1 text-xs text-white/50" style={{ fontWeight: 500 }}>
               credits per month
@@ -326,7 +361,7 @@ function TierCard({
       </div>
 
       <p className="mt-4 text-sm text-white/60" style={{ lineHeight: 1.6 }}>
-        {tier.positioning}
+        {copy.positioning}
       </p>
 
       <div className="relative my-5 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
@@ -337,12 +372,15 @@ function TierCard({
           What&apos;s included
         </div>
         <ul className="space-y-2">
-          {tier.features.map((f) => {
+          {features.map((f) => {
             const FIcon = featureIcons[f.key];
             return (
               <li
-                key={f.label + (f.value ?? "")}
-                className="flex items-center justify-between gap-3"
+                key={f.key}
+                data-feature={f.key}
+                data-value={f.value}
+                data-status={f.status ?? (f.included ? "included" : "not_included")}
+                className={`flex items-center justify-between gap-3 ${f.included ? "" : "opacity-60"}`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <span
@@ -357,18 +395,21 @@ function TierCard({
                   </span>
                   {f.note && <FeatureTooltip note={f.note} />}
                 </div>
-                {f.value && (
+                <span className="flex flex-shrink-0 items-center gap-1.5">
+                  {f.status && (
+                    <span className="rounded-full border border-amber-300/30 px-1.5 py-0.5 text-[10px] text-amber-200" style={{ fontWeight: 600 }}>
+                      {f.status === "coming_soon" ? "Coming soon" : "Test mode"}
+                    </span>
+                  )}
                   <span
-                    className={`flex-shrink-0 rounded-full px-2 py-0.5 text-[11px] tabular-nums ${
-                      isHighlight
-                        ? "bg-[#7C5CFF]/20 text-[#C4B5FD]"
-                        : "bg-white/[0.06] text-white/60"
+                    className={`rounded-full px-2 py-0.5 text-[11px] tabular-nums ${
+                      !f.included ? "text-white/60" : isHighlight ? "bg-[#7C5CFF]/20 text-[#C4B5FD]" : "bg-white/[0.06] text-white/70"
                     }`}
                     style={{ fontWeight: 600 }}
                   >
                     {f.value}
                   </span>
-                )}
+                </span>
               </li>
             );
           })}
@@ -385,7 +426,7 @@ function TierCard({
         }`}
         style={{ fontWeight: 500 }}
       >
-        {tier.cta}
+        {copy.cta}
         <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover/btn:translate-x-0.5" />
       </button>
     </motion.div>

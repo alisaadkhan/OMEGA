@@ -1,4 +1,5 @@
 import type { z } from "zod";
+import type { ErrorCode } from "@mushin/contracts";
 import { supabase } from "../lib/supabase";
 import { ApiError, readApiResponse } from "./http";
 import { selectedWorkspace } from "./workspace";
@@ -29,4 +30,29 @@ export async function apiRequest<S extends z.ZodType>(
     throw new ApiError("NETWORK", "Can't reach the server. Check your connection and try again.", 0, null);
   }
   return readApiResponse(res, schema);
+}
+
+/** Downloads a file the API serves (for example a data export) and hands it to the browser as a save. */
+export async function apiDownload(path: string, filename: string): Promise<void> {
+  const { data } = await supabase.auth.getSession();
+  const headers: Record<string, string> = {};
+  if (data.session) headers["authorization"] = `Bearer ${data.session.access_token}`;
+  const workspace = selectedWorkspace();
+  if (workspace) headers["x-workspace-id"] = workspace;
+  let res: Response;
+  try {
+    res = await fetch(`/api${path}`, { headers });
+  } catch {
+    throw new ApiError("NETWORK", "Can't reach the server. Check your connection and try again.", 0, null);
+  }
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { error?: { code?: string; message?: string } } | null;
+    throw new ApiError((body?.error?.code ?? "INTERNAL") as ErrorCode, body?.error?.message ?? "The download failed.", res.status, null);
+  }
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }
