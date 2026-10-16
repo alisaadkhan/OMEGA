@@ -19,7 +19,10 @@ export const ELIGIBILITY_VERSION = "elig-1";
 export const MIN_FOLLOWERS = 10_000;
 
 export type EligibilitySettings = { minFollowers: number; maxFollowerAgeDays: number; activityDays: number };
-/** Provisional values: 10,000 is the owner's rule; the 90-day windows match the Live Discovery activity rule. */
+/**
+ * Owner rules: 10,000 (2026-10-16) and a count no older than 90 days (confirmed 2026-10-16; older or unknown counts do not
+ * qualify until refreshed). Posting activity is a separate 90-day window, matching the Live Discovery activity rule.
+ */
 export const DEFAULT_ELIGIBILITY: EligibilitySettings = { minFollowers: MIN_FOLLOWERS, maxFollowerAgeDays: 90, activityDays: 90 };
 
 /** Stable reason codes (stored with the search document and shown to staff). */

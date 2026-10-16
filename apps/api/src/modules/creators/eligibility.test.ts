@@ -39,6 +39,17 @@ describe("creator eligibility elig-1 (10,000 follower minimum)", () => {
     expect(profileEligibility(ig({ lastPostAt: daysAgo(90) }), now).qualifies).toBe(true);
   });
 
+  it("keeps count freshness and posting activity independent (owner rule confirmed 2026-10-16)", () => {
+    // Exactly 90 days old still counts; one day more needs a refresh.
+    expect(profileEligibility(ig({ followersUpdatedAt: daysAgo(90) }), now).qualifies).toBe(true);
+    // A recent post does not refresh an old or unknown count.
+    expect(profileEligibility(ig({ followersUpdatedAt: daysAgo(91), lastPostAt: daysAgo(1) }), now)).toMatchObject({ qualifies: false, reasons: ["followers_stale"] });
+    expect(profileEligibility(ig({ followers: null, lastPostAt: daysAgo(1) }), now)).toMatchObject({ qualifies: false, reasons: ["followers_unknown"] });
+    // An old post makes the creator inactive, not the count stale; unknown activity is a flag, never a stale count.
+    expect(profileEligibility(ig({ followersUpdatedAt: daysAgo(1), lastPostAt: daysAgo(120) }), now)).toMatchObject({ qualifies: false, reasons: ["inactive"] });
+    expect(profileEligibility(ig({ followersUpdatedAt: daysAgo(1), lastPostAt: null }), now)).toMatchObject({ qualifies: true, reasons: [] });
+  });
+
   it("flags activity it cannot see instead of inventing it, without excluding", () => {
     expect(creatorEligibility(active, [ig({ lastPostAt: null })], now)).toMatchObject({ eligible: true, flags: ["activity_unverified"] });
   });

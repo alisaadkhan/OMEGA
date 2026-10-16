@@ -326,12 +326,37 @@ The product is right to use the current time; the harnesses now take `EVAL_NOW` 
    decision on that evidence. No rating is ever filled in by MUSHIN or its developers.
 5. Copy the two `*-report.md` files (aggregates only) into `eval-data/reports/`.
 
-**Deletion by 2026-11-12 (YouTube API data):** `node --import tsx scripts/search-eval/purge-eval-data.ts` lists what will be
-deleted: everything in `eval-data/` except `reports/`, plus the database `mushin_eval_disposable`. Add `--confirm` (and
-`PG_BIN`) to delete. On this machine, `npm run verify` fails after 2026-11-12 (Pakistan time) while that data still
-exists (`scripts/search-eval/retention.test.ts`). Older copies in earlier Claude sessions' temporary folders
-(`%TEMP%\claude\…\221a1bc7…\scratchpad\search-eval`, `…\7331cfc4…\scratchpad\eval`) are outside the project and must be
-deleted too. Each rater deletes their own copies.
+**Who rates (owner decision 2026-10-16: two independent raters and one adjudicator).**
+- Raters A and B and the adjudicator are three different people. None of them built or tuned MUSHIN Search, and none
+  sees the keys, the other rater's sheet or this document's diagnosis before scoring.
+- Raters work alone and do not discuss rows. Questions about the instructions go to the coordinator, who answers both
+  raters with the same written clarification.
+- Suitable raters know the Pakistani creator market well enough to judge fit for a brief. They need no technical skill:
+  the sheets are CSV files with one rating column.
+- Workload per rater: 222 Brain 1 rows, 35 Brain 1 behaviour cases, 131 Brain 2 rows and 25 Brain 2 cases (413
+  judgements). At an assumed 30 seconds each, that is about 3.5 hours. The adjudicator handles only the disagreements.
+
+**Timetable (works back from the 2026-11-12 deletion deadline; dates are proposals for the owner):**
+
+| By | Step |
+|---|---|
+| 2026-10-20 | Owner names the three people; coordinator sends `rater-A/`, `rater-B/` and `adjudicator/` (step 2) |
+| 2026-10-31 | Both raters return their four sheets; coordinator runs `score.ts` (step 3) and sends the `*-to-adjudicate.csv` files |
+| 2026-11-05 | Adjudicator returns `*-adjudicated.csv`; `score.ts` writes the reports (step 4); reports copied to `eval-data/reports/` |
+| 2026-11-08 | Owner decides on Search from the reports |
+| 2026-11-10 | Purge, verify and written deletion confirmations ([inventory](youtube-eval-data-inventory.md)); two days' margin |
+
+If kappa is below 0.6, the agreement gate fails and the ratings cannot accept Search. Clarifying the instructions and
+re-rating must be done on fresh data, because these packets must be deleted by 2026-11-12. Search itself stays frozen
+(`search-freeze-2026-10-16-elig1`) throughout.
+
+**Deletion by 2026-11-12 (YouTube API data):** every copy is listed in
+[youtube-eval-data-inventory.md](youtube-eval-data-inventory.md). `node --import tsx scripts/search-eval/purge-eval-data.ts`
+lists what will be deleted: everything in `eval-data/` except `reports/`, the database `mushin_eval_disposable`, and each
+older copy passed with `--also <folder>` (the two earlier sessions' temporary folders). Add `--confirm` (and `PG_BIN`)
+to delete, then `--verify`, which exits 1 while anything remains. On this machine, `npm run verify` fails after
+2026-11-12 (Pakistan time) while `eval-data/` still holds data (`scripts/search-eval/retention.test.ts`). Each rater
+deletes their own copies and confirms it in writing.
 
 ## Creator eligibility elig-1 and the rebuilt packets (2026-10-16)
 
