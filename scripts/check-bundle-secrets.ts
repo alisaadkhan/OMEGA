@@ -14,7 +14,7 @@ export const SERVER_SETTING_NAMES = [
   "MOCK_PADDLE_WEBHOOK_SECRET", "UPSTASH_REDIS_REST_TOKEN", "MEILISEARCH_API_KEY", "MEILISEARCH_MASTER_KEY", "RESEND_API_KEY",
 ];
 
-const SECRET_FORMATS: [kind: string, re: RegExp][] = [
+export const SECRET_FORMATS: [kind: string, re: RegExp][] = [
   ["apify_token", /apify_api_[A-Za-z0-9]{20,}/],
   ["groq_key", /gsk_[A-Za-z0-9]{20,}/],
   ["resend_key", /\bre_[A-Za-z0-9]{8,}_[A-Za-z0-9]{8,}/],
@@ -27,7 +27,7 @@ const SECRET_FORMATS: [kind: string, re: RegExp][] = [
 export type Finding = { file: string; kind: string };
 
 /** JWT-shaped strings whose payload role is anything other than the public anonymous role. */
-function privilegedJwts(text: string): string[] {
+export function privilegedJwts(text: string): string[] {
   const out: string[] = [];
   for (const m of text.matchAll(/eyJ[A-Za-z0-9_-]{10,}\.(eyJ[A-Za-z0-9_-]{10,})\.[A-Za-z0-9_-]{10,}/g)) {
     try {

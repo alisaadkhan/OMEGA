@@ -14,7 +14,7 @@ import { addCreator, TEST_KEY } from "../creators/test-fixtures";
 import { createIdentityModule } from "../identity/index";
 import { createPlatformModule } from "../platform/index";
 import { createStaffModule, createStaffTokens } from "../staff/index";
-import { TEST_WEBAUTHN } from "../staff/test-fixtures";
+import { steppedUpToken, TEST_WEBAUTHN } from "../staff/test-fixtures";
 import { createSupportModule, createSupportService } from "../support/index";
 import { createOpsModule, maskEmail } from "./index";
 
@@ -48,7 +48,7 @@ async function setup() {
   // An admin session that states a hardware-key factor. No WebAuthn sign-in exists yet, so only tests can mint one.
   const hardwareKeyAdmin = async () => {
     const acct = await staff.createStaffAccount({ email: `hwk-${randomUUID().slice(0, 6)}@mushin.pk`, name: "Key admin", role: "admin" });
-    return { authorization: `Bearer ${await tokens.signAccess({ staffId: acct.id, role: "admin", factors: ["otp", "hwk"] })}` };
+    return { authorization: `Bearer ${await steppedUpToken(db, tokens, acct.id, "admin")}` };
   };
   return { app, customer, staffToken, hardwareKeyAdmin };
 }

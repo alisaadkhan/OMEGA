@@ -1,5 +1,7 @@
 import { createHash, generateKeyPairSync, randomBytes, sign, type KeyObject } from "node:crypto";
 import { isoCBOR } from "@simplewebauthn/server/helpers";
+import { stepUps, webauthnCredentials, type Db } from "@mushin/db";
+import type { StaffRole, StaffTokens } from "./tokens";
 import type { WebAuthnConfig } from "./webauthn";
 
 /** Relying party used by tests; matches what the app derives from APP_URL=http://localhost:5173. */
@@ -60,4 +62,18 @@ export function softwareKey(o: { rpId?: string; origin?: string } = {}) {
       };
     },
   };
+}
+
+/**
+ * An access token with a genuine server-side step-up (audit SEC-02), for tests of hardware-key actions that are not
+ * about the WebAuthn ceremony itself: registers a placeholder key row and a live step-up row for this staff member.
+ */
+export async function steppedUpToken(db: Db, tokens: StaffTokens, staffId: string, role: StaffRole): Promise<string> {
+  const stepUpId = await db.withSystem(async (tx) => {
+    const [key] = await tx.insert(webauthnCredentials).values({ staffId, credentialId: b64u(randomBytes(16)), publicKey: b64u(randomBytes(65)), nickname: "Test key" }).returning({ id: webauthnCredentials.id });
+    const at = new Date();
+    const [step] = await tx.insert(stepUps).values({ staffId, credentialId: key?.id ?? "", createdAt: at, expiresAt: new Date(at.getTime() + 10 * 60_000) }).returning({ id: stepUps.id });
+    return step?.id ?? "";
+  });
+  return tokens.signAccess({ staffId, role, factors: ["otp", "hwk"], stepUpId });
 }

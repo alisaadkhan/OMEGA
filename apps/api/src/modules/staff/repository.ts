@@ -116,3 +116,11 @@ export async function countActiveSuperAdmins(tx: SystemTx): Promise<number> {
   const rows = await tx.select({ n: sql<number>`count(*)::int` }).from(staffUsers).where(and(eq(staffUsers.role, "super_admin"), eq(staffUsers.status, "active")));
   return Number(rows[0]?.n ?? 0);
 }
+
+/** Audit SEC-02: a step-up counts only while its row is live and the key it was made with is still active. */
+export async function liveStepUp(tx: SystemTx, staffId: string, stepUpId: string, now: Date): Promise<boolean> {
+  const rows = await tx.execute<{ ok: number }>(sql`
+    select 1 as ok from staff.step_ups s join staff.webauthn_credentials k on k.id = s.credential_id
+    where s.id = ${stepUpId} and s.staff_id = ${staffId} and s.revoked_at is null and s.expires_at > ${now.toISOString()}::timestamptz and k.revoked_at is null`);
+  return rows.length === 1;
+}

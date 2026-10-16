@@ -141,6 +141,11 @@ export function createStaffService(o: { db: Db; tokens: StaffTokens; encryptionK
     },
 
     /** The staff account still exists, is active and still has this role (tokens carry the role they were issued with). */
+    /** A live step-up: this staff member's, unexpired, not revoked, and made with a key that is still active. */
+    async hasStepUp(staffId: string, stepUpId: string): Promise<boolean> {
+      return o.db.withSystem((tx) => repo.liveStepUp(tx, staffId, stepUpId, now()));
+    },
+
     async isActive(staffId: string, role: StaffRole): Promise<boolean> {
       const staff = await o.db.withSystem((tx) => repo.findStaffById(tx, staffId));
       return staff?.status === "active" && staff.role === role;

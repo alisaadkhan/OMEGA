@@ -15,7 +15,7 @@ import { addCreator, TEST_KEY } from "../creators/test-fixtures";
 import { createIdentityModule } from "../identity/index";
 import { createPlatformModule } from "../platform/index";
 import { createStaffModule, createStaffTokens, recordStaffAudit } from "../staff/index";
-import { TEST_WEBAUTHN } from "../staff/test-fixtures";
+import { steppedUpToken, TEST_WEBAUTHN } from "../staff/test-fixtures";
 import { createDiscoveryModule, createDiscoveryService } from "./index";
 
 const db = createTestDatabase();
@@ -107,7 +107,7 @@ describe("staff review API", () => {
     expect(refused.statusCode).toBe(403);
     expect(refused.json()).toMatchObject({ error: { details: { reason: "hardware_key_required" } } });
     const keyAdmin = await s.staff.createStaffAccount({ email: `hwk-${randomUUID().slice(0, 6)}@mushin.pk`, name: "Key admin", role: "admin" });
-    const admin = { authorization: `Bearer ${await s.tokens.signAccess({ staffId: keyAdmin.id, role: "admin", factors: ["otp", "hwk"] })}` };
+    const admin = { authorization: `Bearer ${await steppedUpToken(db, s.tokens, keyAdmin.id, "admin")}` };
     const list = (await s.app.inject({ method: "GET", url: "/admin/v1/removal-requests?status=received", headers: admin })).json() as { requests: { id: string }[] };
     expect(list.requests).toHaveLength(1);
     const id = list.requests[0]?.id ?? "";

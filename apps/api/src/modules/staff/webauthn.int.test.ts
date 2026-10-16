@@ -87,8 +87,10 @@ describe("hardware-key (WebAuthn) step-up for privileged staff actions", () => {
     const second = softwareKey();
     expect((await enrol(strong, second, "Backup key")).statusCode).toBe(201);
     const keys = (await call("GET", "/admin/v1/security", strong)).json().keys as { id: string; nickname: string }[];
-    expect((await call("DELETE", `/admin/v1/security/keys/${keys[0]?.id}`, admin.auth)).statusCode).toBe(403); // TOTP-only session
-    expect((await call("DELETE", `/admin/v1/security/keys/${keys[0]?.id}`, strong)).statusCode).toBe(204);
+    const backup = keys.find((k) => k.nickname === "Backup key")?.id;
+    expect((await call("DELETE", `/admin/v1/security/keys/${backup}`, admin.auth)).statusCode).toBe(403); // TOTP-only session
+    // Removing the backup key keeps the step-up (made with the first key); removing the step-up's own key would end it.
+    expect((await call("DELETE", `/admin/v1/security/keys/${backup}`, strong)).statusCode).toBe(204);
     const last = (await call("GET", "/admin/v1/security", strong)).json().keys[0].id as string;
     expect((await call("DELETE", `/admin/v1/security/keys/${last}`, strong)).json().error.details).toMatchObject({ reason: "last_key" });
 
@@ -118,5 +120,50 @@ describe("hardware-key (WebAuthn) step-up for privileged staff actions", () => {
     expect((await call("GET", "/admin/v1/audit", strong)).statusCode).toBe(401);
     await ownerQuery(`update staff.staff_users set role = 'admin', status = 'suspended' where id = '${admin.id}'`);
     expect((await call("GET", "/admin/v1/me", strong)).statusCode).toBe(401);
+  });
+});
+
+describe("step-up is proven on the server, not by the token (audit SEC-02)", () => {
+  it("a token forged with the signing secret and an hwk claim is refused on every hardware-key action", async () => {
+    const admin = await signIn("admin");
+    const forged = { authorization: `Bearer ${await tokens.signAccess({ staffId: admin.id, role: "admin", factors: ["otp", "hwk"] })}` };
+    const res = await call("GET", "/admin/v1/audit", forged);
+    expect(res.statusCode).toBe(403);
+    expect(res.json().error.details).toMatchObject({ reason: "hardware_key_required" });
+    expect((await call("GET", "/admin/v1/security", forged)).json()).toMatchObject({ factors: ["otp"] });
+    // A made-up step-up id, or another staff member's real one, does not help either.
+    const randomId = { authorization: `Bearer ${await tokens.signAccess({ staffId: admin.id, role: "admin", factors: ["otp", "hwk"], stepUpId: randomUUID() })}` };
+    expect((await call("GET", "/admin/v1/audit", randomId)).statusCode).toBe(403);
+    const other = await signIn("admin");
+    const key = softwareKey();
+    await enrol(other.auth, key);
+    await stepUp(other.auth, key);
+    const [row] = await ownerQuery<{ id: string }>(`select id from staff.step_ups where staff_id = '${other.id}'`);
+    const borrowed = { authorization: `Bearer ${await tokens.signAccess({ staffId: admin.id, role: "admin", factors: ["otp", "hwk"], stepUpId: row?.id ?? "" })}` };
+    expect((await call("GET", "/admin/v1/audit", borrowed)).statusCode).toBe(403);
+  });
+
+  it("an expired step-up, a revoked key or a revoke-all stops the step-up at once", async () => {
+    const admin = await signIn("admin");
+    const key = softwareKey();
+    await enrol(admin.auth, key);
+    const strong = bearer(await stepUp(admin.auth, key));
+    expect((await call("GET", "/admin/v1/audit", strong)).statusCode).toBe(200);
+    await ownerQuery(`update staff.step_ups set created_at = now() - interval '1 minute', expires_at = now() - interval '1 second' where staff_id = '${admin.id}'`);
+    expect((await call("GET", "/admin/v1/audit", strong)).statusCode).toBe(403);
+
+    const again = bearer(await stepUp(admin.auth, key));
+    expect((await call("GET", "/admin/v1/audit", again)).statusCode).toBe(200);
+    await ownerQuery(`update staff.webauthn_credentials set revoked_at = now() where staff_id = '${admin.id}'`);
+    expect((await call("GET", "/admin/v1/audit", again)).statusCode).toBe(403);
+
+    await ownerQuery(`update staff.webauthn_credentials set revoked_at = null where staff_id = '${admin.id}'`);
+    const third = bearer(await stepUp(admin.auth, key));
+    expect((await call("GET", "/admin/v1/audit", third)).statusCode).toBe(200);
+    const [r] = await ownerQuery<{ v: { sessions: number; stepUps: number } }>(`select staff.revoke_all_sessions('credential rotation 2026-10-16') v`);
+    expect(r?.v.sessions).toBeGreaterThan(0);
+    expect((await call("GET", "/admin/v1/audit", third)).statusCode).toBe(403);
+    expect(await ownerQuery(`select action from staff.audit_log where action = 'staff.sessions.revoked_all'`)).toHaveLength(1);
+    await expect(ownerQuery(`select staff.revoke_all_sessions('short')`)).rejects.toThrow(/reason/);
   });
 });

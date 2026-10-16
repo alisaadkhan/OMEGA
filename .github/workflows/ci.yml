@@ -48,6 +48,8 @@ jobs:
           cache: npm
       - name: Install (workspaces)
         run: npm ci
+      - name: Committed-source secret scan (audit SEC-01)
+        run: node --import tsx -e "import('./scripts/package-source.ts').then(({ committedFiles, scanSourceFile }) => { const f = committedFiles(process.cwd()).flatMap((x) => scanSourceFile(x.path, x.text)); for (const x of f) console.error(x.kind + ' in ' + x.file); process.exit(f.length ? 1 : 0); })"
       - name: Install (frontend)
         run: npm ci --prefix frontend
       - name: Lint, typecheck, boundaries, unit and integration tests

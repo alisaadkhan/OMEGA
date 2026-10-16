@@ -40,7 +40,7 @@ import { dataExports, listMembers, lists } from "./lists";
 import { campaignCreators, campaigns, outreachEmails, outreachEvents } from "./campaigns";
 import { supportAccessRequests, supportMessages, supportTickets } from "./support";
 import { idempotencyKeys, outbox, providerCalls, providerControls } from "./platform";
-import { approvals, auditLog, staffSessions, staffUsers, webauthnChallenges, webauthnCredentials } from "./staff";
+import { approvals, auditLog, staffSessions, staffUsers, stepUps, webauthnChallenges, webauthnCredentials } from "./staff";
 
 export * from "./audience";
 export * from "./billing";
@@ -63,6 +63,7 @@ export const ALL_TABLES = [
   staffSessions,
   auditLog,
   webauthnCredentials,
+  stepUps,
   webauthnChallenges,
   approvals,
   outbox,

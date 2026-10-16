@@ -8,9 +8,12 @@ import {
   type RegistrationResponseJSON,
 } from "@simplewebauthn/server";
 import { AppError } from "@mushin/core";
-import { webauthnChallenges, webauthnCredentials, staffUsers, type Db, type SystemTx } from "@mushin/db";
+import { stepUps, webauthnChallenges, webauthnCredentials, staffUsers, type Db, type SystemTx } from "@mushin/db";
 import { audit } from "./repository";
-import type { StaffPrincipal } from "./tokens";
+import { ACCESS_TTL_SECONDS, type StaffPrincipal } from "./tokens";
+
+/** A step-up lasts as long as the access token it is issued with (and never longer than the database allows, 15 min). */
+const STEP_UP_TTL_MS = ACCESS_TTL_SECONDS * 1000;
 
 const CHALLENGE_TTL_MS = 5 * 60_000;
 const b64url = {
@@ -136,7 +139,7 @@ export function createWebAuthn(deps: { db: Db; config: WebAuthnConfig; now?: () 
     },
 
     /** Verifies a step-up assertion for this staff member; success means the session may carry the "hwk" factor. */
-    async authenticate(staffId: string, response: AuthenticationResponseJSON, meta: Meta): Promise<{ credentialRef: string }> {
+    async authenticate(staffId: string, response: AuthenticationResponseJSON, meta: Meta): Promise<{ credentialRef: string; stepUpId: string }> {
       const { expectedChallenge, key } = await deps.db.withSystem(async (tx) => {
         await staffRow(tx, staffId);
         const challenge = await takeChallenge(tx, staffId, "authentication");
@@ -174,8 +177,12 @@ export function createWebAuthn(deps: { db: Db; config: WebAuthnConfig; now?: () 
           .where(and(eq(webauthnCredentials.id, key.id), eq(webauthnCredentials.signCount, key.signCount), isNull(webauthnCredentials.revokedAt)))
           .returning({ id: webauthnCredentials.id });
         if (updated.length === 0) throw new AppError("UNAUTHENTICATED", "The security key could not be verified.", { reason: "webauthn_invalid" });
-        await audit(tx, { staffId, action: "staff.webauthn.step_up", metadata: { credentialRef: key.id }, ip: meta.ip, requestId: meta.requestId });
-        return { credentialRef: key.id };
+        // The server-side proof that this session used its key (audit SEC-02); it expires with the access token.
+        const at = now();
+        const [step] = await tx.insert(stepUps).values({ staffId, credentialId: key.id, createdAt: at, expiresAt: new Date(at.getTime() + STEP_UP_TTL_MS) }).returning({ id: stepUps.id });
+        if (!step) throw new Error("step-up insert returned no row");
+        await audit(tx, { staffId, action: "staff.webauthn.step_up", metadata: { credentialRef: key.id, stepUpId: step.id }, ip: meta.ip, requestId: meta.requestId });
+        return { credentialRef: key.id, stepUpId: step.id };
       });
     },
 

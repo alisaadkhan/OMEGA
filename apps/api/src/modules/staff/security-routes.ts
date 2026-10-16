@@ -54,11 +54,11 @@ export function registerSecurityRoutes(app: FastifyInstance, o: { webauthn: WebA
   app.post("/admin/v1/security/step-up", { preHandler: o.requireStaff("staff.security.read") }, async (req, reply) => {
     const p = me(req.staff);
     const body = parseInput(webauthnStepUpRequestSchema, req.body);
-    await o.webauthn.authenticate(p.staffId, body.response as unknown as AuthenticationResponseJSON, metaOf(req));
-    // The proven factors of this session plus the key; it lasts one access-token lifetime and is not refreshed.
+    const { stepUpId } = await o.webauthn.authenticate(p.staffId, body.response as unknown as AuthenticationResponseJSON, metaOf(req));
+    // The token names the server-side step-up row; it lasts one access-token lifetime and is not refreshed.
     const factors = [...new Set([...p.factors, "hwk" as const])];
     return sendOk(reply, staffSessionResponseSchema, {
-      accessToken: await o.tokens.signAccess({ staffId: p.staffId, role: p.role, factors }),
+      accessToken: await o.tokens.signAccess({ staffId: p.staffId, role: p.role, factors, stepUpId }),
       expiresInSeconds: ACCESS_TTL_SECONDS,
       staff: await o.service.getProfile(p.staffId),
     });

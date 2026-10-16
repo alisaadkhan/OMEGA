@@ -15,7 +15,7 @@ export { APPROVAL_RULES, can, type ApprovalAction } from "./permissions";
 export function createStaffModule(o: { db: Db; tokens: StaffTokens; encryptionKey: Buffer; webauthn: WebAuthnConfig; now?: () => Date }) {
   const service = createStaffService(o);
   const webauthn = createWebAuthn({ db: o.db, config: o.webauthn, ...(o.now ? { now: o.now } : {}) });
-  const requireStaff = createRequireStaff(o.tokens, service.isActive);
+  const requireStaff = createRequireStaff(o.tokens, service.isActive, service.hasStepUp);
   const module: AppModule = {
     name: "staff",
     register: (app) => {

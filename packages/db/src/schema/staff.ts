@@ -90,3 +90,13 @@ export const approvals = staffSchema.table("approvals", {
   decidedAt: ts("decided_at"),
   executedAt: ts("executed_at"),
 });
+
+/** Server-verified hardware-key step-ups (0041, audit SEC-02): the only proof a staff session used its key. */
+export const stepUps = staffSchema.table("step_ups", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  staffId: uuid("staff_id").notNull(),
+  credentialId: uuid("credential_id").notNull(),
+  createdAt: ts("created_at").notNull().defaultNow(),
+  expiresAt: ts("expires_at").notNull(),
+  revokedAt: ts("revoked_at"),
+});

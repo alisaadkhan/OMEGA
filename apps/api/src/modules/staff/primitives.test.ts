@@ -45,8 +45,11 @@ describe("staff tokens", () => {
     const staffId = randomUUID();
     const access = await t.signAccess({ staffId, role: "support" });
     expect(await t.verifyAccess(access)).toEqual({ staffId, role: "support", factors: ["otp"] });
-    // A hardware-key factor is carried only when the session states it (no WebAuthn sign-in exists yet).
-    expect((await t.verifyAccess(await t.signAccess({ staffId, role: "admin", factors: ["otp", "hwk"] }))).factors).toEqual(["otp", "hwk"]);
+    // Audit SEC-02: a claimed hardware-key factor is never trusted from the token; only the step-up row id is carried,
+    // and requireStaff checks that row on the server.
+    const stepUpId = "6f1c2a7e-1b2c-4d3e-8f90-1a2b3c4d5e6f";
+    expect(await t.verifyAccess(await t.signAccess({ staffId, role: "admin", factors: ["otp", "hwk"] }))).toEqual({ staffId, role: "admin", factors: ["otp"] });
+    expect(await t.verifyAccess(await t.signAccess({ staffId, role: "admin", factors: ["otp", "hwk"], stepUpId }))).toEqual({ staffId, role: "admin", factors: ["otp"], stepUpId });
     const challenge = await t.signChallenge(staffId);
     expect(await t.verifyChallenge(challenge)).toBe(staffId);
     await expect(t.verifyAccess(challenge)).rejects.toMatchObject({ code: "UNAUTHENTICATED" });
