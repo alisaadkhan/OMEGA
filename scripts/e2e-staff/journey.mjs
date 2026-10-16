@@ -1,4 +1,4 @@
-/* global process, console, document, globalThis -- Node script driving a browser */
+/* global process, console, document, URL, setTimeout, fetch -- Node script driving a browser */
 // Staff console smoke (local only, mushin_e2e_team): password + authenticator sign-in through the UI for a Super Admin
 // and a Support account, every console section each role is offered, role limits in the UI and the API, axe-core
 // (WCAG 2.2 A/AA, serious and critical) on each section, and no 5xx. Security keys (WebAuthn step-up) are not
