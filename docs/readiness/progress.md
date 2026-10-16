@@ -225,3 +225,31 @@ and is not committed.
    confirmations, by 2026-11-10.
 3. When WSL 2 and Docker are ready: Supabase port of 0001–0037 (migration map); only then run the Supabase integration tests.
 4. With test accounts: real sign-up and email confirmation through invitations, Paddle sandbox, Resend test domain.
+
+## 2026-10-16 (evening): owner plan model, entitlements and Supabase stages 1–3 (resume here)
+
+Commits: `2f83a68` (server: catalogue, entitlements, refunds, outreach email, export), `50b8b04` (pricing page and UI
+from the catalogue; E2E 10c), `aad0dce` (Supabase stages 1–3).
+
+| Plan cell (owner screenshot) | Starter | Growth | Scale | Enforced / proven by |
+|---|---|---|---|---|
+| Price per month (PKR) | 4,900 | 12,900 | 24,900 | `platform.plans` (0038); `entitlements.int` exact table; E2E pricing page = API |
+| Monthly credits | 2,500 | 12,000 | 35,000 | same; monthly credits end at renewal, top-ups never expire (existing billing tests) |
+| Campaigns | 3 not archived | unlimited | unlimited | `campaigns.int` (limit, archive frees a slot, restore checked, concurrency lock, downgrade keeps data); E2E |
+| Audience details | not included | entitled, globally off | entitled, globally off | `audience.int` (`plan_required`, server switch); pricing shows "Coming soon" |
+| Outreach emails per billing period | 0 | 500 | 2,000 | `outreach.int` (quota under concurrency, idempotency, failures free slots, webhooks, suppression); E2E |
+| Data export | no | no | yes (CSV, 24 h) | `exports.int` (plan, role, switch, expiry, purge, isolation, downgrade); E2E download |
+| Annual billing | not offered | not offered | not offered | `entitlements.int`: yearly checkout/change refused until approved (OD-002) |
+
+Defect found and fixed: concurrent campaign creation could pass the plan limit (no lock); the regression test fails
+without the fix. Refunds/chargebacks (Paddle adjustments) are handled under a provisional policy pending OD-009.
+Mocked only: Paddle (mock provider), outreach email (test mode; nothing sent), Resend (adapter present, never called).
+
+Supabase (local stack): stage 1 schema parity (suite 873 passed on Supabase PostgreSQL), stage 2 CLI migration workflow
+(`supabase db reset` from scratch), stage 3 Auth (10/10 with the API). Stages 4 (Edge Functions) and 5 (pgmq/pg_cron)
+not started; Fastify and pg-boss remain. Finding: Supabase access tokens stay valid until expiry after sign-out.
+
+Final evidence on `aad0dce`: verify 875 passed, 7 skipped; build and bundle secret scan pass; customer E2E
+3 × (86 + 30) = 116/116; staff E2E 3 × 31/31.
+
+Next: the owner's audit `MUSHIN_AUDIT_2026-10-16` (credential containment and P0 fixes) is the next task.
