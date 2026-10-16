@@ -41,7 +41,7 @@ async function describe(ids: string[]): Promise<Map<string, Omit<CandidateRow, "
   return new Map(rows.map((x) => [x.id, { displayName: x.display_name, handle: x.handle, platform: x.platform, profileUrl: x.url ?? PROFILE_URL[x.platform]?.(x.handle) ?? "", city: x.city ?? "unknown", niches: x.niches.join("; "), followers: x.followers === null ? "unknown" : String(x.followers), bio: x.bio ?? "" }]));
 }
 
-/** Searchable catalogue creators (same exclusions as Search: active, no unreviewed minor) matching ANY of the query's words or concept forms, best text rank first, not yet returned. */
+/** Searchable catalogue creators (same exclusions as Search: active, no unreviewed minor, eligible under elig-1 at the evaluation time) matching ANY of the query's words or concept forms, best text rank first, not yet returned. */
 async function pool(text: string, exclude: string[]): Promise<string[]> {
   const u = understandQuery(text);
   const forms = [...new Set((expandQuery(u.text) ?? u.text.split(" ").filter(Boolean).map((w) => ({ forms: [w] }))).flatMap((g) => g.forms))];
@@ -49,7 +49,9 @@ async function pool(text: string, exclude: string[]): Promise<string[]> {
   const ts = forms.map((x) => `plainto_tsquery('simple', ${lit(x)})`).join(" || ");
   const rows = await ownerQuery<{ id: string }>(
     `select d.creator_id id from gcp.creator_search_documents d join gcp.creators c on c.id = d.creator_id
-     where c.status = 'active' and not (c.is_minor and c.minor_override_by_staff_id is null) and d.search_vector @@ (${ts})${exclude.length ? ` and d.creator_id not in (${exclude.map(lit).join(", ")})` : ""}
+     where c.status = 'active' and not (c.is_minor and c.minor_override_by_staff_id is null)
+       and d.eligible and d.eligible_until_epoch > ${Math.floor((process.env["EVAL_NOW"] ? new Date(process.env["EVAL_NOW"]) : new Date()).getTime() / 1000)}
+       and d.search_vector @@ (${ts})${exclude.length ? ` and d.creator_id not in (${exclude.map(lit).join(", ")})` : ""}
      order by ts_rank_cd(d.search_vector, ${ts}) desc, d.creator_id limit ${POOL_SIZE}`);
   return rows.map((x) => x.id);
 }
@@ -60,7 +62,11 @@ if (!queriesPath || !outDir) throw new Error("usage: run-brain1.ts <queries.csv>
 const db = createTestDatabase(); // refuses anything but a local database named with test/disposable
 const logger = createLogger({ level: "silent" });
 const billing = createBillingService({ db, payments: new MockPayments({ webhookSecret: "e".repeat(40), publicApiUrl: "http://eval.local", deliver: async () => {} }), cache: new MemoryAccessCache(), logger });
-const service = createCreatorsService({ db, index: new UnavailableSearchIndex(), nativeSearch: createPostgresCatalogSearch(db), llm: new MockLlm(() => ({})), billing, encryptionKey: Buffer.alloc(32), logger });
+// EVAL_NOW=<ISO time> pins the clock ranking judges freshness against, so a frozen baseline reproduces on later days
+// (the 2026-10-15 rating packet run was at 2026-10-15T13:59:07.039Z). Without it the wall clock is used.
+const pinned = process.env["EVAL_NOW"] ? new Date(process.env["EVAL_NOW"]) : null;
+if (pinned && Number.isNaN(pinned.getTime())) throw new Error("EVAL_NOW must be an ISO date-time");
+const service = createCreatorsService({ db, index: new UnavailableSearchIndex(), nativeSearch: createPostgresCatalogSearch(db), llm: new MockLlm(() => ({})), billing, encryptionKey: Buffer.alloc(32), logger, ...(pinned ? { now: () => new Date(pinned.getTime()) } : {}) });
 
 // An evaluation workspace with labelled credits in the disposable copy (searches are charged as in production).
 const ws = await createTestWorkspace();

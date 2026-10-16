@@ -73,7 +73,9 @@ export function fitLabel(score: number, t: LabelThresholds): CreatorCard["fitLab
 /** Meilisearch filter expressions (ANDed). Strings are JSON-quoted, which is Meilisearch's escaping too. */
 export function meiliFilter(f: SearchFilters, now: Date, freshCurrentDays: number): string[] {
   const q = (v: string) => JSON.stringify(v);
-  const out: string[] = [];
+  // Creator eligibility (elig-1) first: only eligible creators whose evidence still holds; documents without the field
+  // (built before the policy) never match, so a stale index fails closed.
+  const out: string[] = ["eligible = true", `eligible_until > ${Math.floor(now.getTime() / 1000)}`];
   if (f.platform) out.push(`platforms = ${q(f.platform)}`);
   if (f.creatorCountry) out.push(`country = ${q(f.creatorCountry)}`);
   // Any reviewed alias of the city (lhr → Lahore); the stored value and canonical spelling are included as written.

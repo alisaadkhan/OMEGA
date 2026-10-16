@@ -4,7 +4,7 @@ import { createLogger, type TenantContext } from "@mushin/core";
 import { createTestDatabase, createTestWorkspace, dbError, ownerQuery, resetTables } from "@mushin/db/testing";
 import { MockPayments } from "@mushin/integrations";
 import { createBillingService, MemoryAccessCache } from "../billing/index";
-import { addCreator } from "../creators/test-fixtures";
+import { addIndexedCreator as addCreator } from "../creators/test-fixtures";
 import { createCampaignsService } from "./index";
 
 const db = createTestDatabase();

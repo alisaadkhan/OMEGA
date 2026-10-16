@@ -1,4 +1,4 @@
-# MUSHIN readiness report (2026-10-14, HEAD 07580ef)
+# MUSHIN readiness report (sections 1–7: 2026-10-14, HEAD 07580ef; section 0: 2026-10-16)
 
 The central record of what is built, what is verified and what is blocked. It is backed by:
 - `traceability.csv`: the 59 canonical requirements → implementation → tests → status;
@@ -8,6 +8,49 @@ The central record of what is built, what is verified and what is blocked. It is
 - `customer-e2e-report.md`: customer-side browser E2E (matrix, runs, defects, findings; harness in `scripts/e2e-customer/`);
 - `credit-economics.md`: owner prices versus measured provider cost (3× rule, TikTok shortfall, proposed caps);
 - `supabase-migration-map.md`: every route, job, schedule, transaction and rate limit mapped to the approved Supabase target.
+
+## 0. Release-readiness checklist (updated 2026-10-16, master)
+
+Status words: **ready** (done and verified here), **partial** (built, some evidence missing), **blocked** (needs the owner,
+an account, a credential, people or Docker), **not tested**. Nothing has been deployed; no production system exists.
+
+| Gate | Status | Evidence / what closes it |
+|---|---|---|
+| Architecture and hosting choice | blocked | Supabase is the direction; current stack Fastify + pg-boss + PostgreSQL runs locally only. Hosting provider and region not chosen (owner). |
+| Separate dev/staging/prod configuration and secrets | partial | Config validation refuses unsafe production settings (TLS CA, Paddle keys, LLM cap, memory rate limiter). No staging or production environment exists. |
+| CI, clean build, migrations, smoke tests | partial | `.github/workflows/ci.yml` prepared (verify on disposable PostgreSQL 17 + Meilisearch 1.55, frontend build, secret scan), **not run**: no GitHub remote. Locally: verify 835 passed. |
+| Rollback plan | partial | Forward-only migrations; the Fastify stack stays until Supabase parity (migration map §7). No deployment to roll back yet. |
+| DNS / TLS / domain / CDN | not tested | Not provisioned. API sends `Cache-Control: private, no-store`; static asset caching must be set on the chosen host (fingerprinted `/assets/*` immutable, `index.html` no-cache). |
+| Auth redirect URLs, email templates, auth rate limits | blocked | Real Supabase Auth never exercised (needs a test project). |
+| Database RLS, indexes, retention jobs | partial | RLS on every workspace table with isolation tests; security tests (cross-workspace 404s, mass assignment) pass; Supabase Security Advisor not run (needs the project). |
+| Backup and restore | partial | Local drill passed (`scripts/restore-drill.ts`: 62 tables / 899 rows identical). Hosted PITR and a hosted restore drill: blocked. `DATA_ENCRYPTION_KEY` needs its own backup. |
+| Observability and alerts | blocked | Structured logs with request ids; no error-reporting service, metrics or alert channel configured. Provider 80% / hard caps are logged only. |
+| Provider caps and kill switches | partial | Apify, Serper and LLM monthly caps; per-job cost cap and 20-minute deadline; provider pause (staff, on team-privacy branch). Production cap values: owner. Provider terms review (Apify actors): owner. |
+| Billing (Paddle sandbox, webhooks, refunds) | blocked | Mock provider only; webhook idempotency tested locally. Needs a Paddle sandbox account. |
+| Search acceptance | blocked | Human ratings needed (packets `blind-b1-elig1`, `blind-b2-elig1`; delete YouTube data by 2026-11-12). Search is **not accepted**. |
+| Creator eligibility (10,000 minimum) | ready | elig-1 enforced in search, Live Discovery delivery, lists, campaigns, profiles; E2E 3 × 82/82. Staff coverage endpoint `GET /admin/v1/ops/eligibility` (counts only); its console page waits for the staff UI. |
+| Contact privacy and empty states | ready | Contact values only after an explicit reveal; empty and below-minimum states are shown truthfully (E2E). |
+| Accessibility and phone width | partial | axe (WCAG 2.0–2.2 A/AA serious/critical) on every customer page, campaign detail and the profile dialog, phone width on the main pages: E2E 3 × 90/90 after fixing A-1..A-3. Manual keyboard, screen-reader and zoom review: not done. |
+| Security tests | partial | Bundle secret scan, API object/property/function authorization, injection and header tests pass. No external penetration test or dependency audit in CI yet. |
+| Load and recovery | partial | `scripts/load-check.ts` 2026-10-16, local disposable stack, 200 requests per endpoint at concurrency 10, all 200: search repeat p50/p95/p99 81/95/231 ms (target p95 800), lists 35/46/47, campaigns 33/49/56, creator profile 55/64/82, billing summary 47/60/69 (targets p95 300). Earlier 100k search benchmark. Rate limits shared across instances; worker crash/retry/deadline tests. Single machine, small catalogue: no hosted or large-scale load test yet. |
+| Legal: privacy policy, terms, YouTube identifiers, provider redistribution rights | blocked | Unresolved; must not be presumed passed. |
+
+### Hosting recommendation (proposal, nothing provisioned)
+
+Smallest setup that fits the Supabase direction and keeps the Vite frontend. Prices are 2026 third-party summaries
+(checked 2026-10-16) and **must be confirmed on each vendor's pricing page** before committing.
+
+| Part | Now (current stack) | After the Supabase migration | Estimated monthly cost |
+|---|---|---|---|
+| Database, Auth, storage, backups | Supabase Pro, region nearest Pakistan (confirm Mumbai availability) | same | about USD 25 base incl. a Micro compute; PITR is a paid add-on (price not confirmed) |
+| Frontend (static Vite build) | Cloudflare Pages: static requests free and unlimited; fingerprinted `/assets/*` cached immutable, `index.html` no-cache | same | USD 0 on the free plan (500 builds/month reported) |
+| API + worker (Fastify, pg-boss) | One small always-on container each, near Pakistan: Fly.io (about USD 2–5 per small machine, metered) or Render Starter (about USD 7 per service plus a workspace fee) | Removed: Edge Functions + pgmq/pg_cron replace them | USD 5–15 |
+| Search | PostgreSQL (default); Meilisearch not deployed (no measured need) | PostgreSQL | USD 0 |
+| Rate limits | PostgreSQL counters (`RATE_LIMIT_STORE=postgres`); Upstash not needed | same | USD 0 |
+
+Expected total about USD 30–40 a month before usage, excluding provider spend (Apify, Serper, LLM, all capped), Paddle
+fees and any PITR add-on. Sources: supabase.com/pricing (via 2026 summaries), Cloudflare Pages limits docs, Fly.io and
+Render pricing summaries.
 
 ## 1. Bottom line
 

@@ -3,7 +3,7 @@ import { AppError, type Logger } from "@mushin/core";
 import { providerSpendForJob, type Db, type LivePrices, type LiveProgress, type TenantTx } from "@mushin/db";
 import { ProviderError, type Llm, type ProfileScraper } from "@mushin/integrations";
 import type { BillingService } from "../billing/index";
-import { findProfileByUrl, fitLabel, getSearchSettings, isVisibleCreator, rankCards, suppressedUrls, type CreatorPlatform, type SourcePolicy, type EnrichJob, type EnrichmentPipeline } from "../creators/index";
+import { findProfileByUrl, fitLabel, getSearchSettings, profileEligibility, isVisibleCreator, rankCards, suppressedUrls, type CreatorPlatform, type SourcePolicy, type EnrichJob, type EnrichmentPipeline } from "../creators/index";
 import { notifyFinished, releaseHeld } from "./finish";
 import type { CachedSearch } from "./live/cache";
 import { evaluateCampaignFit } from "./fit";
@@ -143,6 +143,14 @@ export function createLiveRunner(deps: Deps) {
     // provider run already started is not interrupted (and is not claimed to be); its profiles are simply not processed.
     const checkCancel = async () => {
       if (await deps.db.withWorkspace(workspaceId, (tx) => repo.cancelRequested(tx, workspaceId, jobId))) throw new RunCanceled();
+    };
+    // Creator eligibility (elig-1) before delivery: the profile that was found must itself have a recent count of at
+    // least 10,000 followers/subscribers. A creator below it is saved (nothing is deleted) but not delivered or charged.
+    const eligibleProfile = (k: Kept, p: { followers: number | null; recentPosts: { postedAt: Date }[] }, observedAt: Date) => {
+      const latest = p.recentPosts.reduce<Date | null>((max, x) => (max === null || x.postedAt > max ? x.postedAt : max), null);
+      const e = profileEligibility({ platform: k.platform, canonicalUrl: k.canonicalUrl, followers: k.platform === "youtube" && p.followers === 0 ? null : p.followers, followersUpdatedAt: observedAt, lastPostAt: latest }, now());
+      if (!e.qualifies) trail.set(k.canonicalUrl, "verification", "rejected", e.reasons[0] ?? "ineligible");
+      return e.qualifies;
     };
     const profileJob = (k: Kept): EnrichJob => ({ jobId, workspaceId, platform: k.platform, handle: k.handle, canonicalUrl: k.canonicalUrl, requestId: job.requestId });
 
@@ -295,7 +303,7 @@ export function createLiveRunner(deps: Deps) {
           }
           const campaignFit = evaluateCampaignFit(search, k, stored.profile, false, now(), stored.fetchedAt);
           trail.fit(k.canonicalUrl, campaignFit, known.creatorId);
-          if (campaignFit.eligible) {
+          if (campaignFit.eligible && eligibleProfile(k, stored.profile, stored.fetchedAt)) {
             if (await recordKnown(known.creatorId, k.reason, campaignFit)) trail.set(k.canonicalUrl, "delivery", "delivered", "known_creator");
             else trail.set(k.canonicalUrl, "delivery", "duplicate", "already_in_results");
           }
@@ -327,11 +335,10 @@ export function createLiveRunner(deps: Deps) {
         await checkCancel();
         const need = maxNew - (await deps.db.withWorkspace(workspaceId, (tx) => repo.countNew(tx, workspaceId, jobId)));
         if (need <= 0) break;
-        if (deadline !== null && now().getTime() >= deadline) {
-          deps.logger.info({ jobId, wave, deadlineMs: deps.jobDeadlineMs }, "per-job deadline reached: no further extraction batch");
-          stopReason = "job_deadline";
-          break;
-        }
+        // Past the deadline no provider fetch starts. Profiles a previous attempt already fetched and archived (paid for)
+        // are still taken, so a retry after a crash keeps them instead of dropping paid work.
+        const pastDeadline = deadline !== null && now().getTime() >= deadline;
+        let deadlineSkipped = false;
         let budgetUsd = Infinity;
         if (deps.jobCostCap) {
           const spentUsd = Math.max(await providerSpendForJob(deps.db, jobId), spentBeforeExtraction + estimatedExtractionUsd);
@@ -348,6 +355,15 @@ export function createLiveRunner(deps: Deps) {
           if (fresh.length >= need) break;
           // After the first wave only platforms with a multiplier above 1 are fetched, and never past their cap.
           if (wave > 1 && (multiplierOf(k.platform) <= 1 || fetchedBy[k.platform] >= capOf(k.platform))) continue;
+          if (pastDeadline) {
+            if (!(await deps.pipeline.archived(jobId, k.canonicalUrl))) {
+              deadlineSkipped = true;
+              continue;
+            }
+            fresh.push(k);
+            fetchedBy[k.platform]++;
+            continue;
+          }
           if (profileUsdOf(k.platform) > budgetUsd + 1e-9) {
             overBudget = true;
             continue;
@@ -358,7 +374,10 @@ export function createLiveRunner(deps: Deps) {
           fetchedBy[k.platform]++;
         }
         if (fresh.length === 0) {
-          if (overBudget) {
+          if (pastDeadline && deadlineSkipped) {
+            deps.logger.info({ jobId, wave, deadlineMs: deps.jobDeadlineMs }, "per-job deadline reached: no further extraction batch");
+            stopReason = "job_deadline";
+          } else if (overBudget) {
             deps.logger.info({ jobId, capUsd, wave }, "per-job cost cap: no candidate's estimated cost fits; extraction stops");
             stopReason = "job_cost_cap";
           }
@@ -420,8 +439,9 @@ export function createLiveRunner(deps: Deps) {
               const visible = await isVisibleCreator(tx, saved.creatorId);
               const campaignFit = evaluateCampaignFit(search, f.k, saved.profile, !visible, now());
               trail.fit(f.k.canonicalUrl, campaignFit, saved.creatorId);
-              if (campaignFit.eligible && visible) trail.set(f.k.canonicalUrl, "delivery", "duplicate", "already_in_results");
-              if (campaignFit.eligible && visible && await repo.insertResult(tx, workspaceId, jobId, { creatorId: saved.creatorId, isNew, credits: isNew ? prices[f.k.platform] : 0, reason: f.k.reason, campaignFit })) {
+              const deliverable = campaignFit.eligible && visible && eligibleProfile(f.k, saved.profile, now());
+              if (deliverable) trail.set(f.k.canonicalUrl, "delivery", "duplicate", "already_in_results");
+              if (deliverable && await repo.insertResult(tx, workspaceId, jobId, { creatorId: saved.creatorId, isNew, credits: isNew ? prices[f.k.platform] : 0, reason: f.k.reason, campaignFit })) {
                 trail.set(f.k.canonicalUrl, "delivery", "delivered", isNew ? "new_creator" : "known_creator", { detail: { credits: isNew ? prices[f.k.platform] : 0 } });
                 const results = await repo.resultCreatorIds(tx, workspaceId, jobId);
                 const qualified = await rerank(tx, job, search);

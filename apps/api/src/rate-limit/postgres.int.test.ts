@@ -31,6 +31,19 @@ describe("PostgreSQL rate limiter (platform.rate_limit_hit)", () => {
     expect(row?.total).toBe(25);
   });
 
+  it("shares one limit across API instances (two processes with their own connection pools)", async () => {
+    const second = createTestDatabase();
+    try {
+      const a = new PostgresRateLimiter(db, { ...buckets, user: { limit: 6, windowSeconds: 60 } });
+      const b = new PostgresRateLimiter(second, { ...buckets, user: { limit: 6, windowSeconds: 60 } });
+      const results = await Promise.all(Array.from({ length: 10 }, (_, i) => (i % 2 ? a : b).limit("user", "user-42")));
+      expect(results.filter((r) => r.allowed).length).toBeLessThanOrEqual(6);
+      expect(results.filter((r) => !r.allowed).length).toBeGreaterThanOrEqual(4);
+    } finally {
+      await second.close();
+    }
+  });
+
   it("stores only hashed keys, never the raw IP or id", async () => {
     await new PostgresRateLimiter(db, buckets).limit("ip", "192.0.2.44");
     const rows = await ownerQuery<{ key_hash: string }>("select key_hash from platform.rate_limit_counters");

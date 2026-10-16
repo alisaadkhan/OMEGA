@@ -9,7 +9,7 @@ import { MemoryRateLimiter } from "../../rate-limit/memory";
 import { buildTestApp } from "../../test-support/app";
 import { createTestIssuer } from "../../test-support/keys";
 import { createBillingService, MemoryAccessCache } from "../billing/index";
-import { addCreator } from "../creators/test-fixtures";
+import { addIndexedCreator as addCreator } from "../creators/test-fixtures";
 import { createIdentityModule } from "../identity/index";
 import { createPlatformModule } from "../platform/index";
 import { createListsModule, createListsService } from "./index";

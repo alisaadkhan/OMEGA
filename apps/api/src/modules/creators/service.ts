@@ -9,6 +9,7 @@ import {
   type SearchFilters,
   type SearchRequest,
   type SearchResponse,
+  type EligibilityCoverage,
 } from "@mushin/contracts";
 import { AppError, decryptSecret, type Logger, type TenantContext } from "@mushin/core";
 import { and, eq } from "drizzle-orm";
@@ -25,6 +26,7 @@ import { chargeCatalogSearch } from "./search-charge";
 import { decodeCursor, encodeCursor } from "./cursor";
 import { understandQuery } from "./understand";
 import { matchReasons } from "./match-reasons";
+import { creatorEligibility, ELIGIBILITY_VERSION } from "./eligibility";
 import { DEFAULT_SOURCE_POLICY, restrictsDerived, type SourcePolicy } from "./source-policy";
 
 export type CreatorsDeps = {
@@ -159,7 +161,7 @@ export function createCreatorsService(deps: CreatorsDeps) {
       ids = id ? [id] : [];
     } else {
       ids = (await fromIndex(
-        () => deps.index.search({ text: q, filter: [], limit: 8 }),
+        () => deps.index.search({ text: q, filter: meiliFilter(searchFiltersShape.parse({}), now(), 0), limit: 8 }),
         (s) => s.search({ text: q, filters: searchFiltersShape.parse({}), freshCurrentDays: 0, now: now(), limit: 8 }, tenant(ctx)),
       )).hits.map((h) => h.id);
     }
@@ -305,6 +307,7 @@ export function createCreatorsService(deps: CreatorsDeps) {
           firstSeenAt: k.firstSeenAt.toISOString(), lastSeenAt: k.lastSeenAt.toISOString(), status: k.status, checkedAt: iso(k.checkedAt), checkDetail: k.checkDetail,
         })),
         contactAvailability: contactAvailability(contacts),
+        eligibility: profileEligibilityView(c, profiles, t),
         revealed,
         revealCost,
         refreshCost: refreshCost[refreshActionFor(c.primaryPlatform)],
@@ -351,7 +354,30 @@ export function createCreatorsService(deps: CreatorsDeps) {
     await deps.db.withTenant(tenant(ctx), (tx) => tx.delete(contactReveals).where(and(eq(contactReveals.workspaceId, ctx.workspaceId), eq(contactReveals.creatorId, creatorId))));
   }
 
-  return { search, interpret, lookup, listSaved, createSaved, deleteSaved, profile, reveal, forgetReveal };
+  /** Staff coverage report (counts only) under the eligibility policy. */
+  async function eligibilityCoverage(): Promise<EligibilityCoverage> {
+    const t = now();
+    return { policy: ELIGIBILITY_VERSION, at: t.toISOString(), ...(await deps.db.withSystem((tx) => repo.eligibilityCoverage(tx, t))) };
+  }
+
+  return { search, interpret, lookup, listSaved, createSaved, deleteSaved, profile, reveal, forgetReveal, eligibilityCoverage };
 }
 
 export type CreatorsService = ReturnType<typeof createCreatorsService>;
+
+/** The profile view of eligibility (elig-1): the creator verdict and each profile's own (no counts beyond what the profile shows). */
+function profileEligibilityView(
+  c: { status: string; isMinor: boolean; minorOverrideByStaffId: string | null },
+  profiles: { platform: "instagram" | "tiktok" | "youtube"; canonicalUrl: string; followers: number | null; followersUpdatedAt: Date | null; lastPostAt: Date | null }[],
+  now: Date,
+) {
+  const e = creatorEligibility(c, profiles.map((p) => ({ ...p, followers: p.platform === "youtube" && p.followers === 0 ? null : p.followers })), now);
+  return {
+    eligible: e.eligible,
+    version: e.version,
+    reasons: e.reasons,
+    qualifyingPlatforms: e.qualifyingPlatforms,
+    flags: e.flags,
+    profiles: e.profiles.map((p) => ({ platform: p.platform, qualifies: p.qualifies, reasons: p.reasons, flags: p.flags })),
+  };
+}

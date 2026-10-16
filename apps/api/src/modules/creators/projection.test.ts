@@ -18,7 +18,7 @@ const row: IndexRow = {
   verified: false,
   authenticityScore: null,
   hasContact: false,
-  profiles: [{ platform: "youtube", handle: "hidden", followers: 0, engagementRate: null, bio: null, followersUpdatedAt: "2026-10-10T00:00:00Z" }],
+  profiles: [{ platform: "youtube", handle: "hidden", canonicalUrl: "https://youtube.com/@hidden", followers: 0, engagementRate: null, bio: null, followersUpdatedAt: "2026-10-10T00:00:00Z", lastPostAt: null }],
   audience: null,
   updatedEpoch: 1,
 };

@@ -10,13 +10,13 @@ import { createRequire } from "node:module";
 import { chromium } from "playwright-core";
 
 const AXE = readFileSync(createRequire(import.meta.url).resolve("axe-core/axe.min.js"), "utf8");
-/** Serious and critical WCAG 2 A/AA findings of axe-core on the current page, as "rule-id (count)". */
+/** Serious and critical WCAG 2.0–2.2 A/AA findings of axe-core on the current page, as "rule-id (count)". */
 async function axeFindings(p) {
   // Entry animations fade content in; measuring mid-fade reports contrast for semi-transparent text.
   await p.waitForTimeout(1200);
   await p.addScriptTag({ content: AXE });
   const out = await p.evaluate(async () => {
-    const r = await globalThis.axe.run(document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] } });
+    const r = await globalThis.axe.run(document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22a", "wcag22aa"] } });
     return r.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => `${v.id} (${v.nodes.length}): ${[...new Set(v.nodes.map((n) => n.html.replace(/\s+/g, " ").slice(0, 110)))].slice(0, 8).join(" ; ")}`);
   });
   return out;
@@ -76,6 +76,8 @@ const session = (who) => ({ access_token: ids[who].token, token_type: "bearer", 
 const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: true });
 const consoleErrors = [];
 const serverErrors = [];
+// Campaign member edits refused as stale (409): each one is a lost customer edit unless someone else really edited.
+const campaignConflicts = [];
 const staffCallsFromCustomerPages = [];
 const openPages = [];
 const dbg = (m) => appendFileSync(new URL(`debug-${label}-${phase}.log`, here), `${new Date().toISOString()} ${m}\n`);
@@ -87,6 +89,7 @@ async function pageAs(who, viewport = { width: 1440, height: 950 }) {
   p.on("pageerror", (e) => consoleErrors.push(`${who}: ${e.message}`));
   p.on("console", (m) => { if (m.type() === "error" && !/Failed to load resource|status of 4\d\d|AuthApiError|Invalid Refresh Token|supabase\.co/.test(m.text())) consoleErrors.push(`${who}: ${m.text()}`); });
   p.on("response", (r) => { if (r.status() >= 500 && r.url().includes(":4000")) serverErrors.push(`${r.status()} ${r.url()}`); });
+  p.on("response", (r) => { if (r.status() === 409 && r.request().method() === "PATCH" && /\/v1\/campaigns\/[^/]+\/creators\//.test(r.url())) campaignConflicts.push(r.url()); });
   p.on("request", (r) => { if (r.url().includes("/admin/v1/")) staffCallsFromCustomerPages.push(r.url()); });
   openPages.push(p);
   p.on("close", () => openPages.splice(openPages.indexOf(p), 1));
@@ -163,6 +166,13 @@ if (phase === "main") {
   await shot(p, "01-dashboard");
   let t = await mainText(p);
   check("dashboard", "first visit: real trial balance and honest empty cards", (await api("owner", "GET", "/v1/billing/summary")).json.balance.available === 200 && /No lists yet/.test(t) && /No campaigns yet/.test(t) && !/\bSample\b|Illustrative/.test(t));
+  // F-7/F-8: badges follow the server (meter and status), never fixed text; a trial is never shown as "Inactive".
+  const billSum = (await api("owner", "GET", "/v1/billing/summary")).json;
+  const creditBadgeText = (await p.getByTestId("credit-badge").innerText().catch(() => "")).trim();
+  const subBadgeText = (await p.getByTestId("subscription-badge").innerText().catch(() => "")).trim();
+  const meterLabel = { normal: "Healthy", amber: "Running low", red: "Very low" }[billSum.balance.meter];
+  check("dashboard", "credit and subscription badges match the server's meter and status", creditBadgeText === meterLabel && billSum.status === "trialing" && subBadgeText === "Trial" && !/Inactive/.test(t), `credit "${creditBadgeText}" (meter ${billSum.balance.meter}); subscription "${subBadgeText}" (${billSum.status})`);
+  check("dashboard", "page title and description name MUSHIN, not template text", /MUSHIN/.test(await p.title()) && !/High-End SaaS/.test(await p.title()), await p.title());
   await p.reload();
   await p.getByRole("heading", { name: /Welcome back/ }).waitFor({ timeout: 30000 });
   check("auth", "reload on a direct dashboard URL restores the session", p.url().includes("#/dashboard"));
@@ -204,6 +214,16 @@ if (phase === "main") {
   check("search", "each result says where the query matched (API matchedOn shown on the card)", apiFood.results.length > 0 && explained.length === apiFood.results.length && matchedLines >= Math.min(explained.length, 10), `explained ${explained.length}/${apiFood.results.length}; card lines ${matchedLines}`);
   const LABELS = { email_unverified: "Email available · Unverified", email_verified: "Email available · Verified", email_invalid: "Email invalid", phone_unverified: "Phone available · Unverified", none: "No contact info" };
   check("search", "every card states contact availability from the API, never a value or an unproven claim", apiFood.results.every((r) => r.contactAvailability in LABELS && t.includes(LABELS[r.contactAvailability])) && !/Contact on file|Contactable/.test(t) && !/[a-z0-9._%+-]+@[a-z0-9-]+[.][a-z]{2,}/i.test(t), [...new Set(apiFood.results.map((r) => r.contactAvailability))].join(", "));
+  // Creator eligibility (elig-1): every result meets the 10,000 minimum; a food creator below it is absent, cannot be saved
+  // through the API, and its profile says why. Vicky Panda (5,990 YouTube subscribers) matches "food" but is below.
+  const smallId = sql("select c.id from gcp.creators c join gcp.creator_profiles p on p.creator_id = c.id where p.handle = 'vicky.pandafood'");
+  check("eligibility", "every search result meets the 10,000-follower minimum; a matching creator below it is absent", apiFood.results.length > 0 && apiFood.results.every((r) => r.eligibility.eligible && r.eligibility.qualifyingPlatforms.length > 0) && !apiFood.results.some((r) => r.handle === "vicky.pandafood") && !handles(t).includes("@vicky.pandafood"), `results ${apiFood.results.length}`);
+  const anyList = (await api("owner", "POST", "/v1/lists", { name: `Elig ${label}`, description: "" })).json;
+  const refused = await api("owner", "POST", `/v1/lists/${anyList.id}/members`, { creatorIds: [smallId] });
+  check("eligibility", "the API refuses to save a creator below the minimum (direct call)", refused.status === 400 && refused.json?.error?.details?.reason === "creator_ineligible", `${refused.status} ${JSON.stringify(refused.json?.error?.details ?? {})}`);
+  const smallProfile = (await api("owner", "GET", `/v1/creators/${smallId}`)).json;
+  check("eligibility", "the profile states the creator is below the minimum, with the reason", smallProfile.eligibility?.eligible === false && smallProfile.eligibility.reasons.includes("below_follower_minimum"), JSON.stringify(smallProfile.eligibility?.reasons));
+  await api("owner", "DELETE", `/v1/lists/${anyList.id}`);
   // The next page (by cursor) when there is one, otherwise the same search again: neither is a new paid search.
   const page2 = (await apiSearch("owner", "food", {}, apiFood.nextCursor)).json;
   check("pricing", "search button shows the server price; a search is charged once; repeat and next page are free", priceShown && nothingOnOpen && spentOnce && apiFood.charged === false && page2.charged === false && searchSpends(ws) === spendsBefore + 1, `spends ${spendsBefore}→${searchSpends(ws)}; api charged ${apiFood.charged}/${page2.charged}`);
@@ -267,8 +287,10 @@ if (phase === "main") {
   await p.getByRole("button", { name: /Food shortlist/ }).first().click();
   await p.getByLabel("Select all").check();
   await p.getByRole("button", { name: /Add 2 to a campaign/ }).click();
+  // Wait for the add itself, not a fixed delay: under load it took over 4 s (run fix3-1, harness defect T-3).
+  const added = p.waitForResponse((r) => r.request().method() === "POST" && /\/v1\/campaigns\/[^/]+\/creators$/.test(r.url()), { timeout: 30000 });
   await p.getByRole("dialog", { name: "Add to campaign" }).getByRole("button", { name: /Eid food push/ }).click();
-  await p.waitForTimeout(1500);
+  await added;
   check("campaigns", "creators added from a list selection", (await api("owner", "GET", `/v1/campaigns/${k.id}`)).json.creatorCount === 2);
   await nav(p, "Campaigns");
   await p.getByRole("button", { name: /Eid food push/ }).first().click();
@@ -286,6 +308,7 @@ if (phase === "main") {
   await p.waitForTimeout(1200);
   let kd = (await api("owner", "GET", `/v1/campaigns/${k.id}`)).json;
   check("campaigns", "stage, fee (agreed) and declined outcome persist; totals exclude declined", kd.stageCounts.confirmed === 1 && kd.declinedCount === 1 && kd.agreedFeesMinor === 4_000_000);
+  check("campaigns", "one person editing a campaign never gets a stale-version conflict (fee saved once)", campaignConflicts.length === 0, campaignConflicts.slice(0, 2).join(" | "));
   await card("Realwowboy").getByRole("button", { name: "Outreach" }).click();
   const op = p.getByRole("dialog", { name: /Outreach for/ });
   await op.getByLabel("Channel").selectOption("email");
@@ -435,13 +458,37 @@ if (phase === "main") {
   await p.getByRole("heading", { name: "Eid food push" }).waitFor();
   check("restart", "campaign pipeline persists", /Rs 40,000 agreed/.test(await mainText(p)));
   check("restart", "catalog search answers after restart (index reconciled)", (await apiSearch("owner", "food")).json.total > 0 && sql(`select count(*) from wp.credit_reservations where status = 'held'`) === "0");
-  // Accessibility (axe-core, WCAG 2.1 A/AA, serious and critical) on the main customer pages at desktop width.
-  for (const name of ["Search", "Lists", "Campaigns"]) {
+  // Accessibility (axe-core, WCAG 2.0–2.2 A/AA, serious and critical) on every customer page and the main dialogs at
+  // desktop width: the sidebar pages, the profile-menu pages, a campaign's detail and a creator profile.
+  await p.getByRole("button", { name: "Dashboard", exact: true }).first().click();
+  await p.getByRole("heading", { name: /Welcome back/ }).waitFor({ timeout: 15000 });
+  await p.waitForTimeout(400);
+  check("a11y", "Dashboard: no serious or critical WCAG 2.2 A/AA issues (desktop)", (await axeFindings(p)).length === 0, (await axeFindings(p)).join(" | "));
+  for (const name of ["Search", "Lists", "Campaigns", "Credits & billing"]) {
     await nav(p, name);
     await p.waitForTimeout(400);
     const found = await axeFindings(p);
-    check("a11y", `${name}: no serious or critical WCAG 2.1 A/AA issues (desktop)`, found.length === 0, found.join(" | "));
+    check("a11y", `${name}: no serious or critical WCAG 2.2 A/AA issues (desktop)`, found.length === 0, found.join(" | "));
   }
+  for (const item of ["Analytics", "Activity", "Settings", "Support"]) {
+    if (item === "Activity") {
+      await p.getByRole("button", { name: "Account menu" }).click();
+      await p.getByRole("menuitem", { name: "Activity" }).click();
+      await p.getByRole("heading", { name: "Activity log" }).waitFor({ timeout: 15000 });
+    } else await menu(p, item);
+    await p.waitForTimeout(400);
+    const found = await axeFindings(p);
+    check("a11y", `${item}: no serious or critical WCAG 2.2 A/AA issues (desktop)`, found.length === 0, found.join(" | "));
+  }
+  await nav(p, "Campaigns");
+  await p.getByRole("button", { name: /Eid food push/ }).first().click();
+  await p.getByRole("heading", { name: "Eid food push" }).waitFor();
+  check("a11y", "Campaign detail: no serious or critical WCAG 2.2 A/AA issues (desktop)", (await axeFindings(p)).length === 0, (await axeFindings(p)).join(" | "));
+  const profileDialog = await openProfile(p, "realwowboy");
+  await p.waitForTimeout(600);
+  const dialogFound = await axeFindings(p);
+  check("a11y", "Creator profile dialog: no serious or critical WCAG 2.2 A/AA issues (desktop)", dialogFound.length === 0, dialogFound.join(" | "));
+  await profileDialog.getByRole("button", { name: "Close" }).click();
   await p.context().close();
 
   // ── Phone width (390 × 844): pages fit without sideways scrolling, navigation works, and axe passes ──

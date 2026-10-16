@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import {
   creatorProfileSchema,
+  eligibilityCoverageSchema,
   interpretRequestSchema,
   interpretResponseSchema,
   lookupQuerySchema,
@@ -89,6 +90,10 @@ export function registerCreatorRoutes(
   if (extra) {
     const { removals, requireStaff } = extra;
     const staffOnly = { preHandler: requireStaff("creators.removal.review") };
+    // Eligibility coverage (elig-1) for operations: counts by reason and platform, no creator data.
+    app.get("/admin/v1/ops/eligibility", { preHandler: requireStaff("ops.overview.read") }, async (_req, reply) =>
+      sendOk(reply, eligibilityCoverageSchema, await service.eligibilityCoverage()),
+    );
     const meta = (req: FastifyRequest) => ({ ip: req.ip ?? null, requestId: req.id });
 
     // Public, no sign-in (SRS §6.3). The `auth` bucket keeps it to a few requests a minute per address.

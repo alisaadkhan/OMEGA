@@ -419,6 +419,43 @@ describe("live runner", () => {
     });
   });
 
+  describe("creator eligibility (elig-1) before delivery", () => {
+    // small_* profiles report 9,999 followers, edge_* exactly 10,000; everything else the fixture's 946,416.
+    const counted = (handle: string) => {
+      const [one] = profile(handle);
+      const original = (one as Record<string, unknown> | undefined)?.["followersCount"];
+      return [{ ...one, followersCount: handle.startsWith("small_") ? 9_999 : handle.startsWith("edge_") ? 10_000 : original }];
+    };
+    const scraper = () => new FixtureScraper({ instagram: (req: ScrapeRequest) => ({ provider: "apify", raw: counted(req.handle), costUsd: 0.0026 }) });
+
+    it("delivers and charges only creators whose own profile has at least 10,000 followers; the rest are saved, not delivered", async () => {
+      const { runner } = setup({ web: new FixtureWebSearch(links("small_1", "edge_1", "big_1", "small_2", "big_2")), scraper: scraper() });
+      const c = await customer();
+      const id = await startRun(c, 5);
+      await runner.run(id, c.workspaceId);
+      const delivered = (await discovery.results(c, id, 0)).results.map((r) => r.handle).sort();
+      expect(delivered).toContain("edge_1");
+      expect(delivered.filter((h) => h.startsWith("small_"))).toEqual([]);
+      const trail = await trailOf(id);
+      expect(trail.filter((r) => r.reason === "below_follower_minimum").map((r) => r.candidate_key).sort()).toEqual(["https://instagram.com/small_1", "https://instagram.com/small_2"]);
+      const job = await discovery.get(c, id);
+      expect(job.live?.creditsCharged).toBe(50 + 10 * (job.live?.new ?? 0));
+      expect(await balance(c)).toMatchObject({ reserved: 0 });
+      // Saved, not deleted: the small creators exist but are not eligible for customers.
+      expect((await ownerQuery<{ n: number }>("select count(*)::int as n from gcp.creator_profiles where handle like 'small_%'"))[0]?.n).toBe(2);
+    });
+
+    it("refuses a known creator whose stored count is below the minimum", async () => {
+      const first = setup({ web: new FixtureWebSearch(links("small_k")), scraper: scraper() });
+      const c = await customer();
+      await first.runner.run(await startRun(c, 5), c.workspaceId);
+      const again = setup({ web: new FixtureWebSearch(links("small_k")), scraper: scraper() });
+      const id = await startRun(c, 5);
+      await again.runner.run(id, c.workspaceId);
+      expect((await discovery.results(c, id, 0)).results.map((r) => r.handle)).not.toContain("small_k");
+    });
+  });
+
   describe("extraction waves", () => {
     // Three private accounts first, then good ones: the size (5) is filled only if more profiles may be fetched.
     const scraper = () => new FixtureScraper({
@@ -499,6 +536,76 @@ describe("live runner", () => {
       expect(await discovery.get(c, id)).toMatchObject({ status: "completed", outcome: "succeeded", live: { new: 2, creditsCharged: 50 + 2 * 10 } });
       expect((await trailOf(id)).filter((r) => r.reason === "job_deadline").length).toBeGreaterThan(0);
       expect(await balance(c)).toMatchObject({ available: 200 - 70, reserved: 0 });
+    });
+
+    it("a retry after the deadline keeps profiles the crashed attempt already paid for, fetches nothing new and settles once", async () => {
+      let skewMs = 0;
+      let crash = true;
+      const { runner, scraper: s } = setup({
+        web: pool(),
+        scraper: scraper(),
+        extractionMultiplier: { instagram: 2 },
+        jobDeadlineMs: 20 * 60_000,
+        now: () => new Date(Date.now() + skewMs),
+        wrap: (p) => ({
+          ...p,
+          processProfile: async (...args: Parameters<typeof p.processProfile>) => {
+            if (crash && args[0].handle === "open_2") {
+              // The worker dies mid-wave, after open_1 was saved; the retry happens after the deadline.
+              crash = false;
+              skewMs = 21 * 60_000;
+              throw new Error("worker crashed");
+            }
+            return p.processProfile(...args);
+          },
+        }),
+      });
+      const c = await customer();
+      const id = await startRun(c, 5);
+      await expect(runner.run(id, c.workspaceId)).rejects.toThrow(/crashed/);
+      await runner.run(id, c.workspaceId);
+      // One provider batch in total: the retry reused the first wave's archives and started no second wave.
+      expect(s.batchCalls.map((b) => b.handles.length)).toEqual([5]);
+      expect(await discovery.get(c, id)).toMatchObject({ status: "completed", outcome: "succeeded", live: { new: 2, creditsCharged: 50 + 2 * 10 } });
+      expect((await discovery.results(c, id, 0)).results.map((r) => r.handle).sort()).toEqual(["open_1", "open_2"]);
+      expect((await trailOf(id)).filter((r) => r.reason === "job_deadline").length).toBeGreaterThan(0);
+      expect(await balance(c)).toMatchObject({ available: 200 - 70, reserved: 0 });
+      // Running the finished job again (a duplicate delivery) changes nothing: no fetch, no second charge.
+      await runner.run(id, c.workspaceId);
+      expect(s.batchCalls).toHaveLength(1);
+      expect(await balance(c)).toMatchObject({ available: 200 - 70, reserved: 0 });
+      expect(await discovery.get(c, id)).toMatchObject({ live: { creditsCharged: 70 } });
+    });
+
+    it("a customer stop after the deadline settles once on what was delivered", async () => {
+      let skewMs = 0;
+      let job = "";
+      const { runner } = setup({
+        web: pool(),
+        scraper: scraper(),
+        extractionMultiplier: { instagram: 2 },
+        jobDeadlineMs: 20 * 60_000,
+        now: () => new Date(Date.now() + skewMs),
+        wrap: (p) => ({
+          ...p,
+          processProfile: async (...args: Parameters<typeof p.processProfile>) => {
+            const out = await p.processProfile(...args);
+            if (args[0].handle === "open_1") {
+              skewMs = 21 * 60_000;
+              await ownerQuery(`update wp.discovery_jobs set cancel_requested_at = now() where id = '${job}'`);
+            }
+            return out;
+          },
+        }),
+      });
+      const c = await customer();
+      job = await startRun(c, 5);
+      await runner.run(job, c.workspaceId);
+      await runner.run(job, c.workspaceId);
+      const done = await discovery.get(c, job);
+      expect(done.status).toBe("completed");
+      expect(done.live?.creditsCharged).toBe(50 + 10 * (done.live?.new ?? 0));
+      expect(await balance(c)).toMatchObject({ available: 200 - (done.live?.creditsCharged ?? 0), reserved: 0 });
     });
 
     it("leaves runs inside the deadline unchanged", async () => {

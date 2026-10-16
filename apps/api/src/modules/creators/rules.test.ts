@@ -83,7 +83,9 @@ describe("Meilisearch filter", () => {
       hasContact: true,
       freshOnly: true,
     });
+    const eligibility = ["eligible = true", `eligible_until > ${Math.floor(now.getTime() / 1000)}`];
     expect(meiliFilter(f, now, 7)).toEqual([
+      ...eligibility,
       'platforms = "tiktok"',
       'country = "PK"',
       'city IN ["La\\"hore", "la hore"]',
@@ -97,7 +99,8 @@ describe("Meilisearch filter", () => {
       "has_contact = true",
       `followers_updated_epoch >= ${Math.floor(now.getTime() / 1000) - 7 * 86_400}`,
     ]);
-    expect(meiliFilter(searchFiltersSchema.parse({}), now, 7)).toEqual([]);
+    // Eligibility (elig-1) is always applied, even with no filters.
+    expect(meiliFilter(searchFiltersSchema.parse({}), now, 7)).toEqual(eligibility);
   });
 });
 

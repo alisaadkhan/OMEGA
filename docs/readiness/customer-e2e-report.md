@@ -149,6 +149,49 @@ New check: every "food" result carries `matchedOn` from the API, and each card s
 | cat005-1 (stopped) | main 53/54: the new check counted lines in whitespace-collapsed page text (harness defect T-2, fixed by counting the label); after restart 22/22. Run 2 was stopped, and all three were re-run |
 | cat005b-1..3, three in a row | 3 × 76/76 (54 main + 22 after restart), including phone width, axe, no console errors, no 5xx |
 
+### Dashboard badges, campaign fee editor, page metadata (2026-10-16)
+
+| Run set | Result and what it found |
+|---|---|
+| f78-1 (stopped) | main 53/55, after restart 21/22. **Real defect D-7:** the campaign fee editor saved twice (Enter blurs the field; Chrome blurs it again when the field is removed). The second PATCH carried the old version and got a 409, and the following stage change ("confirmed") was never sent, so the stage was lost. Timing-dependent, which is why earlier runs passed. Fixed in `CampaignDetail.tsx` (the editor commits once); new check: a single editor never gets a stale-version 409 |
+| fix3-1 (stopped) | main 56/57. **Harness defect T-3:** "creators added from a list selection" read the campaign after a fixed 1.5 s, but the add took over 4 s because I ran a production build at the same time. The journey now waits for the add response instead of a fixed delay |
+| fix4-1..3, three in a row | 3 × 79/79 (57 main + 22 after restart): new checks for the dashboard badges, page title and no stale-version conflicts, plus phone width, axe, no console errors, no 5xx |
+
+Also fixed: `index.html` still had Figma template metadata ("High-End SaaS Landing Page", "attract enterprise customers and investors") and now names MUSHIN (new check). The top bar fell back to an invented person ("Ahmed Raza Khan", "AR") when the account had no name; it now shows the account's own name or email.
+
+### Creator eligibility elig-1 (2026-10-16)
+
+The template was migrated to 0037 (forward only); the worker rebuilt every search document at start-up under the policy.
+Three new checks: every "food" result meets the 10,000 minimum and Vicky Panda (5,990 subscribers, matches "food") is
+absent from API and UI; a direct API call to save her to a list is refused (400, `creator_ineligible`, policy elig-1);
+her profile states `below_follower_minimum`. The "food" search went from 9 to 5 results.
+
+| Run set | Result |
+|---|---|
+| elig-1..3, three in a row | 3 × 82/82 (60 main + 22 after restart) |
+
+Fixture note: the template's follower counts were observed on 2026-10-13, so under the 90-day rule its creators stop being
+eligible on about 2027-01-11; the template must be refreshed (or the journey given a pinned clock) before then.
+
+### Accessibility coverage widened (2026-10-16)
+
+axe now runs WCAG 2.0–2.2 A/AA (serious and critical) on every customer page at desktop width (Dashboard, Search, Lists,
+Campaigns, Credits & billing, Analytics, Activity, Settings, Support), on a campaign's detail and on the creator profile
+dialog, plus the existing phone-width pages. The first run found three real defects, all fixed:
+
+| ID | Defect | Fix |
+|---|---|---|
+| A-1 | Analytics: a definition list held a decorative bar between term and value (WCAG 1.3.1) | The bar moved inside the value, hidden from screen readers |
+| A-2 | Campaign detail: "Declined at …" label slate-500 on slate-100, below 4.5:1 | slate-700 (about 9:1) |
+| A-3 | Search: the three action buttons were laid over the input (about 460 px of buttons in 160 px of padding), hiding typed text and shrinking the input's tap target below WCAG 2.2 2.5.8 on phones | Buttons sit beside the input on wide screens and wrap below it on narrow ones; the input has an accessible name |
+
+| Run set | Result |
+|---|---|
+| a11y-probe (first run) | main 60/60; after restart 27/30 (A-1, A-2, A-3) |
+| a11y-1..3 (this session's labels; earlier sessions reused these names), three in a row | 3 × 90/90 (60 main + 30 after restart) |
+
+Still manual and not done: keyboard-only walkthrough, screen-reader pass, 200% zoom.
+
 ## 5. Defects found and fixed
 
 | ID | Severity | Defect | Fix | Regression evidence |
@@ -168,10 +211,10 @@ Both fixes are in commit `099f349`.
 | F-4 | P2 | **Spec conflict:** the documentation pack's role matrix lets members view the credit ledger, but the repo billing spec and the code restrict it to owner/admin. The E2E follows the code. |
 | F-5 | P2 | The rate limit is 120 requests/min per IP and per user by default. That may be tight for several staff behind one office NAT. The Upstash limiter fails open. |
 | F-6 | P2 | The paid-start limit (20/h per user) lives in remote Upstash and survives database resets. Local testers can hit it unexpectedly. |
-| F-7 | P3 | The dashboard credit card shows "Healthy" while the balance is still loading. |
-| F-8 | P3 | The subscription card may read "Inactive" during the trial (observed once; to verify). |
+| F-7 | P3 | **Fixed (2026-10-16).** Worse than reported: "Healthy" was fixed text, shown even at 0 credits. The badge now follows the server's credit meter (Healthy / Running low / Very low) and is hidden while loading (`lib/billing-status.ts`, billing-status.test, E2E check). |
+| F-8 | P3 | **Fixed (2026-10-16).** Cause: before the summary loaded the badge fell through to "Inactive". Now hidden while loading, and every status has its own label (Trial, Active, Ends at period end, Payment due, Canceled, Expired). |
 | F-9 | P3 | Inner dashboard sections have no URLs (`#/dashboard` keeps the internal view), so a section cannot be bookmarked or opened directly. |
-| F-10 | P3 | One 404 per run from a static asset (favicon or a mock-checkout asset); harmless but noisy. |
+| F-10 | P3 | **Fixed (2026-10-16).** Both were browser favicon requests (the app page and the mock checkout page declared none). Each now declares an icon. |
 
 The staff hierarchy (Support → Admin → Super Admin = owners) is a documented gap. The code has staff roles
 `support` and `admin` only, and no Super Admin. Nothing was changed here (out of scope).

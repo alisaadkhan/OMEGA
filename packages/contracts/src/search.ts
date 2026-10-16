@@ -54,6 +54,34 @@ export const searchRequestSchema = z.object({
 });
 export type SearchRequest = z.output<typeof searchRequestSchema>;
 
+/**
+ * Creator display eligibility (policy elig-1): whether the creator may be shown to customers and added to lists or
+ * campaigns. Saved records of creators who no longer qualify stay, labelled with the reasons.
+ */
+export const creatorEligibilitySchema = z.object({
+  eligible: z.boolean(),
+  version: z.string(),
+  /** Stable reason codes, e.g. below_follower_minimum, followers_unknown, followers_stale, inactive, not_evaluated. */
+  reasons: z.array(z.string()),
+  /** Platforms whose own profile meets the threshold; a lower-count linked account is never presented as qualifying. */
+  qualifyingPlatforms: z.array(creatorPlatformSchema),
+  /** Evidence the policy could not check, e.g. activity_unverified. */
+  flags: z.array(z.string()),
+});
+export type CreatorEligibilityView = z.output<typeof creatorEligibilitySchema>;
+
+/** Staff coverage report under the eligibility policy: counts only, never creator data. */
+export const eligibilityCoverageSchema = z.object({
+  policy: z.string(),
+  at: z.iso.datetime(),
+  total: z.number().int(),
+  eligible: z.number().int(),
+  activityUnverified: z.number().int(),
+  byReason: z.array(z.object({ reason: z.string(), creators: z.number().int() })),
+  byPlatform: z.array(z.object({ platform: z.string(), eligibleCreators: z.number().int() })),
+});
+export type EligibilityCoverage = z.output<typeof eligibilityCoverageSchema>;
+
 export const creatorCardSchema = z.object({
   id: z.uuid(),
   displayName: z.string(),
@@ -74,6 +102,7 @@ export const creatorCardSchema = z.object({
   followersFreshness: freshnessSchema,
   fitScore: z.number().int().min(0).max(100),
   fitLabel: fitLabelSchema,
+  eligibility: creatorEligibilitySchema,
 });
 export type CreatorCard = z.output<typeof creatorCardSchema>;
 
@@ -199,6 +228,8 @@ export const creatorProfileSchema = z.object({
     source: z.string(), firstSeenAt: iso, lastSeenAt: iso, status: contactStatusSchema, checkedAt: iso.nullable(), checkDetail: z.string().nullable(),
   })),
   contactAvailability: contactAvailabilitySchema,
+  /** Creator eligibility (elig-1), with each profile's own verdict: only qualifying profiles meet the threshold. */
+  eligibility: creatorEligibilitySchema.extend({ profiles: z.array(z.object({ platform: creatorPlatformSchema, qualifies: z.boolean(), reasons: z.array(z.string()), flags: z.array(z.string()) })) }),
   revealed: z.boolean(),
   revealCost: z.number().int(),
   refreshCost: z.number().int(),

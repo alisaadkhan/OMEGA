@@ -27,6 +27,12 @@ const doc = (id: string, over: Partial<CreatorDocument>): CreatorDocument => ({
   audience_countries: [],
   followers_updated_epoch: 1_790_000_000,
   updated_epoch: 1,
+  eligible: true,
+  eligible_until: 4_000_000_000,
+  eligibility_version: "elig-1",
+  eligibility_reasons: [],
+  eligibility_flags: [],
+  qualifying_platforms: ["instagram"],
   ...over,
 });
 

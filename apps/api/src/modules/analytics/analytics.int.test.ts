@@ -3,7 +3,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import type { TenantContext } from "@mushin/core";
 import { createTestDatabase, createTestWorkspace, resetTables } from "@mushin/db/testing";
 import { createCampaignsService } from "../campaigns/index";
-import { addCreator } from "../creators/test-fixtures";
+import { addIndexedCreator as addCreator } from "../creators/test-fixtures";
 import { createListsService } from "../lists/index";
 import { createActivityService } from "../activity/index";
 import { createAnalyticsService } from "./index";

@@ -134,3 +134,55 @@ the next free step (Phyllo sandbox shape test) needs a Phyllo account.
 
 Owner decision needed: the two sessions received different orders. This one: Search acceptance before other customer
 modules. The other: continue invitations, privacy, Resend test mode and billing now, without waiting for ratings.
+
+## 2026-10-16: creator eligibility elig-1 (owner requirement), in progress
+
+Earlier the same day: `2dd9b69` fixed the campaign fee double-save found by E2E (D-7), dashboard badges (F-7/F-8), the
+invented top-bar identity, the template page metadata and the favicon 404s (F-10); E2E 3 × 79/79, verify 804 passed.
+The staff-operations session ended; its unmerged work is safe on branch `team-privacy` in `MUSHIN-team`.
+
+**Hypothesis and measurable outcome.** A shared server-side policy (`creators/eligibility.ts`, version `elig-1`)
+filters creators before ranking. It requires at least one own profile with a known count of 10,000 or more followers
+or subscribers, observed within 90 days, on a valid supported profile URL, and not known to be inactive for more than
+90 days. Unknown activity is flagged `activity_unverified`, never invented. Applied in Search, Live Discovery delivery,
+list and campaign additions and the profile API, so only qualifying creators reach customers and saved records are
+labelled, not deleted. Results shrink by the measured share and are never padded.
+
+**Baseline before enforcement** (`scripts/eligibility-report.ts`, counts only):
+
+| Catalogue | Eligible creators | Instagram profiles | TikTok profiles | YouTube profiles |
+|---|---|---|---|---|
+| mushin_local | 12 of 21 active (9 below 10k, 1 protected minor) | none | 2 of 3 | 10 of 18 |
+| corpus v2 (evaluation) | 204 of 455 (243 below 10k, 8 unknown count) | 67 of 104 | 13 of 23 | 124 of 328 |
+
+Every eligible creator is currently `activity_unverified`, because post dates were not stored before this change. The
+rating packets made under the pre-eligibility policy must be regenerated and labelled; human ratings are still
+required.
+
+**Result (elig-1 implemented).** Enforced in catalogue Search (both backends, expiry without re-indexing), Live Discovery
+delivery (rejected with the reason; not delivered or charged), list and campaign additions (`creator_ineligible`, direct
+API calls included), profiles (per-profile verdicts) and the UI (banner, disabled save/add with the reason, saved members
+labelled and kept). Evidence: verify 826 passed, 7 skipped; E2E 3 × 82/82; local "food" search 9 → 5 results. Not yet
+done: rating packets regenerated under elig-1 (next step), catalogue creator/business classification as a gate, a staff
+coverage view (report script only).
+
+## 2026-10-16: state at the end of this session (resume here)
+
+Master commits this session: `2dd9b69` (campaign fee double-save D-7, dashboard badges F-7/F-8, placeholder identity,
+page metadata, favicons F-10), `9503764` (creator eligibility elig-1), `947a464` (evaluation pools and packets under
+elig-1; tag `search-freeze-2026-10-16-elig1`), `0df288e` (bundle secret scan, prepared CI, restore drill, API security
+tests, multi-instance rate limits), `d35763e` (WCAG 2.2 axe across every customer page; fixes A-1..A-3;
+release-readiness checklist), `d018bdd` (staff eligibility coverage endpoint; bounded local load check), plus this
+record and the hosting recommendation. Last full verify: 836 passed, 7 skipped (live-provider suites). Last E2E: 3 × 90/90.
+
+**Next actions, in order:**
+1. Owner: give the rater kits in `eval-data/kits` (elig-1 packets) to two raters and an adjudicator; score with
+   `scripts/search-eval/score.ts`; delete the evaluation data by 2026-11-12 (`purge-eval-data.ts --confirm`; also the old
+   copies in the earlier Claude temp folders). Run `freeze-check.ts` before any merge that touches Search.
+2. Owner decision: finish and integrate branch `team-privacy` (one commit `a5faa1e` and uncommitted invitation/team UI
+   in `../MUSHIN-team`). It needs a review, a verify run and E2E before merging into master. It reserves migrations 0035 and 0036.
+3. When WSL 2 and Docker exist: `supabase init`, port migrations 0001–0034, 0037 (plus 0035/0036 when merged), then follow
+   the migration map §7.
+4. With accounts: real Supabase Auth test project, Paddle sandbox, Resend test domain; a capped paid Brain 2 pilot only
+   with owner authorisation.
+5. E2E fixture refresh before about 2027-01-11 (template follower counts expire under the 90-day rule).

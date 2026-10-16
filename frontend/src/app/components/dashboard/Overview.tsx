@@ -22,6 +22,7 @@ import type { DashView } from "./Sidebar";
 import { ActivityCard, CampaignsCard, ListsCard, SavedSearchesCard, SnapshotCard } from "./OverviewCards";
 import { useBillingPlans, useBillingSummary } from "../../api/billing";
 import { COPY } from "../../lib/copy";
+import { creditBadge, subscriptionBadge } from "../../lib/billing-status";
 
 /**
  * Volume 2 §5 — Dashboard specification.
@@ -171,8 +172,12 @@ function Skeleton({ className = "" }: { className?: string }) {
 
 /* ─────────────────────── credit balance ─────────────────────── */
 
+const BADGE_TONE = { good: "bg-emerald-50 text-emerald-700", warn: "bg-amber-50 text-amber-800", bad: "bg-red-50 text-red-700", neutral: "bg-indigo-50 text-indigo-700" } as const;
+
+
 function CreditBalanceCard({ credits, loading, go }: { credits: number; loading: boolean; go: (v: DashView) => void }) {
   const summary = useBillingSummary().data;
+  const badge = creditBadge(summary);
   const max = Math.max(1, summary?.balance.base ?? 1);
   const renewal = summary?.currentPeriodEnd
     ? `${summary.cancelAtPeriodEnd ? "Ends" : "Renews"} on ${new Date(summary.currentPeriodEnd).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`
@@ -189,9 +194,11 @@ function CreditBalanceCard({ credits, loading, go }: { credits: number; loading:
         title="Credit balance"
         subtitle="Search + enrichment pool"
         action={
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] text-emerald-700" style={{ fontWeight: 600 }}>
-            <Sparkles className="h-2.5 w-2.5" /> Healthy
-          </span>
+          badge && (
+            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] ${BADGE_TONE[badge.tone]}`} style={{ fontWeight: 600 }} data-testid="credit-badge">
+              <Sparkles className="h-2.5 w-2.5" /> {badge.label}
+            </span>
+          )
         }
       />
       {loading ? (
@@ -230,6 +237,7 @@ function CreditBalanceCard({ credits, loading, go }: { credits: number; loading:
 
 function SubscriptionCard({ loading, go }: { loading: boolean; go: (v: DashView) => void }) {
   const summary = useBillingSummary().data;
+  const badge = subscriptionBadge(summary);
   const plans = useBillingPlans().data;
   const plan = plans?.plans.find((p) => p.id === summary?.plan?.id);
   const price = plan ? (summary?.interval === "year" ? plan.display.yearlyPerMonth : plan.display.monthly) : null;
@@ -239,9 +247,11 @@ function SubscriptionCard({ loading, go }: { loading: boolean; go: (v: DashView)
         title="Subscription"
         subtitle={summary?.plan ? `${summary.plan.name} · ${summary.interval === "year" ? "Yearly" : "Monthly"}` : summary?.status === "trialing" ? "Free trial" : "No active plan"}
         action={
-          <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] text-indigo-700" style={{ fontWeight: 600 }}>
-            {summary?.status === "active" ? "Active" : summary?.status === "trialing" ? "Trial" : "Inactive"}
-          </span>
+          badge && (
+            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] ${BADGE_TONE[badge.tone]}`} style={{ fontWeight: 600 }} data-testid="subscription-badge">
+              {badge.label}
+            </span>
+          )
         }
       />
       {loading ? (

@@ -12,7 +12,7 @@ import {
 } from "@mushin/contracts";
 import { AppError, type TenantContext } from "@mushin/core";
 import type { Db } from "@mushin/db";
-import { rankCards, requestContactCheck, type SourcePolicy } from "../creators/index";
+import { ineligibleCreatorIds, ineligibleError, rankCards, requestContactCheck, type SourcePolicy } from "../creators/index";
 import * as repo from "./repository";
 
 /** `planLimits` reads the workspace's plan entitlements (billing `getAccess`); required so the limit is enforced here. */
@@ -138,6 +138,8 @@ export function createCampaignsService(deps: CampaignsDeps) {
       if ((await repo.visibleCreatorIds(tx, unique)).length !== unique.length) {
         throw new AppError("VALIDATION_FAILED", "Some of these creators can't be added (not found or no longer available).", { field: "creatorIds" });
       }
+      const ineligible = await ineligibleCreatorIds(tx, unique, now());
+      if (ineligible.length > 0) throw ineligibleError(ineligible);
       if ((await repo.countMembers(tx, ctx.workspaceId, id)) + unique.length > repo.MAX_CREATORS) throw new AppError("CONFLICT", `A campaign can hold up to ${repo.MAX_CREATORS} creators.`);
       const added = await repo.addMembers(tx, ctx.workspaceId, id, unique, ctx.userId);
       if (added > 0) await repo.touchCampaign(tx, ctx.workspaceId, id);

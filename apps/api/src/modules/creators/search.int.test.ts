@@ -157,8 +157,10 @@ describe("search", () => {
             (array['Lahore','Karachi','Islamabad'])[1 + g % 3], 'PK', array[(array['Bridal','Food','Tech','Beauty'])[1 + g % 4]]
           from generate_series(1, 1000) g;
         insert into gcp.creator_profiles (creator_id, platform, handle, canonical_url, followers, engagement_rate, followers_updated_at)
-          select c.id, c.primary_platform, c.primary_handle, 'https://perf.test/' || c.primary_handle,
-            1000 + (random() * 900000)::int, round((random() * 10)::numeric, 2)::float8, now() - (random() * 40 || ' days')::interval
+          -- Valid profile URLs and counts at or above the 10,000 eligibility minimum (elig-1), so all 1,000 are searchable.
+          select c.id, c.primary_platform, c.primary_handle,
+            case c.primary_platform when 'instagram' then 'https://instagram.com/' else 'https://' || c.primary_platform || '.com/@' end || c.primary_handle,
+            10000 + (random() * 900000)::int, round((random() * 10)::numeric, 2)::float8, now() - (random() * 40 || ' days')::interval
           from gcp.creators c;`);
       const ids = (await ownerQuery<{ id: string }>(`select id from gcp.creators`)).map((r) => r.id);
       await indexAll(ids);

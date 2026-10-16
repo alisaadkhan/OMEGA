@@ -21,6 +21,7 @@ function checkoutPage(c: CheckoutRow): string {
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Test checkout · MUSHIN</title>
+<link rel="icon" href="data:,">
 <style>
   body { font-family: Inter, system-ui, sans-serif; background: #f8fafc; color: #0f172a; display: grid; place-items: center; min-height: 100vh; margin: 0; }
   main { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 32px; width: min(420px, calc(100vw - 32px)); box-shadow: 0 10px 30px rgba(15, 23, 42, .08); }

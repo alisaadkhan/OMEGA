@@ -29,6 +29,7 @@ describe("search contracts", () => {
       summary: { status: "generating", text: null, model: null, generatedAt: null },
       contacts: [],
       contactAvailability: "none",
+      eligibility: { eligible: true, version: "elig-1", reasons: [], qualifyingPlatforms: ["instagram"], flags: [], profiles: [{ platform: "instagram", qualifies: true, reasons: [], flags: [] }] },
       revealed: false,
       revealCost: 5,
       refreshCost: 10,

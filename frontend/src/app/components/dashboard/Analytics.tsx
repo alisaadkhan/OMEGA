@@ -47,12 +47,15 @@ function Bars({ title, definition, rows }: { title: string; definition: string; 
       ) : (
         <dl className="mt-3 space-y-2">
           {rows.map((r) => (
-            <div key={r.label} className="grid grid-cols-[8rem_1fr_3rem] items-center gap-2 text-xs" title={`${r.label}: ${r.value}`}>
+            <div key={r.label} className="grid grid-cols-[8rem_1fr] items-center gap-2 text-xs" title={`${r.label}: ${r.value}`}>
               <dt className="truncate text-slate-600">{r.label}</dt>
-              <div className="h-2.5 rounded-full bg-slate-100">
-                <div className="h-2.5 rounded-full bg-indigo-500" style={{ width: `${(r.value / max) * 100}%`, minWidth: r.value > 0 ? 4 : 0 }} />
-              </div>
-              <dd className="text-right tabular-nums text-slate-700">{r.value}</dd>
+              {/* A definition list holds only terms and definitions (WCAG 1.3.1): the bar is part of the value, hidden from screen readers. */}
+              <dd className="flex items-center gap-2">
+                <span className="h-2.5 flex-1 rounded-full bg-slate-100" aria-hidden="true">
+                  <span className="block h-2.5 rounded-full bg-indigo-500" style={{ width: `${(r.value / max) * 100}%`, minWidth: r.value > 0 ? 4 : 0 }} />
+                </span>
+                <span className="w-12 text-right tabular-nums text-slate-700">{r.value}</span>
+              </dd>
             </div>
           ))}
         </dl>
