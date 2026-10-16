@@ -22,6 +22,7 @@
     "meili:env": "node --import tsx scripts/meilisearch-local.ts env",
     "meili:health": "node --import tsx scripts/meilisearch-local.ts health",
     "create-admin": "node --env-file-if-exists=.env --import tsx scripts/create-admin.ts",
+    "issue-enrolment-code": "node --env-file-if-exists=.env --import tsx scripts/issue-enrolment-code.ts",
     "removal-review": "node --env-file-if-exists=.env --import tsx scripts/removal-review.ts",
     "env:secrets": "node --import tsx scripts/ensure-env-secrets.ts",
     "lint": "eslint .",

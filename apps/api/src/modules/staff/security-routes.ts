@@ -37,7 +37,7 @@ export function registerSecurityRoutes(app: FastifyInstance, o: { webauthn: WebA
 
   app.post("/admin/v1/security/keys", { preHandler: o.requireStaff("staff.webauthn.manage") }, async (req, reply) => {
     const body = parseInput(webauthnRegisterRequestSchema, req.body);
-    const out = await o.webauthn.register(me(req.staff), body.response as unknown as RegistrationResponseJSON, body.nickname, metaOf(req));
+    const out = await o.webauthn.register(me(req.staff), body.response as unknown as RegistrationResponseJSON, body.nickname, metaOf(req), body.enrolmentCode);
     return sendOk(reply, z.object({ id: z.uuid() }), out, 201);
   });
 

@@ -39,5 +39,6 @@ export const staffSecuritySchema = z.object({
 });
 /** WebAuthn options/responses are the standard JSON shapes; @simplewebauthn validates them in depth. */
 export const webauthnOptionsResponseSchema = z.object({ options: z.record(z.string(), z.unknown()) });
-export const webauthnRegisterRequestSchema = z.object({ response: z.record(z.string(), z.unknown()), nickname: z.string().trim().min(1).max(60) });
+/** `enrolmentCode`: required for the first key (audit SEC-07), the one-time code issued with the account. */
+export const webauthnRegisterRequestSchema = z.object({ response: z.record(z.string(), z.unknown()), nickname: z.string().trim().min(1).max(60), enrolmentCode: z.string().trim().min(8).max(64).optional() });
 export const webauthnStepUpRequestSchema = z.object({ response: z.record(z.string(), z.unknown()) });

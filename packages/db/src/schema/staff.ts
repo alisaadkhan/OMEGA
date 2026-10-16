@@ -100,3 +100,16 @@ export const stepUps = staffSchema.table("step_ups", {
   expiresAt: ts("expires_at").notNull(),
   revokedAt: ts("revoked_at"),
 });
+
+/** One-time codes for a staff member's first security key (audit SEC-07, migration 0047). Only the hash is stored. */
+export const enrolmentCodes = staffSchema.table("enrolment_codes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  staffId: uuid("staff_id").notNull().references(() => staffUsers.id),
+  codeHash: text("code_hash").notNull(),
+  issuedBy: text("issued_by").notNull(),
+  reason: text("reason").notNull(),
+  expiresAt: ts("expires_at").notNull(),
+  usedAt: ts("used_at"),
+  revokedAt: ts("revoked_at"),
+  createdAt: ts("created_at").notNull().defaultNow(),
+});

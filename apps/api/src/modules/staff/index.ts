@@ -23,7 +23,7 @@ export function createStaffModule(o: { db: Db; tokens: StaffTokens; encryptionKe
       registerSecurityRoutes(app, { webauthn, tokens: o.tokens, service, requireStaff });
     },
   };
-  return { module, requireStaff, createStaffAccount: service.createStaffAccount, bootstrapSuperAdmin: service.bootstrapSuperAdmin.bind(service) };
+  return { module, requireStaff, createStaffAccount: service.createStaffAccount, bootstrapSuperAdmin: service.bootstrapSuperAdmin.bind(service), issueEnrolmentCode: service.issueEnrolmentCode };
 }
 export { audit as recordStaffAudit } from "./repository";
 export type { StaffPrincipal } from "./tokens";

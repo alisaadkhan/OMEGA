@@ -43,6 +43,8 @@ try {
   console.log("\nScan this QR code with Google Authenticator, Microsoft Authenticator or 1Password:\n");
   qrcode.generate(acct.totpUri, { small: true });
   console.log(`If you cannot scan it, enter this key manually: ${acct.totpSecret}\n`);
+  // Audit SEC-07: hand this over separately from the password (in person or another channel); valid for 72 hours, once.
+  if (acct.enrolmentCode) console.log(`Security key enrolment code (one use, 72 hours; give it separately): ${acct.enrolmentCode}\n`);
 } finally {
   await db.close();
 }

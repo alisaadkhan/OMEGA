@@ -33,7 +33,8 @@ export function keyErrorMessage(err: unknown): string {
   return err instanceof Error ? err.message : "The security key could not be used.";
 }
 
-export async function registerKey(nickname: string): Promise<void> {
+/** `enrolmentCode`: the one-time code for a first key (audit SEC-07); not needed for further keys. */
+export async function registerKey(nickname: string, enrolmentCode?: string): Promise<void> {
   const { options: o } = await adminRequest("/admin/v1/security/keys/options", webauthnOptionsResponseSchema, { method: "POST" });
   const rp = o["rp"] as { id: string; name: string };
   const user = o["user"] as { id: string; name: string; displayName: string };
@@ -58,7 +59,7 @@ export async function registerKey(nickname: string): Promise<void> {
     response: { clientDataJSON: toB64u(r.clientDataJSON), attestationObject: toB64u(r.attestationObject), transports: typeof r.getTransports === "function" ? r.getTransports() : [] },
     clientExtensionResults: cred.getClientExtensionResults(),
   };
-  await adminRequest("/admin/v1/security/keys", z.object({ id: z.uuid() }), { method: "POST", body: { response, nickname } });
+  await adminRequest("/admin/v1/security/keys", z.object({ id: z.uuid() }), { method: "POST", body: { response, nickname, ...(enrolmentCode ? { enrolmentCode } : {}) } });
 }
 
 /** Proves the key for this session; the returned access token carries the hardware-key factor for 15 minutes. */

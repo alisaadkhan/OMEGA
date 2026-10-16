@@ -16,15 +16,15 @@ const config = loadApiConfig(process.env);
 const db = createDatabase(config.databaseUrl, { max: 1, applicationName: "mushin-e2e-staff-seed", caPem: null });
 try {
   const staff = createStaffModule({ db, tokens: createStaffTokens(config.staffJwtSecret), encryptionKey: config.dataEncryptionKey, webauthn: config.webauthn });
-  const out: Record<string, { id: string; email: string; password: string; totpSecret: string; role: string }> = {};
+  const out: Record<string, { id: string; email: string; password: string; totpSecret: string; role: string; enrolmentCode: string | null }> = {};
   const s1 = await staff.bootstrapSuperAdmin({ email: "owner1@mushin.test", name: "Owner One", operator: "E2E harness", reason: "Staff E2E: first platform owner", recovery: false });
-  out["super1"] = { id: s1.id, email: "owner1@mushin.test", password: s1.password, totpSecret: s1.totpSecret, role: "super_admin" };
+  out["super1"] = { id: s1.id, email: "owner1@mushin.test", password: s1.password, totpSecret: s1.totpSecret, role: "super_admin", enrolmentCode: s1.enrolmentCode };
   const s2 = await staff.bootstrapSuperAdmin({ email: "owner2@mushin.test", name: "Owner Two", operator: "E2E harness", reason: "Staff E2E: second owner for co-sign", recovery: true });
-  out["super2"] = { id: s2.id, email: "owner2@mushin.test", password: s2.password, totpSecret: s2.totpSecret, role: "super_admin" };
+  out["super2"] = { id: s2.id, email: "owner2@mushin.test", password: s2.password, totpSecret: s2.totpSecret, role: "super_admin", enrolmentCode: s2.enrolmentCode };
   for (const [key, role, name] of [["admin", "admin", "Adam Ops"], ["support", "support", "Sam Support"]] as const) {
     const email = `${key}@mushin.test`;
     const a = await staff.createStaffAccount({ email, name, role });
-    out[key] = { id: a.id, email, password: a.password, totpSecret: a.totpSecret, role };
+    out[key] = { id: a.id, email, password: a.password, totpSecret: a.totpSecret, role, enrolmentCode: a.enrolmentCode };
   }
   const dir = process.env["E2E_STAFF_OUT"] ?? join(tmpdir(), "mushin-e2e-staff");
   writeFileSync(join(dir, "staff.json"), JSON.stringify(out));

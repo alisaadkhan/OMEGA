@@ -68,7 +68,7 @@ async function setup() {
     if (role === "support") return { id: acct.id, h: totp, totp };
     const key = softwareKey();
     const reg = (await call("POST", "/admin/v1/security/keys/options", totp)).json().options;
-    expect((await call("POST", "/admin/v1/security/keys", totp, { response: key.register(reg), nickname: "Key" })).statusCode).toBe(201);
+    expect((await call("POST", "/admin/v1/security/keys", totp, { response: key.register(reg), nickname: "Key", enrolmentCode: acct.enrolmentCode })).statusCode).toBe(201);
     const auth = (await call("POST", "/admin/v1/security/step-up/options", totp)).json().options;
     const strong = { authorization: `Bearer ${(await call("POST", "/admin/v1/security/step-up", totp, { response: key.assert(auth) })).json().accessToken}` };
     return { id: acct.id, h: strong, totp };

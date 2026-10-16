@@ -81,6 +81,7 @@ for (const who of ["super1", "support"]) {
     await cdp.send("WebAuthn.enable");
     await cdp.send("WebAuthn.addVirtualAuthenticator", { options: { protocol: "ctap2", transport: "usb", hasResidentKey: true, hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true } });
     await open("Security");
+    await p.getByLabel("Enrolment code").fill(staff.super1.enrolmentCode); // issued with the account, out of band (audit SEC-07)
     await p.getByLabel("Name").fill("E2E virtual key");
     await p.getByRole("button", { name: "Add security key" }).click();
     await p.getByText("E2E virtual key").first().waitFor({ timeout: 20000 });

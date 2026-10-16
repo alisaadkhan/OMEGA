@@ -19,20 +19,25 @@ afterAll(async () => {
   await db.close();
 });
 
+/** One-time first-key codes (audit SEC-07) by session, as the operator would hand them over. */
+const codes = new Map<string, string>();
 /** Signs a staff member in with password + TOTP, exactly as the console does. */
 async function signIn(role: StaffRole) {
   const email = `${role}-${randomUUID().slice(0, 6)}@mushin.pk`;
   const acct = await staff.createStaffAccount({ email, name: `${role} person`, role });
   const { challengeToken } = (await app.inject({ method: "POST", url: "/admin/v1/auth/login", payload: { email, password: acct.password } })).json();
   const res = await app.inject({ method: "POST", url: "/admin/v1/auth/totp", payload: { challengeToken, code: await generate({ secret: acct.totpSecret }) } });
-  return { id: acct.id, auth: { authorization: `Bearer ${(res.json() as { accessToken: string }).accessToken}` } };
+  const auth = { authorization: `Bearer ${(res.json() as { accessToken: string }).accessToken}` };
+  if (acct.enrolmentCode) codes.set(auth.authorization, acct.enrolmentCode);
+  return { id: acct.id, auth, code: acct.enrolmentCode, email };
 }
 const call = (method: "GET" | "POST" | "DELETE", url: string, headers: Record<string, string>, payload?: object) =>
   app.inject(payload === undefined ? { method, url, headers } : { method, url, headers, payload });
 
 async function enrol(auth: Record<string, string>, key: ReturnType<typeof softwareKey>, nickname = "YubiKey") {
   const { options } = (await call("POST", "/admin/v1/security/keys/options", auth)).json() as { options: { challenge: string } };
-  return call("POST", "/admin/v1/security/keys", auth, { response: key.register(options), nickname });
+  const enrolmentCode = codes.get(auth["authorization"] ?? "");
+  return call("POST", "/admin/v1/security/keys", auth, { response: key.register(options), nickname, ...(enrolmentCode ? { enrolmentCode } : {}) });
 }
 async function stepUp(auth: Record<string, string>, key: ReturnType<typeof softwareKey>, over: Parameters<ReturnType<typeof softwareKey>["assert"]>[1] = {}) {
   const { options } = (await call("POST", "/admin/v1/security/step-up/options", auth)).json() as { options: { challenge: string } };
@@ -97,7 +102,7 @@ describe("hardware-key (WebAuthn) step-up for privileged staff actions", () => {
     const other = await signIn("admin");
     const phish = softwareKey({ origin: "https://mushin-login.example" });
     const { options } = (await call("POST", "/admin/v1/security/keys/options", other.auth)).json() as { options: { challenge: string } };
-    expect((await call("POST", "/admin/v1/security/keys", other.auth, { response: phish.register(options), nickname: "x" })).statusCode).toBe(400);
+    expect((await call("POST", "/admin/v1/security/keys", other.auth, { response: phish.register(options), nickname: "x", enrolmentCode: other.code })).statusCode).toBe(400);
   });
 
   it("Support keeps TOTP-only access to support actions and cannot enrol keys or reach admin actions", async () => {
@@ -120,6 +125,50 @@ describe("hardware-key (WebAuthn) step-up for privileged staff actions", () => {
     expect((await call("GET", "/admin/v1/audit", strong)).statusCode).toBe(401);
     await ownerQuery(`update staff.staff_users set role = 'admin', status = 'suspended' where id = '${admin.id}'`);
     expect((await call("GET", "/admin/v1/me", strong)).statusCode).toBe(401);
+  });
+});
+
+describe("first-key enrolment needs a one-time code issued out of band (audit SEC-07)", () => {
+  const register = async (auth: Record<string, string>, key: ReturnType<typeof softwareKey>, enrolmentCode?: string) => {
+    const { options } = (await call("POST", "/admin/v1/security/keys/options", auth)).json() as { options: { challenge: string } };
+    return call("POST", "/admin/v1/security/keys", auth, { response: key.register(options), nickname: "Attacker key", ...(enrolmentCode ? { enrolmentCode } : {}) });
+  };
+
+  it("a password + TOTP session alone cannot enrol a first key; the right code works once, for that person only", async () => {
+    const admin = await signIn("admin");
+    const other = await signIn("admin");
+    expect(admin.code).toMatch(/^[0-9A-Z]{4}(-[0-9A-Z]{4}){4}$/);
+    const missing = await register(admin.auth, softwareKey());
+    expect(missing.statusCode).toBe(403);
+    expect(missing.json().error.details).toMatchObject({ reason: "enrolment_code_required" });
+    expect((await register(admin.auth, softwareKey(), "AAAA-BBBB-CCCC-DDDD-EEEE")).statusCode).toBe(403);
+    expect((await register(admin.auth, softwareKey(), other.code ?? "")).statusCode).toBe(403); // someone else's code
+    const audits = await ownerQuery<{ reason: string }>(`select metadata->>'reason' reason from staff.audit_log where staff_id = '${admin.id}' and action = 'staff.webauthn.failed' order by created_at`);
+    expect(audits.map((a) => a.reason)).toEqual(["enrolment_code_missing", "enrolment_code_invalid", "enrolment_code_invalid"]);
+    expect(await ownerQuery(`select 1 from staff.webauthn_credentials where staff_id = '${admin.id}'`)).toEqual([]);
+
+    // Typed in lower case with spaces, the code still matches; it enrols one key and is then spent.
+    const typed = (admin.code ?? "").toLowerCase().replaceAll("-", " ");
+    expect((await register(admin.auth, softwareKey(), typed)).statusCode).toBe(201);
+    expect(await ownerQuery(`select key, severity from platform.alert_events where key = 'staff_key_enrolled'`)).toEqual([{ key: "staff_key_enrolled", severity: "warning" }]);
+    await ownerQuery(`update staff.webauthn_credentials set revoked_at = now() where staff_id = '${admin.id}'`);
+    expect((await register(admin.auth, softwareKey(), admin.code ?? undefined)).statusCode).toBe(403); // used
+  });
+
+  it("expired codes are refused; a new code from the command line replaces the old one and is audited", async () => {
+    const admin = await signIn("admin");
+    await ownerQuery(`update staff.enrolment_codes set expires_at = now() - interval '1 minute' where staff_id = '${admin.id}'`);
+    expect((await register(admin.auth, softwareKey(), admin.code ?? undefined)).statusCode).toBe(403);
+    await expect(staff.issueEnrolmentCode({ email: admin.email, operator: "O", reason: "lost key" })).rejects.toThrow(/operator/);
+    const fresh = await staff.issueEnrolmentCode({ email: admin.email, operator: "Owner", reason: "Expired before first sign-in" });
+    const replaced = await staff.issueEnrolmentCode({ email: admin.email, operator: "Owner", reason: "Code sent to the wrong person" });
+    expect((await register(admin.auth, softwareKey(), fresh.code)).statusCode).toBe(403); // revoked by the newer code
+    expect((await register(admin.auth, softwareKey(), replaced.code)).statusCode).toBe(201);
+    const issued = await ownerQuery<{ n: number }>(`select count(*)::int n from staff.audit_log where action = 'staff.webauthn.enrolment_code_issued' and target_id = '${admin.id}'`);
+    expect(issued[0]?.n).toBe(3); // with the account, and twice from the command line
+    expect(JSON.stringify(await ownerQuery(`select * from staff.enrolment_codes`))).not.toContain(replaced.code);
+    const support = await signIn("support");
+    expect(support.code).toBeNull();
   });
 });
 

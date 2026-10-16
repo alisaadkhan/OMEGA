@@ -19,6 +19,7 @@ export function StaffSecurity() {
   const step = useStepUp();
   const q = useQuery({ queryKey: ["admin", "security"], queryFn: securityState });
   const [nickname, setNickname] = useState("Security key");
+  const [enrolmentCode, setEnrolmentCode] = useState("");
   const [busy, setBusy] = useState(false);
   const supported = webauthnSupported();
   const refresh = () => qc.invalidateQueries({ queryKey: ["admin", "security"] });
@@ -26,10 +27,12 @@ export function StaffSecurity() {
   async function add() {
     setBusy(true);
     try {
-      await registerKey(nickname.trim() || "Security key");
+      await registerKey(nickname.trim() || "Security key", enrolmentCode.trim() || undefined);
+      setEnrolmentCode("");
       toast.success("Security key registered");
     } catch (err) {
       if (needsKey(err)) toast.error("Confirm with an existing security key first, then add the new one.");
+      else if (errText(err).includes("enrolment code")) toast.error("Enrolment code not accepted", errText(err));
       else toast.error("The key was not registered", keyErrorMessage(err));
     } finally {
       setBusy(false);
@@ -77,9 +80,14 @@ export function StaffSecurity() {
             )}
             {q.data.hardwareKeyRequired && (
               <form className="flex flex-wrap items-center gap-2 border-t border-slate-100 px-4 py-3" onSubmit={(e) => { e.preventDefault(); void add(); }}>
+                {q.data.keys.length === 0 && (
+                  // Audit SEC-07: the first key needs the one-time code handed over with the account (never sent by the app).
+                  <label className="text-xs text-slate-600">Enrolment code <input value={enrolmentCode} onChange={(e) => setEnrolmentCode(e.target.value)} required autoComplete="off" spellCheck={false} placeholder="XXXX-XXXX-XXXX-XXXX-XXXX" maxLength={64} className="ml-1 w-56 rounded-md border border-slate-200 px-2 py-1 font-mono text-xs" /></label>
+                )}
                 <label className="text-xs text-slate-600">Name <input value={nickname} onChange={(e) => setNickname(e.target.value)} maxLength={60} className="ml-1 w-48 rounded-md border border-slate-200 px-2 py-1 text-xs" /></label>
                 <button type="submit" disabled={busy || !supported || (q.data.keys.length > 0 && !step.confirmed)} title={q.data.keys.length > 0 && !step.confirmed ? "Confirm with an existing key first" : undefined} className="rounded-md bg-slate-900 px-3 py-1.5 text-xs text-white disabled:cursor-not-allowed disabled:opacity-50" style={{ fontWeight: 600 }}>{busy ? "Touch your key…" : "Add security key"}</button>
                 {q.data.keys.length > 0 && !step.confirmed && <span className="text-[11px] text-slate-500">Adding another key needs one of your keys first.</span>}
+                {q.data.keys.length === 0 && <span className="w-full text-[11px] text-slate-500">Your first key needs the one-time enrolment code you were given with your account. A Super Admin can issue a new one if it expired.</span>}
               </form>
             )}
           </div>

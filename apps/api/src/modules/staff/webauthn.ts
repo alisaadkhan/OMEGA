@@ -8,7 +8,8 @@ import {
   type RegistrationResponseJSON,
 } from "@simplewebauthn/server";
 import { AppError } from "@mushin/core";
-import { stepUps, webauthnChallenges, webauthnCredentials, staffUsers, type Db, type SystemTx } from "@mushin/db";
+import { recordAlertEvent, stepUps, webauthnChallenges, webauthnCredentials, staffUsers, type Db, type SystemTx } from "@mushin/db";
+import { openEnrolmentCode, useEnrolmentCode } from "./enrolment-codes";
 import { audit } from "./repository";
 import { ACCESS_TTL_SECONDS, type StaffPrincipal } from "./tokens";
 
@@ -68,9 +69,9 @@ export function createWebAuthn(deps: { db: Db; config: WebAuthnConfig; now?: () 
     },
 
     /**
-     * Enrolment options. The first key may be enrolled from a TOTP session (otherwise no Admin could ever get a key);
-     * every further key needs a session that already proved a key, so a stolen password + TOTP cannot add an attacker's
-     * key to an account that has one.
+     * Enrolment options. The first key is enrolled from a TOTP session with a one-time enrolment code issued out of band
+     * (audit SEC-07, checked in `register`); every further key needs a session that already proved a key. A stolen
+     * password + TOTP therefore cannot add an attacker's key, whether or not the account has one.
      */
     async registrationOptions(p: StaffPrincipal) {
       return deps.db.withSystem(async (tx) => {
@@ -94,13 +95,22 @@ export function createWebAuthn(deps: { db: Db; config: WebAuthnConfig; now?: () 
       });
     },
 
-    async register(p: StaffPrincipal, response: RegistrationResponseJSON, nickname: string, meta: Meta) {
+    async register(p: StaffPrincipal, response: RegistrationResponseJSON, nickname: string, meta: Meta, enrolmentCode?: string) {
       // The challenge is consumed in its own transaction, so a failed attempt cannot be retried with it.
-      const expectedChallenge = await deps.db.withSystem(async (tx) => {
+      const { expectedChallenge, firstKey } = await deps.db.withSystem(async (tx) => {
         await staffRow(tx, p.staffId);
-        if ((await activeKeys(tx, p.staffId)).length > 0 && !p.factors.includes("hwk")) throw new AppError("FORBIDDEN", "Use one of your security keys first to add another.", { reason: "hardware_key_required" });
-        return takeChallenge(tx, p.staffId, "registration");
+        const hasKeys = (await activeKeys(tx, p.staffId)).length > 0;
+        if (hasKeys && !p.factors.includes("hwk")) throw new AppError("FORBIDDEN", "Use one of your security keys first to add another.", { reason: "hardware_key_required" });
+        if (!hasKeys && !(enrolmentCode && (await openEnrolmentCode(tx, p.staffId, enrolmentCode, now())))) {
+          await audit(tx, { staffId: p.staffId, action: "staff.webauthn.failed", metadata: { ceremony: "registration", reason: enrolmentCode ? "enrolment_code_invalid" : "enrolment_code_missing" }, ip: meta.ip, requestId: meta.requestId });
+          return { expectedChallenge: null, firstKey: true };
+        }
+        return { expectedChallenge: await takeChallenge(tx, p.staffId, "registration"), firstKey: !hasKeys };
       });
+      // Thrown after the transaction so the failed attempt stays in the audit log.
+      if (expectedChallenge === null) {
+        throw new AppError("FORBIDDEN", "Enter the one-time enrolment code you were given with your account. Ask a Super Admin for a new one if it expired.", { reason: "enrolment_code_required" });
+      }
       let v: Awaited<ReturnType<typeof verifyRegistrationResponse>> | null;
       try {
         v = await verifyRegistrationResponse({ response, expectedChallenge, expectedOrigin: deps.config.origins, expectedRPID: deps.config.rpId, requireUserVerification: true });
@@ -113,12 +123,20 @@ export function createWebAuthn(deps: { db: Db; config: WebAuthnConfig; now?: () 
       }
       const info = v.registrationInfo;
       return deps.db.withSystem(async (tx) => {
+        // The code is spent with the key, in one transaction: a code enrols exactly one first key.
+        if (firstKey) {
+          const code = enrolmentCode ? await openEnrolmentCode(tx, p.staffId, enrolmentCode, now()) : null;
+          if (!code || (await activeKeys(tx, p.staffId)).length > 0) throw new AppError("FORBIDDEN", "The enrolment code was already used.", { reason: "enrolment_code_required" });
+          await useEnrolmentCode(tx, code.id, now());
+        }
         const c = info.credential;
         const [row] = await tx
           .insert(webauthnCredentials)
           .values({ staffId: p.staffId, credentialId: c.id, publicKey: b64url.encode(c.publicKey), signCount: c.counter, transports: c.transports ?? [], aaguid: info.aaguid, nickname: nickname.trim().slice(0, 60) || "Security key" })
           .returning({ id: webauthnCredentials.id });
-        await audit(tx, { staffId: p.staffId, action: "staff.webauthn.registered", metadata: { credentialRef: row?.id, nickname }, ip: meta.ip, requestId: meta.requestId });
+        await audit(tx, { staffId: p.staffId, action: "staff.webauthn.registered", metadata: { credentialRef: row?.id, nickname, firstKey }, ip: meta.ip, requestId: meta.requestId });
+        // Every enrolment reaches the operations channel (audit SEC-07); who and which key stay in the audit log.
+        await recordAlertEvent(tx, { key: "staff_key_enrolled", severity: "warning", message: `A staff security key was enrolled (${firstKey ? "first key, with an enrolment code" : "additional key"}). Check the staff audit log (staff.webauthn.registered).` });
         return { id: row?.id ?? "" };
       });
     },

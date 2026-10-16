@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { AppError, decryptSecret, encryptSecret, randomToken, sha256Hex } from "@mushin/core";
 import type { Db, SystemTx } from "@mushin/db";
 import { dummyHash, hashPassword, verifyPassword } from "./passwords";
+import { issueEnrolmentCode } from "./enrolment-codes";
 import * as repo from "./repository";
 import { ACCESS_TTL_SECONDS, type StaffRole, type StaffTokens } from "./tokens";
 import { matchTotp, newTotpSecret, totpUri } from "./totp";
@@ -59,22 +60,32 @@ export function createStaffService(o: { db: Db; tokens: StaffTokens; encryptionK
   }
 
   return {
-    async createStaffAccount(input: { email: string; name: string; role: StaffRole }) {
+    /**
+     * Admin and Super Admin accounts also get a one-time enrolment code for their first security key (audit SEC-07),
+     * returned once with the password and TOTP secret for the operator to hand over out of band.
+     */
+    async createStaffAccount(input: { email: string; name: string; role: StaffRole; issuedBy?: string }) {
       const password = randomToken(18);
       const totpSecret = newTotpSecret();
       const email = input.email.trim().toLowerCase();
-      const id = await o.db.withSystem((tx) =>
-        hashPassword(password).then((passwordHash) =>
-          repo.insertStaff(tx, {
-            email,
-            name: input.name.trim(),
-            role: input.role,
-            passwordHash,
-            totpSecretEncrypted: encryptSecret(totpSecret, o.encryptionKey),
-          }),
-        ),
-      );
-      return { id, password, totpSecret, totpUri: totpUri(email, totpSecret) };
+      const passwordHash = await hashPassword(password);
+      const { id, enrolmentCode } = await o.db.withSystem(async (tx) => {
+        const id = await repo.insertStaff(tx, { email, name: input.name.trim(), role: input.role, passwordHash, totpSecretEncrypted: encryptSecret(totpSecret, o.encryptionKey) });
+        const enrolmentCode = input.role === "support" ? null : (await issueEnrolmentCode(tx, id, { issuedBy: input.issuedBy ?? "account creation", reason: "new staff account", now: now() })).code;
+        return { id, enrolmentCode };
+      });
+      return { id, password, totpSecret, totpUri: totpUri(email, totpSecret), enrolmentCode };
+    },
+
+    /** A new first-key code for a staff member (lost key, expired code). Command line only; audited with the operator. */
+    async issueEnrolmentCode(input: { email: string; operator: string; reason: string }) {
+      if (input.operator.trim().length < 2 || input.reason.trim().length < 12) throw new Error("operator (2+ characters) and reason (12+ characters) are required");
+      return o.db.withSystem(async (tx) => {
+        const staff = await repo.findStaffByEmail(tx, input.email.trim().toLowerCase());
+        if (!staff || staff.status !== "active") throw new Error("no active staff account with that email");
+        if (staff.role === "support") throw new Error("Support accounts do not use security keys");
+        return issueEnrolmentCode(tx, staff.id, { issuedBy: input.operator.trim(), reason: input.reason.trim(), now: now() });
+      });
     },
 
     async login(input: { email: string; password: string }, meta: RequestMeta): Promise<{ challengeToken: string }> {
