@@ -21,7 +21,10 @@ describe("contracts", () => {
     const ok = meResponseSchema.safeParse({
       user: { id: "6f1c2a4e-8a51-4c0e-9d0a-2b7f4f1e9a10", email: "a@b.pk", displayName: null, avatarUrl: null },
       workspace: { id: "0b7d7c3e-5d1a-4f7e-8c2b-9a1e3f4d5c6b", name: "A's workspace", role: "owner" },
+      legal: { acceptedVersion: null, acceptedAt: null, currentVersion: "2026-10-17-draft" },
     });
     expect(ok.success).toBe(true);
+    // Audit UX-01: the response always says which Terms version was accepted.
+    expect(meResponseSchema.safeParse({ user: { id: "6f1c2a4e-8a51-4c0e-9d0a-2b7f4f1e9a10", email: "a@b.pk", displayName: null, avatarUrl: null }, workspace: { id: "0b7d7c3e-5d1a-4f7e-8c2b-9a1e3f4d5c6b", name: "A", role: "owner" } }).success).toBe(false);
   });
 });
