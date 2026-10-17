@@ -7,7 +7,7 @@ import { createBillingService, MemoryAccessCache } from "../../billing/index";
 import { recordStaffAudit } from "../../staff/index";
 import { createEnrichmentPipeline } from "../enrichment/pipeline";
 import { createCreatorsService } from "../service";
-import { suppressedUrls } from "../suppressions";
+import { suppressedUrls, urlHash } from "../suppressions";
 import { addCreator, TEST_KEY } from "../test-fixtures";
 import { createEraser } from "./eraser";
 import { createRemovalService } from "./service";
@@ -182,6 +182,26 @@ describe("eraser", () => {
     await createEraser({ db, storage: new MemoryStorage(), logger }).erase(r?.id ?? "");
     expect(await status(late)).toBe("erased");
     expect(await ownerQuery(`select 1 from gcp.creator_profiles where creator_id = '${late}'`)).toEqual([]);
+  });
+
+  it("after a restore, re-applies the erasure journal: suppressions come back and restored creators are erased again (audit OPS-04)", async () => {
+    // The journal holds only link hashes, exported outside the database before the loss.
+    const journal = [
+      { urlHash: urlHash("https://instagram.com/restored_one"), platform: "instagram" as const },
+      { urlHash: urlHash("https://youtube.com/@never_added"), platform: "youtube" as const },
+      { urlHash: "not-a-hash", platform: "tiktok" as const },
+    ];
+    // The restored (older) database still has the creator and no suppression.
+    const back = await addCreator(db, { primaryHandle: "restored_one", profiles: [{ platform: "instagram", handle: "restored_one" }] });
+    const kept = await addCreator(db, { primaryHandle: "unrelated", profiles: [{ platform: "instagram", handle: "unrelated" }] });
+    const eraser = createEraser({ db, storage: new MemoryStorage(), logger });
+    expect(await eraser.reapplyJournal(journal)).toEqual({ suppressionsRestored: 2, creatorsErased: 1 });
+    expect(await status(back)).toBe("erased");
+    expect(await status(kept)).not.toBe("erased");
+    expect(await db.withSystem((tx) => suppressedUrls(tx, ["https://instagram.com/restored_one", "https://youtube.com/@never_added"]))).toEqual(
+      new Set(["https://instagram.com/restored_one", "https://youtube.com/@never_added"]),
+    );
+    expect(await eraser.reapplyJournal(journal)).toEqual({ suppressionsRestored: 0, creatorsErased: 0 }); // safe to repeat
   });
 
   it("clears requester emails 30 days after a request was handled", async () => {
