@@ -43,5 +43,7 @@ export const workspaceExportSchema = z.object({
   workspace: z.object({ id: z.uuid(), name: z.string(), createdAt: iso }),
   /** Rows per table as stored for this workspace; revealed contact values and staff-only notes are not included. */
   tables: z.record(z.string(), z.array(z.record(z.string(), z.unknown()))),
+  /** Tables cut at the per-table row limit (audit DATA-03); empty when the export is complete. */
+  truncated: z.array(z.string()),
   notes: z.array(z.string()),
 });

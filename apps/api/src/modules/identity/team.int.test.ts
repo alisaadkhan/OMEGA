@@ -12,6 +12,7 @@ import { createBillingService, MemoryAccessCache } from "../billing/index";
 import { createPlatformModule } from "../platform/index";
 import { EmailCheckUnavailable, type DeleteIdentity, type VerifyEmail } from "../../auth/auth-admin";
 import { createIdentityModule } from "./index";
+import { createPrivacyService } from "./privacy";
 
 const db = createTestDatabase();
 beforeEach(resetTables);
@@ -184,6 +185,7 @@ describe("privacy self-service", () => {
     expect(data).toMatchObject({ format: "mushin.workspace-export.v1", workspace: { id: owner.workspaceId } });
     expect(data.tables.lists.map((l: { name: string }) => l.name)).toEqual(["Eid shortlist"]);
     expect(data.tables.members).toHaveLength(1);
+    expect(data.truncated).toEqual([]);
     expect(JSON.stringify(data)).not.toContain("Staff-only remark");
     const mona = await person("mona@brand.pk");
     await call("POST", "/v1/invitations/accept", mona.h, { token: tokenOf((await invite(owner.h, "mona@brand.pk")).acceptUrl) });
@@ -271,5 +273,16 @@ describe("privacy self-service", () => {
     authDown = false;
     expect(res).toMatchObject({ deleted: true, identityProviderAccount: "not_deleted_requires_provider" });
     expect(identityFailures).toEqual([solo.userId]);
+  });
+
+  it("names every table cut at the export row limit instead of exporting it silently incomplete (audit DATA-03)", async () => {
+    const { person } = await setup();
+    const owner = await person("big@brand.pk");
+    for (const name of ["One", "Two"]) await ownerQuery(`insert into wp.lists (workspace_id, name, created_by) values ('${owner.workspaceId}', '${name}', '${owner.userId}')`);
+    const privacy = createPrivacyService({ db, exportRowLimit: 1 });
+    const data = await privacy.exportWorkspace({ userId: owner.userId, workspaceId: owner.workspaceId, role: "owner", requestId: "r" });
+    expect(data.tables["lists"]).toHaveLength(1);
+    expect(data.truncated).toEqual(["lists"]);
+    expect(data.notes[0]).toMatch(/cut at that number: lists/);
   });
 });

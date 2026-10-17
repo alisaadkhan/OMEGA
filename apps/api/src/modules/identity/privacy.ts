@@ -27,9 +27,12 @@ export function createPrivacyService(deps: {
   deleteIdentity?: DeleteIdentity | null;
   /** Called when the provider deletion failed, so operators can finish it (the database deletion stands). */
   onIdentityDeleteFailed?: (userId: string) => void;
+  /** Rows per table in one export (audit DATA-03); a table with more is cut and named in `truncated`. */
+  exportRowLimit?: number;
   now?: () => Date;
 }) {
   const now = deps.now ?? (() => new Date());
+  const rowLimit = deps.exportRowLimit ?? 50_000;
   const tenant = (ctx: TenantContext) => ({ userId: ctx.userId, workspaceId: ctx.workspaceId });
 
   /** Refuses deletion while money or work is in flight: a paid subscription, a running job or held credits. */
@@ -57,14 +60,22 @@ export function createPrivacyService(deps: {
         const [w] = await tx.execute<{ id: string; name: string; created_at: string }>(sql`select id, name, created_at from wp.workspaces where id = ${ctx.workspaceId}`);
         if (!w) throw new AppError("NOT_FOUND", "Workspace not found");
         const tables: Record<string, Record<string, unknown>[]> = {};
+        const truncated: string[] = [];
         tables["members"] = [...(await tx.execute<Record<string, unknown>>(sql`select id, display_name, email, role, joined_at from platform.workspace_people()`))];
-        for (const t of EXPORT_TABLES) tables[t] = [...(await tx.execute<Record<string, unknown>>(sql`select * from ${sql.identifier("wp")}.${sql.identifier(t)} where workspace_id = ${ctx.workspaceId} limit 50000`))];
+        for (const t of EXPORT_TABLES) {
+          // One row past the limit tells whether the table was cut (audit DATA-03: never silently incomplete).
+          const rows = [...(await tx.execute<Record<string, unknown>>(sql`select * from ${sql.identifier("wp")}.${sql.identifier(t)} where workspace_id = ${ctx.workspaceId} limit ${rowLimit + 1}`))];
+          if (rows.length > rowLimit) truncated.push(t);
+          tables[t] = rows.slice(0, rowLimit);
+        }
         return {
           format: "mushin.workspace-export.v1" as const,
           exportedAt: now().toISOString(),
           workspace: { id: w.id, name: w.name, createdAt: new Date(w.created_at).toISOString() },
           tables,
+          truncated,
           notes: [
+            ...(truncated.length > 0 ? [`These tables hold more than ${rowLimit.toLocaleString("en-US")} rows and are cut at that number: ${truncated.join(", ")}. Ask Support for a complete copy.`] : []),
             "Creator profiles are MUSHIN's public catalogue and are referenced by id; they are not part of your workspace data.",
             "Contact details you revealed are not included: they belong to the creators. You can still see them in the app.",
           ],

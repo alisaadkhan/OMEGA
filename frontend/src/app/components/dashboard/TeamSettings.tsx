@@ -130,7 +130,8 @@ export function PrivacySection({ role, workspaceName, email, onOpenSupport }: { 
       a.download = `mushin-workspace-export-${data.exportedAt.slice(0, 10)}.json`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success("Export downloaded");
+      if (data.truncated.length > 0) toast.error("Export downloaded, but incomplete", `Cut at the row limit: ${data.truncated.join(", ")}. Ask Support for a complete copy.`);
+      else toast.success("Export downloaded");
     } catch (err) {
       toast.error("Couldn't export the workspace", errText(err));
     } finally {
