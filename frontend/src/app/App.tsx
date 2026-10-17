@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Navbar } from "./components/landing/Navbar";
 import { Hero } from "./components/landing/Hero";
@@ -9,19 +9,22 @@ import { Pricing } from "./components/landing/Pricing";
 import { FAQ } from "./components/landing/FAQ";
 import { CTA } from "./components/landing/CTA";
 import { Footer } from "./components/landing/Footer";
-import { Dashboard } from "./components/dashboard/Dashboard";
 import { Login } from "./components/auth/Login";
 import { Signup } from "./components/auth/Signup";
 import { ForgotPassword } from "./components/auth/ForgotPassword";
 import { ResetPassword } from "./components/auth/ResetPassword";
 import { AdminLogin } from "./components/admin/AdminLogin";
-import { AdminApp } from "./components/admin/AdminApp";
 import { RemoveMyData } from "./components/public/RemoveMyData";
 import { LegalPage, type LegalDoc } from "./components/public/LegalPage";
 import { InviteAccept, inviteTokenFromHash } from "./components/auth/InviteAccept";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 import { AdminAuthProvider, useAdminAuth } from "./admin/AdminAuthContext";
 import { ToastProvider, ConfirmProvider } from "./lib/toast";
+
+// Loaded on demand (audit UX-04): visitors to the landing page do not download the dashboard or the staff console.
+const Dashboard = lazy(() => import("./components/dashboard/Dashboard").then((m) => ({ default: m.Dashboard })));
+const AdminApp = lazy(() => import("./components/admin/AdminApp").then((m) => ({ default: m.AdminApp })));
+const Loading = () => <div className="flex min-h-screen items-center justify-center text-sm text-slate-500" role="status">Loading…</div>;
 
 type Route = "landing" | "dashboard" | "login" | "signup" | "forgot" | "reset-password" | "admin-login" | "admin" | "remove-my-data" | "invite" | LegalDoc;
 const LEGAL_DOCS: readonly LegalDoc[] = ["terms", "privacy", "refunds", "creator-data"];
@@ -133,7 +136,9 @@ function Shell() {
 
         {route === "dashboard" && (
           <motion.div key="dashboard" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
-            <Dashboard onExit={() => setRoute("landing")} />
+            <Suspense fallback={<Loading />}>
+              <Dashboard onExit={() => setRoute("landing")} />
+            </Suspense>
           </motion.div>
         )}
 
@@ -179,12 +184,14 @@ function Shell() {
 
         {route === "admin" && admin && (
           <motion.div key="admin" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
-            <AdminApp
-              onSignOut={() => {
-                void adminSignOut().then(() => setRoute("admin-login"));
-              }}
-              onExit={() => setRoute("landing")}
-            />
+            <Suspense fallback={<Loading />}>
+              <AdminApp
+                onSignOut={() => {
+                  void adminSignOut().then(() => setRoute("admin-login"));
+                }}
+                onExit={() => setRoute("landing")}
+              />
+            </Suspense>
           </motion.div>
         )}
       </AnimatePresence>
