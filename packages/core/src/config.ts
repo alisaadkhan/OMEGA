@@ -144,6 +144,19 @@ const apiSchema = sharedObject
     if (v.NODE_ENV === "production" && !v.SUPABASE_SERVICE_ROLE_KEY) {
       ctx.addIssue({ code: "custom", path: ["SUPABASE_SERVICE_ROLE_KEY"], message: "required in production (trusted email verification for invitations)" });
     }
+    // Audit ARCH-07: tokens must be checked against the same Supabase project the API talks to for everything else.
+    const origin = (u: string) => {
+      try {
+        return new URL(u).origin;
+      } catch {
+        return null;
+      }
+    };
+    for (const key of ["JWT_ISSUER", "JWKS_URI"] as const) {
+      if (origin(v[key]) && origin(v.SUPABASE_URL) && origin(v[key]) !== origin(v.SUPABASE_URL)) {
+        ctx.addIssue({ code: "custom", path: [key], message: "must be on the same Supabase project as SUPABASE_URL" });
+      }
+    }
     if (v.NODE_ENV === "production" && !v.ALERT_WEBHOOK_URL) {
       ctx.addIssue({ code: "custom", path: ["ALERT_WEBHOOK_URL"], message: "required in production so alerts reach a person (audit OPS-03)" });
     }

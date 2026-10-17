@@ -73,6 +73,12 @@ describe("loadApiConfig", () => {
     expect(() => loadApiConfig({ ...valid, RATE_LIMIT_STORE: "redis" })).toThrow(/RATE_LIMIT_STORE/);
   });
 
+  it("refuses sign-in settings from another Supabase project than SUPABASE_URL (audit ARCH-07)", () => {
+    expect(() => loadApiConfig({ ...valid, JWKS_URI: "https://other.supabase.co/auth/v1/.well-known/jwks.json" })).toThrow(/JWKS_URI: must be on the same Supabase project/);
+    expect(() => loadApiConfig({ ...valid, JWT_ISSUER: "https://other.supabase.co/auth/v1" })).toThrow(/JWT_ISSUER: must be on the same Supabase project/);
+    expect(loadApiConfig(valid).auth.jwksUri).toBe("https://abc.supabase.co/auth/v1/.well-known/jwks.json");
+  });
+
   it("trusts no proxy unless TRUSTED_PROXIES names one (audit SEC-05)", () => {
     expect(loadApiConfig(valid).trustedProxies).toEqual([]);
     expect(loadApiConfig({ ...valid, TRUSTED_PROXIES: " 10.0.0.0/8, 192.168.1.5 ," }).trustedProxies).toEqual(["10.0.0.0/8", "192.168.1.5"]);
