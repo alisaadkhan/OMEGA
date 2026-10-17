@@ -294,7 +294,7 @@ it, or a recorded drill. New migrations 0041–0047.
 | Staff console and security | Yes | Local (staff E2E, virtual key) | No: real hardware keys untested | No |
 | Alerts and operations | Yes | Local drill | No: webhook channel, error tracker, uptime check, host | No |
 | Legal and privacy | Drafts | — | No: counsel review, legal entity name | No |
-| Hosting, backups, restore | No | No | No: host choice (D-01), hosted Supabase, backups/PITR drill | No |
+| Hosting, backups, restore | Restore and key-rotation tooling yes; hosting no | Local restore and rotation drills | No: host choice (D-01), hosted Supabase, backups/PITR, hosted drill | No |
 
 Nothing is production deployed. No paid calls, real email, payments or deploys were made.
 
@@ -332,3 +332,27 @@ evaluation corpus; it was rebuilt with its original ids (freeze check intact) an
 | 24 Rating workload numbers | Fixed: 413 per rater (222 + 35 + 131 + 25); 273/207 superseded |
 | 25 Remote / CI | **Owner**: create a private hosted remote after SEC-01 |
 | 26 Who may buy | **Owner decision**: Admins can purchase today (`BILLING_ROLES = {owner, admin}`); confirm or restrict to Owner |
+
+### 2026-10-17 (evening): remaining audit items that need no owner decision
+
+The first pass above stopped short: these items were in the register, needed no decision, and were not done. Now done.
+
+| Audit item | State | Evidence |
+|---|---|---|
+| SEC-09 key rotation | Fixed | Values carry a key id (v2; v1 still read); `npm run rotate-encryption-key` (dry run, apply, refuses on unreadable values, audited); key-rotation.int; drill: 10 v1 contacts re-encrypted |
+| SEC-11 Data API exposure | Fixed | `scripts/supabase/exposure-check.ts` found pg_trgm in Supabase's exposed `public` schema (31 functions, 2 RPC paths); 0048 moves it to `extensions` on Supabase; 0 problems after; full suite on a Supabase cluster DB with it moved: 920 passed |
+| ARCH-07 one Supabase project | Fixed | The API refuses `JWT_ISSUER`/`JWKS_URI` on another project than `SUPABASE_URL`. **Owner: the developer `.env` mixes two projects and now fails to start until one is chosen** |
+| OPS-04 restore | Fixed (local) | Erasure journal (hashes only) + `ops:after-restore` (re-applies erasures, YouTube expiry, migration and credit checks); `scripts/ops/restore-drill.sh` passes. Hosted backups/PITR, RPO/RTO: owner |
+| SEC-10 audit log | Fixed | 0049 hash chain; `ops:verify-audit` + daily digest; staff-audit-chain.int (edit, delete, rewritten head) |
+| SEC-15 fabricated content | Fixed | Testimonials and logo components deleted |
+| ARCH-03 Upstash | Fixed | Removed (limiter, access cache, packages) |
+| DATA-03 export truncation | Fixed | `truncated` list, note and UI warning |
+| UX-04 bundle | Fixed | Landing 243 kB gzip (was 320); dashboard and staff console load on demand |
+| OPS-05 load | Measured locally | `scripts/load-check.ts`, 200 requests per endpoint: concurrency 10 search p95 160 ms, CRM reads p95 ≤ 96 ms; concurrency 20 search p95 187 ms, reads p95 ≤ 153 ms; all 200, no pool errors. Staging at 2× pilot peak: owner (pilot peak unknown) |
+| DOC-01 documentation | Fixed | See the DIS table above |
+| Export filename date | Fixed (found on the way) | A test failed after midnight UTC: `createdAt` now uses the service clock |
+| ARCH-02 `.env.example` | **Not done** | Reading or editing `.env*` files is blocked by the owner's permission rule. Owner: remove SQS/AWS, Sentry, PostHog, HuggingFace, Vercel, WORKER_SECRET, DATABASE_POOL_SIZE and now UPSTASH_*; revoke the HuggingFace key |
+| UX-05 manual accessibility | **Not done** | Needs a person with NVDA/VoiceOver and keyboard (axe checks pass in E2E) |
+
+Final evidence on HEAD (2026-10-17 evening): verify 924 passed, 7 skipped; frontend build, bundle secret scan and
+csp-check 7/7; Search freeze check intact; customer E2E 3 × (91 + 40) = 393/393 and staff E2E 3 × 31/31 on the rebuilt synthetic template (0049).
