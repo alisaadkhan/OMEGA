@@ -12,7 +12,7 @@ describe("creators repository", () => {
   it("stores a creator with encrypted, masked contacts and announces it for indexing", async () => {
     const id = await addCreator(db, { contacts: [{ kind: "email", value: "ayesha@example.com", trust: "verified", source: "bio" }] });
     const contacts = await ownerQuery<{ value_encrypted: string; masked: string }>(`select value_encrypted, masked from gcp.creator_contacts where creator_id = '${id}'`);
-    expect(contacts[0]?.value_encrypted.startsWith("v1.")).toBe(true);
+    expect(contacts[0]?.value_encrypted.startsWith("v2.")).toBe(true);
     expect(contacts[0]?.value_encrypted).not.toContain("ayesha");
     expect(contacts[0]?.masked).toBe("a***@e***.com");
     const events = await ownerQuery<{ event_type: string; aggregate_id: string }>(`select event_type, aggregate_id from platform.outbox`);

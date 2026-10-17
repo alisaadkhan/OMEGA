@@ -1,5 +1,6 @@
+import { createCipheriv } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { decryptSecret, encryptSecret, randomToken, sha256Hex, truncate } from "./crypto";
+import { decryptSecret, encryptedKeyId, encryptSecret, keyId, randomToken, sha256Hex, truncate } from "./crypto";
 
 const key = Buffer.alloc(32, 1);
 
@@ -14,16 +15,39 @@ describe("crypto", () => {
   it("rejects tampering and the wrong key", () => {
     const token = encryptSecret("secret", key);
     const parts = token.split(".");
-    const tampered = [parts[0], parts[1], parts[2], Buffer.from("other").toString("base64url")].join(".");
+    const tampered = [...parts.slice(0, 4), Buffer.from("other").toString("base64url")].join(".");
     expect(() => decryptSecret(tampered, key)).toThrow();
-    expect(() => decryptSecret(token, Buffer.alloc(32, 2))).toThrow();
+    expect(() => decryptSecret(token, Buffer.alloc(32, 2))).toThrow(/no encryption key with id/);
+    // A forged key id pointing at the right key still fails authentication with any other key's ciphertext.
+    expect(() => decryptSecret(encryptSecret("x", Buffer.alloc(32, 2)).replace(/^v2\.[0-9a-f]{8}/, `v2.${keyId(key)}`), key)).toThrow();
     expect(() => decryptSecret("garbage", key)).toThrow(/malformed/);
   });
 
   it("rejects truncated auth tags", () => {
-    const [version, iv, tag, ciphertext] = encryptSecret("secret", key).split(".");
+    const [version, kid, iv, tag, ciphertext] = encryptSecret("secret", key).split(".");
     const shortTag = Buffer.from(tag ?? "", "base64url").subarray(0, 4).toString("base64url");
-    expect(() => decryptSecret([version, iv, shortTag, ciphertext].join("."), key)).toThrow();
+    expect(() => decryptSecret([version, kid, iv, shortTag, ciphertext].join("."), key)).toThrow();
+  });
+
+  it("records which key sealed a value and decrypts from a key ring during a rotation (audit SEC-09)", () => {
+    const next = Buffer.alloc(32, 9);
+    const token = encryptSecret("value", key);
+    expect(token).toMatch(/^v2\.[0-9a-f]{8}\./);
+    expect(encryptedKeyId(token)).toBe(keyId(key));
+    expect(keyId(key)).not.toBe(keyId(next));
+    expect(decryptSecret(token, [next, key])).toBe("value");
+    expect(() => decryptSecret(token, [next])).toThrow(/no encryption key with id/);
+  });
+
+  it("still reads v1 values (no key id) with any key of the ring", () => {
+    const iv = Buffer.alloc(12, 3);
+    const c = createCipheriv("aes-256-gcm", key, iv);
+    const ct = Buffer.concat([c.update("legacy", "utf8"), c.final()]);
+    const v1 = ["v1", iv.toString("base64url"), c.getAuthTag().toString("base64url"), ct.toString("base64url")].join(".");
+    expect(decryptSecret(v1, key)).toBe("legacy");
+    expect(decryptSecret(v1, [Buffer.alloc(32, 9), key])).toBe("legacy");
+    expect(encryptedKeyId(v1)).toBeNull();
+    expect(() => decryptSecret(v1, [Buffer.alloc(32, 9)])).toThrow(/any configured key/);
   });
 
   it("rejects keys that are not 32 bytes", () => {

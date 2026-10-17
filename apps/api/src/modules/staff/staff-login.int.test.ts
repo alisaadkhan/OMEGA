@@ -126,7 +126,7 @@ describe("staff login + TOTP", () => {
   it("stores the TOTP secret encrypted and the audit log is append-only", async () => {
     const acct = await staff.createStaffAccount({ email: "e@mushin.pk", name: "E", role: "admin" });
     const rows = await ownerQuery<{ s: string }>(`select totp_secret_encrypted s from staff.staff_users`);
-    expect(rows[0]?.s.startsWith("v1.")).toBe(true);
+    expect(rows[0]?.s.startsWith("v2.")).toBe(true);
     expect(rows[0]?.s).not.toContain(acct.totpSecret);
     await expect(db.withSystem((tx) => tx.execute(sql`update staff.audit_log set action = 'x'`))).rejects.toSatisfy(dbError(/permission denied/));
     await expect(db.withSystem((tx) => tx.execute(sql`delete from staff.audit_log`))).rejects.toSatisfy(dbError(/permission denied/));
