@@ -88,7 +88,7 @@ export function createExportsService(deps: ExportsDeps) {
       const content = csv(data.header, data.rows);
       const [row] = await tx
         .insert(dataExports)
-        .values({ workspaceId: ctx.workspaceId, requestedBy: ctx.userId, kind, rowCount: data.rows.length, content, byteSize: Buffer.byteLength(content), expiresAt: new Date(now().getTime() + EXPORT_TTL_MS) })
+        .values({ workspaceId: ctx.workspaceId, requestedBy: ctx.userId, kind, rowCount: data.rows.length, content, byteSize: Buffer.byteLength(content), createdAt: now(), expiresAt: new Date(now().getTime() + EXPORT_TTL_MS) })
         .returning();
       if (!row) throw new Error("export insert returned no row");
       const [n] = await tx.execute<{ n: string | null }>(sql`select display_name n from platform.workspace_people() where id = ${ctx.userId}`);
