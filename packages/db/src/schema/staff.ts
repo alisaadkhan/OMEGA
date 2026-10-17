@@ -42,6 +42,10 @@ export const auditLog = staffSchema.table("audit_log", {
   ip: text("ip"),
   requestId: text("request_id"),
   createdAt: ts("created_at").notNull().defaultNow(),
+  // Hash chain (audit SEC-10, migration 0049): the insert trigger always sets these; the placeholders are overwritten.
+  seq: bigint("seq", { mode: "number" }).notNull().$defaultFn(() => 0),
+  prevHash: text("prev_hash"),
+  rowHash: text("row_hash").notNull().$defaultFn(() => ""),
 });
 
 /** WebAuthn hardware keys of Admin and Super Admin staff (migration 0033). */
