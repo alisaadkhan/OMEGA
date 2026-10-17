@@ -303,3 +303,32 @@ Final evidence on HEAD (2026-10-17): verify 915 passed, 7 skipped; frontend buil
 
 Incident (2026-10-17, fixed): a freeze check run with `TEST_DATABASE_URL` set to the eval database truncated the
 evaluation corpus; it was rebuilt with its original ids (freeze check intact) and test helpers now refuse `mushin_eval*`.
+
+### DOC-01: documentation discrepancies (audit B, DIS-01..26), 2026-10-17
+
+| DIS | Resolution |
+|---|---|
+| 01 Top-up expiry | Fixed: never expire, enforced by the database (0030 + 0045, BIL-04) |
+| 02 Target architecture | ADR-0001 (proposed): keep Fastify + pg-boss; migration map stages 4–5 "not planned". Owner decides D-01 |
+| 03 Rate-limit store | Fixed: PostgreSQL only; Upstash removed (SEC-06, ARCH-03); README updated |
+| 04 Serper cache TTL | Fixed in README (15 min, as the code). The 0012 comment ("7 days") stays: migrations are immutable |
+| 05 Meilisearch | Fixed in README: PostgreSQL default; Meilisearch optional, self-hosted only, no Cloud. Owner: remove the Cloud key from `.env` |
+| 06, 07, 08 Invitations, export/deletion, staff console | Built; the pack's "absent/deferred" status is superseded (pack is the owner's document; update it there) |
+| 09 Staff authentication | **Owner decision**: keep MUSHIN's own staff login (now hardened: SEC-02/07/10) or move to Supabase Auth |
+| 10 Search status | Fixed: readiness README says Built, **not accepted** |
+| 11 Test totals | Fixed: totals only with their commit (this file); README no longer quotes a number |
+| 12 Live Discovery price | Fixed: one rule everywhere (BIL-01); README updated |
+| 13 Catalogue search price | **Owner decision** (BIL-02): empty searches still cost 50 |
+| 14 Live run sizes | Fixed in README: 5, 10, 15 |
+| 15 Plan names/entitlements | Done per owner decision 2026-10-16 (0038–0040); annual billing not offered |
+| 16 Paid-start limits | **Owner decision**: confirm 20/h per user, 100/h per workspace (code) or the pack's values |
+| 17 Catalogue pagination | Waits for Search ratings (SRCH-08) |
+| 18 API path model | **Owner decision** (OD-012): approve the `X-Workspace-Id` header model (now with SEC-04: no silent fallback) |
+| 19 Audience estimates | Fixed in README: off unless an approved source; the AI never estimates percentages |
+| 20 Eligibility requirement | Fixed: traceability ELIG-001 complete (90-day rule confirmed 16 Oct). Add ELIG to the pack (owner's document) |
+| 21 Stale traceability rows | Fixed: CREDIT-003, OPS-001, STAFF-001, PLAN-001, PERF-002 updated with evidence |
+| 22 14 Oct report | Kept as is (owner's file, preserved); superseded by this record |
+| 23 YouTube identifiers | **Owner / counsel** (legal review) |
+| 24 Rating workload numbers | Fixed: 413 per rater (222 + 35 + 131 + 25); 273/207 superseded |
+| 25 Remote / CI | **Owner**: create a private hosted remote after SEC-01 |
+| 26 Who may buy | **Owner decision**: Admins can purchase today (`BILLING_ROLES = {owner, admin}`); confirm or restrict to Owner |

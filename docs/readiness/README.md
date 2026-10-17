@@ -1,4 +1,7 @@
-# MUSHIN readiness report (sections 1–7: 2026-10-14, HEAD 07580ef; section 0: 2026-10-16)
+# MUSHIN readiness report (section 0: 2026-10-17; sections 1–7: 2026-10-14, HEAD 07580ef, historical)
+
+Section 0 is current. Sections 1–7 describe the state of 2026-10-14 and are kept for history; where they differ from
+section 0 or `progress.md` (the single running record, audit DOC-01), those win. Every status below names its evidence.
 
 The central record of what is built, what is verified and what is blocked. It is backed by:
 - `traceability.csv`: the 59 canonical requirements → implementation → tests → status;
@@ -16,24 +19,24 @@ an account, a credential, people or Docker), **not tested**. Nothing has been de
 
 | Gate | Status | Evidence / what closes it |
 |---|---|---|
-| Architecture and hosting choice | blocked | Supabase is the direction; current stack Fastify + pg-boss + PostgreSQL runs locally only. Hosting provider and region not chosen (owner). |
+| Architecture and hosting choice | blocked | ADR-0001 (proposed, owner decides D-01): Supabase for database, Auth and Storage; the Fastify API and pg-boss worker stay. Hosting provider and region not chosen (owner). |
 | Separate dev/staging/prod configuration and secrets | partial | Config validation refuses unsafe production settings (TLS CA, Paddle keys, LLM cap, memory rate limiter). No staging or production environment exists. |
-| CI, clean build, migrations, smoke tests | partial | `.github/workflows/ci.yml` prepared (verify on disposable PostgreSQL 17 + Meilisearch 1.55, frontend build, secret scan), **not run**: no GitHub remote. Locally: verify 835 passed. |
+| CI, clean build, migrations, smoke tests | partial | `.github/workflows/ci.yml` (verify, frontend build, bundle and committed-source secret scans) passes in a clean clone without `.env` (OPS-01). **Never run on a hosted CI**: no remote exists (owner). Test totals are quoted only with their commit in `progress.md`. |
 | Rollback plan | partial | Forward-only migrations; the Fastify stack stays until Supabase parity (migration map §7). No deployment to roll back yet. |
 | DNS / TLS / domain / CDN | not tested | Not provisioned. API sends `Cache-Control: private, no-store`; static asset caching must be set on the chosen host (fingerprinted `/assets/*` immutable, `index.html` no-cache). |
-| Auth redirect URLs, email templates, auth rate limits | blocked | Real Supabase Auth never exercised (needs a test project). |
-| Database RLS, indexes, retention jobs | partial | RLS on every workspace table with isolation tests; security tests (cross-workspace 404s, mass assignment) pass; Supabase Security Advisor not run (needs the project). |
-| Backup and restore | partial | Local drill passed (`scripts/restore-drill.ts`: 62 tables / 899 rows identical). Hosted PITR and a hosted restore drill: blocked. `DATA_ENCRYPTION_KEY` needs its own backup. |
-| Observability and alerts | blocked | Structured logs with request ids; no error-reporting service, metrics or alert channel configured. Provider 80% / hard caps are logged only. |
+| Auth redirect URLs, email templates, auth rate limits | partial | Local Supabase stack: sign-in, invitations' confirmed-email check, account deletion (auth-check 17/17) and password recovery in Chrome with Mailpit (recovery-check 10/10). Hosted project, SMTP and email templates: blocked (owner). |
+| Database RLS, indexes, retention jobs | partial | RLS on every workspace table with isolation tests; Data API exposure check 0 problems on the local Supabase stack (SEC-11, `scripts/supabase/exposure-check.ts`; run it on the hosted project). |
+| Backup and restore | partial | Local drills pass (`scripts/restore-drill.ts`; `scripts/ops/restore-drill.sh`: erasures and YouTube expiry re-applied after a restore, OPS-04). Key rotation tooling (SEC-09). Hosted backups/PITR, RPO/RTO and a hosted drill: owner. `DATA_ENCRYPTION_KEY` needs its own backup. |
+| Observability and alerts | partial | Alerts delivered to `ALERT_WEBHOOK_URL` (required in production): thresholds, worker heartbeat, credit mismatch; drill: stopped worker → critical in 289 s (OPS-03). Error tracker and uptime check: not chosen (owner). |
 | Provider caps and kill switches | partial | Apify, Serper and LLM monthly caps; per-job cost cap and 20-minute deadline; provider pause (staff, on team-privacy branch). Production cap values: owner. Provider terms review (Apify actors): owner. |
-| Billing (Paddle sandbox, webhooks, refunds) | blocked | Mock provider only; webhook idempotency tested locally. Needs a Paddle sandbox account. |
-| Search acceptance | blocked | Human ratings needed (packets `blind-b1-elig1`, `blind-b2-elig1`; delete YouTube data by 2026-11-12). Search is **not accepted**. |
+| Billing (Paddle sandbox, webhooks, refunds) | blocked | Mock provider only; webhook idempotency tested locally; financial records survive workspace deletion (BIL-05). Needs a Paddle sandbox account and the refund policy (OD-009). |
+| Search acceptance | blocked | Human ratings needed: 413 judgements per rater (222 + 35 Brain 1, 131 + 25 Brain 2; packets `blind-b1-elig1`, `blind-b2-elig1`; the older 273/207 packets are superseded). Delete YouTube data by 2026-11-12. Search is **not accepted**; Brain 2 figures since 13 Oct are replay. |
 | Creator eligibility (10,000 minimum) | ready | elig-1 enforced in search, Live Discovery delivery, lists, campaigns, profiles; E2E 3 × 82/82. Staff coverage endpoint `GET /admin/v1/ops/eligibility` (counts only); its console page waits for the staff UI. |
 | Contact privacy and empty states | ready | Contact values only after an explicit reveal; empty and below-minimum states are shown truthfully (E2E). |
 | Accessibility and phone width | partial | axe (WCAG 2.0–2.2 A/AA serious/critical) on every customer page, campaign detail and the profile dialog, phone width on the main pages: E2E 3 × 90/90 after fixing A-1..A-3. Manual keyboard, screen-reader and zoom review: not done. |
-| Security tests | partial | Bundle secret scan, API object/property/function authorization, injection and header tests pass. No external penetration test or dependency audit in CI yet. |
+| Security tests | partial | Bundle and committed-source secret scans, API authorization, injection and header tests; SPA security headers checked in Chrome (SEC-14); server-side staff step-up, first-key enrolment codes, hash-chained staff audit log (SEC-02/07/10). No external penetration test yet. |
 | Load and recovery | partial | `scripts/load-check.ts` 2026-10-16, local disposable stack, 200 requests per endpoint at concurrency 10, all 200: search repeat p50/p95/p99 81/95/231 ms (target p95 800), lists 35/46/47, campaigns 33/49/56, creator profile 55/64/82, billing summary 47/60/69 (targets p95 300). Earlier 100k search benchmark. Rate limits shared across instances; worker crash/retry/deadline tests. Single machine, small catalogue: no hosted or large-scale load test yet. |
-| Legal: privacy policy, terms, YouTube identifiers, provider redistribution rights | blocked | Unresolved; must not be presumed passed. |
+| Legal: privacy policy, terms, YouTube identifiers, provider redistribution rights | partial | Draft Terms, Privacy, Refunds and Creator data pages with recorded acceptance (UX-01). Counsel review, YouTube identifiers and provider rights: owner. Must not be presumed passed. |
 
 ### Hosting recommendation (proposal, nothing provisioned)
 
@@ -44,9 +47,9 @@ Smallest setup that fits the Supabase direction and keeps the Vite frontend. Pri
 |---|---|---|---|
 | Database, Auth, storage, backups | Supabase Pro, region nearest Pakistan (confirm Mumbai availability) | same | about USD 25 base incl. a Micro compute; PITR is a paid add-on (price not confirmed) |
 | Frontend (static Vite build) | Cloudflare Pages: static requests free and unlimited; fingerprinted `/assets/*` cached immutable, `index.html` no-cache | same | USD 0 on the free plan (500 builds/month reported) |
-| API + worker (Fastify, pg-boss) | One small always-on container each, near Pakistan: Fly.io (about USD 2–5 per small machine, metered) or Render Starter (about USD 7 per service plus a workspace fee) | Removed: Edge Functions + pgmq/pg_cron replace them | USD 5–15 |
+| API + worker (Fastify, pg-boss) | One small always-on container each, near Pakistan: Fly.io (about USD 2–5 per small machine, metered) or Render Starter (about USD 7 per service plus a workspace fee) | Kept (ADR-0001, proposed): Edge Function limits do not fit 20-minute live runs | USD 5–15 |
 | Search | PostgreSQL (default); Meilisearch not deployed (no measured need) | PostgreSQL | USD 0 |
-| Rate limits | PostgreSQL counters (`RATE_LIMIT_STORE=postgres`); Upstash not needed | same | USD 0 |
+| Rate limits | PostgreSQL counters; Upstash removed (ARCH-03) | same | USD 0 |
 
 Expected total about USD 30–40 a month before usage, excluding provider spend (Apify, Serper, LLM, all capped), Paddle
 fees and any PITR add-on. Sources: supabase.com/pricing (via 2026 summaries), Cloudflare Pages limits docs, Fly.io and
@@ -120,15 +123,15 @@ Requirement status: **34 complete, 19 partial, 4 blocked, 1 missing (transaction
 | Module | Status | Evidence |
 |---|---|---|
 | Identity, workspaces, tenant isolation | Complete (local) | RLS + isolation tests in every new module; real Supabase sign-in not verified |
-| Catalog search (both backends) | Complete | 11/11 UI checks per backend; 100k comparison |
-| Live discovery | Complete; live success path not re-run | Failure/refund verified live at $0; success path verified earlier (spec §21) and in replay tests |
+| Catalog search (both backends) | Built; **not accepted** (no human ratings) | 11/11 UI checks per backend; 100k comparison |
+| Live discovery | Built; **not accepted**; live success path not re-run since 13 Oct (later figures are replay) | Failure/refund verified live at $0; success path verified earlier (spec §21) and in replay tests |
 | Credits and billing | Complete with mock payments | Ledger invariants tested; Paddle unverified |
 | Lists | Complete | 12/12 UI; lists.int |
 | Campaigns + outreach log | Complete | 13/13 UI; campaigns.int |
 | Analytics / activity / dashboard | Complete | 10/10 UI; analytics.int |
 | Settings | Complete except the Supabase-only actions | identity.int; UI |
 | Support (customer + staff) | Complete | ops.int; 12/12 UI |
-| Staff operations | Partial | Read views + audit done; no provider pause or staff retry/cancel (OPS-001) |
+| Staff operations | Built (since 2026-10-14) | Provider pause, job retry/cancel, approvals, WebAuthn step-up; see section 0 |
 | Transactional email | Missing | No provider integrated; UI states that no email is sent |
 | Audience estimate | Optional, disabled | Policy gates unchanged |
 
@@ -145,7 +148,7 @@ Requirement status: **34 complete, 19 partial, 4 blocked, 1 missing (transaction
 - **Rate limits:**
   - every customer route has per-user and per-IP limits;
   - paid starts have per-user and per-workspace limits;
-  - the Upstash limiter fails open by design;
+  - counters live in PostgreSQL and fail closed (Upstash removed, ARCH-03);
   - a support-ticket flood is capped at 20 open per workspace.
 - **Secrets:**
   - the frontend bundle contains only public Supabase config;

@@ -49,10 +49,10 @@ npm run test:int         # database tests only (uses TEST_DATABASE_URL)
 
 ## Search (sub-project 3)
 
-Search needs Meilisearch. The code only reads its address and keys from `.env`, so each developer points it at their own:
+Catalogue search runs on **PostgreSQL** by default (`CATALOG_SEARCH_BACKEND=postgres`); nothing else is needed.
+Meilisearch is optional, self-hosted only, and kept for comparison (owner rule: no Meilisearch Cloud; it would be one
+more vendor holding creator data). To try it:
 
-- **Meilisearch Cloud** (what this project uses in development; also production): create a project at
-  https://cloud.meilisearch.com and copy its URL and keys from *Project Settings → API Keys*.
 - **Local Meilisearch** (https://github.com/meilisearch/meilisearch/releases) on `127.0.0.1:7700` with a master key.
   On Windows with Smart App Control on, the unsigned Windows program is blocked: run the Linux program in WSL instead.
 
@@ -60,13 +60,13 @@ Then set in `.env`:
 
 | Variable | Value |
 |---|---|
-| `MEILISEARCH_HOST` | the project URL (or `http://127.0.0.1:7700`) |
+| `MEILISEARCH_HOST` | `http://127.0.0.1:7700` |
 | `MEILISEARCH_API_KEY` | the **Default Admin API Key** (used by the worker) |
 | `MEILISEARCH_SEARCH_KEY` | the **Default Search API Key** (used by the API) |
 | `MEILISEARCH_INDEX_PREFIX` | e.g. `dev_`; people sharing one Meilisearch need different prefixes |
 | `MEILISEARCH_TEST_HOST` / `MEILISEARCH_TEST_KEY` | for integration tests: the same host and the admin key (tests use throwaway `test_*` indexes) |
 
-Without Meilisearch the app still runs; search answers "temporarily unavailable" and the worker logs a warning.
+With `CATALOG_SEARCH_BACKEND=meilisearch` and Meilisearch unreachable, search falls back to PostgreSQL.
 
 ```bash
 npm run db:migrate       # creator tables (0009, 0010)
@@ -82,7 +82,8 @@ Set `LIVE_LLM_TESTS=1` to run the one live AI check (`packages/integrations/src/
 Users add a creator by pasting a public profile link (top-bar lookup or the search page's "Add by profile link") and refresh a profile
 with "Update info". The worker fetches the profile (Apify for Instagram and TikTok, the YouTube Data API for YouTube), archives the raw
 response in Supabase Storage (`raw-payloads`, private; purged after `platform.enrichment_settings.raw_retention_days`), measures
-authenticity signals, asks the AI to explain them and estimate the audience, flags possible minors, and saves everything.
+authenticity signals, asks the AI to explain them, flags possible minors, and saves everything. Audience estimates are off
+unless an approved data source is configured (`AUDIENCE_SOURCES`); the AI never estimates audience percentages.
 
 | Variable | Purpose |
 |---|---|
@@ -99,9 +100,10 @@ per video by Apify). The other pipeline settings live in `platform.enrichment_se
 ## Live discovery and erasure (sub-project 4B)
 
 **Find New Creators** (search page) runs the current search on Google through Serper, keeps relevant profiles with the AI,
-shows creators MUSHIN already knows for free, and fetches and assesses up to 5, 10 or 20 new ones with the 4A pipeline.
-It costs `find_new` (12) plus each new creator added (`refresh_data` 10 for Instagram/YouTube, `refresh_tiktok` 30 for
-TikTok); the maximum is reserved and the rest returned. Google results are cached for 7 days in `platform.serper_cache`.
+shows creators MUSHIN already knows for free, and fetches and assesses up to 5, 10 or 15 new ones with the 4A pipeline.
+A run that delivers at least one creator costs 50 credits plus 10 for each new creator (at least 100 when TikTok is in
+scope), never more than the confirmed quote; a run that delivers no creator costs nothing. The quote's maximum is
+reserved and the rest returned. Google results are cached for 15 minutes in `platform.serper_cache`.
 
 **Removal requests**: creators ask at `/#/remove-my-data`; their profile is hidden at once; staff approve or reject at
 `/#/admin` → Removal requests (staff sign in with password and authenticator code). Approval erases contacts,
