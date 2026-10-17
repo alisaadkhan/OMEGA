@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { buildTestApp, testLogger } from "../test-support/app";
+import { buildTestApp } from "../test-support/app";
 import { MemoryRateLimiter } from "./memory";
 import { ipRateLimitHook } from "./plugin";
 import { bucketsFromConfig, limitPaidStart, type RateLimitBuckets } from "./types";
-import { UpstashRateLimiter } from "./upstash";
 
 const buckets: RateLimitBuckets = {
   ip: { limit: 3, windowSeconds: 60 },
@@ -25,23 +24,6 @@ describe("MemoryRateLimiter", () => {
     expect((await rl.limit("user", "u2")).allowed).toBe(true);
     now = 61_000;
     expect((await rl.limit("user", "u1")).allowed).toBe(true);
-  });
-});
-
-describe("UpstashRateLimiter", () => {
-  it("fails open when Redis is unreachable", async () => {
-    const down = { limit: async () => Promise.reject(new Error("ENOTFOUND")) };
-    const rl = new UpstashRateLimiter({ ip: down, user: down, auth: down, ai: down, jobs: down, workspaceJobs: down }, testLogger());
-    expect(await rl.limit("ip", "1.2.3.4")).toEqual({ allowed: true, retryAfterSeconds: 0 });
-  });
-
-  it("converts reset time to retry-after seconds", async () => {
-    const full = { limit: async () => ({ success: false, reset: Date.now() + 4_500 }) };
-    const rl = new UpstashRateLimiter({ ip: full, user: full, auth: full, ai: full, jobs: full, workspaceJobs: full }, testLogger());
-    const r = await rl.limit("ip", "k");
-    expect(r.allowed).toBe(false);
-    expect(r.retryAfterSeconds).toBeGreaterThanOrEqual(4);
-    expect(r.retryAfterSeconds).toBeLessThanOrEqual(5);
   });
 });
 

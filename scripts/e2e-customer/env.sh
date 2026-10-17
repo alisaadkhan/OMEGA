@@ -17,9 +17,6 @@ export AUDIENCE_SOURCES=
 export MEILISEARCH_INDEX_PREFIX=e2e_
 # Automation issues requests far faster than a person; production limits are unchanged (finding recorded).
 export RATE_LIMIT_MAX_REQUESTS=2000
-# In-memory rate limiter (reset with each run); no remote Upstash calls during E2E.
-export UPSTASH_REDIS_REST_URL=
-export UPSTASH_REDIS_REST_TOKEN=
 # Outreach email in test mode: a mock provider records sends; nothing is delivered (never allowed in production).
 export OUTREACH_EMAIL_MODE=test
 # Supabase Auth admin lookups go to the auth stub (trusted email verification, audit SEC-03); a fixed test key, never a real one.

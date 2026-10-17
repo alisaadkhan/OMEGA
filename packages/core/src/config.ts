@@ -25,8 +25,6 @@ const sharedObject = z.object({
   APP_URL: z.url().default("http://localhost:5173"),
   PUBLIC_API_URL: z.url().default("http://localhost:4000"),
   DATABASE_SSL_CA_FILE: z.string().optional(),
-  UPSTASH_REDIS_REST_URL: z.url().optional(),
-  UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
   PADDLE_API_KEY: z.string().min(1).optional(),
   PADDLE_CLIENT_TOKEN: z.string().min(1).optional(),
   PADDLE_WEBHOOK_SECRET: z.string().min(1).optional(),
@@ -73,10 +71,6 @@ function checkShared(v: SharedValues, ctx: z.RefinementCtx) {
   if (v.NODE_ENV === "production" && !v.DATABASE_SSL_CA_FILE) {
     ctx.addIssue({ code: "custom", path: ["DATABASE_SSL_CA_FILE"], message: "is required in production so database TLS certificates are verified" });
   }
-  if (Boolean(v.UPSTASH_REDIS_REST_URL) !== Boolean(v.UPSTASH_REDIS_REST_TOKEN)) {
-    const missing = v.UPSTASH_REDIS_REST_URL ? "UPSTASH_REDIS_REST_TOKEN" : "UPSTASH_REDIS_REST_URL";
-    ctx.addIssue({ code: "custom", path: [missing], message: "set both Upstash values or neither" });
-  }
   const missingPaddle = PADDLE_KEYS.filter((key) => !v[key]);
   if (missingPaddle.length > 0 && missingPaddle.length < PADDLE_KEYS.length) {
     for (const key of missingPaddle) {
@@ -110,8 +104,9 @@ const apiSchema = sharedObject
     DATA_ENCRYPTION_KEY: encryptionKey,
     RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
     RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().positive().default(120),
-    // Where counters live: PostgreSQL unless chosen otherwise (Upstash fails open, so only on purpose; audit SEC-06).
-    RATE_LIMIT_STORE: z.enum(["postgres", "upstash", "memory"]).optional(),
+    // Where counters live: PostgreSQL (shared by every API process); "memory" for development only. Upstash was removed
+    // (audit SEC-06, ARCH-03).
+    RATE_LIMIT_STORE: z.enum(["postgres", "memory"]).optional(),
     // Proxies whose X-Forwarded-For the API believes (audit SEC-05): comma-separated IPs/CIDRs, or "loopback".
     // Empty (default): the client address is the connecting socket and forwarded headers are ignored, so nobody can
     // choose their own rate-limit bucket. Set it to the hosting proxy's addresses in production.
@@ -134,9 +129,6 @@ const apiSchema = sharedObject
   })
   .superRefine(checkShared)
   .superRefine((v, ctx) => {
-    if (v.RATE_LIMIT_STORE === "upstash" && !v.UPSTASH_REDIS_REST_URL) {
-      ctx.addIssue({ code: "custom", path: ["RATE_LIMIT_STORE"], message: "upstash needs UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN" });
-    }
     // The in-memory limiter is per process: several API instances would each allow the full limit.
     if (v.NODE_ENV === "production" && v.RATE_LIMIT_STORE === "memory") {
       ctx.addIssue({ code: "custom", path: ["RATE_LIMIT_STORE"], message: "memory is for development and tests only" });
@@ -287,17 +279,7 @@ function paymentsFrom(v: SharedValues): PaymentsConfig {
   return { mode: "mock", webhookSecret: v.MOCK_PADDLE_WEBHOOK_SECRET ?? "", appUrl, publicApiUrl };
 }
 
-/**
- * PostgreSQL unless another store is chosen explicitly (audit SEC-06): Upstash fails open when unreachable, so it must
- * never be selected just because its variables happen to be present.
- */
-function rateLimitStore(chosen: "postgres" | "upstash" | "memory" | undefined): "postgres" | "upstash" | "memory" {
-  return chosen ?? "postgres";
-}
 
-function upstashFrom(v: SharedValues): { url: string; token: string } | null {
-  return v.UPSTASH_REDIS_REST_URL && v.UPSTASH_REDIS_REST_TOKEN ? { url: v.UPSTASH_REDIS_REST_URL, token: v.UPSTASH_REDIS_REST_TOKEN } : null;
-}
 
 export type SearchConfig = { host: string; apiKey: string; indexPrefix: string } | null;
 export type LlmProviderConfig = {
@@ -380,7 +362,7 @@ export type ApiConfig = {
   /** Staff hardware keys: bound to the app's own origin (the admin console is served there, never from previews). */
   webauthn: { rpId: string; rpName: string; origins: string[] };
   dataEncryptionKey: Buffer;
-  rateLimit: { windowMs: number; maxRequests: number; store: "postgres" | "upstash" | "memory"; upstash: { url: string; token: string } | null };
+  rateLimit: { windowMs: number; maxRequests: number; store: "postgres" | "memory" };
   idempotencyTtlHours: number;
   databaseCaPem: string | null;
   payments: PaymentsConfig;
@@ -419,7 +401,7 @@ export function loadApiConfig(env: Env): ApiConfig {
     staffJwtSecret: v.STAFF_JWT_SECRET,
     webauthn: { rpId: new URL(appUrl).hostname, rpName: "MUSHIN staff", origins: [appUrl] },
     dataEncryptionKey: Buffer.from(v.DATA_ENCRYPTION_KEY, "base64"),
-    rateLimit: { windowMs: v.RATE_LIMIT_WINDOW_MS, maxRequests: v.RATE_LIMIT_MAX_REQUESTS, store: rateLimitStore(v.RATE_LIMIT_STORE), upstash: upstashFrom(v) },
+    rateLimit: { windowMs: v.RATE_LIMIT_WINDOW_MS, maxRequests: v.RATE_LIMIT_MAX_REQUESTS, store: v.RATE_LIMIT_STORE ?? "postgres" },
     idempotencyTtlHours: v.IDEMPOTENCY_TTL_HOURS,
     databaseCaPem: readCaFile(v.DATABASE_SSL_CA_FILE),
     payments: paymentsFrom(v),
@@ -451,7 +433,6 @@ export type WorkerConfig = {
   databaseCaPem: string | null;
   appUrl: string;
   payments: PaymentsConfig;
-  upstash: { url: string; token: string } | null;
   catalogSearchBackend: "postgres" | "meilisearch";
   sourcePolicy: { youtubeDerivedMetrics: boolean };
   search: SearchConfig;
@@ -473,7 +454,6 @@ export function loadWorkerConfig(env: Env): WorkerConfig {
     databaseCaPem: readCaFile(v.DATABASE_SSL_CA_FILE),
     appUrl: new URL(v.APP_URL).origin,
     payments: paymentsFrom(v),
-    upstash: upstashFrom(v),
     catalogSearchBackend: v.CATALOG_SEARCH_BACKEND,
     sourcePolicy: { youtubeDerivedMetrics: v.YOUTUBE_DERIVED_METRICS === "on" },
     llmMonthlyBudgetUsd: v.LLM_MONTHLY_BUDGET_USD ?? 5,

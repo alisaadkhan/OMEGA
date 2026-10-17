@@ -1,5 +1,4 @@
 import { createHmac } from "node:crypto";
-import { Redis } from "@upstash/redis";
 import { createLogger, loadApiConfig } from "@mushin/core";
 import { createDatabase, createDbProviderCallSink, providerPaused, providerSpendSince, recordAlertEvent, UNVERIFIED_TLS_WARNING } from "@mushin/db";
 import { createLlm, createPayments, createSearchIndex, MockEmailProvider, pausableLlm, ResendEmailProvider } from "@mushin/integrations";
@@ -9,7 +8,7 @@ import { createCustomerGuard } from "./auth/customer-guard";
 import { createCustomerTokenVerifier, remoteJwks } from "./auth/customer-token";
 import type { Guards, ReadinessCheck } from "./http/types";
 import { createAudienceModule, createAudienceService } from "./modules/audience";
-import { createBillingModule, createBillingService, createRedisAccessCache, noAccessCache } from "./modules/billing";
+import { createBillingModule, createBillingService, noAccessCache } from "./modules/billing";
 import { createCreatorsModule, createCreatorsService, createPostgresCatalogSearch, createRemovalService } from "./modules/creators";
 import { createDiscoveryModule, createDiscoveryService } from "./modules/discovery";
 import { createActivityModule, createActivityService } from "./modules/activity";
@@ -28,7 +27,6 @@ import { MemoryRateLimiter } from "./rate-limit/memory";
 import { ipRateLimitHook } from "./rate-limit/plugin";
 import { PostgresRateLimiter } from "./rate-limit/postgres";
 import { bucketsFromConfig, type RateLimiter } from "./rate-limit/types";
-import { createUpstashRateLimiter } from "./rate-limit/upstash";
 
 const config = loadApiConfig(process.env);
 const logger = createLogger({ level: config.logLevel, name: "api" });
@@ -38,24 +36,17 @@ const db = createDatabase(config.databaseUrl, { max: 10, applicationName: "mushi
 const buckets = bucketsFromConfig(config.rateLimit);
 const readiness: ReadinessCheck[] = [{ name: "database", check: () => db.ping() }];
 let limiter: RateLimiter;
-if (config.rateLimit.store === "upstash" && config.rateLimit.upstash) {
-  const upstash = createUpstashRateLimiter(config.rateLimit.upstash, buckets, logger);
-  limiter = upstash.limiter;
-  readiness.push({ name: "redis", check: () => upstash.ping() });
-} else if (config.rateLimit.store === "memory") {
+if (config.rateLimit.store === "memory") {
   logger.warn("RATE_LIMIT_STORE=memory: rate limits are counted per process (development only)");
   limiter = new MemoryRateLimiter(buckets);
-  readiness.push({ name: "redis", check: async () => "skipped" });
 } else {
   // PostgreSQL counters (the Supabase target): shared by every API process; covered by the database readiness check.
   limiter = new PostgresRateLimiter(db, buckets);
-  readiness.push({ name: "redis", check: async () => "skipped" });
 }
 
 const payments = createPayments(config.payments, { sink: createDbProviderCallSink(db), logger });
-const accessCache = config.rateLimit.upstash
-  ? createRedisAccessCache(new Redis({ url: config.rateLimit.upstash.url, token: config.rateLimit.upstash.token }), logger)
-  : noAccessCache;
+// Plan access is read from the database on each check (audit ARCH-03: no Redis cache; add an in-process one only if measured).
+const accessCache = noAccessCache;
 // Server-wide switches that plans cannot override (owner plan model 2026-10-16): audience details need an approved
 // data source; outreach email a configured provider (test mode delivers nothing); export is built and on.
 const capabilities = {

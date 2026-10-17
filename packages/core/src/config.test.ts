@@ -27,7 +27,7 @@ describe("loadApiConfig", () => {
     expect(c.port).toBe(4000);
     expect(c.allowedOrigins).toEqual(["http://localhost:5173", "https://preview.mushin.pk", "https://staging.mushin.pk"]);
     expect(c.dataEncryptionKey).toHaveLength(32);
-    expect(c.rateLimit).toEqual({ windowMs: 60_000, maxRequests: 120, store: "postgres", upstash: null });
+    expect(c.rateLimit).toEqual({ windowMs: 60_000, maxRequests: 120, store: "postgres" });
     expect(c.idempotencyTtlHours).toBe(24);
     expect(c.catalogSearchBackend).toBe("postgres");
     expect(c.logLevel).toBe("info");
@@ -55,21 +55,13 @@ describe("loadApiConfig", () => {
     expect(() => loadApiConfig({ ...valid, DATA_ENCRYPTION_KEY: Buffer.alloc(16).toString("base64") })).toThrow(/DATA_ENCRYPTION_KEY/);
   });
 
-  it("requires both Upstash values or neither", () => {
-    expect(() => loadApiConfig({ ...valid, UPSTASH_REDIS_REST_URL: "https://x.upstash.io" })).toThrow(/UPSTASH_REDIS_REST_TOKEN/);
-    const c = loadApiConfig({ ...valid, UPSTASH_REDIS_REST_URL: "https://x.upstash.io", UPSTASH_REDIS_REST_TOKEN: "t" });
-    expect(c.rateLimit.upstash).toEqual({ url: "https://x.upstash.io", token: "t" });
-  });
-
-  it("counts rate limits in PostgreSQL unless another store is chosen explicitly (audit SEC-06)", () => {
+  it("counts rate limits in PostgreSQL; Upstash is gone (audit SEC-06, ARCH-03)", () => {
     const upstash = { UPSTASH_REDIS_REST_URL: "https://x.upstash.io", UPSTASH_REDIS_REST_TOKEN: "t" };
     expect(loadApiConfig(valid).rateLimit.store).toBe("postgres");
-    // Upstash variables alone no longer select the fail-open store.
-    expect(loadApiConfig({ ...valid, ...upstash }).rateLimit.store).toBe("postgres");
-    expect(loadApiConfig({ ...valid, ...upstash, RATE_LIMIT_STORE: "upstash" }).rateLimit.store).toBe("upstash");
-    expect(loadApiConfig({ ...valid, ...upstash, RATE_LIMIT_STORE: "postgres" }).rateLimit.store).toBe("postgres");
+    // Leftover Upstash variables are ignored, and the fail-open store can no longer be chosen.
+    expect(loadApiConfig({ ...valid, ...upstash }).rateLimit).toEqual({ windowMs: 60_000, maxRequests: 120, store: "postgres" });
     expect(loadApiConfig({ ...valid, RATE_LIMIT_STORE: "memory" }).rateLimit.store).toBe("memory");
-    expect(() => loadApiConfig({ ...valid, RATE_LIMIT_STORE: "upstash" })).toThrow(/RATE_LIMIT_STORE: upstash needs/);
+    expect(() => loadApiConfig({ ...valid, ...upstash, RATE_LIMIT_STORE: "upstash" })).toThrow(/RATE_LIMIT_STORE/);
     expect(() => loadApiConfig({ ...valid, RATE_LIMIT_STORE: "redis" })).toThrow(/RATE_LIMIT_STORE/);
   });
 
@@ -154,17 +146,14 @@ describe("payments config", () => {
     expect(() => loadApiConfig({ ...valid, NODE_ENV: "production", DATABASE_SSL_CA_FILE: caFile() })).toThrow(/PADDLE_API_KEY/);
   });
 
-  it("gives the worker payments and Upstash settings", () => {
+  it("gives the worker payment settings", () => {
     const c = loadWorkerConfig({
       DATABASE_URL: "postgresql://u:p@pooler.example.com:6543/postgres",
       DIRECT_URL: "postgresql://u:p@pooler.example.com:5432/postgres",
       MOCK_PADDLE_WEBHOOK_SECRET: MOCK,
       DATA_ENCRYPTION_KEY: KEY,
-      UPSTASH_REDIS_REST_URL: "https://x.upstash.io",
-      UPSTASH_REDIS_REST_TOKEN: "t",
     });
     expect(c.payments.mode).toBe("mock");
-    expect(c.upstash).toEqual({ url: "https://x.upstash.io", token: "t" });
     expect(c.appUrl).toBe("http://localhost:5173");
   });
 });

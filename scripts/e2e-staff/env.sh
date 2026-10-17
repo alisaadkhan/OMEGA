@@ -19,8 +19,6 @@ export AUDIENCE_SOURCES=
 export MEILISEARCH_INDEX_PREFIX=team_
 export RATE_LIMIT_MAX_REQUESTS=2000
 export RATE_LIMIT_STORE=memory
-export UPSTASH_REDIS_REST_URL=
-export UPSTASH_REDIS_REST_TOKEN=
 # Fixed, non-secret values so a run never depends on a developer's .env (audit OPS-02).
 export SUPABASE_URL=http://localhost:4998
 export DATA_ENCRYPTION_KEY="$(node -p 'Buffer.from("mushin-e2e-fixed-key-not-secret!").toString("base64")')" # 32 bytes, readable on purpose
