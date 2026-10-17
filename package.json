@@ -27,6 +27,7 @@
     "rotate-encryption-key": "node --env-file-if-exists=.env --import tsx scripts/rotate-encryption-key.ts",
     "ops:erasure-journal": "node --env-file-if-exists=.env --import tsx scripts/ops/export-erasure-journal.ts",
     "ops:after-restore": "node --env-file-if-exists=.env --import tsx scripts/ops/after-restore.ts",
+    "ops:verify-audit": "node --env-file-if-exists=.env --import tsx scripts/ops/verify-audit-chain.ts",
     "removal-review": "node --env-file-if-exists=.env --import tsx scripts/removal-review.ts",
     "env:secrets": "node --import tsx scripts/ensure-env-secrets.ts",
     "lint": "eslint .",
