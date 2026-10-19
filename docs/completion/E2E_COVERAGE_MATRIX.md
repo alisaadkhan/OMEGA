@@ -45,3 +45,5 @@ integration tests (named) or not at all (stated).
 | Pricing page and quote numbers equal server constants | Browser + unit | customer `plans`, `discovery` (rule text); `frontend/src/app/api/plans-claims.test.ts` |
 | Migration constraints, financial retention | Integration | `billing-schema.int`, `service.int` (BIL-04), 0042 tests, `key-rotation.int` (column coverage) |
 | Build output secret scan | Build | `scripts/check-bundle-secrets.ts frontend/dist` |
+| 21 | Founder-assisted trial: public call/callback page, approval, feedback | Partial | trial: landing button opens `#/free-trial`, no phone link without a configured number, consent required, request stored with server wording, axe; phone width | Approval, expiry, feedback isolation and permissions: `trials.int` (the E2E harness runs `TRIAL_ACTIVATION=automatic` so journeys have credits) |
+

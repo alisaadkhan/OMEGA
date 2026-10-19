@@ -13,3 +13,6 @@ cd "$REPO" && source scripts/e2e-customer/env.sh
 export DATABASE_URL="postgres://postgres@localhost:54330/$DB" DIRECT_URL="postgres://postgres@localhost:54330/$DB"
 node --import tsx packages/db/src/migrate-cli.ts | tail -1 || exit 1
 node --import tsx "$H/seed-fixtures.ts" || exit 1
+# Fixture, like the integration tests' global setup: the journeys count credits from a 200-credit trial (one quote must
+# exceed the balance). The shipped allowance is 2,500 (migration 0050, asserted in trial-allowance.test.ts).
+"$B/psql" -h localhost -p 54330 -U postgres -d "$DB" -qAtc "update platform.billing_settings set trial_credits = 200" > /dev/null || exit 1

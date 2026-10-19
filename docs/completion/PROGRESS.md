@@ -13,9 +13,28 @@ known untracked files. Mandate v4 summary: `MUSHIN_COMPLETION_MANDATE_V4.md`.
 - Hosted checks: exposure clean; forged tokens refused against the live JWKS.
 - The hosted database is empty: HOST-01 is waiting for the owner.
 
-**Next:**
-1. When HOST-01 is authorised: `npm run db:migrate`, then `connect-check` again, then an API start against `yknp…`.
-2. Phase 3 trial work needs owner inputs. The phone number, trial credits and approval role are asked in the session.
+**Owner answers (2026-10-19):** see DECISION_LOG.
+- `yknp…` is staging; migrations may be applied.
+- Trials need approval.
+- Trial allowance: 14 days, 2,500 credits.
+- The phone number comes from `VITE_TRIAL_PHONE` in `.env`.
+
+**Commits:**
+- `223eb54`: Supabase tooling and Phase 1.
+- `b593612`: founder-assisted trial (migrations 0050 and 0051).
+- The next commit: E2E fixture, docs and release matrix.
+
+**Evidence:**
+- Clean-clone verify: 946 passed, 0 failed, 7 skipped.
+- Browser suites: customer 3 × 162, staff 3 × 31.
+- Staging: 51/51 migrations; the API and the worker both start against it.
+
+**Verdict (RELEASE_READINESS):** ready for isolated testing.
+
+**Next single action (owner):** sign in once on the staging web app and run `connect-check` with `CHECK_ACCESS_TOKEN`; configure SMTP on `yknp…`.
+**Next engineering:**
+- trial reminder delivery (in-app is already queued through the outbox; email waits for Resend authorisation);
+- extension and retention once TRIAL-01/02 are decided.
 
 ## Session 2 — 2026-10-19
 

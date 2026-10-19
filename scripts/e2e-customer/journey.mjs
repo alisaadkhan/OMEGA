@@ -225,7 +225,7 @@ if (phase === "main") {
   await p.waitForTimeout(1500);
   await shot(p, "01-dashboard");
   let t = await mainText(p);
-  check("dashboard", "first visit: real trial balance and honest empty cards", (await api("owner", "GET", "/v1/billing/summary")).json.balance.available === 200 && /No lists yet/.test(t) && /No campaigns yet/.test(t) && !/\bSample\b|Illustrative/.test(t));
+  check("dashboard", "first visit: real trial balance and honest empty cards", (await api("owner", "GET", "/v1/billing/summary")).json.balance.available === Number(sql(`select trial_credits from platform.billing_settings`)) && /No lists yet/.test(t) && /No campaigns yet/.test(t) && !/\bSample\b|Illustrative/.test(t));
   // F-7/F-8: badges follow the server (meter and status), never fixed text; a trial is never shown as "Inactive".
   const billSum = (await api("owner", "GET", "/v1/billing/summary")).json;
   const creditBadgeText = (await p.getByTestId("credit-badge").innerText().catch(() => "")).trim();

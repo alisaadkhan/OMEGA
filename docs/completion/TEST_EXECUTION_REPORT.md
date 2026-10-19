@@ -14,6 +14,19 @@ local (git-ignored, never packaged); `%TEMP%` is the Windows temp folder of the 
 | `vitest run scripts/supabase/align-env.test.ts packages/db/src/migrate-cli.test.ts` | 5 passed |
 | eslint on changed files; `npm run typecheck`; `npm run boundaries` | clean; clean; no violations |
 
+### Session 3, trial work (`b593612` code plus the E2E fixture change in the next commit), 2026-10-19
+
+| Command | Result |
+|---|---|
+| `npm run verify` in the clean clone `MUSHIN-cleanci-v3` (no `.env`, test DB `mushin_cleanci_test`) | lint, typecheck, boundaries pass. Tests: 920 passed, 0 failed, 7 skipped. 4 Meilisearch files did not load (`MEILISEARCH_TEST_HOST` unset in the clone); rerun with the local Meilisearch env: 26 passed. **Total 946 passed, 0 failed, 7 skipped.** Log `eval-data/logs/verify-v4-trial.log` |
+| `vitest run apps/api/src/modules/trials` (×3) | 7 passed each time |
+| Full suite in the working checkout (`mushin_test_claude`) before the fixes | 86 failed: the 200 → 2,500 allowance broke credit arithmetic, and a regex edit changed a rate-limit expectation (restored to 5). Then 1 failed: workspace deletion did not erase `trial_feedback`, fixed by migration 0051 and the export list |
+| `npm --prefix frontend run build`; `check-bundle-secrets.ts frontend/dist` | pass (landing 247.47 kB gzip); scan pass |
+| `npm run e2e:customer -- 3` (PG_BIN set) | **3 × (108 + 54) = 486 passed, 0 failed** (runs customer-20261019-225410-1..3; includes the new trial checks) |
+| `npm run e2e:staff -- 3` | **3 × 31 = 93 passed, 0 failed** (staff-20261019-230602-1..3) |
+| `npm run db:migrate` on staging `yknp…` | 0050 and 0051 applied; connect-check 51/51; exposure 0 problems; settings 14 days / 2,500 credits |
+| Worker against staging with provider keys blanked, about 45 s | "worker started", 0 error-level log lines, `pgboss` schema present; stopped |
+
 ## Final regression (Phase 7, 2026-10-19)
 
 | Command | Commit | Result | Log |

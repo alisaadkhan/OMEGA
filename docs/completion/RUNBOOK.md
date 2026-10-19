@@ -79,3 +79,32 @@ Other credentials (SEC-01): rotate at each provider (owner), then `node --import
 | Worker alert "never reported"/stale heartbeat | worker stopped or its queue is stuck | worker log; `platform.process_heartbeats` |
 | Credit mismatch alert | lots and ledger differ for a workspace | worker log entry "credit lots do not match the ledger"; do not edit ledger rows by hand |
 | E2E refuses to start | a port (4000/4999/5173 or 4100/4998/5174) is busy | stop the other process; the script never stops processes it did not start |
+
+## 7. Hosted Supabase (staging `yknp…`, region ap-northeast-2)
+
+| Task | Command | Notes |
+|---|---|---|
+| Point `.env` at one project | `node --import tsx scripts/supabase/align-env.ts [--pooler-host aws-1-ap-northeast-2.pooler.supabase.com] [--write]` | Dry run by default; prints refs only; `--write` keeps `.env.bak-<time>` |
+| Prove the connection, stage by stage | `node --env-file=.env --import tsx scripts/supabase/connect-check.ts` | Read-only. Set `CHECK_ACCESS_TOKEN` to a token from a real sign-in to prove acceptance |
+| Apply migrations | `npm run db:migrate` | Uses `DIRECT_URL` (session pooler 5432). The direct `db.<ref>` host is IPv6-only and unreachable from IPv4 networks |
+| Data API exposure | `node --import tsx scripts/supabase/exposure-check.ts "$DATABASE_URL" --api "$SUPABASE_URL" --key "$VITE_SUPABASE_PUBLISHABLE_KEY"` | Expect `problems: 0` |
+
+## 8. Founder-assisted trial
+
+| Setting | Meaning |
+|---|---|
+| `TRIAL_ACTIVATION` (API) | `approval` (default; owner decision 2026-10-19): sign-up starts no trial, and a Super Admin approves each one in the staff console (Trial requests). `automatic` gives the trial at first sign-in (E2E harnesses only) |
+| `VITE_TRIAL_PHONE` (web build) | The business number for "Call us for a free 14-day trial", international format (`+92…`). Unset or invalid: the page shows only the callback form |
+| `platform.billing_settings.trial_days / trial_credits` | 14 / 2,500 (migration 0050). Changing them is a new migration |
+
+Approving a trial:
+1. Staff console → Trial requests.
+2. Call the person back and press "Mark as called".
+3. The person signs up with their email.
+4. A Super Admin, with a security-key step-up, enters that email and approves.
+
+Approval is refused for these cases:
+- the person already had a trial;
+- the workspace already has a trial or plan;
+- the request was rejected;
+- no account uses that email.

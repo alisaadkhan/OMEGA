@@ -79,4 +79,8 @@ every audit ID to its current state and adds gaps found since, with the next fre
 | SUPA-02 | `DIRECT_URL` on the wrong pooler region | Real hosted verified | S3 | — |
 | SUPA-03 | `db:migrate:test` could push migrations to a hosted project | Locally verified | `migrate-cli.test.ts` | — |
 | SUPA-04 | Exposure check crashed on a fresh project; false positive on trigger functions | Real hosted verified | S6; hosted run 0 problems | — |
-| SUPA-05 | Hosted database has no MUSHIN schema | Blocked (owner) | connect-check 0 of 49 | HOST-01 |
+| SUPA-05 | Hosted database had no MUSHIN schema | Real hosted verified | 51/51 applied 2026-10-19 (owner: staging) | — |
+| TRIAL-A | Founder-assisted trial: callback form, Super Admin approval, 14 days / 2,500 credits, feedback | Integration verified (local) | `b593612`; trials.int 7/7 ×3; E2E `trial` | TRIAL-01..03 (owner); reminder delivery channel |
+| UX-12 | "Request a demo" buttons in the hero and closing CTA did nothing | Locally verified | `b593612`: they open the free-trial page; E2E `trial` | — |
+| DATA-04 | Workspace deletion did not erase trial feedback (found by the existing erase-coverage test) | Locally verified | migration 0051; team.int | — |
+
