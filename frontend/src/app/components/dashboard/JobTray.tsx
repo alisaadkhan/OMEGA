@@ -42,7 +42,7 @@ export function JobTray({ onOpenCreator, onViewResults }: { onOpenCreator: (c: C
         style={{ fontWeight: 500 }}
         aria-label="Creator data jobs"
       >
-        {running > 0 ? <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-600" /> : <ListChecks className="h-3.5 w-3.5 text-slate-500" />}
+        {running > 0 ? <Loader2 className="h-3.5 w-3.5 animate-spin text-live" /> : <ListChecks className="h-3.5 w-3.5 text-slate-500" />}
         {running > 0 ? `${running} running` : "Jobs"}
       </button>
       {open && (
@@ -51,7 +51,7 @@ export function JobTray({ onOpenCreator, onViewResults }: { onOpenCreator: (c: C
             <div key={j.id} className="border-b border-slate-100 px-3 py-2.5 last:border-0">
               <div className="flex items-center gap-2 text-xs">
                 {isOpenJob(j) ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-600" />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-live" />
                 ) : j.status === "completed" ? (
                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
                 ) : (

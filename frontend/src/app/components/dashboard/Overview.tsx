@@ -31,7 +31,7 @@ import { creditBadge, subscriptionBadge } from "../../lib/billing-status";
  * activity feed. Each defines loading + empty states.
  */
 
-export function Overview({ credits, setView }: { credits: number; setView?: (v: DashView) => void }) {
+export function Overview({ credits, setView }: { credits: number | null; setView?: (v: DashView) => void }) {
   const go = (v: DashView) => setView?.(v);
   const { user } = useAuth();
   const summary = useBillingSummary();
@@ -175,7 +175,7 @@ function Skeleton({ className = "" }: { className?: string }) {
 const BADGE_TONE = { good: "bg-emerald-50 text-emerald-700", warn: "bg-amber-50 text-amber-800", bad: "bg-red-50 text-red-700", neutral: "bg-indigo-50 text-indigo-700" } as const;
 
 
-function CreditBalanceCard({ credits, loading, go }: { credits: number; loading: boolean; go: (v: DashView) => void }) {
+function CreditBalanceCard({ credits, loading, go }: { credits: number | null; loading: boolean; go: (v: DashView) => void }) {
   const summary = useBillingSummary().data;
   const badge = creditBadge(summary);
   const max = Math.max(1, summary?.balance.base ?? 1);
@@ -184,7 +184,7 @@ function CreditBalanceCard({ credits, loading, go }: { credits: number; loading:
     : summary?.status === "trialing"
       ? `Trial: ${summary.trialDaysLeft ?? 0} days left`
       : "No active plan";
-  const remainingPct = Math.max(0, Math.min(100, (credits / max) * 100));
+  const remainingPct = Math.max(0, Math.min(100, ((credits ?? 0) / max) * 100));
   const bar =
     remainingPct > 50 ? "bg-emerald-500" : remainingPct >= 20 ? "bg-amber-500" : "bg-red-500";
 
@@ -207,6 +207,8 @@ function CreditBalanceCard({ credits, loading, go }: { credits: number; loading:
           <Skeleton className="mt-4 h-1.5 w-full" />
           <Skeleton className="mt-4 h-3 w-40" />
         </>
+      ) : credits === null ? (
+        <p className="mt-4 text-sm text-slate-600" role="status">Your balance could not be loaded. Open Credits & billing to try again.</p>
       ) : (
         <>
           <div className="mt-4 text-slate-900 tabular-nums" style={{ fontSize: 32, fontWeight: 600, letterSpacing: "-0.03em" }}>

@@ -18,6 +18,9 @@
   --accent-foreground: #030213;
   --destructive: #d4183d;
   --destructive-foreground: #ffffff;
+  /* Positive / live states only (a running Live Discovery run). Teal-700: 5.5:1 on white. Never decorative. */
+  --live: #0f766e;
+  --live-surface: #f0fdfa;
   --border: rgba(0, 0, 0, 0.1);
   --input: transparent;
   --input-background: #f3f3f5;
@@ -79,6 +82,8 @@
 }
 
 @theme inline {
+  --color-live: var(--live);
+  --color-live-surface: var(--live-surface);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);

@@ -1,8 +1,11 @@
 import { useBillingSummary } from "../api/billing";
 
-/** Available credits from the billing API (0 while loading). */
-export function useCredits(): number {
-  return useBillingSummary().data?.balance.available ?? 0;
+/**
+ * Available credits from the billing API, or null while unknown (loading or failed). An unknown balance is never shown as
+ * 0 (mandate v3 §7.5: missing is not zero).
+ */
+export function useCredits(): number | null {
+  return useBillingSummary().data?.balance.available ?? null;
 }
 
 /**

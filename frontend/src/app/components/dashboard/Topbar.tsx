@@ -13,7 +13,7 @@ import { Omnibar } from "./Omnibar";
 import { accountInitials, accountLabel } from "../../lib/billing-status";
 
 type Props = {
-  credits: number;
+  credits: number | null;
   view: DashView;
   setView: (v: DashView) => void;
   onExit: () => void;
@@ -66,13 +66,13 @@ export function Topbar({ credits, view, setView, onExit, onOpenCreator, onViewRe
         <button
           onClick={() => go("billing")}
           title={METER_STYLES[meter].title}
-          aria-label={`${METER_STYLES[meter].title}: ${credits} available`}
+          aria-label={credits === null ? "Credits: balance not loaded" : `${METER_STYLES[meter].title}: ${credits} available`}
           className={`hidden items-center gap-2 rounded-md border px-3 py-1.5 transition-colors sm:flex ${METER_STYLES[meter].box}`}
         >
           <Coins className={`h-3.5 w-3.5 ${METER_STYLES[meter].icon}`} strokeWidth={2} />
           <span className="text-xs text-slate-500">Credits</span>
           <span className={`text-sm tabular-nums ${METER_STYLES[meter].value}`} style={{ fontWeight: 600 }}>
-            <AnimatedNumber value={credits} />
+            {credits === null ? <span className="text-slate-400" aria-hidden="true">—</span> : <AnimatedNumber value={credits} />}
           </span>
         </button>
         <NotificationCenter onSeeAll={() => setView("activity")} />
