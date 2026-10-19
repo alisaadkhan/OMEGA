@@ -37,9 +37,24 @@ in the working checkout, so verify is measured in a clean clone).
 - Local services: PostgreSQL :54330 and Meilisearch must be running (the developer `.env.meilisearch` makes Meilisearch a
   readiness dependency for E2E on this machine; a clean clone uses PostgreSQL search).
 
-**Next unblocked items:** Phase 5 checks (log redaction and request-id tests, `npm audit` report) → E2E_COVERAGE_MATRIX
-(20 journeys) → Phase 7: full verify (clean clone), build + scans, freeze check, `e2e:customer -- 3`, `e2e:staff -- 3` →
-TEST_EXECUTION_REPORT, SECURITY_REVIEW, SEARCH_ACCEPTANCE_REPORT, RELEASE_READINESS, REMAINING_BLOCKERS.
+**Later commits (same session):** `1623b79` (unused react-router removed; npm audit 0), `e5aad05` (E2E: reveal, list
+rename/delete, zero-result charge, 768/1280 widths; fixes: tablet top bar, focusable main), `954d60e` (sidebar returns
+to section index), `8053d78` (security, Search acceptance, coverage reports), `340364c` (lint), `611480b` (secret-scan
+test time limit).
+
+**Final regression at `611480b` (2026-10-19):** clean-clone verify 929 passed / 0 failed / 7 skipped; frontend tsc,
+build (landing 245.3 kB gzip), bundle scan, csp-check 7/7; freeze check intact; `npm run e2e:customer -- 3` →
+3 × (102 + 52) = 462/462; `npm run e2e:staff -- 3` → 3 × 31/31. Details: TEST_EXECUTION_REPORT.md.
+
+**Migrations:** none created in this mandate (0001–0049 exist; next free 0050; SUP-01 open).
+
+**State at session end:** all phase gates recorded in IMPLEMENTATION_PLAN.md. Remaining work is owner-dependent
+(REMAINING_BLOCKERS.md, DECISION_LOG.md "Waiting for owner"). Engineering items that could still be picked up without
+the owner: an E2E step for Compare (design gap G-12), an approvals journey in the staff suite, a scripted two-tab
+workspace switch, and a "payments in test mode" note on the billing screen (G-15).
+
+**Next session starts with:** read the mandate, this file, GAP_REGISTER; check DECISION_LOG for owner answers (each
+answer unblocks a specific item there); then the four engineering items above.
 
 ## Session 1 — 2026-10-17
 

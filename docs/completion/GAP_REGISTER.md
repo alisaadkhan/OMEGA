@@ -1,4 +1,4 @@
-# Gap register (mandate v3)
+| SRCH-14 | Reporting metrics: weighted kappa, raw agreement, bootstrap CIs, standard P@5 | Locally verified (unit) | `5b52fef`; metrics.test | score.ts needs real rating sheets || OPS-06 | `npm run e2e:customer` / `e2e:staff` did not exist | Locally verified | `0bbb2f9`; 3 × customer, 3 × staff | Hosted CI (owner) || UX-08 | No email-confirmation result screen (mandate v3 §3.2 UX-02) | Locally verified (other-browser state) | `850943d`; E2E `auth` | Expired-link state needs hosted SMTP || UX-07 | No error boundary or degraded-service banner | Locally verified (boundary: Implemented) | `850943d`; E2E `states` (offline, degraded) | Error boundary has no automated trigger (design gap G-11) || UX-06 | No 404 page: unknown routes silently showed the landing page | Locally verified | `850943d`; E2E `states`, `phone`, `a11y` | — |# Gap register (mandate v3)
 
 Source: `docs/audit/2026-10-16/E_GAP_REGISTER.md` and `registers/gap_register.csv` (audit at `1398cee`). This file maps
 every audit ID to its current state and adds gaps found since, with the next free IDs. Status words follow mandate §11
@@ -10,10 +10,10 @@ every audit ID to its current state and adds gaps found since, with the next fre
 | ID | P | Title (short) | Status | Commit(s) | Tests / evidence | Blocker or next action |
 |---|---|---|---|---|---|---|
 | SEC-01 | P0 | Exposed credentials in the shared archive | Blocked (owner) for rotation; tooling Locally verified | `5fc412f`, `4315e97` | package-source.test (source scan), revoke-staff-sessions, rotate-encryption-key drill | Owner rotates every credential, then runs `rotate-encryption-key` and `revoke-staff-sessions.ts` |
-| SEC-02 | P0 | Step-up bound to a token claim | Locally verified | `5fc412f`; 5-minute validity this session | webauthn.int (forged hwk token refused, expired/revoked step-up) | — |
+| SEC-02 | P0 | Step-up bound to a token claim | Locally verified | `5fc412f`, `37a0431` (5 minutes) | webauthn.int (forged hwk token refused, expired/revoked step-up) | — |
 | SEC-03 | P0 | Invitation trusts editable metadata | Locally verified (local Supabase stack) | `b4dec75` | team.int; auth-check 17/17 | Integration verification needs the hosted project |
 | SEC-04 | P0 | Silent workspace fallback | Locally verified | `d12e7ab` | identity tests (403 workspace_access_denied, 400 malformed), E2E | Two-tab browser journey: see E2E_COVERAGE_MATRIX |
-| SEC-05 | P0 | Proxy/IP handling | Locally verified; production start rule this session | `aa7a03c` | app.test (spoofed X-Forwarded-For), config.test | — |
+| SEC-05 | P0 | Proxy/IP handling | Locally verified | `aa7a03c`, `fd4c90f` (production requires TRUSTED_PROXIES) | app.test (spoofed X-Forwarded-For), config.test | — |
 | BIL-01 | P0 | Live Discovery pricing copy | Locally verified | `c9af1b1` | plans.test, E2E quote text | D-04 wording (owner) |
 | BIL-05 | P0 | Ledger cascades on hard delete | Locally verified | `35b0063` (0042) | billing-schema.int, privacy tests | — |
 | SRCH-04 | P0 | Orphaned Apify runs | Locally verified (mocks) | `18d4c60` (0043) | provider-runs.int, scrapers/provider-runs.test | Integration verification needs a paid run (D-09) |
@@ -69,4 +69,9 @@ every audit ID to its current state and adds gaps found since, with the next fre
 | UX-08 | No email-confirmation result screen (mandate §3.2 UX-02) | Open → this session | sign-up redirect went to `#/dashboard` | Add `#/confirmed` result screen |
 | OPS-06 | `npm run e2e:customer` / `e2e:staff` did not exist | Open → this session | package.json | Wrapper that starts the stub and Vite, builds the template, runs, stops |
 | SRCH-14 | Reporting metrics: weighted kappa, raw agreement, bootstrap CIs, standard P@5 | Open → this session | metrics.ts had unweighted kappa only | Add with tests (no ranking change) |
+| UX-09 | Unknown credit balance shown as 0 | Locally verified | `a0176ce` | — |
+| UX-10 | Dead links (footer, FAQ, feature tabs, Docs) and unused components with false claims | Locally verified | `887e86c`; E2E `states` (no `href="#"`) | — |
+| UX-11 | Tablet top bar overflow (958 px at 768); main region not keyboard reachable; sidebar did not leave an open list | Locally verified | `e5aad05`, `954d60e`; E2E `phone`, `a11y`, `lists` | — |
+| SEC-17 | Unused `react-router` with a high advisory | Locally verified | `1623b79`; npm audit 0 | — |
+| E2E-01 | Browser sent token refreshes to the hosted Supabase project during E2E | Locally verified | `0bbb2f9` | — |
 | TEST-01 | Export test depended on the date (failed after midnight UTC) | Locally verified | `6849e83` | — |

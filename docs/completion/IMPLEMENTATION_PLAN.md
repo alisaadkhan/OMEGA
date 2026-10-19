@@ -9,7 +9,7 @@ Work order and phase-gate results. Phases follow mandate §6; most audit P0–P2
 - [x] Mandate saved at `docs/completion/MUSHIN_COMPLETION_MANDATE_V3.md` — `f690848`
 - [x] DECISION_LOG, GAP_REGISTER, REQUIREMENTS_TRACEABILITY, this plan, PROGRESS, SYSTEM_BASELINE
 - [x] Baseline drift recorded: audit `1398cee` / 37 migrations → checkout `f690848` / 49 migrations; next migration 0050
-- [ ] Baseline checks re-run at the current SHA (verify in the checkout and in a clean clone without `.env`) → SYSTEM_BASELINE.md
+- [x] Baseline: clean-clone verify 924 passed / 0 failed / 7 skipped at `f690848` → SYSTEM_BASELINE.md
 
 **Gate:** baseline recorded with SHA and real totals; no user work discarded.
 
@@ -55,3 +55,15 @@ P@5) with tests; freeze check must stay byte-for-byte.
 verify, frontend typecheck/build, bundle scan, csp-check, freeze check, `e2e:customer` ×3, `e2e:staff` ×3; then
 TEST_EXECUTION_REPORT, E2E_COVERAGE_MATRIX, SECURITY_REVIEW, SEARCH_ACCEPTANCE_REPORT, RELEASE_READINESS,
 REMAINING_BLOCKERS.
+
+## Gate results (2026-10-19)
+
+| Phase | Gate | Result |
+|---|---|---|
+| 1 | Baseline recorded with SHA; no user work discarded | **Passed** (`0ada67c`; untracked files left untouched) |
+| 2 | P0 items with tests; verify green in a clean clone without `.env` | **Passed** for all code items (SEC-01 rotation is the owner's task): 929 passed / 0 failed / 7 skipped at `611480b` |
+| 3 | `npm run e2e:customer` and `npm run e2e:staff` pass three times each | **Passed**: 3 × 154 and 3 × 31 at `611480b` |
+| 4 | Every route implemented or honestly unavailable; E2E or justified exception | **Passed with exceptions** listed in E2E_COVERAGE_MATRIX (Live Discovery delivered results, approvals UI in the browser, stale cursor, manual accessibility) |
+| 5 | P2 engineering items closed or blocked with a next action | **Passed** (GAP_REGISTER; blocked items in REMAINING_BLOCKERS) |
+| 6 | Search behaviour changes only after ratings | **Frozen** (no ratings); reporting metrics only (`5b52fef`); freeze check intact at `611480b` |
+| 7 | Final regression and reports | **Done** (TEST_EXECUTION_REPORT and the reports in this folder) |

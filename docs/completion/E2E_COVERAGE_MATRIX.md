@@ -5,8 +5,7 @@ The mandate's 20 journeys (§10.2) and regression journeys (§10.3) mapped to th
 `npm run e2e:staff` (`scripts/e2e-staff/journey.mjs`). Check areas are the first argument of each `check(...)`.
 Every run uses the synthetic catalogue and blank provider keys; the browser talks only to a local Auth stub.
 
-Latest results (2026-10-19): customer 102 + 52 = 154/154 at `954d60e`; staff 31/31 at `850943d`+ (UX commits). Phase 7
-re-runs both three times (TEST_EXECUTION_REPORT.md).
+Final results (2026-10-19, `611480b`): customer 3 × (102 + 52) = 462/462; staff 3 × 31/31 (TEST_EXECUTION_REPORT.md).
 
 **Coverage:** Full = the journey's behaviour is checked in the browser. Partial = part in the browser, the rest only in
 integration tests (named) or not at all (stated).
