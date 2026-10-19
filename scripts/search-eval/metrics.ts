@@ -28,6 +28,67 @@ export function cohensKappa(a: Rating[], b: Rating[]): number | null {
   return expected === 1 ? 1 : (observed - expected) / (1 - expected);
 }
 
+/**
+ * Weighted kappa for the ordinal 0/1/2 scale (owner gate: weighted kappa ≥ 0.60). Quadratic weights (Fleiss–Cohen) by
+ * default: a 0-vs-2 disagreement counts four times a 0-vs-1. Returns null without items; 1 when both raters used one
+ * and the same category throughout (no disagreement is possible).
+ */
+export function weightedKappa(a: Rating[], b: Rating[], weighting: "quadratic" | "linear" = "quadratic"): number | null {
+  if (a.length !== b.length || a.length === 0) return null;
+  const n = a.length;
+  const w = (i: number, j: number) => (weighting === "quadratic" ? ((i - j) / 2) ** 2 : Math.abs(i - j) / 2);
+  const observed = a.reduce<number>((s, x, i) => s + w(x, b[i] as Rating), 0) / n;
+  const pa = [0, 1, 2].map((c) => a.filter((x) => x === c).length / n);
+  const pb = [0, 1, 2].map((c) => b.filter((x) => x === c).length / n);
+  let expected = 0;
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) expected += (pa[i] ?? 0) * (pb[j] ?? 0) * w(i, j);
+  return expected === 0 ? 1 : 1 - observed / expected;
+}
+
+/** Share of items both raters scored identically. */
+export function rawAgreement(a: Rating[], b: Rating[]): number | null {
+  if (a.length !== b.length || a.length === 0) return null;
+  return a.filter((x, i) => x === b[i]).length / a.length;
+}
+
+/**
+ * Standard precision@k: relevant results in the top k divided by k, so a query with fewer than k results is not
+ * flattered (precisionAt divides by the results shown). Zero-result queries stay null and are reported separately.
+ */
+export function standardPrecisionAt(ratings: Rating[], k: number, strict: boolean): number | null {
+  if (ratings.length === 0) return null;
+  return ratings.slice(0, k).filter((r) => (strict ? r === 2 : r >= 1)).length / k;
+}
+
+/**
+ * Percentile bootstrap confidence interval for the mean of per-query values (nulls are left out). Seeded, so a report
+ * is reproducible. With few queries the interval is wide: that width is the point (audit SRCH-13).
+ */
+export function bootstrapMeanCI(values: (number | null)[], o: { iterations?: number; confidence?: number; seed?: number } = {}): { mean: number; low: number; high: number; n: number } | null {
+  const v = values.filter((x): x is number => x !== null);
+  if (v.length === 0) return null;
+  const iterations = o.iterations ?? 2000;
+  const alpha = 1 - (o.confidence ?? 0.95);
+  let state = (o.seed ?? 1) >>> 0;
+  const random = () => {
+    // mulberry32
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const means: number[] = [];
+  for (let it = 0; it < iterations; it++) {
+    let s = 0;
+    for (let i = 0; i < v.length; i++) s += v[Math.floor(random() * v.length)] ?? 0;
+    means.push(s / v.length);
+  }
+  means.sort((x, y) => x - y);
+  const at = (p: number) => means[Math.min(means.length - 1, Math.max(0, Math.floor(p * means.length)))] ?? 0;
+  return { mean: v.reduce((s, x) => s + x, 0) / v.length, low: at(alpha / 2), high: at(1 - alpha / 2), n: v.length };
+}
+
 export const mean = (xs: (number | null)[]): number | null => {
   const v = xs.filter((x): x is number => x !== null);
   return v.length ? v.reduce((s, x) => s + x, 0) / v.length : null;

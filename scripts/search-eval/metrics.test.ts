@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { blindOrder, cohensKappa, gate, mean, ndcgAt, parseCsv, percentile, precisionAt, relevantCoverage, toCsv, type Rating } from "./metrics";
+import { blindOrder, bootstrapMeanCI, cohensKappa, gate, mean, ndcgAt, parseCsv, percentile, precisionAt, rawAgreement, relevantCoverage, standardPrecisionAt, toCsv, weightedKappa, type Rating } from "./metrics";
 
 describe("search evaluation metrics", () => {
   it("precision@k: strict counts only fully relevant results; no results is not a precision", () => {
@@ -54,5 +54,43 @@ describe("search evaluation metrics", () => {
     const once = blindOrder(keys, (k) => k);
     expect(blindOrder([...keys].reverse(), (k) => k)).toEqual(once);
     expect(once).not.toEqual(keys);
+  });
+});
+
+describe("reporting additions (audit SRCH-13; no ranking change)", () => {
+  it("weighted kappa matches hand-worked values and penalises far disagreements more", () => {
+    // [0,1,2] vs [0,2,1]: quadratic observed 1/6, expected 1/3 -> 0.5; linear 1/3 vs 4/9 -> 0.25; unweighted 0.
+    expect(weightedKappa([0, 1, 2], [0, 2, 1])).toBeCloseTo(0.5, 10);
+    expect(weightedKappa([0, 1, 2], [0, 2, 1], "linear")).toBeCloseTo(0.25, 10);
+    expect(cohensKappa([0, 1, 2], [0, 2, 1])).toBeCloseTo(0, 10);
+    expect(weightedKappa([2, 1, 0, 2], [2, 1, 0, 2])).toBe(1);
+    expect(weightedKappa([2, 2], [2, 2])).toBe(1);
+    expect(weightedKappa([], [])).toBeNull();
+    // Off by one everywhere beats off by two everywhere.
+    expect(weightedKappa([0, 1, 2, 1], [1, 2, 1, 0]) ?? 0).toBeGreaterThan(weightedKappa([0, 2, 0, 2], [2, 0, 2, 0]) ?? 0);
+  });
+
+  it("raw agreement and standard precision@5", () => {
+    expect(rawAgreement([2, 1, 0, 2], [2, 0, 0, 1])).toBe(0.5);
+    expect(rawAgreement([2], [2, 1])).toBeNull();
+    // Two results, both relevant: shown-results precision says 1, standard precision@5 says 0.4.
+    expect(precisionAt([2, 2], 5, true)).toBe(1);
+    expect(standardPrecisionAt([2, 2], 5, true)).toBe(0.4);
+    expect(standardPrecisionAt([2, 1, 0, 2, 2, 2], 5, false)).toBe(0.8);
+    expect(standardPrecisionAt([], 5, true)).toBeNull();
+  });
+
+  it("bootstrap confidence intervals are reproducible, contain the mean, and widen with fewer queries", () => {
+    const values = [1, 0.8, 0.6, 0.4, 1, 0.2, null, 0.6];
+    const a = bootstrapMeanCI(values, { seed: 7 });
+    expect(a).toEqual(bootstrapMeanCI(values, { seed: 7 }));
+    expect(a?.n).toBe(7);
+    expect(a?.low).toBeLessThanOrEqual(a?.mean ?? 0);
+    expect(a?.high).toBeGreaterThanOrEqual(a?.mean ?? 0);
+    expect(bootstrapMeanCI([0.6, 0.6, 0.6])).toMatchObject({ low: 0.6, high: 0.6 });
+    expect(bootstrapMeanCI([null, null])).toBeNull();
+    const few = bootstrapMeanCI([1, 0], { seed: 3 });
+    const many = bootstrapMeanCI(Array.from({ length: 200 }, (_, i) => (i % 2 ? 1 : 0)), { seed: 3 });
+    expect((few?.high ?? 0) - (few?.low ?? 0)).toBeGreaterThan((many?.high ?? 0) - (many?.low ?? 0));
   });
 });

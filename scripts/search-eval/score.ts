@@ -12,7 +12,7 @@
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { ACCEPTANCE_GATES, cohensKappa, gate, mean, ndcgAt, parseCsv, percentile, precisionAt, relevantCoverage, toCsv, type Rating } from "./metrics";
+import { ACCEPTANCE_GATES, bootstrapMeanCI, cohensKappa, gate, mean, ndcgAt, parseCsv, percentile, precisionAt, rawAgreement, relevantCoverage, standardPrecisionAt, toCsv, weightedKappa, type Rating } from "./metrics";
 import { BOM } from "./sheets";
 
 const dir = process.argv[2];
@@ -48,10 +48,15 @@ if (unrated > 0) {
   process.exit(1);
 }
 const ids = [...key.keys()];
-const kappa = cohensKappa(ids.map((id) => a.get(id) as Rating), ids.map((id) => b.get(id) as Rating));
+const ra = ids.map((id) => a.get(id) as Rating);
+const rb = ids.map((id) => b.get(id) as Rating);
+// Owner gate: weighted kappa (quadratic, ordinal 0/1/2); unweighted kappa and raw agreement are reported beside it.
+const kappa = weightedKappa(ra, rb);
+const unweightedKappa = cohensKappa(ra, rb);
+const agreement = rawAgreement(ra, rb);
 const rowDisagreements = ids.filter((id) => a.get(id) !== b.get(id));
 const caseDisagreements = [...ca.keys()].filter((id) => ca.get(id) !== cb.get(id));
-console.log(`Agreement: ${ids.length - rowDisagreements.length}/${ids.length} rows identical, Cohen's kappa ${kappa?.toFixed(3)}; behaviour ${ca.size - caseDisagreements.length}/${ca.size} identical`);
+console.log(`Agreement: ${ids.length - rowDisagreements.length}/${ids.length} rows identical, weighted kappa ${kappa?.toFixed(3)} (unweighted ${unweightedKappa?.toFixed(3)}, raw agreement ${agreement?.toFixed(3)}); behaviour ${ca.size - caseDisagreements.length}/${ca.size} identical`);
 
 const adjudicatedPath = join(dir, `${prefix}-adjudicated.csv`);
 if (!existsSync(adjudicatedPath)) {
@@ -83,7 +88,7 @@ const perCase = results.cases.map((c) => {
   const rows = ids.filter((id) => key.get(id)?.caseId === c.caseId);
   const returned = rows.filter((id) => key.get(id)?.source === "result").sort((x, y) => (key.get(x)?.rank ?? 0) - (key.get(y)?.rank ?? 0)).map(finalRating);
   const judged = rows.map(finalRating);
-  return { ...c, returned, judged, pooled: judged.length - returned.length, behaviour: ca.has(c.caseId) ? finalBehaviour(c.caseId) : null, p5s: precisionAt(returned, 5, true), p5l: precisionAt(returned, 5, false), p10l: precisionAt(returned, 10, false), ndcg: ndcgAt(returned, judged, 10) };
+  return { ...c, returned, judged, pooled: judged.length - returned.length, behaviour: ca.has(c.caseId) ? finalBehaviour(c.caseId) : null, p5s: precisionAt(returned, 5, true), p5std: standardPrecisionAt(returned, 5, true), p5l: precisionAt(returned, 5, false), p10l: precisionAt(returned, 10, false), ndcg: ndcgAt(returned, judged, 10) };
 });
 // Relevance metrics cover the topical queries MUSHIN answered; behaviour-only cases are judged on the behaviour sheet.
 const answered = perCase.filter((c) => !c.rejected && !c.behaviourOnly);
@@ -91,13 +96,17 @@ const coverage = relevantCoverage(answered);
 const withBehaviour = perCase.filter((c) => c.behaviour !== null);
 const behaviourShare = withBehaviour.length ? withBehaviour.filter((c) => c.behaviour === "yes").length / withBehaviour.length : null;
 const gates = [
-  gate("Rater agreement (Cohen's kappa)", kappa, ACCEPTANCE_GATES.kappa),
+  gate("Rater agreement (weighted kappa, quadratic)", kappa, ACCEPTANCE_GATES.kappa),
   gate("Mean precision@5, strict (rating 2 only)", mean(answered.map((c) => c.p5s)), ACCEPTANCE_GATES.precisionAt5),
   gate("Mean nDCG@10 (pooled judgements)", mean(answered.map((c) => c.ndcg)), ACCEPTANCE_GATES.ndcgAt10),
   gate("Relevant-query coverage", coverage.share, ACCEPTANCE_GATES.coverage),
   gate("Behaviour cases correct", behaviourShare, ACCEPTANCE_GATES.behaviour),
 ];
 const f = (x: number | null) => (x === null ? "n/a" : x.toFixed(2));
+const ci = (xs: (number | null)[]) => {
+  const r = bootstrapMeanCI(xs);
+  return r ? `[${r.low.toFixed(2)}, ${r.high.toFixed(2)}] over ${r.n} queries` : "n/a";
+};
 const failed = gates.filter((g) => !g.pass);
 const lines = [
   `# ${prefix === "brain1" ? "Brain 1 catalogue" : "Brain 2 live (REPLAY)"} relevance report`,
@@ -111,6 +120,8 @@ const lines = [
   `Queries ${perCase.length}; behaviour-only ${perCase.filter((c) => c.behaviourOnly).length}; refused ${perCase.filter((c) => c.rejected).length}; topical answered ${answered.length}; zero results ${answered.filter((c) => c.returned.length === 0).length}.`,
   `Judged rows ${ids.length} (${ids.length - rowDisagreements.length} agreed, ${rowDisagreements.length} adjudicated); pooled candidates ${perCase.reduce((n, c) => n + c.pooled, 0)}.`,
   `Coverage: ${coverage.covered} of ${coverage.answerable} queries with a relevant creator in the judged pool returned one. Queries with no relevant creator judged anywhere: ${answered.length - coverage.answerable}.`,
+  `Rater agreement: unweighted kappa ${f(unweightedKappa)}; raw agreement ${f(agreement)}.`,
+  `95% bootstrap intervals (per query, seeded): precision@5 strict ${ci(answered.map((c) => c.p5s))}; nDCG@10 ${ci(answered.map((c) => c.ndcg))}. Standard precision@5 strict (divides by 5) ${f(mean(answered.map((c) => c.p5std)))} ${ci(answered.map((c) => c.p5std))}.`,
   `Precision@5 lenient ${f(mean(answered.map((c) => c.p5l)))}; precision@10 lenient ${f(mean(answered.map((c) => c.p10l)))}. Latency p50 ${percentile(results.cases.map((c) => c.latencyMs), 50)} ms, p95 ${percentile(results.cases.map((c) => c.latencyMs), 95)} ms.`,
   "",
   "| Case | Scenario | Returned | Pooled | Relevant exists | P@5 strict | P@5 lenient | nDCG@10 | Behaviour ok | Refused |",
