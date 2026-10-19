@@ -33,7 +33,7 @@ anywhere is Locally verified; Search is NOT ACCEPTED.
 
 | Integration | Status | Note |
 |---|---|---|
-| Supabase Auth / DB / Storage (hosted) | Implemented — **not integration verified** | Local Supabase stack (Docker) used for Auth, recovery and exposure checks |
+| Supabase Auth / DB / Storage (hosted `yknp…`) | **Partly verified against the real hosted service (2026-10-19)**: Auth settings and JWKS (ES256) reached with the project's public key; DB reached read-only through both poolers; Data API exposure 0 problems; self-signed, wrong-issuer, expired and malformed tokens refused by the API verifier using the live JWKS | **BLOCKED:** database empty (HOST-01), genuine-token acceptance (needs a real sign-in), TLS CA (CA-01), SMTP (SMTP-01), Security Advisor (CLI login) |
 | Paddle | Implemented — not integration verified | mock provider only; signature tests are unit tests |
 | Resend | Implemented — not integration verified | test mode only |
 | Serper, Apify, YouTube Data API | Implemented — not integration verified in this work | providers blank in all runs; recorded replays only |

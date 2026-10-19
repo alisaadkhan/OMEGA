@@ -75,3 +75,8 @@ every audit ID to its current state and adds gaps found since, with the next fre
 | SEC-17 | Unused `react-router` with a high advisory | Locally verified | `1623b79`; npm audit 0 | — |
 | E2E-01 | Browser sent token refreshes to the hosted Supabase project during E2E | Locally verified | `0bbb2f9` | — |
 | TEST-01 | Export test depended on the date (failed after midnight UTC) | Locally verified | `6849e83` | — |
+| SUPA-01 | Direct database host is IPv6-only; this network has no IPv6 (`ENETUNREACH`) | Real hosted verified (pooler) | SYSTEM_BASELINE S2; connect-check | — |
+| SUPA-02 | `DIRECT_URL` on the wrong pooler region | Real hosted verified | S3 | — |
+| SUPA-03 | `db:migrate:test` could push migrations to a hosted project | Locally verified | `migrate-cli.test.ts` | — |
+| SUPA-04 | Exposure check crashed on a fresh project; false positive on trigger functions | Real hosted verified | S6; hosted run 0 problems | — |
+| SUPA-05 | Hosted database has no MUSHIN schema | Blocked (owner) | connect-check 0 of 49 | HOST-01 |

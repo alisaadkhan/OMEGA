@@ -2,6 +2,21 @@
 
 Newest session first. A new session reads the mandate, this file, the audit gap register and roadmap, then git state.
 
+## Session 3 — 2026-10-19 (mandate v4)
+
+**Start:** `master` `3682e65`. Working tree had `.env.example` deleted (not by this session; left as found), plus the
+known untracked files. Mandate v4 summary: `MUSHIN_COMPLETION_MANDATE_V4.md`.
+
+**Phase 1 (Supabase) done so far.** Details are in SYSTEM_BASELINE "Session 3" (findings S1–S9).
+- The `.env` was realigned to `yknp…` (backup kept). The database is reached through the `aws-1-ap-northeast-2`
+  poolers.
+- Hosted checks: exposure clean; forged tokens refused against the live JWKS.
+- The hosted database is empty: HOST-01 is waiting for the owner.
+
+**Next:**
+1. When HOST-01 is authorised: `npm run db:migrate`, then `connect-check` again, then an API start against `yknp…`.
+2. Phase 3 trial work needs owner inputs. The phone number, trial credits and approval role are asked in the session.
+
 ## Session 2 — 2026-10-19
 
 **Start state:** `master` `f690848`; untracked: `.claude-flow/`, readiness report (protected), `docs/completion/*`

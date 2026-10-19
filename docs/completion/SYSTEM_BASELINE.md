@@ -3,6 +3,46 @@
 Recorded 2026-10-19 at `master` `f690848`. Updates the audit baseline (`docs/audit/2026-10-16/`, state at `1398cee`);
 nothing here re-audits the system.
 
+## Session 3 (mandate v4, 2026-10-19): topology and hosted Supabase
+
+HEAD `3682e65` on `master` at the start. In the working tree, not from this session:
+- `.env.example` deleted (left as found);
+- untracked `.claude-flow/`, the readiness report and `scripts/test-local-pg.mjs`.
+
+**Topology (addendum A).** Values are never shown; only variable names and project refs, which are not secret.
+
+| Service | Talks to | Variables |
+|---|---|---|
+| Browser SPA | Supabase Auth (sign-in, refresh); MUSHIN API | `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` (public key only; bundle scan forbids server names) |
+| API (Fastify) | PostgreSQL through `DATABASE_URL` (transaction pooler, 6543); Supabase JWKS; Auth admin API | `DATABASE_URL`, `JWT_ISSUER`, `JWKS_URI`, `JWT_AUDIENCE`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_SSL_CA_FILE` |
+| Worker (pg-boss) | PostgreSQL through `DATABASE_URL`; queue and LISTEN through `DIRECT_URL` (session pooler, 5432); providers | `DIRECT_URL` and provider keys |
+| Migrations | `DIRECT_URL` (`npm run db:migrate`), ledger `platform.schema_migrations` | `DIRECT_URL` |
+
+**Intended role of Supabase.** Supabase is intended to host both Auth and the primary PostgreSQL database (with Storage).
+- **Evidence:**
+  - ADR-0001 (`docs/readiness/adr-0001-target-architecture.md`) keeps the Node API and worker on Supabase
+    DB/Auth/Storage;
+  - the README's pooler layout;
+  - migration 0048 handles Supabase's `extensions` schema;
+  - `supabase/migrations` mirrors every migration.
+- **Not yet approved:** ADR-0001 is still proposed, and approving it is owner decision D-01.
+- **Where data lives today:** only the developer PostgreSQL on `localhost:54330`, which holds evaluation data and
+  synthetic test databases. **No customer data exists anywhere.**
+
+**Hosted project findings (read-only checks, 2026-10-19).**
+
+| # | Finding | Class | Evidence | Action |
+|---|---|---|---|---|
+| S1 | `.env` mixed three projects: `yknp…` (data URL, DB, service and anon keys), `cpzl…` (frontend URL, public key, `JWT_ISSUER`, `JWKS_URI`), `sjwk…` (`TEST_DATABASE_URL`, hosted pooler) | Inconsistent project identifiers | `scripts/supabase/align-env.ts` dry run | The owner chose `yknp…`. Frontend URL, public key, issuer and JWKS were aligned to it; backup `.env.bak-2026-10-19T15-51-40-934Z` |
+| S2 | `db.yknp….supabase.co` has only an IPv6 address; this network has no IPv6 route (`ENETUNREACH`). Earlier `EAI_AGAIN` was the same host failing to resolve | Network (not credentials) | DNS A record absent (`ENODATA`); AAAA present | `DATABASE_URL` now uses the transaction pooler and `DIRECT_URL` the session pooler, same project and same password |
+| S3 | `DIRECT_URL` pointed at the `ap-south-1` pooler; the project is in `ap-northeast-2` (pooler `aws-1-ap-northeast-2`) | Configuration | pooler answered "tenant/user not found" in every other region | Corrected by `align-env` |
+| S4 | The hosted database is empty: 0 tables in `public`, no MUSHIN schemas, no migration ledger; 2 Auth users | Migrations not applied | `connect-check`: 0 of 49 | **BLOCKED (owner):** applying 49 migrations is a remote schema change (see DECISION_LOG HOST-01) |
+| S5 | `npm run db:migrate:test` would have pushed every migration to the hosted `sjwk…` project named in `TEST_DATABASE_URL` | Unsafe configuration | `migrate-cli.ts` had no host check | Fixed: `--test` now refuses non-local URLs (`migrate-cli.test.ts`) |
+| S6 | The exposure check crashed when MUSHIN schemas did not exist, and flagged Supabase's own `public.rls_auto_enable` (an event-trigger function: not callable, only touches tables created in `public`, where MUSHIN creates none) | Tool defect | hosted run | Fixed; hosted run 18 checks, 0 problems |
+| S7 | No `DATABASE_SSL_CA_FILE` value: database TLS is encrypted but the certificate is not verified in development | TLS | `connect-check` | **Owner:** download the project's CA certificate (Dashboard → Database settings → SSL), set the path. Production config already requires it |
+| S8 | The Supabase CLI is not logged in (`AccessTokenRequiredError`); Docker is not running | Tooling | CLI, `docker info` | Not needed for the pooler connection. Security Advisor and `migration list` need the login |
+| S9 | Email confirmation is on for `yknp…` (`mailer_autoconfirm=false`), which needs working SMTP for sign-up | Auth configuration | `/auth/v1/settings` | **Owner:** custom SMTP before customers sign up (UX-02) |
+
 ## Drift from the audit baseline
 
 | Item | Audit (1398cee, 16 Oct) | Now (f690848, 19 Oct) |

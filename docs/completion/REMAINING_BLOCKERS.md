@@ -9,8 +9,8 @@ Each blocker: why it cannot be cleared in this environment, who must act, and th
 | 3 | No hosting, staging or hosted CI (ARCH-01, OPS-01) | No host chosen, no remote; deploying and pushing are forbidden without authorisation | Owner | Approve ADR-0001 (D-01), choose host/region, create a private remote |
 | 4 | Evaluation data deadline | `eval-data/` must not be touched by this work | Owner | Delete the YouTube evaluation data and copies by **2026-11-12** (incl. old temp folders and the unused real-data `mushin_e2e_template` database) |
 | 5 | Payments not verified (BIL-03) | No Paddle sandbox or seller confirmation | Owner | Paddle sandbox account; refund policy (OD-009) |
-| 6 | Hosted Supabase not verified | No authorised hosted project | Owner | Create a dev/staging project; then run auth-check, recovery-check (with SMTP) and exposure-check against it |
-| 7 | Developer `.env` mixes two Supabase projects (ARCH-07) | Owner's file; the API now refuses it | Owner | Point `SUPABASE_URL`, `JWKS_URI`, `JWT_ISSUER` at one project |
+| 6 | Hosted Supabase partly verified (2026-10-19) | `yknp…` reached through the poolers; Auth/JWKS, read-only DB, exposure 0 problems, forged tokens refused. The database is empty | Owner | Authorise HOST-01 (apply migrations); then API start, a genuine token (`CHECK_ACCESS_TOKEN`), auth-check and recovery-check (needs SMTP-01) |
+| 7 | ~~Developer `.env` mixes projects~~ resolved 2026-10-19 (ENV-01) | — | — | Remaining: CA-01 (certificate file) |
 | 8 | `.env.example` unused variables (ARCH-02) | Reading `.env*` is denied by the owner's permission rule | Owner | Remove SQS/AWS, Sentry, PostHog, HuggingFace, Vercel, WORKER_SECRET, DATABASE_POOL_SIZE, UPSTASH_*; revoke the HuggingFace key |
 | 9 | Live Discovery never run live since 13 Oct (SRCH-10) | Paid calls need authorisation | Owner | Approve the pilot envelope (D-09) |
 | 10 | Catalogue empties over time (SRCH-02) | Needs a refresh budget (D-08) and Search unfrozen | Owner | Approve a budget; scheduler after ratings |

@@ -23,7 +23,9 @@ export async function databaseExposure(sql: postgres.Sql): Promise<Exposure> {
   for (const { r } of roles) {
     for (const s of SCHEMAS) {
       checks += 1;
-      const [u] = await sql<{ ok: boolean }[]>`select has_schema_privilege(${r}, ${s}, 'USAGE') ok`;
+      // A schema that does not exist yet (migrations not applied) cannot be exposed.
+      const [u] = await sql<{ ok: boolean }[]>`
+        select case when to_regnamespace(${s}) is null then false else has_schema_privilege(${r}, ${s}, 'USAGE') end ok`;
       if (u?.ok) problems.push(`${r} has USAGE on schema ${s}`);
     }
     const grants = await sql<{ o: string; p: string }[]>`
@@ -35,6 +37,8 @@ export async function databaseExposure(sql: postgres.Sql): Promise<Exposure> {
     const fns = await sql<{ f: string }[]>`
       select n.nspname || '.' || p.proname f from pg_proc p join pg_namespace n on n.oid = p.pronamespace
       where n.nspname = any(${sql.array([...SCHEMAS, "public"])}) and has_function_privilege(${r}, p.oid, 'EXECUTE')
+        -- trigger functions (e.g. Supabase's own public.rls_auto_enable event trigger) cannot be called, so not served
+        and p.prorettype not in ('trigger'::regtype, 'event_trigger'::regtype)
         and has_schema_privilege(${r}, n.oid, 'USAGE')`;
     checks += 1;
     for (const f of fns) problems.push(`${r} can execute ${f.f}`);

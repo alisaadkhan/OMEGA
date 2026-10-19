@@ -3,6 +3,17 @@
 Every line is a command that was actually run, with commit, date, totals and log. Logs under `eval-data/logs/` are
 local (git-ignored, never packaged); `%TEMP%` is the Windows temp folder of the machine that ran them.
 
+## Session 3: hosted Supabase (mandate v4, 2026-10-19, working tree on `3682e65`)
+
+| Command | Result |
+|---|---|
+| `node --import tsx scripts/supabase/align-env.ts` (dry run, then `--write`, then dry run) | 6 variables realigned to `yknp…`; second dry run "nothing to change" |
+| `node --env-file=.env --import tsx scripts/supabase/connect-check.ts` | 14 stages: **12 PASS, 1 FAIL** (migrations 0 of 49 applied), **1 BLOCKED** (genuine token) |
+| `exposure-check.ts <DATABASE_URL> --api <SUPABASE_URL> --key <public key>` (hosted) | 18 checks, 0 problems (after the S6 fix; before it: crash, then 2 false positives) |
+| Fresh disposable local DB `mushin_disposable_rehearsal_*`: `migrate-cli.ts --test` twice, then dropped | 49 applied; second run "already up to date" (plain PostgreSQL 17; the Supabase-image rehearsal needs Docker, which is not running) |
+| `vitest run scripts/supabase/align-env.test.ts packages/db/src/migrate-cli.test.ts` | 5 passed |
+| eslint on changed files; `npm run typecheck`; `npm run boundaries` | clean; clean; no violations |
+
 ## Final regression (Phase 7, 2026-10-19)
 
 | Command | Commit | Result | Log |
