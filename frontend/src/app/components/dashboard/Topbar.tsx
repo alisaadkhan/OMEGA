@@ -59,7 +59,8 @@ export function Topbar({ credits, view, setView, onExit, onOpenCreator, onViewRe
         </button>
         <span className="sm:hidden"><Logo /></span>
       </div>
-      <div className="hidden sm:block"><Omnibar onOpen={onOpenCreator} /></div>
+      {/* From 1024 px only: beside the 240 px sidebar a tablet top bar has no room (E2E 768 px check). Add by link stays on the Search page. */}
+      <div className="hidden lg:block"><Omnibar onOpen={onOpenCreator} /></div>
 
       <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
         <JobTray onOpenCreator={onOpenCreator} onViewResults={onViewResults} />

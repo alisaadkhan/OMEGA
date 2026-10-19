@@ -68,7 +68,8 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
             setView("search");
           }}
         />
-        <main className="min-w-0 flex-1 overflow-y-auto px-4 py-5 sm:px-8 sm:py-8">
+        {/* Focusable so keyboard users can scroll it (axe scrollable-region-focusable). */}
+        <main tabIndex={0} className="min-w-0 flex-1 overflow-y-auto px-4 py-5 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-300 sm:px-8 sm:py-8">
           <div className="-mx-4 -mt-5 mb-4 empty:hidden sm:-mx-8 sm:-mt-8"><SupportAccessBanner canManage={canManageAccess} onOpen={() => { setSettingsTab("access"); setView("settings"); }} /></div>
           {workspaceNotice && <p role="status" className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900">{workspaceNotice}</p>}
           <LegalGate />

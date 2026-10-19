@@ -271,8 +271,11 @@ if (phase === "main") {
   t = await search(p, "food");
   check("search", "platform filter applied (API and UI)", yt.results.every((r) => r.platform === "youtube") && handles(t).every((h) => yt.results.some((r) => `@${r.handle}` === h)));
   await p.getByRole("button", { name: "All platforms", exact: true }).first().click().catch(() => {});
+  const spendsBeforeEmpty = searchSpends(ws);
   t = await search(p, "zzqx nothing matches this");
   check("search", "empty result is explained and offers live discovery", /No creators match/.test(t) && /Find new creators/i.test(t));
+  // Mandate v3 §10.3: until the owner decides D-05, a search that finds nothing is charged like any other.
+  check("pricing", "a zero-result search is charged once under the current server rule (owner decision D-05 pending)", searchSpends(ws) === spendsBeforeEmpty + 1, `spends ${spendsBeforeEmpty}→${searchSpends(ws)}`);
   check("search", "malformed input is rejected by the API", (await apiSearch("owner", "x".repeat(400))).status === 400);
   const panel = await openProfile(p, FX.main);
   const rw = (await apiSearch("owner", FX.main)).json.results[0];
@@ -307,6 +310,21 @@ if (phase === "main") {
   await p.waitForTimeout(1000);
   check("lists", "favourite persists", sql(`select favorite from wp.lists where name = 'Food shortlist'`) === "t");
   check("lists", "duplicate name refused by the API", (await api("owner", "POST", "/v1/lists", { name: "food shortlist" })).status === 409);
+  // Rename and delete through the UI (mandate v3 journey 10).
+  const temp = (await api("owner", "POST", "/v1/lists", { name: "Temporary list" })).json;
+  // Back to the index from the open list (the sidebar item does not leave a list that is already open; DESIGN_GAPS G-17).
+  await p.getByRole("button", { name: "All lists" }).click();
+  await p.getByRole("button", { name: /Temporary list/ }).first().click();
+  await p.getByRole("button", { name: "Rename" }).click();
+  await p.getByLabel("Name", { exact: true }).fill("Renamed list");
+  await p.getByRole("button", { name: "Save changes" }).click();
+  await p.waitForTimeout(1200);
+  const renamed = sql(`select name from wp.lists where id = '${temp.id ?? temp.list?.id}'`);
+  await p.getByRole("button", { name: "Delete", exact: true }).click();
+  await p.getByRole("button", { name: "Delete list", exact: true }).click();
+  await p.getByRole("button", { name: /Food shortlist/ }).first().waitFor({ timeout: 15000 });
+  await p.waitForTimeout(1200);
+  check("lists", "a list is renamed and deleted in the UI (confirmed before deleting)", renamed === "Renamed list" && sql(`select count(*) from wp.lists where name in ('Temporary list', 'Renamed list')`) === "0", `renamed to ${renamed}`);
 
   // ── 5. Campaigns + outreach ──
   await nav(p, "Campaigns");
@@ -421,6 +439,22 @@ if (phase === "main") {
   for (let i = 0; i < 20; i++) { sub = (await api("owner", "GET", "/v1/billing/summary")).json; if (sub.status === "active") break; await new Promise((r) => setTimeout(r, 1000)); }
   check("billing", "mock checkout activates the plan and grants its credits (provider mocked)", sub.status === "active" && sub.plan?.name === planName && sub.balance.available > 200, `${sub.status} ${sub.plan?.name} ${sub.balance.available}`);
   check("billing", "balance equals the ledger", Number(sql(`select coalesce(sum(remaining),0) from wp.credit_lots where workspace_id = '${ws}' and (expires_at is null or expires_at > now())`)) === sub.balance.available + sub.balance.reserved, `lots vs ${sub.balance.available}`);
+
+  // Contact reveal (mandate v3 journey 15): confirmed first, charged once by the server, then shown with who revealed it.
+  {
+    const withContact = (await apiSearch("owner", FX.second)).json.results[0];
+    const before = (await api("owner", "GET", "/v1/billing/summary")).json.balance.available;
+    const rp = await openProfile(p, FX.second);
+    await rp.getByRole("button", { name: /Reveal contact details/ }).click();
+    await p.getByRole("button", { name: /^Reveal for \d+ credits$/ }).click();
+    await p.waitForTimeout(1500);
+    const after = (await api("owner", "GET", "/v1/billing/summary")).json.balance.available;
+    const revealed = (await api("owner", "GET", `/v1/creators/${withContact.id}`)).json;
+    check("profile", "revealing a contact asks first, charges the server price once and shows the value", before - after === 5 && revealed.contacts.some((c) => c.value), `${before}→${after}; values ${revealed.contacts.filter((c) => c.value).length}`);
+    const again = await api("owner", "POST", `/v1/creators/${withContact.id}/reveal`, { confirmedCost: 5 }, { "idempotency-key": `e2e-reveal-again-${label}` });
+    check("profile", "revealing again is free (already revealed)", again.json?.charged === false && (await api("owner", "GET", "/v1/billing/summary")).json.balance.available === after, `${again.status} charged=${again.json?.charged}`);
+    await closeAll(p);
+  }
   await shot(p, "05-billing");
 
   // ── 8. Dashboard, analytics, activity agree with the records ──
@@ -727,6 +761,18 @@ if (phase === "main") {
     check("a11y", `${route}: no serious or critical WCAG 2.1 A/AA issues (phone)`, found.length === 0, found.join(" | "));
   }
   await pub.context().close();
+  // Tablet and laptop widths (mandate v3 §8.5: 390, 768, 1280, 1440; 1440 is the default viewport elsewhere).
+  for (const width of [768, 1280]) {
+    const wp = await pageAs("owner", { width, height: 900 });
+    const offenders = [];
+    for (const route of ["#/", "#/dashboard"]) {
+      await wp.goto(`http://localhost:5173/${route}`);
+      await wp.waitForTimeout(2000);
+      offenders.push(...(await widthOffenders(wp)).map((o) => `${route} ${o}`));
+    }
+    check("phone", `landing and dashboard fit a ${width} px screen without sideways scrolling`, offenders.length === 0, offenders.slice(0, 3).join(" | "));
+    await wp.context().close();
+  }
   const m = await pageAs("owner", phone);
   await m.goto("http://localhost:5173/#/dashboard");
   await m.getByRole("heading", { name: /Welcome back, Olivia/ }).waitFor({ timeout: 30000 });

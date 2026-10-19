@@ -22,6 +22,7 @@ is visible.
 | G-13 | Annual billing and its saving label (D-17) | Annual billing not offered (OD-002); "save 20%" must never appear (plans-claims.test) | Design per-plan actual saving when approved |
 | G-14 | Legal text | Drafts; counsel review pending | Replace drafts; keep version + date; remove the draft banner only after counsel approves |
 | G-15 | Billing screen does not itself say "test mode" | The test checkout page does ("Test mode: no real payment"); the screen before it does not | Optionally add a "Payments are in test mode" note when the server reports the mock provider |
+| G-17 | Clicking the active "Lists" sidebar item while a list is open does not return to the index (only "All lists" does) | Found by the E2E rename/delete step | Make the sidebar item reset the open list; add an E2E check |
 | G-16 | Urdu / RTL samples | Inputs use `dir="auto"`, but no Urdu fixture creators exist | Add fictional Urdu-script fixture content and design frames |
 
 ## Fixed while writing this handoff (2026-10-19)
