@@ -38,9 +38,10 @@ describe("source packaging secret scan", () => {
     }
   });
 
+  // Reads every committed file (about 9 s under a full parallel test run); the default 5 s limit was too tight.
   it("finds nothing in the committed tree at HEAD", () => {
     expect(committedFiles(repo).flatMap((f) => scanSourceFile(f.path, f.text))).toEqual([]);
-  });
+  }, 60_000);
 
   it("archives only committed files: ignored ones such as .env can never be included", () => {
     const dir = mkdtempSync(join(tmpdir(), "mushin-pkg-"));
