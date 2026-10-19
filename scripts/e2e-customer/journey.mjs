@@ -1,4 +1,4 @@
-/* global process, console, URL, fetch, setTimeout, document, localStorage, window, getComputedStyle -- Node script; document/localStorage run inside the browser page */
+/* global process, console, URL, fetch, setTimeout, document, localStorage, window, getComputedStyle, Event -- Node script; document/localStorage run inside the browser page */
 // Customer E2E journey through the real local UI → API → worker → PostgreSQL (mushin_e2e) → Meilisearch (e2e_ index).
 // Usage: node journey.mjs <run-label> <phase: main|after-restart>. Paid providers and LLMs are blank by environment.
 import { execFileSync } from "node:child_process";
