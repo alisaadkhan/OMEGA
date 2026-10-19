@@ -62,7 +62,7 @@ export async function registerKey(nickname: string, enrolmentCode?: string): Pro
   await adminRequest("/admin/v1/security/keys", z.object({ id: z.uuid() }), { method: "POST", body: { response, nickname, ...(enrolmentCode ? { enrolmentCode } : {}) } });
 }
 
-/** Proves the key for this session; the returned access token carries the hardware-key factor for 15 minutes. */
+/** Proves the key for this session; admin actions are allowed for 5 minutes (the server checks its own record). */
 export async function stepUp(): Promise<void> {
   const { options: o } = await adminRequest("/admin/v1/security/step-up/options", webauthnOptionsResponseSchema, { method: "POST" });
   const cred = (await navigator.credentials.get({

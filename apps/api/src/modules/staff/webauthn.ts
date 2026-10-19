@@ -11,10 +11,13 @@ import { AppError } from "@mushin/core";
 import { recordAlertEvent, stepUps, webauthnChallenges, webauthnCredentials, staffUsers, type Db, type SystemTx } from "@mushin/db";
 import { openEnrolmentCode, useEnrolmentCode } from "./enrolment-codes";
 import { audit } from "./repository";
-import { ACCESS_TTL_SECONDS, type StaffPrincipal } from "./tokens";
+import type { StaffPrincipal } from "./tokens";
 
-/** A step-up lasts as long as the access token it is issued with (and never longer than the database allows, 15 min). */
-const STEP_UP_TTL_MS = ACCESS_TTL_SECONDS * 1000;
+/**
+ * A step-up proves the hardware key for five minutes (mandate v3 §3.2 SEC-02; the database allows at most 15). The access
+ * token issued with it lives longer, but its hardware-key factor counts only while this server-side row is live.
+ */
+export const STEP_UP_TTL_MS = 5 * 60_000;
 
 const CHALLENGE_TTL_MS = 5 * 60_000;
 const b64url = {

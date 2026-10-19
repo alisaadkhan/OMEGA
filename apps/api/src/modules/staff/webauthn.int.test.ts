@@ -192,6 +192,23 @@ describe("step-up is proven on the server, not by the token (audit SEC-02)", () 
     expect((await call("GET", "/admin/v1/audit", borrowed)).statusCode).toBe(403);
   });
 
+  it("a step-up proves the key for five minutes, then admin actions ask again (mandate v3 SEC-02)", async () => {
+    const admin = await signIn("admin");
+    const key = softwareKey();
+    await enrol(admin.auth, key);
+    const strong = bearer(await stepUp(admin.auth, key));
+    const [row] = await ownerQuery<{ s: number }>(`select extract(epoch from expires_at - created_at)::int s from staff.step_ups where staff_id = '${admin.id}'`);
+    expect(row?.s).toBe(300);
+    // Shift the step-up back in time, keeping its 5-minute length: 4 minutes old still works, 6 minutes old does not.
+    await ownerQuery(`update staff.step_ups set created_at = now() - interval '4 minutes', expires_at = now() + interval '1 minute' where staff_id = '${admin.id}'`);
+    expect((await call("GET", "/admin/v1/audit", strong)).statusCode).toBe(200);
+    await ownerQuery(`update staff.step_ups set created_at = now() - interval '6 minutes', expires_at = now() - interval '1 minute' where staff_id = '${admin.id}'`);
+    const refused = await call("GET", "/admin/v1/audit", strong);
+    expect(refused.statusCode).toBe(403);
+    expect(refused.json().error.details).toMatchObject({ reason: "hardware_key_required" });
+    expect((await call("GET", "/admin/v1/security", strong)).json().factors).not.toContain("hwk");
+  });
+
   it("an expired step-up, a revoked key or a revoke-all stops the step-up at once", async () => {
     const admin = await signIn("admin");
     const key = softwareKey();

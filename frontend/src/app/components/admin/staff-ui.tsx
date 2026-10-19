@@ -15,13 +15,14 @@ export const useStepUp = () => useContext(Ctx);
 
 /**
  * The session's hardware-key state for the whole console. Admin and Super Admin actions need a key confirmed in this
- * session (it lasts one 15-minute access token); Support never needs one.
+ * session (it lasts 5 minutes, checked by the server on every admin action); Support never needs one.
  */
 export function StepUpProvider({ children }: { children: ReactNode }) {
   const qc = useQueryClient();
   const toast = useToast();
   const [busy, setBusy] = useState(false);
-  const q = useQuery({ queryKey: ["admin", "security"], queryFn: securityState, staleTime: 30_000 });
+  // Re-read every 30 s so the bar shows when the 5-minute confirmation has run out.
+  const q = useQuery({ queryKey: ["admin", "security"], queryFn: securityState, staleTime: 30_000, refetchInterval: 30_000 });
   const confirm = useCallback(async () => {
     if (!webauthnSupported()) {
       toast.error("This browser cannot use security keys");
@@ -31,7 +32,7 @@ export function StepUpProvider({ children }: { children: ReactNode }) {
     try {
       await stepUp();
       await qc.invalidateQueries({ queryKey: ["admin"] });
-      toast.success("Security key confirmed for 15 minutes");
+      toast.success("Security key confirmed for 5 minutes");
       return true;
     } catch (err) {
       toast.error("Security key not confirmed", keyErrorMessage(err));
@@ -51,7 +52,7 @@ export function StepUpBar({ onSetUp }: { onSetUp: () => void }) {
   if (s.confirmed) {
     return (
       <div className="flex items-center gap-2 border-b border-emerald-100 bg-emerald-50 px-6 py-2 text-xs text-emerald-800" role="status">
-        <ShieldCheck className="h-3.5 w-3.5" /> Security key confirmed. Admin actions are available until this session's key confirmation expires (15 minutes).
+        <ShieldCheck className="h-3.5 w-3.5" /> Security key confirmed. Admin actions are available for 5 minutes after each confirmation.
       </div>
     );
   }
