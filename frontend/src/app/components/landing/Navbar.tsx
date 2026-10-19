@@ -12,7 +12,6 @@ const leftLinks = [
 ];
 const rightLinks = [
   { label: "FAQ", href: "#faq" },
-  { label: "Docs", href: "#" },
 ];
 
 export function Navbar({ onPrimary, onLogin }: Props) {

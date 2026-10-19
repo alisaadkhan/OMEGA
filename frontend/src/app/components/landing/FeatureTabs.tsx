@@ -152,7 +152,7 @@ export function FeatureTabs() {
                 {current.body}
               </p>
               <a
-                href="#"
+                href="#/signup"
                 className="group mt-6 inline-flex items-center gap-1.5 text-sm text-indigo-600 transition-colors duration-200 hover:text-indigo-700"
                 style={{ fontWeight: 500 }}
               >

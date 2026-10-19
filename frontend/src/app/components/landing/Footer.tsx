@@ -1,31 +1,22 @@
 import { Logo } from "./Logo";
 
-const columns = [
-  {
-    title: "Product",
-    links: ["Platform", "Workflows", "Analytics", "Integrations", "Changelog", "Roadmap"],
-  },
-  {
-    title: "Solutions",
-    links: ["For Revenue", "For Product", "For Marketing", "For Data Teams", "Enterprise"],
-  },
-  {
-    title: "Resources",
-    links: ["Documentation", "Guides", "Customer Stories", "Blog", "Security", "Status"],
-  },
-  {
-    title: "Company",
-    links: ["About", "Careers", "Press", "Partners", "Contact"],
-  },
+// Only places that exist (mandate v3 §2.9): the template's "Careers", "Customer stories", "Status" and similar links
+// pointed nowhere. Sections of this page scroll; everything else is a real route.
+type FooterLink = { label: string; section?: string; href?: string };
+const columns: { title: string; links: FooterLink[] }[] = [
+  { title: "Product", links: [{ label: "Features", section: "features" }, { label: "Pricing", section: "pricing" }, { label: "FAQ", section: "faq" }] },
+  { title: "Account", links: [{ label: "Sign in", href: "#/login" }, { label: "Create an account", href: "#/signup" }, { label: "Reset password", href: "#/forgot" }] },
+  { title: "Creators", links: [{ label: "Creator data notice", href: "#/creator-data" }, { label: "Remove my data", href: "#/remove-my-data" }] },
 ];
+const linkClass = "inline-flex min-h-[28px] items-center text-sm text-slate-700 hover:text-slate-900";
 
 export function Footer() {
   return (
     <footer className="bg-white py-16">
       <div className="mx-auto max-w-7xl px-6">
-        <div className="grid grid-cols-2 gap-10 md:grid-cols-6">
+        <div className="grid grid-cols-2 gap-10 md:grid-cols-5">
           <div className="col-span-2 md:col-span-2">
-            <a href="#" className="flex items-center">
+            <a href="#/" className="flex items-center">
               <Logo />
             </a>
             <p className="mt-4 max-w-xs text-sm text-slate-600" style={{ lineHeight: 1.6 }}>
@@ -47,10 +38,16 @@ export function Footer() {
               <div className="text-xs uppercase tracking-[0.14em] text-slate-500">{col.title}</div>
               <ul className="mt-4 space-y-2.5">
                 {col.links.map((l) => (
-                  <li key={l}>
-                    <a href="#" className="text-sm text-slate-700 hover:text-slate-900">
-                      {l}
-                    </a>
+                  <li key={l.label}>
+                    {l.section ? (
+                      <button type="button" onClick={() => document.getElementById(l.section ?? "")?.scrollIntoView({ behavior: "smooth", block: "start" })} className={linkClass}>
+                        {l.label}
+                      </button>
+                    ) : (
+                      <a href={l.href} className={linkClass}>
+                        {l.label}
+                      </a>
+                    )}
                   </li>
                 ))}
               </ul>

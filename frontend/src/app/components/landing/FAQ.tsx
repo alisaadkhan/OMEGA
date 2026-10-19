@@ -71,9 +71,10 @@ export function FAQ() {
 
         <div className="mt-10 text-center text-sm text-slate-500">
           Still have questions?{" "}
-          <a href="#" className="text-slate-900 underline-offset-4 hover:underline">
-            Talk to our team
-          </a>
+          <a href="#/login" className="text-slate-900 underline-offset-4 hover:underline">
+            Sign in and ask Support
+          </a>{" "}
+          from your dashboard.
         </div>
       </div>
     </section>
