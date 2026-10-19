@@ -18,7 +18,7 @@ start() {
   node --env-file-if-exists=.env --env-file-if-exists=.env.meilisearch --import tsx apps/api/src/server.ts > "$E/api-$LABEL-$P.log" 2>&1 & echo $! > "$E/api.pid"
   node --env-file-if-exists=.env --env-file-if-exists=.env.meilisearch --import tsx apps/worker/src/main.ts > "$E/worker-$LABEL-$P.log" 2>&1 & echo $! > "$E/worker.pid"
   for i in $(seq 1 60); do curl -s -m 2 http://localhost:4000/health/ready | grep -q '"database":"ok"' && grep -q "reconciled at start-up" "$E/worker-$LABEL-$P.log" && return 0; sleep 1; done
-  echo "services did not become ready"; return 1
+  echo "services did not become ready: $(curl -s -m 2 http://localhost:4000/health/ready) (a dependency configured in .env, such as Meilisearch, may be down)"; return 1
 }
 stop
 "$B/psql" -h localhost -p 54330 -U postgres -d postgres -qAtc "select pg_terminate_backend(pid) from pg_stat_activity where datname = 'mushin_e2e'" >/dev/null

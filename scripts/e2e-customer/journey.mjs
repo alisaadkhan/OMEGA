@@ -154,6 +154,33 @@ if (phase === "main") {
   for (const who of ["owner", "admin", "member", "invitee"]) await api(who, "POST", "/v1/me/legal-acceptance", { version: legalVersion });
   check("legal", "only the current Terms version can be accepted, and acceptance is recorded per person", staleLegal.status === 400 && sql(`select legal_version from wp.users where id = '${ids.owner.sub}'`) === legalVersion, legalVersion);
 
+  // ── 0. Global states (mandate v3 §8.4; gaps UX-06/07/08): unknown route, confirmation result, offline, degraded ──
+  {
+    const g = await pageAs(null);
+    await g.goto("http://localhost:5173/#/no-such-page");
+    await g.getByRole("heading", { name: "Page not found" }).waitFor({ timeout: 15000 });
+    check("states", "an unknown address shows Page not found with a way home, not the landing page", await g.getByRole("button", { name: "Go to the home page" }).isVisible());
+    check("a11y", "Page not found: no serious or critical WCAG 2.2 A/AA issues", (await axeFindings(g)).length === 0, (await axeFindings(g)).join(" | "));
+    await g.goto("http://localhost:5173/#/confirmed");
+    await g.getByRole("heading", { name: "Your email is confirmed" }).waitFor({ timeout: 15000 });
+    check("auth", "a confirmation link opened in another browser says the email is confirmed and offers sign-in", await g.getByRole("button", { name: "Sign in" }).first().isVisible());
+    await g.goto("http://localhost:5173/#/");
+    await g.waitForTimeout(1000);
+    check("states", "the landing page has no link that goes nowhere (href=\"#\")", (await g.locator('a[href="#"]').count()) === 0, `${await g.locator('a[href="#"]').count()} found`);
+    await g.context().setOffline(true);
+    await g.evaluate(() => window.dispatchEvent(new Event("offline")));
+    check("states", "losing the connection shows an offline banner", await g.getByText("You are offline").isVisible());
+    await g.context().setOffline(false);
+    await g.evaluate(() => window.dispatchEvent(new Event("online")));
+    await g.context().close();
+    const d = await pageAs(null);
+    await d.route("**/api/health/ready", (r) => r.fulfill({ status: 503, contentType: "application/json", body: '{"status":"degraded","checks":{"database":"ok","search":"down"}}' }));
+    await d.goto("http://localhost:5173/#/");
+    await d.getByText("MUSHIN is partly unavailable").waitFor({ timeout: 15000 }).catch(() => {});
+    check("states", "a degraded service (/health/ready 503) shows a partly-unavailable banner", await d.getByText("MUSHIN is partly unavailable").isVisible());
+    await d.context().close();
+  }
+
   // ── 1. Auth: protected route, session restore, direct URL, expired session ──
   let p = await pageAs(null);
   await p.goto("http://localhost:5173/#/dashboard");
@@ -691,7 +718,7 @@ if (phase === "main") {
   // ── Phone width (390 × 844): pages fit without sideways scrolling, navigation works, and axe passes ──
   const phone = { width: 390, height: 844 };
   const pub = await pageAs(null, phone);
-  for (const route of ["#/", "#/login", "#/signup", "#/terms", "#/privacy", "#/refunds", "#/creator-data"]) {
+  for (const route of ["#/", "#/login", "#/signup", "#/forgot", "#/reset-password", "#/confirmed", "#/no-such-page", "#/remove-my-data", "#/terms", "#/privacy", "#/refunds", "#/creator-data"]) {
     await pub.goto(`http://localhost:5173/${route}`);
     await pub.waitForTimeout(1500);
     const off = await widthOffenders(pub);

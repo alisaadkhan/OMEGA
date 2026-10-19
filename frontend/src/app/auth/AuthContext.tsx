@@ -3,7 +3,7 @@ import type { Session } from "@supabase/supabase-js";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { meResponseSchema, type MeResponse } from "@mushin/contracts";
 import { apiRequest } from "../api/client";
-import { linkResultFromUrl, supabase } from "../lib/supabase";
+import { linkResultFromUrl, rememberEmailLink, supabase } from "../lib/supabase";
 
 export type AuthUser = { id: string; name: string; email: string; avatar: string; initials: string; role: "owner" | "admin" | "member" };
 export type AuthStatus = "loading" | "signedIn" | "signedOut";
@@ -15,6 +15,8 @@ type AuthContextValue = {
   signup: (name: string, email: string, password: string) => Promise<{ needsConfirmation: boolean }>;
   logout: () => Promise<void>;
   requestPasswordReset: (email: string) => Promise<void>;
+  /** Sends a new sign-up confirmation email (expired or used link, gap UX-08). */
+  resendConfirmation: (email: string) => Promise<void>;
   /** Sets a new password for the signed-in person (after a recovery link, audit UX-02). */
   updatePassword: (password: string) => Promise<void>;
   /** Why an email link failed (expired, already used), when the Auth server said so. */
@@ -93,10 +95,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error) throw new Error(messageOf(error));
     },
     async signup(name, email, password) {
+      rememberEmailLink("signup");
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { full_name: name.trim() }, emailRedirectTo: `${window.location.origin}/#/dashboard` },
+        options: { data: { full_name: name.trim() }, emailRedirectTo: `${window.location.origin}/#/confirmed` },
       });
       if (error) throw new Error(messageOf(error));
       return { needsConfirmation: !data.session };
@@ -105,7 +108,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await supabase.auth.signOut();
       queryClient.clear();
     },
+    async resendConfirmation(email) {
+      rememberEmailLink("signup");
+      const { error } = await supabase.auth.resend({ type: "signup", email, options: { emailRedirectTo: `${window.location.origin}/#/confirmed` } });
+      if (error) throw new Error(messageOf(error));
+    },
     async requestPasswordReset(email) {
+      rememberEmailLink("recovery");
       const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/#/reset-password` });
       if (error) throw new Error(messageOf(error));
     },

@@ -13,6 +13,8 @@ import { Login } from "./components/auth/Login";
 import { Signup } from "./components/auth/Signup";
 import { ForgotPassword } from "./components/auth/ForgotPassword";
 import { ResetPassword } from "./components/auth/ResetPassword";
+import { EmailConfirmed } from "./components/auth/EmailConfirmed";
+import { AppErrorBoundary, NotFound, ServiceStatusBanner } from "./components/public/StatusScreens";
 import { AdminLogin } from "./components/admin/AdminLogin";
 import { RemoveMyData } from "./components/public/RemoveMyData";
 import { LegalPage, type LegalDoc } from "./components/public/LegalPage";
@@ -26,7 +28,7 @@ const Dashboard = lazy(() => import("./components/dashboard/Dashboard").then((m)
 const AdminApp = lazy(() => import("./components/admin/AdminApp").then((m) => ({ default: m.AdminApp })));
 const Loading = () => <div className="flex min-h-screen items-center justify-center text-sm text-slate-500" role="status">Loading…</div>;
 
-type Route = "landing" | "dashboard" | "login" | "signup" | "forgot" | "reset-password" | "admin-login" | "admin" | "remove-my-data" | "invite" | LegalDoc;
+type Route = "landing" | "dashboard" | "login" | "signup" | "forgot" | "reset-password" | "confirmed" | "not-found" | "admin-login" | "admin" | "remove-my-data" | "invite" | LegalDoc;
 const LEGAL_DOCS: readonly LegalDoc[] = ["terms", "privacy", "refunds", "creator-data"];
 
 /**
@@ -44,11 +46,14 @@ function useHashRoute(initial: Route): [Route, (r: Route) => void] {
     if (h === "signup") return "signup";
     if (h === "forgot") return "forgot";
     if (h === "reset-password") return "reset-password";
+    if (h === "confirmed") return "confirmed";
     if (h === "dashboard") return "dashboard";
     if (h === "remove-my-data") return "remove-my-data";
     if ((LEGAL_DOCS as readonly string[]).includes(h)) return h as LegalDoc;
     if (h.startsWith("invite/")) return "invite";
-    return initial;
+    // The home page, and Supabase's own link fragments (handled by lib/supabase.ts), are not unknown routes.
+    if (h === "" || /^(access_token|error|error_code|error_description|type)=/.test(h)) return initial;
+    return "not-found";
   };
   const [route, setRoute] = useState<Route>(initial);
   useEffect(() => {
@@ -105,7 +110,20 @@ function Shell() {
           "Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
       }}
     >
+      <ServiceStatusBanner />
       <AnimatePresence mode="wait">
+        {route === "not-found" && (
+          <motion.div key="not-found" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
+            <NotFound onHome={() => setRoute("landing")} onSignIn={() => setRoute("login")} />
+          </motion.div>
+        )}
+
+        {route === "confirmed" && (
+          <motion.div key="confirmed" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
+            <EmailConfirmed goDashboard={afterAuth} goLogin={() => setRoute("login")} />
+          </motion.div>
+        )}
+
         {route === "landing" && (
           <motion.div key="landing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
             <Navbar onPrimary={goPrimary} onLogin={() => setRoute("login")} />
@@ -205,7 +223,9 @@ export default function App() {
       <AdminAuthProvider>
         <ToastProvider>
           <ConfirmProvider>
-            <Shell />
+            <AppErrorBoundary>
+              <Shell />
+            </AppErrorBoundary>
           </ConfirmProvider>
         </ToastProvider>
       </AdminAuthProvider>

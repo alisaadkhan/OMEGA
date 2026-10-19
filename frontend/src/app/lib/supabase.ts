@@ -17,6 +17,26 @@ export const supabase = createClient(url, key, {
 });
 
 /**
+ * Which kind of email link this browser asked for last (gap UX-08). A failed link comes back with only an error in the
+ * address, so this picks the screen that explains it: sign-up confirmation or password reset (the default).
+ */
+const LINK_KIND_KEY = "mushin.emailLink";
+export function rememberEmailLink(kind: "signup" | "recovery") {
+  try {
+    localStorage.setItem(LINK_KIND_KEY, kind);
+  } catch {
+    // storage blocked: failed links fall back to the password-reset screen
+  }
+}
+function emailLinkRoute(): string {
+  try {
+    return localStorage.getItem(LINK_KIND_KEY) === "signup" ? "#/confirmed" : "#/reset-password";
+  } catch {
+    return "#/reset-password";
+  }
+}
+
+/**
  * Removes the one-time code or error from the address bar once the client has read it, keeping the `#/` route. A link
  * that failed (expired, already used) comes back with the error in the fragment instead (`#error=…`), which replaces the
  * route; that case is sent to the screen that explains it and offers a new link.
@@ -28,7 +48,7 @@ export function linkResultFromUrl(): { error: string | null } {
   if (/^(error|error_code|error_description)=/.test(fragment)) {
     const error = new URLSearchParams(fragment).get("error_description");
     // No reload (the error is in the query string too): rewrite the address, then tell the router.
-    window.history.replaceState(null, "", `${window.location.pathname}#/reset-password`);
+    window.history.replaceState(null, "", `${window.location.pathname}${emailLinkRoute()}`);
     window.dispatchEvent(new HashChangeEvent("hashchange"));
     return { error: message(error) };
   }
