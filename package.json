@@ -24,6 +24,8 @@
     "create-admin": "node --env-file-if-exists=.env --import tsx scripts/create-admin.ts",
     "issue-enrolment-code": "node --env-file-if-exists=.env --import tsx scripts/issue-enrolment-code.ts",
     "e2e:template": "bash scripts/e2e-fixtures/build-template.sh",
+    "e2e:customer": "bash scripts/e2e/run-suite.sh customer",
+    "e2e:staff": "bash scripts/e2e/run-suite.sh staff",
     "rotate-encryption-key": "node --env-file-if-exists=.env --import tsx scripts/rotate-encryption-key.ts",
     "ops:erasure-journal": "node --env-file-if-exists=.env --import tsx scripts/ops/export-erasure-journal.ts",
     "ops:after-restore": "node --env-file-if-exists=.env --import tsx scripts/ops/after-restore.ts",

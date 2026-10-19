@@ -33,6 +33,30 @@ writeFileSync(join(dir, "identities.json"), JSON.stringify(out));
 export const E2E_SERVICE_KEY = "e2e-service-key-not-a-secret";
 const confirmedAt = new Date().toISOString();
 createServer((req, res) => {
+  // The browser's Supabase client talks to this stub, never to a hosted project (mandate v3 §2.2). It answers the
+  // calls the app makes the way Supabase Auth does: CORS, refresh refused (sessions here are minted by the harness, so
+  // there is nothing to refresh), sign-out accepted, current user unknown.
+  const path = (req.url ?? "").split("?")[0];
+  if (path.startsWith("/auth/v1/") && !path.startsWith("/auth/v1/admin/")) {
+    res.setHeader("access-control-allow-origin", req.headers.origin ?? "*");
+    res.setHeader("access-control-allow-headers", req.headers["access-control-request-headers"] ?? "*");
+    res.setHeader("access-control-allow-methods", "GET, POST, PUT, OPTIONS");
+    if (req.method === "OPTIONS") {
+      res.writeHead(204);
+      return res.end();
+    }
+    const json = (status, body) => {
+      res.writeHead(status, { "content-type": "application/json" });
+      res.end(JSON.stringify(body));
+    };
+    if (path === "/auth/v1/token") return json(400, { code: 400, error_code: "refresh_token_not_found", msg: "Invalid Refresh Token: Refresh Token Not Found" });
+    if (path === "/auth/v1/logout") {
+      res.writeHead(204);
+      return res.end();
+    }
+    if (path === "/auth/v1/user") return json(401, { code: 401, error_code: "bad_jwt", msg: "invalid JWT" });
+    return json(404, { code: 404, error_code: "not_found", msg: "Not handled by the E2E stub" });
+  }
   const admin = /^\/auth\/v1\/admin\/users\/([0-9a-f-]{36})$/.exec(req.url ?? "");
   if (admin) {
     if (req.headers.apikey !== E2E_SERVICE_KEY || req.headers.authorization !== `Bearer ${E2E_SERVICE_KEY}`) {

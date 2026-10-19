@@ -343,7 +343,8 @@ if (phase === "main") {
   await gate.getByRole("checkbox").check();
   await gate.getByRole("button", { name: "Accept and continue" }).click();
   await gate.waitFor({ state: "detached", timeout: 15000 });
-  check("legal", "a person who has not accepted the Terms is asked first (button disabled until ticked), then recorded", gateBlocked && sql(`select legal_version is not null from wp.users where id = '${ids.outsider.sub}'`) === "t");
+  const legalRecorded = sql(`select legal_version is not null from wp.users where id = '${ids.outsider.sub}'`) === "t";
+  check("legal", "a person who has not accepted the Terms is asked first (button disabled until ticked), then recorded", gateBlocked && legalRecorded, `disabled before ticking: ${gateBlocked}; recorded: ${legalRecorded}`);
   await search(outsiderPage, "Lahore food vlogger"); // 200 trial credits - 50 = 150 left
   await outsiderPage.getByRole("button", { name: /Find New Creators/ }).first().click();
   await outsiderPage.getByRole("button", { name: "Up to 15", exact: true }).click();
