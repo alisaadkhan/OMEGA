@@ -1,0 +1,43 @@
+figma_page,item,route_or_place,spec,source_files,status,automated_check
+02,Landing,#/,PAGE_INVENTORY.md#02;WIREFRAMES.md#02,frontend/src/app/components/landing/Hero.tsx;frontend/src/app/components/landing/Pricing.tsx;frontend/src/app/components/landing/Footer.tsx;frontend/src/app/components/landing/Navbar.tsx,Locally verified,scripts/e2e-customer/journey.mjs (plans; pricing; phone; states)
+02,Plan cards from server,#/ and Billing,COMPONENT_SPEC.md#credit-and-pricing-components,frontend/src/app/lib/plans.ts;frontend/src/app/components/landing/Pricing.tsx,Locally verified,frontend/src/app/api/plans-claims.test.ts;scripts/e2e-customer/journey.mjs (plans)
+03,Sign in,#/login,PAGE_INVENTORY.md#03,frontend/src/app/components/auth/Login.tsx,Locally verified,scripts/e2e-customer/journey.mjs (auth; phone)
+03,Sign up + consent,#/signup,PAGE_INVENTORY.md#03,frontend/src/app/components/auth/Signup.tsx,Locally verified,scripts/e2e-customer/journey.mjs (legal; phone)
+03,Email confirmation result,#/confirmed,INTERACTION_FLOWS.md#1,frontend/src/app/components/auth/EmailConfirmed.tsx,Locally verified (other-browser state),scripts/e2e-customer/journey.mjs (auth)
+03,Forgot password,#/forgot,INTERACTION_FLOWS.md#3,frontend/src/app/components/auth/ForgotPassword.tsx,Locally verified,scripts/e2e-customer/recovery-check.mjs
+03,Set new password,#/reset-password,INTERACTION_FLOWS.md#3,frontend/src/app/components/auth/ResetPassword.tsx;frontend/src/app/lib/supabase.ts,Locally verified,scripts/e2e-customer/recovery-check.mjs
+03,Invitation,#/invite/<token>,INTERACTION_FLOWS.md#4,frontend/src/app/components/auth/InviteAccept.tsx,Locally verified,scripts/e2e-customer/journey.mjs (team)
+03,Terms dialog,dashboard overlay,PAGE_INVENTORY.md#03,frontend/src/app/components/dashboard/LegalGate.tsx,Locally verified,scripts/e2e-customer/journey.mjs (legal; a11y)
+04,Sidebar,dashboard,COMPONENT_SPEC.md#navigation-and-layout,frontend/src/app/components/dashboard/Sidebar.tsx,Locally verified,scripts/e2e-customer/journey.mjs (phone; dashboard)
+04,Top bar and credit meter,dashboard,COMPONENT_SPEC.md#credit-and-pricing-components,frontend/src/app/components/dashboard/Topbar.tsx;frontend/src/app/lib/credits.ts,Locally verified,scripts/e2e-customer/journey.mjs (dashboard)
+04,Service status banner,all pages,PRODUCT_UI_SPEC.md#6,frontend/src/app/components/public/StatusScreens.tsx,Locally verified,scripts/e2e-customer/journey.mjs (states)
+04,Job tray,dashboard,COMPONENT_SPEC.md#feedback-and-status,frontend/src/app/components/dashboard/JobTray.tsx,Locally verified,scripts/e2e-customer/journey.mjs (discovery)
+05,Dashboard cards,#/dashboard (Dashboard),WIREFRAMES.md#05,frontend/src/app/components/dashboard/Overview.tsx;frontend/src/app/components/dashboard/OverviewCards.tsx,Locally verified,scripts/e2e-customer/journey.mjs (dashboard)
+06,Search (Brain 1),dashboard (Search),WIREFRAMES.md#06,frontend/src/app/components/dashboard/SearchModule.tsx;frontend/src/app/api/search.ts;frontend/src/app/api/search-mapping.ts,Locally verified (relevance not accepted),scripts/e2e-customer/journey.mjs (search; eligibility);frontend/src/app/api/search-mapping.test.ts
+06,Find New Creators (Brain 2),dashboard (Search),INTERACTION_FLOWS.md#6,frontend/src/app/components/dashboard/FindNewDialog.tsx;frontend/src/app/api/discovery.ts,Locally verified (providers blank),scripts/e2e-customer/journey.mjs (discovery);frontend/src/app/api/discovery-mapping.test.ts
+07,Creator profile,dashboard panel,WIREFRAMES.md#07,frontend/src/app/components/dashboard/CreatorProfilePanel.tsx;frontend/src/app/components/dashboard/states.tsx,Locally verified,scripts/e2e-customer/journey.mjs (profile; eligibility)
+08,Compare,dashboard,WIREFRAMES.md#08,frontend/src/app/components/dashboard/Compare.tsx,Implemented,none (no E2E check yet)
+09,Lists,dashboard (Lists),WIREFRAMES.md#08,frontend/src/app/components/dashboard/Lists.tsx;frontend/src/app/components/dashboard/SaveToListMenu.tsx,Locally verified,scripts/e2e-customer/journey.mjs (lists)
+10,Campaigns,dashboard (Campaigns),WIREFRAMES.md#08,frontend/src/app/components/dashboard/Campaigns.tsx;frontend/src/app/components/dashboard/CampaignDetail.tsx;frontend/src/app/components/dashboard/AddToCampaignMenu.tsx,Locally verified,scripts/e2e-customer/journey.mjs (campaigns; plans)
+11,Outreach,campaign detail dialog,INTERACTION_FLOWS.md#9,frontend/src/app/components/dashboard/CampaignOutreach.tsx;frontend/src/app/components/dashboard/SendEmail.tsx,Locally verified,scripts/e2e-customer/journey.mjs (campaigns; plans)
+12,Analytics,dashboard (Analytics),WIREFRAMES.md#08,frontend/src/app/components/dashboard/Analytics.tsx,Locally verified,scripts/e2e-customer/journey.mjs (dashboard)
+13,Credits and billing,dashboard (Credits & billing),WIREFRAMES.md#13,frontend/src/app/components/dashboard/Billing.tsx;apps/api/src/modules/billing/mock-routes.ts,Locally verified (mock payments),scripts/e2e-customer/journey.mjs (billing; plans)
+14,Settings and team,dashboard (Settings),WIREFRAMES.md#14,frontend/src/app/components/dashboard/Settings.tsx;frontend/src/app/components/dashboard/TeamSettings.tsx;frontend/src/app/components/dashboard/SupportAccessSettings.tsx,Locally verified,scripts/e2e-customer/journey.mjs (settings; team; privacy)
+15,Support,dashboard (Support),WIREFRAMES.md#15,frontend/src/app/components/dashboard/Support.tsx,Locally verified,scripts/e2e-customer/journey.mjs (support)
+15,Activity,dashboard (Activity),WIREFRAMES.md#15,frontend/src/app/components/dashboard/ActivityLog.tsx,Locally verified,scripts/e2e-customer/journey.mjs (activity)
+17,Inbox (not available),dashboard,PAGE_INVENTORY.md#05-15,frontend/src/app/components/dashboard/Inbox.tsx,Implemented,none (static unavailable state)
+17,Audience details (not available),profile,PAGE_INVENTORY.md#05-15,frontend/src/app/components/dashboard/AudienceEstimate.tsx,Implemented,none (disabled by server)
+18,Legal pages,#/terms #/privacy #/refunds #/creator-data,PAGE_INVENTORY.md#18,frontend/src/app/components/public/LegalPage.tsx,Locally verified (drafts),scripts/e2e-customer/journey.mjs (legal; phone; a11y)
+18,Remove my data,#/remove-my-data,PAGE_INVENTORY.md#18,frontend/src/app/components/public/RemoveMyData.tsx,Locally verified,scripts/e2e-customer/journey.mjs (phone; a11y)
+18,Page not found,unknown #/…,PAGE_INVENTORY.md#18,frontend/src/app/components/public/StatusScreens.tsx;frontend/src/app/App.tsx,Locally verified,scripts/e2e-customer/journey.mjs (states; phone; a11y)
+18,Page error boundary,any page,PAGE_INVENTORY.md#18,frontend/src/app/components/public/StatusScreens.tsx,Implemented,none (needs an injected render error; see DESIGN_GAPS)
+16,Staff sign-in,#/admin/login,PAGE_INVENTORY.md#16,frontend/src/app/components/admin/AdminLogin.tsx,Locally verified,scripts/e2e-staff/journey.mjs (staff)
+16,Staff overview and alerts,#/admin (Overview),PAGE_INVENTORY.md#16,frontend/src/app/components/admin/OpsControls.tsx;frontend/src/app/components/admin/OpsViews.tsx,Locally verified,scripts/e2e-staff/journey.mjs (eligibility; a11y)
+19,Jobs and workspaces,#/admin (Jobs; Workspaces),PAGE_INVENTORY.md#16,frontend/src/app/components/admin/OpsViews.tsx;frontend/src/app/components/admin/OpsControls.tsx,Implemented,scripts/e2e-staff/journey.mjs (a11y)
+20,Workspace access and support queue,#/admin,PAGE_INVENTORY.md#16,frontend/src/app/components/admin/SupportAccessStaff.tsx;frontend/src/app/components/admin/SupportQueue.tsx,Implemented,scripts/e2e-staff/journey.mjs (a11y)
+21,Providers and removal requests,#/admin,PAGE_INVENTORY.md#16,frontend/src/app/components/admin/OpsControls.tsx;frontend/src/app/components/admin/RemovalRequests.tsx,Locally verified (API tests),apps/api/src/modules/staffops/staffops.int.test.ts;apps/api/src/modules/creators/erasure/erasure.int.test.ts
+22,Approvals and staff,#/admin,PAGE_INVENTORY.md#16,frontend/src/app/components/admin/StaffAdmin.tsx,Locally verified,scripts/e2e-staff/journey.mjs (staff);apps/api/src/modules/staffops/staffops.int.test.ts
+23,Audit log,#/admin (Audit log),PAGE_INVENTORY.md#16,frontend/src/app/components/admin/OpsControls.tsx,Locally verified,scripts/e2e-staff/journey.mjs (audit)
+23,Security keys and step-up,#/admin (Security),PAGE_INVENTORY.md#16,frontend/src/app/components/admin/StaffSecurity.tsx;frontend/src/app/components/admin/staff-ui.tsx;frontend/src/app/admin/webauthn.ts,Locally verified,scripts/e2e-staff/journey.mjs (security);apps/api/src/modules/staff/webauthn.int.test.ts
+01,State components,shared,COMPONENT_SPEC.md#feedback-and-status,frontend/src/app/components/dashboard/states.tsx,Implemented,used across the E2E journeys
+01,Theme tokens,global,PRODUCT_UI_SPEC.md#2,frontend/src/styles/theme.css,Implemented,frontend build (text-live compiles)
