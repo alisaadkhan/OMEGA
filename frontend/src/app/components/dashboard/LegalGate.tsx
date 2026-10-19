@@ -29,7 +29,9 @@ export function LegalGate() {
     }
   }, [needed, legal, accept]);
 
-  if (!needed || !legal || accept.isPending) return null;
+  // The automatic acceptance (ticked at sign-up) runs without a dialog; a manual one keeps the dialog until the server
+  // has recorded it, so nobody reaches the app before the acceptance is stored.
+  if (!needed || !legal || (accept.isPending && autoTried.current)) return null;
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 px-4">
       <div role="dialog" aria-modal="true" aria-labelledby="legal-gate-title" className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
@@ -43,8 +45,8 @@ export function LegalGate() {
           </span>
         </label>
         {accept.isError && <p className="mt-2 text-xs text-red-700" role="alert">{accept.error instanceof Error ? accept.error.message : "Could not record your acceptance."}</p>}
-        <button disabled={!agreed} onClick={() => accept.mutate(legal.currentVersion)} className="mt-4 w-full rounded-md bg-slate-900 px-3 py-2 text-sm text-white disabled:opacity-50" style={{ fontWeight: 600 }}>
-          Accept and continue
+        <button disabled={!agreed || accept.isPending} onClick={() => accept.mutate(legal.currentVersion)} className="mt-4 w-full rounded-md bg-slate-900 px-3 py-2 text-sm text-white disabled:opacity-50" style={{ fontWeight: 600 }}>
+          {accept.isPending ? "Saving…" : "Accept and continue"}
         </button>
       </div>
     </div>
