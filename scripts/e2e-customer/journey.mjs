@@ -312,8 +312,11 @@ if (phase === "main") {
   check("lists", "duplicate name refused by the API", (await api("owner", "POST", "/v1/lists", { name: "food shortlist" })).status === 409);
   // Rename and delete through the UI (mandate v3 journey 10).
   const temp = (await api("owner", "POST", "/v1/lists", { name: "Temporary list" })).json;
-  // Back to the index from the open list (the sidebar item does not leave a list that is already open; DESIGN_GAPS G-17).
-  await p.getByRole("button", { name: "All lists" }).click();
+  // The sidebar item leaves an open list for the index (design gap G-17, fixed).
+  let backToIndex = true;
+  await nav(p, "Lists").catch(() => { backToIndex = false; });
+  check("lists", "choosing Lists in the sidebar while a list is open returns to all lists", backToIndex);
+  if (!backToIndex) await p.getByRole("button", { name: "All lists" }).click();
   await p.getByRole("button", { name: /Temporary list/ }).first().click();
   await p.getByRole("button", { name: "Rename" }).click();
   await p.getByLabel("Name", { exact: true }).fill("Renamed list");

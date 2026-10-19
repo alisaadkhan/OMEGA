@@ -22,7 +22,6 @@ is visible.
 | G-13 | Annual billing and its saving label (D-17) | Annual billing not offered (OD-002); "save 20%" must never appear (plans-claims.test) | Design per-plan actual saving when approved |
 | G-14 | Legal text | Drafts; counsel review pending | Replace drafts; keep version + date; remove the draft banner only after counsel approves |
 | G-15 | Billing screen does not itself say "test mode" | The test checkout page does ("Test mode: no real payment"); the screen before it does not | Optionally add a "Payments are in test mode" note when the server reports the mock provider |
-| G-17 | Clicking the active "Lists" sidebar item while a list is open does not return to the index (only "All lists" does) | Found by the E2E rename/delete step | Make the sidebar item reset the open list; add an E2E check |
 | G-16 | Urdu / RTL samples | Inputs use `dir="auto"`, but no Urdu fixture creators exist | Add fictional Urdu-script fixture content and design frames |
 
 ## Fixed while writing this handoff (2026-10-19)
@@ -36,5 +35,7 @@ is visible.
 - Unused components with false claims removed: `ErrorPage.tsx` ("our engineers were paged", a status page that does
   not exist), `shared/*` duplicates (including an "AI-estimated audience" label the owner's rules forbid),
   `figma/ImageWithFallback.tsx`.
+- Choosing the active Lists/Campaigns item in the sidebar did not leave an open list/campaign (G-17) → it now opens the index (E2E check).
+- Tablet (768 px) top bar overflowed to 958 px → add-by-link box from 1024 px; scrollable main region made keyboard-focusable.
 - Terms dialog closed before the acceptance was stored → stays open with "Saving…" until stored.
 - Live/positive state token added (`--live`, teal-700) and used for running Live Discovery jobs.

@@ -22,6 +22,13 @@ import { CreatorProfilePanel, type Creator } from "./CreatorProfilePanel";
 
 export function Dashboard({ onExit }: { onExit: () => void }) {
   const [view, setView] = useState<DashView>("overview");
+  // Choosing a section in the sidebar always opens its first page, even when it is already the current section
+  // (an open list or campaign goes back to the index; design gap G-17).
+  const [navKey, setNavKey] = useState(0);
+  const navigate = (v: DashView) => {
+    setView(v);
+    setNavKey((k) => k + 1);
+  };
   // Shown once after the API refused a workspace this tab had selected (audit SEC-04).
   const [workspaceNotice] = useState(takeWorkspaceNotice);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("profile");
@@ -51,13 +58,13 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
   return (
     <div className="flex h-screen bg-slate-50/40">
       <div className="hidden md:flex">
-        <Sidebar view={view} setView={setView} onExit={onExit} />
+        <Sidebar view={view} setView={navigate} onExit={onExit} />
       </div>
       {navOpen && (
         <div className="fixed inset-0 z-50 flex md:hidden" role="dialog" aria-modal="true" aria-label="Navigation">
           <div className="absolute inset-0 bg-slate-900/30" onClick={() => setNavOpen(false)} />
           <div className="relative flex h-full shadow-xl">
-            <Sidebar view={view} setView={(v) => { setView(v); setNavOpen(false); }} onExit={onExit} />
+            <Sidebar view={view} setView={(v) => { navigate(v); setNavOpen(false); }} onExit={onExit} />
           </div>
         </div>
       )}
@@ -84,8 +91,8 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
             >
               {view === "overview" && <Overview credits={credits} setView={setView} />}
               {view === "search" && <SearchModule liveJobId={liveJobId} />}
-              {view === "lists" && <Lists onOpenCreator={setOmniCreator} onGoToSearch={() => setView("search")} />}
-              {view === "campaigns" && <Campaigns onOpenCreator={setOmniCreator} onGoToSearch={() => setView("search")} />}
+              {view === "lists" && <Lists key={navKey} onOpenCreator={setOmniCreator} onGoToSearch={() => setView("search")} />}
+              {view === "campaigns" && <Campaigns key={navKey} onOpenCreator={setOmniCreator} onGoToSearch={() => setView("search")} />}
               {view === "analytics" && <Analytics />}
               {view === "inbox" && <Inbox onGoToCampaigns={() => setView("campaigns")} />}
               {view === "settings" && <Settings key={settingsTab} initialTab={settingsTab} onOpenSupport={() => setView("support")} />}
