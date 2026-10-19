@@ -13,5 +13,5 @@ describe("db:migrate:test", () => {
     });
     expect(run.status).toBe(1);
     expect(run.stderr).toContain("must point to localhost");
-  });
+  }, 60_000); // starts a separate Node process with tsx: slow when the whole suite runs in parallel
 });

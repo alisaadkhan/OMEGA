@@ -16,6 +16,7 @@ import { ResetPassword } from "./components/auth/ResetPassword";
 import { EmailConfirmed } from "./components/auth/EmailConfirmed";
 import { AppErrorBoundary, NotFound, ServiceStatusBanner } from "./components/public/StatusScreens";
 import { AdminLogin } from "./components/admin/AdminLogin";
+import { FreeTrial } from "./components/public/FreeTrial";
 import { RemoveMyData } from "./components/public/RemoveMyData";
 import { LegalPage, type LegalDoc } from "./components/public/LegalPage";
 import { InviteAccept, inviteTokenFromHash } from "./components/auth/InviteAccept";
@@ -28,7 +29,7 @@ const Dashboard = lazy(() => import("./components/dashboard/Dashboard").then((m)
 const AdminApp = lazy(() => import("./components/admin/AdminApp").then((m) => ({ default: m.AdminApp })));
 const Loading = () => <div className="flex min-h-screen items-center justify-center text-sm text-slate-500" role="status">Loading…</div>;
 
-type Route = "landing" | "dashboard" | "login" | "signup" | "forgot" | "reset-password" | "confirmed" | "not-found" | "admin-login" | "admin" | "remove-my-data" | "invite" | LegalDoc;
+type Route = "landing" | "dashboard" | "login" | "signup" | "forgot" | "reset-password" | "confirmed" | "not-found" | "admin-login" | "admin" | "remove-my-data" | "free-trial" | "invite" | LegalDoc;
 const LEGAL_DOCS: readonly LegalDoc[] = ["terms", "privacy", "refunds", "creator-data"];
 
 /**
@@ -49,6 +50,7 @@ function useHashRoute(initial: Route): [Route, (r: Route) => void] {
     if (h === "confirmed") return "confirmed";
     if (h === "dashboard") return "dashboard";
     if (h === "remove-my-data") return "remove-my-data";
+    if (h === "free-trial") return "free-trial";
     if ((LEGAL_DOCS as readonly string[]).includes(h)) return h as LegalDoc;
     if (h.startsWith("invite/")) return "invite";
     // The home page, and Supabase's own link fragments (handled by lib/supabase.ts), are not unknown routes.
@@ -128,13 +130,13 @@ function Shell() {
           <motion.div key="landing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
             <Navbar onPrimary={goPrimary} onLogin={() => setRoute("login")} />
             <main>
-              <Hero onPrimary={goPrimary} />
+              <Hero onPrimary={goPrimary} onTrial={() => setRoute("free-trial")} />
               <FeatureTabs />
               <Features />
               <Metrics />
               <Pricing onPrimary={goPrimary} />
               <FAQ />
-              <CTA onPrimary={goPrimary} />
+              <CTA onPrimary={goPrimary} onTrial={() => setRoute("free-trial")} />
             </main>
             <Footer />
           </motion.div>
@@ -143,6 +145,12 @@ function Shell() {
         {(LEGAL_DOCS as readonly string[]).includes(route) && (
           <motion.div key={route} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
             <LegalPage doc={route as LegalDoc} onBack={() => setRoute(user ? "dashboard" : "landing")} />
+          </motion.div>
+        )}
+
+        {route === "free-trial" && (
+          <motion.div key="free-trial" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
+            <FreeTrial onExit={() => setRoute("landing")} onSignup={() => setRoute("signup")} />
           </motion.div>
         )}
 

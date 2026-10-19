@@ -26,10 +26,10 @@ afterAll(() => db.close());
 async function setup(o: { removalLimit?: number } = {}) {
   const payments = new MockPayments({ webhookSecret: "h".repeat(40), publicApiUrl: "http://api.test", deliver: async () => {} });
   const billing = createBillingService({ db, payments, cache: new MemoryAccessCache(), logger });
-  const identity = createIdentityModule({ db, startTrial: billing.startTrial });
+  const identity = createIdentityModule({ db, autoTrial: billing.startTrial });
   const platform = createPlatformModule({ db, ttlHours: 24 });
   const big = { limit: 1000, windowSeconds: 60 };
-  const limiter = new MemoryRateLimiter({ ip: big, user: big, auth: { limit: o.removalLimit ?? 1000, windowSeconds: 60 }, ai: big, jobs: { limit: 1000, windowSeconds: 3600 }, workspaceJobs: { limit: 100_000, windowSeconds: 3600 } });
+  const limiter = new MemoryRateLimiter({ ip: big, user: big, auth: { limit: o.removalLimit ?? 1000, windowSeconds: 60 }, ai: big, jobs: { limit: 1000, windowSeconds: 3600 }, workspaceJobs: { limit: 100_000, windowSeconds: 3600 }, callback: { limit: 1000, windowSeconds: 3600 } });
   const tokens = createStaffTokens("r".repeat(48));
   const staff = createStaffModule({ db, tokens, encryptionKey: TEST_KEY, webauthn: TEST_WEBAUTHN });
   const creators = createCreatorsService({ db, index: createSearchIndex(null, logger), llm: new MockLlm(() => ({})), billing, encryptionKey: TEST_KEY, logger });

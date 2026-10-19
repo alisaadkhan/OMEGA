@@ -1,7 +1,7 @@
 import { AppError } from "@mushin/core";
 
 export type Bucket = { limit: number; windowSeconds: number };
-export type RateLimitBuckets = { ip: Bucket; user: Bucket; auth: Bucket; ai: Bucket; jobs: Bucket; workspaceJobs: Bucket };
+export type RateLimitBuckets = { ip: Bucket; user: Bucket; auth: Bucket; ai: Bucket; jobs: Bucket; workspaceJobs: Bucket; callback: Bucket };
 export type BucketName = keyof RateLimitBuckets;
 export type LimitResult = { allowed: boolean; retryAfterSeconds: number };
 
@@ -21,6 +21,8 @@ export function bucketsFromConfig(c: { windowMs: number; maxRequests: number }):
     jobs: { limit: 20, windowSeconds: 3600 },
     // The same paid starts counted for the whole workspace, so many members cannot multiply the spend (RATE-002).
     workspaceJobs: { limit: 100, windowSeconds: 3600 },
+    // The public trial callback form (no sign-in): a few honest retries per address, not a spam channel.
+    callback: { limit: 5, windowSeconds: 3600 },
   };
 }
 

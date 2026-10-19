@@ -7,8 +7,10 @@ const summary = (over: Partial<BillingSummary> = {}, meter: BillingSummary["bala
   interval: null,
   status: "trialing",
   currentPeriodEnd: null,
+  trialStartedAt: null,
   trialEndsAt: null,
   trialDaysLeft: 7,
+  awaitingTrial: false,
   cancelAtPeriodEnd: false,
   scheduledChange: null,
   balance: { available: 200, reserved: 0, base: 200, meter },
@@ -18,6 +20,10 @@ const summary = (over: Partial<BillingSummary> = {}, meter: BillingSummary["bala
 });
 
 describe("dashboard billing badges (E2E findings F-7, F-8)", () => {
+  it("says the trial is not active yet (not expired) while it awaits approval", () => {
+    expect(subscriptionBadge(summary({ status: "expired", awaitingTrial: true, trialDaysLeft: null }))).toEqual({ label: "Trial not active", tone: "neutral" });
+  });
+
   it("claims nothing while the billing summary is loading", () => {
     expect(creditBadge(undefined)).toBeNull();
     expect(subscriptionBadge(undefined)).toBeNull();

@@ -32,6 +32,8 @@ const sharedObject = z.object({
   PADDLE_ENVIRONMENT: z.enum(["sandbox", "production"]).default("sandbox"),
   MOCK_PADDLE_WEBHOOK_SECRET: z.string().min(32, "must be at least 32 characters").optional(),
   CATALOG_SEARCH_BACKEND: z.enum(["postgres", "meilisearch"]).default("postgres"),
+  // Owner decision 2026-10-19: a free trial starts only when staff approve it. "automatic" restores trial-at-sign-up.
+  TRIAL_ACTIVATION: z.enum(["approval", "automatic"]).default("approval"),
   // MUSHIN-derived metrics from YouTube API data (DATA-004): off until the owner confirms policy eligibility.
   YOUTUBE_DERIVED_METRICS: z.enum(["on", "off"]).default("off"),
   // Audience estimate sources, comma-separated; empty (the default) turns the feature off. Only "youtube" exists, and it
@@ -384,6 +386,7 @@ export type ApiConfig = {
   databaseCaPem: string | null;
   payments: PaymentsConfig;
   catalogSearchBackend: "postgres" | "meilisearch";
+  trialActivation: "approval" | "automatic";
   sourcePolicy: { youtubeDerivedMetrics: boolean };
   search: SearchConfig;
   llm: LlmProviderConfig[];
@@ -423,6 +426,7 @@ export function loadApiConfig(env: Env): ApiConfig {
     databaseCaPem: readCaFile(v.DATABASE_SSL_CA_FILE),
     payments: paymentsFrom(v),
     catalogSearchBackend: v.CATALOG_SEARCH_BACKEND,
+    trialActivation: v.TRIAL_ACTIVATION,
     sourcePolicy: { youtubeDerivedMetrics: v.YOUTUBE_DERIVED_METRICS === "on" },
     llmMonthlyBudgetUsd: v.LLM_MONTHLY_BUDGET_USD ?? 5,
     search: searchFrom(v, v.MEILISEARCH_SEARCH_KEY),

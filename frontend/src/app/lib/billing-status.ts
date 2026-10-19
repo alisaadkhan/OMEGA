@@ -21,6 +21,8 @@ export function creditBadge(summary: BillingSummary | undefined): Badge | null {
 /** The subscription badge for every status; null while loading (F-8: it read "Inactive" before the summary arrived). */
 export function subscriptionBadge(summary: BillingSummary | undefined): Badge | null {
   if (!summary) return null;
+  // No trial or plan yet (founder-assisted trial): nothing has expired.
+  if (summary.awaitingTrial) return { label: "Trial not active", tone: "neutral" };
   switch (summary.status) {
     case "active":
       return summary.cancelAtPeriodEnd ? { label: "Ends at period end", tone: "warn" } : { label: "Active", tone: "good" };

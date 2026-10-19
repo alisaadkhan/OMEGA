@@ -181,6 +181,30 @@ if (phase === "main") {
     await d.context().close();
   }
 
+  // ── 0b. Founder-assisted trial (mandate v4 Phase 3): public call/callback page, no sign-in, no invented number ──
+  {
+    const t = await pageAs(null);
+    await t.goto("http://localhost:5173/#/");
+    await t.getByRole("button", { name: "Call us for a free 14-day trial" }).first().click();
+    await t.getByRole("heading", { name: "Call us for a free 14-day trial" }).waitFor({ timeout: 15000 });
+    check("trial", "the landing page's main button opens the free-trial page", t.url().endsWith("#/free-trial"));
+    check("trial", "without a configured business number no phone number or call link is shown", (await t.locator('a[href^="tel:"]').count()) === 0);
+    const form = t.getByRole("form", { name: "Request a call back" });
+    await form.getByLabel("Your name").fill("E2E Caller");
+    await form.getByLabel("Business name").fill("E2E Bakery");
+    await form.getByLabel("Business email").fill("caller@e2e-bakery.test");
+    const send = form.getByRole("button", { name: "Request a call back" });
+    check("trial", "the request cannot be sent before agreeing to be contacted", await send.isDisabled());
+    await form.getByRole("checkbox").check();
+    await send.click();
+    await t.getByText("Thanks, we've received your request.").waitFor({ timeout: 15000 }).catch(() => {});
+    check("trial", "a callback request shows a clear confirmation", await t.getByText("Thanks, we've received your request.").isVisible());
+    check("trial", "the request is stored as new with the server's consent wording", sql(`select status || '|' || (consent_text like 'I agree that MUSHIN may contact me%') from platform.trial_requests where email = 'caller@e2e-bakery.test'`) === "new|true");
+    const found = await axeFindings(t);
+    check("a11y", "Free-trial page: no serious or critical WCAG 2.2 A/AA issues", found.length === 0, found.join(" | "));
+    await t.context().close();
+  }
+
   // ── 1. Auth: protected route, session restore, direct URL, expired session ──
   let p = await pageAs(null);
   await p.goto("http://localhost:5173/#/dashboard");
@@ -755,7 +779,7 @@ if (phase === "main") {
   // ── Phone width (390 × 844): pages fit without sideways scrolling, navigation works, and axe passes ──
   const phone = { width: 390, height: 844 };
   const pub = await pageAs(null, phone);
-  for (const route of ["#/", "#/login", "#/signup", "#/forgot", "#/reset-password", "#/confirmed", "#/no-such-page", "#/remove-my-data", "#/terms", "#/privacy", "#/refunds", "#/creator-data"]) {
+  for (const route of ["#/", "#/login", "#/signup", "#/forgot", "#/reset-password", "#/confirmed", "#/no-such-page", "#/remove-my-data", "#/free-trial", "#/terms", "#/privacy", "#/refunds", "#/creator-data"]) {
     await pub.goto(`http://localhost:5173/${route}`);
     await pub.waitForTimeout(1500);
     const off = await widthOffenders(pub);

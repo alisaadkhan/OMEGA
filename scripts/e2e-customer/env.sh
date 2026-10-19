@@ -34,3 +34,6 @@ export PADDLE_WEBHOOK_SECRET=
 export ALERT_WEBHOOK_URL=
 # The database every run starts from: built from migrations + the synthetic catalogue (build-template.sh).
 export E2E_TEMPLATE="${E2E_TEMPLATE:-mushin_e2e_synthetic_template}"
+# Test harness only: workspaces get the trial at first sign-in so journeys have credits. Production default is
+# TRIAL_ACTIVATION=approval (staff approve each trial); that path is covered by trials.int.test.ts and the trial checks.
+export TRIAL_ACTIVATION=automatic

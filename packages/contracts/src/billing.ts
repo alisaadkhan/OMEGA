@@ -62,8 +62,12 @@ export const billingSummarySchema = z.object({
   interval: billingIntervalSchema.nullable(),
   status: subscriptionStatusSchema,
   currentPeriodEnd: z.iso.datetime().nullable(),
+  /** When the trial was activated (the subscription row's creation), shown with its end date. */
+  trialStartedAt: z.iso.datetime().nullable(),
   trialEndsAt: z.iso.datetime().nullable(),
   trialDaysLeft: z.number().int().nonnegative().nullable(),
+  /** No trial or plan yet: the free trial starts only when MUSHIN approves it (founder-assisted trial, 0050). */
+  awaitingTrial: z.boolean(),
   cancelAtPeriodEnd: z.boolean(),
   scheduledChange: z.object({ planId: planIdSchema, interval: billingIntervalSchema }).nullable(),
   balance: z.object({

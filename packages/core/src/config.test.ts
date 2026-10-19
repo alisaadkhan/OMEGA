@@ -33,6 +33,12 @@ describe("loadApiConfig", () => {
     expect(c.logLevel).toBe("info");
   });
 
+  it("starts free trials only on staff approval unless automatic trials are chosen explicitly (owner decision 2026-10-19)", () => {
+    expect(loadApiConfig(valid).trialActivation).toBe("approval");
+    expect(loadApiConfig({ ...valid, TRIAL_ACTIVATION: "automatic" }).trialActivation).toBe("automatic");
+    expect(() => loadApiConfig({ ...valid, TRIAL_ACTIVATION: "on" })).toThrow(ConfigError);
+  });
+
   it("keeps audience estimates off unless a source is enabled, and accepts only sources that exist", () => {
     expect(loadApiConfig(valid).audienceSources).toEqual([]);
     expect(loadApiConfig({ ...valid, AUDIENCE_SOURCES: " YouTube,youtube " }).audienceSources).toEqual(["youtube"]);

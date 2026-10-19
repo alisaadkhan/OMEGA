@@ -12,7 +12,7 @@ import { createCreditEngine } from "../billing/index";
 import { createIdentityModule } from "./index";
 
 const db = createTestDatabase();
-const identity = createIdentityModule({ db, startTrial: createCreditEngine().startTrial });
+const identity = createIdentityModule({ db, autoTrial: createCreditEngine().startTrial });
 const person = (over: Partial<CustomerIdentity> = {}): CustomerIdentity => ({
   userId: randomUUID(),
   email: "ayesha@mushin.pk",
@@ -82,7 +82,7 @@ describe("GET /v1/me", () => {
         user: { limit: 100, windowSeconds: 60 },
         auth: { limit: 100, windowSeconds: 60 },
         ai: { limit: 100, windowSeconds: 60 },
-        jobs: { limit: 100, windowSeconds: 3600 }, workspaceJobs: { limit: 100_000, windowSeconds: 3600 },
+        jobs: { limit: 100, windowSeconds: 3600 }, workspaceJobs: { limit: 100_000, windowSeconds: 3600 }, callback: { limit: 1000, windowSeconds: 3600 },
       }),
     });
     const app = await buildTestApp({ guards: { ...noGuards(), customer: guard }, modules: [identity.module] });

@@ -101,7 +101,7 @@ export function Signup({ onSuccess, goLogin }: Props) {
 
         <StaggerItem index={3}>
           <ul className="space-y-1.5 text-xs text-slate-600">
-            {["14-day free trial", "No credit card required", "Cancel anytime"].map((t, i) => (
+            {["Free 14-day trial, activated after a short call", "No credit card required", "Nothing charged when it ends"].map((t, i) => (
               <motion.li
                 key={t}
                 initial={{ opacity: 0, x: -6 }}

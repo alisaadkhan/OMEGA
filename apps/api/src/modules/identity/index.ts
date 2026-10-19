@@ -16,14 +16,15 @@ export type { StartTrial };
  */
 export function createIdentityModule(o: {
   db: Db;
-  startTrial: StartTrial;
+  /** Starts the trial at first sign-in (TRIAL_ACTIVATION=automatic); null when trials need staff approval. */
+  autoTrial: StartTrial | null;
   appUrl?: string;
   verifyEmail?: VerifyEmail | null;
   deleteIdentity?: DeleteIdentity | null;
   onIdentityDeleteFailed?: (userId: string) => void;
   onWorkspaceErased?: (workspaceId: string) => Promise<void>;
 }): { resolveTenant: ResolveTenant; module: AppModule } {
-  const service = createIdentityService(o.db, o.startTrial);
+  const service = createIdentityService(o.db, o.autoTrial);
   const team = createTeamService({ db: o.db, appUrl: o.appUrl ?? "http://localhost:5173", verifyEmail: o.verifyEmail ?? null });
   const privacy = createPrivacyService({
     db: o.db,

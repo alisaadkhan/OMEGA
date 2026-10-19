@@ -40,12 +40,12 @@ async function setup(o: { verify?: VerifyEmail | null } = {}) {
   const logger = createLogger({ level: "silent" });
   const billing = createBillingService({ db, payments: new MockPayments({ webhookSecret: "t".repeat(40), publicApiUrl: "http://api.test", deliver: async () => {} }), cache: new MemoryAccessCache(), logger });
   const erased: string[] = [];
-  const identity = createIdentityModule({ db, startTrial: billing.startTrial, appUrl: "https://app.mushin.test", verifyEmail: o.verify === undefined ? verifyEmail : o.verify, deleteIdentity, onIdentityDeleteFailed: (id) => void identityFailures.push(id), onWorkspaceErased: async (id) => void erased.push(id) });
+  const identity = createIdentityModule({ db, autoTrial: billing.startTrial, appUrl: "https://app.mushin.test", verifyEmail: o.verify === undefined ? verifyEmail : o.verify, deleteIdentity, onIdentityDeleteFailed: (id) => void identityFailures.push(id), onWorkspaceErased: async (id) => void erased.push(id) });
   const platform = createPlatformModule({ db, ttlHours: 24 });
   const big = { limit: 1000, windowSeconds: 60 };
   const iss = await createTestIssuer();
   const app = await buildTestApp({
-    guards: { customer: createCustomerGuard({ verify: createCustomerTokenVerifier(iss), resolveTenant: identity.resolveTenant, limiter: new MemoryRateLimiter({ ip: big, user: big, auth: big, ai: big, jobs: big, workspaceJobs: big }) }), idempotent: platform.requireIdempotencyKey },
+    guards: { customer: createCustomerGuard({ verify: createCustomerTokenVerifier(iss), resolveTenant: identity.resolveTenant, limiter: new MemoryRateLimiter({ ip: big, user: big, auth: big, ai: big, jobs: big, workspaceJobs: big, callback: big }) }), idempotent: platform.requireIdempotencyKey },
     modules: [platform.module, identity.module],
   });
   const call = (method: "GET" | "POST" | "PATCH" | "DELETE", url: string, headers: H, payload?: object) => app.inject(payload === undefined ? { method, url, headers } : { method, url, headers, payload });

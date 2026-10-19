@@ -17,3 +17,4 @@ export * from "./staff-admin";
 export * from "./team";
 export * from "./outreach-email";
 export * from "./exports";
+export * from "./trials";

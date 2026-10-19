@@ -1,7 +1,7 @@
 import { ArrowRight, Check } from "lucide-react";
 import { Button } from "../ui/button";
 
-export function Hero({ onPrimary }: { onPrimary?: () => void } = {}) {
+export function Hero({ onPrimary, onTrial }: { onPrimary?: () => void; onTrial?: () => void } = {}) {
   return (
     <section id="top" className="relative overflow-hidden border-b border-slate-200/60 bg-white">
       {/* Subtle background grid */}
@@ -54,20 +54,21 @@ export function Hero({ onPrimary }: { onPrimary?: () => void } = {}) {
           </p>
 
           <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Button onClick={onPrimary} className="group h-11 rounded-md bg-slate-900 px-5 text-white shadow-sm hover:bg-slate-800">
-              Start free trial
+            <Button onClick={onTrial} className="group h-11 rounded-md bg-slate-900 px-5 text-white shadow-sm hover:bg-slate-800">
+              Call us for a free 14-day trial
               <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </Button>
             <Button
+              onClick={onPrimary}
               variant="outline"
               className="h-11 rounded-md border-slate-300 bg-white px-5 text-slate-900 hover:bg-slate-50"
             >
-              Request a demo
+              Create your account
             </Button>
           </div>
 
           <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-slate-500">
-            {["No credit card required", "14-day free trial", "Cancel anytime"].map((t) => (
+            {["No credit card required", "14 days, 2,500 credits", "Nothing charged when it ends"].map((t) => (
               <div key={t} className="inline-flex items-center gap-1.5">
                 <Check className="h-3.5 w-3.5 text-emerald-600" />
                 {t}

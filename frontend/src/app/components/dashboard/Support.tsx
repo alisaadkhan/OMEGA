@@ -7,6 +7,7 @@ import { useAuth } from "../../auth/AuthContext";
 import { relative } from "../../lib/time";
 import { useToast } from "../../lib/toast";
 import { EmptyState, ErrorState, LoadingBlock } from "./states";
+import { TrialFeedback } from "./TrialFeedback";
 
 const CATEGORY = { search: "Search", discovery: "Find New Creators", billing: "Billing & credits", account: "Account", data_removal: "Data removal", other: "Other" } as const;
 export const TICKET_STATUS = { open: "Open", waiting_on_customer: "Waiting for you", resolved: "Resolved", closed: "Closed" } as const;
@@ -46,6 +47,7 @@ export function Support() {
         </div>
         <div>{creating ? <NewTicket onCreated={(id) => { setCreating(false); setOpenId(id); }} onCancel={() => setCreating(false)} /> : openId ? <TicketThread id={openId} /> : null}</div>
       </div>
+      <TrialFeedback />
     </div>
   );
 }

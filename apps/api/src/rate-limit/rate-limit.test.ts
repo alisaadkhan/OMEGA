@@ -10,7 +10,7 @@ const buckets: RateLimitBuckets = {
   auth: { limit: 1, windowSeconds: 60 },
   ai: { limit: 1, windowSeconds: 60 },
   jobs: { limit: 1, windowSeconds: 3600 },
-  workspaceJobs: { limit: 2, windowSeconds: 3600 },
+  workspaceJobs: { limit: 2, windowSeconds: 3600 }, callback: { limit: 1000, windowSeconds: 3600 },
 };
 
 describe("MemoryRateLimiter", () => {
@@ -85,6 +85,7 @@ describe("bucketsFromConfig", () => {
       ai: { limit: 20, windowSeconds: 60 },
       jobs: { limit: 20, windowSeconds: 3600 },
       workspaceJobs: { limit: 100, windowSeconds: 3600 },
+      callback: { limit: 5, windowSeconds: 3600 },
     });
   });
 });

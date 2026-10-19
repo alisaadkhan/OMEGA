@@ -38,8 +38,8 @@ import { discoveryCandidates, discoveryEstimates, discoveryJobs, discoveryResult
 import { users, workspaceInvitations, workspaceMembers, workspaces } from "./identity";
 import { dataExports, listMembers, lists } from "./lists";
 import { campaignCreators, campaigns, outreachEmails, outreachEvents } from "./campaigns";
-import { supportAccessRequests, supportMessages, supportTickets } from "./support";
-import { idempotencyKeys, outbox, providerCalls, providerControls } from "./platform";
+import { supportAccessRequests, supportMessages, supportTickets, trialFeedback } from "./support";
+import { idempotencyKeys, outbox, providerCalls, providerControls, trialRequests } from "./platform";
 import { approvals, auditLog, staffSessions, staffUsers, stepUps, webauthnChallenges, webauthnCredentials } from "./staff";
 
 export * from "./audience";
@@ -55,6 +55,8 @@ export * from "./staff";
 
 /** Every Drizzle table; the drift test compares each one with the live database. */
 export const ALL_TABLES = [
+  trialRequests,
+  trialFeedback,
   users,
   workspaces,
   workspaceMembers,

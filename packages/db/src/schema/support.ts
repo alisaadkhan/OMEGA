@@ -1,4 +1,4 @@
-import { text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { smallint, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { wp } from "./identity";
 
 const ts = (name: string) => timestamp(name, { withTimezone: true, mode: "date" });
@@ -39,5 +39,21 @@ export const supportAccessRequests = wp.table("support_access_requests", {
   decidedAt: ts("decided_at"),
   expiresAt: ts("expires_at"),
   endedAt: ts("ended_at"),
+  createdAt: ts("created_at").notNull().defaultNow(),
+});
+
+/** Trial feedback (0050): one row per submission, visible to its workspace; staff read it through a function. */
+export const trialFeedback = wp.table("trial_feedback", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").notNull(),
+  userId: uuid("user_id").notNull(),
+  searchQuality: smallint("search_quality"),
+  contactAccuracy: smallint("contact_accuracy"),
+  easeOfUse: smallint("ease_of_use"),
+  savedTime: text("saved_time", { enum: ["yes", "no", "not_sure"] }),
+  wouldPay: text("would_pay", { enum: ["yes", "maybe", "no"] }),
+  preferredPlan: text("preferred_plan"),
+  missingFeatures: text("missing_features"),
+  comments: text("comments"),
   createdAt: ts("created_at").notNull().defaultNow(),
 });

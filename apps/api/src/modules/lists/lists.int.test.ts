@@ -95,10 +95,10 @@ describe("lists API", () => {
   it("requires sign-in and validates input", async () => {
     const payments = new MockPayments({ webhookSecret: "h".repeat(40), publicApiUrl: "http://api.test", deliver: async () => {} });
     const billing = createBillingService({ db, payments, cache: new MemoryAccessCache(), logger: createLogger({ level: "silent" }) });
-    const identity = createIdentityModule({ db, startTrial: billing.startTrial });
+    const identity = createIdentityModule({ db, autoTrial: billing.startTrial });
     const platform = createPlatformModule({ db, ttlHours: 24 });
     const big = { limit: 1000, windowSeconds: 60 };
-    const limiter = new MemoryRateLimiter({ ip: big, user: big, auth: big, ai: big, jobs: big, workspaceJobs: big });
+    const limiter = new MemoryRateLimiter({ ip: big, user: big, auth: big, ai: big, jobs: big, workspaceJobs: big, callback: big });
     const iss = await createTestIssuer();
     const app = await buildTestApp({
       guards: { customer: createCustomerGuard({ verify: createCustomerTokenVerifier(iss), resolveTenant: identity.resolveTenant, limiter }), idempotent: platform.requireIdempotencyKey },

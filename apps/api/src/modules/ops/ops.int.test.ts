@@ -26,10 +26,10 @@ afterAll(() => db.close());
 async function setup() {
   const payments = new MockPayments({ webhookSecret: "h".repeat(40), publicApiUrl: "http://api.test", deliver: async () => {} });
   const billing = createBillingService({ db, payments, cache: new MemoryAccessCache(), logger });
-  const identity = createIdentityModule({ db, startTrial: billing.startTrial });
+  const identity = createIdentityModule({ db, autoTrial: billing.startTrial });
   const platform = createPlatformModule({ db, ttlHours: 24 });
   const big = { limit: 1000, windowSeconds: 60 };
-  const limiter = new MemoryRateLimiter({ ip: big, user: big, auth: big, ai: big, jobs: big, workspaceJobs: big });
+  const limiter = new MemoryRateLimiter({ ip: big, user: big, auth: big, ai: big, jobs: big, workspaceJobs: big, callback: big });
   const tokens = createStaffTokens("r".repeat(48));
   const staff = createStaffModule({ db, tokens, encryptionKey: TEST_KEY, webauthn: TEST_WEBAUTHN });
   const iss = await createTestIssuer();

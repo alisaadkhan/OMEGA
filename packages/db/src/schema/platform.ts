@@ -57,3 +57,25 @@ export const providerControls = platformSchema.table("provider_controls", {
   changedBy: uuid("changed_by"),
   changedAt: timestamp("changed_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
 });
+
+/** Callback and trial requests from the public site (0050); only the API's system role reads or changes them. */
+export const trialRequests = platformSchema.table("trial_requests", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  contactName: text("contact_name").notNull(),
+  businessName: text("business_name").notNull(),
+  email: text("email"),
+  phone: text("phone"),
+  callbackWindow: text("callback_window", { enum: ["morning", "afternoon", "evening", "anytime"] }).notNull(),
+  useCase: text("use_case"),
+  consentText: text("consent_text").notNull(),
+  consentAt: ts("consent_at").notNull(),
+  status: text("status", { enum: ["new", "contacted", "approved", "rejected"] }).notNull().default("new"),
+  contactedBy: uuid("contacted_by"),
+  contactedAt: ts("contacted_at"),
+  workspaceId: uuid("workspace_id"),
+  decidedBy: uuid("decided_by"),
+  decidedAt: ts("decided_at"),
+  decisionNote: text("decision_note"),
+  createdAt: ts("created_at").notNull().defaultNow(),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+});

@@ -1,6 +1,7 @@
 import { AlertTriangle, Sparkles } from "lucide-react";
 import type { LostAccessItem } from "@mushin/contracts";
 import { useBillingSummary } from "../../api/billing";
+import { formatTrialDate } from "../../api/trial";
 
 const LOST_LABEL: Record<LostAccessItem, string> = {
   search_existing: "searching existing creators",
@@ -18,12 +19,30 @@ export function BillingStatusBanner({ onChoosePlan }: { onChoosePlan: () => void
   const { data } = useBillingSummary();
   if (!data) return null;
 
+  if (data.awaitingTrial) {
+    return (
+      <div role="status" className="mb-5 flex flex-col gap-3 rounded-xl border border-indigo-100 bg-indigo-50/60 px-4 py-3 text-sm text-indigo-900 sm:flex-row sm:items-center sm:justify-between">
+        <span className="inline-flex items-start gap-2">
+          <Sparkles className="mt-0.5 h-4 w-4 flex-shrink-0 text-indigo-500" strokeWidth={2} />
+          <span>
+            <span style={{ fontWeight: 600 }}>Your free trial isn't active yet.</span> After a short call our team activates 14 days with 2,500 credits on this
+            account. Nothing is charged when it ends.
+          </span>
+        </span>
+        <a href="#/free-trial" className="flex-shrink-0 rounded-md bg-indigo-600 px-3 py-1.5 text-center text-xs text-white hover:bg-indigo-700" style={{ fontWeight: 600 }}>
+          Call us or request a call back
+        </a>
+      </div>
+    );
+  }
+
   if (data.status === "trialing" && data.trialDaysLeft !== null) {
     return (
       <div className="mb-5 flex items-center justify-between gap-3 rounded-xl border border-indigo-100 bg-indigo-50/60 px-4 py-3 text-sm text-indigo-900">
         <span className="inline-flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-indigo-500" strokeWidth={2} />
           Free trial: {data.trialDaysLeft} {data.trialDaysLeft === 1 ? "day" : "days"} left · {data.balance.available} credits
+          {data.trialEndsAt && <> · ends {formatTrialDate(data.trialEndsAt)}</>}
         </span>
         <button onClick={onChoosePlan} className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs text-white hover:bg-indigo-700" style={{ fontWeight: 600 }}>
           Choose a plan

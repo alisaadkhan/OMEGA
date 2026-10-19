@@ -19,7 +19,7 @@ beforeEach(resetTables);
 afterAll(() => db.close());
 
 const roomy = () =>
-  new MemoryRateLimiter({ ip: { limit: 1000, windowSeconds: 60 }, user: { limit: 1000, windowSeconds: 60 }, auth: { limit: 1000, windowSeconds: 60 }, ai: { limit: 1000, windowSeconds: 60 }, jobs: { limit: 1000, windowSeconds: 3600 }, workspaceJobs: { limit: 100_000, windowSeconds: 3600 } });
+  new MemoryRateLimiter({ ip: { limit: 1000, windowSeconds: 60 }, user: { limit: 1000, windowSeconds: 60 }, auth: { limit: 1000, windowSeconds: 60 }, ai: { limit: 1000, windowSeconds: 60 }, jobs: { limit: 1000, windowSeconds: 3600 }, workspaceJobs: { limit: 100_000, windowSeconds: 3600 }, callback: { limit: 1000, windowSeconds: 3600 } });
 
 async function setup() {
   const target: { app?: FastifyInstance } = {};
@@ -34,7 +34,7 @@ async function setup() {
     },
   });
   const billing = createBillingService({ db, payments, cache: new MemoryAccessCache(), logger: createLogger({ level: "silent" }) });
-  const identity = createIdentityModule({ db, startTrial: billing.startTrial });
+  const identity = createIdentityModule({ db, autoTrial: billing.startTrial });
   const platform = createPlatformModule({ db, ttlHours: 24 });
   const iss = await createTestIssuer();
   const app = await buildTestApp({

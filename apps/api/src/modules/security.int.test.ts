@@ -27,10 +27,10 @@ beforeAll(async () => {
   const logger = createLogger({ level: "silent" });
   const payments = new MockPayments({ webhookSecret: "h".repeat(40), publicApiUrl: "http://api.test", deliver: async () => {} });
   const billing = createBillingService({ db, payments, cache: new MemoryAccessCache(), logger });
-  const identity = createIdentityModule({ db, startTrial: billing.startTrial });
+  const identity = createIdentityModule({ db, autoTrial: billing.startTrial });
   const platform = createPlatformModule({ db, ttlHours: 24 });
   const big = { limit: 1000, windowSeconds: 60 };
-  const limiter = new MemoryRateLimiter({ ip: big, user: big, auth: big, ai: big, jobs: big, workspaceJobs: big });
+  const limiter = new MemoryRateLimiter({ ip: big, user: big, auth: big, ai: big, jobs: big, workspaceJobs: big, callback: big });
   const iss = await createTestIssuer();
   sign = (sub, email) => iss.sign({ sub, email, fullName: email.split("@")[0] ?? "x" });
   app = await buildTestApp({

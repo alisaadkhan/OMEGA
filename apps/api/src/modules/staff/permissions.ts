@@ -23,6 +23,9 @@ export const STAFF_PERMISSIONS = {
   "support.tickets.assign_self": ALL,
   "support.access.request": ALL,
   "support.access.view": ALL,
+  // Founder-assisted trial: everyone sees the callback queue and records a call back (0050).
+  "trials.read": ALL,
+  "trials.contact": ALL,
   // Admin (operations) and above. These require a hardware-key step-up (HARDWARE_KEY_ACTIONS).
   "staff.webauthn.manage": ADMIN,
   "creators.removal.review": ADMIN,
@@ -39,6 +42,9 @@ export const STAFF_PERMISSIONS = {
   "approvals.decide": ADMIN,
   // Super Admin only.
   "staff.manage": SUPER,
+  // Owner decision 2026-10-19: only the platform owners approve, reject or look up trials, and read trial feedback.
+  "trials.decide": SUPER,
+  "trials.feedback.read": SUPER,
 } as const satisfies Record<string, readonly StaffRole[]>;
 
 export type StaffAction = keyof typeof STAFF_PERMISSIONS;

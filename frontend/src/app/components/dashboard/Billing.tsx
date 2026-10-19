@@ -6,6 +6,7 @@ import { AnimatedNumber } from "./AnimatedNumber";
 import { COPY } from "../../lib/copy";
 import { planFeatures } from "../../lib/plans";
 import { useConfirm } from "../../lib/toast";
+import { formatTrialDate } from "../../api/trial";
 import {
   useBillingPlans,
   useBillingSummary,
@@ -190,8 +191,10 @@ export function Billing({ checkoutResult }: { checkoutResult?: "success" | "fail
                 ? `Ends on ${formatDate(s.currentPeriodEnd)}`
                 : `Renews on ${formatDate(s.currentPeriodEnd)}`
               : trialing && s?.trialDaysLeft !== null && s?.trialDaysLeft !== undefined
-                ? `${s.trialDaysLeft} days of trial left`
-                : "Choose a plan to get monthly credits"}
+                ? `${s.trialDaysLeft} days of trial left${s.trialStartedAt && s.trialEndsAt ? ` · ${formatTrialDate(s.trialStartedAt)} to ${formatTrialDate(s.trialEndsAt)}` : ""}`
+                : s?.awaitingTrial
+                  ? "Free trial not active yet: our team activates it after a short call"
+                  : "Choose a plan to get monthly credits"}
           </div>
           {s?.scheduledChange && (
             <div className="mt-2 text-xs text-amber-300">

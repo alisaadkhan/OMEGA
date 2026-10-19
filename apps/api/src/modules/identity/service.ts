@@ -11,7 +11,11 @@ export function workspaceNameFor(identity: CustomerIdentity): string {
 
 export type StartTrial = (tx: TenantTx, workspaceId: string) => Promise<void>;
 
-export function createIdentityService(db: Db, startTrial: StartTrial) {
+/**
+ * `autoTrial` starts the free trial when a person's first own workspace is provisioned (TRIAL_ACTIVATION=automatic).
+ * With null (the default setting, "approval", 0050) a new workspace has no trial until MUSHIN staff approve one.
+ */
+export function createIdentityService(db: Db, autoTrial: StartTrial | null) {
   async function resolveTenant(identity: CustomerIdentity, requestId: string, requested?: string): Promise<TenantContext> {
     const { existing, status } = await db.withUser(identity.userId, async (tx) => ({ existing: await repo.findMembership(tx, identity.userId, requested), status: await repo.userStatus(tx, identity.userId) }));
     // A deleted account stays deleted: signing in again does not bring it (or a fresh workspace) back.
@@ -32,7 +36,7 @@ export function createIdentityService(db: Db, startTrial: StartTrial) {
       await repo.insertWorkspace(tx, { id: workspaceId, name: workspaceNameFor(identity), ownerUserId: identity.userId });
       await repo.insertMember(tx, { workspaceId, userId: identity.userId, role: "owner" });
       // One free trial per person: a workspace provisioned after deleting or leaving an earlier one starts without it.
-      if (await repo.claimTrial(tx, identity.userId)) await startTrial(tx, workspaceId);
+      if (autoTrial && (await repo.claimTrial(tx, identity.userId))) await autoTrial(tx, workspaceId);
       return { workspaceId, role: "owner" as const };
     });
     return { requestId, userId: identity.userId, ...membership };

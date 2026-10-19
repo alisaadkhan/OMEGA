@@ -28,3 +28,6 @@ export PADDLE_API_KEY=
 export PADDLE_CLIENT_TOKEN=
 export PADDLE_WEBHOOK_SECRET=
 export ALERT_WEBHOOK_URL=
+# Test harness only: workspaces get the trial at first sign-in so journeys have credits. Production default is
+# TRIAL_ACTIVATION=approval (staff approve each trial); that path is covered by trials.int.test.ts and the trial checks.
+export TRIAL_ACTIVATION=automatic

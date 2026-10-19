@@ -23,6 +23,7 @@ import { createOutreachModule } from "./modules/outreach";
 import { createPlatformModule } from "./modules/platform";
 import { createStaffModule, createStaffTokens, recordStaffAudit } from "./modules/staff";
 import { createAlertNotifier, createLogSender, createStaffActions, createStaffOpsModule, createWebhookSender } from "./modules/staffops";
+import { createTrialService, createTrialsModule } from "./modules/trials";
 import { MemoryRateLimiter } from "./rate-limit/memory";
 import { ipRateLimitHook } from "./rate-limit/plugin";
 import { PostgresRateLimiter } from "./rate-limit/postgres";
@@ -86,7 +87,7 @@ const creators = createCreatorsService({
 });
 const identity = createIdentityModule({
   db,
-  startTrial: billing.startTrial,
+  autoTrial: config.trialActivation === "automatic" ? billing.startTrial : null,
   appUrl: config.appUrl,
   verifyEmail: config.authAdmin ? createSupabaseEmailVerification(config.authAdmin) : null,
   deleteIdentity: config.authAdmin ? createSupabaseIdentityDeletion(config.authAdmin) : null,
@@ -138,6 +139,7 @@ const app = await buildApp({
     createAnalyticsModule({ service: createAnalyticsService({ db }) }),
     createActivityModule({ service: createActivityService({ db }) }),
     createSupportModule({ service: createSupportService({ db }) }),
+    createTrialsModule({ service: createTrialService({ db, startTrial: billing.startTrial, onTrialStarted: (id) => accessCache.invalidate(id) }), limiter, requireStaff: staff.requireStaff }),
     createOpsModule({ db, requireStaff: staff.requireStaff }),
     createStaffOpsModule({ db, billing, requireStaff: staff.requireStaff, createStaffAccount: staff.createStaffAccount, alerts: { notifier: alertNotifier, channel: config.alertWebhookUrl ? "webhook" : "log" } }),
     createAudienceModule({ service: createAudienceService({ db, billing, sources: config.audienceSources }), limiter }),
