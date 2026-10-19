@@ -74,6 +74,17 @@ describe("loadApiConfig", () => {
   it("trusts no proxy unless TRUSTED_PROXIES names one (audit SEC-05)", () => {
     expect(loadApiConfig(valid).trustedProxies).toEqual([]);
     expect(loadApiConfig({ ...valid, TRUSTED_PROXIES: " 10.0.0.0/8, 192.168.1.5 ," }).trustedProxies).toEqual(["10.0.0.0/8", "192.168.1.5"]);
+    expect(loadApiConfig({ ...valid, TRUSTED_PROXIES: "loopback, ::1, fd00::/8" }).trustedProxies).toEqual(["loopback", "::1", "fd00::/8"]);
+    for (const bad of ["*", "10.0.0.0/33", "proxy.example.com", "10.0.0/8", "1.2.3.4/8/1"]) {
+      expect(() => loadApiConfig({ ...valid, TRUSTED_PROXIES: bad })).toThrow(/TRUSTED_PROXIES: .* is not an IP address/);
+    }
+  });
+
+  it("refuses to start in production without an explicit proxy list; 'none' states there is no proxy (mandate v3 SEC-05)", () => {
+    const production = { ...valid, NODE_ENV: "production", DATABASE_SSL_CA_FILE: caFile(), PADDLE_API_KEY: "p", PADDLE_CLIENT_TOKEN: "c", PADDLE_WEBHOOK_SECRET: "w", LLM_MONTHLY_BUDGET_USD: "5", SUPABASE_SERVICE_ROLE_KEY: "service", ALERT_WEBHOOK_URL: "https://hooks.example.com/alerts" };
+    expect(() => loadApiConfig(production)).toThrow(/TRUSTED_PROXIES: required in production/);
+    expect(loadApiConfig({ ...production, TRUSTED_PROXIES: "none" }).trustedProxies).toEqual([]);
+    expect(loadApiConfig({ ...production, TRUSTED_PROXIES: "10.0.0.0/8" }).trustedProxies).toEqual(["10.0.0.0/8"]);
   });
 
   it("refuses the per-process memory limiter in production", () => {
@@ -170,7 +181,7 @@ describe("search and LLM settings", () => {
   it("defaults to PostgreSQL and requires Meilisearch only for explicit rollback mode", () => {
     expect(loadApiConfig(valid).search).toBeNull();
     expect(loadApiConfig(valid).catalogSearchBackend).toBe("postgres");
-    const production = { ...valid, NODE_ENV: "production", DATABASE_SSL_CA_FILE: caFile(), PADDLE_API_KEY: "p", PADDLE_CLIENT_TOKEN: "c", PADDLE_WEBHOOK_SECRET: "w", LLM_MONTHLY_BUDGET_USD: "20", SUPABASE_SERVICE_ROLE_KEY: "service", ALERT_WEBHOOK_URL: "https://hooks.example.com/alerts" };
+    const production = { ...valid, NODE_ENV: "production", DATABASE_SSL_CA_FILE: caFile(), PADDLE_API_KEY: "p", PADDLE_CLIENT_TOKEN: "c", PADDLE_WEBHOOK_SECRET: "w", LLM_MONTHLY_BUDGET_USD: "20", SUPABASE_SERVICE_ROLE_KEY: "service", ALERT_WEBHOOK_URL: "https://hooks.example.com/alerts", TRUSTED_PROXIES: "10.0.0.0/8" };
     expect(loadApiConfig(production).catalogSearchBackend).toBe("postgres");
     expect(() => loadApiConfig({ ...production, CATALOG_SEARCH_BACKEND: "meilisearch" })).toThrow(/MEILISEARCH_HOST/);
     expect(loadApiConfig({ ...valid, CATALOG_SEARCH_BACKEND: "meilisearch" }).catalogSearchBackend).toBe("meilisearch");
@@ -191,7 +202,7 @@ describe("search and LLM settings", () => {
     expect(loadApiConfig(valid).llm).toEqual([]);
     expect([loadApiConfig(valid).llmMonthlyBudgetUsd, loadApiConfig({ ...valid, LLM_MONTHLY_BUDGET_USD: "12.5" }).llmMonthlyBudgetUsd]).toEqual([5, 12.5]);
     // Production needs an explicit cap; 0 is a cap (every call refused), not "no cap".
-    const production = { ...valid, NODE_ENV: "production", DATABASE_SSL_CA_FILE: caFile(), PADDLE_API_KEY: "p", PADDLE_CLIENT_TOKEN: "c", PADDLE_WEBHOOK_SECRET: "w", SUPABASE_SERVICE_ROLE_KEY: "service", ALERT_WEBHOOK_URL: "https://hooks.example.com/alerts" };
+    const production = { ...valid, NODE_ENV: "production", DATABASE_SSL_CA_FILE: caFile(), PADDLE_API_KEY: "p", PADDLE_CLIENT_TOKEN: "c", PADDLE_WEBHOOK_SECRET: "w", SUPABASE_SERVICE_ROLE_KEY: "service", ALERT_WEBHOOK_URL: "https://hooks.example.com/alerts", TRUSTED_PROXIES: "10.0.0.0/8" };
     expect(() => loadApiConfig(production)).toThrow(/LLM_MONTHLY_BUDGET_USD/);
     expect(loadApiConfig({ ...production, LLM_MONTHLY_BUDGET_USD: "0" }).llmMonthlyBudgetUsd).toBe(0);
     // Audit SEC-03: production needs the Auth admin key so invitations can check confirmed emails on the server.

@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { isIP } from "node:net";
 import { z } from "zod";
 
 export type LogLevel = "fatal" | "error" | "warn" | "info" | "debug" | "trace" | "silent";
@@ -108,8 +109,9 @@ const apiSchema = sharedObject
     // (audit SEC-06, ARCH-03).
     RATE_LIMIT_STORE: z.enum(["postgres", "memory"]).optional(),
     // Proxies whose X-Forwarded-For the API believes (audit SEC-05): comma-separated IPs/CIDRs, or "loopback".
-    // Empty (default): the client address is the connecting socket and forwarded headers are ignored, so nobody can
-    // choose their own rate-limit bucket. Set it to the hosting proxy's addresses in production.
+    // Empty (default, development): the client address is the connecting socket and forwarded headers are ignored, so
+    // nobody can choose their own rate-limit bucket. Production must state it (mandate v3): the host proxy's addresses,
+    // or "none" when nothing stands in front of the API.
     TRUSTED_PROXIES: z.string().default(""),
     IDEMPOTENCY_TTL_HOURS: z.coerce.number().int().positive().default(24),
     // Supabase Auth admin access (service key): the trusted record of a user's confirmed email (audit SEC-03), used to
@@ -148,6 +150,21 @@ const apiSchema = sharedObject
       if (origin(v[key]) && origin(v.SUPABASE_URL) && origin(v[key]) !== origin(v.SUPABASE_URL)) {
         ctx.addIssue({ code: "custom", path: [key], message: "must be on the same Supabase project as SUPABASE_URL" });
       }
+    }
+    const proxies = v.TRUSTED_PROXIES.split(",").map((p) => p.trim()).filter(Boolean);
+    const validProxy = (p: string) => {
+      if (p === "loopback") return true;
+      const [addr, bits, extra] = p.split("/");
+      if (extra !== undefined || !addr || isIP(addr) === 0) return false;
+      if (bits === undefined) return true;
+      const max = isIP(addr) === 4 ? 32 : 128;
+      return /^\d{1,3}$/.test(bits) && Number(bits) <= max;
+    };
+    if (!(proxies.length === 1 && proxies[0] === "none")) {
+      for (const p of proxies) if (!validProxy(p)) ctx.addIssue({ code: "custom", path: ["TRUSTED_PROXIES"], message: `"${p}" is not an IP address, a CIDR range, "loopback" or "none"` });
+    }
+    if (v.NODE_ENV === "production" && proxies.length === 0) {
+      ctx.addIssue({ code: "custom", path: ["TRUSTED_PROXIES"], message: `required in production: the host proxy's addresses or CIDR ranges, or "none" when nothing is in front of the API` });
     }
     if (v.NODE_ENV === "production" && !v.ALERT_WEBHOOK_URL) {
       ctx.addIssue({ code: "custom", path: ["ALERT_WEBHOOK_URL"], message: "required in production so alerts reach a person (audit OPS-03)" });
@@ -418,7 +435,7 @@ export function loadApiConfig(env: Env): ApiConfig {
           ? { mode: "test", from: v.OUTREACH_EMAIL_FROM ?? "MUSHIN test <outreach@test.mushin.invalid>" }
           : { mode: "off" },
     alertWebhookUrl: v.ALERT_WEBHOOK_URL ?? null,
-    trustedProxies: v.TRUSTED_PROXIES.split(",").map((s) => s.trim()).filter(Boolean),
+    trustedProxies: v.TRUSTED_PROXIES.split(",").map((s) => s.trim()).filter((s) => s && s !== "none"),
     authAdmin: v.SUPABASE_SERVICE_ROLE_KEY ? { url: v.SUPABASE_URL.replace(/\/+$/, ""), serviceKey: v.SUPABASE_SERVICE_ROLE_KEY } : null,
   };
 }
