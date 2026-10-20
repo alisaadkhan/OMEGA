@@ -20,6 +20,8 @@ Mandate: codebase comprehension, handoff, then the acceptance gates. Report: `fi
 
 **Full suite:** 1,080 passed, 0 failed, 3 expected failures, 7 skipped. Browser: customer 162/162, staff 31/31.
 
+**Clean-clone `npm run verify` at `df23a63`** (no `.env`; Meilisearch env loaded): lint, typecheck and boundaries pass; 1,080 passed, 0 failed, 3 expected failures, 7 skipped. The clone stayed clean: evidence is written only with `ACCEPTANCE_EVIDENCE=1`.
+
 **Verdict: Search NOT ACCEPTED.** Coverage is at most 0.357 against 0.90 even with perfect ratings, and no raters are named.
 
 **Next single action:** the owner decides how the catalogue gets structured coverage (corpus AI assessment and catalogue build, or a re-scoped query set), then names the raters and adjudicator.

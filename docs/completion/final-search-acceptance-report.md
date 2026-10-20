@@ -515,7 +515,7 @@ The original failures were analysed before each correction. The final evidence c
 
 ### Final regression
 
-Full suite in the working tree (`npx vitest run`, `mushin_test_claude`, provider keys blank, Meilisearch running): **137 files: 132 passed, 5 skipped; 1,090 tests: 1,080 passed, 0 failed, 3 expected failures (D1, D2, D3 as `it.fails`), 7 skipped (live-provider suites, need paid keys)**. Browser: customer 162/162, staff 31/31. Clean-clone `npm run verify` after the commit: see PROGRESS.md.
+Full suite in the working tree (`npx vitest run`, `mushin_test_claude`, provider keys blank, Meilisearch running): **137 files: 132 passed, 5 skipped; 1,090 tests: 1,080 passed, 0 failed, 3 expected failures (D1, D2, D3 as `it.fails`), 7 skipped (live-provider suites, need paid keys)**. Browser: customer 162/162, staff 31/31. Clean-clone `npm run verify` at `df23a63` (no `.env`): lint, typecheck and boundaries pass; **1,080 passed, 0 failed, 3 expected failures, 7 skipped**.
 
 ## C. Search quality
 
