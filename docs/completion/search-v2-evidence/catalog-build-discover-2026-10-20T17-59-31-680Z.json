@@ -1,0 +1,24 @@
+{
+ "mode": "discover",
+ "db": "mushin_catalog_v2",
+ "capUsd": 20,
+ "started": "2026-10-20T17:59:31.680Z",
+ "finished": "2026-10-20T17:59:31.862Z",
+ "spendByProvider": [],
+ "jobs": [
+  {
+   "city": "Lahore",
+   "niche": "food",
+   "status": "skipped",
+   "reason": "already built",
+   "jobId": "2ed3ff0f-17ef-46c5-b191-d09a41e9474d"
+  },
+  {
+   "city": "Lahore",
+   "niche": "beauty",
+   "status": "skipped",
+   "reason": "already built",
+   "jobId": "19169b75-6025-41b0-9847-3f0788907925"
+  }
+ ]
+}

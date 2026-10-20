@@ -10,7 +10,8 @@
  *   TEST_DATABASE_URL=postgres://postgres@localhost:54330/mushin_eval_disposable TEST_DATABASE_SSL_CA_FILE= \
  *     node --import tsx scripts/search-eval/run-brain1.ts <queries.csv> <out-dir>
  * The queries file is the panel CSV (case_id, language_script, scenario, query_text, filters_json, …). No provider is
- * called: catalogue Search reads PostgreSQL only.
+ * called: catalogue Search reads PostgreSQL only. SEARCH_PROFILE=v2 runs search-v2 query understanding and pools with
+ * its terms (separate v2 packets; the frozen packets are v1, the default).
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -19,12 +20,13 @@ import { AppError, createLogger, type TenantContext } from "@mushin/core";
 import { createTestDatabase, createTestWorkspace, ownerQuery } from "@mushin/db/testing";
 import { MockLlm, MockPayments, UnavailableSearchIndex } from "@mushin/integrations";
 import { createBillingService, MemoryAccessCache } from "../../apps/api/src/modules/billing/index";
-import { createCreatorsService, createPostgresCatalogSearch, expandQuery, understandQuery } from "../../apps/api/src/modules/creators/index";
+import { createCreatorsService, createPostgresCatalogSearch, expandQuery, understandQuery, understandQueryV2 } from "../../apps/api/src/modules/creators/index";
 import { parseCsv } from "./metrics";
 import { BOM, writeRatingPacket, type CandidateRow, type CaseRow } from "./sheets";
 
 const BOM_PREFIX = new RegExp(`^${BOM}`);
 const POOL_SIZE = Number(process.env["EVAL_POOL_SIZE"] ?? 10);
+const PROFILE = process.env["SEARCH_PROFILE"] === "v2" ? "v2" : "v1";
 /** Panel scenarios that test behaviour (refusal, ambiguity, identity, metric freshness), not topical relevance: judged on
  * the behaviour sheet only, with no relevance rows and no part in precision, nDCG or coverage. */
 const BEHAVIOUR_ONLY = new Set(["conflicting_filters", "ambiguous", "unsupported_attribute", "url_security", "duplicate_identity", "cross_platform_identity", "stale_metric", "missing_metric"]);
@@ -44,7 +46,9 @@ async function describe(ids: string[]): Promise<Map<string, Omit<CandidateRow, "
 /** Searchable catalogue creators (same exclusions as Search: active, no unreviewed minor, eligible under elig-1 at the evaluation time) matching ANY of the query's words or concept forms, best text rank first, not yet returned. */
 async function pool(text: string, exclude: string[]): Promise<string[]> {
   const u = understandQuery(text);
-  const forms = [...new Set((expandQuery(u.text) ?? u.text.split(" ").filter(Boolean).map((w) => ({ forms: [w] }))).flatMap((g) => g.forms))];
+  const v2 = PROFILE === "v2" ? understandQueryV2(text) : null;
+  const groups = v2 ? [...v2.groups, ...v2.boost.map((w) => ({ forms: [w] }))] : (expandQuery(u.text) ?? u.text.split(" ").filter(Boolean).map((w) => ({ forms: [w] })));
+  const forms = [...new Set(groups.flatMap((g) => g.forms))];
   if (!forms.length || POOL_SIZE <= 0) return [];
   const ts = forms.map((x) => `plainto_tsquery('simple', ${lit(x)})`).join(" || ");
   const rows = await ownerQuery<{ id: string }>(
@@ -66,7 +70,7 @@ const billing = createBillingService({ db, payments: new MockPayments({ webhookS
 // (the 2026-10-15 rating packet run was at 2026-10-15T13:59:07.039Z). Without it the wall clock is used.
 const pinned = process.env["EVAL_NOW"] ? new Date(process.env["EVAL_NOW"]) : null;
 if (pinned && Number.isNaN(pinned.getTime())) throw new Error("EVAL_NOW must be an ISO date-time");
-const service = createCreatorsService({ db, index: new UnavailableSearchIndex(), nativeSearch: createPostgresCatalogSearch(db), llm: new MockLlm(() => ({})), billing, encryptionKey: Buffer.alloc(32), logger, ...(pinned ? { now: () => new Date(pinned.getTime()) } : {}) });
+const service = createCreatorsService({ db, index: new UnavailableSearchIndex(), nativeSearch: createPostgresCatalogSearch(db), llm: new MockLlm(() => ({})), billing, encryptionKey: Buffer.alloc(32), logger, ...(pinned ? { now: () => new Date(pinned.getTime()) } : {}), ...(PROFILE === "v2" ? { searchProfile: "v2" as const } : {}) });
 
 // An evaluation workspace with labelled credits in the disposable copy (searches are charged as in production).
 const ws = await createTestWorkspace();
@@ -120,7 +124,7 @@ for (const r of rows) {
 }
 
 mkdirSync(outDir, { recursive: true });
-writeFileSync(join(outDir, "brain1-results.json"), JSON.stringify({ at: new Date().toISOString(), price, poolSize: POOL_SIZE, cases: results }, null, 2));
+writeFileSync(join(outDir, "brain1-results.json"), JSON.stringify({ at: new Date().toISOString(), profile: PROFILE, price, poolSize: POOL_SIZE, cases: results }, null, 2));
 const packet = writeRatingPacket(outDir, "brain1", queries, candidates, cases);
 console.log(`${rows.length} queries, ${packet.rows} rows to rate (${packet.pooled} pooled) → ${outDir}`);
 await db.close();

@@ -1,0 +1,200 @@
+{
+ "db": "mushin_catalog_v2",
+ "at": "2026-10-20T18:01:46.961Z",
+ "ok": true,
+ "failures": [],
+ "hard": {
+  "duplicateHandles": [],
+  "duplicateUrls": [],
+  "orphanEvidence": 0,
+  "projectionMismatch": 0,
+  "storedAgainstConflict": []
+ },
+ "soft": {
+  "possibleCrossPlatformDuplicates": [
+   {
+    "handle": "amnaashrafff",
+    "platforms": [
+     "instagram",
+     "tiktok",
+     "youtube"
+    ],
+    "creators": 3
+   },
+   {
+    "handle": "aspirepakistanpk",
+    "platforms": [
+     "instagram",
+     "tiktok"
+    ],
+    "creators": 2
+   },
+   {
+    "handle": "karachifoodiegirl",
+    "platforms": [
+     "tiktok",
+     "youtube"
+    ],
+    "creators": 2
+   },
+   {
+    "handle": "mashalkh",
+    "platforms": [
+     "instagram",
+     "youtube"
+    ],
+    "creators": 2
+   },
+   {
+    "handle": "saqibmobeen",
+    "platforms": [
+     "instagram",
+     "youtube"
+    ],
+    "creators": 2
+   },
+   {
+    "handle": "streetfoodpk",
+    "platforms": [
+     "instagram",
+     "youtube"
+    ],
+    "creators": 2
+   }
+  ],
+  "creators": {
+   "active": 2198,
+   "with_evidence": 2055,
+   "legacy_without_evidence": 143
+  },
+  "storedWithoutSupport": {
+   "city": 12,
+   "country": 1
+  },
+  "legacyStored": {
+   "city": 0,
+   "country": 1
+  },
+  "pakistan": {
+   "stored_pk": 650,
+   "pk_supported": 650,
+   "city_supported": 376,
+   "eligible_in_search": 587
+  },
+  "evidenceQuality": [
+   {
+    "attribute": "city",
+    "source": "ai_assessment",
+    "status": "weak",
+    "n": 61
+   },
+   {
+    "attribute": "city",
+    "source": "post_text",
+    "status": "conflicting",
+    "n": 1
+   },
+   {
+    "attribute": "city",
+    "source": "post_text",
+    "status": "supported",
+    "n": 156
+   },
+   {
+    "attribute": "city",
+    "source": "post_text",
+    "status": "weak",
+    "n": 611
+   },
+   {
+    "attribute": "city",
+    "source": "profile_text",
+    "status": "conflicting",
+    "n": 13
+   },
+   {
+    "attribute": "city",
+    "source": "profile_text",
+    "status": "supported",
+    "n": 220
+   },
+   {
+    "attribute": "city",
+    "source": "profile_text",
+    "status": "weak",
+    "n": 167
+   },
+   {
+    "attribute": "country",
+    "source": "platform_registration",
+    "status": "conflicting",
+    "n": 36
+   },
+   {
+    "attribute": "country",
+    "source": "platform_registration",
+    "status": "weak",
+    "n": 1299
+   },
+   {
+    "attribute": "country",
+    "source": "profile_text",
+    "status": "conflicting",
+    "n": 17
+   },
+   {
+    "attribute": "country",
+    "source": "profile_text",
+    "status": "supported",
+    "n": 650
+   },
+   {
+    "attribute": "country",
+    "source": "profile_text",
+    "status": "weak",
+    "n": 113
+   },
+   {
+    "attribute": "language",
+    "source": "post_text",
+    "status": "supported",
+    "n": 1056
+   },
+   {
+    "attribute": "niche",
+    "source": "ai_assessment",
+    "status": "weak",
+    "n": 1275
+   },
+   {
+    "attribute": "niche",
+    "source": "post_text",
+    "status": "supported",
+    "n": 814
+   },
+   {
+    "attribute": "niche",
+    "source": "profile_text",
+    "status": "supported",
+    "n": 1680
+   }
+  ],
+  "eligibleByPlatform": [
+   {
+    "platform": "instagram",
+    "creators": 108,
+    "eligible": 70
+   },
+   {
+    "platform": "tiktok",
+    "creators": 33,
+    "eligible": 14
+   },
+   {
+    "platform": "youtube",
+    "creators": 2057,
+    "eligible": 503
+   }
+  ]
+ }
+}

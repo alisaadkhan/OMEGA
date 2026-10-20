@@ -135,7 +135,8 @@ const workspaceName = `MUSHIN catalogue build ${values.label}`;
 /** The internal build workspace (owner connection: one person, one workspace, generous adjustment credits). */
 async function buildWorkspace(): Promise<TenantContext> {
   const owner = createDatabase(url, { max: 1, applicationName: "catalog-build-owner", caPem: null });
-  const found = await db.withSystem((tx) => tx.execute<{ id: string; owner_user_id: string }>(sql`select id, owner_user_id from wp.workspaces where name = ${workspaceName} limit 1`)).catch(() => []);
+  // Owner connection: workspaces are row-level secured and invisible to the system role (a re-run made a second one).
+  const found = await ownerSql<{ id: string; owner_user_id: string }[]>`select id, owner_user_id from wp.workspaces where name = ${workspaceName} order by created_at limit 1`;
   let ws = found[0];
   if (!ws) {
     const userId = randomUUID();
@@ -207,14 +208,14 @@ if (mode === "refresh") {
         // A re-launched worker never pays twice for a cell: a cell completed cleanly by any build worker is skipped, and
         // this worker's own unfinished job (a crash mid-run) is resumed instead of starting a new one. A cell that ended
         // on a provider error is run again (searches come from the cache; creators already saved are not re-fetched).
-        const earlier = await db.withSystem((tx) =>
-          tx.execute<{ id: string; status: string; workspace_id: string }>(sql`
+        // Owner connection: workspace jobs are row-level secured, and the system role sees none of them (measured
+        // 2026-10-20: the guard saw 0 of 256 build jobs and a retry re-ran completed cells).
+        const earlier = await ownerSql<{ id: string; status: string; workspace_id: string }[]>`
             select j.id, j.status, j.workspace_id from wp.discovery_jobs j join wp.workspaces w on w.id = j.workspace_id
             where j.kind = 'live' and w.name like 'MUSHIN catalogue build %' and j.search->>'text' = ${niche} and j.search->'filters'->>'creatorCity' = ${city}
               and (j.search->'filters'->>'platform') is not distinct from ${platformFilter}
               and ((j.status = 'completed' and j.error_code is null) or (j.status in ('queued', 'running') and j.workspace_id = ${ctx.workspaceId}))
-            order by (j.status = 'completed') desc, j.created_at desc limit 1`),
-        );
+            order by (j.status = 'completed') desc, j.created_at desc limit 1`;
         if (earlier[0]?.status === "completed") {
           report.push({ city, niche, status: "skipped", reason: "already built", jobId: earlier[0].id });
           continue;
