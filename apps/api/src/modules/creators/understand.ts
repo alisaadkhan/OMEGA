@@ -48,7 +48,11 @@ function toNumber(digits: string, unit: string | undefined): number {
   return Math.round(n * mult);
 }
 
-export function understandQuery(raw: string): Understood {
+/**
+ * The constraint-reading half of understanding, shared by v1 (below) and v2 (understand-v2.ts): follower and engagement
+ * ranges become filters, Urdu phrasing and instruction-like clauses are removed. What is left is the text to interpret.
+ */
+export function readConstraints(raw: string): { text: string; filters: Understood["filters"] } {
   let text = raw.normalize("NFKC").toLowerCase();
   const filters: Understood["filters"] = {};
   const take = (re: RegExp, apply: (m: RegExpMatchArray) => void) => {
@@ -78,7 +82,11 @@ export function understandQuery(raw: string): Understood {
     .split(/[;.!?]|\balso\b/)
     .filter((clause) => !NOT_A_TOPIC.test(clause))
     .join(" ");
+  return { text, filters };
+}
 
+export function understandQuery(raw: string): Understood {
+  const { text, filters } = readConstraints(raw);
   const words = normalizeQuery(text).split(" ").filter(Boolean);
   const platforms = new Set(words.flatMap((w) => (PLATFORM_WORDS[w] ? [PLATFORM_WORDS[w]] : [])));
   if (platforms.size === 1) filters.platform = [...platforms][0];

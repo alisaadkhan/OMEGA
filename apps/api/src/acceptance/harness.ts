@@ -147,7 +147,7 @@ export function scraperFor(bioOf: (handle: string) => string | null, followersOf
   });
 }
 
-export async function buildApi(o: { fixtures?: Partial<Fixtures>; buckets?: RateLimitBuckets; now?: () => Date } = {}) {
+export async function buildApi(o: { fixtures?: Partial<Fixtures>; buckets?: RateLimitBuckets; now?: () => Date; searchProfile?: "v1" | "v2" } = {}) {
   installNetworkGuard();
   const payments = new MockPayments({ webhookSecret: "h".repeat(40), publicApiUrl: "http://api.test", deliver: async () => {} });
   const billing = createBillingService({ db, payments, cache: new MemoryAccessCache(), logger, ...(o.now ? { now: o.now } : {}) });
@@ -156,12 +156,12 @@ export async function buildApi(o: { fixtures?: Partial<Fixtures>; buckets?: Rate
   const platform = createPlatformModule({ db, ttlHours: 24 });
   const limiter = new MemoryRateLimiter(o.buckets ?? generousBuckets);
   const llm = o.fixtures?.llm ?? fixtureLlm();
-  const creators = createCreatorsService({ db, index: new UnavailableSearchIndex(), nativeSearch: createPostgresCatalogSearch(db), llm, billing, encryptionKey: KEY, logger, ...(o.now ? { now: o.now } : {}) });
+  const creators = createCreatorsService({ db, index: new UnavailableSearchIndex(), nativeSearch: createPostgresCatalogSearch(db), llm, billing, encryptionKey: KEY, logger, ...(o.now ? { now: o.now } : {}), ...(o.searchProfile ? { searchProfile: o.searchProfile } : {}) });
   const discovery = createDiscoveryService({ db, billing, ...(o.now ? { now: o.now } : {}) });
   const web = o.fixtures?.web ?? webFor(() => []);
   const scraper = o.fixtures?.scraper ?? scraperFor(() => "Food vlogger in Lahore");
   const pipeline = createEnrichmentPipeline({ db, scraper, storage: new MemoryStorage(), llm, encryptionKey: KEY, logger, fetchImage: async () => new Response("", { status: 404 }) });
-  const live = createLiveRunner({ db, billing, pipeline, scraper, search: createCachedSearch({ db, web }), llm, logger, ...(o.now ? { now: o.now } : {}) });
+  const live = createLiveRunner({ db, billing, pipeline, scraper, search: createCachedSearch({ db, web }), llm, logger, ...(o.now ? { now: o.now } : {}), ...(o.searchProfile ? { searchProfile: o.searchProfile } : {}) });
   const profileRunner = createDiscoveryRunner({ db, billing, pipeline, logger });
   const iss = await createTestIssuer();
   const app = await buildTestApp({

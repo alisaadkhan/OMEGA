@@ -25,6 +25,7 @@ import { suppressedUrls } from "./suppressions";
 import { chargeCatalogSearch } from "./search-charge";
 import { decodeCursor, encodeCursor } from "./cursor";
 import { understandQuery } from "./understand";
+import { understandQueryV2 } from "./understand-v2";
 import { matchReasons } from "./match-reasons";
 import { creatorEligibility, ELIGIBILITY_VERSION } from "./eligibility";
 import { DEFAULT_SOURCE_POLICY, restrictsDerived, type SourcePolicy } from "./source-policy";
@@ -42,6 +43,8 @@ export type CreatorsDeps = {
   now?: () => Date;
   /** Source-specific metric rules (DATA-004); defaults to the restrictive policy. */
   sourcePolicy?: SourcePolicy;
+  /** Query understanding and terminology version (owner decision 2026-10-20): v1 (frozen, default) or v2. */
+  searchProfile?: "v1" | "v2";
 };
 
 const SETTINGS_TTL_MS = 60_000;
@@ -89,7 +92,8 @@ export function createCreatorsService(deps: CreatorsDeps) {
     const { settings } = await config(ctx);
     // What the text asks for: topic words to match, role words for ranking, and clearly stated platform, follower or
     // engagement ranges as filters (explicit filters win). Billing and cursors stay bound to the request as sent.
-    const understood = understandQuery(req.text);
+    const v2 = deps.searchProfile === "v2" ? understandQueryV2(req.text) : null;
+    const understood = v2 ? { text: v2.text, optional: v2.boost, filters: v2.filters } : understandQuery(req.text);
     const merged = {
       ...req.filters,
       platform: req.filters.platform ?? understood.filters.platform,
@@ -110,7 +114,7 @@ export function createCreatorsService(deps: CreatorsDeps) {
           limit: settings.candidatePool,
           ...(q.text ? {} : { sort: FILTER_ONLY_SORT }),
         }),
-      (s) => s.search({ text: q.text, boost: understood.optional, filters: q.filters, freshCurrentDays: settings.fresh.currentDays, now: t, limit: settings.candidatePool }, tenant(ctx)),
+      (s) => s.search({ text: q.text, boost: understood.optional, filters: q.filters, freshCurrentDays: settings.fresh.currentDays, now: t, limit: settings.candidatePool, ...(v2?.groups.length ? { plan: v2.groups } : {}) }, tenant(ctx)),
     );
     const relevance = new Map(hits.map((h) => [h.id, h.rankingScore]));
     const rows = await deps.db.withTenant(tenant(ctx), (tx) => repo.cardRows(tx, hits.map((h) => h.id)));

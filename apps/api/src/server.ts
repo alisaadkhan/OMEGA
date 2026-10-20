@@ -76,6 +76,7 @@ if (config.catalogSearchBackend === "meilisearch") readiness.push({ name: "searc
 const llmSpentSince = async (since: Date) => (await providerSpendSince(db, "groq", since)) + (await providerSpendSince(db, "ollama", since));
 const llm = pausableLlm(createLlm(config.llm, { sink: createDbProviderCallSink(db), logger, budget: { budgetUsd: config.llmMonthlyBudgetUsd, spentSince: llmSpentSince } }), () => providerPaused(db, "llm"));
 const creators = createCreatorsService({
+  searchProfile: config.searchProfile,
   db,
   index: searchIndex,
   ...(config.catalogSearchBackend === "postgres" ? { nativeSearch } : { fallbackSearch: nativeSearch }),

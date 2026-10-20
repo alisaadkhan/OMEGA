@@ -32,6 +32,8 @@ const sharedObject = z.object({
   PADDLE_ENVIRONMENT: z.enum(["sandbox", "production"]).default("sandbox"),
   MOCK_PADDLE_WEBHOOK_SECRET: z.string().min(32, "must be at least 32 characters").optional(),
   CATALOG_SEARCH_BACKEND: z.enum(["postgres", "meilisearch"]).default("postgres"),
+  // Owner decision 2026-10-20: v1 is the frozen query understanding (default until a rating round accepts v2).
+  SEARCH_PROFILE: z.enum(["v1", "v2"]).default("v1"),
   // Owner decision 2026-10-19: a free trial starts only when staff approve it. "automatic" restores trial-at-sign-up.
   TRIAL_ACTIVATION: z.enum(["approval", "automatic"]).default("approval"),
   // MUSHIN-derived metrics from YouTube API data (DATA-004): off until the owner confirms policy eligibility.
@@ -386,6 +388,7 @@ export type ApiConfig = {
   databaseCaPem: string | null;
   payments: PaymentsConfig;
   catalogSearchBackend: "postgres" | "meilisearch";
+  searchProfile: "v1" | "v2";
   trialActivation: "approval" | "automatic";
   sourcePolicy: { youtubeDerivedMetrics: boolean };
   search: SearchConfig;
@@ -426,6 +429,7 @@ export function loadApiConfig(env: Env): ApiConfig {
     databaseCaPem: readCaFile(v.DATABASE_SSL_CA_FILE),
     payments: paymentsFrom(v),
     catalogSearchBackend: v.CATALOG_SEARCH_BACKEND,
+    searchProfile: v.SEARCH_PROFILE,
     trialActivation: v.TRIAL_ACTIVATION,
     sourcePolicy: { youtubeDerivedMetrics: v.YOUTUBE_DERIVED_METRICS === "on" },
     llmMonthlyBudgetUsd: v.LLM_MONTHLY_BUDGET_USD ?? 5,
@@ -455,6 +459,7 @@ export type WorkerConfig = {
   appUrl: string;
   payments: PaymentsConfig;
   catalogSearchBackend: "postgres" | "meilisearch";
+  searchProfile: "v1" | "v2";
   sourcePolicy: { youtubeDerivedMetrics: boolean };
   search: SearchConfig;
   llm: LlmProviderConfig[];
@@ -476,6 +481,7 @@ export function loadWorkerConfig(env: Env): WorkerConfig {
     appUrl: new URL(v.APP_URL).origin,
     payments: paymentsFrom(v),
     catalogSearchBackend: v.CATALOG_SEARCH_BACKEND,
+    searchProfile: v.SEARCH_PROFILE,
     sourcePolicy: { youtubeDerivedMetrics: v.YOUTUBE_DERIVED_METRICS === "on" },
     llmMonthlyBudgetUsd: v.LLM_MONTHLY_BUDGET_USD ?? 5,
     search: searchFrom(v, v.MEILISEARCH_API_KEY),

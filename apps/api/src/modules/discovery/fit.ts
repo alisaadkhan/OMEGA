@@ -1,5 +1,5 @@
 import type { LiveSearch } from "@mushin/contracts";
-import { anyTermCounts, KNOWN_CITIES, meaningfulTopics, norm, topicMatch } from "./topic-evidence";
+import { anyTermCounts, KNOWN_CITIES, meaningfulTopics, norm, topicMatch, usesTermsV2 } from "./topic-evidence";
 import type { StandardProfile } from "../creators/index";
 import type { Kept } from "./live/relevance";
 
@@ -121,17 +121,17 @@ export function evaluateCampaignFit(search: LiveSearch, candidate: Kept, profile
   const topics = meaningfulTopics(search);
   const topicMode = anyTermCounts(search) ? "any" : "most";
   const declared = `${profile.displayName} ${profile.bio}`;
-  const topicShares = topics.map((topic) => recent.length ? recent.filter((post) => topicMatch(`${post.caption} ${post.hashtags.join(" ")}`, topic, topicMode)).length / recent.length : null);
+  const topicShares = topics.map((topic) => recent.length ? recent.filter((post) => topicMatch(`${post.caption} ${post.hashtags.join(" ")}`, topic, topicMode, usesTermsV2(search))).length / recent.length : null);
   // Sampled posts are the evidence. A bio that declares the topic adds partial credit only when at least one sampled
   // post also matches; a declaration alone never passes the topic gate.
   const components = topics.map((topic, index) => {
     const share = topicShares[index] ?? 0;
     const fromPosts = Math.min(1, share / 0.25);
-    return share > 0 && topicMatch(declared, topic, topicMode) ? Math.max(fromPosts, 0.5) : fromPosts;
+    return share > 0 && topicMatch(declared, topic, topicMode, usesTermsV2(search)) ? Math.max(fromPosts, 0.5) : fromPosts;
   });
   const topicShare = recent.length && topics.length ? components.reduce((sum, c) => sum + c, 0) / topics.length : null;
   if (topicShare !== null) {
-    topics.forEach((topic, index) => evidence.push(`${topic}: ${Math.round((topicShares[index] ?? 0) * 100)}% of ${recent.length} sampled posts${topicMatch(declared, topic, topicMode) ? "; declared in profile bio/name" : ""}`));
+    topics.forEach((topic, index) => evidence.push(`${topic}: ${Math.round((topicShares[index] ?? 0) * 100)}% of ${recent.length} sampled posts${topicMatch(declared, topic, topicMode, usesTermsV2(search)) ? "; declared in profile bio/name" : ""}`));
   }
   const gateWithTopic = gate ?? (topicShare === null ? "topic_evidence_unavailable" : topicShare < 0.2 ? "off_topic" : null);
   if (gateWithTopic) return { version: FIT_VERSION, score: 0, confidence: 0, eligible: false, gate: gateWithTopic, topicScore: topicShare, sampleSize: recent.length, sourceUrl: candidate.canonicalUrl, fetchedAt: fetchedAt.toISOString(), evidence };

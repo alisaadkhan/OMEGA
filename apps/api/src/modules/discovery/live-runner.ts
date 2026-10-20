@@ -5,6 +5,7 @@ import { ProviderError, type Llm, type ProfileScraper } from "@mushin/integratio
 import type { BillingService } from "../billing/index";
 import { findProfileByUrl, fitLabel, getSearchSettings, profileEligibility, isVisibleCreator, rankCards, suppressedUrls, type CreatorPlatform, type SourcePolicy, type EnrichJob, type EnrichmentPipeline } from "../creators/index";
 import { notifyFinished, releaseHeld } from "./finish";
+import { TERMS_V2, type TaggedSearch } from "./topic-evidence";
 import type { CachedSearch } from "./live/cache";
 import { evaluateCampaignFit } from "./fit";
 import { collectCandidates, spreadByPlatform } from "./live/candidates";
@@ -48,6 +49,8 @@ type Deps = {
    * whole run. Absent = no deadline.
    */
   jobDeadlineMs?: number;
+  /** Terminology version (owner decision 2026-10-20): v1 (frozen, default) or v2, shared with catalogue search. */
+  searchProfile?: "v1" | "v2";
 };
 
 /** G2: candidates after the cheap G1 gate needed before extraction (spec default 8); below it the run is `insufficient`. */
@@ -108,7 +111,8 @@ export function createLiveRunner(deps: Deps) {
     const job = await deps.db.withWorkspace(workspaceId, (tx) => repo.startAttempt(tx, workspaceId, jobId));
     if (!job) return;
     if (job.kind !== "live" || !job.search || !job.prices || job.maxNew === null) throw new Error(`discovery job ${jobId} is not a live run`);
-    const search: LiveSearch = { text: job.search.text, filters: searchFiltersSchema.parse(job.search.filters) };
+    const search: TaggedSearch = { text: job.search.text, filters: searchFiltersSchema.parse(job.search.filters) };
+    if (deps.searchProfile === "v2") search[TERMS_V2] = true;
     const prices: LivePrices = job.prices;
     const maxNew = job.maxNew;
     const ctx = { workspaceId, jobId, requestId: job.requestId };

@@ -4,6 +4,7 @@ import type { TenantContext } from "@mushin/core";
 import type { Db } from "@mushin/db";
 import type { SearchHit } from "@mushin/integrations";
 import { cityForms, expandQuery, normalizeQuery, type QueryGroup } from "./aliases";
+import type { PlanGroup } from "./understand-v2";
 
 /**
  * Consonant skeleton of a name word, so spelling variants of the same name meet: Malik / Malek / Mullick → "mlk",
@@ -21,7 +22,17 @@ export function nameKeys(text: string): string[] | null {
   return keys.every((k) => k.length >= 2) ? keys : null;
 }
 
-export type CatalogSearchQuery = { text: string; filters: SearchFilters; freshCurrentDays: number; now: Date; limit: number; /** Words that only raise the rank (never required). */ boost?: string[] };
+export type CatalogSearchQuery = {
+  text: string;
+  filters: SearchFilters;
+  freshCurrentDays: number;
+  now: Date;
+  limit: number;
+  /** Words that only raise the rank (never required). */
+  boost?: string[];
+  /** SEARCH_PROFILE=v2: the required term groups from understandQueryV2 (absent = v1 behaviour, unchanged). */
+  plan?: PlanGroup[];
+};
 export type CatalogSearch = { search(query: CatalogSearchQuery, ctx: Pick<TenantContext, "userId" | "workspaceId">): Promise<{ hits: SearchHit[]; total: number }> };
 
 /** Search the worker-maintained global creator projection. Hydration and visibility checks still run under tenant RLS. */
@@ -36,10 +47,13 @@ export function createPostgresCatalogSearch(db: Db): CatalogSearch {
     ];
     // Recognised niche and city words (English, Roman Urdu, Urdu script, city short forms) match any of their reviewed
     // forms; a city also matches the creator's own declared city. Without a recognised word the query is unchanged.
-    const groups = expandQuery(text);
+    const groups: (QueryGroup | PlanGroup)[] | null = query.plan?.length ? query.plan : expandQuery(text);
     // A multi-word form ("skin care", "home cooking", "اسلام آباد") must appear as that phrase, not as its words
-    // anywhere in the text; single-word forms match exactly as before.
-    const anyForm = (g: QueryGroup) => sql.join(g.forms.map((form) => sql`phraseto_tsquery('simple', ${form})`), sql` || `);
+    // anywhere in the text; single-word forms match exactly as before. A v2 word group marked `prefix` also matches the
+    // word's inflections ("review" → reviews, reviewing).
+    const formQuery = (g: QueryGroup | PlanGroup, form: string) =>
+      "prefix" in g && g.prefix && /^[a-z]+$/.test(form) ? sql`to_tsquery('simple', ${`${form}:*`})` : sql`phraseto_tsquery('simple', ${form})`;
+    const anyForm = (g: QueryGroup | PlanGroup) => sql.join(g.forms.map((form) => formQuery(g, form)), sql` || `);
     const tsq = groups ? sql.join(groups.map((g) => sql`(${anyForm(g)})`), sql` && `) : sql`websearch_to_tsquery('simple', ${text})`;
     const wordMatch = groups
       ? sql.join(
@@ -103,7 +117,9 @@ export function createPostgresCatalogSearch(db: Db): CatalogSearch {
     }
     // 3. Name spelling variants ("Sana Malik" for "Sana Mullick"): only for a name-like query (2–3 plain words, no
     //    recognised topic or city) while the pool still has room; every query word must meet a word of the display name.
-    const keys = groups ? null : nameKeys(normalizeQuery(text));
+    // v2: a plan of plain words only (no topic or city) is name-like too.
+    const recognised = query.plan?.length ? query.plan.some((g) => g.kind !== "word") : groups !== null;
+    const keys = recognised ? null : nameKeys(normalizeQuery(text));
     if (keys && total < limit) {
       const skeleton = sql`' ' || regexp_replace(regexp_replace(replace(regexp_replace(lower(c.display_name), '[^a-z]+', ' ', 'g'), 'ck', 'k'), '[aeiouyw]', '', 'g'), '(.)\\1+', '\\1', 'g') || ' '`;
       const seen = rows.map((x) => x.id);

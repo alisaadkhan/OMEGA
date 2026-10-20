@@ -1,4 +1,13 @@
 import type { LiveSearch } from "@mushin/contracts";
+import { topicFormsV2 } from "../creators/index";
+
+/**
+ * SEARCH_PROFILE=v2 tags the in-memory brief (never the stored job or the API contract): topics are then also read
+ * through the shared v2 terminology, so "khana" means food here exactly as in catalogue search (acceptance D2).
+ */
+export const TERMS_V2 = Symbol.for("mushin.searchTerms.v2");
+export type TaggedSearch = LiveSearch & { [TERMS_V2]?: true };
+export const usesTermsV2 = (search: LiveSearch): boolean => (search as TaggedSearch)[TERMS_V2] === true;
 
 const GENERIC = new Set(("creator creators influencer influencers blogger bloggers vlogger vloggers account profile instagram tiktok youtube content social media find new best top in at from with for the and of pakistani pakistan lahore karachi islamabad rawalpindi urdu english " +
   "video videos channel channels speaking making covering micro small local wala wale walay " +
@@ -59,12 +68,13 @@ function hasWord(haystack: string, word: string): boolean {
 export const anyTermCounts = (search: LiveSearch): boolean => search.filters.niches.length === 0;
 
 /** `any`: one meaningful word of a free-text topic suffices; otherwise most of a niche's words must appear. */
-export function topicMatch(text: string, topic: string, mode: "most" | "any" = "most"): boolean {
+export function topicMatch(text: string, topic: string, mode: "most" | "any" = "most", termsV2 = false): boolean {
   const haystack = ` ${norm(text)} `;
   const needle = ` ${norm(topic)} `;
   if (needle.trim() && haystack.includes(needle)) return true;
   const normalizedTopic = norm(topic);
-  const aliases = TOPIC_ALIASES[normalizedTopic] ?? Object.entries(TOPIC_ALIASES).find(([key]) => normalizedTopic.split(" ").includes(key))?.[1] ?? [];
+  const v1Aliases = TOPIC_ALIASES[normalizedTopic] ?? Object.entries(TOPIC_ALIASES).find(([key]) => normalizedTopic.split(" ").includes(key))?.[1] ?? [];
+  const aliases = termsV2 ? [...new Set([...v1Aliases, ...topicFormsV2(topic)])] : v1Aliases;
   if (aliases.some((alias) => haystack.includes(` ${norm(alias)} `))) return true;
   const terms = normalizedTopic.split(" ").filter((w) => w.length >= 3 && !GENERIC.has(w));
   if (terms.length === 0) return false;
@@ -76,5 +86,5 @@ export function topicMatch(text: string, topic: string, mode: "most" | "any" = "
 export function hasCampaignTopicEvidence(search: LiveSearch, text: string): boolean {
   const topics = meaningfulTopics(search);
   const mode = anyTermCounts(search) ? "any" : "most";
-  return topics.length > 0 && topics.some((topic) => topicMatch(text, topic, mode));
+  return topics.length > 0 && topics.some((topic) => topicMatch(text, topic, mode, usesTermsV2(search)));
 }

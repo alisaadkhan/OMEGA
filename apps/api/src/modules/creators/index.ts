@@ -45,4 +45,6 @@ export { createEraser } from "./erasure/eraser";
 export type { Eraser } from "./erasure/eraser";
 export { CITY_CONCEPTS, NICHE_CONCEPTS, LIVE_PLACE_URDU, LIVE_TOPIC_TERMS, cityForms, expandQuery, normalizeQuery, type AliasConcept, type QueryGroup } from "./aliases";
 export { understandQuery, type Understood } from "./understand";
+export { understandQueryV2, type PlanGroup, type UnderstoodV2 } from "./understand-v2";
+export { TERMINOLOGY_VERSION, topicFormsV2 } from "./terminology";
 export { profileMetrics } from "./enrichment/signals";
