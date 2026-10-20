@@ -1,0 +1,102 @@
+{
+ "mode": "discover",
+ "db": "mushin_catalog_v2",
+ "capUsd": 20,
+ "started": "2026-10-20T15:02:53.158Z",
+ "finished": "2026-10-20T15:16:05.553Z",
+ "spendByProvider": [
+  {
+   "provider": "apify",
+   "calls": 8,
+   "usd": "0.234600"
+  },
+  {
+   "provider": "groq",
+   "calls": 28,
+   "usd": "0.001368"
+  },
+  {
+   "provider": "ollama",
+   "calls": 64,
+   "usd": "0.015539"
+  },
+  {
+   "provider": "serper",
+   "calls": 54,
+   "usd": "0.054000"
+  },
+  {
+   "provider": "youtube",
+   "calls": 40,
+   "usd": "0.000000"
+  }
+ ],
+ "jobs": [
+  {
+   "city": "Lahore",
+   "niche": "food",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 17,
+   "new": 3,
+   "error": null,
+   "ms": 293083,
+   "spentUsd": 0.27961
+  },
+  {
+   "city": "Lahore",
+   "niche": "beauty",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 2,
+   "new": 2,
+   "error": null,
+   "ms": 288439,
+   "spentUsd": 0.389263
+  },
+  {
+   "city": "Lahore",
+   "niche": "technology",
+   "status": "completed",
+   "outcome": "partial",
+   "found": 1,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 50049,
+   "spentUsd": 0.399838
+  },
+  {
+   "city": "Karachi",
+   "niche": "food",
+   "status": "completed",
+   "outcome": "partial",
+   "found": 4,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 93113,
+   "spentUsd": 0.449716
+  },
+  {
+   "city": "Karachi",
+   "niche": "beauty",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 23778,
+   "spentUsd": 0.459439
+  },
+  {
+   "city": "Karachi",
+   "niche": "technology",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 43807,
+   "spentUsd": 0.469711
+  }
+ ]
+}

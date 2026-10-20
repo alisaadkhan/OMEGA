@@ -195,7 +195,15 @@ export function createProfileScraper(o: Options): ProfileScraper {
       const handles = [...new Set(req.handles.map((h) => h.replace(/^@/, "").toLowerCase()))].slice(0, 20);
       if (req.platform === "youtube") {
         const profiles: { handle: string; raw: unknown }[] = [];
-        for (const handle of handles) profiles.push({ handle, raw: (await youtubeProfile({ platform: "youtube", handle, ...(req.ctx ? { ctx: req.ctx } : {}) })).raw });
+        for (const handle of handles) {
+          try {
+            profiles.push({ handle, raw: (await youtubeProfile({ platform: "youtube", handle, ...(req.ctx ? { ctx: req.ctx } : {}) })).raw });
+          } catch (err) {
+            // One channel's own failure (e.g. HTTP 404) leaves only that channel out, so it ends as not found;
+            // quota, configuration and retryable failures still stop the batch.
+            if (!(err instanceof ProviderError) || err.retryable || err.reason !== "provider") throw err;
+          }
+        }
         return { provider: "youtube", profiles, costUsd: 0 };
       }
       if (handles.length === 0) return { provider: "apify", profiles: [], costUsd: 0 };

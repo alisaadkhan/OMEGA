@@ -221,6 +221,26 @@ describe("profile scraper", () => {
     await expect(scraper(quota.fetch).s.fetchProfile({ platform: "youtube", handle: "@x" })).rejects.toMatchObject({ reason: "quota", retryable: false });
   });
 
+  // Regression (catalogue pilot 2026-10-20): one channel without public uploads failed a whole live run.
+  it("reads a channel whose uploads playlist answers 404 as having no videos", async () => {
+    const { fetch } = fakeFetch((c) => (c.url.includes("/channels?") ? Response.json(scraperFixture("youtube-channel.json")) : new Response('{"error":{"code":404}}', { status: 404 })));
+    const out = await scraper(fetch).s.fetchProfile({ platform: "youtube", handle: "@emptychannel" });
+    expect((out.raw as { videos: unknown }).videos).toEqual({ items: [] });
+  });
+
+  it("leaves one failing YouTube channel out of a batch instead of failing the batch; quota still stops it", async () => {
+    const { fetch } = fakeFetch((c) => {
+      if (c.url.includes("forHandle=%40broken")) return new Response("gone", { status: 410 });
+      if (c.url.includes("/channels?")) return Response.json(scraperFixture("youtube-channel.json"));
+      if (c.url.includes("/playlistItems?")) return Response.json(scraperFixture("youtube-playlist.json"));
+      return Response.json(scraperFixture("youtube-videos.json"));
+    });
+    const out = await scraper(fetch).s.fetchProfiles({ platform: "youtube", handles: ["good", "broken"] });
+    expect(out.profiles.map((p) => p.handle)).toEqual(["good"]);
+    const quota = fakeFetch(() => Response.json({ error: { code: 403, errors: [{ reason: "quotaExceeded" }] } }, { status: 403 }));
+    await expect(scraper(quota.fetch).s.fetchProfiles({ platform: "youtube", handles: ["a", "b"] })).rejects.toMatchObject({ reason: "quota" });
+  });
+
   it("fetches many Instagram profiles in one Apify run and splits the items by handle", async () => {
     const one = (scraperFixture("instagram-profile.json") as Record<string, unknown>[])[0] ?? {};
     const items = [{ ...one, username: "first_one" }, { ...one, username: "Second_One" }];

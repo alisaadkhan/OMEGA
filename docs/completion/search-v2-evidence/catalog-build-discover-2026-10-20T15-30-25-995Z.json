@@ -1,0 +1,53 @@
+{
+ "mode": "discover",
+ "db": "mushin_catalog_v2",
+ "capUsd": 20,
+ "started": "2026-10-20T15:30:25.995Z",
+ "finished": "2026-10-20T15:34:52.920Z",
+ "spendByProvider": [
+  {
+   "provider": "groq",
+   "calls": 14,
+   "usd": "0.000238"
+  },
+  {
+   "provider": "ollama",
+   "calls": 41,
+   "usd": "0.009578"
+  },
+  {
+   "provider": "serper",
+   "calls": 6,
+   "usd": "0.006000"
+  },
+  {
+   "provider": "youtube",
+   "calls": 39,
+   "usd": "0.000000"
+  }
+ ],
+ "jobs": [
+  {
+   "city": "Lahore",
+   "niche": "technology",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 0,
+   "error": null,
+   "ms": 117873,
+   "spentUsd": 0.497952
+  },
+  {
+   "city": "Karachi",
+   "niche": "technology",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 3,
+   "new": 2,
+   "error": null,
+   "ms": 148902,
+   "spentUsd": 0.506698
+  }
+ ]
+}

@@ -99,10 +99,26 @@ const webRaw = createSerperSearch({ apiKey: config.scraping.serperApiKey, limit:
 // Every paid request goes through the combined gate; YouTube (free quota) passes with a zero estimate.
 const llm: Llm = { complete: (req) => gated(COST.llmCall, () => llmRaw.complete(req)) };
 const paidUnits = (platform: string, n: number) => (platform === "youtube" ? 0 : n * COST.apifyPerProfile);
+/**
+ * The local ledger sees only this database's Apify runs; the account's monthly usage (other environments, storage) is
+ * read from Apify itself (free, read-only) before every paid scrape, and a scrape that would not fit is refused. An
+ * unreadable usage figure refuses too: spend that cannot be verified is not made.
+ */
+const APIFY_MARGIN_USD = 0.05;
+async function apifyRoomFor(estimateUsd: number): Promise<void> {
+  if (estimateUsd <= 0) return;
+  const r = await fetch("https://api.apify.com/v2/users/me/limits", { headers: { Authorization: `Bearer ${process.env["APIFY_TOKEN"] ?? ""}` } }).catch(() => null);
+  const j = r?.ok ? ((await r.json()) as { data?: { current?: { monthlyUsageUsd?: number }; limits?: { maxMonthlyUsageUsd?: number } } }) : null;
+  const used = j?.data?.current?.monthlyUsageUsd;
+  const max = j?.data?.limits?.maxMonthlyUsageUsd;
+  if (used === undefined || max === undefined) throw new ProviderError(false, "spend_cap", "Apify account usage could not be read: paid scrape refused");
+  if (used + estimateUsd + APIFY_MARGIN_USD > max) throw new ProviderError(false, "spend_cap", `Apify account monthly limit: ${used.toFixed(2)} of ${max} used`);
+}
+const apifyGated = <T>(estimateUsd: number, call: () => Promise<T>): Promise<T> => apifyRoomFor(estimateUsd).then(() => gated(estimateUsd, call));
 const scraper: ProfileScraper = {
-  fetchProfile: (req) => gated(paidUnits(req.platform, 1), () => scraperRaw.fetchProfile(req)),
-  fetchProfiles: (req) => gated(paidUnits(req.platform, req.handles.length), () => scraperRaw.fetchProfiles(req)),
-  ...(scraperRaw.resolveInstagramPostOwners ? { resolveInstagramPostOwners: (req: Parameters<NonNullable<ProfileScraper["resolveInstagramPostOwners"]>>[0]) => gated(req.urls.length * COST.apifyPerProfile, () => (scraperRaw.resolveInstagramPostOwners as NonNullable<ProfileScraper["resolveInstagramPostOwners"]>)(req)) } : {}),
+  fetchProfile: (req) => apifyGated(paidUnits(req.platform, 1), () => scraperRaw.fetchProfile(req)),
+  fetchProfiles: (req) => apifyGated(paidUnits(req.platform, req.handles.length), () => scraperRaw.fetchProfiles(req)),
+  ...(scraperRaw.resolveInstagramPostOwners ? { resolveInstagramPostOwners: (req: Parameters<NonNullable<ProfileScraper["resolveInstagramPostOwners"]>>[0]) => apifyGated(req.urls.length * COST.apifyPerProfile, () => (scraperRaw.resolveInstagramPostOwners as NonNullable<ProfileScraper["resolveInstagramPostOwners"]>)(req)) } : {}),
 };
 const web: WebSearch = { search: (q) => gated(COST.search, () => webRaw.search(q)) };
 const pipeline = createEnrichmentPipeline({ db, scraper, storage: fileStorage(join(repo, ".catalog-storage", dbName)), llm, encryptionKey: config.dataEncryptionKey, logger, attributePolicy: config.searchProfile });
@@ -178,6 +194,8 @@ if (mode === "refresh") {
   const niches = (values.niches ?? "food,cooking,beauty,makeup,skincare,fashion,travel,fitness,technology,gaming,education,comedy,finance,lifestyle,agriculture,literature").split(",");
   const cities = (values.cities ?? "Lahore,Karachi,Islamabad,Rawalpindi,Peshawar,Faisalabad,Multan,Quetta").split(",");
   const size = Number(values.size) as LiveRunSize;
+  // --platform youtube keeps the grid on free YouTube extraction (Apify account limit reached for the month).
+  const platformFilter = values.platform ?? null;
   outer: for (const city of cities) {
     for (const niche of niches) {
       if ((await spentUsd()) >= capUsd - JOB_HEADROOM_USD) {
@@ -186,13 +204,15 @@ if (mode === "refresh") {
       }
       const t = Date.now();
       try {
-        // A re-launched worker never pays twice for a cell: a cell completed by any build worker is skipped, and this
-        // worker's own unfinished job (a crash mid-run) is resumed instead of starting a new one.
+        // A re-launched worker never pays twice for a cell: a cell completed cleanly by any build worker is skipped, and
+        // this worker's own unfinished job (a crash mid-run) is resumed instead of starting a new one. A cell that ended
+        // on a provider error is run again (searches come from the cache; creators already saved are not re-fetched).
         const earlier = await db.withSystem((tx) =>
           tx.execute<{ id: string; status: string; workspace_id: string }>(sql`
             select j.id, j.status, j.workspace_id from wp.discovery_jobs j join wp.workspaces w on w.id = j.workspace_id
             where j.kind = 'live' and w.name like 'MUSHIN catalogue build %' and j.search->>'text' = ${niche} and j.search->'filters'->>'creatorCity' = ${city}
-              and (j.status = 'completed' or j.workspace_id = ${ctx.workspaceId})
+              and (j.search->'filters'->>'platform') is not distinct from ${platformFilter}
+              and ((j.status = 'completed' and j.error_code is null) or (j.status in ('queued', 'running') and j.workspace_id = ${ctx.workspaceId}))
             order by (j.status = 'completed') desc, j.created_at desc limit 1`),
         );
         if (earlier[0]?.status === "completed") {
@@ -201,7 +221,7 @@ if (mode === "refresh") {
         }
         let jobId = earlier[0]?.id;
         if (!jobId) {
-          const estimate = await discovery.createEstimate(ctx, { search: { text: niche, filters: searchFiltersSchema.parse({ creatorCity: city }) }, maxNew: size });
+          const estimate = await discovery.createEstimate(ctx, { search: { text: niche, filters: searchFiltersSchema.parse({ creatorCity: city, ...(platformFilter ? { platform: platformFilter } : {}) }) }, maxNew: size });
           const out = await discovery.start(ctx, { kind: "live", estimateId: estimate.estimateId });
           if (out.body.status !== "started") throw new Error(`not started: ${out.body.status}`);
           jobId = out.body.job.id;
