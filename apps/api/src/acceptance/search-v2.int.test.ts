@@ -67,6 +67,31 @@ describe("catalogue variation matrix under v2 (VAR2-C)", () => {
 });
 
 describe("live discovery under v2 (VAR2-L)", () => {
+  it("VAR2-L01 a known creator without a stored sample is fetched again and delivered as known and free (v1 skips it)", async () => {
+    const handles = Array.from({ length: 8 }, (_, i) => `v2_known_${i + 1}`);
+    const results: Record<string, { delivered: string[]; knownFree: boolean; charged: number | undefined }> = {};
+    for (const profile of ["v1", "v2"] as const) {
+      await resetTables();
+      await synthetic({ name: "Known without sample", handle: "v2_known_1", niches: ["Food"], bio: "Food vlogger in Lahore" });
+      const live = await buildApi({ searchProfile: profile, fixtures: { web: webFor(() => handles) } });
+      const p = await live.person();
+      await db.withWorkspace(p.workspaceId, (tx) => live.billing.engine.grant(tx, p.workspaceId, { source: "adjustment", amount: 5_000, expiresAt: new Date(Date.now() + 86_400_000), sourceRef: `v2k-${randomUUID()}`, note: "acceptance" }));
+      const { jobId } = await live.startLive(p.ctx, "food vlogger", { platform: "instagram", creatorCity: "Lahore" }, 10);
+      await live.live.run(jobId, p.workspaceId);
+      const job = await live.discovery.get(p.ctx, jobId);
+      const res = (await live.discovery.results(p.ctx, jobId, 0)).results;
+      const known = res.find((r) => r.handle === "v2_known_1");
+      results[profile] = { delivered: res.map((r) => r.handle), knownFree: known ? known.isNew === false : false, charged: job.live?.creditsCharged };
+    }
+    evidence("VAR2-L01", results);
+    expect(results["v1"]?.delivered).not.toContain("v2_known_1");
+    expect(results["v2"]?.delivered).toContain("v2_known_1");
+    expect(results["v2"]?.knownFree).toBe(true);
+    expect(results["v2"]?.charged).toBe(50 + 7 * 10);
+    const rows = await owner<{ n: number }>(`select count(*)::int n from gcp.creator_profiles where handle = 'v2_known_1'`);
+    expect(rows[0]?.n).toBe(1);
+  });
+
   it("VAR2-L03 a Roman Urdu brief (khana, Lahore) delivers the food creators an English brief delivers (fixes D2)", async () => {
     const handles = Array.from({ length: 8 }, (_, i) => `v2_food_${i + 1}`);
     const live = await buildApi({ searchProfile: "v2", fixtures: { web: webFor(() => handles) } });

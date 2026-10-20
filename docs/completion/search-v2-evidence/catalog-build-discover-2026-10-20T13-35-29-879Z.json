@@ -1,0 +1,47 @@
+{
+ "mode": "discover",
+ "db": "mushin_catalog_v2",
+ "capUsd": 2,
+ "started": "2026-10-20T13:35:29.879Z",
+ "finished": "2026-10-20T13:39:24.174Z",
+ "spendByProvider": [
+  {
+   "provider": "apify",
+   "calls": 2,
+   "usd": "0.061800"
+  },
+  {
+   "provider": "groq",
+   "calls": 24,
+   "usd": "0.003918"
+  },
+  {
+   "provider": "ollama",
+   "calls": 28,
+   "usd": "0.006683"
+  },
+  {
+   "provider": "serper",
+   "calls": 9,
+   "usd": "0.009000"
+  },
+  {
+   "provider": "youtube",
+   "calls": 39,
+   "usd": "0.000000"
+  }
+ ],
+ "jobs": [
+  {
+   "city": "Lahore",
+   "niche": "food",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 2,
+   "new": 2,
+   "error": null,
+   "ms": 234075,
+   "spentUsd": 0.081401
+  }
+ ]
+}

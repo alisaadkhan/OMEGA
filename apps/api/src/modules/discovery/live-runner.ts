@@ -302,6 +302,13 @@ export function createLiveRunner(deps: Deps) {
           });
           if (stored === "unreadable") continue;
           if (!stored) {
+            // v2 (search-v2, 2026-10-20): a known creator without a retained sample is fetched again like any candidate
+            // (saved as "refreshed", delivered as known and free), instead of being dropped for good: in a real run 25 of
+            // the 63 candidates were known creators skipped this way, and only 2 creators were delivered.
+            if (deps.searchProfile === "v2") {
+              availableNew.push(k);
+              continue;
+            }
             trail.set(k.canonicalUrl, "selection", "skipped", "known_without_sample", { creatorId: known.creatorId });
             continue;
           }
