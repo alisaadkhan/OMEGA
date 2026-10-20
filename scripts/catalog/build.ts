@@ -19,7 +19,9 @@ import { parseArgs } from "node:util";
 import { searchFiltersSchema, type LiveRunSize } from "@mushin/contracts";
 import { createLogger, loadWorkerConfig, type TenantContext } from "@mushin/core";
 import { createDatabase, createDbProviderCallSink, createDbProviderRunStore, createDbReservationLedger, providerSpendSince } from "@mushin/db";
-import { createLlm, createPayments, createProfileScraper, createSerperSearch, createSharedSpendGuard, createYouTubeSearch, type ObjectStorage } from "@mushin/integrations";
+import { createLlm, createPayments, createProfileScraper, createSerperSearch, createSharedSpendGuard, createYouTubeSearch, ProviderError, type Llm, type ObjectStorage, type ProfileScraper, type WebSearch } from "@mushin/integrations";
+import postgres from "postgres";
+import { BudgetExhausted, createBudgetGate } from "./budget";
 import { sql } from "drizzle-orm";
 import { createBillingService, noAccessCache } from "../../apps/api/src/modules/billing/index";
 import { createCreatorIndexer, createEnrichmentPipeline, getEnrichmentSettings } from "../../apps/api/src/modules/creators/index";
@@ -27,7 +29,7 @@ import { createCachedSearch, createDiscoveryRunner, createDiscoveryService, crea
 
 const { positionals, values } = parseArgs({
   allowPositionals: true,
-  options: { db: { type: "string" }, cap: { type: "string", default: "20" }, platform: { type: "string" }, limit: { type: "string" }, niches: { type: "string" }, cities: { type: "string" }, size: { type: "string", default: "10" } },
+  options: { db: { type: "string" }, cap: { type: "string", default: "20" }, platform: { type: "string" }, limit: { type: "string" }, niches: { type: "string" }, cities: { type: "string" }, size: { type: "string", default: "10" }, label: { type: "string", default: "main" } },
 });
 const mode = positionals[0];
 if (mode !== "refresh" && mode !== "discover") throw new Error("usage: build.ts <refresh|discover> --db <catalogue db> --cap <usd>");
@@ -41,6 +43,18 @@ const config = loadWorkerConfig({ ...process.env, DATABASE_URL: url, DIRECT_URL:
 const logger = createLogger({ level: "info", name: "catalog-build" });
 const db = createDatabase(url, { max: 4, applicationName: "catalog-build", caPem: null });
 const repo = resolve(fileURLToPath(new URL("../..", import.meta.url)));
+/** Everything spent under the owner's authorisation is counted (it started on 2026-10-20; all of it in this database). */
+const AUTHORISED_SINCE = new Date("2026-10-20T00:00:00.000Z");
+const ownerSql = postgres(url, { max: 2, onnotice: () => {} });
+const gate = await createBudgetGate(ownerSql, { capUsd, since: AUTHORISED_SINCE });
+/** A refused request surfaces as the provider's spend cap: the run fails honestly and returns its credits. */
+const gated = <T>(estimateUsd: number, call: () => Promise<T>): Promise<T> =>
+  gate.guard(estimateUsd, call).catch((err: unknown) => {
+    if (err instanceof BudgetExhausted) throw new ProviderError(false, "spend_cap", err.message);
+    throw err;
+  });
+// Worst-case reservations, each above the recorded unit cost (Serper 0.001/search, AI ~0.0002/call, Apify ~0.03/run).
+const COST = { search: 0.002, llmCall: 0.01, apifyPerProfile: 0.05 };
 
 /** Archived provider payloads and avatars, on local disk (never the staging bucket from .env). */
 function fileStorage(root: string): ObjectStorage {
@@ -69,9 +83,9 @@ const sink = createDbProviderCallSink(db);
 const ledger = createDbReservationLedger(db);
 const payments = createPayments(config.payments, { sink, logger });
 const billing = createBillingService({ db, payments, cache: noAccessCache, logger });
-const llm = createLlm(config.llm, { sink, logger, budget: { budgetUsd: Math.min(config.llmMonthlyBudgetUsd, capUsd), spentSince: async (since) => (await providerSpendSince(db, "groq", since)) + (await providerSpendSince(db, "ollama", since)) } });
+const llmRaw = createLlm(config.llm, { sink, logger, budget: { budgetUsd: Math.min(config.llmMonthlyBudgetUsd, capUsd), spentSince: async (since) => (await providerSpendSince(db, "groq", since)) + (await providerSpendSince(db, "ollama", since)) } });
 const enrichment = await db.withSystem((tx) => getEnrichmentSettings(tx));
-const scraper = createProfileScraper({
+const scraperRaw = createProfileScraper({
   apify: config.scraping.apifyToken ? { token: config.scraping.apifyToken, instagramActor: config.scraping.instagramActor, ...(config.scraping.instagramBuild ? { instagramBuild: config.scraping.instagramBuild } : {}), tiktokActor: config.scraping.tiktokActor, ...(config.scraping.tiktokBuild ? { tiktokBuild: config.scraping.tiktokBuild } : {}) } : null,
   youtubeApiKey: config.scraping.youtubeApiKey,
   tiktokVideos: enrichment.tiktokRecentVideos,
@@ -81,8 +95,17 @@ const scraper = createProfileScraper({
   sink,
   logger,
 });
+const webRaw = createSerperSearch({ apiKey: config.scraping.serperApiKey, limit: createSharedSpendGuard({ ledger, provider: "serper", limit: config.scraping.serperMonthlySearchLimit, perUnit: 1, label: "Serper search limit" }), sink, logger });
+// Every paid request goes through the combined gate; YouTube (free quota) passes with a zero estimate.
+const llm: Llm = { complete: (req) => gated(COST.llmCall, () => llmRaw.complete(req)) };
+const paidUnits = (platform: string, n: number) => (platform === "youtube" ? 0 : n * COST.apifyPerProfile);
+const scraper: ProfileScraper = {
+  fetchProfile: (req) => gated(paidUnits(req.platform, 1), () => scraperRaw.fetchProfile(req)),
+  fetchProfiles: (req) => gated(paidUnits(req.platform, req.handles.length), () => scraperRaw.fetchProfiles(req)),
+  ...(scraperRaw.resolveInstagramPostOwners ? { resolveInstagramPostOwners: (req: Parameters<NonNullable<ProfileScraper["resolveInstagramPostOwners"]>>[0]) => gated(req.urls.length * COST.apifyPerProfile, () => (scraperRaw.resolveInstagramPostOwners as NonNullable<ProfileScraper["resolveInstagramPostOwners"]>)(req)) } : {}),
+};
+const web: WebSearch = { search: (q) => gated(COST.search, () => webRaw.search(q)) };
 const pipeline = createEnrichmentPipeline({ db, scraper, storage: fileStorage(join(repo, ".catalog-storage", dbName)), llm, encryptionKey: config.dataEncryptionKey, logger });
-const web = createSerperSearch({ apiKey: config.scraping.serperApiKey, limit: createSharedSpendGuard({ ledger, provider: "serper", limit: config.scraping.serperMonthlySearchLimit, perUnit: 1, label: "Serper search limit" }), sink, logger });
 const search = createCachedSearch({ db, web, ...(config.scraping.youtubeApiKey ? { youtube: createYouTubeSearch({ apiKey: config.scraping.youtubeApiKey, sink, logger }) } : {}) });
 const discovery = createDiscoveryService({ db, billing });
 const profileRunner = createDiscoveryRunner({ db, billing, pipeline, logger });
@@ -91,18 +114,20 @@ const profileRunner = createDiscoveryRunner({ db, billing, pipeline, logger });
 const liveRunner = createLiveRunner({ searchProfile: "v2", sourcePolicy: config.sourcePolicy, db, billing, pipeline, scraper, search, llm, logger, contentResolutionMax: config.scraping.contentResolutionMax, extractionMultiplier: { instagram: 4, youtube: 4, tiktok: 4 }, profileConcurrency: config.scraping.profileConcurrency, jobCostCap: config.scraping.jobCostCap, jobDeadlineMs: config.scraping.jobDeadlineMs });
 const indexer = createCreatorIndexer({ db, index: null, logger, sourcePolicy: config.sourcePolicy });
 
+/** One build workspace per --label, so parallel build processes each have their own live run. */
+const workspaceName = `MUSHIN catalogue build ${values.label}`;
 /** The internal build workspace (owner connection: one person, one workspace, generous adjustment credits). */
 async function buildWorkspace(): Promise<TenantContext> {
   const owner = createDatabase(url, { max: 1, applicationName: "catalog-build-owner", caPem: null });
-  const found = await db.withSystem((tx) => tx.execute<{ id: string; owner_user_id: string }>(sql`select id, owner_user_id from wp.workspaces where name = 'MUSHIN catalogue build' limit 1`)).catch(() => []);
+  const found = await db.withSystem((tx) => tx.execute<{ id: string; owner_user_id: string }>(sql`select id, owner_user_id from wp.workspaces where name = ${workspaceName} limit 1`)).catch(() => []);
   let ws = found[0];
   if (!ws) {
     const userId = randomUUID();
     const workspaceId = randomUUID();
     const pg = (await import("postgres")).default(url, { max: 1, onnotice: () => {} });
     await pg.begin(async (tx) => {
-      await tx`insert into wp.users (id, email, display_name) values (${userId}, ${"catalogue-build@mushin.invalid"}, ${"Catalogue build"})`;
-      await tx`insert into wp.workspaces (id, name, owner_user_id) values (${workspaceId}, ${"MUSHIN catalogue build"}, ${userId})`;
+      await tx`insert into wp.users (id, email, display_name) values (${userId}, ${`catalogue-build-${values.label}@mushin.invalid`}, ${"Catalogue build"})`;
+      await tx`insert into wp.workspaces (id, name, owner_user_id) values (${workspaceId}, ${workspaceName}, ${userId})`;
       await tx`insert into wp.workspace_members (workspace_id, user_id, role) values (${workspaceId}, ${userId}, 'owner')`;
     });
     await pg.end();
@@ -117,7 +142,13 @@ async function buildWorkspace(): Promise<TenantContext> {
 }
 
 const started = new Date();
-const spentUsd = async () => Number((await db.withSystem((tx) => tx.execute<{ usd: string }>(sql`select coalesce(sum(cost_usd), 0)::text usd from platform.provider_calls where created_at >= ${started.toISOString()}::timestamptz`)))[0]?.usd ?? 0);
+/** Spend under the authorisation (all providers, all workers) plus requests in flight: the same numbers the gate uses. */
+const spentUsd = async () => {
+  const s = await gate.status();
+  return s.spent + s.open;
+};
+/** Below this headroom no new job is started (one live run can reserve up to ~USD 1 in flight). */
+const JOB_HEADROOM_USD = 1;
 const report: Record<string, unknown>[] = [];
 const ctx = await buildWorkspace();
 
@@ -127,7 +158,7 @@ if (mode === "refresh") {
   const rows = await db.withSystem((tx) => tx.execute<{ id: string }>(sql`select p.creator_id as id from gcp.creator_profiles p join gcp.creators c on c.id = p.creator_id where c.status = 'active' and p.platform = ${platform} order by p.followers desc nulls last limit ${limit}`));
   logger.info({ creators: rows.length, platform }, "refresh start");
   for (const [i, r] of rows.entries()) {
-    if ((await spentUsd()) >= capUsd) {
+    if ((await spentUsd()) >= capUsd - JOB_HEADROOM_USD) {
       logger.warn({ spent: await spentUsd(), capUsd }, "spend cap reached: stopping");
       break;
     }
@@ -149,7 +180,7 @@ if (mode === "refresh") {
   const size = Number(values.size) as LiveRunSize;
   outer: for (const city of cities) {
     for (const niche of niches) {
-      if ((await spentUsd()) >= capUsd) {
+      if ((await spentUsd()) >= capUsd - JOB_HEADROOM_USD) {
         logger.warn({ spent: await spentUsd(), capUsd }, "spend cap reached: stopping");
         break outer;
       }
@@ -184,3 +215,4 @@ const file = join(outDir, `catalog-build-${mode}-${started.toISOString().replace
 writeFileSync(file, `${JSON.stringify({ mode, db: dbName, capUsd, started: started.toISOString(), finished: new Date().toISOString(), spendByProvider: byProvider, jobs: report }, null, 1)}\n`);
 logger.info({ file, spentUsd: await spentUsd(), jobs: report.length }, "catalogue build finished");
 await db.close();
+await ownerSql.end();
