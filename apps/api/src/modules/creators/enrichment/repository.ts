@@ -1,6 +1,7 @@
 import { and, desc, eq, lt, sql } from "drizzle-orm";
 import { encryptSecret, sha256Hex } from "@mushin/core";
 import {
+  creatorAttributeEvidence,
   creatorContacts,
   creatorLinks,
   creatorProfiles,
@@ -15,6 +16,7 @@ import {
 } from "@mushin/db";
 import { maskContact, type CreatorPlatform } from "../rules";
 import type { Assessment } from "./assessment";
+import type { AttributeDecision } from "./attribute-evidence";
 import type { ExtractedContact, ExtractedLink } from "./links";
 import type { PreviousMetrics, SignalReport } from "./signals";
 import type { StandardProfile } from "./standardize";
@@ -129,6 +131,8 @@ export type SaveInput = {
   tags: string[];
   encryptionKey: Buffer;
   requestId: string | null;
+  /** search-v2 evidence policy: city, country and niches come from evidence, and the evidence rows are kept. */
+  attributes?: AttributeDecision;
 };
 
 const assessmentStatusOf = (i: SaveInput): "assessed" | "pending" | "insufficient_data" =>
@@ -160,9 +164,9 @@ export async function saveEnrichment(tx: Tx, i: SaveInput): Promise<{ creatorId:
         primaryPlatform: p.platform,
         avatarUrl: i.avatar?.url ?? null,
         avatarKey: i.avatar?.key ?? null,
-        city: a?.creatorCity ?? null,
-        country: p.country ?? a?.creatorCountry ?? null,
-        niches: a?.niches ?? [],
+        city: i.attributes ? i.attributes.city : (a?.creatorCity ?? null),
+        country: i.attributes ? i.attributes.country : (p.country ?? a?.creatorCountry ?? null),
+        niches: i.attributes ? i.attributes.niches : (a?.niches ?? []),
         tags: i.tags,
         verified: p.verified,
         authenticityScore: score,
@@ -224,10 +228,14 @@ export async function saveEnrichment(tx: Tx, i: SaveInput): Promise<{ creatorId:
         displayName: p.displayName,
         verified: p.verified,
         ...(i.avatar ? { avatarUrl: i.avatar.url, avatarKey: i.avatar.key } : {}),
-        ...(a && a.niches.length > 0 ? { niches: a.niches } : {}),
         ...(i.tags.length > 0 ? { tags: i.tags } : {}),
-        city: sql`coalesce(${creators.city}, ${a?.creatorCity ?? null})`,
-        country: sql`coalesce(${creators.country}, ${p.country ?? a?.creatorCountry ?? null})`,
+        ...(i.attributes
+          ? await placeAttributes(tx, creatorId, i.attributes, [p.country, a?.creatorCountry], [a?.creatorCity])
+          : {
+              ...(a && a.niches.length > 0 ? { niches: a.niches } : {}),
+              city: sql`coalesce(${creators.city}, ${a?.creatorCity ?? null})`,
+              country: sql`coalesce(${creators.country}, ${p.country ?? a?.creatorCountry ?? null})`,
+            }),
         // A pending assessment keeps the last score until the background assessment replaces it.
         ...(status === "pending" ? {} : { authenticityScore: score }),
         assessmentStatus: status === "pending" ? sql`coalesce(${creators.assessmentStatus}, 'pending')` : status,
@@ -272,12 +280,41 @@ export async function saveEnrichment(tx: Tx, i: SaveInput): Promise<{ creatorId:
       .onConflictDoUpdate({ target: [creatorLinks.creatorId, creatorLinks.url], set: { lastSeenAt: sql`now()` } });
   }
   if (a) await insertSnapshot(tx, creatorId, a, i.report, i.modelVersion, i.assessment?.model ?? "");
+  if (i.attributes) await replaceAttributeEvidence(tx, creatorId, i.attributes, i.payloadId);
   await tx.update(rawPayloads).set({ creatorId }).where(eq(rawPayloads.id, i.payloadId));
   await writeOutbox(tx, { eventType: "creator.changed", aggregateType: "creator", aggregateId: creatorId, workspaceId: null, payload: { creatorId }, requestId: i.requestId });
   if (status === "pending") {
     await writeOutbox(tx, { eventType: "creator.assessment_requested", aggregateType: "creator", aggregateId: creatorId, workspaceId: null, payload: { creatorId }, requestId: i.requestId });
   }
   return { creatorId, created: !existing, assessment: status };
+}
+
+/**
+ * search-v2 placement on an existing creator. A supported value replaces the stored one. Without support, a stored value
+ * is kept unless it is exactly what a weak source said (registration country, AI reading), which is cleared: that is
+ * how registration-derived countries were stored before. Niches are replaced only when the text supports some.
+ */
+export async function placeAttributes(
+  tx: Tx,
+  creatorId: string,
+  d: AttributeDecision,
+  weakCountries: (string | null | undefined)[],
+  weakCities: (string | null | undefined)[],
+): Promise<{ city: string | null; country: string | null; niches?: string[] }> {
+  const [cur] = await tx.select({ city: creators.city, country: creators.country }).from(creators).where(eq(creators.id, creatorId)).limit(1);
+  const weak = (v: string | null | undefined, list: (string | null | undefined)[]) => v != null && list.some((w) => w != null && w.toLowerCase() === v.toLowerCase());
+  const conflictingCity = d.evidence.some((r) => r.attribute === "city" && r.status === "conflicting");
+  const city = d.city ?? (conflictingCity || weak(cur?.city, weakCities) ? null : (cur?.city ?? null));
+  const country = d.country ?? (weak(cur?.country, weakCountries) ? null : (cur?.country ?? null));
+  return { city, country, ...(d.niches.length > 0 ? { niches: d.niches } : {}) };
+}
+
+export async function replaceAttributeEvidence(tx: Tx, creatorId: string, d: AttributeDecision, payloadId: string | null): Promise<void> {
+  await tx.delete(creatorAttributeEvidence).where(eq(creatorAttributeEvidence.creatorId, creatorId));
+  if (d.evidence.length === 0) return;
+  await tx.insert(creatorAttributeEvidence).values(
+    d.evidence.map((r) => ({ creatorId, attribute: r.attribute, value: r.value.slice(0, 80), source: r.source, status: r.status, evidence: r.evidence.slice(0, 300), payloadId })),
+  );
 }
 
 async function insertSnapshot(tx: Tx, creatorId: string, a: Assessment, report: SignalReport, modelVersion: string, model: string): Promise<void> {

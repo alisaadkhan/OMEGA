@@ -11,6 +11,7 @@ import { minorByRules } from "./minors";
 import * as repo from "./repository";
 import { measureSignals, profileMetrics, type SignalReport } from "./signals";
 import { standardize, type StandardProfile } from "./standardize";
+import { deriveAttributes } from "./attribute-evidence";
 import { suppressedUrls } from "../suppressions";
 
 /** YouTube API Services: non-authorised data may not be stored beyond 30 calendar days. */
@@ -32,6 +33,8 @@ type Deps = {
   now?: () => Date;
   /** Fetches a profile photo to copy into storage (injectable for tests). */
   fetchImage?: typeof fetch;
+  /** "v2" (SEARCH_PROFILE=v2): city, country and niches are stored from evidence only, with provenance rows. */
+  attributePolicy?: "v1" | "v2";
 };
 
 function topTags(p: StandardProfile): string[] {
@@ -163,6 +166,7 @@ export function createEnrichmentPipeline(deps: Deps) {
         tags: topTags(p),
         encryptionKey: deps.encryptionKey,
         requestId: job.requestId,
+        ...(deps.attributePolicy === "v2" ? { attributes: deriveAttributes(p, assessment?.value ?? null) } : {}),
       });
       const result: SavedResult = { kind: "saved", creatorId: saved.creatorId, outcome: saved.created ? "created" : "refreshed", assessment: saved.assessment, profile: p };
       await hooks.onSaved(tx, result);

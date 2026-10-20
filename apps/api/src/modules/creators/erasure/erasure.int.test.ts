@@ -127,6 +127,8 @@ describe("eraser", () => {
       encryptionKey: TEST_KEY,
       logger,
       fetchImage: async () => new Response("img", { headers: { "content-type": "image/jpeg" } }),
+      // search-v2: attribute evidence quotes the creator's own text, so erasure must remove it too.
+      attributePolicy: "v2",
     });
     const a = await createTestWorkspace();
     const b = await createTestWorkspace();
@@ -138,6 +140,7 @@ describe("eraser", () => {
       await ownerQuery(`insert into wp.audience_views (workspace_id, creator_id, month, viewed_by) values ('${ws.workspaceId}', '${id}', date_trunc('month', now())::date, '${ws.userId}')`);
     }
     expect(storage.objects.size).toBeGreaterThanOrEqual(2);
+    expect((await ownerQuery<{ n: number }>(`select count(*)::int n from gcp.creator_attribute_evidence where creator_id = '${id}'`))[0]?.n).toBeGreaterThan(0);
     // An earlier add-by-link job and a cached Google result also name the creator (security review of 0012).
     await ownerQuery(`insert into wp.discovery_jobs (workspace_id, kind, requested_by, input_url, platform, handle, canonical_url, cost, status)
       values ('${b.workspaceId}', 'add_by_url', '${b.userId}', 'https://www.instagram.com/Coke_Studio/', 'instagram', 'coke_studio', 'https://instagram.com/coke_studio', 10, 'completed')`);
@@ -158,8 +161,9 @@ describe("eraser", () => {
       (select count(*)::int from gcp.enrichment_snapshots where creator_id = '${id}') snapshots,
       (select count(*)::int from platform.raw_payloads where canonical_url = 'https://instagram.com/coke_studio') payloads,
       (select count(*)::int from wp.contact_reveals where creator_id = '${id}') reveals,
-      (select count(*)::int from wp.audience_views where creator_id = '${id}') views`);
-    expect(left[0]).toEqual({ contacts: 0, links: 0, profiles: 0, snapshots: 0, payloads: 0, reveals: 0, views: 0 });
+      (select count(*)::int from wp.audience_views where creator_id = '${id}') views,
+      (select count(*)::int from gcp.creator_attribute_evidence where creator_id = '${id}') evidence`);
+    expect(left[0]).toEqual({ contacts: 0, links: 0, profiles: 0, snapshots: 0, payloads: 0, reveals: 0, views: 0, evidence: 0 });
     expect(storage.objects.size).toBe(0);
     const job = await ownerQuery<{ handle: string; input_url: string | null }>(`select handle, input_url from wp.discovery_jobs where workspace_id = '${b.workspaceId}'`);
     expect(job).toEqual([{ handle: "erased", input_url: null }]);

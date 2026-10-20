@@ -105,7 +105,7 @@ const scraper: ProfileScraper = {
   ...(scraperRaw.resolveInstagramPostOwners ? { resolveInstagramPostOwners: (req: Parameters<NonNullable<ProfileScraper["resolveInstagramPostOwners"]>>[0]) => gated(req.urls.length * COST.apifyPerProfile, () => (scraperRaw.resolveInstagramPostOwners as NonNullable<ProfileScraper["resolveInstagramPostOwners"]>)(req)) } : {}),
 };
 const web: WebSearch = { search: (q) => gated(COST.search, () => webRaw.search(q)) };
-const pipeline = createEnrichmentPipeline({ db, scraper, storage: fileStorage(join(repo, ".catalog-storage", dbName)), llm, encryptionKey: config.dataEncryptionKey, logger });
+const pipeline = createEnrichmentPipeline({ db, scraper, storage: fileStorage(join(repo, ".catalog-storage", dbName)), llm, encryptionKey: config.dataEncryptionKey, logger, attributePolicy: config.searchProfile });
 const search = createCachedSearch({ db, web, ...(config.scraping.youtubeApiKey ? { youtube: createYouTubeSearch({ apiKey: config.scraping.youtubeApiKey, sink, logger }) } : {}) });
 const discovery = createDiscoveryService({ db, billing });
 const profileRunner = createDiscoveryRunner({ db, billing, pipeline, logger });
@@ -186,10 +186,26 @@ if (mode === "refresh") {
       }
       const t = Date.now();
       try {
-        const estimate = await discovery.createEstimate(ctx, { search: { text: niche, filters: searchFiltersSchema.parse({ creatorCity: city }) }, maxNew: size });
-        const out = await discovery.start(ctx, { kind: "live", estimateId: estimate.estimateId });
-        if (out.body.status !== "started") throw new Error(`not started: ${out.body.status}`);
-        const jobId = out.body.job.id;
+        // A re-launched worker never pays twice for a cell: a cell completed by any build worker is skipped, and this
+        // worker's own unfinished job (a crash mid-run) is resumed instead of starting a new one.
+        const earlier = await db.withSystem((tx) =>
+          tx.execute<{ id: string; status: string; workspace_id: string }>(sql`
+            select j.id, j.status, j.workspace_id from wp.discovery_jobs j join wp.workspaces w on w.id = j.workspace_id
+            where j.kind = 'live' and w.name like 'MUSHIN catalogue build %' and j.search->>'text' = ${niche} and j.search->'filters'->>'creatorCity' = ${city}
+              and (j.status = 'completed' or j.workspace_id = ${ctx.workspaceId})
+            order by (j.status = 'completed') desc, j.created_at desc limit 1`),
+        );
+        if (earlier[0]?.status === "completed") {
+          report.push({ city, niche, status: "skipped", reason: "already built", jobId: earlier[0].id });
+          continue;
+        }
+        let jobId = earlier[0]?.id;
+        if (!jobId) {
+          const estimate = await discovery.createEstimate(ctx, { search: { text: niche, filters: searchFiltersSchema.parse({ creatorCity: city }) }, maxNew: size });
+          const out = await discovery.start(ctx, { kind: "live", estimateId: estimate.estimateId });
+          if (out.body.status !== "started") throw new Error(`not started: ${out.body.status}`);
+          jobId = out.body.job.id;
+        }
         for (let attempt = 0; attempt < 3; attempt++) {
           await liveRunner.run(jobId, ctx.workspaceId).catch((e: Error) => logger.warn({ err: e.message, jobId }, "live attempt failed"));
           const j = await discovery.get(ctx, jobId);

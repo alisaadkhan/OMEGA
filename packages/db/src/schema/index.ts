@@ -32,6 +32,7 @@ import {
   rawPayloads,
   creatorSuppressions,
   removalRequests,
+  creatorAttributeEvidence,
 } from "./creators";
 import { audienceEstimates, audienceJobs } from "./audience";
 import { discoveryCandidates, discoveryEstimates, discoveryJobs, discoveryResults, serperCache } from "./discovery";
@@ -55,6 +56,7 @@ export * from "./staff";
 
 /** Every Drizzle table; the drift test compares each one with the live database. */
 export const ALL_TABLES = [
+  creatorAttributeEvidence,
   trialRequests,
   trialFeedback,
   users,

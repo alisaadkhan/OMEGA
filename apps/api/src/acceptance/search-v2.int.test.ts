@@ -6,7 +6,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { resetTables } from "@mushin/db/testing";
-import { buildApi, db, evidence, externalAttempts, owner, synthetic, webFor } from "./harness";
+import { buildApi, db, evidence, externalAttempts, owner, scraperFor, synthetic, webFor } from "./harness";
 import { CATALOGUE, R } from "./catalogue";
 
 type Api = Awaited<ReturnType<typeof buildApi>>;
@@ -105,5 +105,35 @@ describe("live discovery under v2 (VAR2-L)", () => {
     evidence("VAR2-L03", { outcome: job.outcome, delivered: results.length, charged: job.live?.creditsCharged, reasons });
     expect(results.length).toBe(8);
     expect(job.live?.creditsCharged).toBe(50 + 8 * 10);
+  });
+  it("VAR2-L04 stores city and country only from the creator's own words, and keeps provenance", async () => {
+    const bios: Record<string, string> = {
+      v2_ev_1: "Food vlogger in Lahore",
+      v2_ev_2: "Food reviews | Lahore | Karachi",
+      v2_ev_3: "Daily vlogs and challenges",
+      // The pool needs 8 candidates before extraction starts.
+      ...Object.fromEntries([4, 5, 6, 7, 8].map((n) => [`v2_ev_${n}`, "Food vlogger in Lahore"])),
+    };
+    // Its own query, so cached web results from the earlier tests are not reused.
+    const live = await buildApi({ searchProfile: "v2", fixtures: { web: webFor(() => Object.keys(bios)), scraper: scraperFor((h) => bios[h] ?? null) } });
+    const p = await live.person();
+    await db.withWorkspace(p.workspaceId, (tx) => live.billing.engine.grant(tx, p.workspaceId, { source: "adjustment", amount: 5_000, expiresAt: new Date(Date.now() + 86_400_000), sourceRef: `v2e-${randomUUID()}`, note: "acceptance" }));
+    const { jobId } = await live.startLive(p.ctx, "street food", { platform: "instagram", creatorCity: "Lahore" }, 10);
+    await live.live.run(jobId, p.workspaceId);
+    const stored = await owner<{ handle: string; id: string; city: string | null; country: string | null }>(
+      `select pr.handle, c.id, c.city, c.country from gcp.creator_profiles pr join gcp.creators c on c.id = pr.creator_id where pr.handle like 'v2_ev_%' order by 1`,
+    );
+    const rows = await owner<{ handle: string; attribute: string; value: string; source: string; status: string }>(
+      `select pr.handle, e.attribute, e.value, e.source, e.status from gcp.creator_attribute_evidence e join gcp.creator_profiles pr on pr.creator_id = e.creator_id where pr.handle like 'v2_ev_%' order by 1, 2, 3`,
+    );
+    const reasons = await owner<{ decision: string; reason: string | null; n: number }>(`select decision, reason, count(*)::int n from wp.discovery_candidates where job_id = '${jobId}' group by 1,2`);
+    evidence("VAR2-L04", { outcome: (await live.discovery.get(p.ctx, jobId)).outcome, reasons, stored, rows });
+    const by = Object.fromEntries(stored.map((r) => [r.handle, r]));
+    expect(by["v2_ev_1"]).toMatchObject({ city: "Lahore", country: "PK" });
+    // The fixture's display name is "Coke Studio Pakistan": own words support Pakistan, but two cities support none.
+    expect(by["v2_ev_2"]).toMatchObject({ city: null, country: "PK" });
+    expect(by["v2_ev_3"]?.city).toBeNull();
+    expect(rows).toContainEqual({ handle: "v2_ev_1", attribute: "city", value: "Lahore", source: "profile_text", status: "supported" });
+    expect(rows.filter((r) => r.handle === "v2_ev_2" && r.attribute === "city").every((r) => r.status === "conflicting")).toBe(true);
   });
 });
