@@ -1,0 +1,47 @@
+{
+ "id": "B2-17",
+ "recordedAt": "2026-10-20T04:59:22.618Z",
+ "data": {
+  "delivered": [
+   {
+    "handle": "lhr_food_1",
+    "contact": "email_unverified"
+   },
+   {
+    "handle": "lhr_food_2",
+    "contact": "none"
+   },
+   {
+    "handle": "lhr_food_3",
+    "contact": "none"
+   },
+   {
+    "handle": "lhr_food_4",
+    "contact": "none"
+   },
+   {
+    "handle": "lhr_food_5",
+    "contact": "none"
+   },
+   {
+    "handle": "lhr_food_6",
+    "contact": "none"
+   },
+   {
+    "handle": "lhr_food_7",
+    "contact": "none"
+   },
+   {
+    "handle": "lhr_food_8",
+    "contact": "none"
+   }
+  ],
+  "contacts": [
+   {
+    "handle": "lhr_food_1",
+    "kind": "email",
+    "source": "bio"
+   }
+  ]
+ }
+}

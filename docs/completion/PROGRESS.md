@@ -2,6 +2,28 @@
 
 Newest session first. A new session reads the mandate, this file, the audit gap register and roadmap, then git state.
 
+## Session 4 — 2026-10-20 (final Search acceptance campaign)
+
+Mandate: codebase comprehension, handoff, then the acceptance gates. Report: `final-search-acceptance-report.md`; evidence: `acceptance-evidence/`.
+
+**Handoff and safety:**
+- Handoff confirmed by the owner, plus a read-only check (no other editor).
+- No paid calls; network guard: 0 external attempts.
+- Frozen corpus hash unchanged (11 tables); freeze check intact.
+
+**Campaign:** 152 cases planned, 144 executed.
+- 139 PASS, 4 FAIL (D1, D2, D3, HUM-04 coverage bound).
+- 8 BLOCKED (human ratings ×4, real providers ×3, hosted check: network).
+- 1 NOT TESTED (live delivery in the browser).
+
+**Fixes:** logger redaction (D4) and E2E runner clean-up (D5), each with regression coverage.
+
+**Full suite:** 1,080 passed, 0 failed, 3 expected failures, 7 skipped. Browser: customer 162/162, staff 31/31.
+
+**Verdict: Search NOT ACCEPTED.** Coverage is at most 0.357 against 0.90 even with perfect ratings, and no raters are named.
+
+**Next single action:** the owner decides how the catalogue gets structured coverage (corpus AI assessment and catalogue build, or a re-scoped query set), then names the raters and adjudicator.
+
 ## Session 3 — 2026-10-19 (mandate v4)
 
 **Start:** `master` `3682e65`. Working tree had `.env.example` deleted (not by this session; left as found), plus the

@@ -1,0 +1,11 @@
+{
+ "id": "B2-04",
+ "recordedAt": "2026-10-20T04:59:15.171Z",
+ "data": {
+  "foreign": "NOT_FOUND",
+  "firstJob": "4dc91962-8927-47a2-9707-f4e5595adbe5",
+  "againJob": "4dc91962-8927-47a2-9707-f4e5595adbe5",
+  "expired": "CONFLICT",
+  "heldReservations": 1
+ }
+}

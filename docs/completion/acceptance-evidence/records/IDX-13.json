@@ -1,0 +1,15 @@
+{
+ "id": "IDX-13",
+ "recordedAt": "2026-10-20T04:57:38.272Z",
+ "data": {
+  "table": [
+   "serper_cache"
+  ],
+  "columns": [
+   "query_hash",
+   "query",
+   "results",
+   "fetched_at"
+  ]
+ }
+}

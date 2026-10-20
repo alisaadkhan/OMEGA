@@ -1,0 +1,11 @@
+{
+ "id": "IDX-09",
+ "recordedAt": "2026-10-20T04:57:36.530Z",
+ "data": {
+  "samples": 10,
+  "msP50": 93,
+  "msP95": 159,
+  "msMax": 159,
+  "target": "none documented (B4)"
+ }
+}

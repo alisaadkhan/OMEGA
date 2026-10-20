@@ -1,0 +1,20 @@
+{
+ "id": "B2-13",
+ "recordedAt": "2026-10-20T04:59:19.932Z",
+ "data": {
+  "delivered": 3,
+  "charged": 80,
+  "before": {
+   "available": 5200,
+   "reserved": 0,
+   "base": 200,
+   "meter": "normal"
+  },
+  "after": {
+   "available": 5120,
+   "reserved": 0,
+   "base": 200,
+   "meter": "normal"
+  }
+ }
+}

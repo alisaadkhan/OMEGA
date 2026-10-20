@@ -1,0 +1,10 @@
+{
+ "id": "VAR-L06",
+ "recordedAt": "2026-10-20T04:59:35.322Z",
+ "data": {
+  "firstRunWebCalls": 3,
+  "secondRunWebCalls": 0,
+  "secondJobDistinct": true,
+  "secondCharged": 80
+ }
+}

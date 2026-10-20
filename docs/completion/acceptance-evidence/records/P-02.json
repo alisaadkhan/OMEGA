@@ -1,0 +1,18 @@
+{
+ "id": "P-02",
+ "recordedAt": "2026-10-20T04:59:25.294Z",
+ "data": {
+  "run": "threw: injected database failure after the delivery insert",
+  "status": "running",
+  "outcome": null,
+  "charged": 0,
+  "failedCreatorRows": 0,
+  "failedResultRows": 0,
+  "delivered": [
+   "lhr_food_1",
+   "lhr_food_2",
+   "lhr_food_3"
+  ],
+  "committedForDelivered": 3
+ }
+}

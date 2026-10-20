@@ -1,0 +1,11 @@
+{
+ "id": "CR-08",
+ "recordedAt": "2026-10-20T04:56:38.874Z",
+ "data": {
+  "stale": [
+   409,
+   "CONFLICT"
+  ],
+  "fresh": 60
+ }
+}

@@ -1,0 +1,20 @@
+{
+ "id": "B1-05",
+ "recordedAt": "2026-10-20T05:02:01.586Z",
+ "data": {
+  "filter": [
+   "F1",
+   "F8"
+  ],
+  "text": [
+   "F1",
+   "F8"
+  ],
+  "understood": {
+   "text": "food lahore",
+   "filters": {
+    "followersMin": 100000
+   }
+  }
+ }
+}

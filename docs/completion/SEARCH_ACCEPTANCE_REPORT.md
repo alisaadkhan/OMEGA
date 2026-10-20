@@ -1,6 +1,6 @@
 # Search acceptance report
 
-**Decision: Search is NOT ACCEPTED.** No human relevance ratings exist. The owner's gates (two independent raters plus an
+**Decision: Search is NOT ACCEPTED.** Superseded in detail by `final-search-acceptance-report.md` (2026-10-20 campaign: 152 cases). The campaign found that Brain 1 coverage on the frozen set cannot exceed **0.357**: only 10 of 28 relevance cases return anything, against a gate of 0.90, so the coverage gate fails regardless of ratings. It also left two defects open under the freeze: D1 ("YouTubers" not read as a platform) and D2 (Roman Urdu live brief rejected by fit). No human relevance ratings exist. The owner's gates (two independent raters plus an
 adjudicator; weighted kappa ≥ 0.60, strict precision@5 ≥ 0.80, nDCG@10 ≥ 0.75, coverage ≥ 0.90, every behaviour case
 correct) have not been measured. Nothing in this report is evidence of relevance.
 

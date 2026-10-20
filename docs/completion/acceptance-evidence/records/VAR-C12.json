@@ -1,0 +1,21 @@
+{
+ "id": "VAR-C12",
+ "recordedAt": "2026-10-20T05:02:02.701Z",
+ "data": {
+  "input": "fashion vloggers in Lahore",
+  "filters": {},
+  "intent": "control: different niche",
+  "understood": {
+   "text": "fashion lahore",
+   "filters": {}
+  },
+  "results": [
+   "F6"
+  ],
+  "count": 1,
+  "overlapWithBaseline": 0,
+  "recallAgainstR": 0,
+  "outsideExpected": [],
+  "charged": 50
+ }
+}

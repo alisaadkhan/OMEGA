@@ -83,4 +83,9 @@ every audit ID to its current state and adds gaps found since, with the next fre
 | TRIAL-A | Founder-assisted trial: callback form, Super Admin approval, 14 days / 2,500 credits, feedback | Integration verified (local) | `b593612`; trials.int 7/7 ×3; E2E `trial` | TRIAL-01..03 (owner); reminder delivery channel |
 | UX-12 | "Request a demo" buttons in the hero and closing CTA did nothing | Locally verified | `b593612`: they open the free-trial page; E2E `trial` | — |
 | DATA-04 | Workspace deletion did not erase trial feedback (found by the existing erase-coverage test) | Locally verified | migration 0051; team.int | — |
-
+| ACC-D1 | "YouTubers …" not limited to YouTube (role word, not platform word) | Open (Search freeze) | acceptance VAR-C05, CORPUS-02 | Fix after ratings |
+| ACC-D2 | Roman Urdu live brief "khana" rejected by fit (Brain 1 aliases khana to food, fit does not) | Open (Search freeze) | acceptance VAR-L03 | Fix after ratings |
+| ACC-D3 | Reconciliation compares whole seconds; same-second event-less change missed | Open (low; ranking tie-breaker frozen) | acceptance IDX-07b | After ratings |
+| ACC-D4 | Logs did not redact credential-like keys or URL passwords | Locally verified (fixed) | logger.test, acceptance SEC-12 | — |
+| ACC-D5 | Customer E2E runner orphaned its API on a readiness failure | Locally verified (fixed) | run.sh; customer suite 162/162 | — |
+| ACC-Q1 | Brain 1 coverage upper bound 0.357 < 0.90 on the frozen set | Blocked (owner) | acceptance-evidence/Q-COVERAGE-BOUND.txt | Corpus assessment or coverage decision, then ratings |

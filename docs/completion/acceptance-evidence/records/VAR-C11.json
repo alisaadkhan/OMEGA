@@ -1,0 +1,21 @@
+{
+ "id": "VAR-C11",
+ "recordedAt": "2026-10-20T05:02:02.676Z",
+ "data": {
+  "input": "food vloggers in Karachi",
+  "filters": {},
+  "intent": "control: different city",
+  "understood": {
+   "text": "food karachi",
+   "filters": {}
+  },
+  "results": [
+   "F5"
+  ],
+  "count": 1,
+  "overlapWithBaseline": 0,
+  "recallAgainstR": 0,
+  "outsideExpected": [],
+  "charged": 50
+ }
+}

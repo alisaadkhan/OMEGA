@@ -1,0 +1,19 @@
+{
+ "id": "B2-02",
+ "recordedAt": "2026-10-20T04:59:14.104Z",
+ "data": {
+  "instagram10": {
+   "estimateId": "f4a83be4-f8dd-467c-84b5-7cb11526c4ff",
+   "maxCredits": 150,
+   "priceVersion": "d0b6a6279ddff1ab36991a81",
+   "expiresAt": "2026-10-20T05:14:14.097Z"
+  },
+  "tiktok5": {
+   "estimateId": "0b3028ad-ce52-4f47-bf57-ff9c0a56fa3c",
+   "maxCredits": 100,
+   "minimumCredits": 100,
+   "priceVersion": "3d50888ab25f9711b845a850",
+   "expiresAt": "2026-10-20T05:14:14.103Z"
+  }
+ }
+}

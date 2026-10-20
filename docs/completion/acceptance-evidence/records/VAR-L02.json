@@ -1,0 +1,56 @@
+{
+ "id": "VAR-L02",
+ "recordedAt": "2026-10-20T04:59:32.594Z",
+ "data": {
+  "brief": {
+   "id": "VAR-L02",
+   "text": "food blogger",
+   "filters": {
+    "platform": "instagram",
+    "creatorCity": "Lahore"
+   }
+  },
+  "quote": 150,
+  "outcome": "succeeded",
+  "delivered": [
+   {
+    "handle": "lhr_food_1",
+    "isNew": false
+   },
+   {
+    "handle": "lhr_food_2",
+    "isNew": false
+   },
+   {
+    "handle": "lhr_food_3",
+    "isNew": false
+   },
+   {
+    "handle": "lhr_food_4",
+    "isNew": false
+   },
+   {
+    "handle": "lhr_food_5",
+    "isNew": false
+   },
+   {
+    "handle": "lhr_food_6",
+    "isNew": false
+   },
+   {
+    "handle": "lhr_food_7",
+    "isNew": false
+   },
+   {
+    "handle": "lhr_food_8",
+    "isNew": false
+   }
+  ],
+  "newCreators": 0,
+  "reused": 8,
+  "committedRows": 8,
+  "providerWebCalls": 0,
+  "charged": 50,
+  "balanceDelta": 50
+ }
+}

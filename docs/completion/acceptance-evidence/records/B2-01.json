@@ -1,0 +1,19 @@
+{
+ "id": "B2-01",
+ "recordedAt": "2026-10-20T04:59:13.709Z",
+ "data": {
+  "error": "QUERY_TOO_BROAD",
+  "before": {
+   "available": 5200,
+   "reserved": 0,
+   "base": 200,
+   "meter": "normal"
+  },
+  "after": {
+   "available": 5200,
+   "reserved": 0,
+   "base": 200,
+   "meter": "normal"
+  }
+ }
+}

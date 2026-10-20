@@ -1,0 +1,10 @@
+{
+ "id": "PERF-10",
+ "recordedAt": "2026-10-20T04:56:19.344Z",
+ "data": {
+  "attemptsUntilTerminal": 3,
+  "status": "failed",
+  "ms": 54,
+  "balanceRestored": true
+ }
+}

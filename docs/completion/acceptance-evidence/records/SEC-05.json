@@ -1,0 +1,8 @@
+{
+ "id": "SEC-05",
+ "recordedAt": "2026-10-20T05:00:03.601Z",
+ "data": {
+  "status": 403,
+  "reason": "workspace_access_denied"
+ }
+}

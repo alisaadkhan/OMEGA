@@ -1,0 +1,11 @@
+{
+ "id": "B1-14",
+ "recordedAt": "2026-10-20T05:02:01.944Z",
+ "data": {
+  "impossible": 400,
+  "huge": 400,
+  "badType": 400,
+  "inject": 200,
+  "sqlish": 200
+ }
+}

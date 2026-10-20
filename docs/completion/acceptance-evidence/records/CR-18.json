@@ -1,0 +1,13 @@
+{
+ "id": "CR-18",
+ "recordedAt": "2026-10-20T04:56:46.290Z",
+ "data": {
+  "first": true,
+  "replaySame": false,
+  "second": false,
+  "spends": {
+   "n": 1,
+   "total": 5
+  }
+ }
+}

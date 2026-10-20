@@ -1,0 +1,11 @@
+{
+ "id": "PERF-07",
+ "recordedAt": "2026-10-20T04:56:18.471Z",
+ "data": {
+  "attempts": 50,
+  "ok": 20,
+  "refused": 30,
+  "remaining": 0,
+  "wallMs": 347
+ }
+}

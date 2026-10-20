@@ -1,0 +1,24 @@
+{
+ "id": "VAR-C17",
+ "recordedAt": "2026-10-20T05:02:02.859Z",
+ "data": {
+  "input": "food vloggers in Lahore",
+  "filters": {
+   "platform": "youtube"
+  },
+  "intent": "explicit platform filter",
+  "understood": {
+   "text": "food lahore",
+   "filters": {}
+  },
+  "results": [
+   "F8",
+   "F2"
+  ],
+  "count": 2,
+  "overlapWithBaseline": 0.25,
+  "recallAgainstR": 0.25,
+  "outsideExpected": [],
+  "charged": 50
+ }
+}

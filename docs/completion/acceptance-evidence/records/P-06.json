@@ -1,0 +1,18 @@
+{
+ "id": "P-06",
+ "recordedAt": "2026-10-20T04:59:28.864Z",
+ "data": {
+  "rows": [
+   {
+    "platform": "instagram",
+    "creator_id": "1d417cac-a853-49f3-a771-7845ff2c1aee"
+   },
+   {
+    "platform": "tiktok",
+    "creator_id": "4ae62860-bb5e-467e-851c-c861f6fd4477"
+   }
+  ],
+  "igDelivered": "1d417cac-a853-49f3-a771-7845ff2c1aee",
+  "ttId": "4ae62860-bb5e-467e-851c-c861f6fd4477"
+ }
+}

@@ -1,0 +1,12 @@
+{
+ "id": "CR-21",
+ "recordedAt": "2026-10-20T04:56:49.072Z",
+ "data": {
+  "read": 403,
+  "spend": 403,
+  "bAfter": {
+   "remaining": 200,
+   "held": 0
+  }
+ }
+}

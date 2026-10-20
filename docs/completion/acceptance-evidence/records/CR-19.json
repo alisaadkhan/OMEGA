@@ -1,0 +1,12 @@
+{
+ "id": "CR-19",
+ "recordedAt": "2026-10-20T04:56:47.456Z",
+ "data": {
+  "startStatus": 202,
+  "okCharged": 50,
+  "okHeld": 0,
+  "failStatus": 202,
+  "failDelta": 0,
+  "failHeld": 0
+ }
+}

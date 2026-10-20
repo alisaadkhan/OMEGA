@@ -1,0 +1,35 @@
+{
+ "id": "VAR-C05",
+ "recordedAt": "2026-10-20T05:02:02.511Z",
+ "data": {
+  "input": "YouTubers covering food in Lahore",
+  "filters": {},
+  "intent": "platform named as a role word",
+  "understood": {
+   "text": "food lahore",
+   "filters": {}
+  },
+  "results": [
+   "F1",
+   "F14",
+   "F15",
+   "F3",
+   "F13",
+   "F10",
+   "F8",
+   "F2"
+  ],
+  "count": 8,
+  "overlapWithBaseline": 1,
+  "recallAgainstR": 1,
+  "outsideExpected": [
+   "F1",
+   "F14",
+   "F15",
+   "F3",
+   "F13",
+   "F10"
+  ],
+  "charged": 50
+ }
+}

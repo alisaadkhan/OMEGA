@@ -1,0 +1,14 @@
+{
+ "id": "P-03",
+ "recordedAt": "2026-10-20T04:59:26.197Z",
+ "data": {
+  "knownId": "521b7d70-7b67-45e6-90e9-7732a0c686b7",
+  "deliveredAs": {
+   "id": "521b7d70-7b67-45e6-90e9-7732a0c686b7",
+   "isNew": false
+  },
+  "rows": 1,
+  "charged": 120,
+  "newCount": 7
+ }
+}

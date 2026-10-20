@@ -1,0 +1,7 @@
+{
+ "id": "SEC-12",
+ "recordedAt": "2026-10-20T05:00:06.635Z",
+ "data": {
+  "output": "{\"level\":30,\"time\":1792472406633,\"pid\":7520,\"hostname\":\"DESKTOP-H3VG0LI\",\"req\":{\"headers\":{\"authorization\":\"[REDACTED]\",\"cookie\":\"[REDACTED]\"}},\"email\":\"p***@example.org\",\"apiKey\":\"[REDACTED]\",\"password\":\"[REDACTED]\",\"token\":\"[REDACTED]\",\"msg\":\"request\"}\n\n{\"level\":30,\"time\":1792472406634,\"pid\":7520,\"hostname\":\"DESKTOP-H3VG0LI\",\"err\":{\"type\":\"Error\",\"message\":\"connect failed postgres://user:***@db.example.org:5432/x\",\"stack\":\"Error: connect failed postgres://user:***@db.example.org:5432/x\\n    at D:/New folder (2)/New folder (2)/MUSHIN/apps/api/src/acceptance/security.int.test.ts:173:21\\n    at"
+ }
+}

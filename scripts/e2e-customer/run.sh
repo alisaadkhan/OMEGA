@@ -23,8 +23,9 @@ start() {
 stop
 "$B/psql" -h localhost -p 54330 -U postgres -d postgres -qAtc "select pg_terminate_backend(pid) from pg_stat_activity where datname = 'mushin_e2e'" >/dev/null
 "$B/dropdb" -h localhost -p 54330 -U postgres --if-exists mushin_e2e && "$B/createdb" -h localhost -p 54330 -U postgres -T "${E2E_TEMPLATE:-mushin_e2e_synthetic_template}" mushin_e2e || exit 1
-start main || exit 1
+# A failed start stops what it started, so a later run is not blocked by an orphaned API on :4000 (acceptance 2026-10-20).
+start main || { stop; exit 1; }
 cd "$H" && node journey.mjs "$LABEL" main
-stop; start restart || exit 1
+stop; start restart || { stop; exit 1; }
 cd "$H" && node journey.mjs "$LABEL" after-restart
 stop

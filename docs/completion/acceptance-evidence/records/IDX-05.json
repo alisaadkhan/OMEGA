@@ -1,0 +1,12 @@
+{
+ "id": "IDX-05",
+ "recordedAt": "2026-10-20T04:57:31.105Z",
+ "data": {
+  "docBefore": 0,
+  "repaired": {
+   "upserted": 1,
+   "removed": 0
+  },
+  "docAfter": 1
+ }
+}

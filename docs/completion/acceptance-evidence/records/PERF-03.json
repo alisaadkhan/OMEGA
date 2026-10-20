@@ -1,0 +1,18 @@
+{
+ "id": "PERF-03",
+ "recordedAt": "2026-10-20T04:56:17.675Z",
+ "data": {
+  "requests": 200,
+  "wallMs": 2341,
+  "throughputPerSec": 85.4,
+  "latencyMs": {
+   "n": 200,
+   "p50": 219.5,
+   "p95": 371,
+   "p99": 419.5,
+   "max": 469.1
+  },
+  "errors": 0,
+  "cpuUserMs": 2016
+ }
+}

@@ -1,0 +1,9 @@
+{
+ "id": "SEC-07",
+ "recordedAt": "2026-10-20T05:00:04.438Z",
+ "data": {
+  "chargesSeen": 0,
+  "lotsSeen": 0,
+  "crossWrite": "Failed query: insert into wp.lists (workspace_id, name, created_by) values ($1, "
+ }
+}

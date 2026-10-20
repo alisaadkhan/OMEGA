@@ -1,0 +1,28 @@
+{
+ "id": "CR-01",
+ "recordedAt": "2026-10-20T04:56:34.448Z",
+ "data": {
+  "response": {
+   "charged": true,
+   "creditsCharged": 50
+  },
+  "before": {
+   "remaining": 200,
+   "held": 0
+  },
+  "after": {
+   "remaining": 150,
+   "held": 0
+  },
+  "summary": {
+   "available": 150,
+   "reserved": 0,
+   "base": 200,
+   "meter": "normal"
+  },
+  "spends": {
+   "n": 1,
+   "total": 50
+  }
+ }
+}

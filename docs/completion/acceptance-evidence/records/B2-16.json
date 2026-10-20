@@ -1,0 +1,63 @@
+{
+ "id": "B2-16",
+ "recordedAt": "2026-10-20T04:59:21.658Z",
+ "data": {
+  "outcome": "completed_empty",
+  "delivered": 0,
+  "charged": 0,
+  "trail": [
+   {
+    "stage": "selection",
+    "decision": "not_extracted",
+    "reason": "run_size_limit"
+   },
+   {
+    "stage": "selection",
+    "decision": "not_extracted",
+    "reason": "run_size_limit"
+   },
+   {
+    "stage": "selection",
+    "decision": "not_extracted",
+    "reason": "run_size_limit"
+   },
+   {
+    "stage": "verification",
+    "decision": "unverified",
+    "reason": "individual_creator_unverified"
+   },
+   {
+    "stage": "verification",
+    "decision": "unverified",
+    "reason": "individual_creator_unverified"
+   },
+   {
+    "stage": "verification",
+    "decision": "unverified",
+    "reason": "individual_creator_unverified"
+   },
+   {
+    "stage": "verification",
+    "decision": "unverified",
+    "reason": "individual_creator_unverified"
+   },
+   {
+    "stage": "verification",
+    "decision": "unverified",
+    "reason": "individual_creator_unverified"
+   }
+  ],
+  "before": {
+   "available": 5200,
+   "reserved": 0,
+   "base": 200,
+   "meter": "normal"
+  },
+  "after": {
+   "available": 5200,
+   "reserved": 0,
+   "base": 200,
+   "meter": "normal"
+  }
+ }
+}

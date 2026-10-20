@@ -1,0 +1,44 @@
+{
+ "id": "CORPUS-01",
+ "recordedAt": "2026-10-20T05:02:14.474Z",
+ "data": {
+  "results": [
+   {
+    "wording": "food vloggers in Lahore",
+    "parsed": "food lahore",
+    "count": 7,
+    "sameSetAsFirst": true
+   },
+   {
+    "wording": "food bloggers in Lahore",
+    "parsed": "food lahore",
+    "count": 7,
+    "sameSetAsFirst": true
+   },
+   {
+    "wording": "food content creators based in Lahore",
+    "parsed": "food lahore",
+    "count": 7,
+    "sameSetAsFirst": true
+   },
+   {
+    "wording": "Lahore mein khana walay vloggers",
+    "parsed": "lahore khana",
+    "count": 7,
+    "sameSetAsFirst": true
+   },
+   {
+    "wording": "LHR foodie",
+    "parsed": "lhr foodie",
+    "count": 7,
+    "sameSetAsFirst": true
+   },
+   {
+    "wording": "food vlogers in lahor",
+    "parsed": "food lahor",
+    "count": 7,
+    "sameSetAsFirst": true
+   }
+  ]
+ }
+}

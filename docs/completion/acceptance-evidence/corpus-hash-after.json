@@ -1,0 +1,60 @@
+{
+ "at": "2026-10-20T04:49:02.945Z",
+ "tables": [
+  {
+   "table": "audience_estimates",
+   "rows": 0,
+   "md5": "empty"
+  },
+  {
+   "table": "contact_checks",
+   "rows": 0,
+   "md5": "empty"
+  },
+  {
+   "table": "creator_contacts",
+   "rows": 0,
+   "md5": "empty"
+  },
+  {
+   "table": "creator_links",
+   "rows": 0,
+   "md5": "empty"
+  },
+  {
+   "table": "creator_profiles",
+   "rows": 455,
+   "md5": "6537c9c91ff07d497a531607255b125c"
+  },
+  {
+   "table": "creator_search_documents",
+   "rows": 455,
+   "md5": "bf24bb7977d5eb84e45c015f1a6c8c16"
+  },
+  {
+   "table": "creator_suppressions",
+   "rows": 0,
+   "md5": "empty"
+  },
+  {
+   "table": "creators",
+   "rows": 455,
+   "md5": "ed6a3ba43d24f8832c26e22f44f19dcb"
+  },
+  {
+   "table": "enrichment_snapshots",
+   "rows": 0,
+   "md5": "empty"
+  },
+  {
+   "table": "profile_metric_snapshots",
+   "rows": 0,
+   "md5": "empty"
+  },
+  {
+   "table": "removal_requests",
+   "rows": 0,
+   "md5": "empty"
+  }
+ ]
+}

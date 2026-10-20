@@ -1,0 +1,12 @@
+{
+ "id": "CR-07",
+ "recordedAt": "2026-10-20T04:56:38.207Z",
+ "data": {
+  "status": 402,
+  "code": "INSUFFICIENT_CREDITS",
+  "after": {
+   "remaining": 40,
+   "held": 0
+  }
+ }
+}

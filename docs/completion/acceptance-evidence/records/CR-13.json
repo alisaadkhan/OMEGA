@@ -1,0 +1,15 @@
+{
+ "id": "CR-13",
+ "recordedAt": "2026-10-20T04:56:42.950Z",
+ "data": {
+  "status": "failed",
+  "before": {
+   "remaining": 1200,
+   "held": 0
+  },
+  "after": {
+   "remaining": 1200,
+   "held": 0
+  }
+ }
+}

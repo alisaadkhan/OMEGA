@@ -1,0 +1,12 @@
+{
+ "id": "PERF-09",
+ "recordedAt": "2026-10-20T04:56:19.238Z",
+ "data": {
+  "msQuoteAndConfirm": 35,
+  "msRun": 648,
+  "msTotal": 683,
+  "outcome": "succeeded",
+  "delivered": 10,
+  "note": "fixture providers: no network or provider latency included"
+ }
+}

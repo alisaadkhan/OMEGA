@@ -1,0 +1,19 @@
+{
+ "id": "CR-16",
+ "recordedAt": "2026-10-20T04:56:44.935Z",
+ "data": {
+  "second": "accepted",
+  "before": {
+   "remaining": 200,
+   "held": 100
+  },
+  "after": {
+   "remaining": 140,
+   "held": 0
+  },
+  "spends": {
+   "n": 1,
+   "total": 60
+  }
+ }
+}

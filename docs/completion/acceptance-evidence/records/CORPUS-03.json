@@ -1,0 +1,15 @@
+{
+ "id": "CORPUS-03",
+ "recordedAt": "2026-10-20T05:02:15.122Z",
+ "data": {
+  "queries": 34,
+  "refusedAsContradictory": [
+   "Creators with 100k minimum followers and 10k maximum followers"
+  ],
+  "searched": 33,
+  "zeroResultQueries": 23,
+  "zeroResultRate": 0.697,
+  "medianCount": 0,
+  "note": "text only; official runs apply each query's filters via the freeze tooling"
+ }
+}

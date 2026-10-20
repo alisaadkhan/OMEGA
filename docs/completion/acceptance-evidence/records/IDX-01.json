@@ -1,0 +1,9 @@
+{
+ "id": "IDX-01",
+ "recordedAt": "2026-10-20T04:57:28.367Z",
+ "data": {
+  "eventsForSaved": 1,
+  "rolledBackRows": 0,
+  "orphanEvents": 0
+ }
+}

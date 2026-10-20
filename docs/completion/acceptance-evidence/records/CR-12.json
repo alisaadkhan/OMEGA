@@ -1,0 +1,30 @@
+{
+ "id": "CR-12",
+ "recordedAt": "2026-10-20T04:56:42.341Z",
+ "data": {
+  "charged": 130,
+  "delivered": 8,
+  "ledger": [
+   {
+    "kind": "release",
+    "total": 20
+   },
+   {
+    "kind": "reserve",
+    "total": 150
+   },
+   {
+    "kind": "spend",
+    "total": -130
+   }
+  ],
+  "before": {
+   "remaining": 1200,
+   "held": 0
+  },
+  "after": {
+   "remaining": 1070,
+   "held": 0
+  }
+ }
+}

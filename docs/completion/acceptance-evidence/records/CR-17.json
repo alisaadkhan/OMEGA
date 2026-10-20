@@ -1,0 +1,8 @@
+{
+ "id": "CR-17",
+ "recordedAt": "2026-10-20T04:56:45.587Z",
+ "data": {
+  "second": "CONFLICT:live_run_in_progress",
+  "heldReservations": 1
+ }
+}

@@ -1,0 +1,10 @@
+{
+ "id": "SEC-10",
+ "recordedAt": "2026-10-20T05:00:05.943Z",
+ "data": {
+  "first": 202,
+  "second": 429,
+  "retryAfter": 3600,
+  "heldAfter": 0
+ }
+}

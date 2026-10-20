@@ -1,0 +1,20 @@
+{
+ "id": "B1-08",
+ "recordedAt": "2026-10-20T05:02:01.687Z",
+ "data": {
+  "results": [
+   "F1",
+   "F14",
+   "F15",
+   "F3",
+   "F13",
+   "F10",
+   "F8",
+   "F2"
+  ],
+  "understood": {
+   "text": "lahore khana",
+   "filters": {}
+  }
+ }
+}

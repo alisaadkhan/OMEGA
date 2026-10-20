@@ -1,0 +1,8 @@
+PASS    API config: valid
+PASS    worker config: valid
+PASS    DNS <ref>.supabase.co: IPv4,IPv4
+PASS    DNS aws-1-ap-northeast-2.pooler.supabase.com: IPv4,IPv4
+FAIL    Auth HTTPS (public key): TimeoutError: The operation was aborted due to timeout
+PASS    JWKS: 200, 1 key(s), ES256
+FAIL    database DATABASE_URL: write CONNECT_TIMEOUT aws-1-ap-northeast-2.pooler.supabase.com:6543
+PASS    database DIRECT_URL: PostgreSQL 17.6, TLS NOT verified (no CA file), read-only=on

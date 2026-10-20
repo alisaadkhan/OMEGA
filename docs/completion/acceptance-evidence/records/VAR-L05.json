@@ -1,0 +1,28 @@
+{
+ "id": "VAR-L05",
+ "recordedAt": "2026-10-20T04:59:34.507Z",
+ "data": {
+  "lahore": [
+   "lhr_food_1",
+   "lhr_food_2",
+   "lhr_food_3",
+   "lhr_food_4",
+   "lhr_food_5"
+  ],
+  "karachi": [
+   "khi_food_1",
+   "khi_food_2",
+   "khi_food_3",
+   "khi_food_4",
+   "khi_food_5"
+  ],
+  "queries": [
+   "site:instagram.com food influencer lahore",
+   "site:instagram.com food blogger lahore",
+   "site:instagram.com food content creator lahore",
+   "site:instagram.com food content creator karachi",
+   "site:instagram.com food blogger karachi",
+   "site:instagram.com food influencer karachi"
+  ]
+ }
+}

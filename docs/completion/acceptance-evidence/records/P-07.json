@@ -1,0 +1,24 @@
+{
+ "id": "P-07",
+ "recordedAt": "2026-10-20T04:59:29.746Z",
+ "data": {
+  "before": {
+   "city": "Lahore",
+   "niches": [
+    "Food"
+   ],
+   "contacts": 1,
+   "followers": 60000
+  },
+  "after": {
+   "city": "Lahore",
+   "niches": [
+    "Food"
+   ],
+   "contacts": 1,
+   "followers": 60000
+  },
+  "deliveredAs": false,
+  "refetched": false
+ }
+}

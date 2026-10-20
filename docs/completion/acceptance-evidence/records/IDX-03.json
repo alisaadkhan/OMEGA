@@ -1,0 +1,23 @@
+{
+ "id": "IDX-03",
+ "recordedAt": "2026-10-20T04:57:29.686Z",
+ "data": {
+  "first": [
+   {
+    "followers": "50000",
+    "eligible": true,
+    "eligibility_version": "elig-1",
+    "bio": "Food vlogger in Lahore"
+   }
+  ],
+  "second": [
+   {
+    "followers": "50000",
+    "eligible": true,
+    "eligibility_version": "elig-1",
+    "bio": "Food vlogger in Lahore"
+   }
+  ],
+  "rows": 1
+ }
+}

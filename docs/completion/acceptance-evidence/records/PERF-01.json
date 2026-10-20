@@ -1,0 +1,9 @@
+{
+ "id": "PERF-01",
+ "recordedAt": "2026-10-20T04:56:05.929Z",
+ "data": {
+  "ms": 109.1,
+  "status": 200,
+  "catalogue": 2000
+ }
+}

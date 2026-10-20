@@ -1,0 +1,18 @@
+{
+ "id": "CR-11",
+ "recordedAt": "2026-10-20T04:56:41.111Z",
+ "data": {
+  "settled": [
+   "fulfilled",
+   "fulfilled",
+   "fulfilled",
+   "fulfilled",
+   "fulfilled"
+  ],
+  "jobs": 1,
+  "holds": {
+   "n": 1,
+   "amount": 150
+  }
+ }
+}

@@ -1,0 +1,14 @@
+{
+ "id": "CR-02",
+ "recordedAt": "2026-10-20T04:56:35.115Z",
+ "data": {
+  "repeat": {
+   "charged": false,
+   "credits": 0
+  },
+  "spends": {
+   "n": 1,
+   "total": 50
+  }
+ }
+}

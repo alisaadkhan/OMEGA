@@ -1,0 +1,12 @@
+{
+ "id": "IDX-06",
+ "recordedAt": "2026-10-20T04:57:31.720Z",
+ "data": {
+  "staleDocBefore": 1,
+  "reconcile": {
+   "upserted": 0,
+   "removed": 1
+  },
+  "after": 0
+ }
+}

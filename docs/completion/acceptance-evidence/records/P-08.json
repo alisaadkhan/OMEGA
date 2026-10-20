@@ -1,0 +1,17 @@
+{
+ "id": "P-08",
+ "recordedAt": "2026-10-20T04:59:30.760Z",
+ "data": {
+  "firstAttempt": "threw: worker terminated after a committed delivery",
+  "statusAfterFirst": "running",
+  "final": {
+   "status": "completed",
+   "outcome": "succeeded",
+   "charged": 130
+  },
+  "delivered": 8,
+  "duplicateCreators": 0,
+  "duplicateResults": 0,
+  "chargeLedgerRows": 1
+ }
+}

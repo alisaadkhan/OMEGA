@@ -1,0 +1,10 @@
+{
+ "id": "PERF-05",
+ "recordedAt": "2026-10-20T04:56:17.815Z",
+ "data": {
+  "status": 200,
+  "pageSize": 24,
+  "total": 2000,
+  "msBroad": 35.8
+ }
+}

@@ -1,0 +1,19 @@
+{
+ "id": "VAR-C08",
+ "recordedAt": "2026-10-20T05:02:02.610Z",
+ "data": {
+  "input": "لاہور کے کھانے والے",
+  "filters": {},
+  "intent": "Urdu script, inflected کھانے (outside vocabulary)",
+  "understood": {
+   "text": "لاہور کھانے",
+   "filters": {}
+  },
+  "results": [],
+  "count": 0,
+  "overlapWithBaseline": 0,
+  "recallAgainstR": 0,
+  "outsideExpected": [],
+  "charged": 50
+ }
+}

@@ -1,0 +1,15 @@
+{
+ "id": "ENV-05",
+ "recordedAt": "2026-10-20T05:01:35.836Z",
+ "data": {
+  "reasons": [
+   "not_configured",
+   "not_configured",
+   "not_configured",
+   "not_configured"
+  ],
+  "fetches": 0,
+  "llmOutcome": "AI features are not configured.",
+  "llmExternalAttempts": 0
+ }
+}

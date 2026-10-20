@@ -1,0 +1,14 @@
+{
+ "id": "B2-03",
+ "recordedAt": "2026-10-20T04:59:14.698Z",
+ "data": {
+  "quote": 150,
+  "reservation": [
+   {
+    "amount": 150,
+    "status": "held"
+   }
+  ],
+  "outboxEvents": 1
+ }
+}

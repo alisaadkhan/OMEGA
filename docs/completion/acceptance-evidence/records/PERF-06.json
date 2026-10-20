@@ -1,0 +1,24 @@
+{
+ "id": "PERF-06",
+ "recordedAt": "2026-10-20T04:56:18.002Z",
+ "data": {
+  "plan": "Limit  (cost=222.49..222.99 rows=200 width=20) (actual time=1.233..1.244 rows=200 loops=1)\n  ->  Sort  (cost=222.49..224.16 rows=667 width=20) (actual time=1.231..1.236 rows=200 loops=1)\n        Sort Key: (ts_rank_cd(search_vector, '''food'''::tsquery)) DESC\n        Sort Method: top-N heapsort  Memory: 46kB\n        ->  Seq Scan on creator_search_documents d  (cost=0.00..193.67 rows=667 width=20) (actual time=0.018..1.163 rows=667 loops=1)\n              Filter: (eligible AND (search_vector @@ '''food'''::tsquery))\n              Rows Removed by Filter: 1333\nPlanning Time: 5.902 ms\nExecution Time: 1.263 ms",
+  "indexes": [
+   "CREATE UNIQUE INDEX creator_search_documents_pkey ON gcp.creator_search_documents USING btree (creator_id)",
+   "CREATE INDEX creator_search_documents_vector_idx ON gcp.creator_search_documents USING gin (search_vector)",
+   "CREATE INDEX creator_search_documents_trigram_idx ON gcp.creator_search_documents USING gin (search_text gin_trgm_ops)",
+   "CREATE INDEX creator_search_documents_platforms_idx ON gcp.creator_search_documents USING gin (platforms)",
+   "CREATE INDEX creator_search_documents_niches_idx ON gcp.creator_search_documents USING gin (niches)",
+   "CREATE INDEX creator_search_documents_city_country_idx ON gcp.creator_search_documents USING btree (country, city)",
+   "CREATE INDEX creator_search_documents_city_folded_idx ON gcp.creator_search_documents USING btree (country, lower(city)) WHERE (city IS NOT NULL)",
+   "CREATE INDEX creator_search_documents_followers_idx ON gcp.creator_search_documents USING btree (followers)",
+   "CREATE INDEX creator_search_documents_engagement_idx ON gcp.creator_search_documents USING btree (engagement_rate)",
+   "CREATE INDEX creator_search_documents_authenticity_idx ON gcp.creator_search_documents USING btree (authenticity_score)",
+   "CREATE INDEX creator_search_documents_fresh_idx ON gcp.creator_search_documents USING btree (followers_updated_epoch)",
+   "CREATE INDEX creator_search_documents_browse_idx ON gcp.creator_search_documents USING btree (engagement_rate DESC NULLS LAST, authenticity_score DESC NULLS LAST, followers DESC NULLS LAST, creator_id)",
+   "CREATE INDEX creator_search_documents_contact_idx ON gcp.creator_search_documents USING btree (creator_id) WHERE has_contact",
+   "CREATE INDEX creator_search_documents_verified_idx ON gcp.creator_search_documents USING btree (creator_id) WHERE verified",
+   "CREATE INDEX creator_search_documents_eligible_idx ON gcp.creator_search_documents USING btree (eligible_until_epoch) WHERE eligible"
+  ]
+ }
+}

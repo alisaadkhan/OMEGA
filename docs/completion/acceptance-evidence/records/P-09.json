@@ -1,0 +1,12 @@
+{
+ "id": "P-09",
+ "recordedAt": "2026-10-20T04:59:31.692Z",
+ "data": {
+  "delivered": 8,
+  "outboxEvents": 8,
+  "foundBeforeIndexing": 0,
+  "foundAfterIndexing": 8,
+  "msCommitToIndexed": 195,
+  "msCommitToSearchable": 207
+ }
+}

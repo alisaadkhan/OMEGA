@@ -1,0 +1,8 @@
+{
+ "id": "ENV-04",
+ "recordedAt": "2026-10-20T05:01:35.832Z",
+ "data": {
+  "refused": true,
+  "message": "Invalid configuration:\n  - MOCK_PADDLE_WEBHOOK_SECRET: is required while Paddle keys are not set (run npm run env:secrets)\n  - JWT_ISSUER: must be on the same Supabase project as SUPABASE_URL\n  - JWKS"
+ }
+}

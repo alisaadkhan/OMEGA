@@ -1,0 +1,27 @@
+{
+ "id": "IDX-02",
+ "recordedAt": "2026-10-20T04:57:29.035Z",
+ "data": {
+  "docBefore": 0,
+  "drained": 2,
+  "delivered": [
+   "creator.changed",
+   "creator.assessment_requested"
+  ],
+  "docAfter": [
+   {
+    "followers": "50000",
+    "eligible": true,
+    "eligibility_version": "elig-1",
+    "bio": "Food vlogger in Lahore"
+   }
+  ],
+  "event": [
+   {
+    "id": "a54fd848-401f-43c2-bfc7-b76824cf05e2",
+    "attempts": 0,
+    "published_at": "2026-10-20 09:57:28.81528+05"
+   }
+  ]
+ }
+}

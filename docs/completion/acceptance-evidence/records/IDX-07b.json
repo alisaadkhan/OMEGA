@@ -1,0 +1,8 @@
+{
+ "id": "IDX-07b",
+ "recordedAt": "2026-10-20T04:57:34.324Z",
+ "data": {
+  "afterReconcile": "30000",
+  "expected": 99000
+ }
+}

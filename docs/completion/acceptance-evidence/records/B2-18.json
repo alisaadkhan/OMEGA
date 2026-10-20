@@ -1,0 +1,49 @@
+{
+ "id": "B2-18",
+ "recordedAt": "2026-10-20T04:59:23.547Z",
+ "data": {
+  "delivered": 8,
+  "trace": [
+   {
+    "creator_id": "82e85359-d218-40cd-b969-2b1042a45e6c",
+    "payloads": 1,
+    "url": "https://instagram.com/lhr_food_2"
+   },
+   {
+    "creator_id": "2c422940-1a9c-4f05-81b1-4932e047420b",
+    "payloads": 1,
+    "url": "https://instagram.com/lhr_food_3"
+   },
+   {
+    "creator_id": "8583da8b-ddcd-43b0-8810-5bb6a15002e9",
+    "payloads": 1,
+    "url": "https://instagram.com/lhr_food_4"
+   },
+   {
+    "creator_id": "7ba62107-9e0f-4406-9a00-7880e63fe772",
+    "payloads": 1,
+    "url": "https://instagram.com/lhr_food_5"
+   },
+   {
+    "creator_id": "250f580f-9b52-42ff-b6bc-1bca1e460baf",
+    "payloads": 1,
+    "url": "https://instagram.com/lhr_food_1"
+   },
+   {
+    "creator_id": "351fa058-9667-4c85-9c7c-acb3dbb01b94",
+    "payloads": 1,
+    "url": "https://instagram.com/lhr_food_6"
+   },
+   {
+    "creator_id": "6da61386-7fef-463e-a172-025a2f270c47",
+    "payloads": 1,
+    "url": "https://instagram.com/lhr_food_7"
+   },
+   {
+    "creator_id": "719b96b3-443b-46f5-b8bc-a34093ffc94f",
+    "payloads": 1,
+    "url": "https://instagram.com/lhr_food_8"
+   }
+  ]
+ }
+}

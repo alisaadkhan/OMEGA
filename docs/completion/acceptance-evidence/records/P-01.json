@@ -1,0 +1,10 @@
+{
+ "id": "P-01",
+ "recordedAt": "2026-10-20T04:59:24.444Z",
+ "data": {
+  "delivered": 8,
+  "committedRows": 8,
+  "resultRows": 8,
+  "mismatches": []
+ }
+}

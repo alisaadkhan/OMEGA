@@ -1,0 +1,17 @@
+{
+ "id": "CR-20",
+ "recordedAt": "2026-10-20T04:56:48.284Z",
+ "data": {
+  "shown": {
+   "available": 595,
+   "reserved": 0,
+   "base": 200,
+   "meter": "normal"
+  },
+  "tables": {
+   "remaining": 595,
+   "held": 0
+  },
+  "mismatches": []
+ }
+}

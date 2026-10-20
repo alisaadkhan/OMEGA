@@ -1,0 +1,13 @@
+{
+ "id": "CR-15",
+ "recordedAt": "2026-10-20T04:56:44.305Z",
+ "data": {
+  "heldBefore": 50,
+  "released": 1,
+  "status": "expired",
+  "after": {
+   "remaining": 200,
+   "held": 0
+  }
+ }
+}

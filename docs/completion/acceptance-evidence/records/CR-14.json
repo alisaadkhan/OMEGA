@@ -1,0 +1,20 @@
+{
+ "id": "CR-14",
+ "recordedAt": "2026-10-20T04:56:43.665Z",
+ "data": {
+  "swept": 1,
+  "status": "failed",
+  "error": {
+   "code": "TIMED_OUT",
+   "message": "This took too long and was stopped. Your credits were returned."
+  },
+  "before": {
+   "remaining": 1200,
+   "held": 0
+  },
+  "after": {
+   "remaining": 1200,
+   "held": 0
+  }
+ }
+}

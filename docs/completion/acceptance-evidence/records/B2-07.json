@@ -1,0 +1,14 @@
+{
+ "id": "B2-07",
+ "recordedAt": "2026-10-20T04:59:16.934Z",
+ "data": {
+  "firstAttempt": "threw: HTTP 503 from search provider",
+  "statusAfterFirst": "running",
+  "final": {
+   "status": "completed",
+   "outcome": "succeeded",
+   "charged": 100
+  },
+  "chargeEntries": 1
+ }
+}

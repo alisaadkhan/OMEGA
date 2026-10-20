@@ -1,0 +1,57 @@
+{
+ "id": "B1-18",
+ "recordedAt": "2026-10-20T05:02:02.295Z",
+ "data": {
+  "results": [
+   "F14"
+  ],
+  "card": {
+   "id": "c5738355-f4ea-4d5c-9f28-5b6e214700a8",
+   "displayName": "SYNTHETIC Creator F14",
+   "handle": "syn_f14",
+   "platform": "instagram",
+   "avatarUrl": null,
+   "city": "Lahore",
+   "country": "PK",
+   "niches": [
+    "Food"
+   ],
+   "tags": [],
+   "verified": false,
+   "followers": 52000,
+   "engagementRate": 4,
+   "authenticityScore": null,
+   "fakeFollowerPct": null,
+   "hasContact": true,
+   "contactAvailability": "email_unverified",
+   "followersFreshness": "current",
+   "fitScore": 84,
+   "fitLabel": "Best match",
+   "eligibility": {
+    "eligible": true,
+    "version": "elig-1",
+    "reasons": [],
+    "qualifyingPlatforms": [
+     "instagram"
+    ],
+    "flags": [
+     "activity_unverified"
+    ]
+   },
+   "matchedOn": [
+    {
+     "term": "food",
+     "matched": "food",
+     "field": "niche",
+     "exact": true
+    },
+    {
+     "term": "Lahore",
+     "matched": "lahore",
+     "field": "city",
+     "exact": true
+    }
+   ]
+  }
+ }
+}

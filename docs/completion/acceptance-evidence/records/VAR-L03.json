@@ -1,0 +1,23 @@
+{
+ "id": "VAR-L03",
+ "recordedAt": "2026-10-20T04:59:33.712Z",
+ "data": {
+  "english": {
+   "outcome": "succeeded",
+   "delivered": 8
+  },
+  "romanUrdu": {
+   "outcome": "completed_empty",
+   "delivered": 0,
+   "charged": 0
+  },
+  "romanUrduReasons": [
+   {
+    "stage": "fit",
+    "decision": "rejected",
+    "reason": "off_topic",
+    "n": 8
+   }
+  ]
+ }
+}

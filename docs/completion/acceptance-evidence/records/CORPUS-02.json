@@ -1,0 +1,76 @@
+{
+ "id": "CORPUS-02",
+ "recordedAt": "2026-10-20T05:02:14.598Z",
+ "data": {
+  "baseline": {
+   "count": 7
+  },
+  "cases": [
+   {
+    "wording": "creators who review restaurants in Lahore",
+    "parsed": "review restaurants lahore",
+    "filters": {},
+    "count": 1,
+    "overlapWithBaseline": 1
+   },
+   {
+    "wording": "YouTubers covering food in Lahore",
+    "parsed": "food lahore",
+    "filters": {},
+    "count": 7,
+    "overlapWithBaseline": 7
+   },
+   {
+    "wording": "food review influencers in Lahore",
+    "parsed": "food review lahore",
+    "filters": {},
+    "count": 2,
+    "overlapWithBaseline": 2
+   },
+   {
+    "wording": "لاہور کے کھانے والے",
+    "parsed": "لاہور کھانے",
+    "filters": {},
+    "count": 0,
+    "overlapWithBaseline": 0
+   },
+   {
+    "wording": "لاہور فوڈ بلاگر",
+    "parsed": "لاہور فوڈ",
+    "filters": {},
+    "count": 7,
+    "overlapWithBaseline": 7
+   },
+   {
+    "wording": "food vloggers in Karachi",
+    "parsed": "food karachi",
+    "filters": {},
+    "count": 7,
+    "overlapWithBaseline": 0
+   },
+   {
+    "wording": "fashion vloggers in Lahore",
+    "parsed": "fashion lahore",
+    "filters": {},
+    "count": 1,
+    "overlapWithBaseline": 0
+   },
+   {
+    "wording": "food vloggers in Lahore on TikTok",
+    "parsed": "food lahore",
+    "filters": {
+     "platform": "tiktok"
+    },
+    "count": 0,
+    "overlapWithBaseline": 0
+   },
+   {
+    "wording": "food vloggers in Quetta",
+    "parsed": "food quetta",
+    "filters": {},
+    "count": 0,
+    "overlapWithBaseline": 0
+   }
+  ]
+ }
+}

@@ -45,6 +45,18 @@ describe("logger", () => {
     expect(input.data.user.password).toBe("pw");
   });
 
+  it("redacts credential-looking key names in any spelling and URL passwords in text and errors (acceptance SEC-12)", () => {
+    const { lines, stream } = capture();
+    const log = createLogger({ level: "info" }, stream);
+    log.info({ apiKey: "sk_live_1", api_key: "k2", serviceRoleKey: "srk", provider: { webhookSecret: "whs", privateKey: "pk" }, keyword: "food" }, "config");
+    log.info({ note: "connecting to postgres://app:pa55word@db.example.org:5432/x" }, "text");
+    log.error({ err: new Error("connect failed postgres://app:pa55word@db.example.org:5432/x") }, "db error");
+    const out = JSON.stringify(lines);
+    for (const secret of ["sk_live_1", "k2", "srk", "whs", "pk\"", "pa55word"]) expect(out).not.toContain(secret);
+    expect((lines[0] as { keyword: string }).keyword).toBe("food");
+    expect(out).toContain("postgres://app:***@db.example.org");
+  });
+
   it("maskEmail handles odd input", () => {
     expect(maskEmail("no-at-sign")).toBe("[REDACTED]");
   });

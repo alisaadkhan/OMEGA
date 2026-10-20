@@ -1,0 +1,56 @@
+{
+ "id": "VAR-L01",
+ "recordedAt": "2026-10-20T04:59:32.420Z",
+ "data": {
+  "brief": {
+   "id": "VAR-L01",
+   "text": "food vlogger",
+   "filters": {
+    "platform": "instagram",
+    "creatorCity": "Lahore"
+   }
+  },
+  "quote": 150,
+  "outcome": "succeeded",
+  "delivered": [
+   {
+    "handle": "lhr_food_1",
+    "isNew": true
+   },
+   {
+    "handle": "lhr_food_2",
+    "isNew": true
+   },
+   {
+    "handle": "lhr_food_3",
+    "isNew": true
+   },
+   {
+    "handle": "lhr_food_4",
+    "isNew": true
+   },
+   {
+    "handle": "lhr_food_5",
+    "isNew": true
+   },
+   {
+    "handle": "lhr_food_6",
+    "isNew": true
+   },
+   {
+    "handle": "lhr_food_7",
+    "isNew": true
+   },
+   {
+    "handle": "lhr_food_8",
+    "isNew": true
+   }
+  ],
+  "newCreators": 8,
+  "reused": 0,
+  "committedRows": 8,
+  "providerWebCalls": 3,
+  "charged": 130,
+  "balanceDelta": 130
+ }
+}

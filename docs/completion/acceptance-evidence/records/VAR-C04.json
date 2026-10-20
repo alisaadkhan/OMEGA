@@ -1,0 +1,21 @@
+{
+ "id": "VAR-C04",
+ "recordedAt": "2026-10-20T05:02:02.482Z",
+ "data": {
+  "input": "creators who review restaurants in Lahore",
+  "filters": {},
+  "intent": "activity wording (outside vocabulary)",
+  "understood": {
+   "text": "review restaurants lahore",
+   "filters": {}
+  },
+  "results": [
+   "F1"
+  ],
+  "count": 1,
+  "overlapWithBaseline": 0.125,
+  "recallAgainstR": 0.125,
+  "outsideExpected": [],
+  "charged": 50
+ }
+}
