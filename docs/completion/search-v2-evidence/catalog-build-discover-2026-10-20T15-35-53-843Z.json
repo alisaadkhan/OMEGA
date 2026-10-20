@@ -1,0 +1,383 @@
+{
+ "mode": "discover",
+ "db": "mushin_catalog_v2",
+ "capUsd": 20,
+ "started": "2026-10-20T15:35:53.843Z",
+ "finished": "2026-10-20T16:56:31.152Z",
+ "spendByProvider": [
+  {
+   "provider": "groq",
+   "calls": 2502,
+   "usd": "0.002226"
+  },
+  {
+   "provider": "ollama",
+   "calls": 2535,
+   "usd": "0.165504"
+  },
+  {
+   "provider": "serper",
+   "calls": 415,
+   "usd": "0.415000"
+  },
+  {
+   "provider": "youtube",
+   "calls": 1458,
+   "usd": "0.000000"
+  }
+ ],
+ "jobs": [
+  {
+   "city": "Lahore",
+   "niche": "food",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 15,
+   "new": 2,
+   "error": null,
+   "ms": 100685,
+   "spentUsd": 0.5949230000000001
+  },
+  {
+   "city": "Lahore",
+   "niche": "cooking",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 1,
+   "error": null,
+   "ms": 153790,
+   "spentUsd": 0.581338
+  },
+  {
+   "city": "Lahore",
+   "niche": "beauty",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 2,
+   "new": 0,
+   "error": null,
+   "ms": 97717,
+   "spentUsd": 0.576565
+  },
+  {
+   "city": "Lahore",
+   "niche": "makeup",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 0,
+   "error": null,
+   "ms": 55988,
+   "spentUsd": 0.6190899999999999
+  },
+  {
+   "city": "Lahore",
+   "niche": "skincare",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 40620,
+   "spentUsd": 0.6138560000000001
+  },
+  {
+   "city": "Lahore",
+   "niche": "fashion",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 0,
+   "error": null,
+   "ms": 209127,
+   "spentUsd": 0.619919
+  },
+  {
+   "city": "Lahore",
+   "niche": "travel",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 4,
+   "new": 4,
+   "error": null,
+   "ms": 349425,
+   "spentUsd": 0.682683
+  },
+  {
+   "city": "Lahore",
+   "niche": "fitness",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 1,
+   "error": null,
+   "ms": 175267,
+   "spentUsd": 0.722926
+  },
+  {
+   "city": "Lahore",
+   "niche": "technology",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 0,
+   "error": null,
+   "ms": 47768,
+   "spentUsd": 0.718154
+  },
+  {
+   "city": "Lahore",
+   "niche": "gaming",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 5,
+   "new": 5,
+   "error": null,
+   "ms": 223996,
+   "spentUsd": 0.737091
+  },
+  {
+   "city": "Lahore",
+   "niche": "education",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 133485,
+   "spentUsd": 0.748869
+  },
+  {
+   "city": "Lahore",
+   "niche": "comedy",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 4,
+   "new": 3,
+   "error": null,
+   "ms": 452153,
+   "spentUsd": 0.789578
+  },
+  {
+   "city": "Lahore",
+   "niche": "finance",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 1,
+   "error": null,
+   "ms": 350343,
+   "spentUsd": 0.8478870000000001
+  },
+  {
+   "city": "Lahore",
+   "niche": "lifestyle",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 282066,
+   "spentUsd": 0.861189
+  },
+  {
+   "city": "Lahore",
+   "niche": "agriculture",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 1,
+   "error": null,
+   "ms": 199596,
+   "spentUsd": 0.862818
+  },
+  {
+   "city": "Lahore",
+   "niche": "literature",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 1,
+   "error": null,
+   "ms": 283843,
+   "spentUsd": 0.924419
+  },
+  {
+   "city": "Karachi",
+   "niche": "food",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 16777,
+   "spentUsd": 0.917419
+  },
+  {
+   "city": "Karachi",
+   "niche": "cooking",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 10303,
+   "spentUsd": 0.910419
+  },
+  {
+   "city": "Karachi",
+   "niche": "beauty",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 2,
+   "new": 0,
+   "error": null,
+   "ms": 52227,
+   "spentUsd": 0.954701
+  },
+  {
+   "city": "Karachi",
+   "niche": "makeup",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 3,
+   "new": 1,
+   "error": null,
+   "ms": 165641,
+   "spentUsd": 0.9416950000000001
+  },
+  {
+   "city": "Karachi",
+   "niche": "skincare",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 2,
+   "new": 0,
+   "error": null,
+   "ms": 149136,
+   "spentUsd": 0.991093
+  },
+  {
+   "city": "Karachi",
+   "niche": "fashion",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 122268,
+   "spentUsd": 0.978298
+  },
+  {
+   "city": "Karachi",
+   "niche": "travel",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 1,
+   "error": null,
+   "ms": 200642,
+   "spentUsd": 1.043965
+  },
+  {
+   "city": "Karachi",
+   "niche": "fitness",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 1,
+   "error": null,
+   "ms": 305298,
+   "spentUsd": 1.04095
+  },
+  {
+   "city": "Karachi",
+   "niche": "technology",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 2,
+   "new": 0,
+   "error": null,
+   "ms": 74305,
+   "spentUsd": 1.046093
+  },
+  {
+   "city": "Karachi",
+   "niche": "gaming",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 2,
+   "new": 0,
+   "error": null,
+   "ms": 153958,
+   "spentUsd": 1.053968
+  },
+  {
+   "city": "Karachi",
+   "niche": "education",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 1,
+   "error": null,
+   "ms": 112879,
+   "spentUsd": 1.060898
+  },
+  {
+   "city": "Karachi",
+   "niche": "comedy",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 122554,
+   "spentUsd": 1.067851
+  },
+  {
+   "city": "Karachi",
+   "niche": "finance",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 37440,
+   "spentUsd": 1.072128
+  },
+  {
+   "city": "Karachi",
+   "niche": "lifestyle",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 69402,
+   "spentUsd": 1.077679
+  },
+  {
+   "city": "Karachi",
+   "niche": "agriculture",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 48522,
+   "spentUsd": 1.083261
+  },
+  {
+   "city": "Karachi",
+   "niche": "literature",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 39755,
+   "spentUsd": 1.089428
+  }
+ ]
+}

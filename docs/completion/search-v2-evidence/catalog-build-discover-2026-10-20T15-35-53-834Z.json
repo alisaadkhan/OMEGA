@@ -1,0 +1,383 @@
+{
+ "mode": "discover",
+ "db": "mushin_catalog_v2",
+ "capUsd": 20,
+ "started": "2026-10-20T15:35:53.834Z",
+ "finished": "2026-10-20T16:41:21.857Z",
+ "spendByProvider": [
+  {
+   "provider": "groq",
+   "calls": 2445,
+   "usd": "0.001917"
+  },
+  {
+   "provider": "ollama",
+   "calls": 2409,
+   "usd": "0.135295"
+  },
+  {
+   "provider": "serper",
+   "calls": 367,
+   "usd": "0.367000"
+  },
+  {
+   "provider": "youtube",
+   "calls": 1337,
+   "usd": "0.000000"
+  }
+ ],
+ "jobs": [
+  {
+   "city": "Islamabad",
+   "niche": "food",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 40325,
+   "spentUsd": 0.568774
+  },
+  {
+   "city": "Islamabad",
+   "niche": "cooking",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 2,
+   "new": 1,
+   "error": null,
+   "ms": 310023,
+   "spentUsd": 0.570432
+  },
+  {
+   "city": "Islamabad",
+   "niche": "beauty",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 4,
+   "new": 3,
+   "error": null,
+   "ms": 314859,
+   "spentUsd": 0.613305
+  },
+  {
+   "city": "Islamabad",
+   "niche": "makeup",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 2,
+   "new": 0,
+   "error": null,
+   "ms": 120821,
+   "spentUsd": 0.6773769999999999
+  },
+  {
+   "city": "Islamabad",
+   "niche": "skincare",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 3,
+   "new": 1,
+   "error": null,
+   "ms": 138523,
+   "spentUsd": 0.682653
+  },
+  {
+   "city": "Islamabad",
+   "niche": "fashion",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 1,
+   "error": null,
+   "ms": 183495,
+   "spentUsd": 0.7102440000000001
+  },
+  {
+   "city": "Islamabad",
+   "niche": "travel",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 6,
+   "new": 4,
+   "error": null,
+   "ms": 262790,
+   "spentUsd": 0.736599
+  },
+  {
+   "city": "Islamabad",
+   "niche": "fitness",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 243420,
+   "spentUsd": 0.7560840000000001
+  },
+  {
+   "city": "Islamabad",
+   "niche": "technology",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 0,
+   "error": null,
+   "ms": 139019,
+   "spentUsd": 0.758472
+  },
+  {
+   "city": "Islamabad",
+   "niche": "gaming",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 201937,
+   "spentUsd": 0.771814
+  },
+  {
+   "city": "Islamabad",
+   "niche": "education",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 44412,
+   "spentUsd": 0.789578
+  },
+  {
+   "city": "Islamabad",
+   "niche": "comedy",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 8220,
+   "spentUsd": 0.796578
+  },
+  {
+   "city": "Islamabad",
+   "niche": "finance",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 188952,
+   "spentUsd": 0.8187490000000001
+  },
+  {
+   "city": "Islamabad",
+   "niche": "lifestyle",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 39035,
+   "spentUsd": 0.825434
+  },
+  {
+   "city": "Islamabad",
+   "niche": "agriculture",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 1,
+   "error": null,
+   "ms": 213939,
+   "spentUsd": 0.8351160000000001
+  },
+  {
+   "city": "Islamabad",
+   "niche": "literature",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 191265,
+   "spentUsd": 0.8644580000000001
+  },
+  {
+   "city": "Rawalpindi",
+   "niche": "food",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 9575,
+   "spentUsd": 0.8674580000000001
+  },
+  {
+   "city": "Rawalpindi",
+   "niche": "cooking",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 39302,
+   "spentUsd": 0.877189
+  },
+  {
+   "city": "Rawalpindi",
+   "niche": "beauty",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 0,
+   "error": null,
+   "ms": 79276,
+   "spentUsd": 0.8924829999999999
+  },
+  {
+   "city": "Rawalpindi",
+   "niche": "makeup",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 1,
+   "error": null,
+   "ms": 90907,
+   "spentUsd": 0.8791760000000001
+  },
+  {
+   "city": "Rawalpindi",
+   "niche": "skincare",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 0,
+   "error": null,
+   "ms": 120642,
+   "spentUsd": 0.883587
+  },
+  {
+   "city": "Rawalpindi",
+   "niche": "fashion",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 2,
+   "new": 2,
+   "error": null,
+   "ms": 42116,
+   "spentUsd": 0.9281170000000001
+  },
+  {
+   "city": "Rawalpindi",
+   "niche": "travel",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 3,
+   "new": 2,
+   "error": null,
+   "ms": 342791,
+   "spentUsd": 0.9526880000000001
+  },
+  {
+   "city": "Rawalpindi",
+   "niche": "fitness",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 49731,
+   "spentUsd": 0.95513
+  },
+  {
+   "city": "Rawalpindi",
+   "niche": "technology",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 81486,
+   "spentUsd": 0.962661
+  },
+  {
+   "city": "Rawalpindi",
+   "niche": "gaming",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 100484,
+   "spentUsd": 0.9697870000000001
+  },
+  {
+   "city": "Rawalpindi",
+   "niche": "education",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 24920,
+   "spentUsd": 1.013557
+  },
+  {
+   "city": "Rawalpindi",
+   "niche": "comedy",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 1,
+   "error": null,
+   "ms": 123414,
+   "spentUsd": 1.017426
+  },
+  {
+   "city": "Rawalpindi",
+   "niche": "finance",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 82960,
+   "spentUsd": 1.029115
+  },
+  {
+   "city": "Rawalpindi",
+   "niche": "lifestyle",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 0,
+   "error": null,
+   "ms": 84836,
+   "spentUsd": 1.018597
+  },
+  {
+   "city": "Rawalpindi",
+   "niche": "agriculture",
+   "status": "completed",
+   "outcome": "insufficient",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 9481,
+   "spentUsd": 1.023597
+  },
+  {
+   "city": "Rawalpindi",
+   "niche": "literature",
+   "status": "completed",
+   "outcome": "insufficient",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 4652,
+   "spentUsd": 1.01291
+  }
+ ]
+}

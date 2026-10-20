@@ -1,0 +1,383 @@
+{
+ "mode": "discover",
+ "db": "mushin_catalog_v2",
+ "capUsd": 20,
+ "started": "2026-10-20T15:35:53.878Z",
+ "finished": "2026-10-20T16:35:15.258Z",
+ "spendByProvider": [
+  {
+   "provider": "groq",
+   "calls": 2336,
+   "usd": "0.001661"
+  },
+  {
+   "provider": "ollama",
+   "calls": 2273,
+   "usd": "0.122238"
+  },
+  {
+   "provider": "serper",
+   "calls": 319,
+   "usd": "0.319000"
+  },
+  {
+   "provider": "youtube",
+   "calls": 1242,
+   "usd": "0.000000"
+  }
+ ],
+ "jobs": [
+  {
+   "city": "Peshawar",
+   "niche": "food",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 10,
+   "new": 5,
+   "error": null,
+   "ms": 161758,
+   "spentUsd": 0.580686
+  },
+  {
+   "city": "Peshawar",
+   "niche": "cooking",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 4,
+   "new": 2,
+   "error": null,
+   "ms": 144343,
+   "spentUsd": 0.605515
+  },
+  {
+   "city": "Peshawar",
+   "niche": "beauty",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 1,
+   "error": null,
+   "ms": 191922,
+   "spentUsd": 0.628428
+  },
+  {
+   "city": "Peshawar",
+   "niche": "makeup",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 2,
+   "new": 0,
+   "error": null,
+   "ms": 45577,
+   "spentUsd": 0.622522
+  },
+  {
+   "city": "Peshawar",
+   "niche": "skincare",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 0,
+   "error": null,
+   "ms": 106192,
+   "spentUsd": 0.626517
+  },
+  {
+   "city": "Peshawar",
+   "niche": "fashion",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 1,
+   "error": null,
+   "ms": 93691,
+   "spentUsd": 0.6529090000000001
+  },
+  {
+   "city": "Peshawar",
+   "niche": "travel",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 6,
+   "new": 4,
+   "error": null,
+   "ms": 245008,
+   "spentUsd": 0.6688470000000001
+  },
+  {
+   "city": "Peshawar",
+   "niche": "fitness",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 1,
+   "error": null,
+   "ms": 159649,
+   "spentUsd": 0.68825
+  },
+  {
+   "city": "Peshawar",
+   "niche": "technology",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 133513,
+   "spentUsd": 0.696795
+  },
+  {
+   "city": "Peshawar",
+   "niche": "gaming",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 1,
+   "error": null,
+   "ms": 116381,
+   "spentUsd": 0.731248
+  },
+  {
+   "city": "Peshawar",
+   "niche": "education",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 95416,
+   "spentUsd": 0.7519089999999999
+  },
+  {
+   "city": "Peshawar",
+   "niche": "comedy",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 1,
+   "error": null,
+   "ms": 314731,
+   "spentUsd": 0.774097
+  },
+  {
+   "city": "Peshawar",
+   "niche": "finance",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 152056,
+   "spentUsd": 0.7960910000000001
+  },
+  {
+   "city": "Peshawar",
+   "niche": "lifestyle",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 44670,
+   "spentUsd": 0.802578
+  },
+  {
+   "city": "Peshawar",
+   "niche": "agriculture",
+   "status": "completed",
+   "outcome": "insufficient",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 8391,
+   "spentUsd": 0.810578
+  },
+  {
+   "city": "Peshawar",
+   "niche": "literature",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 8870,
+   "spentUsd": 0.8135779999999999
+  },
+  {
+   "city": "Faisalabad",
+   "niche": "food",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 7873,
+   "spentUsd": 0.806578
+  },
+  {
+   "city": "Faisalabad",
+   "niche": "cooking",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 162367,
+   "spentUsd": 0.8157490000000001
+  },
+  {
+   "city": "Faisalabad",
+   "niche": "beauty",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 69818,
+   "spentUsd": 0.829025
+  },
+  {
+   "city": "Faisalabad",
+   "niche": "makeup",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 106944,
+   "spentUsd": 0.8512660000000001
+  },
+  {
+   "city": "Faisalabad",
+   "niche": "skincare",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 9047,
+   "spentUsd": 0.854266
+  },
+  {
+   "city": "Faisalabad",
+   "niche": "fashion",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 256484,
+   "spentUsd": 0.861202
+  },
+  {
+   "city": "Faisalabad",
+   "niche": "travel",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 41280,
+   "spentUsd": 0.874189
+  },
+  {
+   "city": "Faisalabad",
+   "niche": "fitness",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 3,
+   "new": 2,
+   "error": null,
+   "ms": 200667,
+   "spentUsd": 0.891094
+  },
+  {
+   "city": "Faisalabad",
+   "niche": "technology",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 253707,
+   "spentUsd": 0.947279
+  },
+  {
+   "city": "Faisalabad",
+   "niche": "gaming",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 14859,
+   "spentUsd": 0.9307859999999999
+  },
+  {
+   "city": "Faisalabad",
+   "niche": "education",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 180536,
+   "spentUsd": 0.9601040000000001
+  },
+  {
+   "city": "Faisalabad",
+   "niche": "comedy",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 9617,
+   "spentUsd": 0.9534370000000001
+  },
+  {
+   "city": "Faisalabad",
+   "niche": "finance",
+   "status": "completed",
+   "outcome": "insufficient",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 6083,
+   "spentUsd": 0.948794
+  },
+  {
+   "city": "Faisalabad",
+   "niche": "lifestyle",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 0,
+   "error": null,
+   "ms": 117149,
+   "spentUsd": 0.988127
+  },
+  {
+   "city": "Faisalabad",
+   "niche": "agriculture",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 97168,
+   "spentUsd": 0.9943850000000001
+  },
+  {
+   "city": "Faisalabad",
+   "niche": "literature",
+   "status": "completed",
+   "outcome": "insufficient",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 4717,
+   "spentUsd": 0.9993850000000001
+  }
+ ]
+}

@@ -1,0 +1,383 @@
+{
+ "mode": "discover",
+ "db": "mushin_catalog_v2",
+ "capUsd": 20,
+ "started": "2026-10-20T15:35:53.875Z",
+ "finished": "2026-10-20T16:45:28.595Z",
+ "spendByProvider": [
+  {
+   "provider": "groq",
+   "calls": 2467,
+   "usd": "0.001917"
+  },
+  {
+   "provider": "ollama",
+   "calls": 2449,
+   "usd": "0.144138"
+  },
+  {
+   "provider": "serper",
+   "calls": 388,
+   "usd": "0.388000"
+  },
+  {
+   "provider": "youtube",
+   "calls": 1375,
+   "usd": "0.000000"
+  }
+ ],
+ "jobs": [
+  {
+   "city": "Multan",
+   "niche": "food",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 5,
+   "new": 4,
+   "error": null,
+   "ms": 225979,
+   "spentUsd": 0.606678
+  },
+  {
+   "city": "Multan",
+   "niche": "cooking",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 277367,
+   "spentUsd": 0.611873
+  },
+  {
+   "city": "Multan",
+   "niche": "beauty",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 40214,
+   "spentUsd": 0.626291
+  },
+  {
+   "city": "Multan",
+   "niche": "makeup",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 168667,
+   "spentUsd": 0.648553
+  },
+  {
+   "city": "Multan",
+   "niche": "skincare",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 112344,
+   "spentUsd": 0.682361
+  },
+  {
+   "city": "Multan",
+   "niche": "fashion",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 40019,
+   "spentUsd": 0.676857
+  },
+  {
+   "city": "Multan",
+   "niche": "travel",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 4,
+   "new": 3,
+   "error": null,
+   "ms": 252250,
+   "spentUsd": 0.7134229999999999
+  },
+  {
+   "city": "Multan",
+   "niche": "fitness",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 145947,
+   "spentUsd": 0.7129310000000001
+  },
+  {
+   "city": "Multan",
+   "niche": "technology",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 62096,
+   "spentUsd": 0.751481
+  },
+  {
+   "city": "Multan",
+   "niche": "gaming",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 1,
+   "error": null,
+   "ms": 266106,
+   "spentUsd": 0.7430380000000001
+  },
+  {
+   "city": "Multan",
+   "niche": "education",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 135539,
+   "spentUsd": 0.794206
+  },
+  {
+   "city": "Multan",
+   "niche": "comedy",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 320453,
+   "spentUsd": 0.792578
+  },
+  {
+   "city": "Multan",
+   "niche": "finance",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 156672,
+   "spentUsd": 0.8217490000000001
+  },
+  {
+   "city": "Multan",
+   "niche": "lifestyle",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 71993,
+   "spentUsd": 0.822316
+  },
+  {
+   "city": "Multan",
+   "niche": "agriculture",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 1,
+   "error": null,
+   "ms": 84389,
+   "spentUsd": 0.82786
+  },
+  {
+   "city": "Multan",
+   "niche": "literature",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 73343,
+   "spentUsd": 0.8416370000000001
+  },
+  {
+   "city": "Quetta",
+   "niche": "food",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 4,
+   "new": 4,
+   "error": null,
+   "ms": 440863,
+   "spentUsd": 0.887958
+  },
+  {
+   "city": "Quetta",
+   "niche": "cooking",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 2,
+   "new": 2,
+   "error": null,
+   "ms": 209719,
+   "spentUsd": 0.8928360000000001
+  },
+  {
+   "city": "Quetta",
+   "niche": "beauty",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 287258,
+   "spentUsd": 0.955953
+  },
+  {
+   "city": "Quetta",
+   "niche": "makeup",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 66537,
+   "spentUsd": 0.979141
+  },
+  {
+   "city": "Quetta",
+   "niche": "skincare",
+   "status": "completed",
+   "outcome": "insufficient",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 5421,
+   "spentUsd": 0.9941409999999999
+  },
+  {
+   "city": "Quetta",
+   "niche": "fashion",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 97467,
+   "spentUsd": 0.987647
+  },
+  {
+   "city": "Quetta",
+   "niche": "travel",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 0,
+   "error": null,
+   "ms": 134702,
+   "spentUsd": 0.981465
+  },
+  {
+   "city": "Quetta",
+   "niche": "fitness",
+   "status": "completed",
+   "outcome": "insufficient",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 8584,
+   "spentUsd": 0.968667
+  },
+  {
+   "city": "Quetta",
+   "niche": "technology",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 56591,
+   "spentUsd": 1.014205
+  },
+  {
+   "city": "Quetta",
+   "niche": "gaming",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 73893,
+   "spentUsd": 1.024526
+  },
+  {
+   "city": "Quetta",
+   "niche": "education",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 110243,
+   "spentUsd": 1.017838
+  },
+  {
+   "city": "Quetta",
+   "niche": "comedy",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 125457,
+   "spentUsd": 1.046456
+  },
+  {
+   "city": "Quetta",
+   "niche": "finance",
+   "status": "completed",
+   "outcome": "insufficient",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 7214,
+   "spentUsd": 1.051456
+  },
+  {
+   "city": "Quetta",
+   "niche": "lifestyle",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 1,
+   "error": null,
+   "ms": 103010,
+   "spentUsd": 1.06017
+  },
+  {
+   "city": "Quetta",
+   "niche": "agriculture",
+   "status": "completed",
+   "outcome": "insufficient",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 8467,
+   "spentUsd": 1.065421
+  },
+  {
+   "city": "Quetta",
+   "niche": "literature",
+   "status": "completed",
+   "outcome": "insufficient",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 5541,
+   "spentUsd": 1.050753
+  }
+ ]
+}
