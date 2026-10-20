@@ -260,3 +260,16 @@ export const creatorSuppressions = gcp.table("creator_suppressions", {
   removalRequestId: uuid("removal_request_id"),
   createdAt: ts("created_at").notNull().defaultNow(),
 });
+
+/** Evidence and provenance for creator attributes (0052): supported, weak or conflicting observations with a quote. */
+export const creatorAttributeEvidence = gcp.table("creator_attribute_evidence", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  creatorId: uuid("creator_id").notNull(),
+  attribute: text("attribute", { enum: ["city", "country", "niche", "language"] }).notNull(),
+  value: text("value").notNull(),
+  source: text("source", { enum: ["profile_text", "post_text", "platform_registration", "ai_assessment"] }).notNull(),
+  status: text("status", { enum: ["supported", "weak", "conflicting"] }).notNull(),
+  evidence: text("evidence").notNull(),
+  payloadId: uuid("payload_id"),
+  observedAt: ts("observed_at").notNull().defaultNow(),
+});

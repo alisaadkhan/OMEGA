@@ -23,7 +23,10 @@ export function createCreatorsModule(o: { service: CreatorsService; limiter: Rat
 }
 export { createEnrichmentPipeline } from "./enrichment/pipeline";
 export type { EnrichHooks, EnrichJob, EnrichmentPipeline, EnrichResult, SavedResult } from "./enrichment/pipeline";
-export { findProfileByUrl, getEnrichmentSettings, profileTarget } from "./enrichment/repository";
+export { findProfileByUrl, getEnrichmentSettings, placeAttributes, profileTarget, replaceAttributeEvidence } from "./enrichment/repository";
+export { deriveAttributes } from "./enrichment/attribute-evidence";
+export type { AttributeDecision, EvidenceRow } from "./enrichment/attribute-evidence";
+export type { Assessment } from "./enrichment/assessment";
 export { normalizeProfileUrl, refreshActionFor } from "./rules";
 export type { CreatorPlatform } from "./rules";
 export { cleanText } from "./enrichment/standardize";

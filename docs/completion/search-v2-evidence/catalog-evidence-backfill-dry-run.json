@@ -1,0 +1,4950 @@
+{
+ "db": "mushin_catalog_v2",
+ "applied": false,
+ "at": "2026-10-20T14:41:34.375Z",
+ "tally": {
+  "creators": 336,
+  "missingPayload": 0,
+  "unreadable": 1,
+  "city": {
+   "before": 25,
+   "after": 38
+  },
+  "country": {
+   "before": 246,
+   "after": 104,
+   "cleared": 178,
+   "pkAfter": 103
+  },
+  "changed": 259
+ },
+ "changes": [
+  {
+   "handle": "rakshxd",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "IN",
+    "niches": [
+     "Tech",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "IN"
+  },
+  {
+   "handle": "travelwithchris",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "US",
+    "niches": [
+     "Travel"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Travel",
+     "Food"
+    ]
+   },
+   "registration": "US"
+  },
+  {
+   "handle": "pkthegamer1998",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "waminhas",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Finance"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Finance"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "p9gamingyt",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "mashalkh",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Finance"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Finance"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "adroiteducationalconsultancy",
+   "platform": "youtube",
+   "before": {
+    "city": "Lahore",
+    "country": "PK",
+    "niches": [
+     "Lifestyle",
+     "Travel"
+    ]
+   },
+   "after": {
+    "city": "Lahore",
+    "country": null
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "plannerpk2022",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": []
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "careerwithkashif",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "AU",
+    "niches": [
+     "Lifestyle",
+     "Travel"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Beauty"
+    ]
+   },
+   "registration": "AU"
+  },
+  {
+   "handle": "ahzpakistan",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Lifestyle",
+     "Travel",
+     "Finance"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "theammarsid",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Finance",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Finance"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "financevault-s9b",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Finance"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Finance",
+     "Comedy"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "financesimplified-m5q",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Finance"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Finance"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "factwithumar07",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": []
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "mawazna",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Finance"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Finance",
+     "Travel"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "sobanattari26",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Wellness",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Lifestyle",
+     "Wellness"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "shahzgaming",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": []
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "its_mrraza",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Lifestyle",
+     "Tech"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "englishspeakology1",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": []
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "uqailahmad",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Food"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "techplayurdu",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech",
+     "Finance"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "autopak",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "guthapakistan",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Wellness",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Wellness",
+     "Lifestyle",
+     "Food"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "khangaming9796",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "GB",
+    "niches": []
+   },
+   "after": {
+    "city": null,
+    "country": "PK"
+   },
+   "registration": "GB"
+  },
+  {
+   "handle": "rkagamer295",
+   "platform": "youtube",
+   "before": {
+    "city": "LahoRe",
+    "country": null,
+    "niches": [
+     "Lifestyle",
+     "Tech",
+     "Comedy"
+    ]
+   },
+   "after": {
+    "city": "LahoRe",
+    "country": null,
+    "niches": [
+     "Lifestyle",
+     "Comedy"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "tastethestyle6282",
+   "platform": "youtube",
+   "before": {
+    "city": "Lahore",
+    "country": null,
+    "niches": [
+     "Food",
+     "Fashion",
+     "Travel"
+    ]
+   },
+   "after": {
+    "city": "Lahore",
+    "country": "PK",
+    "niches": [
+     "Fashion",
+     "Food",
+     "Travel"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "digitaldhairya",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "IN",
+    "niches": [
+     "Finance",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "IN"
+  },
+  {
+   "handle": "mrtendaofficial",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "jtech9982",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "lifeinpeshawar01",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food",
+     "Travel",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": "Peshawar",
+    "country": "PK",
+    "niches": [
+     "Food",
+     "Travel"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "worldcitizenconsultants",
+   "platform": "youtube",
+   "before": {
+    "city": "Lahore",
+    "country": "PK",
+    "niches": [
+     "Travel",
+     "Finance",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": "Lahore",
+    "country": null,
+    "niches": [
+     "Travel",
+     "Finance"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "creativeblogger6595",
+   "platform": "youtube",
+   "before": {
+    "city": "Lahore",
+    "country": null,
+    "niches": [
+     "Food",
+     "Travel",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": "Lahore",
+    "country": "PK",
+    "niches": [
+     "Food",
+     "Travel"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "adeelchaudry",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Food"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Food",
+     "Tech"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "zindabad_plays",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "US",
+    "niches": [
+     "Lifestyle",
+     "Comedy"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Comedy"
+    ]
+   },
+   "registration": "US"
+  },
+  {
+   "handle": "tfemiee",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "vicky.pandafood",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Food"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "minifoodfactory-y9r",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food",
+     "Comedy"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "coverbaba",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "IN",
+    "niches": [
+     "Tech",
+     "Fashion",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "IN"
+  },
+  {
+   "handle": "pakistanikhana-u3z",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Food"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "hsqtravels",
+   "platform": "youtube",
+   "before": {
+    "city": "Lahore",
+    "country": "PK",
+    "niches": [
+     "Travel",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": "Lahore",
+    "country": "PK",
+    "niches": [
+     "Travel"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "piyushjocgaming",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "IN",
+    "niches": [
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "IN"
+  },
+  {
+   "handle": "realgamingodyssey",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "benixnadir",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "GB",
+    "niches": [
+     "Travel",
+     "Food",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food",
+     "Fashion",
+     "Travel"
+    ]
+   },
+   "registration": "GB"
+  },
+  {
+   "handle": "johnagustinscuderia",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PH",
+    "niches": [
+     "Lifestyle",
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "PH"
+  },
+  {
+   "handle": "browncarguy",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "GB",
+    "niches": [
+     "Lifestyle",
+     "Tech",
+     "Travel"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "GB"
+  },
+  {
+   "handle": "yamnaxgaming",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "US",
+    "niches": [
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "US"
+  },
+  {
+   "handle": "furniture.tech-006",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "iandroidgamingyt",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "US",
+    "niches": [
+     "Tech",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "US"
+  },
+  {
+   "handle": "rufebhai",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Comedy"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "soulxbuild-786",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "queencrafts-z3c",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "AE",
+    "niches": [
+     "Tech",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech"
+    ]
+   },
+   "registration": "AE"
+  },
+  {
+   "handle": "careerguidewithyounis",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech",
+     "Finance",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": "PK"
+   },
+   "registration": null
+  },
+  {
+   "handle": "the_tea_talk_podcast",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "GB",
+    "niches": [
+     "Finance",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "GB"
+  },
+  {
+   "handle": "simalrao-k4f",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Lifestyle",
+     "Finance",
+     "Travel"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": "PK"
+   },
+   "registration": null
+  },
+  {
+   "handle": "akingpakistan1",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Food",
+     "Travel",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food",
+     "Beauty"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "italypakistanmix",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "IT",
+    "niches": [
+     "Food",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food"
+    ]
+   },
+   "registration": "IT"
+  },
+  {
+   "handle": "pakistanfoodhap",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Food"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "hurairaahmed_2004",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "US",
+    "niches": [
+     "Finance"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Finance"
+    ]
+   },
+   "registration": "US"
+  },
+  {
+   "handle": "reviewspk",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "streetfoodwithsufyan",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "AE",
+    "niches": [
+     "Food"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food"
+    ]
+   },
+   "registration": "AE"
+  },
+  {
+   "handle": "warikoo",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "IN",
+    "niches": [
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Finance"
+    ]
+   },
+   "registration": "IN"
+  },
+  {
+   "handle": "itsxeeshuu-official",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "US",
+    "niches": [
+     "Beauty",
+     "Travel",
+     "Food"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food",
+     "Beauty",
+     "Travel"
+    ]
+   },
+   "registration": "US"
+  },
+  {
+   "handle": "kashuugaming.999",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Lifestyle"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "jawadk1",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "IE",
+    "niches": [
+     "Lifestyle",
+     "Finance",
+     "Travel"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech"
+    ]
+   },
+   "registration": "IE"
+  },
+  {
+   "handle": "goldengully",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "CA",
+    "niches": [
+     "Food"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food"
+    ]
+   },
+   "registration": "CA"
+  },
+  {
+   "handle": "zaviyaaudiobooksurdu",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Finance",
+     "Wellness",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "awaisbinshafiq1881",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Food"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "mr_electric778",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech",
+     "Beauty",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech",
+     "Food",
+     "Beauty"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "krullgamingyt",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "BD",
+    "niches": [
+     "Lifestyle",
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Comedy"
+    ]
+   },
+   "registration": "BD"
+  },
+  {
+   "handle": "misspathanigaming",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Lifestyle",
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Comedy"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "digi-gup",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Lifestyle",
+     "Wellness"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Wellness"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "kmyoutubee",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Finance"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "careerabroad",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "BD",
+    "niches": []
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "BD"
+  },
+  {
+   "handle": "hamaracanada5857",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "CA",
+    "niches": [
+     "Lifestyle",
+     "Travel"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Lifestyle",
+     "Finance"
+    ]
+   },
+   "registration": "CA"
+  },
+  {
+   "handle": "startuppakistanpodcast",
+   "platform": "youtube",
+   "before": {
+    "city": "Islamabad",
+    "country": null,
+    "niches": [
+     "Finance",
+     "Tech",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": "Islamabad",
+    "country": "PK"
+   },
+   "registration": null
+  },
+  {
+   "handle": "duckybhai",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "US",
+    "niches": [
+     "Food",
+     "Lifestyle",
+     "Comedy"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Comedy",
+     "Lifestyle"
+    ]
+   },
+   "registration": "US"
+  },
+  {
+   "handle": "rasheedrgd",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Finance"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Finance"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "islamabadwalaa",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food",
+     "Comedy"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "sanwalmunir92",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech",
+     "Finance"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "aitech201",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Beauty",
+     "Tech"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "hasnainamjadcars",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Lifestyle",
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "fayazahmadchitrali",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Food"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "exploreworldopportunities",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Travel",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Travel"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "techforcepakistan",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "callmechdry",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food",
+     "Travel",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Food"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "paisawisetv",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Finance"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Finance",
+     "Lifestyle"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "asiftech",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech",
+     "Finance"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "afc-d1f",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Food"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food",
+     "Travel"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "lifewithrohail",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Travel",
+     "Food",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Travel",
+     "Food"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "pakistanwealth",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Finance"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "drnabeelabashir",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food",
+     "Lifestyle",
+     "Travel"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food",
+     "Bridal"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "mrgamingplaysyt",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Travel",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Travel"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "cambofixingshorts",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "BR",
+    "niches": [
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech"
+    ]
+   },
+   "registration": "BR"
+  },
+  {
+   "handle": "dailylifevlogs-if7cg",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Travel",
+     "Food",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food",
+     "Travel",
+     "Comedy"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "ayesha-k6e3r",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech",
+     "Lifestyle",
+     "Comedy"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food",
+     "Tech"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "financepov-c1r",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "US",
+    "niches": [
+     "Finance"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Finance"
+    ]
+   },
+   "registration": "US"
+  },
+  {
+   "handle": "reeeproduct",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Comedy"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Comedy"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "alishiousch1705",
+   "platform": "youtube",
+   "before": {
+    "city": "Gujrat",
+    "country": null,
+    "niches": [
+     "Food",
+     "Lifestyle",
+     "Bridal"
+    ]
+   },
+   "after": {
+    "city": "Gujrat",
+    "country": "PK",
+    "niches": [
+     "Food",
+     "Lifestyle",
+     "Bridal"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "ali.shafique",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "CA",
+    "niches": [
+     "Tech",
+     "Travel",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech",
+     "Travel",
+     "Lifestyle"
+    ]
+   },
+   "registration": "CA"
+  },
+  {
+   "handle": "ahmadmunirvlogs",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Travel",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": "Faisalabad",
+    "country": "PK",
+    "niches": [
+     "Travel"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "starharis",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": "Islamabad",
+    "country": "PK",
+    "niches": [
+     "Finance"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "pushpeksidhu",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "CA",
+    "niches": [
+     "Food",
+     "Travel",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food"
+    ]
+   },
+   "registration": "CA"
+  },
+  {
+   "handle": "techdestinationpakistan",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech",
+     "Finance",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "kashifshehzad4288",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Travel",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "gogradpakistan",
+   "platform": "youtube",
+   "before": {
+    "city": "Lahore",
+    "country": "PK",
+    "niches": [
+     "Travel",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": "Lahore",
+    "country": null
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "mashallahwithirfan",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Food"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food",
+     "Travel"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "officialkashifm",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "CA",
+    "niches": [
+     "Travel",
+     "Finance"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Travel",
+     "Finance"
+    ]
+   },
+   "registration": "CA"
+  },
+  {
+   "handle": "areyouhungry3512",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "IN",
+    "niches": [
+     "Food",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food"
+    ]
+   },
+   "registration": "IN"
+  },
+  {
+   "handle": "s_fahadsherazi",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Food",
+     "Travel"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "beingasim",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Finance",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "nourishandglowupwithfatima",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Wellness",
+     "Lifestyle",
+     "Beauty"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food",
+     "Wellness",
+     "Lifestyle"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "ahmadcarreviews",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": []
+   },
+   "after": {
+    "city": null,
+    "country": "PK"
+   },
+   "registration": null
+  },
+  {
+   "handle": "raadworld",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "IN",
+    "niches": [
+     "Tech",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech"
+    ]
+   },
+   "registration": "IN"
+  },
+  {
+   "handle": "salampakistantech",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "forrestsautoreviewsofficial",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "US",
+    "niches": []
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "US"
+  },
+  {
+   "handle": "ultimateautomotivepk",
+   "platform": "youtube",
+   "before": {
+    "city": "Lahore",
+    "country": null,
+    "niches": []
+   },
+   "after": {
+    "city": "Lahore",
+    "country": "PK"
+   },
+   "registration": null
+  },
+  {
+   "handle": "nadiraliofficial",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Comedy",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Comedy"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "carbangla-gaib",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "CA",
+    "niches": [
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "CA"
+  },
+  {
+   "handle": "mzbgamer6588",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "meromoto",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "NP",
+    "niches": [
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "NP"
+  },
+  {
+   "handle": "quick568",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "wslconsultants",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Travel"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Travel"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "lakagamingz",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "IN",
+    "niches": [
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "IN"
+  },
+  {
+   "handle": "pakfoodblogger",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Food"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "gametechz",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "IN",
+    "niches": [
+     "Tech",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "IN"
+  },
+  {
+   "handle": "zaibchaudhry",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Food",
+     "Beauty",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food",
+     "Beauty"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "murradonrun",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Travel",
+     "Lifestyle",
+     "Finance"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Finance"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "aamirkidunya-q2e",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Food"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "hassanahmad7x",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Lifestyle",
+     "Wellness",
+     "Comedy"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "seeker-gaming",
+   "platform": "youtube",
+   "before": {
+    "city": "Faisalabad",
+    "country": "US",
+    "niches": [
+     "Tech",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": "Faisalabad",
+    "country": "PK"
+   },
+   "registration": "US"
+  },
+  {
+   "handle": "royalcarcenter11",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": "PK"
+   },
+   "registration": null
+  },
+  {
+   "handle": "honeybhatti548",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "US",
+    "niches": [
+     "Travel",
+     "Food",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "US"
+  },
+  {
+   "handle": "thetalesoftaste",
+   "platform": "instagram",
+   "before": {
+    "city": "Lahore",
+    "country": null,
+    "niches": [
+     "Lifestyle",
+     "Food"
+    ]
+   },
+   "after": {
+    "city": "Lahore",
+    "country": "PK",
+    "niches": [
+     "Food"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "digitaldollars5",
+   "platform": "youtube",
+   "before": {
+    "city": "Bangalore",
+    "country": "IN",
+    "niches": [
+     "Tech",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": "Bangalore",
+    "country": null,
+    "niches": [
+     "Finance"
+    ]
+   },
+   "registration": "IN"
+  },
+  {
+   "handle": "reviewspakistancarreviewsp769",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Lifestyle",
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": "PK"
+   },
+   "registration": null
+  },
+  {
+   "handle": "provisedevelopers",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Finance"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Finance"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "racingbikelover9160",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Travel",
+     "Lifestyle",
+     "Comedy"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Comedy"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "khajafc",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "BD",
+    "niches": [
+     "Food"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food"
+    ]
+   },
+   "registration": "BD"
+  },
+  {
+   "handle": "goenpkby3781",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Food",
+     "Wellness",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": "Lahore",
+    "country": "PK",
+    "niches": [
+     "Food"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "akvlogz",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Travel",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "coffeewithsumeetjain",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "US",
+    "niches": [
+     "Finance",
+     "Tech",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech",
+     "Finance"
+    ]
+   },
+   "registration": "US"
+  },
+  {
+   "handle": "pakistanigameradan",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Comedy",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": "PK"
+   },
+   "registration": null
+  },
+  {
+   "handle": "financemr.sourav",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "IN",
+    "niches": [
+     "Finance"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Finance"
+    ]
+   },
+   "registration": "IN"
+  },
+  {
+   "handle": "nepalishortsnews-n9l",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "NP",
+    "niches": [
+     "Food"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food"
+    ]
+   },
+   "registration": "NP"
+  },
+  {
+   "handle": "saqibmobeen",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Food"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "akramkhosa",
+   "platform": "youtube",
+   "before": {
+    "city": "Quetta City",
+    "country": "PK",
+    "niches": [
+     "Travel"
+    ]
+   },
+   "after": {
+    "city": "Quetta City",
+    "country": "PK",
+    "niches": [
+     "Travel",
+     "Finance",
+     "Beauty"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "futureservespeaksofficial",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "tl_sukuna_ff",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "IN",
+    "niches": [
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "IN"
+  },
+  {
+   "handle": "gamer.ball.",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "IN",
+    "niches": [
+     "Lifestyle",
+     "Comedy"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "IN"
+  },
+  {
+   "handle": "desifoodbybinteali",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Food",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "zohaibofficials",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "AR",
+    "niches": [
+     "Food",
+     "Travel",
+     "Comedy"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "AR"
+  },
+  {
+   "handle": "amnaniazi81",
+   "platform": "instagram",
+   "before": {
+    "city": "City n Guilds",
+    "country": "UK",
+    "niches": [
+     "Food",
+     "Lifestyle",
+     "Travel"
+    ]
+   },
+   "after": {
+    "city": "City n Guilds",
+    "country": "UK",
+    "niches": [
+     "Food"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "gamerpakistaninc.-qc4ep",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Lifestyle",
+     "Tech",
+     "Comedy"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": "PK"
+   },
+   "registration": null
+  },
+  {
+   "handle": "parastech786",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "rehan.afridi123",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Food",
+     "Travel"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food",
+     "Travel"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "aliazmat7767",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Comedy",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Comedy"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "muhammadbilalshakeel-g7m",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Travel",
+     "Finance",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Finance"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "amandhattarwal",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "IN",
+    "niches": [
+     "Finance",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech"
+    ]
+   },
+   "registration": "IN"
+  },
+  {
+   "handle": "ablagegaming",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "IN",
+    "niches": [
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "IN"
+  },
+  {
+   "handle": "neurafinanceurdu",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Finance"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Finance",
+     "Lifestyle"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "leadusconsultantsofficial",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Travel"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "naqirizvigamerandvlogger1217",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Travel",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Comedy"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "knowkedeworld",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "warikoocareer",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "IN",
+    "niches": [
+     "Lifestyle",
+     "Finance"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "IN"
+  },
+  {
+   "handle": "evs_tech",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech",
+     "Finance"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "regularcars",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "US",
+    "niches": []
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "US"
+  },
+  {
+   "handle": "mohammadfraz",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "IN",
+    "niches": [
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech"
+    ]
+   },
+   "registration": "IN"
+  },
+  {
+   "handle": "universitiespagevisaconsultant",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Travel",
+     "Lifestyle",
+     "Finance"
+    ]
+   },
+   "after": {
+    "city": "Lahore",
+    "country": "PK"
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "desibakingdairies",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Lifestyle",
+     "Beauty",
+     "Food"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food",
+     "Beauty",
+     "Lifestyle"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "panmotoring",
+   "platform": "youtube",
+   "before": {
+    "city": "Auckland",
+    "country": "NZ",
+    "niches": []
+   },
+   "after": {
+    "city": "Auckland",
+    "country": null
+   },
+   "registration": "NZ"
+  },
+  {
+   "handle": "wegotsomethingforeveryone",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Food",
+     "Travel",
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Travel",
+     "Food"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "hindipodcasts07",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech",
+     "Finance",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech",
+     "Finance"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "zusmani78",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "US",
+    "niches": [
+     "Tech",
+     "Lifestyle",
+     "Finance"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "US"
+  },
+  {
+   "handle": "batool_0578",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Comedy"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Comedy"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "cartownislamabad4785",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech",
+     "Lifestyle",
+     "Travel"
+    ]
+   },
+   "after": {
+    "city": "Islamabad",
+    "country": "PK",
+    "niches": [
+     "Beauty",
+     "Wellness"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "httechvideos",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "IN",
+    "niches": [
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech"
+    ]
+   },
+   "registration": "IN"
+  },
+  {
+   "handle": "vlogwithmbs111",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Travel",
+     "Food",
+     "Comedy"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Comedy",
+     "Travel"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "anshifyy.editss",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "IN",
+    "niches": [
+     "Lifestyle",
+     "Comedy"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "IN"
+  },
+  {
+   "handle": "shahbazshamir4584",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Finance",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Finance"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "technicalbest786",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "digitalworldtechsolution322",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "sadaatstudentconsultancy",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Travel",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "reema_cooking_vlog",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food",
+     "Comedy"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "malwarikitchen1910",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food"
+    ]
+   },
+   "after": {
+    "city": "Lahore",
+    "country": "PK",
+    "niches": [
+     "Food"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "imrhow",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech",
+     "Finance"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Finance",
+     "Tech"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "muharrikone",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "US",
+    "niches": [
+     "Finance",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Finance"
+    ]
+   },
+   "registration": "US"
+  },
+  {
+   "handle": "minoqtopus",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Food",
+     "Tech",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "top7consultants",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": []
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "khansolo.69",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "acewithsneha",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "IN",
+    "niches": [
+     "Lifestyle",
+     "Finance"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "IN"
+  },
+  {
+   "handle": "fazloo777",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Lifestyle",
+     "Comedy"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Comedy"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "mytech312",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech",
+     "Comedy"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "myragaming100k",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "IN",
+    "niches": [
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "IN"
+  },
+  {
+   "handle": "hunarmanshow",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Finance",
+     "Tech",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Finance"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "carzone7000",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "IN",
+    "niches": []
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Comedy"
+    ]
+   },
+   "registration": "IN"
+  },
+  {
+   "handle": "timespakistan-zfr",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Travel",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": "PK"
+   },
+   "registration": null
+  },
+  {
+   "handle": "maqsoodahmed-i3k",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "SA",
+    "niches": [
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech"
+    ]
+   },
+   "registration": "SA"
+  },
+  {
+   "handle": "top10knowledge",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Beauty",
+     "Tech",
+     "Food"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "usmanawanog",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "DE",
+    "niches": [
+     "Travel",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "DE"
+  },
+  {
+   "handle": "kamilriazkaravlogs",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Travel",
+     "Food",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food",
+     "Travel"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "waqargaming-i1o",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": "PK"
+   },
+   "registration": null
+  },
+  {
+   "handle": "susiexperts-leafrex_intl",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "US",
+    "niches": [
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech",
+     "Finance"
+    ]
+   },
+   "registration": "US"
+  },
+  {
+   "handle": "diaryofwasf",
+   "platform": "tiktok",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Bridal",
+     "Fashion"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Fashion"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "jutt9917",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech",
+     "Finance"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "alimurtazainfluencer",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Wellness",
+     "Lifestyle",
+     "Finance"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Lifestyle",
+     "Wellness",
+     "Finance"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "foodchallengepakistan",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food",
+     "Comedy"
+    ]
+   },
+   "after": {
+    "city": "Faisalabad",
+    "country": "PK",
+    "niches": [
+     "Food",
+     "Comedy"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "javedchaudhryofficial",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "US",
+    "niches": [
+     "Travel",
+     "Lifestyle",
+     "Finance"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Travel"
+    ]
+   },
+   "registration": "US"
+  },
+  {
+   "handle": "guythatdoeseverything",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "sukubeesh",
+   "platform": "youtube",
+   "before": {
+    "city": "Samastipur",
+    "country": "IN",
+    "niches": [
+     "Tech",
+     "Comedy"
+    ]
+   },
+   "after": {
+    "city": "Samastipur",
+    "country": null
+   },
+   "registration": "IN"
+  },
+  {
+   "handle": "techmasterhq",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "IN",
+    "niches": [
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech",
+     "Comedy"
+    ]
+   },
+   "registration": "IN"
+  },
+  {
+   "handle": "aasanfinance",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Finance"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Finance"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "tgrnikhilgamingh7",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "IN",
+    "niches": []
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "IN"
+  },
+  {
+   "handle": "abdulrehmannajamofficial",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Finance"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Finance"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "shahbazmanzar",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Finance",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Finance"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "nomankatiyar",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Food"
+    ]
+   },
+   "after": {
+    "city": "Karachi",
+    "country": "PK",
+    "niches": [
+     "Food"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "ghulamrasool_in_europe",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Travel",
+     "Lifestyle",
+     "Finance"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Finance",
+     "Travel"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "hasibkhan1171",
+   "platform": "tiktok",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food",
+     "Travel",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "pakistan-m2f8f",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": []
+   },
+   "after": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Lifestyle"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "yudij",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "US",
+    "niches": [
+     "Lifestyle",
+     "Finance"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "US"
+  },
+  {
+   "handle": "ajffbt",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Comedy"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "thecarcrashreview",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "DE",
+    "niches": [
+     "Lifestyle",
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "DE"
+  },
+  {
+   "handle": "jahangirbinabdullah-jba",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Food"
+    ]
+   },
+   "after": {
+    "city": "Karachi",
+    "country": "PK",
+    "niches": [
+     "Food"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "flopvloger3436",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Food"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "ahsanshah705",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": "Karachi",
+    "country": "PK"
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "imspixel",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "CA",
+    "niches": [
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech"
+    ]
+   },
+   "registration": "CA"
+  },
+  {
+   "handle": "deepsuryaroyofficial",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "IN",
+    "niches": [
+     "Finance"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Bridal",
+     "Finance"
+    ]
+   },
+   "registration": "IN"
+  },
+  {
+   "handle": "rizikitech-d3g",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "techvalleypakistan",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": "Abbottabad",
+    "country": "PK",
+    "niches": [
+     "Travel",
+     "Tech"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "asimutmanzai",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "QA",
+    "niches": [
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech"
+    ]
+   },
+   "registration": "QA"
+  },
+  {
+   "handle": "videowalisarkar1",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "hamzareviewspk",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "totalgenuine1-jz",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": []
+   },
+   "after": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "venomstechgaming",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "IN",
+    "niches": [
+     "Tech",
+     "Lifestyle",
+     "Comedy"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech"
+    ]
+   },
+   "registration": "IN"
+  },
+  {
+   "handle": "zohaibkhann",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech",
+     "Comedy",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "rushillthegamer",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "IN",
+    "niches": [
+     "Lifestyle",
+     "Tech",
+     "Comedy"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech"
+    ]
+   },
+   "registration": "IN"
+  },
+  {
+   "handle": "talhacars312",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Comedy",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "officiallmayank",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "IN",
+    "niches": []
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Comedy"
+    ]
+   },
+   "registration": "IN"
+  },
+  {
+   "handle": "simant_bhai",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Travel",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Travel"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "khalidtechnical",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "cookingwithashfaqahmad",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Food",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "fatymaraajpoot__2266",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Travel",
+     "Food",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Travel",
+     "Food"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "vloggernitin",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "IN",
+    "niches": [
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "IN"
+  },
+  {
+   "handle": "technologytech864",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "sarmaayapk",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Finance"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Finance"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "funarmyshorts",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "IN",
+    "niches": [
+     "Tech",
+     "Lifestyle",
+     "Comedy"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech",
+     "Comedy"
+    ]
+   },
+   "registration": "IN"
+  },
+  {
+   "handle": "paisaplanhub",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Finance"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Finance"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "financialeducationinurdu",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Finance"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Finance"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "razatechtube",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech",
+     "Finance"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "aikidunya02",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Comedy",
+     "Food",
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech"
+    ]
+   },
+   "registration": null
+  },
+  {
+   "handle": "realwowboy",
+   "platform": "youtube",
+   "before": {
+    "city": "Lahore",
+    "country": "PK",
+    "niches": [
+     "Food",
+     "Travel",
+     "Lifestyle"
+    ]
+   },
+   "after": {
+    "city": "Lahore",
+    "country": "PK",
+    "niches": [
+     "Food"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "mashallahfoodrecipes",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Food"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "mhofficial8",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Food"
+    ]
+   },
+   "after": {
+    "city": "Lahore",
+    "country": "PK",
+    "niches": [
+     "Food"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "mubashirsaddiqueshorts",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "US",
+    "niches": [
+     "Food"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food"
+    ]
+   },
+   "registration": "US"
+  },
+  {
+   "handle": "babloolahori",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Finance",
+     "Tech"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "techtimetechnology",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "IN",
+    "niches": []
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Comedy",
+     "Tech"
+    ]
+   },
+   "registration": "IN"
+  },
+  {
+   "handle": "pakistancarreviews",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": "PK"
+   },
+   "registration": null
+  },
+  {
+   "handle": "sadiafoodblog2889",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Food"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Food"
+    ]
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "abproductioncars",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "PK",
+    "niches": [
+     "Lifestyle",
+     "Tech"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null
+   },
+   "registration": "PK"
+  },
+  {
+   "handle": "muhammadamirsardarali_",
+   "platform": "youtube",
+   "before": {
+    "city": null,
+    "country": "AE",
+    "niches": [
+     "Lifestyle",
+     "Travel"
+    ]
+   },
+   "after": {
+    "city": null,
+    "country": null,
+    "niches": [
+     "Tech"
+    ]
+   },
+   "registration": "AE"
+  }
+ ]
+}

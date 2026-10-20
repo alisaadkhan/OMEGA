@@ -160,7 +160,7 @@ export async function buildApi(o: { fixtures?: Partial<Fixtures>; buckets?: Rate
   const discovery = createDiscoveryService({ db, billing, ...(o.now ? { now: o.now } : {}) });
   const web = o.fixtures?.web ?? webFor(() => []);
   const scraper = o.fixtures?.scraper ?? scraperFor(() => "Food vlogger in Lahore");
-  const pipeline = createEnrichmentPipeline({ db, scraper, storage: new MemoryStorage(), llm, encryptionKey: KEY, logger, fetchImage: async () => new Response("", { status: 404 }) });
+  const pipeline = createEnrichmentPipeline({ db, scraper, storage: new MemoryStorage(), llm, encryptionKey: KEY, logger, fetchImage: async () => new Response("", { status: 404 }), ...(o.searchProfile ? { attributePolicy: o.searchProfile } : {}) });
   const live = createLiveRunner({ db, billing, pipeline, scraper, search: createCachedSearch({ db, web }), llm, logger, ...(o.now ? { now: o.now } : {}), ...(o.searchProfile ? { searchProfile: o.searchProfile } : {}) });
   const profileRunner = createDiscoveryRunner({ db, billing, pipeline, logger });
   const iss = await createTestIssuer();

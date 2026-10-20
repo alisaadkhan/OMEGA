@@ -25,7 +25,7 @@ export default defineConfig({
         test: {
           name: "int",
           environment: "node",
-          include: ["apps/*/src/**/*.int.test.ts", "packages/*/src/**/*.int.test.ts"],
+          include: ["apps/*/src/**/*.int.test.ts", "packages/*/src/**/*.int.test.ts", "scripts/**/*.int.test.ts"],
           globalSetup: ["packages/db/test/global-setup.ts"],
           fileParallelism: false,
           // Database integration tests require the local disposable TEST_DATABASE_URL guard.
