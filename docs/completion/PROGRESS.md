@@ -2,6 +2,32 @@
 
 Newest session first. A new session reads the mandate, this file, the audit gap register and roadmap, then git state.
 
+## Session 5 — 2026-10-20 (search-v2 unblocking, operational catalogue)
+
+Branch `search-v2` (not pushed). Owner decisions: up to USD 25 provider spend; catalogue local, then staging; v2 behind `SEARCH_PROFILE`, v1 default. Evidence: `search-v2-evidence/`.
+
+**Search v2** (`e705ecb`…`989955a`): shared terminology for both brains, `understandQueryV2` plan groups, Live Discovery re-fetches known creators without a sample. v1 unchanged: freeze check intact; frozen corpus hash unchanged.
+
+**Evidence layer** (`451bc2c`, migration 0052): city, country and niches stored only when the creator's own text supports them; every observation kept with source, status (supported / weak / conflicting) and a quote. YouTube registration country and AI readings are weak, never stored alone. Rules tightened against the real catalogue (ISB, travel visits, bio hashtags, Pakistan as a topic, living abroad, Hyderabad, long bios), each with a regression test.
+
+**Catalogue** (`mushin_catalog_v2`, local): 455 → 2,198 creators; 650 with Pakistan supported by their own words, 376 with a supported city; 587 eligible in search. 16 niches × 8 cities, YouTube only, 128/128 cells; four workers on one combined budget gate. Integrity check passes (`catalog-integrity.json`).
+
+**Spend:** ≈ USD 1.58 of 25 since 2026-10-20, reconciled with Apify's run usage (+0.008 over the ledger) and Serper's balance. About USD 0.48 of it was a retry that re-ran completed cells (RLS hid the skip guard; fixed in `989955a`).
+
+**Defects fixed with tests:** YouTube 404 failed whole live runs; Apify account usage invisible to the app's guard; RLS-blind skip/resume guard and workspace lookup; budget-gate test sharing the DB with truncating suites.
+
+**Measurement** (26 frozen relevance queries; retrieval counts, not relevance): frozen corpus zero-result 17 (v1) → 15 (v2); operational catalogue 11 (v1) → 8 (v2), top-10 with Pakistan supported 42 → 55; 0 platform violations, 0 duplicate identities.
+
+**Staging** (`yknp…`): migration 0052 applied; 2,181 creators loaded with evidence and snapshots (no contacts, payloads, avatars or workspaces); projection rebuilt, 587 eligible, 0 mismatches. Rehearsed twice locally first.
+
+**Rating packets:** `eval-v2/packets/` (v1 and v2 on the catalogue copy; git-excluded). Frozen packets unchanged.
+
+**Verdict: Search NOT ACCEPTED** (no ratings yet).
+
+**Blockers:** Apify account at its USD 5 monthly limit until 2026-11-01 (no Instagram/TikTok extraction); Serper 628 prepaid credits left; Groq/Ollama rate limits cap parallel workers; raters and adjudicator; staging CA file.
+
+**Next single action:** the owner names two raters and an adjudicator for `eval-v2/packets`.
+
 ## Session 4 — 2026-10-20 (final Search acceptance campaign)
 
 Mandate: codebase comprehension, handoff, then the acceptance gates. Report: `final-search-acceptance-report.md`; evidence: `acceptance-evidence/`.
