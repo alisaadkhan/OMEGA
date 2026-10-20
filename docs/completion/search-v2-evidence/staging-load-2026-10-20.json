@@ -1,0 +1,30 @@
+{
+ "target": "staging project yknp… (session pooler; TLS encrypted, server certificate not verified: DATABASE_SSL_CA_FILE unset)",
+ "source": "mushin_catalog_v2 (local operational catalogue)",
+ "at": "2026-10-20T18:21:55.658Z",
+ "loaded": {
+  "creators": 2181,
+  "profiles": 2181,
+  "links": 353,
+  "evidence": 8097,
+  "enrichmentSnapshots": 1347,
+  "metricSnapshots": 2072
+ },
+ "excluded": "contacts, raw payloads, avatar copies, minors, merged creators, every workspace/job/ledger, catalog_build schema",
+ "rehearsal": "same load applied twice to a fresh local database migrated to 0052: second run inserted 0; v1/v2 measurements identical to the source",
+ "verify": {
+  "migration": "0052_creator_attribute_evidence.sql",
+  "creators": 2181,
+  "docs": 2181,
+  "eligible": 587,
+  "mismatch": 0,
+  "dup_handles": 0,
+  "evidence": 8097,
+  "pk": 643,
+  "contacts": 0,
+  "payloads": 0,
+  "workspaces": 0,
+  "users": 0,
+  "avatars": 0
+ }
+}
