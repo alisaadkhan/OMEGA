@@ -88,4 +88,4 @@ every audit ID to its current state and adds gaps found since, with the next fre
 | ACC-D3 | Reconciliation compares whole seconds; same-second event-less change missed | Open (low; ranking tie-breaker frozen) | acceptance IDX-07b | After ratings |
 | ACC-D4 | Logs did not redact credential-like keys or URL passwords | Locally verified (fixed) | logger.test, acceptance SEC-12 | — |
 | ACC-D5 | Customer E2E runner orphaned its API on a readiness failure | Locally verified (fixed) | run.sh; customer suite 162/162 | — |
-| ACC-Q1 | Brain 1 coverage upper bound 0.357 < 0.90 on the frozen set | Blocked (owner) | acceptance-evidence/Q-COVERAGE-BOUND.txt | Corpus assessment or coverage decision, then ratings |
+| ACC-Q1 | 18 of 28 frozen relevance cases return nothing (15 with pooled candidates): coverage at high risk (a first report of a 0.357 ceiling was wrong) | Blocked (owner) | acceptance-evidence/Q-COVERAGE-BOUND.txt | Corpus assessment or coverage decision, then ratings |

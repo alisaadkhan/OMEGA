@@ -1,2 +1,5 @@
 {"cases":35,"behaviourOnly":7,"relevanceCases":28,"relevanceCasesWithAnyResult":10,"coverageUpperBound":0.357,"gate":0.9,"zeroResultIds":["Q001","Q002","Q003","Q005","Q007","Q008","Q012","Q013","Q015","Q016","Q017","Q018","Q019","Q020","Q022","Q033","Q034","Q035"]}
 latency p50 26 max 153
+CORRECTION 2026-10-20: the coverageUpperBound above (0.357) is NOT a valid bound. relevantCoverage() counts only answerable queries (a fully relevant creator among results + pooled candidates).
+Zero-result relevance cases: 18 of 28. With pooled candidates: 15 (169 pool rows). Empty pool: Q013, Q022, Q035.
+Coverage therefore depends on human ratings (BLOCKED); it is at high risk if raters find relevant creators in those pools.

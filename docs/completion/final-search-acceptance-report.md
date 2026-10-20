@@ -212,9 +212,9 @@ The sections above (Stage 2) are kept as the historical baseline.
 | Performance and resilience (PERF) | 10 | 10 | 10 | 0 | 0 | 0 |
 | Frozen corpus, real data (CORPUS) | 7 | 7 | 7 | 0 | 0 | 0 |
 | Browser journeys (E2E) | 3 | 2 | 2 | 0 | 0 | 1 |
-| Human evaluation (HUM) | 5 | 1 | 0 | 1 | 4 | 0 |
+| Human evaluation (HUM) | 5 | 0 | 0 | 0 | 5 | 0 |
 | Real-provider integration (RP) | 3 | 0 | 0 | 0 | 3 | 0 |
-| **Total** | **152** | **144** | **139** | **4** | **8** | **1** |
+| **Total** | **152** | **143** | **139** | **3** | **9** | **1** |
 
 How cases were counted:
 - B2-10/11/12 share one test and count once.
@@ -481,12 +481,14 @@ The first customer attempt failed before testing because Meilisearch was down af
 | HUM-01 | Brain 1: two raters, weighted kappa ≥ 0.60 | **BLOCKED** | no raters or adjudicator |
 | HUM-02 | Brain 1: strict precision@5 ≥ 0.80 | **BLOCKED** | |
 | HUM-03 | Brain 1: nDCG@10 ≥ 0.75 | **BLOCKED** | |
-| HUM-04 | Brain 1: coverage ≥ 0.90 | **FAIL (upper bound)** | See below |
+| HUM-04 | Brain 1: coverage ≥ 0.90 | **BLOCKED** (corrected 2026-10-20; first reported as FAIL) | See below |
 | HUM-05 | Brain 2 human evaluation | **BLOCKED** | |
 
-HUM-04 detail (`acceptance-evidence/Q-COVERAGE-BOUND.txt`):
-- In the official frozen run, only 10 of the 28 relevance cases return any result at all.
-- So coverage cannot exceed **0.357**, even if raters judged every returned result relevant.
+HUM-04 detail. **Correction (2026-10-20):** this was first reported as a FAIL with a coverage ceiling of 0.357. That was wrong.
+- Coverage (`relevantCoverage` in `scripts/search-eval/metrics.ts`) counts only *answerable* queries: those with at least one fully relevant creator among MUSHIN results **plus pooled candidates**.
+- A zero-result query is uncovered only if raters find a relevant creator in its pool.
+- In the official frozen run, 18 of the 28 relevance cases return nothing. 15 of those 18 have pooled candidates (169 pool rows in all); 3 have an empty pool (Q013, Q022, Q035).
+- The coverage result therefore depends on the ratings: it is **BLOCKED**, and it is at **high risk** if raters find relevant creators among those pools. Counts: `acceptance-evidence/Q-COVERAGE-BOUND.txt` and the packet key `brain1-key.csv`.
 
 #### Real-provider integration (RP)
 
@@ -528,7 +530,7 @@ What *can* be computed without judgements comes from the official frozen Brain 1
 | Cases | 35 (7 behaviour-only, 28 relevance) |
 | Zero-result rate, all cases | 24 of 35 = 0.686 |
 | Relevance cases with any result | 10 of 28 |
-| **Coverage upper bound** | **0.357**, against a required 0.90: **FAIL**, independent of ratings |
+| Zero-result relevance cases with pooled candidates | 15 of 18 (169 pool rows): each is uncovered if raters find a relevant creator in its pool. Coverage itself needs ratings (corrected; first reported as a 0.357 ceiling) |
 | Latency in the frozen run | p50 26 ms, max 153 ms |
 
 The real corpus explains this. Of its 455 creators, only 204 are eligible, and none has a structured city, niche or contact. Sentence queries require every topic word, so many queries match nothing.
@@ -616,7 +618,7 @@ Reliability verified:
 | D3 | Reconciliation misses a change made without an event in the same second as the last indexing (IDX-07b) | Low | Freshness is compared in whole seconds (`extract(epoch)::int`) | **Open**. The value is also a ranking tie-breaker (frozen); normal writes always emit an event |
 | D4 | Logs did not redact credential-like keys (`apiKey`, `api_key`, `serviceRoleKey`, `webhookSecret`, `privateKey`) or URL passwords in messages and errors | Low–Medium (no current call site logged them) | Fixed key list only | **Fixed**: pattern-based redaction plus URL-credential masking in `packages/core/src/logger.ts`. Regression: `logger.test.ts` and SEC-12. Full suite rerun |
 | D5 | The customer E2E runner left its API and worker running when readiness failed, blocking the next run on :4000 | Low (test tooling) | `start … || exit 1` without cleanup | **Fixed** in `scripts/e2e-customer/run.sh`. Customer suite rerun: 162/162 |
-| Q1 | Brain 1 coverage on the frozen set is at most 0.357, against the 0.90 gate | **High: blocks acceptance** | Small, never-assessed corpus (no city, niche or contact data); all-words matching of sentence queries | **Open**. Owner decision on corpus assessment or coverage (paid LLM and provider work) and Search work after ratings |
+| Q1 | 18 of 28 relevance cases return nothing; 15 of them have pooled catalogue candidates, so coverage is at high risk (corrected: not a proven ceiling) | **High: acceptance risk** | Small, never-assessed corpus (no city, niche or contact data); all-words matching of sentence queries | **Open**. Owner decision on corpus assessment or coverage (paid LLM and provider work) and Search work after ratings |
 
 Limitations and observations:
 - **L1:** wordings outside the documented vocabulary ("review", "restaurants", inflected Urdu) recall poorly.
@@ -645,13 +647,13 @@ Residual blockers:
 | 5 | Search variations and cross-search duplicate prevention | Duplicate prevention **PASS**; variation consistency **FAIL** (D1, D2) | VAR-C, VAR-L, P-04 |
 | 6 | Credit ledger and financial integrity | **PASS** (fixtures and local database); Paddle not verified (separate gate) | CR 21/21 |
 | 7 | Caching, indexing and persistence | **PASS with D3** (low) | IDX 13/14 |
-| 8 | Independent search-quality evaluation | **BLOCKED**: no raters. The coverage gate **FAILs** on its upper bound | HUM |
+| 8 | Independent search-quality evaluation | **BLOCKED**: no raters. Coverage is at high risk: 18 of 28 relevance cases return nothing | HUM |
 | 9 | Security and permissions (limited scope) | **PASS after the D4 fix** | SEC 13/13 |
 | 10 | Performance and reliability | Measured, no targets: **target acceptance not established**; functional resilience PASS | PERF 10/10 |
 | 11 | End-to-end integration and user experience | **PASS** for covered journeys (customer 162/162, staff 31/31); live delivery in the browser NOT TESTED | E2E |
-| 12 | **Overall Search acceptance** | **NOT ACCEPTED** | HUM blocked; the coverage gate fails on its upper bound; D1 and D2 open; no real-provider evidence |
+| 12 | **Overall Search acceptance** | **NOT ACCEPTED** | HUM blocked; 18 of 28 relevance cases return nothing; D1 and D2 open; no real-provider evidence |
 
-**Single next action for the most consequential blocker (Q1 + B1).** Brain 1 cannot reach the 0.90 coverage gate on the current corpus, even with perfect ratings. The owner must therefore decide how the catalogue gets structured coverage before a rating round is worth running:
+**Single next action for the most consequential blocker (Q1 + B1).** 18 of 28 relevance cases return nothing, and 15 of those have catalogue candidates raters may judge relevant. Coverage is therefore at high risk. The owner should decide how the catalogue gets structured coverage before a rating round:
 - authorise the AI assessment (city, niche) of the evaluation corpus and a broader catalogue build (paid LLM and provider work); or
 - re-scope the frozen query set to the catalogue that exists.
 

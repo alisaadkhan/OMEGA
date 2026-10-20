@@ -12,8 +12,8 @@ Mandate: codebase comprehension, handoff, then the acceptance gates. Report: `fi
 - Frozen corpus hash unchanged (11 tables); freeze check intact.
 
 **Campaign:** 152 cases planned, 144 executed.
-- 139 PASS, 4 FAIL (D1, D2, D3, HUM-04 coverage bound).
-- 8 BLOCKED (human ratings ×4, real providers ×3, hosted check: network).
+- 139 PASS, 3 FAIL (D1, D2, D3).
+- 9 BLOCKED (human ratings ×5, real providers ×3, hosted check: network).
 - 1 NOT TESTED (live delivery in the browser).
 
 **Fixes:** logger redaction (D4) and E2E runner clean-up (D5), each with regression coverage.
@@ -22,7 +22,7 @@ Mandate: codebase comprehension, handoff, then the acceptance gates. Report: `fi
 
 **Clean-clone `npm run verify` at `df23a63`** (no `.env`; Meilisearch env loaded): lint, typecheck and boundaries pass; 1,080 passed, 0 failed, 3 expected failures, 7 skipped. The clone stayed clean: evidence is written only with `ACCEPTANCE_EVIDENCE=1`.
 
-**Verdict: Search NOT ACCEPTED.** Coverage is at most 0.357 against 0.90 even with perfect ratings, and no raters are named.
+**Verdict: Search NOT ACCEPTED.** No raters; 18 of 28 relevance cases return nothing. **Correction:** an earlier claim that coverage could not exceed 0.357 was wrong, because coverage counts only answerable queries (`relevantCoverage`).
 
 **Next single action:** the owner decides how the catalogue gets structured coverage (corpus AI assessment and catalogue build, or a re-scoped query set), then names the raters and adjudicator.
 
