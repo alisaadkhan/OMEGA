@@ -14,14 +14,14 @@ export function useRecentActivity(limit = 20) {
   });
 }
 
-/** The full feed, paged by time ("Load older"). */
+/** The full feed, paged by each event's cursor ("Load older"); events that share one time are not skipped. */
 export function useActivityFeed() {
   const { status } = useAuth();
   return useInfiniteQuery({
     queryKey: ["activity", "feed"],
     initialPageParam: null as string | null,
     queryFn: ({ pageParam }) => apiRequest(`/v1/activity?limit=30${pageParam ? `&before=${encodeURIComponent(pageParam)}` : ""}`, activityFeedSchema),
-    getNextPageParam: (last) => (last.events.length === 30 ? (last.events[last.events.length - 1]?.at ?? null) : null),
+    getNextPageParam: (last) => (last.events.length === 30 ? (last.events[last.events.length - 1]?.cursor ?? null) : null),
     enabled: status === "signedIn",
   });
 }
