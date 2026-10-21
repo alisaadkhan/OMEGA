@@ -3,6 +3,7 @@ import { encryptSecret, sha256Hex } from "@mushin/core";
 import {
   audienceViews,
   contactReveals,
+  creatorAttributeEvidence,
   creatorContacts,
   creatorLinks,
   creatorProfiles,
@@ -181,6 +182,16 @@ export function linkedAccounts(tx: Tx, creatorId: string) {
     .where(eq(creatorLinks.creatorId, creatorId))
     .orderBy(creatorLinks.firstSeenAt)
     .limit(10);
+}
+
+/** Why city, country, niches and languages are known (0052): every observation with its source and status. */
+export function attributeEvidence(tx: Tx, creatorId: string) {
+  return tx
+    .select({ attribute: creatorAttributeEvidence.attribute, value: creatorAttributeEvidence.value, source: creatorAttributeEvidence.source, status: creatorAttributeEvidence.status, quote: creatorAttributeEvidence.evidence, observedAt: creatorAttributeEvidence.observedAt })
+    .from(creatorAttributeEvidence)
+    .where(eq(creatorAttributeEvidence.creatorId, creatorId))
+    .orderBy(creatorAttributeEvidence.attribute, creatorAttributeEvidence.status, creatorAttributeEvidence.value)
+    .limit(60);
 }
 
 export type ProfileRow = typeof creatorProfiles.$inferSelect;
