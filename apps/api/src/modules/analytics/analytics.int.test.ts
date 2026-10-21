@@ -37,6 +37,27 @@ describe("activity feed", () => {
     expect(older.events.every((e) => e.at < (feed[1]?.at ?? ""))).toBe(true);
     expect((await activity.feed(await customer(), { limit: 10 })).events).toEqual([]);
   });
+
+  // Regression (2026-10-21): one request that saves many creators stamps them all with the same time, and paging by
+  // that time alone skipped every event tied at a page boundary.
+  it("pages through events that share one timestamp without skipping any", async () => {
+    const c = await customer();
+    const ids = [];
+    for (let i = 0; i < 25; i++) ids.push(await addCreator(db, { displayName: `Creator ${i}` }));
+    const l = await lists.create(c, { name: "Bulk", description: "" });
+    await lists.addMembers(c, l.id, ids);
+    const seen: string[] = [];
+    let cursor: string | undefined;
+    for (let page = 0; page < 10; page++) {
+      const events = (await activity.feed(c, { limit: 10, ...(cursor ? { before: cursor } : {}) })).events;
+      if (events.length === 0) break;
+      seen.push(...events.map((e) => e.id));
+      cursor = events.at(-1)?.cursor;
+    }
+    expect(new Set(seen).size).toBe(seen.length);
+    expect(seen.filter((id) => id.startsWith("m:")).length).toBe(25);
+    expect(seen.length).toBe(26);
+  });
 });
 
 describe("analytics summary", () => {

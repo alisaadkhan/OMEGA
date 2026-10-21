@@ -12,10 +12,16 @@ const OUTCOME = { attempted: "reached out to", replied: "logged a reply from", n
 export function createActivityService(deps: { db: Db }) {
   async function feed(ctx: TenantContext, q: { limit: number; before?: string }): Promise<{ events: ActivityEvent[] }> {
     const ws = ctx.workspaceId;
-    const before = q.before ? sql`${q.before}::timestamptz` : sql`'infinity'::timestamptz`;
+    // Keyset paging on (time in microseconds, id): a page boundary inside a group of events with one time skips none.
+    const cursor = q.before?.match(/^(\d+)~(.+)$/);
+    const after = cursor
+      ? sql`(e.at_us < ${cursor[1]}::bigint or (e.at_us = ${cursor[1]}::bigint and e.id > ${cursor[2]}))`
+      : q.before
+        ? sql`e.at < ${q.before}::timestamptz`
+        : sql`true`;
     const rows = await deps.db.withTenant({ userId: ctx.userId, workspaceId: ws }, (tx) =>
-      tx.execute<{ id: string; kind: ActivityEvent["kind"]; at: string | Date; actor: string | null; a: string | null; b: string | null; c: string | null; target_type: string | null; target_id: string | null }>(sql`
-        select * from (
+      tx.execute<{ id: string; kind: ActivityEvent["kind"]; at: string | Date; at_us: string; actor: string | null; a: string | null; b: string | null; c: string | null; target_type: string | null; target_id: string | null }>(sql`
+        select e.* from (select *, (extract(epoch from at) * 1000000)::bigint as at_us from (
           select 'l:' || l.id id, 'list_created' kind, l.created_at at, l.created_by actor, l.name a, null b, null c, 'list' target_type, l.id target_id
             from wp.lists l where l.workspace_id = ${ws}
           union all
@@ -36,9 +42,9 @@ export function createActivityService(deps: { db: Db }) {
           union all
           select 'r:' || r.creator_id, 'contact_revealed', r.created_at, r.revealed_by, cr.display_name, null, null, 'creator', cr.id
             from wp.contact_reveals r join gcp.creators cr on cr.id = r.creator_id where r.workspace_id = ${ws}
-        ) e
-        where e.at < ${before}
-        order by e.at desc, e.id
+        ) raw) e
+        where ${after}
+        order by e.at_us desc, e.id
         limit ${q.limit}`),
     );
     const people = new Map(
@@ -66,6 +72,7 @@ export function createActivityService(deps: { db: Db }) {
         actor: r.actor ? { id: r.actor, name: people.get(r.actor) ?? "Former member" } : null,
         text: text(r),
         target: r.target_type && r.target_id ? { type: r.target_type as "list", id: r.target_id } : null,
+        cursor: `${r.at_us}~${r.id}`,
       })),
     };
   }
