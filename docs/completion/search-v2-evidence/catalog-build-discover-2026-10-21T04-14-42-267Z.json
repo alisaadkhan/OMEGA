@@ -1,0 +1,559 @@
+{
+ "mode": "discover",
+ "db": "mushin_catalog_v2",
+ "capUsd": 20,
+ "started": "2026-10-21T04:14:42.267Z",
+ "finished": "2026-10-21T04:40:27.934Z",
+ "spendByProvider": [
+  {
+   "provider": "groq",
+   "calls": 114,
+   "usd": "0.016363"
+  },
+  {
+   "provider": "ollama",
+   "calls": 81,
+   "usd": "0.010746"
+  },
+  {
+   "provider": "serper",
+   "calls": 682,
+   "usd": "0.052000"
+  },
+  {
+   "provider": "youtube",
+   "calls": 333,
+   "usd": "0.000000"
+  }
+ ],
+ "jobs": [
+  {
+   "city": "Lahore",
+   "niche": "bridal",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 0,
+   "error": null,
+   "ms": 78558,
+   "spentUsd": 1.577804
+  },
+  {
+   "city": "Lahore",
+   "niche": "history",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 64917,
+   "spentUsd": 1.579804
+  },
+  {
+   "city": "Lahore",
+   "niche": "business",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 58730,
+   "spentUsd": 1.584962
+  },
+  {
+   "city": "Lahore",
+   "niche": "ecommerce",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 2,
+   "new": 2,
+   "error": null,
+   "ms": 185048,
+   "spentUsd": 1.592028
+  },
+  {
+   "city": "Lahore",
+   "niche": "automotive",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 1,
+   "error": null,
+   "ms": 144154,
+   "spentUsd": 1.600141
+  },
+  {
+   "city": "Lahore",
+   "niche": "religion",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 97992,
+   "spentUsd": 1.604605
+  },
+  {
+   "city": "Karachi",
+   "niche": "bridal",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 0,
+   "error": null,
+   "ms": 125879,
+   "spentUsd": 1.610045
+  },
+  {
+   "city": "Karachi",
+   "niche": "history",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 138643,
+   "spentUsd": 1.61559
+  },
+  {
+   "city": "Karachi",
+   "niche": "business",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 69067,
+   "spentUsd": 1.620199
+  },
+  {
+   "city": "Karachi",
+   "niche": "ecommerce",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 49531,
+   "spentUsd": 1.624466
+  },
+  {
+   "city": "Karachi",
+   "niche": "automotive",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 3,
+   "new": 2,
+   "error": null,
+   "ms": 148200,
+   "spentUsd": 1.629565
+  },
+  {
+   "city": "Karachi",
+   "niche": "religion",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 1,
+   "error": null,
+   "ms": 88697,
+   "spentUsd": 1.63372
+  },
+  {
+   "city": "Islamabad",
+   "niche": "bridal",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 122599,
+   "spentUsd": 1.638114
+  },
+  {
+   "city": "Islamabad",
+   "niche": "history",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 56118,
+   "spentUsd": 1.640114
+  },
+  {
+   "city": "Islamabad",
+   "niche": "business",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 23532,
+   "spentUsd": 1.642114
+  },
+  {
+   "city": "Islamabad",
+   "niche": "ecommerce",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 946,
+   "spentUsd": 1.642114
+  },
+  {
+   "city": "Islamabad",
+   "niche": "automotive",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 843,
+   "spentUsd": 1.642114
+  },
+  {
+   "city": "Islamabad",
+   "niche": "religion",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 858,
+   "spentUsd": 1.642114
+  },
+  {
+   "city": "Rawalpindi",
+   "niche": "bridal",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 836,
+   "spentUsd": 1.642114
+  },
+  {
+   "city": "Rawalpindi",
+   "niche": "history",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 817,
+   "spentUsd": 1.642114
+  },
+  {
+   "city": "Rawalpindi",
+   "niche": "business",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 816,
+   "spentUsd": 1.642114
+  },
+  {
+   "city": "Rawalpindi",
+   "niche": "ecommerce",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 11242,
+   "spentUsd": 1.644114
+  },
+  {
+   "city": "Rawalpindi",
+   "niche": "automotive",
+   "status": "completed",
+   "outcome": "insufficient",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 42017,
+   "spentUsd": 1.648114
+  },
+  {
+   "city": "Rawalpindi",
+   "niche": "religion",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 15644,
+   "spentUsd": 1.651114
+  },
+  {
+   "city": "Peshawar",
+   "niche": "bridal",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 812,
+   "spentUsd": 1.651114
+  },
+  {
+   "city": "Peshawar",
+   "niche": "history",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 792,
+   "spentUsd": 1.651114
+  },
+  {
+   "city": "Peshawar",
+   "niche": "business",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 820,
+   "spentUsd": 1.651114
+  },
+  {
+   "city": "Peshawar",
+   "niche": "ecommerce",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 820,
+   "spentUsd": 1.651114
+  },
+  {
+   "city": "Peshawar",
+   "niche": "automotive",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 806,
+   "spentUsd": 1.651114
+  },
+  {
+   "city": "Peshawar",
+   "niche": "religion",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 816,
+   "spentUsd": 1.651114
+  },
+  {
+   "city": "Faisalabad",
+   "niche": "bridal",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 786,
+   "spentUsd": 1.651114
+  },
+  {
+   "city": "Faisalabad",
+   "niche": "history",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 794,
+   "spentUsd": 1.651114
+  },
+  {
+   "city": "Faisalabad",
+   "niche": "business",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 813,
+   "spentUsd": 1.651114
+  },
+  {
+   "city": "Faisalabad",
+   "niche": "ecommerce",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 792,
+   "spentUsd": 1.651114
+  },
+  {
+   "city": "Faisalabad",
+   "niche": "automotive",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 777,
+   "spentUsd": 1.651114
+  },
+  {
+   "city": "Faisalabad",
+   "niche": "religion",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 795,
+   "spentUsd": 1.651114
+  },
+  {
+   "city": "Multan",
+   "niche": "bridal",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 793,
+   "spentUsd": 1.651114
+  },
+  {
+   "city": "Multan",
+   "niche": "history",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 790,
+   "spentUsd": 1.651114
+  },
+  {
+   "city": "Multan",
+   "niche": "business",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 809,
+   "spentUsd": 1.651114
+  },
+  {
+   "city": "Multan",
+   "niche": "ecommerce",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 780,
+   "spentUsd": 1.651114
+  },
+  {
+   "city": "Multan",
+   "niche": "automotive",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 833,
+   "spentUsd": 1.651114
+  },
+  {
+   "city": "Multan",
+   "niche": "religion",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 818,
+   "spentUsd": 1.651114
+  },
+  {
+   "city": "Quetta",
+   "niche": "bridal",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 791,
+   "spentUsd": 1.651114
+  },
+  {
+   "city": "Quetta",
+   "niche": "history",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 781,
+   "spentUsd": 1.651114
+  },
+  {
+   "city": "Quetta",
+   "niche": "business",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 821,
+   "spentUsd": 1.651114
+  },
+  {
+   "city": "Quetta",
+   "niche": "ecommerce",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 777,
+   "spentUsd": 1.651114
+  },
+  {
+   "city": "Quetta",
+   "niche": "automotive",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 808,
+   "spentUsd": 1.651114
+  },
+  {
+   "city": "Quetta",
+   "niche": "religion",
+   "status": "failed",
+   "outcome": "failed",
+   "found": 0,
+   "new": 0,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 805,
+   "spentUsd": 1.651114
+  }
+ ]
+}

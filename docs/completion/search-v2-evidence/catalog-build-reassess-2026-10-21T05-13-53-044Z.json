@@ -1,0 +1,29 @@
+{
+ "mode": "reassess",
+ "db": "mushin_catalog_v2",
+ "capUsd": 20,
+ "started": "2026-10-21T05:13:53.044Z",
+ "finished": "2026-10-21T06:40:52.672Z",
+ "spendByProvider": [
+  {
+   "provider": "groq",
+   "calls": 172,
+   "usd": "0.002304"
+  },
+  {
+   "provider": "ollama",
+   "calls": 825,
+   "usd": "0.190556"
+  }
+ ],
+ "jobs": [
+  {
+   "mode": "reassess",
+   "pending": 740,
+   "outcome": {
+    "assessed": 728,
+    "failed: AI is unavailable right now. Please try again shortly.": 12
+   }
+  }
+ ]
+}
