@@ -59,27 +59,27 @@ the code.
 
 | ID | Page | Route | Status | Must do | Still missing |
 |---|---|---|---|---|---|
-| AUTH-01 | Sign in | `#/login` | BUILT | Idle, validation, submitting, invalid credentials, unconfirmed email, rate limit, network error, success → dashboard or a pending invitation | — |
+| AUTH-01 | Sign in | `#/login` | BUILT | Idle, validation, submitting, invalid credentials, unconfirmed email, rate limit, network error, success → dashboard or a pending invitation. No SSO button (there is no single sign-on; removed 2026-10-21) and no "Remember me" (sessions always persist) | — |
 | AUTH-02 | Create account | `#/signup` | BUILT | Duplicate email, weak password, confirmation-email pending | — |
 | AUTH-03 | Email confirmed | `#/confirmed` | BUILT, BLOCKED | Success, expired or used link, checking | Hosted confirmation emails need SMTP (owner) |
 | AUTH-04 | Forgot and reset password | `#/forgot`, `#/reset-password` | BUILT, BLOCKED | Generic "sent" message, expired link, success, failure | Hosted recovery emails need SMTP (owner) |
 | AUTH-05 | Workspace onboarding | first sign-in | BUILT | Create the workspace; never a fabricated default | — |
 | AUTH-06 | Accept invitation | `#/invite/<token>` | BUILT | Signed out, signed in as another email, accepted, expired, revoked or used | — |
 | AUTH-07 | Legal gate | first use, or after terms change | BUILT | Accept the Terms and Privacy Policy | — |
-| AUTH-08 | Session expired | any page after token expiry | BUILT, GAPS | Sends the user to Sign in | A visible "Your session expired, sign in again" message, and returning to the same page after sign-in (SHOULD BUILD, P1) |
+| AUTH-08 | Session expired | any page after token expiry | BUILT | When the session ends without the person signing out (refresh token expired, or the API answers 401), Sign in shows "Your session expired. Sign in again to continue where you left off.", and signing in reopens the dashboard page that was open (built 2026-10-21) | — |
 
 ### 2.3 Customer app
 
 | ID | Page | Status | Must do | Still missing |
 |---|---|---|---|---|
-| APP-01 | App shell: sidebar, topbar, omnibar, credits pill, job tray, bell, user menu, banners | BUILT, GAPS | Desktop, tablet (icon rail), mobile drawer; billing, support-access, offline and degraded banners | A manual mobile and screen-reader pass (UX-05, owner/tester); the workspace switcher lives in Team settings and should also be in the user menu (SHOULD BUILD, P2) |
+| APP-01 | App shell: sidebar, topbar, omnibar, credits pill, job tray, bell, user menu, banners | BUILT, GAPS | Desktop, tablet (icon rail), mobile drawer; billing, support-access, offline and degraded banners | A manual mobile and screen-reader pass (UX-05, owner/tester). The workspace switcher is in the account menu and in Team settings (built 2026-10-21) |
 | APP-02 | Dashboard overview | BUILT | Real data only: credits, recent activity, quick actions, first-use empty state, trial feedback card | — |
 | SRCH-01 | Catalogue Search (Brain 1) | BUILT, GAPS | Text query (English, Roman Urdu, Urdu), "Understood as" chips, filters, results grid and table, "Why this creator", Load more, saved searches, credit cost before running, every error state | A **sort control** (relevance, followers, freshness) (SHOULD BUILD, P1; ranking is relevance-only today). Search relevance is not yet accepted: it needs the human ratings (owner) |
 | SRCH-02 | Filters | BUILT | Platform, followers, engagement, city, niche, language, verified only, contact available, fresh data only; removable chips; invalid ranges refused | Filtering by audience country stays unavailable until a verified audience source exists (deliberate) |
 | SRCH-03 | Find new creators (Brain 2): brief and quote | BUILT, BLOCKED | Brief gate (topic plus city, country or language), platforms, size, server quote, maximum cost, confirm; refuses a too-broad brief with no charge | Instagram and TikTok extraction blocked by the Apify account limit until 2026-11-01 (owner) |
 | SRCH-04 | Live job progress and results | BUILT | Queued, step labels, Stop, completed, partial, empty, insufficient, failed (credits returned), one live run at a time | Funnel counts shown in the UI are coarse (found / new); the spec's full funnel (searched → candidates → extracted → qualified) is in the staff job trail only (SHOULD BUILD for customers, P3) |
 | SRCH-05 | Add a creator by profile link | BUILT | Invalid link, already in MUSHIN, removed at the creator's request, private, not found, queued | — |
-| CR-01 | Creator profile | BUILT | Metrics with freshness, AI summary, audience (labelled source), contacts (masked), evidence | Show the new attribute-evidence rows (why city, country and niches are known) in the panel (SHOULD BUILD, P1; the data exists since migration 0052) |
+| CR-01 | Creator profile | BUILT | Metrics with freshness, AI summary, audience (labelled source), contacts (masked), evidence | — ("Where these details come from" shows the evidence for city, country, niches and languages, with the creator's own words; withheld under minor protection; built 2026-10-21) |
 | CR-02 | Refresh creator data | BUILT | Cost confirmation, queued, running, completed, failed with the old data kept | — |
 | CR-03 | Reveal contact | BUILT | Cost confirmation, insufficient credits, revealed, already revealed (free), remove revealed contacts, error | — |
 | CR-04 | Audience estimate (experimental, on request) | BUILT, PLANNED | On request, 5 credits, labelled "Estimated" | Off by policy until a verified audience source exists; design the off state |
@@ -92,7 +92,7 @@ the code.
 | OUT-02 | Send an email through MUSHIN | BUILT, BLOCKED | Off, test (records, never delivers, says so), Resend modes; monthly usage | Real sending needs the owner to authorise Resend (owner) |
 | OUT-03 | Inbox | PLANNED | A "Planned: not available yet" screen pointing to campaigns | Mailbox connection, reply tracking and sequences: DEFERRED |
 | AN-01 | Analytics | BUILT | Persisted data only, period selector, empty and unavailable states, no ROI or reach | — |
-| ACT-01 | Activity log | BUILT, GAPS | Real events, newest first, paging that never skips (fixed 2026-10-21) | **Filters** by event type and member (SHOULD BUILD, P2) |
+| ACT-01 | Activity log | BUILT | Real events, newest first, paging that never skips, a "Show" filter by kind (both 2026-10-21) | A filter by team member (SHOULD BUILD, P3) |
 | NOT-01 | Bell / notification panel | BUILT, GAPS | Recent activity, unread dot, error with Retry, empty | Read/unread per event and "Mark all as read" (SHOULD BUILD, P2) |
 | NOT-02 | Notification emails | PLANNED | Settings states honestly that emails are not sent | 8 templates (credits low and very low, trial ending, trial expired, subscription canceled, payment failed, run finished, removal processed) plus delivery (SHOULD BUILD, P1 before open launch) |
 | BILL-01 | Plans and subscription | BUILT, BLOCKED | Server plan catalogue, status badge, change and cancel, checkout return states, test-mode label | Real Paddle checkout (owner); annual billing PLANNED (owner decision OD-002) |
@@ -121,7 +121,7 @@ the code.
 | ADM-08 | Providers | Admin+ | BUILT | Pause or resume providers (the kill switch), budgets, spend, test alert | Editing spend and concurrency caps from the UI (SHOULD BUILD, P3; configuration today) |
 | ADM-09 | Removal requests | Admin+ | BUILT | Approve (erase) or reject with confirmation | — |
 | ADM-10 | Approvals (four-eyes) | Admin+ | BUILT | Credit grants, staff changes, Super Admin co-sign, "cannot decide your own request" | — |
-| ADM-11 | Staff directory and management | Admin+ (changes: Super Admin) | BUILT, GAPS | Add staff (always Support), role change and suspend through approval | **Revoke a staff member's sessions** from the UI (SHOULD BUILD, P2: script only today) and an **MFA compliance** view (SHOULD BUILD, P3) |
+| ADM-11 | Staff directory and management | Admin+ (changes: Super Admin) | BUILT, GAPS | Add staff (always Support), role change and suspend through approval; an approved suspension or role change ends all of that person's sessions at once; `scripts/revoke-staff-sessions.ts` ends everyone's | Revoking one person's sessions *without* suspending them needs a new approval action, a staff-contract extension (P3, with ADM-15); an **MFA compliance** view (SHOULD BUILD, P3) |
 | ADM-12 | Audit log | Admin+ | BUILT, GAPS | Filters, up to 500 rows, append-only | Paging past 500 rows with a tie-safe cursor (SHOULD BUILD, P3) |
 | ADM-13 | Security keys | all | BUILT | Register and remove, step-up confirmation | — |
 | ADM-14 | Reconciliation: credit-ledger discrepancies, billing webhooks, provider health and latency, backups | Admin+ | SHOULD BUILD | Read-only queues; "Not instrumented" where no telemetry exists, never a default green badge | The whole page group (spec page 23; P2, after hosting) |
@@ -149,17 +149,22 @@ campaign tasks and reminders. If any appears in the UI at all, it is a "Planned"
 
 | P | Item | Page | Notes |
 |---|---|---|---|
-| P1 | Session-expired message and return to the same page | AUTH-08 | Small; the frontend only |
 | P1 | Sort control for search results | SRCH-01 | Needs a `sort` field in the search contract; changes ranking output, so do it after the Search ratings (freeze) |
-| P1 | Evidence panel on the creator profile (why the city, country and niches are known) | CR-01 | Needs a read endpoint for `gcp.creator_attribute_evidence` |
 | P1 | Notification emails (8 templates, delivery, preferences) | NOT-02, SET-03 | Server-side delivery first; needs an email provider authorised by the owner |
-| P2 | Activity filters; read/unread and "Mark all as read" | ACT-01, NOT-01 | Read state needs a table |
-| P2 | Workspace switcher in the user menu | APP-01 | The API exists (`/v1/me/workspaces`) |
+| P2 | Read/unread and "Mark all as read" in the bell | NOT-01 | Read state needs a table |
 | P2 | Unsaved-changes guard | Global | — |
-| P2 | Revoke staff sessions from the console; IP allow-list screens | ADM-11, ADM-01 | Backend `revokeSession` exists |
+| P2 | IP allow-list screens | ADM-01 | Needs the allow-list in the staff backend first |
 | P2 | Reconciliation pages | ADM-14 | After hosting and telemetry |
 | P2 | "How it works" and contact pages; status page for a creator's removal request | PUB-01, PUB-03 | Copy approved by the owner |
-| P3 | Customer-visible discovery funnel; UI-editable provider caps; MFA compliance; audit paging; global governance | SRCH-04, ADM-08, ADM-11, ADM-12, ADM-15 | — |
+| P3 | Customer-visible discovery funnel; activity filter by member; UI-editable provider caps; per-person session revoke and MFA compliance; audit paging; global governance | SRCH-04, ACT-01, ADM-08, ADM-11, ADM-12, ADM-15 | — |
+
+**Done on 2026-10-21:**
+- session expiry (AUTH-08);
+- the evidence panel (CR-01);
+- the workspace switcher in the account menu (APP-01);
+- activity filter by kind (ACT-01);
+- removal of the dead SSO and "Remember me" controls;
+- the support open-request limit enforced under concurrency.
 
 **Owner or external, not frontend work:**
 - Search ratings;
