@@ -238,6 +238,23 @@ export const creatorProfileSchema = z.object({
   minorProtected: z.boolean(),
   hasContacts: z.boolean(),
   mergedInto: z.uuid().nullable(),
+  /**
+   * Why city, country, niches and languages are shown (search-v2 evidence layer): each observation with its source and
+   * status. Supported values are stored on the creator; weak and conflicting ones are shown but never stored. Empty for
+   * creators enriched before the evidence layer and for creators under minor protection.
+   */
+  attributeEvidence: z
+    .array(
+      z.object({
+        attribute: z.enum(["city", "country", "niche", "language"]),
+        value: z.string(),
+        source: z.enum(["profile_text", "post_text", "platform_registration", "ai_assessment"]),
+        status: z.enum(["supported", "weak", "conflicting"]),
+        quote: z.string(),
+        observedAt: iso,
+      }),
+    )
+    .default([]),
 });
 export type CreatorProfile = z.output<typeof creatorProfileSchema>;
 

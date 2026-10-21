@@ -257,6 +257,8 @@ export function createCreatorsService(deps: CreatorsDeps) {
       const snap = await repo.latestSnapshot(tx, id);
       const contacts = await repo.contactSummaries(tx, id);
       const links = isMinorProtected(c) ? [] : await repo.linkedAccounts(tx, id);
+      // Quotes come from the creator's own posts and bio: withheld under minor protection, like links.
+      const attributeEvidence = isMinorProtected(c) ? [] : await repo.attributeEvidence(tx, id);
       const primary = profiles.find((p) => p.platform === c.primaryPlatform) ?? profiles[0];
       const revealed = await repo.hasReveal(tx, ctx.workspaceId, id);
       const values = new Map<string, string>();
@@ -322,6 +324,7 @@ export function createCreatorsService(deps: CreatorsDeps) {
         // Something worth revealing: not only addresses shown not to work.
         hasContacts: isContactable(contactAvailability(contacts)),
         mergedInto: c.mergedIntoId,
+        attributeEvidence: attributeEvidence.map((e) => ({ ...e, observedAt: e.observedAt.toISOString() })),
       };
     });
   }

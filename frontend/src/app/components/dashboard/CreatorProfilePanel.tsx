@@ -9,6 +9,7 @@ import { useAuth } from "../../auth/AuthContext";
 import { CONTACT_AVAILABILITY_TEXT, contactEvidenceText, formatCount, uiContactState } from "../../api/search-mapping";
 import { useConfirm, useToast } from "../../lib/toast";
 import { AudienceEstimate } from "./AudienceEstimate";
+import { AttributeEvidence } from "./AttributeEvidence";
 import { SaveToListMenu } from "./SaveToListMenu";
 import { AddToCampaignMenu } from "./AddToCampaignMenu";
 import { blockedReasonFor, eligibilityNote, ineligibleText } from "../../lib/eligibility";
@@ -279,6 +280,12 @@ export function CreatorProfilePanel({ creator, onClose, onCompare }: { creator: 
                       )}
                     </div>
                   </div>
+
+                  {p.attributeEvidence.length > 0 && (
+                    <div className="px-6 pt-5">
+                      <AttributeEvidence items={p.attributeEvidence} />
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-1 gap-4 px-6 py-5 lg:grid-cols-3">
                     {/* Fit + authenticity with its evidence (SRS REQ-01.02, §5.5) */}

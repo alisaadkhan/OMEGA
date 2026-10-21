@@ -135,5 +135,12 @@ describe("live discovery under v2 (VAR2-L)", () => {
     expect(by["v2_ev_3"]?.city).toBeNull();
     expect(rows).toContainEqual({ handle: "v2_ev_1", attribute: "city", value: "Lahore", source: "profile_text", status: "supported" });
     expect(rows.filter((r) => r.handle === "v2_ev_2" && r.attribute === "city").every((r) => r.status === "conflicting")).toBe(true);
+    // The profile explains where the city came from, with the quote (FRONTEND_REQUIREMENTS CR-01).
+    const id1 = by["v2_ev_1"]?.id ?? "";
+    const shown = (await live.creators.profile(p.ctx, id1)).attributeEvidence;
+    expect(shown).toContainEqual(expect.objectContaining({ attribute: "city", value: "Lahore", source: "profile_text", status: "supported", quote: expect.stringContaining("Lahore") }));
+    // Under minor protection the quotes are withheld, like linked accounts.
+    await owner(`update gcp.creators set is_minor = true, minor_reason = 'test' where id = '${id1}'`);
+    expect((await live.creators.profile(p.ctx, id1)).attributeEvidence).toEqual([]);
   });
 });
