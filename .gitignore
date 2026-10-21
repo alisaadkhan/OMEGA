@@ -32,3 +32,6 @@ certs/
 /eval-data/
 # Owner archive, never committed
 /frontend.zip
+
+# Vercel CLI project link (local only)
+.vercel/
