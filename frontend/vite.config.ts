@@ -47,6 +47,9 @@ export default defineConfig(({ mode }) => {
         '@': path.resolve(__dirname, './src'),
         '@mushin/contracts': path.resolve(__dirname, '../packages/contracts/src/index.ts'),
       },
+      // The contracts live outside this folder; their zod (and React everywhere) must come from this app's own install,
+      // so the build works when only frontend/ is installed (a Vercel service) and the bundle holds one copy of each.
+      dedupe: ['zod', 'react', 'react-dom'],
     },
     server: {
       proxy: {
