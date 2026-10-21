@@ -121,22 +121,94 @@ The staff console uses a dark header (slate-950) to separate it visually from th
 
 ## 3. Public site (signed out)
 
-### 3.1 Landing page (`#/`)
+### 3.1 Landing page (`#/`): sections in order, with the shipped copy
 
-Sections, in order:
-1. **Navbar:** logo, anchors, Sign in, primary CTA. The CTA reads "Start" when signed out and "Open dashboard" when signed in. Mobile menu sheet.
-2. **Hero:** headline, sub-copy, primary CTA, "Free trial" secondary, a mention of 2,500 trial credits.
-3. **Feature tabs.**
-4. **Features grid.**
-5. **Metrics strip:** real numbers only.
-6. **Pricing:** monthly/yearly toggle; plan cards Starter, Growth, Scale with prices, credits and features. Feature rows carry "· coming soon" or "· test mode" labels where relevant. An enterprise row has a **disabled** "Talk to sales (coming soon)" button.
-7. **FAQ** accordion.
-8. **CTA band.**
-9. **Footer:** legal links, "Remove my data", staff sign-in link.
+All creators, handles and figures in the product illustrations are fictional. The page says so: "Product
+illustrations. Creators, handles and figures shown are fictional examples."
 
-States: signed out / signed in (CTA text); pricing loading (skeleton cards); prices unavailable (error state with Retry).
+**1. Navbar** (sticky; transparent over the hero, white with a border after scrolling)
+- Logo; anchor links **Platform**, **Pricing**, **FAQ**; **Sign in**.
+- Primary button: "Create your account" when signed out, "Open dashboard" when signed in.
+- Mobile: a hamburger opens a sheet with the same links.
 
-Prices come from the database; see `docs/README.md` for current values. Never hard-code them in the design as final.
+**2. Hero**
+- Eyebrow pill (green dot): "Pakistan-first creator intelligence".
+- Headline: "The intelligence layer for" / gradient line "modern creator campaigns".
+- Sub-copy: "Mushin finds creators across Instagram, TikTok, and YouTube, shows how well each one fits your brief and
+  how fresh the data is, and keeps your lists, campaigns and outreach log in one place."
+- Buttons: **Call us for a free 14-day trial** (primary, goes to `#/free-trial`) · **Create your account** (secondary).
+- Trust ticks: "No credit card required" · "14 days, 2,500 credits" · "Nothing charged when it ends".
+- Product illustration: an app window with a sidebar (Overview, Search, Lists, Campaigns, Credits, Support), creator
+  cards and a pipeline strip (Shortlisted, Contacted, Confirmed).
+
+**3. Feature tabs** (four tabs; each shows a text panel and an animated illustration)
+
+| Tab | Body copy | Illustration |
+|---|---|---|
+| Search | "Search in English, Roman Urdu or Urdu, and filter by platform, city, niche, follower band and engagement to find Karachi, Lahore and Islamabad creators fast." | Filter chips (Instagram, Bridal, 100K–1M, ER 5%+, Karachi + Lahore); rows Language "Urdu · Roman Urdu", Contact "Available", Data "Fresh only"; "3,214 creators match", "Sorted by Creator Fit"; 4 creator rows |
+| Signals | "Review Suspicious Activity Signals — unusual follower patterns and engagement anomalies worth investigating before you commit budget." | "Engagement integrity" chart, "Last 90 days · daily" |
+| Campaigns | "Lists, campaign stages, agreed fees and a shared activity feed keep the whole team on the same page." | Pipeline columns Identified, Contacted, Negotiating, Confirmed |
+| Outreach | "Use outreach templates, log every contact and its outcome, and keep the history next to the creators you discover and qualify." | Inbox mock-up ("To: ayesha@brandx.pk") |
+
+States: tab default, hover, selected; on mobile the tabs become a horizontal scroller.
+
+**4. Features grid** (six cards: icon, title, description)
+
+| Title | Description |
+|---|---|
+| Creator discovery | "Search MUSHIN's catalogue of Instagram, TikTok and YouTube creators in English, Roman Urdu or Urdu, with platform, city, follower and engagement filters. Find new creators from a brief, with the price quoted before you confirm." |
+| Suspicious Activity Signals | "Unusual follower growth or engagement patterns worth reviewing, each shown with the evidence behind it. Signals to investigate, not verdicts." |
+| Creator Fit | "How closely a creator matches your search or brief, with the reasons shown alongside the score." |
+| Fresh, sourced data | "Follower counts, engagement and summaries carry the date they were observed, so stale numbers are marked, not hidden." |
+| Campaign tracking | "Lists, campaign stages, agreed fees and a manual outreach log in one place." |
+| Workspace roles | "Owner, admin and member roles decide who can buy credits, see the ledger and manage the workspace." |
+
+**5. Principles strip** (`Metrics`; four items, no numbers)
+
+| Title | Body |
+|---|---|
+| See the price before you spend | "Every search shows its credit price first. Live discovery is quoted before you confirm: a base fee when it delivers creators, plus each new creator, never more than the quote; nothing when it delivers none." |
+| Live discovery on demand | "Reach the open web when you need fresh creators, with the credit cost shown up front." |
+| Honest data, always | "Every figure is labeled by freshness and confidence. Estimates are never dressed up as facts." |
+| Decisions, not dashboards | "Compare creators on the criteria that matter and see the trade-offs — no universal “winner.”" |
+
+**6. Pricing** (read from the API)
+- Note: "Prices in Pakistani Rupees, per month". A monthly/yearly toggle; yearly is shown disabled or "coming soon",
+  because annual billing is not sold yet.
+- Three plan cards (Starter, Growth, Scale): name, "Rs. X / mo", "Billed monthly", monthly credits, and feature rows
+  (each "included", "· coming soon" or "· test mode"). Primary button per card.
+- Enterprise strip: "Custom", "Role-based access", "Volume pricing", and a **disabled** "Talk to sales (coming soon)"
+  button with the tooltip "Sales contact is not available yet".
+- Footnotes: "14-day free trial · no card" · "Cancel anytime" · "Monthly credits reset each billing period and do not
+  roll over" · "Top-up credits never expire".
+- States: loading (three skeleton cards) · error ("Plans could not be loaded." + **Try again**) · normal. Design a
+  "highlighted plan" variant.
+- Prices come from the database (current values in `docs/README.md`); do not treat the numbers in the design as final.
+
+**7. FAQ** (accordion: one open at a time, chevron rotates)
+
+| Question | Answer |
+|---|---|
+| What does Mushin actually do? | "Mushin helps brands and agencies in Pakistan find creators on Instagram, TikTok, and YouTube, see how well each one fits a brief (the Creator Fit score), review suspicious-activity signals, and keep lists, campaigns and an outreach log in one workspace." |
+| How is the Creator Fit score calculated? | "The Creator Fit score combines audience trust, engagement health, posting consistency, niche alignment, and campaign suitability into one number from 0 to 100. Each score includes a reasoning panel so you can see exactly what contributed — we don't hide the logic behind the number." |
+| Which platforms are supported? | "Instagram, TikTok, and YouTube. Every figure shows the date it was observed and is marked when it is aging or stale; you can refresh a creator's data on demand." |
+| How does bot and fake-follower detection work? | "Mushin looks at public engagement and follower patterns and flags what looks unusual, with the evidence behind each signal. These are signals to investigate before you commit budget, not verdicts." |
+| Can multiple teammates collaborate in one workspace? | "Yes. Invite teammates as owner, admin or member; lists, campaigns and the activity feed are shared across the workspace." |
+| How is Mushin priced? | "Each plan includes monthly credits, and you can buy top-up credits that never expire. Credits pay for searches, finding new creators, data refreshes and contact reveals, and every action shows its price before you confirm." |
+| How does Mushin handle security and data? | "Mushin uses role-based access within each workspace, keeps workspaces separate from each other, and lets you export your workspace or delete it at any time. Creator profiles are built from public information and labeled by freshness and confidence; estimates are never presented as verified facts." |
+
+**8. CTA band** (dark, animated gradient orbs)
+- "Discover, verify, and orchestrate creator campaigns on a single intelligence layer."
+- Buttons: **Call us for a free 14-day trial** · **Create your account**.
+
+**9. Footer**
+- **Product:** Features, Pricing, FAQ.
+- **Account:** Sign in, Create an account, Reset password.
+- **Creators:** Creator data notice, Remove my data.
+- **Legal row:** Privacy, Terms, Credits & refunds, Creator data, Remove my data, and a small **Staff** link to `#/admin/login`.
+
+Landing states: signed out vs signed in (navbar button) · reduced motion (no orb animation, no tab tweens) · mobile
+(stacked hero, single-column grids).
 
 ### 3.2 Free trial request (`#/free-trial`)
 
@@ -342,10 +414,13 @@ Toasts: "Created …", "Saved … to …", "Already on …", "Deleted …".
 Every chart is "From your workspace's records". States: loading, empty (no campaigns yet), normal. **Planned** items show
 "Planned: not available yet", never invented numbers.
 
-### 5.9 Inbox and notifications
+### 5.9 Inbox, bell and activity
 
-- **Inbox:** notices about jobs, credits, trial and payments. Empty state with "Go to campaigns".
-- **Notification bell:** the recent-activity dropdown; unread dot.
+- **Inbox: Planned.** A single "Planned: not available yet" empty state: "MUSHIN doesn't connect to your mailbox or
+  send messages. Use a template from a campaign creator's Outreach panel in your own email or DM, then log what
+  happened there." One button: **Go to campaigns**. Do not design a working mail inbox.
+- **Notification bell** (topbar): the "Recent activity" dropdown with an unread dot. States: loading · "No recorded
+  activity yet." · "Couldn't load activity." + **Retry** · list (newest first, "See all" → Activity).
 - **Activity log** (`Activity`): the full feed, newest first, with "Load older" paging. Event lines include:
   - "created the list …";
   - "saved … to …";
@@ -385,7 +460,7 @@ Workspace export is under Settings → Privacy & data.
 | Profile | Name, email (read-only), avatar initials | saving · "Profile saved" |
 | Workspace & team | Rename the workspace; "Team" members with role (Owner, Admin, Member); Make owner; Remove; "Invite by email", Create invitation, Copy link, Revoke | Members cannot manage the team; invitation pending, expired or revoked |
 | Password & sessions | Change password; "Sign out on your other devices" | weak password · "Password changed" |
-| Notifications | Email notice toggles (credits low, job finished, trial ending, payment failed) | saved |
+| Notifications | An information card, no toggles: "MUSHIN doesn't send notification emails yet. Finished Find New Creators runs, list and campaign changes and outreach appear in the bell and the Activity log." | static (see §5.14 for the planned emails) |
 | Support access | Grant MUSHIN support time-limited read access to the workspace; staff requests show their **purpose**; Grant, End, Decline | "Access granted until …" · "Access ended" |
 | Privacy & data | "Export this workspace" (Download export); "Delete this workspace" (type the name to confirm); "Delete my account" (type your email); "What was kept, and why:" after deletion; "Ask Support about your data" | Owner-only; confirm dialogs; done states |
 
@@ -399,9 +474,38 @@ Empty state: "No support requests". Errors:
 - 20 open requests: "Your workspace has 20 open requests. Close one, or reply on an existing request.";
 - reply on a closed ticket: "This request is closed. Reopen it to reply.".
 
+### 5.14 Notifications (what exists, what is planned)
+
+| Channel | Status | Design |
+|---|---|---|
+| Toasts | Built | Every message in Appendix A |
+| Bell and Activity feed | Built | §5.9 |
+| Page banners (billing, support access, offline, degraded) | Built | §2, §5.1 |
+| Job tray (live runs, refreshes, add-by-link) | Built | §7 |
+| Outreach email to creators | Built (off by default; test and Resend modes) | §5.7.1 |
+| **Notification emails to customers** | **Planned**: the server raises the events but delivers nothing yet | Design as email templates marked Planned |
+
+Planned notification emails, one template each: credits low · credits very low · trial ending · trial expired ·
+subscription canceled · payment failed · Find New Creators run finished · removal request processed (to the
+creator). Each needs a subject, a one-paragraph body, one button back to the app and the footer.
+
+The Settings tab must keep saying that emails are not sent yet until they are built.
+
 ---
 
 ## 6. Staff console ("MUSHIN · OPS", `#/admin`)
+
+**Yes, it exists.** It is a separate staff app with its own sign-in, never the customer login. There are three roles:
+
+| Role | Who | What they can do |
+|---|---|---|
+| **Support** | Day-to-day customer support | Read-only operational views (redacted personal data); support queue (take tickets, reply, internal notes); request workspace access with a stated purpose; view trial requests and mark them called; manage their own security keys |
+| **Admin** | Operations | Everything Support can, plus Providers, Removal requests, Approvals, Staff directory, Audit log, test alerts, job re-dispatch and stop, assigning any ticket |
+| **Super Admin** | Founders | Everything Admin can, plus: **approve or reject trials** (with a security-key step-up), the trial **Feedback** tab and its CSV download, **add staff members**, request staff role changes (Make admin / Make support) and suspensions, and decide approvals marked "Super Admin co-sign" |
+
+Four-eyes rule: a sensitive request (credit grant, staff role change, suspension) is created by one person and decided
+by a different person; Super-Admin-only requests can be decided only by another Super Admin. The API enforces this
+whatever the screen shows, so design the "you cannot decide this" states too.
 
 **Staff sign-in** (`#/admin/login`): email and password, then a 6-digit authenticator code. Security key (WebAuthn)
 step-up is used for sensitive actions. First-time staff enrolment uses an enrolment code
@@ -419,11 +523,11 @@ section navigation on the left. Sections show per role:
 | Workspaces | all | Search workspaces; plan, status, members, credits | Support sees redacted read-only views |
 | Workspace access | all | Request access with a purpose, which the owner approves | "Access requested" · granted · expired · "Access is not available" |
 | Support queue | all | Tickets; assign (Support takes their own, Admins assign anyone); reply; internal notes (never shown to the customer); status | "Internal note added" · "Ticket updated" |
-| Trial requests | all | Callback requests; approve (starts the 14-day, 2,500-credit trial) needs a security-key step-up; reject with a note | "Trial started (dates)" · "Request rejected" · step-up required |
+| Trial requests | all (decide: Super Admin) | Tabs **Requests** and **Feedback** (Feedback: Super Admin only). A request card shows name, email, phone, company and message, plus "Mark as called". A Super Admin enters the "Account email" ("Email they signed up with") and clicks **Approve trial** (starts the 14-day, 2,500-credit trial; security-key step-up), or rejects with a required note ("Note (required to reject)"). Feedback: "Answers from trial workspaces, newest first. Only real customer answers are stored here." with **Download CSV** | "No requests here." · "Trial started — <dates>" · "Request rejected" · "Enter the email the person signed up with" · "Couldn't approve" · step-up prompt · "No feedback yet." (CSV disabled) |
 | Providers | Admin+ | Pause or resume a provider (LLM, Apify, Serper); budgets; spend; send a test alert | "… paused" / "… resumed" |
 | Removal requests | Admin+ | Creator removal requests; approve (erases the creator) or reject | "Approved. The creator is being erased." |
-| Approvals | Admin+ | Four-eyes requests (credit grants up to 100,000 credits for 1–365 days, staff changes); a different person must approve; Super-Admin-only items | "Sent for approval" · "Approved and carried out" · "Approved, but it could not be carried out" |
-| Staff | Admin+ | Directory; only a Super Admin creates staff (always as Support) | — |
+| Approvals | Admin+ | Four-eyes queue. "Request a credit grant": workspace id, 1–100,000 credits, expiry 1–365 days, a reason. Each request shows its requester, action, payload, reason, and a "Super Admin co-sign" badge where required | "Sent for approval — Another staff member must approve it." · "Your request: another staff member must decide it." · "Only a Super Admin can decide this request." · "Approved and carried out" · "Approved, but it could not be carried out" · empty |
+| Staff | Admin+ (changes: Super Admin) | Directory: name, email, role, status, keys. A Super Admin can **Add a staff member** (Name, Email → **Create account**; new staff are always Support; one-time sign-in details plus an enrolment code shown once, confirmed with "I have handed these over"), **Make admin / Make support** and **Suspend** (each sent for approval with a reason) | "Sent for approval — A different Super Admin must approve it." · the hand-over screen · error |
 | Audit log | Admin+ | Filter by action, staff, workspace and date; up to 500 rows | empty · filtered |
 | Security | all | Security keys: register, remove ("Security key confirmed for 5 minutes" after a step-up) | "Security key registered" / "removed" |
 
@@ -447,5 +551,199 @@ section navigation on the left. Sections show per role:
 | **System** | Tokens, components, badges, toasts, banners (offline, degraded, unreachable, billing ×5, support access), Page not found, Page error, App loading, Empty state, Section error, Confirm, Insufficient-credits dialog, Upsell card |
 | **Public** | Landing (signed out / in, pricing loading / error), Free trial (4), Remove my data (4), Legal page (1 template, 4 documents) |
 | **Auth** | Sign in (6), Create account (5), Email confirmed (3), Forgot (3), Reset (4), Invitation (5), Onboarding (3), Legal gate (3) |
-| **Dashboard** | Shell (desktop, tablet, mobile; Owner and Member), Overview (4), Search (8), Find new (10), Add by link (6), Creator profile (6), Compare (3), Lists (5), Campaigns (8), Email modes (3), Analytics (3), Inbox, Notifications, Activity (3), Billing (8), Exports (4), Settings (6 tabs plus states), Support (5) |
-| **Staff** | Sign-in (5), Shell per role (3), 12 sections with the states above |
+| **Dashboard** | Shell (desktop, tablet, mobile; Owner and Member), Overview (4), Search (8), Find new (10), Add by link (6), Creator profile (6), Compare (3), Lists (5), Campaigns (8), Email modes (3), Analytics (3), Inbox (Planned, 1), Bell (4), Activity (3), Billing (8), Exports (4), Settings (6 tabs plus states), Support (5) |
+| **Notifications** | Toast set (Appendix A), 8 notification email templates (Planned) |
+| **Staff** | Sign-in (5), Shell per role (Support, Admin, Super Admin), 12 sections with the states above, the "cannot decide" four-eyes states, the staff hand-over screen |
+
+---
+
+## Appendix A. Every message in the shipped UI, by screen
+
+Extracted from the code on 2026-10-21: toasts (success, error, info), empty states, unavailable hints and errors.
+`${…}` is a value filled in at run time; "conditional" rows choose between the wordings shown. Use these strings
+verbatim in the frames. If a design needs a new message, add it to the code and to this list together.
+
+### admin/OpsControls.tsx
+- toast.error: Test alert not sent
+- toast.success (conditional): paused ? `${provider} paused` : `${provider} resumed`
+- hint: Only a job queued or running for more than 10 minutes can be retried
+
+### admin/RemovalRequests.tsx
+- toast.success: Approved. The creator is being erased.
+- toast.error: Couldn't approve
+- toast.info: Rejected. The creator is visible again.
+- toast.error: Couldn't reject
+
+### admin/StaffAdmin.tsx
+- toast.success: Sent for approval — Another staff member must approve it.
+- toast.success: Sent for approval — A different Super Admin must approve it.
+
+### admin/StaffSecurity.tsx
+- toast.success: Security key registered
+- toast.error: Confirm with an existing security key first, then add the new one.
+- toast.error: Enrolment code not accepted
+- toast.error: The key was not registered
+- toast.success: Security key removed
+- toast.error: The key was not removed
+
+### admin/SupportAccessStaff.tsx
+- toast.success: Access requested — The workspace owner sees your request and purpose.
+- toast.error: Access not requested
+- error: Access is not available
+- hint: Access is not available
+
+### admin/SupportQueue.tsx
+- toast.success: Internal note added
+- toast.error: Couldn't add the note
+- toast.error: Couldn't take the ticket
+- toast.error: Couldn't assign the ticket
+- toast.success: Ticket updated
+- toast.error: Couldn't update the ticket
+- hint: Reply to the customer (optional when only changing status)
+
+### admin/TrialRequests.tsx
+- toast.error: Enter the email the person signed up with
+- toast.success: Trial started — ${formatTrialDate(res.trialStartedAt)} to ${formatTrialDate(res.trialEndsAt)}
+- toast.error: Couldn't approve
+- toast.error: Couldn't update
+- toast.success: Request rejected
+- toast.error: Couldn't reject
+
+### admin/staff-ui.tsx
+- toast.error: This browser cannot use security keys
+- toast.success: Security key confirmed for 5 minutes
+- toast.error: Security key not confirmed
+- toast.error: Couldn't ${label.toLowerCase()}
+
+### auth/InviteAccept.tsx
+- error: Invitation not available
+- hint: Invitation not available
+
+### dashboard/ActivityLog.tsx
+- empty: No recorded activity yet — Activity appears here as your team saves creators, runs campaigns and finds new creators.
+
+### dashboard/AddByLinkDialog.tsx
+- toast.info: Adding @${a.handle}… — Follow its progress from the Jobs button in the top bar.
+
+### dashboard/AddToCampaignMenu.tsx
+- toast.error: Couldn't add to the campaign
+- toast.success (conditional): r.added > 0 ? `Added to ${name}` : `Already in ${name}`, r.added > 0 && r.alreadyInCampaign > 0 ? `${r.alreadyInCampaign} were already in it.` : undefined
+
+### dashboard/AudienceEstimate.tsx
+- toast.error: Couldn't start the estimate
+
+### dashboard/CampaignDetail.tsx
+- toast.success: Deleted ${c.name}
+- toast.error: Couldn't delete the campaign
+- toast.error: Couldn't save the campaign
+- toast.success: Restored ${c.name}
+- toast.error: Couldn't restore the campaign
+- toast.success: Archived ${c.name}. It no longer counts towards your plan's campaign limit.
+- toast.error: Couldn't archive the campaign
+- toast.warning: Updated by someone else — We loaded their change. Check it, then try again.
+- toast.error: Couldn't save the change
+- toast.error: Couldn't remove the creator
+- empty: No creators in this campaign yet — Add creators from Search, a list or a creator's profile with Add to campaign.
+
+### dashboard/CampaignOutreach.tsx
+- toast.success: Template copied — Paste it into your email or DM, then log it below.
+- toast.error: Couldn't copy — Your browser blocked clipboard access. Select the text and copy it instead.
+- toast.success: Outreach logged
+- toast.error: Couldn't log the outreach
+
+### dashboard/Campaigns.tsx
+- toast.success: Created ${c.name}
+- toast.error: Couldn't create the campaign
+- empty: No campaigns yet — Create a campaign, then add creators from Search, a list or a creator's profile.
+
+### dashboard/CreatorProfilePanel.tsx
+- toast.info: Already up to date — Updated ${relative(r.updatedAt)}. No credits used.
+- toast.error: Couldn't refresh this creator
+- toast.success: Revealed contacts removed from this workspace
+- toast.error: Couldn't remove the contacts
+- toast.error: Couldn't reveal contact details
+- toast.success (conditional): r.charged ? `Contact details revealed · ${p.revealCost} credits used` : "Already revealed — no credits used"
+
+### dashboard/ExportButton.tsx
+- toast.success: Exported ${made.rowCount} ${made.rowCount === 1 ? "row" : "rows"} — The file stays available for 24 hours.
+- toast.error: Not exported
+
+### dashboard/FindNewDialog.tsx
+- toast.info: Finding new creators… — Results appear here as they are found. Follow progress from the Jobs button.
+- toast.error: Couldn't start Find New Creators
+
+### dashboard/Inbox.tsx
+- empty: Planned: not available yet — MUSHIN doesn't connect to your mailbox or send messages. Use a template from a campaign creator's Outreach panel in your own email or DM, then log what happened there.
+- hint: Planned: not available yet
+
+### dashboard/JobTray.tsx
+- toast.success: ${jobTitle(j).replace(/^Adding/, "Added").replace(/^Refreshing/, "Refreshed")}
+- toast.error: Couldn't finish: ${jobTitle(j)}
+- toast.error: Couldn't stop this search
+
+### dashboard/Lists.tsx
+- toast.error: Couldn't update the list
+- toast.success: Created ${l.name}
+- toast.error: Couldn't create the list
+- toast.error: Couldn't save the note
+- toast.success: Deleted ${l.name}
+- toast.error: Couldn't delete the list
+- toast.info: Removed ${r.removed} creator${r.removed === 1 ? "" : "s"} from ${l.name}
+- toast.error: Couldn't remove creators
+- toast.error: Couldn't rename the list
+- empty: No lists yet — Create a list, then save creators to it from Search or a creator's profile.
+- empty: No creators on this list yet — Open a creator from Search and use Save to add them here.
+- hint: CSV export is not available yet
+
+### dashboard/Omnibar.tsx
+- toast.info: Adding @${addable.handle}… — Follow its progress from the Jobs button in the top bar.
+- toast.error: Couldn't add this creator
+
+### dashboard/SaveToListMenu.tsx
+- toast.info: Removed from ${listName}
+- toast.error (conditional): what, err instanceof Error ? err.message : undefined
+- toast.success (conditional): r.added > 0 ? `Saved ${who}to ${listName}` : `Already on ${listName}`, r.alreadyOnList > 0 && r.added > 0 ? `${r.alreadyOnList} were already on it.` : undefined
+
+### dashboard/SearchModule.tsx
+- toast.info: Applied MUSHIN's reading of your search. Edit the chips anytime.
+- toast.success: Saved search "${name}".
+- toast.error: Couldn't save the search
+- toast.warning: Select at least 2 creators to compare.
+- toast.error: Couldn't stop this search
+- toast.info: Added to comparison — pick at least one more creator, then choose Compare.
+
+### dashboard/SendEmail.tsx
+- toast.error: Email not sent
+
+### dashboard/Settings.tsx
+- toast.success: Profile saved
+- toast.error: Couldn't save your profile
+- toast.success: Workspace renamed
+- toast.error: Couldn't rename the workspace
+- toast.error: Couldn't change your password
+- toast.success: Password changed
+- toast.error: Couldn't sign out other sessions
+- toast.success: Signed out on your other devices
+
+### dashboard/Support.tsx
+- toast.success: Request sent — We'll reply here.
+- toast.error: Couldn't send the request
+- toast.error: Couldn't update the request
+- toast.error: Couldn't send the reply
+- empty: No support requests — Start one with New request.
+
+### dashboard/SupportAccessSettings.tsx
+- toast.error: That didn't work
+
+### dashboard/TeamSettings.tsx
+- toast.error: Couldn't ${what}
+- toast.error: Couldn't create the invitation
+- toast.success: Link copied
+- toast.error: Export downloaded, but incomplete — Cut at the row limit: ${data.truncated.join(", ")}. Ask Support for a complete copy.
+- toast.success: Export downloaded
+- toast.error: Couldn't export the workspace
+- toast.error: Not deleted
+
+### landing/Pricing.tsx
+- hint: Sales contact is not available yet
+
