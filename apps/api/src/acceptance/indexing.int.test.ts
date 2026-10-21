@@ -144,7 +144,13 @@ describe("outbox and search projection (IDX)", () => {
   // Search is frozen. `it.fails` keeps the suite runnable while the defect stands; it will flag when fixed.
   it.fails("IDX-07b KNOWN DEFECT: an event-less change in the same second as the last indexing is repaired by reconciliation", async () => {
     const id = await synthetic({ name: "Same second", niches: ["Food"], bio: "food", followers: 30_000 });
-    await owner(`update gcp.creator_profiles set followers = 99000 where creator_id = '${id}'`);
+    // Made deterministic (2026-10-21): the change is stamped exactly at the indexed second instead of hoping now() lands
+    // in it, which made this expected failure pass on some runs. Triggers are off for this one owner statement only, so
+    // set_updated_at does not overwrite the stamp; the connection ends with the call.
+    await owner(`set session_replication_role = replica;
+      update gcp.creator_profiles set followers = 99000,
+        updated_at = to_timestamp((select updated_epoch from gcp.creator_search_documents where creator_id = '${id}'))
+      where creator_id = '${id}'`);
     await indexer.reconcile();
     const fresh = await doc(id);
     evidence("IDX-07b", { afterReconcile: fresh[0]?.followers, expected: 99_000 });
