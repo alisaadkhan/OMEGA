@@ -28,12 +28,22 @@ export function metaOf(req: FastifyRequest): RequestMeta {
   return { ip: req.ip ?? null, userAgent: typeof ua === "string" ? ua.slice(0, 300) : null, requestId: req.id };
 }
 
+/**
+ * The refresh cookie's path as the browser sees it: when the host mounts the API under a prefix (/api on Vercel), the
+ * part of the original URL that was stripped before routing is put back, so the cookie is sent to /api/admin/v1/auth.
+ */
+export function cookiePathFor(req: FastifyRequest): string {
+  const original = req.originalUrl ?? req.url;
+  const mount = original.length > req.url.length && original.endsWith(req.url) ? original.slice(0, original.length - req.url.length) : "";
+  return `${mount}${COOKIE_PATH}`;
+}
+
 export function setRefreshCookie(reply: FastifyReply, token: string): void {
   void reply.setCookie(REFRESH_COOKIE, token, {
     httpOnly: true,
     secure: true,
     sameSite: "strict",
-    path: COOKIE_PATH,
+    path: cookiePathFor(reply.request),
     maxAge: SESSION_DAYS * 86_400,
   });
 }
@@ -97,7 +107,7 @@ export function registerStaffRoutes(app: FastifyInstance, service: StaffService,
 
   app.post("/admin/v1/auth/logout", async (req, reply) => {
     await service.logout(req.cookies[REFRESH_COOKIE], metaOf(req));
-    void reply.clearCookie(REFRESH_COOKIE, { path: COOKIE_PATH, httpOnly: true, secure: true, sameSite: "strict" });
+    void reply.clearCookie(REFRESH_COOKIE, { path: cookiePathFor(reply.request), httpOnly: true, secure: true, sameSite: "strict" });
     return reply.status(204).send();
   });
 

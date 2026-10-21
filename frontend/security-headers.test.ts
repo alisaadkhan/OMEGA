@@ -30,3 +30,16 @@ describe("static host headers (audit SEC-14)", () => {
     expect(file).toContain("/index.html\n  Cache-Control: no-cache");
   });
 });
+
+// vercel.json repeats these headers (Vercel ignores dist/_headers); they must not drift apart.
+describe("Vercel headers (vercel.json)", () => {
+  it("send exactly the app's security headers, Supabase allowed by its project domain", async () => {
+    const { readFileSync } = await import("node:fs");
+    const vercel = JSON.parse(readFileSync(new URL("../vercel.json", import.meta.url), "utf8")) as { headers: { source: string; headers: { key: string; value: string }[] }[] };
+    const page = vercel.headers.find((h) => h.source === "/((?!api/).*)");
+    const sent = Object.fromEntries((page?.headers ?? []).map((h) => [h.key, h.value]));
+    const expected = securityHeaders("https://x.supabase.co");
+    expected["Content-Security-Policy"] = (expected["Content-Security-Policy"] ?? "").replace("https://x.supabase.co", "https://*.supabase.co");
+    expect(sent).toEqual(expected);
+  });
+});

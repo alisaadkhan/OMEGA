@@ -125,6 +125,7 @@ const guards: Guards = {
 
 const app = await buildApp({
   logger,
+  pathPrefix: config.pathPrefix,
   allowedOrigins: config.allowedOrigins,
   trustedProxies: config.trustedProxies,
   guards,

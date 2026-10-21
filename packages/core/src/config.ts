@@ -25,6 +25,8 @@ const sharedObject = z.object({
   LOG_LEVEL: logLevel,
   APP_URL: z.url().default("http://localhost:5173"),
   PUBLIC_API_URL: z.url().default("http://localhost:4000"),
+  // Path the host mounts the API under (Vercel: /api; the rewrite keeps the path). Empty: the API is at its root.
+  API_PATH_PREFIX: z.string().regex(/^(\/[a-z0-9-]+)*$/, "empty, or a path like /api").default(""),
   DATABASE_SSL_CA_FILE: z.string().optional(),
   PADDLE_API_KEY: z.string().min(1).optional(),
   PADDLE_CLIENT_TOKEN: z.string().min(1).optional(),
@@ -376,6 +378,8 @@ export type ApiConfig = {
   logLevel: LogLevel;
   port: number;
   appUrl: string;
+  /** Public mount path of the API ("" or e.g. "/api"); see API_PATH_PREFIX. */
+  pathPrefix: string;
   allowedOrigins: string[];
   databaseUrl: string;
   auth: { issuer: string; audience: string; jwksUri: string };
@@ -418,6 +422,7 @@ export function loadApiConfig(env: Env): ApiConfig {
     logLevel: v.LOG_LEVEL,
     port: v.PORT,
     appUrl,
+    pathPrefix: v.API_PATH_PREFIX,
     allowedOrigins: [appUrl, ...previews],
     databaseUrl: v.DATABASE_URL,
     auth: { issuer: v.JWT_ISSUER, audience: v.JWT_AUDIENCE, jwksUri: v.JWKS_URI },

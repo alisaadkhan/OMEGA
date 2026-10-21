@@ -17,7 +17,20 @@ export type AppDeps = {
   modules: AppModule[];
   readiness: ReadinessCheck[];
   onRequestHooks?: OnRequestHook[];
+  /**
+   * Public path the API is mounted under by the host (Vercel rewrites /api/* to this service and keeps the path):
+   * requests arrive as /api/v1/… and are routed as /v1/…. Empty when the API is served at its root (local, behind the
+   * Vite proxy that strips /api itself).
+   */
+  pathPrefix?: string;
 };
+
+/** Strips the mount prefix from an incoming URL; anything else is routed unchanged. */
+export function stripPathPrefix(url: string, prefix: string): string {
+  if (!prefix) return url;
+  if (url === prefix) return "/";
+  return url.startsWith(`${prefix}/`) || url.startsWith(`${prefix}?`) ? url.slice(prefix.length) : url;
+}
 
 export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   // Widen to Fastify's logger type so the instance matches plain `FastifyInstance` everywhere else.
@@ -28,6 +41,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     genReqId: requestIdFrom,
     requestIdHeader: false,
     bodyLimit: 1_048_576,
+    rewriteUrl: (req) => stripPathPrefix(req.url ?? "/", deps.pathPrefix ?? ""),
   });
   app.decorateRequest("customer", null);
   app.decorateRequest("tenant", null);
