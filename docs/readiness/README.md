@@ -1,3 +1,5 @@
+> **Superseded in part (2026-10-21).** This file and `readiness/progress.md` describe 2026-10-14 to 2026-10-17; the running record is `completion/PROGRESS.md` and the component status is `completion/TECHNOLOGY_INVENTORY.md`. Current values: `docs/README.md`. Kept unchanged below as history.
+
 # MUSHIN readiness report (section 0: 2026-10-17; sections 1–7: 2026-10-14, HEAD 07580ef, historical)
 
 Section 0 is current. Sections 1–7 describe the state of 2026-10-14 and are kept for history; where they differ from

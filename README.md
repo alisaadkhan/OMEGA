@@ -1,6 +1,6 @@
 # MUSHIN 2.0
 
-**Start here:** `docs/readiness/README.md` (readiness report and blockers), `docs/readiness/local-setup.md` (run and test everything locally, including the self-hosted Meilisearch option), `docs/readiness/acceptance-matrix.md`, `docs/readiness/traceability.csv` and `docs/readiness/search-backends.md`.
+**Start here:** `docs/README.md`: it names the one source of truth for each subject (state, components, blockers, decisions, prices and credits, Search acceptance). To run and test everything locally: `docs/readiness/local-setup.md`.
 
 ## Requirements
 - Node 22.12+ (24 recommended)
