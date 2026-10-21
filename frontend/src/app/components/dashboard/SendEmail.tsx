@@ -42,7 +42,11 @@ export function SendEmailSection({ campaignId, creatorId, creatorName }: { campa
         idempotencyKey: key,
       }),
     onSuccess: (e) => {
-      toast.success(e.status === "failed" ? "The email service refused this email" : `Email to ${creatorName} accepted by the email service`, e.status === "failed" ? (e.failureReason ?? undefined) : undefined);
+      // Test mode records the email but no email service sees it: never word that as accepted for delivery.
+      toast.success(
+        e.status === "failed" ? "The email service refused this email" : e.mode === "test" ? `Email to ${creatorName} recorded in test mode: not delivered` : `Email to ${creatorName} accepted by the email service`,
+        e.status === "failed" ? (e.failureReason ?? undefined) : undefined,
+      );
       setSubject("");
       setBody("");
       setConfirmed(false);
