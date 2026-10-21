@@ -11,6 +11,7 @@ import type { Creator } from "./CreatorProfilePanel";
 import { JobTray } from "./JobTray";
 import { Omnibar } from "./Omnibar";
 import { accountInitials, accountLabel } from "../../lib/billing-status";
+import { WorkspaceMenuItems } from "./TeamSettings";
 
 type Props = {
   credits: number | null;
@@ -142,6 +143,8 @@ export function Topbar({ credits, view, setView, onExit, onOpenCreator, onViewRe
                       );
                     })}
                   </div>
+
+                  <WorkspaceMenuItems onPicked={() => setOpen(false)} />
 
                   <div className="border-t border-slate-100 py-1">
                     <button
