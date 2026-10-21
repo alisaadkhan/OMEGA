@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Activity, Bookmark, Megaphone, MessageSquareText, Radio, ShieldCheck } from "lucide-react";
 import type { ActivityEvent } from "@mushin/contracts";
 import { useActivityFeed } from "../../api/activity";
@@ -29,21 +30,44 @@ export function ActivityRow({ e }: { e: ActivityEvent }) {
 }
 
 /** Activity (canonical spec page 15): what your workspace actually did, from its own records. Nothing is generated. */
+/** The filter choices, in the words of the feed (FRONTEND_REQUIREMENTS ACT-01). */
+const KIND_FILTERS: { value: ActivityEvent["kind"] | ""; label: string }[] = [
+  { value: "", label: "All activity" },
+  { value: "list_created", label: "Lists created" },
+  { value: "creator_saved", label: "Creators saved to lists" },
+  { value: "campaign_created", label: "Campaigns created" },
+  { value: "creator_added_to_campaign", label: "Creators added to campaigns" },
+  { value: "outreach_logged", label: "Outreach logged" },
+  { value: "live_run_finished", label: "Find New Creators runs" },
+  { value: "contact_revealed", label: "Contacts revealed" },
+];
+
 export function ActivityLog() {
-  const feed = useActivityFeed();
+  const [kind, setKind] = useState<ActivityEvent["kind"] | "">("");
+  const feed = useActivityFeed(kind || null);
   const events = feed.data?.pages.flatMap((p) => p.events) ?? [];
   return (
     <div className="space-y-5">
       <div>
         <h1 className="text-slate-900" style={{ fontSize: 26, fontWeight: 700 }}>Activity log</h1>
         <p className="mt-1 text-sm text-slate-500">Lists, campaigns, outreach, Find New Creators runs and contact reveals in your workspace, newest first.</p>
+        <label className="mt-3 inline-flex items-center gap-2 text-xs text-slate-600">
+          Show
+          <select value={kind} onChange={(e) => setKind(e.target.value as ActivityEvent["kind"] | "")} className="rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-800">
+            {KIND_FILTERS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
+          </select>
+        </label>
       </div>
       {feed.isPending ? (
         <LoadingBlock lines={6} />
       ) : feed.isError ? (
         <ErrorState body={feed.error instanceof Error ? feed.error.message : undefined} onRetry={() => void feed.refetch()} />
       ) : events.length === 0 ? (
-        <EmptyState icon={<Activity className="h-5 w-5" />} title="No recorded activity yet" body="Activity appears here as your team saves creators, runs campaigns and finds new creators." />
+        kind ? (
+          <EmptyState icon={<Activity className="h-5 w-5" />} title="Nothing of this kind yet" body="Choose All activity to see everything your workspace has done." />
+        ) : (
+          <EmptyState icon={<Activity className="h-5 w-5" />} title="No recorded activity yet" body="Activity appears here as your team saves creators, runs campaigns and finds new creators." />
+        )
       ) : (
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <ol className="divide-y divide-slate-100">{events.map((e) => <ActivityRow key={e.id} e={e} />)}</ol>

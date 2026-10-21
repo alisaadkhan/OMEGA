@@ -38,6 +38,22 @@ describe("activity feed", () => {
     expect((await activity.feed(await customer(), { limit: 10 })).events).toEqual([]);
   });
 
+  it("filters by kind, and pages within the filter (ACT-01)", async () => {
+    const c = await customer();
+    const ids = [];
+    for (let i = 0; i < 12; i++) ids.push(await addCreator(db, { displayName: `Kind ${i}` }));
+    const l = await lists.create(c, { name: "Kinds", description: "" });
+    await lists.addMembers(c, l.id, ids);
+    await campaigns.create(c, { ...base, name: "Only one campaign" });
+    const saved = (await activity.feed(c, { limit: 5, kind: "creator_saved" })).events;
+    expect(saved).toHaveLength(5);
+    expect(saved.every((e) => e.kind === "creator_saved")).toBe(true);
+    const more = (await activity.feed(c, { limit: 50, kind: "creator_saved", before: saved.at(-1)?.cursor })).events;
+    expect(more).toHaveLength(7);
+    expect((await activity.feed(c, { limit: 50, kind: "campaign_created" })).events.map((e) => e.text)).toEqual(["created the campaign Only one campaign"]);
+    expect((await activity.feed(c, { limit: 50, kind: "contact_revealed" })).events).toEqual([]);
+  });
+
   // Regression (2026-10-21): one request that saves many creators stamps them all with the same time, and paging by
   // that time alone skipped every event tied at a page boundary.
   it("pages through events that share one timestamp without skipping any", async () => {
