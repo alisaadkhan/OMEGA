@@ -3,7 +3,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "..
 const faqs = [
   {
     q: "What does Mushin actually do?",
-    a: "Mushin is an AI-powered influencer intelligence platform. It helps brands and agencies discover creators across Instagram, TikTok, and YouTube, verify audience authenticity, score influence quality with the Creator IQ, and run outreach and campaign operations — all in a single workspace.",
+    a: "Mushin helps brands and agencies in Pakistan find creators on Instagram, TikTok, and YouTube, see how well each one fits a brief (the Creator Fit score), review suspicious-activity signals, and keep lists, campaigns and an outreach log in one workspace.",
   },
   {
     q: "How is the Creator Fit score calculated?",
@@ -11,23 +11,23 @@ const faqs = [
   },
   {
     q: "Which platforms are supported?",
-    a: "Instagram, TikTok, and YouTube are supported today. Creator data is refreshed continuously, and historical growth history is retained for trend analysis and authenticity detection.",
+    a: "Instagram, TikTok, and YouTube. Every figure shows the date it was observed and is marked when it is aging or stale; you can refresh a creator's data on demand.",
   },
   {
     q: "How does bot and fake-follower detection work?",
-    a: "Mushin analyzes follower composition, engagement patterns, growth anomalies, and signs of engagement pods. Suspicious activity is surfaced as authenticity scores and event-level flags — so you can investigate before signing a creator.",
+    a: "Mushin looks at public engagement and follower patterns and flags what looks unusual, with the evidence behind each signal. These are signals to investigate before you commit budget, not verdicts.",
   },
   {
     q: "Can multiple teammates collaborate in one workspace?",
-    a: "Yes. Workspaces support multi-team collaboration with roles, permissions, shared creator lists, and shared campaign pipelines. Built for agencies running multiple brand accounts and enterprise teams running global programs.",
+    a: "Yes. Invite teammates as owner, admin or member; lists, campaigns and the activity feed are shared across the workspace.",
   },
   {
     q: "How is Mushin priced?",
-    a: "Pricing scales with seats and credit consumption. Credits are used for searches, data refreshes, and contact reveals. You can set hard caps, daily soft caps, and per-workflow caps to keep spend predictable. Enterprise plans include dedicated infrastructure and custom data residency.",
+    a: "Each plan includes monthly credits, and you can buy top-up credits that never expire. Credits pay for searches, finding new creators, data refreshes and contact reveals, and every action shows its price before you confirm.",
   },
   {
     q: "How does Mushin handle security and data?",
-    a: "Mushin supports SSO, audit logs, and role-based access controls, and lets you export or request erasure of data at any time. Creator profiles are built from public information and clearly labeled by freshness and confidence — we never present estimates as verified facts.",
+    a: "Mushin uses role-based access within each workspace, keeps workspaces separate from each other, and lets you export your workspace or delete it at any time. Creator profiles are built from public information and labeled by freshness and confidence; estimates are never presented as verified facts.",
   },
 ];
 

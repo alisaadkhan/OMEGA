@@ -50,7 +50,7 @@ export function Hero({ onPrimary, onTrial }: { onPrimary?: () => void; onTrial?:
             className="mx-auto mt-6 max-w-2xl text-balance text-slate-600"
             style={{ fontSize: "1.125rem", lineHeight: 1.6 }}
           >
-            Mushin discovers creators across Instagram, TikTok, and YouTube — verifies their audience, scores their influence, and runs your outreach. All in one place.
+            Mushin finds creators across Instagram, TikTok, and YouTube, shows how well each one fits your brief and how fresh the data is, and keeps your lists, campaigns and outreach log in one place.
           </p>
 
           <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">

@@ -35,7 +35,7 @@ const tabs: TabDef[] = [
     label: "Search",
     icon: Search,
     headline: "Find Pakistan-based creators across Instagram, TikTok & YouTube with precise filters.",
-    body: "Filter by city, niche, follower band, engagement, and authenticity. Run lookalike search to surface Karachi, Lahore & Islamabad creators no spreadsheet ever could.",
+    body: "Search in English, Roman Urdu or Urdu, and filter by platform, city, niche, follower band and engagement to find Karachi, Lahore and Islamabad creators fast.",
     explore: "Explore Search",
   },
   {
@@ -51,7 +51,7 @@ const tabs: TabDef[] = [
     label: "Campaigns",
     icon: Workflow,
     headline: "Keep creators, conversations, and campaigns tidy in one workspace.",
-    body: "Pipelines, approvals, owners, and activity timelines update in real time — replacing spreadsheets, Slack threads, and Notion docs.",
+    body: "Lists, campaign stages, agreed fees and a shared activity feed keep the whole team on the same page.",
     explore: "Explore Campaigns",
   },
   {
@@ -59,7 +59,7 @@ const tabs: TabDef[] = [
     label: "Outreach",
     icon: Mail,
     headline: "Personalized outreach at agency scale, drafted by AI.",
-    body: "Generate, personalize, send, and track creator outreach from inside the same workspace where you discover and qualify them.",
+    body: "Use outreach templates, log every contact and its outcome, and keep the history next to the creators you discover and qualify.",
     explore: "Explore Outreach",
   },
 ];
@@ -239,9 +239,10 @@ function DiscoverPreview() {
         </div>
         <div className="mt-5 space-y-3 text-xs">
           {[
-            { label: "Audience age", v: "18–34" },
-            { label: "Lookalike of", v: "@sanaa.k" },
-            { label: "Authenticity", v: "≥ 85%" },
+            // Only filters Search really has (2026-10-21: three filters that do not exist were shown here; landing-claims.test).
+            { label: "Language", v: "Urdu · Roman Urdu" },
+            { label: "Contact", v: "Available" },
+            { label: "Data", v: "Fresh only" },
           ].map((r) => (
             <div key={r.label} className="flex items-center justify-between border-t border-slate-100 pt-3 first:border-0 first:pt-0">
               <span className="text-slate-500">{r.label}</span>
