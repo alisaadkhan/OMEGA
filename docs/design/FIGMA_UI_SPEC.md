@@ -1,6 +1,9 @@
 # MUSHIN: UI specification for Figma
 
-A brief for designing every MUSHIN screen in Figma. It is written from the shipped React code (`frontend/src/app`),
+A brief for designing every MUSHIN screen in Figma. Which pages exist, are planned or should be built, and their
+requirements, are in `FRONTEND_REQUIREMENTS.md` (the page register); this file is the visual and copy detail.
+
+ It is written from the shipped React code (`frontend/src/app`),
 2026-10-21, so the frames match what exists. Anything not built is marked **Planned**. Design it only as a disabled or
 "not available yet" state, never as a working feature.
 
