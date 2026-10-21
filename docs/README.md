@@ -16,6 +16,7 @@ documents are kept unchanged as an audit trail, and are marked "superseded" wher
 | Search acceptance (verdict and evidence) | `completion/final-search-acceptance-report.md`, plus `completion/search-v2-evidence/` for the search-v2 catalogue work |
 | Running, operating and recovering | `completion/RUNBOOK.md` and `readiness/local-setup.md` |
 | Search backends (PostgreSQL default, Meilisearch optional) | `completion/TECHNOLOGY_INVENTORY.md` § Meilisearch; the 2026-10-14 measurements in `readiness/search-backends.md` |
+| Frontend pages: built, planned, should be built | `design/FRONTEND_REQUIREMENTS.md` (register) and `design/FIGMA_UI_SPEC.md` (design and copy) |
 | Prices, credits, plans, trial | The database seed is authoritative (`platform.plans`, `platform.credit_action_costs`, `platform.topup_packs`, `platform.billing_settings`). The values below are copied from it |
 
 ## Pricing, credits and trial (copied from the database seed, 2026-10-21)
