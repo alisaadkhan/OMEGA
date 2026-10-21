@@ -1,0 +1,23 @@
+{
+ "id": "VAR2-C13",
+ "recordedAt": "2026-10-21T09:40:31.010Z",
+ "data": {
+  "input": "food vloggers in Lahore with over 100k followers",
+  "filters": {},
+  "understood": {
+   "text": "food lahore",
+   "filters": {
+    "followersMin": 100000
+   }
+  },
+  "results": [
+   "F1",
+   "F8"
+  ],
+  "expected": [
+   "F1",
+   "F8"
+  ],
+  "recallAgainstR": 0.25
+ }
+}

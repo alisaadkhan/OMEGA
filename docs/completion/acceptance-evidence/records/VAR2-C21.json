@@ -1,0 +1,19 @@
+{
+ "id": "VAR2-C21",
+ "recordedAt": "2026-10-21T09:40:31.346Z",
+ "data": {
+  "input": "skin care",
+  "filters": {},
+  "understood": {
+   "text": "skincare",
+   "filters": {}
+  },
+  "results": [
+   "F11"
+  ],
+  "expected": [
+   "F11"
+  ],
+  "recallAgainstR": 0
+ }
+}

@@ -1,0 +1,33 @@
+{
+ "id": "VAR2-C07",
+ "recordedAt": "2026-10-21T09:40:30.792Z",
+ "data": {
+  "input": "Lahore mein khana walay vloggers",
+  "filters": {},
+  "understood": {
+   "text": "lahore food",
+   "filters": {}
+  },
+  "results": [
+   "F1",
+   "F14",
+   "F15",
+   "F3",
+   "F13",
+   "F10",
+   "F8",
+   "F2"
+  ],
+  "expected": [
+   "F1",
+   "F2",
+   "F3",
+   "F8",
+   "F10",
+   "F13",
+   "F14",
+   "F15"
+  ],
+  "recallAgainstR": 1
+ }
+}

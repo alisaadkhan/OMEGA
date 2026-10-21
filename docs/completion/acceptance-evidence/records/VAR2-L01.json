@@ -1,0 +1,33 @@
+{
+ "id": "VAR2-L01",
+ "recordedAt": "2026-10-21T09:40:36.229Z",
+ "data": {
+  "v1": {
+   "delivered": [
+    "v2_known_2",
+    "v2_known_3",
+    "v2_known_4",
+    "v2_known_5",
+    "v2_known_6",
+    "v2_known_7",
+    "v2_known_8"
+   ],
+   "knownFree": false,
+   "charged": 120
+  },
+  "v2": {
+   "delivered": [
+    "v2_known_1",
+    "v2_known_2",
+    "v2_known_3",
+    "v2_known_4",
+    "v2_known_5",
+    "v2_known_6",
+    "v2_known_7",
+    "v2_known_8"
+   ],
+   "knownFree": true,
+   "charged": 120
+  }
+ }
+}

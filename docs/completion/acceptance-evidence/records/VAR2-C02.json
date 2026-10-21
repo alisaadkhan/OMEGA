@@ -1,0 +1,33 @@
+{
+ "id": "VAR2-C02",
+ "recordedAt": "2026-10-21T09:40:30.537Z",
+ "data": {
+  "input": "food bloggers in Lahore",
+  "filters": {},
+  "understood": {
+   "text": "food lahore",
+   "filters": {}
+  },
+  "results": [
+   "F1",
+   "F14",
+   "F15",
+   "F3",
+   "F13",
+   "F10",
+   "F8",
+   "F2"
+  ],
+  "expected": [
+   "F1",
+   "F2",
+   "F3",
+   "F8",
+   "F10",
+   "F13",
+   "F14",
+   "F15"
+  ],
+  "recallAgainstR": 1
+ }
+}

@@ -1,0 +1,33 @@
+{
+ "id": "VAR2-C15",
+ "recordedAt": "2026-10-21T09:40:31.095Z",
+ "data": {
+  "input": "LHR foodie",
+  "filters": {},
+  "understood": {
+   "text": "lahore food",
+   "filters": {}
+  },
+  "results": [
+   "F1",
+   "F14",
+   "F15",
+   "F3",
+   "F13",
+   "F10",
+   "F8",
+   "F2"
+  ],
+  "expected": [
+   "F1",
+   "F2",
+   "F3",
+   "F8",
+   "F10",
+   "F13",
+   "F14",
+   "F15"
+  ],
+  "recallAgainstR": 1
+ }
+}

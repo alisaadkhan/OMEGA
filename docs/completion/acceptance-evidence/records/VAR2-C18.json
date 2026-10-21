@@ -1,0 +1,23 @@
+{
+ "id": "VAR2-C18",
+ "recordedAt": "2026-10-21T09:40:31.227Z",
+ "data": {
+  "input": "Pakistani YouTubers reviewing restaurants in Lahore",
+  "filters": {},
+  "understood": {
+   "text": "food lahore",
+   "filters": {
+    "platform": "youtube"
+   }
+  },
+  "results": [
+   "F8",
+   "F2"
+  ],
+  "expected": [
+   "F2",
+   "F8"
+  ],
+  "recallAgainstR": 0.25
+ }
+}

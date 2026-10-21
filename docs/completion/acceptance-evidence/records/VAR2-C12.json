@@ -1,0 +1,19 @@
+{
+ "id": "VAR2-C12",
+ "recordedAt": "2026-10-21T09:40:30.968Z",
+ "data": {
+  "input": "fashion vloggers in Lahore",
+  "filters": {},
+  "understood": {
+   "text": "fashion lahore",
+   "filters": {}
+  },
+  "results": [
+   "F6"
+  ],
+  "expected": [
+   "F6"
+  ],
+  "recallAgainstR": 0
+ }
+}

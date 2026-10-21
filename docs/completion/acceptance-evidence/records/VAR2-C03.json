@@ -1,0 +1,33 @@
+{
+ "id": "VAR2-C03",
+ "recordedAt": "2026-10-21T09:40:30.591Z",
+ "data": {
+  "input": "food content creators based in Lahore",
+  "filters": {},
+  "understood": {
+   "text": "food lahore",
+   "filters": {}
+  },
+  "results": [
+   "F1",
+   "F14",
+   "F15",
+   "F3",
+   "F13",
+   "F10",
+   "F8",
+   "F2"
+  ],
+  "expected": [
+   "F1",
+   "F2",
+   "F3",
+   "F8",
+   "F10",
+   "F13",
+   "F14",
+   "F15"
+  ],
+  "recallAgainstR": 1
+ }
+}
