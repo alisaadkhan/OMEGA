@@ -6,10 +6,10 @@ import { describe, expect, it } from "vitest";
  * data refresh, lookalike search, engagement-pod detection, seat pricing and spend caps, none of which exist).
  * Add a phrase here when a feature is removed or never built; take it out only when the feature ships.
  */
-const dir = new URL("../components/landing/", import.meta.url);
-const copy = readdirSync(dir)
-  .filter((f) => f.endsWith(".tsx"))
-  .map((f) => readFileSync(new URL(f, dir), "utf8"))
+// The landing page and the sign-in screens (2026-10-21: the login page had a "Continue with SSO" button with no action).
+const copy = ["../components/landing/", "../components/auth/"]
+  .map((d) => new URL(d, import.meta.url))
+  .flatMap((dir) => readdirSync(dir).filter((f) => f.endsWith(".tsx")).map((f) => readFileSync(new URL(f, dir), "utf8")))
   .join("\n");
 
 const UNBUILT: [string, RegExp][] = [

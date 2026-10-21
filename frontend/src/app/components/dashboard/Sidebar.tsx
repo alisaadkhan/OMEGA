@@ -27,6 +27,8 @@ export type DashView =
   // Rendered by Dashboard but not in the sidebar yet; outreach (a later sub-project) links to it.
   | "inbox";
 
+export const DASH_VIEWS: readonly DashView[] = ["overview", "search", "lists", "campaigns", "analytics", "billing", "settings", "support", "activity", "inbox"];
+
 type NavItem = { id: DashView; label: string; icon: any };
 type NavGroup = { label: string; items: NavItem[] };
 

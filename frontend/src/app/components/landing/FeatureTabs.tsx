@@ -533,13 +533,14 @@ function EmailPreview() {
           </div>
         </div>
         <div className="border-t border-slate-100 px-5 py-3">
-          <div className="flex items-center justify-between">
-            <button className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800">
+          {/* Part of the illustration, not controls: nothing here is focusable or clickable. */}
+          <div className="flex items-center justify-between" aria-hidden="true">
+            <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
               <Paperclip className="h-3.5 w-3.5" /> Attach brief
-            </button>
-            <button className="inline-flex items-center gap-1.5 rounded-md bg-slate-900 px-3 py-1.5 text-xs text-white transition-all duration-200 hover:-translate-y-px hover:bg-slate-800 hover:shadow-sm">
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-slate-900 px-3 py-1.5 text-xs text-white">
               <Send className="h-3 w-3" /> Send
-            </button>
+            </span>
           </div>
         </div>
       </div>

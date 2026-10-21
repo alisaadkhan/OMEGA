@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { LegalGate } from "./LegalGate";
 import { takeWorkspaceNotice } from "../../api/workspace";
+import { rememberCurrentView, takeReturnView } from "../../api/session";
 import { AnimatePresence, motion } from "motion/react";
-import { Sidebar, type DashView } from "./Sidebar";
+import { Sidebar, type DashView, DASH_VIEWS } from "./Sidebar";
 import { Topbar } from "./Topbar";
 import { Overview } from "./Overview";
 import { SearchModule } from "./SearchModule";
@@ -21,7 +22,9 @@ import { useCredits } from "../../../app/lib/credits";
 import { CreatorProfilePanel, type Creator } from "./CreatorProfilePanel";
 
 export function Dashboard({ onExit }: { onExit: () => void }) {
-  const [view, setView] = useState<DashView>("overview");
+  // After a session expired, signing in again reopens the page that was open (AUTH-08).
+  const [view, setView] = useState<DashView>(() => takeReturnView(DASH_VIEWS) ?? "overview");
+  useEffect(() => rememberCurrentView(view), [view]);
   // Choosing a section in the sidebar always opens its first page, even when it is already the current section
   // (an open list or campaign goes back to the index; design gap G-17).
   const [navKey, setNavKey] = useState(0);

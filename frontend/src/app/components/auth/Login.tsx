@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { motion } from "motion/react";
-import { ArrowRight, Lock, Mail } from "lucide-react";
+import { ArrowRight, Clock, Mail } from "lucide-react";
 import { Button } from "../ui/button";
 import { AuthShell, FormField, StaggerItem } from "./AuthShell";
 import { useAuth } from "../../auth/AuthContext";
+import { takeSessionExpired } from "../../api/session";
 
 type Props = {
   onSuccess: () => void;
@@ -17,6 +18,8 @@ export function Login({ onSuccess, goSignup, goForgot }: Props) {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Read once: after a session expired on its own, say so (AUTH-08).
+  const [expired] = useState(() => takeSessionExpired());
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,6 +53,12 @@ export function Login({ onSuccess, goSignup, goForgot }: Props) {
       }
     >
       <form onSubmit={submit} className="space-y-4">
+        {expired && (
+          <p role="status" className="flex items-start gap-2 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            <Clock className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
+            Your session expired. Sign in again to continue where you left off.
+          </p>
+        )}
         <StaggerItem index={0}>
           <FormField
             label="Email"
@@ -71,11 +80,7 @@ export function Login({ onSuccess, goSignup, goForgot }: Props) {
         </StaggerItem>
 
         <StaggerItem index={2}>
-          <div className="flex items-center justify-between text-xs">
-            <label className="inline-flex items-center gap-2 text-slate-600">
-              <input type="checkbox" className="h-3.5 w-3.5 rounded border-slate-300" defaultChecked />
-              Remember me
-            </label>
+          <div className="flex items-center justify-end text-xs">
             <button
               type="button"
               onClick={goForgot}
@@ -125,27 +130,6 @@ export function Login({ onSuccess, goSignup, goForgot }: Props) {
           </motion.div>
         </StaggerItem>
 
-        <StaggerItem index={4}>
-          <div className="relative my-2">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-slate-200" />
-            </div>
-            <div className="relative flex justify-center text-[11px] uppercase tracking-wider">
-              <span className="bg-white px-2 text-slate-500">or</span>
-            </div>
-          </div>
-        </StaggerItem>
-
-        <StaggerItem index={5}>
-          <motion.button
-            whileHover={{ y: -1 }}
-            whileTap={{ scale: 0.98 }}
-            type="button"
-            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 transition-colors hover:bg-slate-50 hover:shadow-sm"
-          >
-            <Lock className="h-4 w-4 text-slate-500" /> Continue with SSO
-          </motion.button>
-        </StaggerItem>
       </form>
     </AuthShell>
   );
