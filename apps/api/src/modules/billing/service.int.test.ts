@@ -415,3 +415,55 @@ describe("access cache", () => {
     expect(await billing.getAccess(c)).toMatchObject({ status: "active", planId: "scale", entitlements: { export: true } });
   });
 });
+
+describe("complimentary plans (owner grant, scripts/grant-comp-plan.ts)", () => {
+  const sub = async (ws: string) =>
+    (await ownerQuery<{ plan_id: string; status: string; cancel_at_period_end: boolean; paddle_subscription_id: string; current_period_end: string }>(
+      `select plan_id, status, cancel_at_period_end, paddle_subscription_id, current_period_end from wp.subscriptions where workspace_id = '${ws}'`,
+    ))[0];
+  const monthlyLots = async (ws: string) =>
+    ownerQuery<{ amount: number; remaining: number; expires_at: string }>(`select amount, remaining, expires_at from wp.credit_lots where workspace_id = '${ws}' and source = 'monthly' order by created_at`);
+
+  it("gives the plan for the period: active, ends at period end, this month's credits now, the rest monthly", async () => {
+    const c = await trialCustomer();
+    const r = await billing.grantComplimentaryPlan({ workspaceId: c.workspaceId, planId: "scale", months: 12 });
+    expect(r).toMatchObject({ planId: "scale", monthlyCredits: 35_000 });
+    expect(r.ref).toMatch(/^comp:/);
+    expect(await sub(c.workspaceId)).toMatchObject({ plan_id: "scale", status: "active", cancel_at_period_end: true });
+    expect(new Date((await sub(c.workspaceId))?.current_period_end ?? "").toISOString().slice(0, 10)).toBe("2027-10-07");
+    expect((await monthlyLots(c.workspaceId)).map((l) => l.amount)).toEqual([35_000]);
+    // A month later the ordinary monthly_grants job grants the next month and ends the last month's credits.
+    clock = days(31);
+    await billing.runJob("monthly_grants");
+    const lots = await monthlyLots(c.workspaceId);
+    expect(lots.map((l) => l.amount)).toEqual([35_000, 35_000]);
+    expect(lots[0]?.remaining).toBe(0);
+  });
+
+  it("refuses plan changes and cancellation, so the comp reference never reaches the payment provider", async () => {
+    const c = await trialCustomer();
+    await billing.grantComplimentaryPlan({ workspaceId: c.workspaceId, planId: "scale", months: 12 });
+    await expect(billing.requestPlanChange(c, { planId: "growth", interval: "month" })).rejects.toMatchObject({ code: "CONFLICT" });
+    await expect(billing.requestCancel(c)).rejects.toMatchObject({ code: "CONFLICT" });
+    expect(sent).toEqual([]);
+  });
+
+  it("ends the plan when its period is over (no provider sends that event)", async () => {
+    const c = await trialCustomer();
+    await billing.grantComplimentaryPlan({ workspaceId: c.workspaceId, planId: "scale", months: 1 });
+    await billing.runJob("comp_period_end");
+    expect((await sub(c.workspaceId))?.status).toBe("active");
+    clock = days(32);
+    await billing.runJob("comp_period_end");
+    expect((await sub(c.workspaceId))?.status).toBe("canceled");
+    expect((await monthlyLots(c.workspaceId)).every((l) => l.remaining === 0)).toBe(true);
+  });
+
+  it("refuses a workspace that already pays through the provider, and an invalid period", async () => {
+    const c = await trialCustomer();
+    await subscribe(c, "growth");
+    await expect(billing.grantComplimentaryPlan({ workspaceId: c.workspaceId, planId: "scale", months: 12 })).rejects.toMatchObject({ code: "CONFLICT" });
+    const d = await trialCustomer();
+    await expect(billing.grantComplimentaryPlan({ workspaceId: d.workspaceId, planId: "scale", months: 0 })).rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+  });
+});

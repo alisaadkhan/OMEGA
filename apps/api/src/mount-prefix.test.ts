@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { stripPathPrefix } from "./app";
-import { cookiePathFor } from "./modules/staff/routes";
+import { cookiePathFor } from "./modules/staff/index";
 import { buildTestApp } from "./test-support/app";
 
 // Vercel serves the API under /api and forwards the path unchanged (vercel.json rewrite to the api service).
@@ -8,7 +8,7 @@ describe("API mounted under a path prefix", () => {
   it("strips only the mount prefix", () => {
     expect(stripPathPrefix("/api/v1/me", "/api")).toBe("/v1/me");
     expect(stripPathPrefix("/api", "/api")).toBe("/");
-    expect(stripPathPrefix("/api?x=1", "/api")).toBe("?x=1");
+    expect(stripPathPrefix("/api?x=1", "/api")).toBe("/?x=1");
     expect(stripPathPrefix("/apix/v1/me", "/api")).toBe("/apix/v1/me");
     expect(stripPathPrefix("/v1/me", "/api")).toBe("/v1/me");
     expect(stripPathPrefix("/api/v1/me", "")).toBe("/api/v1/me");

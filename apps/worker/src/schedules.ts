@@ -28,6 +28,8 @@ export const SCHEDULES: Schedule[] = [
   billing("monthly_grants", "30 2 * * *"),
   billing("scheduled_changes", "40 * * * *"),
   billing("mock_renewals", "50 2 * * *"),
+  // Complimentary plans end at their period end: no payment provider sends that event (migration 0053).
+  billing("comp_period_end", "55 2 * * *"),
   billing("reconcile", "30 4 * * *"),
   { queue: "rescore-low", key: "search_reconcile", cron: "45 3 * * *", data: data("search_reconcile", "creator.reindex_all", {}) },
   { queue: "rescore-low", key: "youtube_retention", cron: "50 3 * * *", data: data("youtube_retention", "creator.youtube_retention", {}) },

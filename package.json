@@ -38,7 +38,8 @@
     "test": "vitest run",
     "test:unit": "vitest run --project unit",
     "test:int": "vitest run --project int",
-    "verify": "npm run lint && npm run typecheck && npm run boundaries && npm run test"
+    "verify": "npm run lint && npm run typecheck && npm run boundaries && npm run test",
+    "grant-comp-plan": "node --env-file-if-exists=.env --import tsx scripts/grant-comp-plan.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { TIKTOK_LIVE_MINIMUM_CREDITS } from "@mushin/contracts";
 import type {
@@ -12,6 +13,7 @@ import type {
   LedgerPage,
   PlanChangeRequest,
   PlanChangeResponse,
+  PlanId,
 } from "@mushin/contracts";
 import { AppError, type Logger, type TenantContext } from "@mushin/core";
 import { recordAlertEvent, writeOutbox, type Db, type SystemTx, type TenantTx } from "@mushin/db";
@@ -48,6 +50,9 @@ const minDate = (a: Date, b: Date) => (a.getTime() <= b.getTime() ? a : b);
 const DOWNGRADE_LEAD_MS = 2 * 3_600_000;
 const downgradeDue = (periodEnd: Date) => new Date(periodEnd.getTime() - DOWNGRADE_LEAD_MS);
 const isPaying = (s: repo.SubscriptionRow | null) => s?.status === "active" || s?.status === "past_due";
+/** A complimentary plan's subscription reference (never a payment provider's). */
+export const COMP_REF_PREFIX = "comp:";
+const isComp = (s: repo.SubscriptionRow | null) => Boolean(s?.paddleSubscriptionId?.startsWith(COMP_REF_PREFIX));
 
 export function createBillingService(deps: BillingDeps) {
   const now = deps.now ?? (() => new Date());
@@ -642,6 +647,18 @@ export function createBillingService(deps: BillingDeps) {
         if (work) await deps.payments.changePlan({ subscription: work.ref, target: work.target, when: "next_period" });
         return;
       }
+      case "comp_period_end":
+        await deps.db.withWorkspace(workspaceId, async (tx) => {
+          const sub = await repo.getSubscription(tx, workspaceId, { forUpdate: true });
+          if (!sub || !isComp(sub) || !isPaying(sub) || !sub.currentPeriodEnd) return repo.setNextDue(tx, workspaceId, job, null);
+          if (sub.currentPeriodEnd.getTime() > t.getTime()) return repo.setNextDue(tx, workspaceId, job, sub.currentPeriodEnd);
+          // The comp period is over: the plan ends as a provider cancellation would end it; its monthly credits end too.
+          await engine.endLots(tx, workspaceId, "monthly");
+          await repo.updateSubscription(tx, workspaceId, { status: "canceled", nextCreditGrantAt: null });
+          await repo.setNextDue(tx, workspaceId, job, null);
+        });
+        await deps.cache.invalidate(workspaceId);
+        return;
       case "mock_renewals": {
         if (!isMockPayments(deps.payments)) return;
         const work = await deps.db.withWorkspace(workspaceId, async (tx) => {
@@ -662,6 +679,54 @@ export function createBillingService(deps: BillingDeps) {
         return;
       }
     }
+  }
+
+  /**
+   * Complimentary plan (owner instruction 2026-10-21; out-of-band only: scripts/grant-comp-plan.ts, audited there). The
+   * workspace gets the plan for `months` with no payment: an ordinary subscription row with a `comp:` reference,
+   * already set to end at its period end, so plan changes and cancellation are refused before anything reaches the
+   * payment provider. The first month's credits are granted now and the existing monthly_grants job grants the rest; the
+   * comp_period_end job ends the plan. A workspace that already pays through the provider is refused.
+   */
+  async function grantComplimentaryPlan(input: { workspaceId: string; planId: PlanId; months: number }): Promise<{ ref: string; planId: string; periodStart: Date; periodEnd: Date; monthlyCredits: number }> {
+    if (!Number.isInteger(input.months) || input.months < 1 || input.months > 24) throw new AppError("VALIDATION_FAILED", "months must be a whole number from 1 to 24");
+    const t = now();
+    const result = await deps.db.withWorkspace(input.workspaceId, async (tx) => {
+      const plan = await repo.getPlan(tx, input.planId);
+      if (!plan || !plan.active) throw new AppError("NOT_FOUND", "That plan is not available");
+      const sub = await repo.getSubscription(tx, input.workspaceId, { forUpdate: true });
+      if (sub && isPaying(sub) && !isComp(sub)) throw new AppError("CONFLICT", "This workspace already pays for a plan through the payment provider; a complimentary plan would double it.");
+      const ref = `${COMP_REF_PREFIX}${randomUUID()}`;
+      const periodEnd = addMonths(t, input.months);
+      const creditEnd = minDate(addMonths(t, 1), periodEnd);
+      await engine.endLots(tx, input.workspaceId, "monthly");
+      await repo.upsertSubscription(tx, input.workspaceId, {
+        planId: plan.id,
+        billingInterval: "year",
+        status: "active",
+        currentPeriodStart: t,
+        currentPeriodEnd: periodEnd,
+        trialEndsAt: null,
+        nextCreditGrantAt: creditEnd.getTime() < periodEnd.getTime() ? creditEnd : null,
+        paddleSubscriptionId: ref,
+        paddleCustomerId: null,
+        cancelAtPeriodEnd: true,
+        scheduledPlanId: null,
+        scheduledInterval: null,
+      });
+      await engine.grant(tx, input.workspaceId, {
+        source: "monthly",
+        amount: plan.monthlyCredits,
+        expiresAt: creditEnd,
+        sourceRef: `monthly:${ref}:${t.toISOString()}:${plan.id}:year`,
+        note: `${plan.name} monthly credits (complimentary)`,
+      });
+      if (creditEnd.getTime() < periodEnd.getTime()) await repo.scheduleJob(tx, input.workspaceId, "monthly_grants", creditEnd);
+      await repo.scheduleJob(tx, input.workspaceId, "comp_period_end", periodEnd);
+      return { ref, planId: plan.id, periodStart: t, periodEnd, monthlyCredits: plan.monthlyCredits };
+    });
+    await deps.cache.invalidate(input.workspaceId);
+    return result;
   }
 
   async function runJob(job: repo.BillingJob): Promise<{ processed: number }> {
@@ -723,6 +788,7 @@ export function createBillingService(deps: BillingDeps) {
     processStoredWebhook,
     applyEvent,
     runJob,
+    grantComplimentaryPlan,
     mockCheckout,
     completeMockCheckout,
     reserve: (ctx: TenantContext, req: SpendRequest) => deps.db.withTenant(tenant(ctx), (tx) => engine.reserve(tx, ctx.workspaceId, req, actorOf(ctx))),
