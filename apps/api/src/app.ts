@@ -29,7 +29,8 @@ export type AppDeps = {
 export function stripPathPrefix(url: string, prefix: string): string {
   if (!prefix) return url;
   if (url === prefix) return "/";
-  return url.startsWith(`${prefix}/`) || url.startsWith(`${prefix}?`) ? url.slice(prefix.length) : url;
+  if (url.startsWith(`${prefix}?`)) return `/${url.slice(prefix.length)}`;
+  return url.startsWith(`${prefix}/`) ? url.slice(prefix.length) : url;
 }
 
 export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {

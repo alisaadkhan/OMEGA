@@ -86,6 +86,7 @@ export const billingJobs = [
   "scheduled_changes",
   "reconcile",
   "mock_renewals",
+  "comp_period_end",
 ] as const;
 
 /** Due-work index: workspace ids and due times only (SRS §2.5). */

@@ -10,6 +10,7 @@ const JOBS: readonly BillingJob[] = [
   "scheduled_changes",
   "reconcile",
   "mock_renewals",
+  "comp_period_end",
 ];
 const isBillingJob = (v: unknown): v is BillingJob => typeof v === "string" && (JOBS as readonly string[]).includes(v);
 

@@ -26,4 +26,5 @@ export function createStaffModule(o: { db: Db; tokens: StaffTokens; encryptionKe
   return { module, requireStaff, createStaffAccount: service.createStaffAccount, bootstrapSuperAdmin: service.bootstrapSuperAdmin.bind(service), issueEnrolmentCode: service.issueEnrolmentCode };
 }
 export { audit as recordStaffAudit } from "./repository";
+export { cookiePathFor } from "./routes";
 export type { StaffPrincipal } from "./tokens";

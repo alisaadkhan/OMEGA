@@ -68,7 +68,7 @@ describe("billing handlers", () => {
     expect(new Set(keys).size).toBe(keys.length);
     for (const s of SCHEDULES) expect(queueFor(s.data.eventType)).toBe(s.queue);
     expect(SCHEDULES.filter((s) => s.queue === "billing").map((s) => s.key).sort()).toEqual(
-      ["end_trials", "expire_lots", "mock_renewals", "monthly_grants", "reconcile", "release_abandoned", "scheduled_changes", "trial_notices"],
+      ["comp_period_end", "end_trials", "expire_lots", "mock_renewals", "monthly_grants", "reconcile", "release_abandoned", "scheduled_changes", "trial_notices"],
     );
     expect(NOTIFY_EVENTS.every((t) => queueFor(t) === "notify")).toBe(true);
   });
