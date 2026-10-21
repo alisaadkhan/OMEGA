@@ -48,6 +48,25 @@ Pakistan supported 43 → 57. These are retrieval counts, not relevance.
 
 **Verdict: Search NOT ACCEPTED** (no ratings).
 
+**Later the same day:**
+- **Built** (FRONTEND_REQUIREMENTS):
+  - session-expired notice and return to the same page (AUTH-08);
+  - "Where these details come from" on the creator profile (CR-01);
+  - workspace switcher in the account menu (APP-01);
+  - activity filter by kind (ACT-01).
+- **Fixed:**
+  - the support 20-open-request limit under concurrency (40 simultaneous requests had opened 21–22);
+  - removed a "Continue with SSO" button with no action, a no-op "Remember me", and two focusable buttons inside a landing illustration.
+- **Catalogue:**
+  - the 14 grid cells lost to the outage completed: all 176 cells (22 niches × 8 cities) done;
+  - 2,520 creators locally (741 with Pakistan supported, 661 eligible); 2,503 in staging;
+  - spend USD 2.03 of 25.
+- **Verification:**
+  - full suite 1,156 passed. Two failures were machine load and were clean 3/3 when re-run alone: the NFR-P01 timing test, and IDX-07b, whose expected failure is timing-dependent;
+  - customer E2E 162/162, staff 31/31;
+  - freeze check intact; boundaries clean.
+- **GitHub:** reachable now; the push needs the owner's GitHub sign-in.
+
 **Next single action:** the owner pushes the branch (`git -C MUSHIN push -u github feat/internal-completion-and-search-acceptance`), then names the raters.
 
 ## Session 5 — 2026-10-20 (search-v2 unblocking, operational catalogue)
