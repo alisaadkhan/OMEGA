@@ -1,11 +1,14 @@
+# MUSHIN web app
 
-  # High-End SaaS Landing Page
+The React 18 + Vite single-page app: the public site, customer sign-in and dashboard, and the staff console
+(`#/admin`). It talks only to the MUSHIN API (`/api`) and to Supabase Auth with the publishable key.
 
-  This is a code bundle for High-End SaaS Landing Page. The original project is available at https://www.figma.com/design/ifKOG1YHUQJDXb4IwYDZAZ/High-End-SaaS-Landing-Page.
+```bash
+npm install            # this folder has its own lockfile
+npm run dev            # Vite dev server on :5173 (proxies /api to the API on :4000)
+npm run build          # production build into dist/
+```
 
-  ## Running the code
-
-  Run `npm i` to install the dependencies.
-
-  Run `npm run dev` to start the development server.
-  
+Run the whole stack (API, worker, web) from the repository root with `npm run dev`. Pages, states and copy are
+specified in `docs/design/FRONTEND_REQUIREMENTS.md` and `docs/design/FIGMA_UI_SPEC.md`; visual tokens live in
+`src/styles/theme.css`.
