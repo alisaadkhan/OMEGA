@@ -13,7 +13,6 @@ here as an external blocker.
 | 1 | Two independent Search raters and one adjudicator | Search acceptance needs human relevance ratings; none may be fabricated | Frozen v1 packets (`eval-data/packets/*-elig1`), separate v1/v2 catalogue packets (`eval-v2/packets/`, manifest), scoring and kappa tooling (`scripts/search-eval/score.ts`) | `score.ts` on the returned sheets; adjudication record; acceptance report update | Owner | C, P |
 | 2 | Delete the YouTube evaluation data and copies by **2026-11-12** | YouTube API terms (cached data) | Purge script `scripts/search-eval/purge-eval-data.ts`; data kept only in git-ignored folders | The purge script's report | Owner | P (compliance) |
 | 3 | Rotate the credentials exposed in the shared archive (SEC-01) | They were shared outside the team | Rotation tooling (`npm run rotate-encryption-key`, `scripts/revoke-staff-sessions.ts`); no secret appears in git history (scan 2026-10-21: 297 commits, 0 `.env` secret values) | Old keys refused by each provider; `connect-check` with the new ones | Owner | C, P |
-| 4 | Push branch `feat/internal-completion-and-search-acceptance` to `github` (https://github.com/alisaadkhan/OMEGA.git) | This machine cannot reach GitHub's git endpoint and has no GitHub credentials | Branch created; remote added; history scanned for secrets | The branch visible on GitHub; CI run green | Owner (one command) | — (needed for hosted CI) |
 | 5 | Hosting provider and region (D-01, ADR-0001) | API and worker need a host; Edge Function limits do not fit 20-minute live runs | API, worker, migrations, CI workflow (`.github/workflows/ci.yml`) all ready | A deployed staging API passing `/health/ready` and the E2E suites | Owner | C, P |
 | 6 | Staging TLS certificate file (CA-01) | Staging database traffic is encrypted but the server certificate is not verified | `DATABASE_SSL_CA_FILE` support; production refuses to start without it | `connect-check` with verification on | Owner | C, P |
 | 7 | SMTP for Supabase Auth emails (SMTP-01) | Sign-up confirmation and password recovery emails from hosted Auth | Auth flows complete and E2E-tested locally with a stub | Hosted recovery check (`scripts/e2e-customer/recovery-check.mjs`) and a genuine token check (`CHECK_ACCESS_TOKEN`) | Owner | C, P |
@@ -34,10 +33,10 @@ here as an external blocker.
 | Staging catalogue | Loaded on 2026-10-20: 2,181 creators |
 | Live Discovery never run live since 13 Oct (SRCH-10, D-09) | Run under the USD 25 authorisation, ≈ USD 1.7 spent by 2026-10-21 |
 | Additive `supabase/migrations/` copies (SUP-01) | Made for 0050–0052 |
-| No remote (part of OPS-01) | The owner named the GitHub repository |
+| No remote (part of OPS-01) | Branch `feat/internal-completion-and-search-acceptance` pushed to https://github.com/alisaadkhan/OMEGA (2026-10-21) |
 
 ## Next actions, in order
 
-1. Push the branch (#4). That unlocks hosted CI.
-2. Name the raters and adjudicator (#1), before the 12 November deletion deadline (#2).
-3. Rotate the exposed credentials (#3).
+1. Name the raters and adjudicator (#1), before the 12 November deletion deadline (#2).
+2. Rotate the exposed credentials (#3).
+3. Check the first hosted CI run on GitHub (Actions tab) for the pushed branch.
