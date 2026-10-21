@@ -3,7 +3,9 @@
  * locally first). Uses the production paths only, with real providers from .env, against a LOCAL catalogue database:
  *   refresh   re-fetch existing creators through discovery refresh jobs (fetch → archive → AI assessment → save with
  *             evidence), so niches, city and country come from the creator's own recent content, never invented;
- *   discover  Live Discovery runs over a general niche × city grid (not shaped by the frozen evaluation queries).
+ *   discover  Live Discovery runs over a general niche × city grid (not shaped by the frozen evaluation queries);
+ *   reassess  completes AI assessments left pending (provider rate limits) from the archived payload, as the worker's
+ *             creator.assessment_requested handler does: score, audience and the minor check; no new fetch.
  * Every job runs in an internal "MUSHIN catalogue build" workspace with granted credits; provider spend is read from
  * platform.provider_calls and the build stops at --cap (USD). Archived payloads go to a local file store.
  *
@@ -32,7 +34,7 @@ const { positionals, values } = parseArgs({
   options: { db: { type: "string" }, cap: { type: "string", default: "20" }, platform: { type: "string" }, limit: { type: "string" }, niches: { type: "string" }, cities: { type: "string" }, size: { type: "string", default: "10" }, label: { type: "string", default: "main" } },
 });
 const mode = positionals[0];
-if (mode !== "refresh" && mode !== "discover") throw new Error("usage: build.ts <refresh|discover> --db <catalogue db> --cap <usd>");
+if (mode !== "refresh" && mode !== "discover" && mode !== "reassess") throw new Error("usage: build.ts <refresh|discover|reassess> --db <catalogue db> --cap <usd>");
 const dbName = values.db ?? "";
 if (!/^mushin_catalog_[a-z0-9_]+$/.test(dbName)) throw new Error("--db must name a local catalogue database (mushin_catalog_*); the frozen corpus is never a target");
 const capUsd = Number(values.cap);
@@ -169,7 +171,21 @@ const JOB_HEADROOM_USD = 1;
 const report: Record<string, unknown>[] = [];
 const ctx = await buildWorkspace();
 
-if (mode === "refresh") {
+if (mode === "reassess") {
+  const rows = await ownerSql<{ id: string }[]>`select id from gcp.creators where status = 'active' and assessment_status = 'pending' order by created_at`;
+  logger.info({ creators: rows.length }, "reassess start");
+  const outcome: Record<string, number> = {};
+  for (const [i, r] of rows.entries()) {
+    if ((await spentUsd()) >= capUsd - JOB_HEADROOM_USD) {
+      logger.warn({ spent: await spentUsd(), capUsd }, "spend cap reached: stopping");
+      break;
+    }
+    const result = await pipeline.reassess(r.id).catch((e: Error) => `failed: ${e.message.slice(0, 60)}`);
+    outcome[result] = (outcome[result] ?? 0) + 1;
+    if (i % 50 === 0) logger.info({ done: i + 1, of: rows.length, outcome, spentUsd: await spentUsd() }, "reassess progress");
+  }
+  report.push({ mode, pending: rows.length, outcome });
+} else if (mode === "refresh") {
   const platform = values.platform ?? "youtube";
   const limit = Number(values.limit ?? 1000);
   const rows = await db.withSystem((tx) => tx.execute<{ id: string }>(sql`select p.creator_id as id from gcp.creator_profiles p join gcp.creators c on c.id = p.creator_id where c.status = 'active' and p.platform = ${platform} order by p.followers desc nulls last limit ${limit}`));
