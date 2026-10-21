@@ -1,3 +1,5 @@
+> **Superseded in part (2026-10-21).** Top-up credits no longer expire after 12 months: they never expire (owner decision 2026-10-14, migration 0045). Current values: `docs/README.md`. Kept unchanged below as history.
+
 # Sub-project 2: Credits & Billing — Design
 
 **Date:** 2026-10-07 · **Status:** draft for review · **Umbrella spec:** `2026-10-06-mushin-backend-architecture-design.md` (§3 row 2, §5.3, §6.6, §7) · **Requirements:** `reference_files/MUSHIN_SRS_Ali_Saad_Khan_14757_Final_v2 (1).pdf` (SRS), `reference_files/MUSHIN_System_Diagrams.pdf`

@@ -1,3 +1,5 @@
+> **Superseded in part (2026-10-21).** The action costs (0 / 12 / 5 / 10) and the 200-credit trial cap below no longer hold. Current values: `docs/README.md`. Kept unchanged below as history.
+
 # MUSHIN 2.0 Backend: Requirements Analysis & Open Questions
 
 **Date:** 2026-10-06

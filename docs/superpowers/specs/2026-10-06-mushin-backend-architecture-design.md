@@ -1,3 +1,5 @@
+> **Superseded in part (2026-10-21).** The action costs and the trial cap below no longer hold. Current values: `docs/README.md`. Kept unchanged below as history.
+
 # MUSHIN 2.0 Backend: Overall Architecture Design
 
 **Date:** 2026-10-06
