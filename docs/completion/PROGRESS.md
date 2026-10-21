@@ -2,6 +2,54 @@
 
 Newest session first. A new session reads the mandate, this file, the audit gap register and roadmap, then git state.
 
+## Session 6 — 2026-10-21 (internal completion addendum, catalogue completion, frontend docs)
+
+Branch `feat/internal-completion-and-search-acceptance`, from `search-v2` at `9223dc7`. Remote `github` =
+https://github.com/alisaadkhan/OMEGA.git, added but **not pushed**: this machine cannot reach GitHub's git endpoint and
+has no GitHub credentials. The owner pushes. History scan: 297 commits, no `.env` secret value present.
+
+**Defects fixed, each with a regression test:**
+- Activity feed paging skipped events that shared one timestamp.
+- The test-mode email toast claimed "accepted by the email service".
+- Readiness reported an unconfigured Meilisearch as "skipped".
+- The landing page claimed SSO, continuous refresh, lookalike search and other features that do not exist (`landing-claims.test.ts`).
+- The staging loader never updated existing rows. Three possible minors stayed visible in staging; they are now hidden, and the minor flag only escalates.
+
+**Cleanup:**
+- 11 unused frontend packages removed.
+- React 18 types declared (previously present only as a peer of MUI).
+- Dead `TrustGrid.tsx` removed.
+- Superseded docs banner-marked.
+- One source-of-truth map (`docs/README.md`), with prices, credits and trial copied from the database seed.
+
+**New documents:**
+- `completion/TECHNOLOGY_INVENTORY.md`;
+- `completion/REMAINING_BLOCKERS.md`, rewritten in the external-dependency format;
+- `design/FIGMA_UI_SPEC.md`;
+- `design/FRONTEND_REQUIREMENTS.md`: every page, built / planned / should build.
+
+**Catalogue:**
+- 2,352 creators locally: 690 with Pakistan supported by their own words, 400 with a supported city, 619 eligible.
+- 728 pending AI assessments completed.
+- 14 grid cells of the extra niches failed during this machine's internet outage, at no cost; they can be rerun.
+- Staging `yknp`: 2,335 creators, 0 mismatches, no possible minor in search.
+
+**Spend:** USD 1.94 of 25 since 2026-10-20 (ledger: 1.9372), reconciled with Apify's run usage; USD 23.06 remain.
+
+**Measurement** (26 frozen relevance queries, operational catalogue): zero-result 11 (v1) → 8 (v2); top-10 with
+Pakistan supported 43 → 57. These are retrieval counts, not relevance.
+
+**Verification on this branch:**
+- full suite 1,137 passed, 0 failed (3 expected failures, 7 skipped);
+- customer E2E 162/162; staff E2E 31/31;
+- freeze check intact; typecheck (API and frontend) and boundaries clean;
+- frontend build and bundle secret scan pass;
+- lint errors only in the untracked `scripts/test-local-pg.mjs` (not part of the repository).
+
+**Verdict: Search NOT ACCEPTED** (no ratings).
+
+**Next single action:** the owner pushes the branch (`git -C MUSHIN push -u github feat/internal-completion-and-search-acceptance`), then names the raters.
+
 ## Session 5 — 2026-10-20 (search-v2 unblocking, operational catalogue)
 
 Branch `search-v2` (not pushed). Owner decisions: up to USD 25 provider spend; catalogue local, then staging; v2 behind `SEARCH_PROFILE`, v1 default. Evidence: `search-v2-evidence/`.
