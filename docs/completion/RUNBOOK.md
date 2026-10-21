@@ -108,3 +108,23 @@ Approval is refused for these cases:
 - the workspace already has a trial or plan;
 - the request was rejected;
 - no account uses that email.
+
+## 9. Operational catalogue (search-v2)
+
+The catalogue is built in a **local** database `mushin_catalog_*`, never in the frozen evaluation corpus. The scripts
+below refuse any other target. Every paid provider call goes through one combined budget gate
+(`scripts/catalog/budget.ts`: all workers, all providers, checked before each request). Apify's own account usage is
+read before every paid scrape.
+
+| Command | What it does | Cost |
+|---|---|---|
+| `node --env-file=.env --import tsx scripts/catalog/build.ts discover --db mushin_catalog_v2 --cap 20 --platform youtube --size 10 --label <name> [--niches a,b] [--cities X,Y]` | Live Discovery over a niche × city grid. Cleanly completed cells are skipped; cells that failed are retried | Paid, under `--cap` (USD, all spend since 2026-10-20) |
+| `… build.ts refresh --db … --cap 20 [--platform youtube] [--limit N]` | Re-fetches existing creators | Paid, under `--cap` |
+| `… build.ts reassess --db … --cap 20 --label reassess` | Completes AI assessments left pending (including the minor check) from archived payloads | AI calls only |
+| `node --env-file=.env --import tsx scripts/catalog/backfill-evidence.ts --db mushin_catalog_v2 [--apply]` | Re-derives city, country and niche evidence from archived payloads; dry run by default | Free |
+| `node --import tsx scripts/catalog/integrity.ts --db mushin_catalog_v2 [--out file.json]` | Read-only integrity check; exits 1 on a hard failure | Free |
+| `node --env-file=.env --import tsx scripts/catalog/load-staging.ts --db mushin_catalog_v2 --expect-ref yknp [--apply]` | Loads public catalogue data into staging and syncs changed rows (minor flags only escalate); dry run by default. Rehearse on a fresh local database first by pointing `DIRECT_URL` at it with `--expect-ref 127` | Free |
+| `EVAL_NOW=<iso> node --import tsx scripts/search-eval/compare-profiles.ts <queries.csv> <db> <packet dir> [out.json]` | v1 vs v2 retrieval measurements on the frozen queries; read-only | Free |
+
+Rating packets for v2: `TEST_DATABASE_URL=<disposable copy> SEARCH_PROFILE=v2 node --import tsx scripts/search-eval/run-brain1.ts <queries.csv> eval-v2/packets/<name>`.
+The output folder is git-excluded and must never be `eval-data/`.
