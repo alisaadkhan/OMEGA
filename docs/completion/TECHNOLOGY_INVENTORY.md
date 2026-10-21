@@ -64,4 +64,4 @@ A mock, fixture, replay or local service is not hosted evidence.
 ## Known latent items
 
 - **Staff audit search paging.** It accepts a bare `before` timestamp (`platform.staff_audit_search`), so rows written at the same instant could be skipped by an API client paging with it. The admin UI does not page it (it filters, up to 500 rows). Fixing it needs a migration to the database function.
-- **Support ticket limit.** The 20-open-ticket limit per workspace is checked without a lock, so two concurrent requests could exceed it by one.
+- ~~Support ticket limit raced under concurrency~~ Fixed 2026-10-21: a per-workspace transaction lock (40 simultaneous requests open exactly 20; `support.int.test.ts`).
