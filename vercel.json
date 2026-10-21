@@ -9,7 +9,7 @@
     "frontend": {
       "root": "frontend",
       "framework": "vite",
-      "buildCommand": "NODE_ENV=production npm run build",
+      "buildCommand": "npm run build",
       "outputDirectory": "dist"
     }
   },
