@@ -6,6 +6,7 @@ import { buildApp } from "./app";
 import { createSupabaseEmailVerification, createSupabaseIdentityDeletion } from "./auth/auth-admin";
 import { createCustomerGuard } from "./auth/customer-guard";
 import { createCustomerTokenVerifier, remoteJwks } from "./auth/customer-token";
+import { searchReadiness } from "./http/health";
 import type { Guards, ReadinessCheck } from "./http/types";
 import { createAudienceModule, createAudienceService } from "./modules/audience";
 import { createBillingModule, createBillingService, noAccessCache } from "./modules/billing";
@@ -71,7 +72,8 @@ const outreach = createOutreachModule({
 });
 const searchIndex = createSearchIndex(config.search, logger);
 const nativeSearch = createPostgresCatalogSearch(db);
-if (config.catalogSearchBackend === "meilisearch") readiness.push({ name: "search", check: config.search ? () => searchIndex.ping() : async () => "skipped" });
+const searchCheck = searchReadiness(config.catalogSearchBackend, config.search ? () => searchIndex.ping() : null);
+if (searchCheck) readiness.push(searchCheck);
 // Every hosted-LLM call is checked against the monthly LLM budget (recorded Groq + Ollama spend).
 const llmSpentSince = async (since: Date) => (await providerSpendSince(db, "groq", since)) + (await providerSpendSince(db, "ollama", since));
 const llm = pausableLlm(createLlm(config.llm, { sink: createDbProviderCallSink(db), logger, budget: { budgetUsd: config.llmMonthlyBudgetUsd, spentSince: llmSpentSince } }), () => providerPaused(db, "llm"));
