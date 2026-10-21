@@ -1,0 +1,15 @@
+{
+ "id": "VAR2-C14",
+ "recordedAt": "2026-10-21T09:40:31.053Z",
+ "data": {
+  "input": "food vloggers in Quetta",
+  "filters": {},
+  "understood": {
+   "text": "food quetta",
+   "filters": {}
+  },
+  "results": [],
+  "expected": [],
+  "recallAgainstR": 0
+ }
+}

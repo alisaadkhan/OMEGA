@@ -1,0 +1,23 @@
+{
+ "id": "VAR2-C10",
+ "recordedAt": "2026-10-21T09:40:30.892Z",
+ "data": {
+  "input": "food vloggers in Lahore on TikTok",
+  "filters": {},
+  "understood": {
+   "text": "food lahore",
+   "filters": {
+    "platform": "tiktok"
+   }
+  },
+  "results": [
+   "F15",
+   "F3"
+  ],
+  "expected": [
+   "F3",
+   "F15"
+  ],
+  "recallAgainstR": 0.25
+ }
+}

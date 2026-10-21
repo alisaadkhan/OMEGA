@@ -1,0 +1,16 @@
+{
+ "id": "VAR2-L03",
+ "recordedAt": "2026-10-21T09:40:37.254Z",
+ "data": {
+  "outcome": "succeeded",
+  "delivered": 8,
+  "charged": 130,
+  "reasons": [
+   {
+    "decision": "delivered",
+    "reason": "new_creator",
+    "n": 8
+   }
+  ]
+ }
+}

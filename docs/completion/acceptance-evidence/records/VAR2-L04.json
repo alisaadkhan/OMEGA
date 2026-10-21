@@ -1,0 +1,246 @@
+{
+ "id": "VAR2-L04",
+ "recordedAt": "2026-10-21T09:40:38.337Z",
+ "data": {
+  "outcome": "succeeded",
+  "reasons": [
+   {
+    "decision": "delivered",
+    "reason": "new_creator",
+    "n": 7
+   },
+   {
+    "decision": "rejected",
+    "reason": "off_topic",
+    "n": 1
+   }
+  ],
+  "stored": [
+   {
+    "handle": "v2_ev_1",
+    "id": "9c68ea99-2be2-4aaf-abff-2b74db964f34",
+    "city": "Lahore",
+    "country": "PK"
+   },
+   {
+    "handle": "v2_ev_2",
+    "id": "17a17637-a8ca-4a02-ae17-48f9188501c6",
+    "city": null,
+    "country": "PK"
+   },
+   {
+    "handle": "v2_ev_3",
+    "id": "2e37ab72-d93b-48f9-9b22-cd03a91d3a55",
+    "city": null,
+    "country": "PK"
+   },
+   {
+    "handle": "v2_ev_4",
+    "id": "b678ae03-fe96-4c8c-8601-fa5787b68ffe",
+    "city": "Lahore",
+    "country": "PK"
+   },
+   {
+    "handle": "v2_ev_5",
+    "id": "82d3930c-ca6a-4c91-bfd0-b7ad89399070",
+    "city": "Lahore",
+    "country": "PK"
+   },
+   {
+    "handle": "v2_ev_6",
+    "id": "85081415-90c8-450f-b857-95b1f17b0747",
+    "city": "Lahore",
+    "country": "PK"
+   },
+   {
+    "handle": "v2_ev_7",
+    "id": "38302047-94af-4a6d-adeb-e0d15f7ef404",
+    "city": "Lahore",
+    "country": "PK"
+   },
+   {
+    "handle": "v2_ev_8",
+    "id": "ef768e1f-8de6-422d-902f-044ba57307a1",
+    "city": "Lahore",
+    "country": "PK"
+   }
+  ],
+  "rows": [
+   {
+    "handle": "v2_ev_1",
+    "attribute": "city",
+    "value": "Lahore",
+    "source": "profile_text",
+    "status": "supported"
+   },
+   {
+    "handle": "v2_ev_1",
+    "attribute": "country",
+    "value": "PK",
+    "source": "profile_text",
+    "status": "supported"
+   },
+   {
+    "handle": "v2_ev_1",
+    "attribute": "niche",
+    "value": "Food",
+    "source": "profile_text",
+    "status": "supported"
+   },
+   {
+    "handle": "v2_ev_2",
+    "attribute": "city",
+    "value": "Karachi",
+    "source": "profile_text",
+    "status": "conflicting"
+   },
+   {
+    "handle": "v2_ev_2",
+    "attribute": "city",
+    "value": "Lahore",
+    "source": "profile_text",
+    "status": "conflicting"
+   },
+   {
+    "handle": "v2_ev_2",
+    "attribute": "country",
+    "value": "PK",
+    "source": "profile_text",
+    "status": "supported"
+   },
+   {
+    "handle": "v2_ev_2",
+    "attribute": "niche",
+    "value": "Food",
+    "source": "profile_text",
+    "status": "supported"
+   },
+   {
+    "handle": "v2_ev_3",
+    "attribute": "country",
+    "value": "PK",
+    "source": "profile_text",
+    "status": "supported"
+   },
+   {
+    "handle": "v2_ev_3",
+    "attribute": "language",
+    "value": "english",
+    "source": "post_text",
+    "status": "supported"
+   },
+   {
+    "handle": "v2_ev_3",
+    "attribute": "niche",
+    "value": "Lifestyle",
+    "source": "profile_text",
+    "status": "supported"
+   },
+   {
+    "handle": "v2_ev_4",
+    "attribute": "city",
+    "value": "Lahore",
+    "source": "profile_text",
+    "status": "supported"
+   },
+   {
+    "handle": "v2_ev_4",
+    "attribute": "country",
+    "value": "PK",
+    "source": "profile_text",
+    "status": "supported"
+   },
+   {
+    "handle": "v2_ev_4",
+    "attribute": "niche",
+    "value": "Food",
+    "source": "profile_text",
+    "status": "supported"
+   },
+   {
+    "handle": "v2_ev_5",
+    "attribute": "city",
+    "value": "Lahore",
+    "source": "profile_text",
+    "status": "supported"
+   },
+   {
+    "handle": "v2_ev_5",
+    "attribute": "country",
+    "value": "PK",
+    "source": "profile_text",
+    "status": "supported"
+   },
+   {
+    "handle": "v2_ev_5",
+    "attribute": "niche",
+    "value": "Food",
+    "source": "profile_text",
+    "status": "supported"
+   },
+   {
+    "handle": "v2_ev_6",
+    "attribute": "city",
+    "value": "Lahore",
+    "source": "profile_text",
+    "status": "supported"
+   },
+   {
+    "handle": "v2_ev_6",
+    "attribute": "country",
+    "value": "PK",
+    "source": "profile_text",
+    "status": "supported"
+   },
+   {
+    "handle": "v2_ev_6",
+    "attribute": "niche",
+    "value": "Food",
+    "source": "profile_text",
+    "status": "supported"
+   },
+   {
+    "handle": "v2_ev_7",
+    "attribute": "city",
+    "value": "Lahore",
+    "source": "profile_text",
+    "status": "supported"
+   },
+   {
+    "handle": "v2_ev_7",
+    "attribute": "country",
+    "value": "PK",
+    "source": "profile_text",
+    "status": "supported"
+   },
+   {
+    "handle": "v2_ev_7",
+    "attribute": "niche",
+    "value": "Food",
+    "source": "profile_text",
+    "status": "supported"
+   },
+   {
+    "handle": "v2_ev_8",
+    "attribute": "city",
+    "value": "Lahore",
+    "source": "profile_text",
+    "status": "supported"
+   },
+   {
+    "handle": "v2_ev_8",
+    "attribute": "country",
+    "value": "PK",
+    "source": "profile_text",
+    "status": "supported"
+   },
+   {
+    "handle": "v2_ev_8",
+    "attribute": "niche",
+    "value": "Food",
+    "source": "profile_text",
+    "status": "supported"
+   }
+  ]
+ }
+}

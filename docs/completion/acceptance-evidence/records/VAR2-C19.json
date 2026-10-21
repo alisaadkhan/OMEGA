@@ -1,0 +1,19 @@
+{
+ "id": "VAR2-C19",
+ "recordedAt": "2026-10-21T09:40:31.260Z",
+ "data": {
+  "input": "Food creators in Karachi who speak Urdu",
+  "filters": {},
+  "understood": {
+   "text": "food karachi",
+   "filters": {}
+  },
+  "results": [
+   "F5"
+  ],
+  "expected": [
+   "F5"
+  ],
+  "recallAgainstR": 0
+ }
+}
