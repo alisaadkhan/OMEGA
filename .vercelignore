@@ -1,0 +1,18 @@
+# Never uploaded by a CLI deploy: secrets, private evaluation and creator data, local artefacts.
+.env
+.env.*
+!.env.example
+eval-data/
+eval-v2/
+.catalog-storage/
+frontend.zip
+reference_files/
+docs/
+design/
+.claude-flow/
+tmp/
+supabase/.temp/
+supabase/.branches/
+**/node_modules/
+frontend/dist/
+.vercel/output/
