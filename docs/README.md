@@ -17,7 +17,7 @@ documents are kept unchanged as an audit trail, and are marked "superseded" wher
 | Running, operating and recovering | `completion/RUNBOOK.md` and `readiness/local-setup.md` |
 | Search backends (PostgreSQL default, Meilisearch optional) | `completion/TECHNOLOGY_INVENTORY.md` § Meilisearch; the 2026-10-14 measurements in `readiness/search-backends.md` |
 | Frontend pages: built, planned, should be built | `design/FRONTEND_REQUIREMENTS.md` (register) and `design/FIGMA_UI_SPEC.md` (design and copy); wireframes, interaction flows, component specs and the Figma build guide in `../design/figma/` (location set by mandate v3 §8.6) |
-| Source requirement documents (SRS, system diagrams, UI product experience specification) | `../reference_files/` |
+| Source requirement documents (SRS, system diagrams, UI product experience specification; design sources: PDS, design-system brief, UI simplicity rule, UI acceptance criteria, ownership and evidence rules, Volume 14 notifications) | `../reference_files/` and `../reference_files/design-sources/` |
 | Prices, credits, plans, trial | The database seed is authoritative (`platform.plans`, `platform.credit_action_costs`, `platform.topup_packs`, `platform.billing_settings`). The values below are copied from it |
 
 ## Pricing, credits and trial (copied from the database seed, 2026-10-21)
@@ -62,5 +62,4 @@ To change a price or a cost, change the seed through a migration and update this
 | `superpowers/specs/2026-10-07-billing-credits-design.md` | Top-ups valid for 12 months (they never expire) |
 | `superpowers/plans/` (removed 2026-10-21) | Step-by-step build checklists for subprojects 1–4, all built; recoverable from git history (`git show 9223dc7:docs/superpowers/plans/<file>`) |
 | `readiness/README.md` (sections 1–7) and `readiness/progress.md` | The state of 2026-10-14 to 2026-10-17. `completion/PROGRESS.md` is the running record now |
-| `readiness/MUSHIN_ACTUAL_IMPLEMENTATION_AND_READINESS_REPORT.md` (untracked) | An audit of `19ec505` (2026-10-14), e.g. "no Super Admin role", "no email sending"; both were built since |
 | `audit/2026-10-16/` | The external audit. Its findings are tracked to closure in `completion/GAP_REGISTER.md` |
