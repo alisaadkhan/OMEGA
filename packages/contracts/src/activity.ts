@@ -19,5 +19,10 @@ export const activityEventSchema = z.object({
 export type ActivityEvent = z.output<typeof activityEventSchema>;
 /** `before`: an event's `cursor` (exact, preferred) or an ISO time (events strictly older than it). */
 export const activityCursorSchema = z.string().regex(/^\d{1,20}~[\w:.-]{1,200}$/);
-export const activityQuerySchema = z.object({ limit: z.coerce.number().int().min(1).max(100).default(30), before: z.union([activityCursorSchema, z.iso.datetime()]).optional() });
+export const activityQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(30),
+  before: z.union([activityCursorSchema, z.iso.datetime()]).optional(),
+  /** Only events of this kind (FRONTEND_REQUIREMENTS ACT-01). */
+  kind: activityKindSchema.optional(),
+});
 export const activityFeedSchema = z.object({ events: z.array(activityEventSchema) });

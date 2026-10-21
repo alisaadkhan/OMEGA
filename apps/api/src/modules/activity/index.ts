@@ -10,7 +10,7 @@ const OUTCOME = { attempted: "reached out to", replied: "logged a reply from", n
 
 /** Read-only activity feed from existing workspace records, newest first; RLS keeps it to the current workspace. */
 export function createActivityService(deps: { db: Db }) {
-  async function feed(ctx: TenantContext, q: { limit: number; before?: string }): Promise<{ events: ActivityEvent[] }> {
+  async function feed(ctx: TenantContext, q: { limit: number; before?: string | undefined; kind?: ActivityEvent["kind"] | undefined }): Promise<{ events: ActivityEvent[] }> {
     const ws = ctx.workspaceId;
     // Keyset paging on (time in microseconds, id): a page boundary inside a group of events with one time skips none.
     const cursor = q.before?.match(/^(\d+)~(.+)$/);
@@ -43,7 +43,7 @@ export function createActivityService(deps: { db: Db }) {
           select 'r:' || r.creator_id, 'contact_revealed', r.created_at, r.revealed_by, cr.display_name, null, null, 'creator', cr.id
             from wp.contact_reveals r join gcp.creators cr on cr.id = r.creator_id where r.workspace_id = ${ws}
         ) raw) e
-        where ${after}
+        where ${after} ${q.kind ? sql`and e.kind = ${q.kind}` : sql``}
         order by e.at_us desc, e.id
         limit ${q.limit}`),
     );
