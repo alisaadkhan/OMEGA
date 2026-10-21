@@ -2,6 +2,7 @@ import type { z } from "zod";
 import type { ErrorCode } from "@mushin/contracts";
 import { supabase } from "../lib/supabase";
 import { ApiError, readApiResponse } from "./http";
+import { markSessionExpired } from "./session";
 import { dropInaccessibleWorkspace, selectedWorkspace } from "./workspace";
 
 export { ApiError };
@@ -30,6 +31,12 @@ export async function apiRequest<S extends z.ZodType>(
     throw new ApiError("NETWORK", "Can't reach the server. Check your connection and try again.", 0, null);
   }
   await guardWorkspace(res, workspace);
+  // The API refused a token this tab still holds: the session is over. Sign out here so the app shows Sign in with the
+  // expiry notice, instead of failing request after request (AUTH-08).
+  if (res.status === 401 && data.session) {
+    markSessionExpired();
+    void supabase.auth.signOut({ scope: "local" });
+  }
   return readApiResponse(res, schema);
 }
 

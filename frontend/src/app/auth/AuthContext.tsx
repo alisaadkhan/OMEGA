@@ -4,6 +4,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { meResponseSchema, type MeResponse } from "@mushin/contracts";
 import { apiRequest } from "../api/client";
 import { linkResultFromUrl, rememberEmailLink, supabase } from "../lib/supabase";
+import { clearSessionNotice, markSessionExpired } from "../api/session";
+
+// Set while the person signs out on purpose, so that sign-out is not reported as an expired session.
+let signingOut = false;
 
 export type AuthUser = { id: string; name: string; email: string; avatar: string; initials: string; role: "owner" | "admin" | "member" };
 export type AuthStatus = "loading" | "signedIn" | "signedOut";
@@ -69,6 +73,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data } = supabase.auth.onAuthStateChange((event, next) => {
       // A recovery link always ends on the set-new-password screen, wherever the redirect landed.
       if (event === "PASSWORD_RECOVERY") window.location.hash = "/reset-password";
+      // A session that ends without the person signing out (refresh token expired or revoked) is an expiry (AUTH-08).
+      if (event === "SIGNED_OUT" && !signingOut) markSessionExpired();
       setSession(next);
       if (!next) queryClient.removeQueries({ queryKey: ["me"] });
     });
@@ -105,7 +111,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { needsConfirmation: !data.session };
     },
     async logout() {
-      await supabase.auth.signOut();
+      signingOut = true;
+      clearSessionNotice();
+      try {
+        await supabase.auth.signOut();
+      } finally {
+        signingOut = false;
+      }
       queryClient.clear();
     },
     async resendConfirmation(email) {
