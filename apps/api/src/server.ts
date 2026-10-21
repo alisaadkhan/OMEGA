@@ -1,4 +1,5 @@
 import { createHmac } from "node:crypto";
+import type { IncomingMessage, ServerResponse } from "node:http";
 import { createLogger, loadApiConfig } from "@mushin/core";
 import { createDatabase, createDbProviderCallSink, providerPaused, providerSpendSince, recordAlertEvent, UNVERIFIED_TLS_WARNING } from "@mushin/db";
 import { createLlm, createPayments, createSearchIndex, MockEmailProvider, pausableLlm, ResendEmailProvider } from "@mushin/integrations";
@@ -162,5 +163,15 @@ const shutdown = async (signal: string) => {
 process.once("SIGINT", () => void shutdown("SIGINT"));
 process.once("SIGTERM", () => void shutdown("SIGTERM"));
 
-await app.listen({ port: config.port, host: "0.0.0.0" });
-alertNotifier.start();
+// On Vercel the platform owns the HTTP server and calls the default export for each request. Its launcher replaces
+// http.Server.prototype.listen with a stub that never reports "listening", so awaiting app.listen() there would hang
+// module loading and fail every request (INTERNAL_FUNCTION_INVOCATION_FAILED). Elsewhere the API listens as usual.
+if (!process.env["VERCEL"]) {
+  await app.listen({ port: config.port, host: "0.0.0.0" });
+  alertNotifier.start();
+}
+
+/** Vercel request handler: hands the request to Fastify's own router (the app is ready: buildApp awaited it). */
+export default function handler(req: IncomingMessage, res: ServerResponse): void {
+  app.server.emit("request", req, res);
+}
