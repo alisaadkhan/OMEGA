@@ -2,8 +2,8 @@
  "config": {
   "database": "mushin_catalog_v2",
   "catalogue": {
-   "creators": 2352,
-   "searchDocuments": 2333
+   "creators": 2520,
+   "searchDocuments": 2501
   },
   "evidenceTable": true,
   "v1": "understandQuery (frozen)",
@@ -21,19 +21,18 @@
    "Q005",
    "Q012",
    "Q013",
-   "Q017",
    "Q018",
    "Q020",
    "Q034",
    "Q035"
   ],
   "refusedCases": [],
-  "top10Shown": 83,
+  "top10Shown": 84,
   "top10CountryPk": 43,
   "top10PkSupported": 43,
   "top10DuplicateNames": 0,
-  "zeroResult": 11,
-  "withResults": 15,
+  "zeroResult": 10,
+  "withResults": 16,
   "medianReturned": 2,
   "platformViolations": 0,
   "judgedCandidatesReturned": 47
@@ -52,8 +51,8 @@
   ],
   "refusedCases": [],
   "top10Shown": 109,
-  "top10CountryPk": 57,
-  "top10PkSupported": 57,
+  "top10CountryPk": 56,
+  "top10PkSupported": 56,
   "top10DuplicateNames": 0,
   "zeroResult": 8,
   "withResults": 18,
@@ -188,7 +187,7 @@
    "behaviourOnly": false,
    "text": "کراچی کے فوڈ بلاگرز",
    "v1": {
-    "returned": 25,
+    "returned": 26,
     "top10CountryPk": 8,
     "top10PkSupported": 8,
     "top10DuplicateNames": 0,
@@ -197,7 +196,7 @@
     "platformViolations": 0
    },
    "v2": {
-    "returned": 25,
+    "returned": 26,
     "top10CountryPk": 8,
     "top10PkSupported": 8,
     "top10DuplicateNames": 0,
@@ -452,7 +451,7 @@
    "behaviourOnly": false,
    "text": "Urdu-speaking history educators in Pakistan",
    "v1": {
-    "returned": 0,
+    "returned": 1,
     "top10CountryPk": 0,
     "top10PkSupported": 0,
     "top10DuplicateNames": 0,
@@ -461,9 +460,9 @@
     "platformViolations": 0
    },
    "v2": {
-    "returned": 14,
-    "top10CountryPk": 6,
-    "top10PkSupported": 6,
+    "returned": 23,
+    "top10CountryPk": 5,
+    "top10PkSupported": 5,
     "top10DuplicateNames": 0,
     "top10JudgedCandidates": 0,
     "judgedCandidatesReturnedAnywhere": 0,
@@ -680,7 +679,7 @@
    "behaviourOnly": false,
    "text": "Karachi me food bloogerz",
    "v1": {
-    "returned": 25,
+    "returned": 26,
     "top10CountryPk": 8,
     "top10PkSupported": 8,
     "top10DuplicateNames": 0,
@@ -689,7 +688,7 @@
     "platformViolations": 0
    },
    "v2": {
-    "returned": 25,
+    "returned": 26,
     "top10CountryPk": 8,
     "top10PkSupported": 8,
     "top10DuplicateNames": 0,
