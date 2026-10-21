@@ -1,6 +1,6 @@
 {
  "db": "mushin_catalog_v2",
- "at": "2026-10-20T18:01:46.961Z",
+ "at": "2026-10-21T08:39:58.962Z",
  "ok": true,
  "failures": [],
  "hard": {
@@ -63,9 +63,9 @@
    }
   ],
   "creators": {
-   "active": 2198,
-   "with_evidence": 2055,
-   "legacy_without_evidence": 143
+   "active": 2352,
+   "with_evidence": 2208,
+   "legacy_without_evidence": 144
   },
   "storedWithoutSupport": {
    "city": 12,
@@ -76,17 +76,17 @@
    "country": 1
   },
   "pakistan": {
-   "stored_pk": 650,
-   "pk_supported": 650,
-   "city_supported": 376,
-   "eligible_in_search": 587
+   "stored_pk": 690,
+   "pk_supported": 690,
+   "city_supported": 400,
+   "eligible_in_search": 619
   },
   "evidenceQuality": [
    {
     "attribute": "city",
     "source": "ai_assessment",
     "status": "weak",
-    "n": 61
+    "n": 65
    },
    {
     "attribute": "city",
@@ -98,13 +98,13 @@
     "attribute": "city",
     "source": "post_text",
     "status": "supported",
-    "n": 156
+    "n": 164
    },
    {
     "attribute": "city",
     "source": "post_text",
     "status": "weak",
-    "n": 611
+    "n": 656
    },
    {
     "attribute": "city",
@@ -116,67 +116,73 @@
     "attribute": "city",
     "source": "profile_text",
     "status": "supported",
-    "n": 220
+    "n": 236
    },
    {
     "attribute": "city",
     "source": "profile_text",
     "status": "weak",
-    "n": 167
+    "n": 168
+   },
+   {
+    "attribute": "country",
+    "source": "ai_assessment",
+    "status": "conflicting",
+    "n": 1
    },
    {
     "attribute": "country",
     "source": "platform_registration",
     "status": "conflicting",
-    "n": 36
+    "n": 39
    },
    {
     "attribute": "country",
     "source": "platform_registration",
     "status": "weak",
-    "n": 1299
+    "n": 1398
    },
    {
     "attribute": "country",
     "source": "profile_text",
     "status": "conflicting",
-    "n": 17
+    "n": 18
    },
    {
     "attribute": "country",
     "source": "profile_text",
     "status": "supported",
-    "n": 650
+    "n": 690
    },
    {
     "attribute": "country",
     "source": "profile_text",
     "status": "weak",
-    "n": 113
+    "n": 119
    },
    {
     "attribute": "language",
     "source": "post_text",
     "status": "supported",
-    "n": 1056
+    "n": 1143
    },
    {
     "attribute": "niche",
     "source": "ai_assessment",
     "status": "weak",
-    "n": 1275
+    "n": 1487
    },
    {
     "attribute": "niche",
     "source": "post_text",
     "status": "supported",
-    "n": 814
+    "n": 857
    },
    {
     "attribute": "niche",
     "source": "profile_text",
     "status": "supported",
-    "n": 1680
+    "n": 1729
    }
   ],
   "eligibleByPlatform": [
@@ -192,8 +198,8 @@
    },
    {
     "platform": "youtube",
-    "creators": 2057,
-    "eligible": 503
+    "creators": 2211,
+    "eligible": 535
    }
   ]
  }

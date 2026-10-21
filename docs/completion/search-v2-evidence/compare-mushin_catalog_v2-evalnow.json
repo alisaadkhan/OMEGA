@@ -2,8 +2,8 @@
  "config": {
   "database": "mushin_catalog_v2",
   "catalogue": {
-   "creators": 2198,
-   "searchDocuments": 2181
+   "creators": 2352,
+   "searchDocuments": 2333
   },
   "evidenceTable": true,
   "v1": "understandQuery (frozen)",
@@ -29,8 +29,8 @@
   ],
   "refusedCases": [],
   "top10Shown": 83,
-  "top10CountryPk": 42,
-  "top10PkSupported": 42,
+  "top10CountryPk": 43,
+  "top10PkSupported": 43,
   "top10DuplicateNames": 0,
   "zeroResult": 11,
   "withResults": 15,
@@ -52,8 +52,8 @@
   ],
   "refusedCases": [],
   "top10Shown": 109,
-  "top10CountryPk": 55,
-  "top10PkSupported": 55,
+  "top10CountryPk": 57,
+  "top10PkSupported": 57,
   "top10DuplicateNames": 0,
   "zeroResult": 8,
   "withResults": 18,
@@ -188,18 +188,18 @@
    "behaviourOnly": false,
    "text": "کراچی کے فوڈ بلاگرز",
    "v1": {
-    "returned": 26,
-    "top10CountryPk": 7,
-    "top10PkSupported": 7,
+    "returned": 25,
+    "top10CountryPk": 8,
+    "top10PkSupported": 8,
     "top10DuplicateNames": 0,
     "top10JudgedCandidates": 0,
     "judgedCandidatesReturnedAnywhere": 7,
     "platformViolations": 0
    },
    "v2": {
-    "returned": 26,
-    "top10CountryPk": 7,
-    "top10PkSupported": 7,
+    "returned": 25,
+    "top10CountryPk": 8,
+    "top10PkSupported": 8,
     "top10DuplicateNames": 0,
     "top10JudgedCandidates": 0,
     "judgedCandidatesReturnedAnywhere": 7,
@@ -381,8 +381,8 @@
    "text": "Pakistani home cooking creators",
    "v1": {
     "returned": 45,
-    "top10CountryPk": 3,
-    "top10PkSupported": 3,
+    "top10CountryPk": 2,
+    "top10PkSupported": 2,
     "top10DuplicateNames": 0,
     "top10JudgedCandidates": 0,
     "judgedCandidatesReturnedAnywhere": 7,
@@ -461,7 +461,7 @@
     "platformViolations": 0
    },
    "v2": {
-    "returned": 12,
+    "returned": 14,
     "top10CountryPk": 6,
     "top10PkSupported": 6,
     "top10DuplicateNames": 0,
@@ -560,7 +560,7 @@
    "behaviourOnly": false,
    "text": "Creators in Lahore only; do not show creators outside Lahore",
    "v1": {
-    "returned": 56,
+    "returned": 58,
     "top10CountryPk": 5,
     "top10PkSupported": 5,
     "top10DuplicateNames": 0,
@@ -569,7 +569,7 @@
     "platformViolations": 0
    },
    "v2": {
-    "returned": 56,
+    "returned": 58,
     "top10CountryPk": 5,
     "top10PkSupported": 5,
     "top10DuplicateNames": 0,
@@ -680,18 +680,18 @@
    "behaviourOnly": false,
    "text": "Karachi me food bloogerz",
    "v1": {
-    "returned": 26,
-    "top10CountryPk": 7,
-    "top10PkSupported": 7,
+    "returned": 25,
+    "top10CountryPk": 8,
+    "top10PkSupported": 8,
     "top10DuplicateNames": 0,
     "top10JudgedCandidates": 0,
     "judgedCandidatesReturnedAnywhere": 7,
     "platformViolations": 0
    },
    "v2": {
-    "returned": 26,
-    "top10CountryPk": 7,
-    "top10PkSupported": 7,
+    "returned": 25,
+    "top10CountryPk": 8,
+    "top10PkSupported": 8,
     "top10DuplicateNames": 0,
     "top10JudgedCandidates": 0,
     "judgedCandidatesReturnedAnywhere": 7,

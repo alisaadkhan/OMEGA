@@ -54,6 +54,34 @@ await dst.begin(async (tx) => {
     }
     counts[table] = { source: rows.length, inserted };
   }
+  // Rows already in staging are kept, but what changed since the last load is applied (2026-10-21: a reassessment
+  // flagged 3 already-loaded creators as possible minors). The minor flag only escalates (never cleared here); a
+  // creator that is no longer active locally is hidden in staging too; assessment and evidence-based fields follow.
+  const changed = (await src.unsafe(`select jsonb_build_object('id', c.id, 'is_minor', c.is_minor, 'minor_reason', c.minor_reason,
+      'minor_flagged_at', c.minor_flagged_at, 'status', c.status, 'authenticity_score', c.authenticity_score, 'assessment_status', c.assessment_status,
+      'niches', c.niches, 'city', c.city, 'country', c.country, 'last_enriched_at', c.last_enriched_at) r from gcp.creators c`)).map((x) => x["r"]);
+  let synced = 0;
+  if (values.apply) {
+    for (let i = 0; i < changed.length; i += CHUNK) {
+      const res = await tx.unsafe(
+        `update gcp.creators d set
+           is_minor = d.is_minor or s.is_minor,
+           minor_reason = coalesce(d.minor_reason, s.minor_reason),
+           minor_flagged_at = coalesce(d.minor_flagged_at, s.minor_flagged_at),
+           status = case when s.status <> 'active' and d.status = 'active' then s.status else d.status end,
+           authenticity_score = s.authenticity_score, assessment_status = s.assessment_status,
+           niches = s.niches, city = s.city, country = s.country, last_enriched_at = s.last_enriched_at
+         from jsonb_to_recordset(($1::text)::jsonb) as s(id uuid, is_minor boolean, minor_reason text, minor_flagged_at timestamptz, status text,
+           authenticity_score integer, assessment_status text, niches text[], city text, country text, last_enriched_at timestamptz)
+         where d.id = s.id and (d.is_minor is distinct from (d.is_minor or s.is_minor) or (s.status <> 'active' and d.status = 'active')
+           or d.authenticity_score is distinct from s.authenticity_score or d.assessment_status is distinct from s.assessment_status
+           or d.niches is distinct from s.niches or d.city is distinct from s.city or d.country is distinct from s.country)`,
+        [JSON.stringify(changed.slice(i, i + CHUNK))],
+      );
+      synced += res.count;
+    }
+  }
+  counts["gcp.creators (changed rows synced)"] = { source: changed.length, inserted: synced };
 });
 await src.end();
 await dst.end();
