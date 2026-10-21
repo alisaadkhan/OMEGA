@@ -63,7 +63,7 @@ the code.
 | AUTH-02 | Create account | `#/signup` | BUILT | Duplicate email, weak password, confirmation-email pending | — |
 | AUTH-03 | Email confirmed | `#/confirmed` | BUILT, BLOCKED | Success, expired or used link, checking | Hosted confirmation emails need SMTP (owner) |
 | AUTH-04 | Forgot and reset password | `#/forgot`, `#/reset-password` | BUILT, BLOCKED | Generic "sent" message, expired link, success, failure | Hosted recovery emails need SMTP (owner) |
-| AUTH-05 | Workspace onboarding | first sign-in | BUILT | Create the workspace; never a fabricated default | — |
+| AUTH-05 | First workspace | first sign-in | BUILT | The server creates the person's own workspace at first sign-in (no onboarding screen); never a fabricated default | A screen to name the workspace at sign-up (optional, P3; it can be renamed in Settings) |
 | AUTH-06 | Accept invitation | `#/invite/<token>` | BUILT | Signed out, signed in as another email, accepted, expired, revoked or used | — |
 | AUTH-07 | Legal gate | first use, or after terms change | BUILT | Accept the Terms and Privacy Policy | — |
 | AUTH-08 | Session expired | any page after token expiry | BUILT | When the session ends without the person signing out (refresh token expired, or the API answers 401), Sign in shows "Your session expired. Sign in again to continue where you left off.", and signing in reopens the dashboard page that was open (built 2026-10-21) | — |

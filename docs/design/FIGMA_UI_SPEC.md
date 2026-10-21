@@ -23,7 +23,7 @@ requirements, are in `FRONTEND_REQUIREMENTS.md` (the page register); this file i
 
 ## 1. Design system
 
-### 1.1 Tokens (from `frontend/src/app/design/tokens.ts`)
+### 1.1 Tokens (the app's theme is `frontend/src/styles/theme.css`; the values below are the design reference)
 
 | Group | Values |
 |---|---|
@@ -251,7 +251,6 @@ All of these use the **Auth shell**: a centred card, logo, title, sub-title, the
 | Forgot password | `#/forgot` | Email field | default · sent (same message whether or not the account exists) · error |
 | Reset password | `#/reset-password` | "Set a new password" / "Choose a new password for your MUSHIN account." | default · saved → dashboard · "This link no longer works" (Get a new link) · weak password |
 | Accept invitation | `#/invite/<token>` | The workspace name, the inviter, the role | signed out (Sign in / Create account, then return) · signed in as another email (mismatch) · accepted → dashboard · "Invitation not available" (expired, revoked or used) |
-| Workspace onboarding | first sign-in | Name the workspace | default · saving · error |
 | Legal gate | first use, or after terms change | "Before you continue". Terms of Service and Privacy Policy links, accept checkbox | default · accepting · error |
 
 ---
