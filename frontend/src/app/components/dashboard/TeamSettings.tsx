@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
-import { createdInvitationSchema, deletionResultSchema, invitationListSchema, myWorkspacesSchema, workspaceExportSchema, workspaceMembersSchema } from "@mushin/contracts";
+import { createdInvitationSchema, deletionResultSchema, invitationListSchema, meResponseSchema, myWorkspacesSchema, workspaceExportSchema, workspaceMembersSchema } from "@mushin/contracts";
 import { apiRequest } from "../../api/client";
 import { selectWorkspace } from "../../api/workspace";
 import { useAuth } from "../../auth/AuthContext";
@@ -108,6 +108,41 @@ export function WorkspaceSwitcher({ current }: { current: string }) {
         {q.data.workspaces.map((w) => <option key={w.id} value={w.id}>{w.name} ({w.role})</option>)}
       </select>
     </label>
+  );
+}
+
+/**
+ * The same switch in the account menu (FRONTEND_REQUIREMENTS APP-01): one item per workspace, the current one ticked.
+ * Shown only to people in two or more workspaces; switching reloads the app in the chosen one.
+ */
+export function WorkspaceMenuItems({ onPicked }: { onPicked: () => void }) {
+  const { status } = useAuth();
+  const list = useQuery({ queryKey: ["my-workspaces"], queryFn: () => apiRequest("/v1/me/workspaces", myWorkspacesSchema), enabled: status === "signedIn" });
+  const me = useQuery({ queryKey: ["me"], queryFn: () => apiRequest("/v1/me", meResponseSchema), enabled: status === "signedIn" });
+  if (!list.data || list.data.workspaces.length < 2) return null;
+  const current = me.data?.workspace.id;
+  return (
+    <div className="border-t border-slate-100 py-1">
+      <div className="px-4 pb-1 pt-1.5 text-[11px] uppercase tracking-wider text-slate-500" style={{ fontWeight: 600 }}>Workspaces</div>
+      {list.data.workspaces.map((w) => (
+        <button
+          key={w.id}
+          role="menuitemradio"
+          aria-checked={w.id === current}
+          onClick={() => {
+            onPicked();
+            if (w.id === current) return;
+            selectWorkspace(w.id);
+            window.location.reload();
+          }}
+          className="flex w-full items-center justify-between gap-2 px-4 py-2 text-left text-sm text-slate-700 transition-colors hover:bg-slate-50"
+          style={{ fontWeight: w.id === current ? 600 : 500 }}
+        >
+          <span className="truncate">{w.name}</span>
+          <span className="flex-shrink-0 text-[11px] text-slate-500">{w.id === current ? "✓ current" : w.role}</span>
+        </button>
+      ))}
+    </div>
   );
 }
 
