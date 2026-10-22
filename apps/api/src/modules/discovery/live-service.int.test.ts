@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { searchFiltersSchema, type LiveSearch, type LiveRunSize } from "@mushin/contracts";
 import { createLogger, type TenantContext } from "@mushin/core";
+import { workerHeartbeatAgeSeconds } from "@mushin/db";
 import { createTestDatabase, createTestWorkspace, ownerQuery, resetTables } from "@mushin/db/testing";
 import { MockPayments } from "@mushin/integrations";
 import { createBillingService, MemoryAccessCache } from "../billing/index";
@@ -52,6 +53,25 @@ describe("starting live runs", () => {
     expect(await balance(c)).toMatchObject({ available: 50, reserved: 150 });
     const ev = await ownerQuery<{ event_type: string }>(`select event_type from platform.outbox where event_type like 'discovery.%'`);
     expect(ev.map((e) => e.event_type)).toEqual(["discovery.live_requested"]);
+  });
+
+  // Regression (search audit 2026-10-22): with no worker running, a run stayed "queued" indefinitely with its credits held.
+  it("refuses a run, holding nothing and queueing nothing, while the worker's heartbeat is missing or stale", async () => {
+    const age = async () => db.withSystem((tx) => workerHeartbeatAgeSeconds(tx));
+    const gated = createDiscoveryService({ db, billing, workerAvailable: async () => { const a = await age(); return a !== null && a < 300; } });
+    const c = await customer();
+    for (const beat of [null, "now() - interval '10 minutes'"]) {
+      await ownerQuery(beat ? `insert into platform.process_heartbeats (process, beat_at) values ('worker', ${beat}) on conflict (process) do update set beat_at = excluded.beat_at` : `delete from platform.process_heartbeats`);
+      const quote = await estimate(c, search({ platform: "instagram" }), 10);
+      await expect(gated.start(c, { kind: "live", estimateId: quote.estimateId })).rejects.toMatchObject({ code: "PROVIDER_UNAVAILABLE", details: { reason: "worker_unavailable" } });
+      expect(await balance(c)).toMatchObject({ available: 200, reserved: 0 });
+    }
+    expect((await ownerQuery<{ n: number }>(`select count(*)::int n from wp.discovery_jobs`))[0]?.n).toBe(0);
+    await ownerQuery(`update platform.process_heartbeats set beat_at = now() where process = 'worker'`);
+    expect(await age()).toBeLessThan(5);
+    const quote = await estimate(c, search({ platform: "instagram" }), 10);
+    expect((await gated.start(c, { kind: "live", estimateId: quote.estimateId })).httpStatus).toBe(202);
+    expect(await balance(c)).toMatchObject({ available: 50, reserved: 150 });
   });
 
   it("prices every platform the same (100 / 150 / 200 for 5 / 10 / 15) and rejects an unaffordable quote at confirmation", async () => {

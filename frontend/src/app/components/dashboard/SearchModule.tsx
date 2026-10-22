@@ -52,6 +52,7 @@ import {
   withoutExtra,
   type ChipState,
   type UiFilters,
+  platformMixText,
 } from "../../api/search-mapping";
 import { FreshnessBadge } from "./states";
 import { useToast } from "../../lib/toast";
@@ -395,7 +396,8 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
                       className="inline-flex items-center gap-1 rounded-md bg-indigo-600 px-2.5 py-1 text-[11px] text-white transition-colors hover:bg-indigo-700"
                       style={{ fontWeight: 500 }}
                     >
-                      <Check className="h-3 w-3" strokeWidth={2.5} /> Apply &amp; search
+                      {/* Changed filters are a new logical search: say it is billed, as the search button does. */}
+                      <Check className="h-3 w-3" strokeWidth={2.5} /> Apply &amp; search{searchCost !== null ? ` (${searchCost} credits)` : ""}
                     </button>
                     <button
                       onClick={() => setShowInterpret(false)}
@@ -675,6 +677,9 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
                 )}
                 {search.data.understood.filters.engagementMin !== undefined && <> · engagement {search.data.understood.filters.engagementMin}%+</>}
               </p>
+            )}
+            {search.data && request?.filters.platform === undefined && search.data.understood.filters.platform === undefined && (
+              <p className="text-xs text-slate-500">{platformMixText(search.data.platformCounts)}</p>
             )}
             {search.data?.fewResults && (
               <p className="flex flex-wrap items-center gap-1 text-xs text-slate-500">

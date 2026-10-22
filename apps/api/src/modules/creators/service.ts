@@ -45,6 +45,8 @@ export type CreatorsDeps = {
   sourcePolicy?: SourcePolicy;
   /** Query understanding and terminology version (owner decision 2026-10-20): v1 (frozen, default) or v2. */
   searchProfile?: "v1" | "v2";
+  /** Whether the worker that writes AI summaries runs; without it a profile says "unavailable" instead of "generating" forever. */
+  workerAvailable?: () => Promise<boolean>;
 };
 
 const SETTINGS_TTL_MS = 60_000;
@@ -140,6 +142,11 @@ export function createCreatorsService(deps: CreatorsDeps) {
       page: Math.floor(start / settings.pageSize) + 1,
       pageSize: settings.pageSize,
       fewResults: cards.length < settings.fewResults,
+      platformCounts: {
+        instagram: cards.filter((c) => c.platform === "instagram").length,
+        tiktok: cards.filter((c) => c.platform === "tiktok").length,
+        youtube: cards.filter((c) => c.platform === "youtube").length,
+      },
     };
   }
 
@@ -225,12 +232,14 @@ export function createCreatorsService(deps: CreatorsDeps) {
   }
 
   // ── profile (spec §5) ──────────────────────────────────────────────────────
-  async function summaryState(tx: TenantTx, ctx: TenantContext, c: repo.CreatorRow, hash: string): Promise<CreatorProfile["summary"]> {
+  async function summaryState(tx: TenantTx, ctx: TenantContext, c: repo.CreatorRow, hash: string, workerUp: boolean): Promise<CreatorProfile["summary"]> {
     // A possible minor's data is never sent to the AI, and no earlier summary is shown (SRS §5.2, §5.5).
     if (isMinorProtected(c)) return { status: "unavailable", text: null, model: null, generatedAt: null };
     if (c.aiSummary !== null && c.aiSummarySourceHash === hash) {
       return { status: "ready", text: c.aiSummary, model: c.aiSummaryModel, generatedAt: c.aiSummaryAt?.toISOString() ?? null };
     }
+    // Nothing would write it: say so (the previous text, if any, is still shown) and request it on a later view.
+    if (!workerUp) return { status: "unavailable", text: c.aiSummary, model: c.aiSummaryModel, generatedAt: c.aiSummaryAt?.toISOString() ?? null };
     const requested = await repo.requestSummary(tx, c.id, hash);
     if (requested) {
       await writeOutbox(tx, {
@@ -250,6 +259,7 @@ export function createCreatorsService(deps: CreatorsDeps) {
   async function profile(ctx: TenantContext, id: string): Promise<CreatorProfile> {
     const t = now();
     const { settings, revealCost, refreshCost } = await config(ctx);
+    const workerUp = deps.workerAvailable ? await deps.workerAvailable() : true;
     return deps.db.withTenant(tenant(ctx), async (tx) => {
       const c = await repo.getCreator(tx, id);
       if (!c || c.status === "erased" || c.status === "removal_requested") throw new AppError("NOT_FOUND", "Creator not found");
@@ -263,7 +273,7 @@ export function createCreatorsService(deps: CreatorsDeps) {
       const revealed = await repo.hasReveal(tx, ctx.workspaceId, id);
       const values = new Map<string, string>();
       if (revealed) for (const v of await repo.revealedContacts(tx, id)) values.set(v.id, decryptSecret(v.value_encrypted, deps.encryptionKey));
-      const summary = await summaryState(tx, ctx, c, sourceHash(repo.buildSummarySource(c, profiles, snap)));
+      const summary = await summaryState(tx, ctx, c, sourceHash(repo.buildSummarySource(c, profiles, snap)), workerUp);
       const evidence = snap?.evidenceBreakdown ?? [];
       const iso = (d: Date | null) => d?.toISOString() ?? null;
       return {

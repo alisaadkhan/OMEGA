@@ -130,6 +130,11 @@ export const searchResponseSchema = z.object({
   nextCursor: z.string().nullable(),
   prevCursor: z.string().nullable(),
   fewResults: z.boolean(),
+  /**
+   * Matches per creator's main platform across the whole result set (not only this page), so a mostly-YouTube answer
+   * to "All platforms" is visibly the catalogue's coverage, not a filter (search audit 2026-10-22).
+   */
+  platformCounts: z.object({ instagram: z.number().int(), tiktok: z.number().int(), youtube: z.number().int() }),
   /** What was searched: the topic words and any filters read from the text (not the ones the user set). */
   understood: z.object({
     text: z.string(),

@@ -56,6 +56,42 @@ describe("catalogue search price", () => {
     expect(await searchSpends(c)).toBe(1);
   });
 
+  // Regression (search audit 2026-10-22): paging through real cursors, forwards and back, refreshing, clicking rapidly,
+  // fetching pages simultaneously and retrying after a failure stay one logical search with one ledger spend.
+  it("charges a multi-page search once across every page, back navigation, refresh, rapid and simultaneous requests and retries", async () => {
+    const ids: string[] = [];
+    for (let i = 0; i < 6; i++) ids.push(await addCreator(db, { displayName: `Sana Studio ${i}`, niches: ["Bridal"] }));
+    const docs = (await db.withSystem((tx) => repo.indexRows(tx, ids))).filter(isIndexable).map(toDocument);
+    await db.withSystem((tx) => repo.upsertPostgresSearchDocuments(tx, docs));
+    await ownerQuery(`update platform.search_settings set page_size = 2`);
+    try {
+      const creators = createCreatorsService({ ...deps, nativeSearch: createPostgresCatalogSearch(db) }); // settings are cached per instance
+      const c = await customer();
+      const first = await creators.search(c, req("Sana"));
+      expect(first).toMatchObject({ charged: true, creditsCharged: 50, page: 1, total: 7 });
+      expect(first.platformCounts).toEqual({ instagram: 7, tiktok: 0, youtube: 0 }); // the whole result set, not the page
+      const pages = [first];
+      while (pages.at(-1)?.nextCursor) pages.push(await creators.search(c, req("Sana", {}, pages.at(-1)?.nextCursor)));
+      expect(pages.map((p) => p.page)).toEqual([1, 2, 3, 4]);
+      expect(new Set(pages.flatMap((p) => p.results.map((r) => r.id))).size).toBe(7); // every creator once, no repeats
+      let back = pages[3];
+      while (back?.prevCursor) back = await creators.search(c, req("Sana", {}, back.prevCursor));
+      expect(back?.page).toBe(1);
+      const cursor2 = pages[0]?.nextCursor;
+      await creators.search(c, req("Sana", {}, cursor2)); // refresh of page 2
+      await Promise.all(Array.from({ length: 6 }, () => creators.search(c, req("Sana", {}, cursor2)))); // rapid clicks
+      await Promise.all(pages.map((p, i) => creators.search(c, req("Sana", {}, i === 0 ? null : pages[i - 1]?.nextCursor)))); // all pages at once
+      const broken = createCreatorsService(deps);
+      await expect(broken.search(c, req("Sana", {}, cursor2))).rejects.toMatchObject({ code: "PROVIDER_UNAVAILABLE" });
+      expect(await creators.search(c, req("Sana", {}, cursor2))).toMatchObject({ charged: false, page: 2 }); // retry
+      expect(await searchSpends(c)).toBe(1);
+      expect(await available(c)).toBe(150);
+      expect((await ownerQuery<{ n: number }>(`select count(*)::int n from wp.catalog_search_charges where workspace_id = '${c.workspaceId}'`))[0]?.n).toBe(1);
+    } finally {
+      await ownerQuery(`update platform.search_settings set page_size = 24`);
+    }
+  });
+
   it("charges again for different filters, for another user and after the 30-minute window", async () => {
     const c = await customer();
     await creators.search(c, req("Sana"));

@@ -87,6 +87,20 @@ describe("profile", () => {
     expect((await creators.profile(c, id)).summary.status).toBe("generating");
   });
 
+  // Regression (search audit 2026-10-22): with no worker, a profile said "generating" forever and the page kept polling.
+  it("says the summary is unavailable, requesting nothing, while the worker is not running; asks once it runs again", async () => {
+    let up = false;
+    const gated = createCreatorsService({ db, index: new UnavailableSearchIndex(), llm: new MockLlm(() => ({})), billing, encryptionKey: TEST_KEY, logger, workerAvailable: async () => up });
+    const id = await addCreator(db, { displayName: "Sana" });
+    const c = await trialCustomer();
+    const requests = async () => (await ownerQuery<{ n: number }>(`select count(*)::int n from platform.outbox where event_type = 'creator.summary_requested'`))[0]?.n;
+    expect((await gated.profile(c, id)).summary).toMatchObject({ status: "unavailable", text: null });
+    expect(await requests()).toBe(0);
+    up = true;
+    expect((await gated.profile(c, id)).summary.status).toBe("generating");
+    expect(await requests()).toBe(1);
+  });
+
   it("hides erased creators and flags possible minors", async () => {
     const erased = await addCreator(db);
     const minor = await addCreator(db, { isMinor: true });

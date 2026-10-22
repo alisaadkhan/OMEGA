@@ -16,7 +16,14 @@ import * as repo from "./repository";
 export { TIKTOK_LIVE_MINIMUM_CREDITS } from "@mushin/contracts";
 import { TIKTOK_LIVE_MINIMUM_CREDITS } from "@mushin/contracts";
 
-export type DiscoveryDeps = { db: Db; billing: Pick<BillingService, "engine">; now?: () => Date; sourcePolicy?: SourcePolicy };
+/**
+ * `workerAvailable`: whether the worker that runs discovery jobs is alive. When it says no, a job is refused before any
+ * credits are held, instead of waiting in the queue indefinitely with the credits held (search audit 2026-10-22).
+ */
+export type DiscoveryDeps = { db: Db; billing: Pick<BillingService, "engine">; now?: () => Date; sourcePolicy?: SourcePolicy; workerAvailable?: () => Promise<boolean> };
+
+const workerDown = () =>
+  new AppError("PROVIDER_UNAVAILABLE", "Live Discovery is unavailable right now: the discovery service is not running. No credits were held. Try again later.", { reason: "worker_unavailable" });
 
 const isOneOpenViolation = (err: unknown) => {
   for (let e: unknown = err; e instanceof Error; e = e.cause) if (/discovery_jobs_one_open/.test(e.message)) return true;
@@ -76,6 +83,7 @@ export function createDiscoveryService(deps: DiscoveryDeps) {
     if (body.kind === "live") return startLive(ctx, body.estimateId);
     const target = await resolve(ctx, body);
     if ("answer" in target) return { httpStatus: 200, body: target.answer };
+    if (deps.workerAvailable && !(await deps.workerAvailable())) throw workerDown();
     try {
       return await deps.db.withTenant(tenant(ctx), async (tx) => {
         const open = await repo.openJobFor(tx, ctx.workspaceId, target.canonicalUrl);
@@ -167,6 +175,7 @@ export function createDiscoveryService(deps: DiscoveryDeps) {
 
   /** A stored, unexpired estimate is the only authority for a live run's brief, cap and price. */
   async function startLive(ctx: TenantContext, estimateId: string): Promise<{ httpStatus: 200 | 202; body: StartDiscoveryJobResponse }> {
+    if (deps.workerAvailable && !(await deps.workerAvailable())) throw workerDown();
     try {
       return await deps.db.withTenant(tenant(ctx), async (tx) => {
         const estimate = await repo.estimateForUpdate(tx, ctx.workspaceId, estimateId);
