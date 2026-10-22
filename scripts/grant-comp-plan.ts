@@ -36,20 +36,21 @@ if (!config.databaseCaPem) console.warn(UNVERIFIED_TLS_WARNING);
 const logger = createLogger({ level: "warn", name: "grant-comp-plan" });
 const db = createDatabase(config.databaseUrl, { max: 1, applicationName: "mushin-grant-comp-plan", caPem: config.databaseCaPem });
 try {
-  // The person's own workspace (the one they own), found through the system role.
-  const rows = await db.withSystem((tx) =>
-    tx.execute<{ workspace_id: string; name: string; status: string | null; plan_id: string | null }>(sql`
-      select w.id workspace_id, w.name, s.status, s.plan_id
-      from wp.users u join wp.workspaces w on w.owner_user_id = u.id left join wp.subscriptions s on s.workspace_id = w.id
-      where lower(u.email) = lower(${values.email ?? ""}) order by w.created_at limit 2`),
-  );
-  const target = rows[0];
-  if (!target) {
+  // The person's own active workspaces, oldest first. Row security hides wp.users from the system role, so the lookup
+  // goes through the staff lookup function (0050), as the trial approval does.
+  const [found] = await db.withSystem((tx) => tx.execute<{ v: { workspaces: { id: string; name: string }[] } | null }>(sql`select platform.staff_trial_candidate(${values.email ?? ""}) v`));
+  const owned = found?.v?.workspaces ?? [];
+  const first = owned[0];
+  if (!first) {
     console.error(`No MUSHIN workspace is owned by ${values.email}. They must sign in to the app once first (the workspace is created then).`);
     process.exit(2);
   }
-  if (rows.length > 1) console.warn(`${values.email} owns more than one workspace; using the oldest: ${rows[0]?.name}`);
-  console.log(`Workspace "${target.name}" (${target.workspace_id}); current subscription: ${target.plan_id ?? "none"} ${target.status ?? ""}`.trim());
+  if (owned.length > 1) console.warn(`${values.email} owns more than one workspace; using the oldest: ${first.name}`);
+  const [sub] = await db.withWorkspace(first.id, (tx) =>
+    tx.execute<{ status: string; plan_id: string }>(sql`select status, plan_id from wp.subscriptions where workspace_id = ${first.id}`),
+  );
+  const target = { workspace_id: first.id, name: first.name };
+  console.log(`Workspace "${target.name}" (${target.workspace_id}); current subscription: ${sub?.plan_id ?? "none"} ${sub?.status ?? ""}`.trim());
   console.log(`Grant: ${plan} for ${months} month(s), no payment, ending at the period end.`);
   if (!values.apply) {
     console.log("Dry run: nothing changed. Add --apply to grant it.");
