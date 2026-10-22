@@ -1,7 +1,7 @@
 import { createHmac } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { createLogger, loadApiConfig } from "@mushin/core";
-import { createDatabase, createDbProviderCallSink, providerPaused, providerSpendSince, recordAlertEvent, UNVERIFIED_TLS_WARNING } from "@mushin/db";
+import { createDatabase, createDbProviderCallSink, providerPaused, providerSpendSince, recordAlertEvent, UNVERIFIED_TLS_WARNING, workerHeartbeatAgeSeconds } from "@mushin/db";
 import { createLlm, createPayments, createSearchIndex, MockEmailProvider, pausableLlm, ResendEmailProvider } from "@mushin/integrations";
 import { buildApp } from "./app";
 import { createSupabaseEmailVerification, createSupabaseIdentityDeletion } from "./auth/auth-admin";
@@ -36,6 +36,16 @@ const logger = createLogger({ level: config.logLevel, name: "api" });
 if (!config.databaseCaPem) logger.warn(UNVERIFIED_TLS_WARNING);
 const db = createDatabase(config.databaseUrl, { max: 10, applicationName: "mushin-api", caPem: config.databaseCaPem });
 
+// Discovery jobs and AI summaries run on the worker: refuse jobs (holding nothing) and report summaries unavailable when
+// its heartbeat is missing or older than the staff console's critical threshold, rather than queueing work nothing will
+// run. Read at most every 30 s (profiles ask on every open; the heartbeat itself only changes once a minute).
+let workerSeen: { at: number; up: boolean } | null = null;
+const workerAvailable = async () => {
+  if (workerSeen && Date.now() - workerSeen.at < 30_000) return workerSeen.up;
+  const age = await db.withSystem((tx) => workerHeartbeatAgeSeconds(tx));
+  workerSeen = { at: Date.now(), up: age !== null && age < 300 };
+  return workerSeen.up;
+};
 const buckets = bucketsFromConfig(config.rateLimit);
 const readiness: ReadinessCheck[] = [{ name: "database", check: () => db.ping() }];
 let limiter: RateLimiter;
@@ -88,6 +98,7 @@ const creators = createCreatorsService({
   encryptionKey: config.dataEncryptionKey,
   logger,
   sourcePolicy: config.sourcePolicy,
+  workerAvailable,
 });
 const identity = createIdentityModule({
   db,
@@ -136,7 +147,7 @@ const app = await buildApp({
     staff.module,
     createBillingModule({ service: billing, payments, appUrl: config.appUrl }),
     createCreatorsModule({ service: creators, limiter, removals, requireStaff: staff.requireStaff }),
-    createDiscoveryModule({ service: createDiscoveryService({ db, billing, sourcePolicy: config.sourcePolicy }), limiter }),
+    createDiscoveryModule({ service: createDiscoveryService({ db, billing, sourcePolicy: config.sourcePolicy, workerAvailable }), limiter }),
     createListsModule({ service: createListsService({ db, sourcePolicy: config.sourcePolicy }) }),
     createCampaignsModule({ service: createCampaignsService({ db, planLimits: billing.getAccess, sourcePolicy: config.sourcePolicy }) }),
     outreach.module,

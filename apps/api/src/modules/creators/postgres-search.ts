@@ -81,57 +81,61 @@ export function createPostgresCatalogSearch(db: Db): CatalogSearch {
     if (f.freshOnly) conditions.push(sql`d.followers_updated_epoch >= ${Math.floor(query.now.getTime() / 1000) - query.freshCurrentDays * 86_400}`);
 
     type Row = { id: string; rankingScore: number; updatedEpoch: number | string; exactTotal: number | string };
-    const run = (match: SQL | null, ranked: SQL, order: SQL, take: number) =>
-      db.withTenant(ctx, (tx) => tx.execute<Row>(sql`
-        select d.creator_id as id, ${ranked}::real as "rankingScore", d.updated_epoch as "updatedEpoch", count(*) over() as "exactTotal"
-        from gcp.creator_search_documents d
-        join gcp.creators c on c.id = d.creator_id
-        where ${sql.join(match ? [...conditions, match] : conditions, sql` and `)}
-        order by ${order}
-        limit ${take}
-      `));
+    // Every stage runs in one transaction: the same queries in the same order, without paying each stage's transaction
+    // setup again (a search with no matches runs all three; search audit 2026-10-22).
+    return db.withTenant(ctx, async (tx) => {
+      const run = (match: SQL | null, ranked: SQL, order: SQL, take: number) =>
+        tx.execute<Row>(sql`
+          select d.creator_id as id, ${ranked}::real as "rankingScore", d.updated_epoch as "updatedEpoch", count(*) over() as "exactTotal"
+          from gcp.creator_search_documents d
+          join gcp.creators c on c.id = d.creator_id
+          where ${sql.join(match ? [...conditions, match] : conditions, sql` and `)}
+          order by ${order}
+          limit ${take}
+        `);
 
-    if (!text) {
-      const rows = await run(null, sql`0`, sql`d.engagement_rate desc nulls last, d.authenticity_score desc nulls last, d.followers desc nulls last, d.creator_id`, limit);
-      return { hits: rows.map((r) => ({ id: r.id, rankingScore: 0 })), total: Number(rows[0]?.exactTotal ?? 0) };
-    }
+      if (!text) {
+        const rows = await run(null, sql`0`, sql`d.engagement_rate desc nulls last, d.authenticity_score desc nulls last, d.followers desc nulls last, d.creator_id`, limit);
+        return { hits: rows.map((r) => ({ id: r.id, rankingScore: 0 })), total: Number(rows[0]?.exactTotal ?? 0) };
+      }
 
-    // 1. Whole words through full-text search.
-    const byScore = sql`"rankingScore" desc, d.updated_epoch desc`;
-    // A creator matched only through the city field still scores on the words it did match.
-    const words = await run(wordMatch, sql`least(ts_rank_cd(d.search_vector, ${rankQuery}) * 8, 1)`, byScore, limit);
-    let total = Number(words[0]?.exactTotal ?? 0);
-    let rows: Row[] = words;
-    // 2. A typo or partial word ("Ayesah", "Siddiq") through trigram word similarity, which compares the query with the
-    //    closest part of the text rather than the whole document. Only while whole words leave room in the pool: on a
-    //    common word (thousands of matches) rechecking similarity across them cost ~1 s at 100k creators.
-    //    Measured on the 469-creator panel corpus (2026-10-14): filling a small pool this way added unrelated creators
-    //    ("book" → "booking", "urdu history" → gaming channels), so it now runs only when whole words found nothing, and
-    //    every query word must be close to a word of the creator's text on its own.
-    const nearWords = normalizeQuery(text).split(" ").filter((w) => w.length >= 3);
-    if (total === 0 && nearWords.length > 0) {
-      const each = sql.join(nearWords.map((w) => sql`${w} <% d.search_text`), sql` and `);
-      const near = await run(sql`${each} and not (${wordMatch})`, sql`word_similarity(${text}, d.search_text)`, byScore, limit - total);
-      total += Number(near[0]?.exactTotal ?? 0);
-      rows = [...words, ...near].sort((a, b) => b.rankingScore - a.rankingScore || Number(b.updatedEpoch) - Number(a.updatedEpoch));
-    }
-    // 3. Name spelling variants ("Sana Malik" for "Sana Mullick"): only for a name-like query (2–3 plain words, no
-    //    recognised topic or city) while the pool still has room; every query word must meet a word of the display name.
-    // v2: a plan of plain words only (no topic or city) is name-like too.
-    const recognised = query.plan?.length ? query.plan.some((g) => g.kind !== "word") : groups !== null;
-    const keys = recognised ? null : nameKeys(normalizeQuery(text));
-    if (keys && total < limit) {
-      const skeleton = sql`' ' || regexp_replace(regexp_replace(replace(regexp_replace(lower(c.display_name), '[^a-z]+', ' ', 'g'), 'ck', 'k'), '[aeiouyw]', '', 'g'), '(.)\\1+', '\\1', 'g') || ' '`;
-      const seen = rows.map((x) => x.id);
-      const match = sql.join([
-        ...keys.map((k) => sql`${skeleton} like ${"% " + k + " %"}`),
-        ...(seen.length ? [sql`d.creator_id not in (${sql.join(seen.map((id) => sql`${id}::uuid`), sql`, `)})`] : []),
-      ], sql` and `);
-      const variants = await run(match, sql`0.3`, byScore, limit - rows.length);
-      total += Number(variants[0]?.exactTotal ?? 0);
-      rows = [...rows, ...variants];
-    }
-    return { hits: rows.map((r) => ({ id: r.id, rankingScore: Number(r.rankingScore) })), total };
+      // 1. Whole words through full-text search.
+      const byScore = sql`"rankingScore" desc, d.updated_epoch desc`;
+      // A creator matched only through the city field still scores on the words it did match.
+      const words = await run(wordMatch, sql`least(ts_rank_cd(d.search_vector, ${rankQuery}) * 8, 1)`, byScore, limit);
+      let total = Number(words[0]?.exactTotal ?? 0);
+      let rows: Row[] = words;
+      // 2. A typo or partial word ("Ayesah", "Siddiq") through trigram word similarity, which compares the query with the
+      //    closest part of the text rather than the whole document. Only while whole words leave room in the pool: on a
+      //    common word (thousands of matches) rechecking similarity across them cost ~1 s at 100k creators.
+      //    Measured on the 469-creator panel corpus (2026-10-14): filling a small pool this way added unrelated creators
+      //    ("book" → "booking", "urdu history" → gaming channels), so it now runs only when whole words found nothing, and
+      //    every query word must be close to a word of the creator's text on its own.
+      const nearWords = normalizeQuery(text).split(" ").filter((w) => w.length >= 3);
+      if (total === 0 && nearWords.length > 0) {
+        const each = sql.join(nearWords.map((w) => sql`${w} <% d.search_text`), sql` and `);
+        const near = await run(sql`${each} and not (${wordMatch})`, sql`word_similarity(${text}, d.search_text)`, byScore, limit - total);
+        total += Number(near[0]?.exactTotal ?? 0);
+        rows = [...words, ...near].sort((a, b) => b.rankingScore - a.rankingScore || Number(b.updatedEpoch) - Number(a.updatedEpoch));
+      }
+      // 3. Name spelling variants ("Sana Malik" for "Sana Mullick"): only for a name-like query (2–3 plain words, no
+      //    recognised topic or city) while the pool still has room; every query word must meet a word of the display name.
+      // v2: a plan of plain words only (no topic or city) is name-like too.
+      const recognised = query.plan?.length ? query.plan.some((g) => g.kind !== "word") : groups !== null;
+      const keys = recognised ? null : nameKeys(normalizeQuery(text));
+      if (keys && total < limit) {
+        const skeleton = sql`' ' || regexp_replace(regexp_replace(replace(regexp_replace(lower(c.display_name), '[^a-z]+', ' ', 'g'), 'ck', 'k'), '[aeiouyw]', '', 'g'), '(.)\\1+', '\\1', 'g') || ' '`;
+        const seen = rows.map((x) => x.id);
+        const match = sql.join([
+          ...keys.map((k) => sql`${skeleton} like ${"% " + k + " %"}`),
+          ...(seen.length ? [sql`d.creator_id not in (${sql.join(seen.map((id) => sql`${id}::uuid`), sql`, `)})`] : []),
+        ], sql` and `);
+        const variants = await run(match, sql`0.3`, byScore, limit - rows.length);
+        total += Number(variants[0]?.exactTotal ?? 0);
+        rows = [...rows, ...variants];
+      }
+      return { hits: rows.map((r) => ({ id: r.id, rankingScore: Number(r.rankingScore) })), total };
+    });
   }
 
   return { search };

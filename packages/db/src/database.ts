@@ -43,9 +43,10 @@ export function createDatabase(url: string, opts: { max: number; applicationName
 
   function run<T>(role: "mushin_app" | "mushin_worker", settings: { workspaceId?: string; userId?: string }, fn: (tx: DbTx) => Promise<T>) {
     return db.transaction(async (tx) => {
-      await tx.execute(role === "mushin_app" ? sql`set local role mushin_app` : sql`set local role mushin_worker`);
+      // One round trip for the role and the RLS context: set_config('role', …, true) is SET LOCAL ROLE (membership is
+      // checked the same way). Each statement costs a full round trip to a remote database (search audit 2026-10-22).
       await tx.execute(
-        sql`select set_config('app.workspace_id', ${settings.workspaceId ?? ""}, true), set_config('app.user_id', ${settings.userId ?? ""}, true)`,
+        sql`select set_config('role', ${role}, true), set_config('app.workspace_id', ${settings.workspaceId ?? ""}, true), set_config('app.user_id', ${settings.userId ?? ""}, true)`,
       );
       return fn(tx);
     });

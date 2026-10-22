@@ -18,6 +18,7 @@ import {
   CONTACT_AVAILABILITY_TEXT,
   uiContactState,
   withoutExtra,
+  platformMixText,
   type UiFilters,
 } from "./search-mapping";
 
@@ -181,5 +182,16 @@ describe("matchSummary (CAT-005)", () => {
     ).toBe("karachi in city · food (as khana) in bio · malik ≈ mullick in name");
     expect(matchSummary([])).toBe("");
     expect(matchSummary(undefined)).toBe("");
+  });
+});
+
+// Search audit 2026-10-22: "All platforms" answered with YouTube only looked like a broken filter.
+describe("platformMixText", () => {
+  it("shows the split and says which platforms the catalogue covers thinly, without blaming the search", () => {
+    expect(platformMixText({ youtube: 180, instagram: 6, tiktok: 0 })).toBe(
+      "Matches by platform: YouTube 180 · Instagram 6 · TikTok 0. All platforms were searched; MUSHIN's catalogue has few Instagram and TikTok creators for this search so far.",
+    );
+    expect(platformMixText({ youtube: 10, instagram: 8, tiktok: 4 })).toBe("Matches by platform: YouTube 10 · Instagram 8 · TikTok 4.");
+    expect(platformMixText({ youtube: 0, instagram: 0, tiktok: 0 })).toBe("Matches by platform: YouTube 0 · Instagram 0 · TikTok 0.");
   });
 });

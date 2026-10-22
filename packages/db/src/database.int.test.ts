@@ -73,6 +73,21 @@ describe("database scopes", () => {
     }
   });
 
+  // Regression (search audit 2026-10-22): role and context are set in one statement; both end with the transaction.
+  it("sets the role and context together and restores the session after each transaction, also after a failure", async () => {
+    const single = createDatabase(testDatabaseUrl(), { max: 1, applicationName: "mushin-test-reset", caPem: testCaPem() });
+    try {
+      const ctx = { userId: randomUUID(), workspaceId: randomUUID() };
+      const inside = await single.withTenant(ctx, async (tx) => (await tx.execute<{ r: string; w: string; u: string }>(sql`select current_user r, current_setting('app.workspace_id') w, current_setting('app.user_id') u`))[0]);
+      expect(inside).toEqual({ r: "mushin_app", w: ctx.workspaceId, u: ctx.userId });
+      await expect(single.withTenant(ctx, (tx) => tx.execute(sql`select 1/0`))).rejects.toBeTruthy();
+      const after = await single.withSystem(async (tx) => (await tx.execute<{ r: string; w: string; u: string }>(sql`select current_user r, current_setting('app.workspace_id') w, current_setting('app.user_id') u`))[0]);
+      expect(after).toEqual({ r: "mushin_worker", w: "", u: "" });
+    } finally {
+      await single.close();
+    }
+  });
+
   it("rejects non-uuid context values before touching the database", async () => {
     await expect(db.withTenant({ userId: "x", workspaceId: randomUUID() }, async () => 1)).rejects.toThrow(/uuid/);
   });

@@ -1,4 +1,4 @@
-import type { ContactAvailability, CreatorCard, CreatorProfile, InterpretResponse, LookupResponse, MatchReason, SearchFilters, SearchRequest, SearchResult } from "@mushin/contracts";
+import type { ContactAvailability, CreatorCard, CreatorProfile, InterpretResponse, LookupResponse, MatchReason, SearchFilters, SearchRequest, SearchResponse, SearchResult } from "@mushin/contracts";
 import { ApiError } from "./http";
 import type { Creator } from "../components/dashboard/CreatorProfilePanel";
 import type { ContactTrust } from "../components/dashboard/states";
@@ -276,4 +276,16 @@ export function contactEvidenceText(k: Pick<CreatorProfile["contacts"][number], 
 /** Opens the profile panel for a creator known only by id (job results, add-by-link); the panel loads the rest. */
 export function creatorStub(id: string, platform: Creator["platform"], handle: string): Creator {
   return matchToCreator({ id, displayName: `@${handle}`, handle, platform, avatarUrl: null });
+}
+
+/**
+ * For an "All platforms" search: how the matches split by platform, and, when a platform has none or very few, that
+ * this is the catalogue's coverage so far (no platform was left out of the search). Search audit 2026-10-22.
+ */
+export function platformMixText(counts: SearchResponse["platformCounts"]): string {
+  const parts = [`YouTube ${counts.youtube.toLocaleString("en-PK")}`, `Instagram ${counts.instagram.toLocaleString("en-PK")}`, `TikTok ${counts.tiktok.toLocaleString("en-PK")}`];
+  const total = counts.youtube + counts.instagram + counts.tiktok;
+  const thin = (["Instagram", "TikTok", "YouTube"] as const).filter((p) => total > 0 && counts[p.toLowerCase() as keyof typeof counts] * 10 < total);
+  const note = thin.length ? ` All platforms were searched; MUSHIN's catalogue has few ${thin.join(" and ")} creators for this search so far.` : "";
+  return `Matches by platform: ${parts.join(" · ")}.${note}`;
 }
