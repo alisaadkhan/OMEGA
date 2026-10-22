@@ -29,11 +29,12 @@ here as an external blocker.
 
 | Was | Now |
 |---|---|
-| Staging migrations (HOST-01) | Applied to 0052 |
+| Staging migrations (HOST-01) | Applied to 0053 (complimentary plans, 2026-10-21) |
 | Staging catalogue | Loaded on 2026-10-20: 2,181 creators |
 | Live Discovery never run live since 13 Oct (SRCH-10, D-09) | Run under the USD 25 authorisation, ≈ USD 1.7 spent by 2026-10-21 |
 | Additive `supabase/migrations/` copies (SUP-01) | Made for 0050–0052 |
 | Hosting choice (D-01) | Vercel for the frontend and the API (2026-10-21); the worker on a separate container host (open, #5) |
+| API failing on Vercel (INTERNAL_FUNCTION_INVOCATION_FAILED) | Fixed 2026-10-21 (`dd66d30`): `server.ts` default-exports a request handler and listens only off Vercel; health, readiness (database) and auth checks pass on the deployment |
 | No remote (part of OPS-01) | Branch `feat/internal-completion-and-search-acceptance` pushed to https://github.com/alisaadkhan/OMEGA (2026-10-21) |
 
 ## Next actions, in order
