@@ -6,6 +6,7 @@
  *             snapshots; then the search projection is rebuilt from them;
  *   excluded: contacts (encrypted with the local key), raw payloads and avatar copies (local files; avatar and payload
  *             references are cleared), every workspace, job, ledger and the catalog_build schema.
+ *   Then run scripts/catalog/sync-avatars.ts: it uploads the profile photos and links them (photos are always kept).
  * Dry run by default (counts only); --apply writes. DIRECT_URL must point at the staging project (checked by ref).
  *
  *   node --env-file=.env --import tsx scripts/catalog/load-staging.ts --db mushin_catalog_v2 --expect-ref yknp [--apply]

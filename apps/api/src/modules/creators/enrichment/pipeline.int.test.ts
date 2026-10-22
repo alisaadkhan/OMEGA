@@ -124,6 +124,22 @@ describe("enrichment pipeline", () => {
     expect(c).toEqual({ is_minor: true, minor_reason: "staff saw a school uniform", n: 2 });
   });
 
+  // Owner 2026-10-22: Update info re-scrapes the whole profile, and every scrape keeps the profile photo.
+  it("re-copies the profile photo on a refresh, also when the stored one was cleared", async () => {
+    const raw = structuredClone(scraperFixture("instagram-profile.json")) as Record<string, unknown>[];
+    (raw[0] as Record<string, unknown>)["profilePicUrlHD"] = "https://scontent-man2-1.cdninstagram.com/v/t51/coke_studio.jpg";
+    const { pipeline, storage } = setup({ scraper: new FixtureScraper({ instagram: { provider: "apify", raw, costUsd: 0.0026 } }) });
+    const first = await pipeline.enrich(await job(), hooks().h);
+    if (first.kind !== "saved") throw new Error("unreachable");
+    await ownerQuery(`update gcp.creators set avatar_url = null, avatar_key = null where id = '${first.creatorId}';
+      update gcp.creator_profiles set last_scraped_at = now() - interval '2 days';`);
+    for (const k of [...storage.objects.keys()]) if (k.startsWith("creator-avatars/")) storage.objects.delete(k);
+    expect(await pipeline.enrich(await job(), hooks().h)).toMatchObject({ kind: "saved", outcome: "refreshed" });
+    const [c] = await ownerQuery<{ avatar_url: string | null; avatar_key: string | null }>(`select avatar_url, avatar_key from gcp.creators where id = '${first.creatorId}'`);
+    expect(c?.avatar_url).toMatch(/^memory:\/\/creator-avatars\/instagram\//);
+    expect([...storage.objects.keys()]).toContain(`creator-avatars/${c?.avatar_key}`);
+  });
+
   it("reuses a profile scraped minutes ago (another workspace) without scraping", async () => {
     const { pipeline, scraper } = setup();
     const first = await pipeline.enrich(await job(), hooks().h);
