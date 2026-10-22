@@ -124,6 +124,7 @@ read before every paid scrape.
 | `node --env-file=.env --import tsx scripts/catalog/backfill-evidence.ts --db mushin_catalog_v2 [--apply]` | Re-derives city, country and niche evidence from archived payloads; dry run by default | Free |
 | `node --import tsx scripts/catalog/integrity.ts --db mushin_catalog_v2 [--out file.json]` | Read-only integrity check; exits 1 on a hard failure | Free |
 | `node --env-file=.env --import tsx scripts/catalog/load-staging.ts --db mushin_catalog_v2 --expect-ref yknp [--apply]` | Loads public catalogue data into staging and syncs changed rows (minor flags only escalate); dry run by default. Rehearse on a fresh local database first by pointing `DIRECT_URL` at it with `--expect-ref 127` | Free |
+| `node --env-file=.env --import tsx scripts/catalog/sync-avatars.ts --db mushin_catalog_v2 --expect-ref yknp [--apply]` | Run after every load: uploads the profile photos to the staging `creator-avatars` bucket and links creators that have none (a newer scraped photo is kept); skips YouTube creators past the 30-day retention window. Done 2026-10-22: 2,357 photos | Free |
 | `EVAL_NOW=<iso> node --import tsx scripts/search-eval/compare-profiles.ts <queries.csv> <db> <packet dir> [out.json]` | v1 vs v2 retrieval measurements on the frozen queries; read-only | Free |
 
 Rating packets for v2: `TEST_DATABASE_URL=<disposable copy> SEARCH_PROFILE=v2 node --import tsx scripts/search-eval/run-brain1.ts <queries.csv> eval-v2/packets/<name>`.
