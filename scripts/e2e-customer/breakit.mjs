@@ -31,7 +31,7 @@ const api = async (who, method, path, body, extra = {}) => {
   return { status: r.status, json, text };
 };
 const session = (who) => ({ access_token: ids[who].token, token_type: "bearer", expires_in: ids[who].exp - Math.floor(Date.now() / 1000), expires_at: ids[who].exp, refresh_token: "e2e-local",
-  user: { id: ids[who].sub, aud: "authenticated", role: "authenticated", email: ids[who].email, user_metadata: { full_name: ids[who].name }, app_metadata: {}, created_at: new Date().toISOString() } });
+  user: { id: ids[who].sub, aud: "authenticated", role: "authenticated", email: ids[who].email, user_metadata: { full_name: ids[who].name }, app_metadata: {}, email_confirmed_at: new Date().toISOString(), created_at: new Date().toISOString() } });
 const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: true });
 const consoleErrors = [];
 const serverErrors = [];
@@ -363,8 +363,9 @@ check("SETUP-1", "campaign with the fixture creator exists", Boolean(campaignId)
   const fresh = await outcome("fresh", "  New@ShanFoods.pk ");
   const hidden = await outcome("existingHidden", "owner@e2e.test");
   const errored = await outcome("existingError", "owner@e2e.test");
-  const neutral = (t) => (t.match(/Check your inbox at \S+ If this address is new to MUSHIN.*?reset your password\./) ?? [""])[0].replace(/^Check your inbox at \S+ /, "Check your inbox at <email> ");
-  check("AUTH-1", "an already-registered email gets the same neutral answer as a new one (both response shapes), never a false 'account created'", neutral(fresh.text) !== "" && neutral(hidden.text) === neutral(fresh.text) && neutral(errored.text) === neutral(fresh.text) && !/User already registered/.test(errored.text), neutral(fresh.text).slice(0, 120));
+  // Owner decision 2026-11-02: an already-registered address is told so (both response shapes), with sign-in and reset.
+  const exists = (t) => /This email is already registered/.test(t) && !/Check your inbox at/.test(t) && !/User already registered/.test(t);
+  check("AUTH-1", "a new address is asked to verify its email; an already-registered one gets 'already registered', never a false 'account created'", /Check your inbox at new@shanfoods\.pk\. We've sent a confirmation link/.test(fresh.text) && exists(hidden.text) && exists(errored.text), `${fresh.text.slice(0, 80)} | ${hidden.text.slice(0, 80)}`);
   check("AUTH-2", "the address is sent trimmed and lower-cased", fresh.sent[0] === "new@shanfoods.pk", fresh.sent.join(","));
   const weak = await outcome("weak", "weak@shanfoods.pk");
   check("AUTH-3", "a weak password gets a plain message, not the provider's text", /stronger password/.test(weak.text) && !/at least 6 characters/.test(weak.text));

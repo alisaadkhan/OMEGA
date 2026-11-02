@@ -94,7 +94,7 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
               transition={{ duration: 0.25, ease: "easeOut" }}
             >
               {view === "overview" && <Overview credits={credits} setView={setView} />}
-              {view === "search" && <SearchModule liveJobId={liveJobId} />}
+              {view === "search" && <SearchModule liveJobId={liveJobId} onGoToCampaigns={() => setView("campaigns")} />}
               {view === "lists" && <Lists key={navKey} onOpenCreator={setOmniCreator} onGoToSearch={() => setView("search")} />}
               {view === "campaigns" && <Campaigns key={navKey} onOpenCreator={setOmniCreator} onGoToSearch={() => setView("search")} />}
               {view === "analytics" && <Analytics />}

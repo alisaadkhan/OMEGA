@@ -16,6 +16,7 @@ import {
 } from "@mushin/db";
 import { maskContact, type CreatorPlatform } from "../rules";
 import type { Assessment } from "./assessment";
+import type { ContentPerformance } from "../eligibility-v3";
 import type { AttributeDecision } from "./attribute-evidence";
 import { profileCountry, resolveCountry, type ProfileCountry } from "./country-evidence";
 import { wholeChars } from "./quote";
@@ -125,6 +126,10 @@ export type SaveInput = {
   metrics: { engagementRate: number | null; avgLikes: number | null; avgComments: number | null; avgViews: number | null };
   report: SignalReport;
   assessment: { value: Assessment; model: string } | null;
+  /** Scheduled source refresh (YouTube retention): keep the current assessment and request no new one. */
+  keepAssessment?: boolean;
+  /** Typical content performance of this fetch (0066); null when it had no usable posts. Omitted: columns untouched. */
+  performance?: ContentPerformance | null;
   modelVersion: string;
   minorReason: string | null;
   contacts: ExtractedContact[];
@@ -136,6 +141,22 @@ export type SaveInput = {
   /** search-v2 evidence policy: city, country and niches come from evidence, and the evidence rows are kept. */
   attributes?: AttributeDecision;
 };
+
+/** 0066 columns from a fetch's performance: written as a whole, nulls included, so no older median survives a fetch. */
+function performanceColumns(i: SaveInput) {
+  if (i.performance === undefined) return {};
+  const p = i.performance;
+  return {
+    medianViews: p?.medianViews === null || p?.medianViews === undefined ? null : Math.round(p.medianViews),
+    medianEngagementRate: p?.medianEngagementRate ?? null,
+    performanceViewsSample: p?.viewsSample ?? null,
+    performanceEngagementSample: p?.engagementSample ?? null,
+    performanceFormat: p?.format ?? null,
+    performanceFrom: p?.sampleFrom ?? null,
+    performanceTo: p?.sampleTo ?? null,
+    performanceAt: new Date(),
+  };
+}
 
 const assessmentStatusOf = (i: SaveInput): "assessed" | "pending" | "insufficient_data" =>
   i.assessment === null ? "pending" : i.report.kind === "insufficient" ? "insufficient_data" : "assessed";
@@ -203,6 +224,7 @@ export async function saveEnrichment(tx: Tx, i: SaveInput): Promise<{ creatorId:
         audienceUpdatedAt: a ? new Date() : null,
         lastScrapedAt: new Date(),
         lastPostAt: latestPost,
+        ...performanceColumns(i),
       })
       .returning({ id: creatorProfiles.id });
     if (!pr) throw new Error("profile insert returned no row");
@@ -226,6 +248,7 @@ export async function saveEnrichment(tx: Tx, i: SaveInput): Promise<{ creatorId:
         bio: p.bio,
         ...metricTimes,
         lastPostAt: latestPost ?? sql`${creatorProfiles.lastPostAt}`,
+        ...performanceColumns(i),
       })
       .where(eq(creatorProfiles.id, profileId));
     await tx
@@ -290,7 +313,7 @@ export async function saveEnrichment(tx: Tx, i: SaveInput): Promise<{ creatorId:
   await refreshProfileCountries(tx, creatorId, { source: "enrichment" });
   await tx.update(rawPayloads).set({ creatorId }).where(eq(rawPayloads.id, i.payloadId));
   await writeOutbox(tx, { eventType: "creator.changed", aggregateType: "creator", aggregateId: creatorId, workspaceId: null, payload: { creatorId }, requestId: i.requestId });
-  if (status === "pending") {
+  if (status === "pending" && !i.keepAssessment) {
     await writeOutbox(tx, { eventType: "creator.assessment_requested", aggregateType: "creator", aggregateId: creatorId, workspaceId: null, payload: { creatorId }, requestId: i.requestId });
   }
   return { creatorId, created: !existing, assessment: status };

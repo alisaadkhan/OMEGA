@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const activityKindSchema = z.enum(["list_created", "creator_saved", "campaign_created", "creator_added_to_campaign", "outreach_logged", "live_run_finished", "contact_revealed"]);
+export const activityKindSchema = z.enum(["list_created", "creator_saved", "campaign_created", "creator_added_to_campaign", "outreach_logged", "live_run_finished", "contact_revealed", "complimentary_plan"]);
 
 /**
  * Workspace activity (canonical frontend spec page 15), derived from records the team actually created: nothing is

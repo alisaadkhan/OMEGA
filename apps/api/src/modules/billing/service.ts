@@ -96,7 +96,8 @@ export function createBillingService(deps: BillingDeps) {
       const enrolled = (await repo.testingAllowanceOf(tx, ctx.workspaceId)).since !== null;
       return {
         plan: plan ? { id: plan.id, name: plan.name, monthlyCredits: plan.monthlyCredits } : null,
-        interval: plan ? (sub?.billingInterval ?? null) : null,
+        // A complimentary plan is not billed: no interval is shown, so it never reads as a yearly purchase.
+        interval: plan && !isComp(sub) ? (sub?.billingInterval ?? null) : null,
         status: b.status ?? "expired",
         currentPeriodEnd: plan ? (sub?.currentPeriodEnd?.toISOString() ?? null) : null,
         trialStartedAt: sub?.trialEndsAt ? sub.createdAt.toISOString() : null,
@@ -104,6 +105,7 @@ export function createBillingService(deps: BillingDeps) {
         trialDaysLeft: b.status === "trialing" && sub ? daysLeft(sub.trialEndsAt, now()) : null,
         awaitingTrial: sub === null,
         cancelAtPeriodEnd: sub?.cancelAtPeriodEnd ?? false,
+        complimentary: plan !== null && isComp(sub),
         scheduledChange: sub?.scheduledPlanId && sub.scheduledInterval ? { planId: sub.scheduledPlanId, interval: sub.scheduledInterval } : null,
         balance: { available: b.available, reserved: b.reserved, base: b.base, meter: b.meter },
         canPurchase: BILLING_ROLES.has(ctx.role),

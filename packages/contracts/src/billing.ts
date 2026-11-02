@@ -69,6 +69,8 @@ export const billingSummarySchema = z.object({
   /** No trial or plan yet: the free trial starts only when MUSHIN approves it (founder-assisted trial, 0050). */
   awaitingTrial: z.boolean(),
   cancelAtPeriodEnd: z.boolean(),
+  /** A complimentary plan (owner grant): an entitlement, not a purchase. No billing interval, no invoice, no payment. */
+  complimentary: z.boolean(),
   scheduledChange: z.object({ planId: planIdSchema, interval: billingIntervalSchema }).nullable(),
   balance: z.object({
     available: z.number().int().nonnegative(),

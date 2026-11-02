@@ -25,6 +25,8 @@ export function subscriptionBadge(summary: BillingSummary | undefined): Badge | 
   if (summary.awaitingTrial) return { label: "Trial not active", tone: "neutral" };
   switch (summary.status) {
     case "active":
+      // A complimentary plan is set to end at its period end by design: a gift, not a cancellation.
+      if (summary.complimentary) return { label: "Complimentary", tone: "good" };
       return summary.cancelAtPeriodEnd ? { label: "Ends at period end", tone: "warn" } : { label: "Active", tone: "good" };
     case "trialing":
       return { label: "Trial", tone: "neutral" };

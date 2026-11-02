@@ -16,20 +16,13 @@ import {
   Plus,
   Grid3x3,
   List,
-  ArrowUpRight,
   ChevronDown,
   Loader2,
   AlertTriangle,
   Info,
   Zap,
-  Radio,
   Wand2,
   Check,
-  ArrowRight,
-  Mail,
-  Phone,
-  Ban,
-  Clock,
 } from "lucide-react";
 import { CreatorProfilePanel, type Creator } from "./CreatorProfilePanel";
 import { AddByLinkDialog } from "./AddByLinkDialog";
@@ -44,24 +37,23 @@ import {
   pageCount,
   applySuggestion,
   CITY_FILTER_ENABLED,
-  CONTACT_AVAILABILITY_TEXT,
   requestFor,
   sameRequest,
   searchErrorMessage,
   toCreator,
   searchResultToCreator,
-  matchSummary,
   toFilters,
   withoutExtra,
   type ChipState,
   type UiFilters,
   platformMixText,
 } from "../../api/search-mapping";
-import { FreshnessBadge } from "./states";
 import { useToast } from "../../lib/toast";
 import { FindNewDialog } from "./FindNewDialog";
-import { SaveToListMenu } from "./SaveToListMenu";
-import { AddToCampaignMenu } from "./AddToCampaignMenu";
+import { SearchCreatorCard } from "./SearchCreatorCard";
+import { CreatorQuickView } from "./CreatorQuickView";
+import { ShortlistDrawer, type DrawerCreator } from "./ShortlistDrawer";
+import { CampaignDrawer } from "./CampaignDrawer";
 import { useCancelJob, useDiscoveryJob, useLiveResults } from "../../api/discovery";
 import { liveFoundText } from "../../api/discovery-mapping";
 
@@ -89,7 +81,9 @@ const CITIES = ["Karachi", "Lahore", "Islamabad", "Faisalabad", "Peshawar"];
 // The canonical niche list (platform.niches, migration 0054).
 const NICHES = ["Bridal", "Fashion", "Beauty", "Tech", "Food", "Travel", "Comedy", "Finance", "Wellness", "Lifestyle", "Education & How-to", "Gaming", "History", "Literature", "Agriculture", "Business & Ecommerce", "Automotive", "Religion", "Music", "News & Commentary", "Sports", "Entertainment", "Real Estate"];
 
-export function SearchModule({ liveJobId = null }: { liveJobId?: string | null } = {}) {
+const asDrawer = (c: Creator): DrawerCreator => ({ id: c.id, name: c.name, handle: c.handle, avatar: c.avatar, city: c.city === "Unknown" ? null : c.city });
+
+export function SearchModule({ liveJobId = null, onGoToCampaigns }: { liveJobId?: string | null; onGoToCampaigns?: () => void } = {}) {
   const toast = useToast();
   const [query, setQuery] = useState("");
   const [platform, setPlatform] = useState<Platform>("all");
@@ -107,6 +101,10 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [profileId, setProfileId] = useState<string | null>(null);
+  // "View Profile" opens the quick view first; "Full profile" there opens the complete panel.
+  const [quickId, setQuickId] = useState<string | null>(null);
+  const [shortlistFor, setShortlistFor] = useState<DrawerCreator[] | null>(null);
+  const [campaignFor, setCampaignFor] = useState<DrawerCreator[] | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [linkCreator, setLinkCreator] = useState<Creator | null>(null);
   const [mode, setMode] = useState<"fast" | "live">("fast");
@@ -172,6 +170,8 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
   const revealed = liveCards.length;
   const partialFail = 0;
   const activeProfile = filtered.find((c) => c.id === profileId) ?? liveCards.find((c) => c.id === profileId) ?? null;
+  const quickCreator = filtered.find((c) => c.id === quickId) ?? liveCards.find((c) => c.id === quickId) ?? null;
+  const selectedCreators = [...filtered, ...liveCards].filter((c, i, all) => selected.has(c.id) && all.findIndex((x) => x.id === c.id) === i);
   const interpreted = suggested
     ? Object.fromEntries(
         Object.entries({
@@ -313,12 +313,14 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
       {/* Header */}
       <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-[32px] font-semibold leading-10 tracking-[-0.025em] text-slate-900">
-            Search &amp; Discovery
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Multi-platform creator discovery — filter, verify, and shortlist in one place.
-          </p>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="text-2xl font-bold tracking-tight text-[#0F172A]">Search &amp; Discovery</h1>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-cyan-200/60 bg-cyan-50 px-2.5 py-0.5 text-[11px] font-semibold text-cyan-800">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#06B6D4]" />
+              Pakistani creators
+            </span>
+          </div>
+          <p className="mt-1 text-sm text-slate-500">Find creators on Instagram, TikTok and YouTube, check their numbers, and shortlist the right ones.</p>
         </div>
       </div>
 
@@ -333,26 +335,30 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
           onKeyDown={(e) => e.key === "Enter" && runSearch("fast")}
           placeholder="Find Pakistani creators — e.g. bridal Lahore 50k+ engagement 5%+…"
           aria-label="Search creators"
-          className="h-12 w-full rounded-2xl border border-slate-200/80 bg-white pl-11 pr-3 text-sm text-slate-900 transition-all placeholder:text-slate-400 focus:border-indigo-300 focus:outline-none focus:ring-4 focus:ring-indigo-100"
+          className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-10 text-sm font-medium text-slate-900 shadow-sm transition-all placeholder:text-slate-400 focus:border-[#06B6D4] focus:outline-none focus:ring-4 focus:ring-cyan-100"
         />
+        {query && (
+          <button type="button" onClick={() => setQuery("")} aria-label="Clear search text" className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-400/40">
+            <X className="h-3.5 w-3.5" />
+          </button>
+        )}
         </div>
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setDrawerOpen(true)}
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-700 transition-colors hover:bg-slate-50"
-            style={{ fontWeight: 500 }}
+            className="inline-flex h-11 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-800 shadow-sm transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:opacity-50"
           >
-            <SlidersHorizontal className="h-3.5 w-3.5" strokeWidth={1.75} />
+            <SlidersHorizontal className="h-4 w-4" strokeWidth={1.75} />
             Filters
+            {chips.length > 0 && <span className="rounded-full bg-[#0A0F24] px-1.5 text-[10px] font-bold text-white">{chips.length}</span>}
           </button>
           <button
             onClick={() => runSearch("fast")}
             disabled={searchCost === null}
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-slate-900 px-3 text-xs text-white transition-all hover:-translate-y-px hover:bg-slate-800 hover:shadow-md disabled:opacity-60"
-            style={{ fontWeight: 500 }}
+            className="inline-flex h-11 items-center gap-1.5 rounded-xl bg-[#0A0F24] px-4 text-xs font-semibold text-white shadow-sm transition-all hover:-translate-y-px hover:bg-slate-800 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-cyan-400/50 disabled:translate-y-0 disabled:opacity-50"
             title={searchCost === null ? "Loading the search price…" : `Search creators already in MUSHIN · ${searchCost} credits per search · further pages and repeats within 30 minutes are free`}
           >
-            <Zap className="h-3.5 w-3.5" strokeWidth={2} />
+            <Zap className="h-4 w-4 text-[#06B6D4]" strokeWidth={2} />
             Search Existing Creators
             {searchCost !== null && <span className="rounded bg-white/15 px-1.5 py-0.5 tabular-nums">{searchCost} cr</span>}
           </button>
@@ -360,11 +366,13 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
             onClick={() => setCreditConfirmOpen(true)}
             disabled={findNewLocked !== null}
             aria-describedby={findNewLocked ? "find-new-locked" : undefined}
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 px-3 text-xs text-amber-800 transition-all hover:-translate-y-px hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-none"
-            style={{ fontWeight: 500 }}
+            className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-800 shadow-sm transition-all hover:-translate-y-px hover:bg-slate-50 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-none"
             title={findNewLocked ?? (costs ? `Find New Creators · searches Google in real time · ${costs.find_new} credits when it delivers creators, plus ${costs.live_creator} per new creator, never more than the quote you confirm; nothing if it delivers none` : "Find New Creators · quoted before you confirm")}
           >
-            <Radio className="h-3.5 w-3.5" strokeWidth={2} />
+            <span className="relative flex h-2 w-2" aria-hidden>
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-[#06B6D4]" />
+            </span>
             Find New Creators
           </button>
         </div>
@@ -468,19 +476,22 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
 
       {/* Platform tabs + filter chips */}
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-0.5 rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm">
-          {(["all", "instagram", "tiktok", "youtube"] as const).map((p) => (
-            <button
-              key={p}
-              onClick={() => setPlatform(p)}
-              className={`rounded-md px-3 py-1.5 text-xs capitalize transition-colors ${
-                platform === p ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
-              }`}
-              style={{ fontWeight: 500 }}
-            >
-              {p === "all" ? "All platforms" : p}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Platform">
+          {(["all", "instagram", "tiktok", "youtube"] as const).map((p) => {
+            const Icon = p === "instagram" ? Instagram : p === "tiktok" ? Music2 : p === "youtube" ? Youtube : null;
+            const on = platform === p;
+            return (
+              <button
+                key={p}
+                onClick={() => setPlatform(p)}
+                aria-pressed={on}
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 ${on ? "bg-[#0A0F24] text-white" : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}
+              >
+                {Icon && <Icon aria-hidden className={`h-3.5 w-3.5 ${on ? "text-[#06B6D4]" : p === "instagram" ? "text-rose-500" : p === "youtube" ? "text-red-600" : "text-slate-900"}`} />}
+                {p === "all" ? "All Platforms" : { instagram: "Instagram", tiktok: "TikTok", youtube: "YouTube" }[p]}
+              </button>
+            );
+          })}
         </div>
 
         {chips.length > 0 && <span className="h-4 w-px bg-slate-200" />}
@@ -488,8 +499,8 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
           <button
             key={c.label}
             onClick={c.onRemove}
-            className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs text-indigo-700 transition-colors hover:bg-indigo-100"
-            style={{ fontWeight: 500 }}
+            aria-label={`Remove filter ${c.label}`}
+            className="inline-flex items-center gap-1.5 rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-medium capitalize text-cyan-800 transition-colors animate-in fade-in zoom-in-95 duration-200 hover:bg-cyan-100 focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
           >
             {c.label}
             <X className="h-3 w-3" strokeWidth={2} />
@@ -498,8 +509,7 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
         {chips.length > 1 && (
           <button
             onClick={clearAll}
-            className="text-xs text-slate-500 hover:text-slate-800"
-            style={{ fontWeight: 500 }}
+            className="rounded-full text-xs font-medium text-slate-500 underline underline-offset-2 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
           >
             Clear all
           </button>
@@ -544,10 +554,10 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
-            <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
               <div className="flex items-center justify-between text-xs text-slate-500">
                 <span className="inline-flex items-center gap-2 text-slate-700">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-600" strokeWidth={2} />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-[#06B6D4]" strokeWidth={2} />
                   {mode === "live" ? "Find New Creators · querying platforms in real time" : "Searching existing creator profiles…"}
                 </span>
                 <span>Searching your catalog</span>
@@ -556,7 +566,7 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
                 <motion.div
                   animate={{ x: ["-100%", "300%"] }}
                   transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-                  className="h-full w-1/3 rounded-full bg-gradient-to-r from-indigo-500 to-emerald-500"
+                  className="h-full w-1/3 rounded-full bg-gradient-to-r from-[#06B6D4] to-teal-600"
                 />
               </div>
             </div>
@@ -564,40 +574,30 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
         )}
       </AnimatePresence>
 
-      {/* Bulk action bar */}
+      {/* Floating selection tray: slides up from the bottom while creators are selected */}
       <AnimatePresence>
         {selected.size > 0 && (
           <motion.div
-            initial={{ opacity: 0, y: -8 }}
+            initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            className="flex items-center justify-between rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm"
+            exit={{ opacity: 0, y: 24 }}
+            transition={{ duration: 0.22, ease: "easeOut" }}
+            role="region"
+            aria-label="Selected creators"
+            className="fixed bottom-6 left-1/2 z-40 flex max-w-[calc(100vw-2rem)] -translate-x-1/2 flex-wrap items-center gap-3 rounded-2xl border border-slate-800 bg-[#0A0F24] px-4 py-2.5 text-white shadow-2xl"
           >
-            <span className="text-indigo-800">
-              <span style={{ fontWeight: 600 }}>{selected.size}</span> selected
-            </span>
-            <div className="flex items-center gap-1.5">
-              <BulkAction
-                icon={GitCompare}
-                label="Compare"
-                disabled={selected.size < 2}
-                onClick={() => {
-                  if (selected.size < 2) {
-                    toast.warning("Select at least 2 creators to compare.");
-                    return;
-                  }
-                  setCompareOpen(true);
-                }}
-              />
-              <SaveToListMenu creatorIds={[...selected]} label={`Save ${selected.size} to a list`} />
-              <AddToCampaignMenu creatorIds={[...selected]} label={`Add ${selected.size} to a campaign`} />
-              <button
-                onClick={() => setSelected(new Set())}
-                className="rounded-md px-2 py-1 text-xs text-indigo-700 transition-colors hover:bg-indigo-100"
-              >
-                Clear
-              </button>
+            <div className="flex items-center gap-2 border-r border-slate-700/60 pr-3">
+              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#06B6D4] px-1 text-[11px] font-bold text-[#0A0F24]">{selected.size}</span>
+              <span className="text-xs font-semibold">selected</span>
             </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <TrayButton icon={GitCompare} label="Compare" disabled={selected.size < 2} title={selected.size < 2 ? "Select at least 2 creators to compare" : undefined} onClick={() => setCompareOpen(true)} />
+              <TrayButton icon={Bookmark} label="Add to List" onClick={() => setShortlistFor(selectedCreators.map(asDrawer))} />
+              <TrayButton icon={Plus} label="Add to Campaign" onClick={() => setCampaignFor(selectedCreators.map(asDrawer))} />
+            </div>
+            <button onClick={() => setSelected(new Set())} title="Clear selection" aria-label="Clear selection" className="rounded-full p-1 text-slate-400 transition-colors hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-cyan-400/50">
+              <X className="h-4 w-4" />
+            </button>
           </motion.div>
         )}
       </AnimatePresence>
@@ -611,23 +611,26 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
-            <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50/60 px-3.5 py-2.5 text-xs">
-              <span className="inline-flex items-center gap-2 text-amber-800">
-                <Radio className="h-3.5 w-3.5 animate-pulse" strokeWidth={2} />
-                Find New Creators — querying platforms in real time
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
+              <span className="inline-flex items-center gap-2.5 text-xs font-semibold text-slate-900">
+                <span className="relative flex h-2.5 w-2.5" aria-hidden>
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-75" />
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#06B6D4]" />
+                </span>
+                Find New Creators is searching the platforms live
+                <span className="rounded-full border border-cyan-200/60 bg-cyan-50 px-2 py-0.5 text-[10px] font-semibold text-cyan-700">Running</span>
               </span>
-              <span className="inline-flex items-center gap-3">
-                <span className="tabular-nums text-amber-700" style={{ fontWeight: 600 }}>
+              <span className="inline-flex items-center gap-3 text-xs">
+                <span className="tabular-nums text-slate-700" style={{ fontWeight: 600 }}>
                   {revealed} found
                 </span>
                 {/* JOB-003: stops at the next safe point; creators already found are kept and charged as quoted. */}
                 <button
                   onClick={() => liveJob && cancelLive.mutate(liveJob, { onError: (err) => toast.error("Couldn't stop this search", err instanceof Error ? err.message : undefined) })}
                   disabled={stopping || cancelLive.isPending}
-                  className="rounded-md border border-amber-300 bg-white px-2 py-0.5 text-amber-800 hover:bg-amber-100 disabled:opacity-60"
-                  style={{ fontWeight: 600 }}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-1 font-medium text-slate-600 shadow-sm transition-colors hover:border-rose-200 hover:text-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-300/50 disabled:opacity-50"
                 >
-                  {stopping ? "Stopping…" : "Stop"}
+                  {stopping ? "Stopping…" : "Stop search"}
                 </button>
               </span>
             </div>
@@ -659,7 +662,7 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
               </p>
             </div>
           )}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {liveCards.map((c, i) => (
               <div key={c.id} className="space-y-1">
                 <span
@@ -668,7 +671,7 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
                 >
                   {c.discovery.isNew ? "New" : "Already in MUSHIN"}
                 </span>
-                <CreatorCard creator={c} index={i} query={query} selected={selected.has(c.id)} onSelect={() => toggleSelect(c.id)} onOpen={() => setProfileId(c.id)} />
+                <SearchCreatorCard creator={c} index={i} selected={selected.has(c.id)} onSelect={() => toggleSelect(c.id)} onOpen={() => setQuickId(c.id)} onShortlist={() => setShortlistFor([asDrawer(c)])} />
                 {c.discovery.campaignFit && <p className="px-1 text-[11px] text-indigo-700">Fit based on {c.discovery.campaignFit.sampleSize} recent posts · {Math.round(c.discovery.campaignFit.confidence * 100)}% evidence confidence</p>}
                 {c.discovery.campaignFit && c.discovery.campaignFit.evidence.length > 0 && (
                   <details className="px-1 text-[11px] text-slate-600">
@@ -736,20 +739,21 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
                 <div className="relative">
                   <button
                     onClick={() => setSortOpen((v) => !v)}
-                    className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-slate-700 transition-colors hover:bg-slate-50"
-                    style={{ fontWeight: 500 }}
+                    aria-expanded={sortOpen}
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200/80 bg-white px-3.5 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition-all hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
                   >
-                    Sort: {SORT_LABELS[sortKey]} <ChevronDown className="h-3 w-3" />
+                    <span className="text-slate-500">Sort by:</span> <span className="font-semibold text-slate-900">{SORT_LABELS[sortKey]}</span> <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transition-transform ${sortOpen ? "rotate-180" : ""}`} />
                   </button>
                   <AnimatePresence>
                     {sortOpen && (
                       <>
                         <div className="fixed inset-0 z-10" onClick={() => setSortOpen(false)} />
                         <motion.div
-                          initial={{ opacity: 0, y: -4 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -4 }}
-                          className="absolute right-0 top-full z-20 mt-1 w-56 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
+                          initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                          transition={{ duration: 0.15, ease: "easeOut" }}
+                          className="absolute right-0 top-full z-30 mt-1.5 w-56 overflow-hidden rounded-xl border border-slate-200/80 bg-white p-1.5 shadow-xl"
                         >
                           {(Object.keys(SORT_LABELS) as SortKey[]).map((k) => (
                             <button
@@ -758,13 +762,10 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
                                 setSortKey(k);
                                 setSortOpen(false);
                               }}
-                              className={`flex w-full items-center justify-between px-3 py-1.5 text-left text-xs transition-colors hover:bg-slate-50 ${
-                                sortKey === k ? "text-indigo-700" : "text-slate-700"
-                              }`}
-                              style={{ fontWeight: 500 }}
+                              className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs transition-colors hover:bg-slate-50 focus:bg-slate-50 focus:outline-none ${sortKey === k ? "bg-slate-50 font-semibold text-slate-900" : "text-slate-600"}`}
                             >
                               {SORT_LABELS[k]}
-                              {sortKey === k && <Check className="h-3 w-3" strokeWidth={2.5} />}
+                              {sortKey === k && <Check className="h-3.5 w-3.5 text-[#06B6D4]" strokeWidth={2.5} />}
                             </button>
                           ))}
                         </motion.div>
@@ -788,16 +789,16 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
             )}
 
             {view === "grid" ? (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {visible.map((c, i) => (
-                  <CreatorCard
+                  <SearchCreatorCard
                     key={c.id}
                     creator={c}
                     index={i}
-                    query={query}
                     selected={selected.has(c.id)}
                     onSelect={() => toggleSelect(c.id)}
-                    onOpen={() => setProfileId(c.id)}
+                    onOpen={() => setQuickId(c.id)}
+                    onShortlist={() => setShortlistFor([asDrawer(c)])}
                   />
                 ))}
               </div>
@@ -806,31 +807,29 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
                 creators={visible}
                 selected={selected}
                 onSelect={toggleSelect}
-                onOpen={(id) => setProfileId(id)}
+                onOpen={(id) => setQuickId(id)}
               />
             )}
 
             {search.data && pageCount(search.data.total, search.data.pageSize) > 1 && (
-              <div className="flex items-center justify-center gap-2 pt-2 text-xs text-slate-600">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200/80 pt-4 text-xs text-slate-600">
+                <span>Page <strong className="font-semibold text-slate-900">{search.data.page}</strong> of <strong className="font-semibold text-slate-900">{pageCount(search.data.total, search.data.pageSize)}</strong> · <strong className="font-semibold text-slate-900">{search.data.total}</strong> creators</span>
+                <span className="flex items-center gap-2">
                 <button
                   onClick={() => goToPage(search.data.prevCursor)}
                   disabled={search.data.prevCursor === null}
-                  className="rounded-md border border-slate-200 bg-white px-2.5 py-1 hover:bg-slate-50 disabled:opacity-40"
-                  style={{ fontWeight: 500 }}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 font-medium transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:opacity-50"
                 >
                   Previous
                 </button>
-                <span>
-                  Page {search.data.page} of {pageCount(search.data.total, search.data.pageSize)}
-                </span>
                 <button
                   onClick={() => goToPage(search.data.nextCursor)}
                   disabled={search.data.nextCursor === null}
-                  className="rounded-md border border-slate-200 bg-white px-2.5 py-1 hover:bg-slate-50 disabled:opacity-40"
-                  style={{ fontWeight: 500 }}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 font-medium transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:opacity-50"
                 >
                   Next
                 </button>
+                </span>
               </div>
             )}
           </div>
@@ -854,6 +853,19 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
       />
 
       <AddByLinkDialog open={addOpen} onClose={() => setAddOpen(false)} onOpenCreator={setLinkCreator} />
+
+      <CreatorQuickView
+        creator={quickCreator}
+        onClose={() => setQuickId(null)}
+        onShortlist={(c) => setShortlistFor([asDrawer(c)])}
+        onCampaign={(c) => setCampaignFor([asDrawer(c)])}
+        onFullProfile={(c) => {
+          setQuickId(null);
+          setProfileId(c.id);
+        }}
+      />
+      <ShortlistDrawer open={shortlistFor !== null} creators={shortlistFor ?? []} onClose={() => setShortlistFor(null)} />
+      <CampaignDrawer open={campaignFor !== null} creators={campaignFor ?? []} onClose={() => setCampaignFor(null)} onGoToCampaigns={onGoToCampaigns} />
 
       {/* Creator profile panel (Vol 4B) */}
       <CreatorProfilePanel
@@ -918,144 +930,6 @@ function scoreBg(score: number) {
   if (score >= 75) return "bg-indigo-100 text-indigo-700";
   if (score >= 60) return "bg-amber-100 text-amber-800";
   return "bg-red-100 text-red-700";
-}
-
-function CreatorCard({
-  creator,
-  index,
-  query,
-  selected,
-  onSelect,
-  onOpen,
-}: {
-  creator: Creator;
-  index: number;
-  query?: string;
-  selected: boolean;
-  onSelect: () => void;
-  onOpen: () => void;
-}) {
-  const contact = creator.contactAvailability ?? (creator.hasContact ? "email_unverified" : "none");
-  const contactText = CONTACT_AVAILABILITY_TEXT[contact];
-  const ContactIcon = contact === "email_invalid" ? Ban : contact === "phone_unverified" ? Phone : contact === "none" ? Clock : Mail;
-  // MUSHIN design (2026-10-27): photo on top with the platform and the fit score, then the figures, the honesty
-  // markers (fit sentence, matched fields, freshness, contact) and the actions. Every value is the creator's record.
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay: index * 0.03 }}
-      className={`group relative flex flex-col overflow-hidden rounded-2xl border bg-white transition-shadow hover:shadow-[0_12px_32px_-16px_rgba(15,23,42,0.25)] ${
-        selected ? "border-indigo-500 ring-2 ring-indigo-500/20" : "border-slate-200/80"
-      }`}
-    >
-      <button
-        type="button"
-        role="checkbox"
-        aria-checked={selected}
-        onClick={onSelect}
-        aria-label={`Select ${creator.name}`}
-        className={`absolute left-3 top-3 z-10 flex h-6 w-6 items-center justify-center rounded-md border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
-          selected ? "border-slate-900 bg-slate-900 text-white" : "border-white/80 bg-white/90 text-transparent hover:border-slate-300"
-        }`}
-      >
-        <Check aria-hidden className="h-3.5 w-3.5" strokeWidth={3} />
-      </button>
-
-      <button onClick={onOpen} className="block w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500">
-        <div className="relative aspect-[5/4] w-full overflow-hidden bg-slate-100">
-          {creator.avatar.startsWith("data:") ? (
-            // No saved photo yet: the initials stay avatar-sized instead of filling the photo area.
-            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-100 to-indigo-50">
-              <img src={creator.avatar} alt="" className="h-20 w-20 rounded-full ring-4 ring-white" />
-            </div>
-          ) : (
-            <img src={creator.avatar} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]" />
-          )}
-          <span className={`absolute right-3 top-3 inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px] font-semibold ${scoreBg(creator.score)}`}>
-            <Star aria-hidden className="h-3 w-3 fill-current" />
-            Fit {creator.score}
-          </span>
-          <span className="absolute bottom-3 right-3 inline-flex items-center gap-1.5 rounded-full bg-slate-950/75 py-0.5 pl-0.5 pr-2.5 text-[11px] font-semibold text-white backdrop-blur-sm">
-            <PlatformIcon platform={creator.platform} />
-            {{"instagram":"Instagram","tiktok":"TikTok","youtube":"YouTube"}[creator.platform]}
-          </span>
-        </div>
-        <div className="px-4 pt-4">
-          <div className="flex items-center gap-1">
-            <div className="truncate text-[15px] font-semibold tracking-[-0.01em] text-slate-900">{creator.name}</div>
-            {creator.verified && (
-              <svg viewBox="0 0 24 24" aria-label="Verified" className="h-3.5 w-3.5 flex-shrink-0 fill-indigo-600">
-                <path d="M12 2l2.4 2.1 3.2-.4.8 3.1 2.6 1.9-1.5 2.8L21 15l-3 1-.4 3.2-3.2.3L12 22l-2.4-2.1-3.2.3L6 17l-3-1 .5-3.2L1.9 10 3.5 7.2 3 4.7l3.2-.4L9.6 2 12 4z" />
-              </svg>
-            )}
-          </div>
-          <div className="truncate text-xs text-slate-500">@{creator.handle}</div>
-          <div className="mt-1.5 flex items-center gap-1 truncate text-xs text-slate-600">
-            <MapPin aria-hidden className="h-3 w-3 flex-shrink-0 text-slate-400" strokeWidth={2} />
-            <span className="truncate">{creator.city} · {creator.niche}</span>
-          </div>
-          <dl className="mt-3 grid grid-cols-3 divide-x divide-slate-200/80 rounded-xl border border-slate-200/80">
-            <Metric label="Followers" value={creator.followers} />
-            <Metric label="Eng. rate" value={creator.engagement === null ? "—" : `${creator.engagement.toFixed(1)}%`} accent />
-            <Metric label="Auth." value={creator.authenticity === null ? "—" : String(creator.authenticity)} />
-          </dl>
-        </div>
-      </button>
-
-      <div className="flex flex-1 flex-col px-4 pb-4">
-        {/* Fit sentence + honesty markers (§7.4) */}
-        <p className="mt-3 text-xs leading-[18px] text-slate-600">{creator.fitLabel}</p>
-        {matchSummary(creator.matchedOn) && (
-          <p className="mt-1 text-xs leading-[18px] text-slate-500" data-testid="match-reasons">
-            <span className="font-medium text-slate-700">Matched: </span>
-            {matchSummary(creator.matchedOn)}
-          </p>
-        )}
-        <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          {creator.tags.slice(0, 2).map((t) => (
-            <span key={t} className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600">
-              {t}
-            </span>
-          ))}
-          <FreshnessBadge value={creator.followersFreshness} />
-          <span
-            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${
-              contact === "email_invalid"
-                ? "border-rose-100 bg-rose-50 text-rose-700"
-                : contact === "none"
-                  ? "border-slate-200 bg-slate-50 text-slate-600"
-                  : "border-sky-100 bg-sky-50 text-sky-800"
-            }`}
-            title={contactText.title}
-          >
-            <ContactIcon aria-hidden className="h-3 w-3" strokeWidth={2} />
-            {contactText.label}
-          </span>
-        </div>
-
-        <div className="mt-auto flex items-center gap-2 pt-4">
-          <button
-            onClick={onOpen}
-            className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-slate-900 px-3 text-[13px] font-medium text-white transition-colors hover:bg-slate-800"
-          >
-            View profile
-            <ArrowRight aria-hidden className="h-3.5 w-3.5" />
-          </button>
-          <SaveToListMenu creatorIds={[creator.id]} variant="icon" />
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
-function Metric({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
-  return (
-    <div className="px-2.5 py-2">
-      <dt className="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-500">{label}</dt>
-      <dd className={`mt-0.5 text-sm font-semibold tabular-nums ${accent ? "text-indigo-700" : "text-slate-900"}`}>{value}</dd>
-    </div>
-  );
 }
 
 /* ─────────────────────── table view ─────────────────────── */
@@ -1151,7 +1025,7 @@ function ResultsSkeleton({ view }: { view: ViewMode }) {
     );
   }
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {Array.from({ length: 8 }).map((_, i) => (
         <div key={i} className="animate-pulse rounded-2xl border border-slate-200/80 bg-white p-4">
           <div className="flex gap-3">
@@ -1175,7 +1049,7 @@ function ResultsSkeleton({ view }: { view: ViewMode }) {
 
 function EmptyResults({ onReset, onAddByLink, onFindNew }: { onReset: () => void; onAddByLink: () => void; onFindNew: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/40 px-6 py-16 text-center">
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-16 text-center animate-in fade-in duration-300">
       <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-slate-500 shadow-sm ring-1 ring-slate-200">
         <Info className="h-5 w-5" strokeWidth={1.75} />
       </div>
@@ -1186,13 +1060,13 @@ function EmptyResults({ onReset, onAddByLink, onFindNew }: { onReset: () => void
         No eligible Pakistani creators match these filters yet, so this search cost nothing. Widen the filters, add a creator you know by their profile link, or find new creators live where your plan allows it.
       </p>
       <div className="mt-4 flex gap-2">
-        <button onClick={onFindNew} className="rounded-md bg-slate-900 px-3 py-1.5 text-xs text-white hover:bg-slate-800" style={{ fontWeight: 500 }}>
+        <button onClick={onFindNew} className="rounded-xl bg-[#0A0F24] px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-400/50">
           Find new creators
         </button>
-        <button onClick={onReset} className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50" style={{ fontWeight: 500 }}>
+        <button onClick={onReset} className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-cyan-400/40">
           Reset filters
         </button>
-        <button onClick={onAddByLink} className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50" style={{ fontWeight: 500 }}>
+        <button onClick={onAddByLink} className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-cyan-400/40">
           Add by profile link
         </button>
       </div>
@@ -1202,7 +1076,7 @@ function EmptyResults({ onReset, onAddByLink, onFindNew }: { onReset: () => void
 
 function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-red-200 bg-red-50 px-6 py-16 text-center">
+    <div role="alert" className="flex flex-col items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 px-6 py-16 text-center animate-in fade-in duration-300">
       <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-red-600 shadow-sm ring-1 ring-red-200">
         <AlertTriangle className="h-5 w-5" strokeWidth={1.75} />
       </div>
@@ -1212,7 +1086,7 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
       <p className="mt-1 max-w-md text-sm text-slate-600">
         {message} Searching existing creators never uses credits.
       </p>
-      <button onClick={onRetry} className="mt-4 rounded-md bg-slate-900 px-3 py-1.5 text-xs text-white hover:bg-slate-800" style={{ fontWeight: 500 }}>
+      <button onClick={onRetry} className="mt-4 rounded-xl bg-[#0A0F24] px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-400/50">
         Retry search
       </button>
     </div>
@@ -1221,7 +1095,7 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
 
 /* ─────────────────────── bulk action button ─────────────────────── */
 
-function BulkAction({
+function TrayButton({
   icon: Icon,
   label,
   onClick,
@@ -1239,10 +1113,9 @@ function BulkAction({
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className="inline-flex items-center gap-1 rounded-md bg-white px-2.5 py-1 text-xs text-indigo-700 shadow-sm transition-colors hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-40"
-      style={{ fontWeight: 500 }}
+      className="inline-flex items-center gap-1.5 rounded-xl bg-slate-800 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-400/50 disabled:cursor-not-allowed disabled:opacity-50"
     >
-      <Icon className="h-3 w-3" strokeWidth={2} />
+      <Icon className="h-4 w-4 text-[#06B6D4]" strokeWidth={2} />
       {label}
     </button>
   );

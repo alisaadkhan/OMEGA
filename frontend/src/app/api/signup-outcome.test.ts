@@ -1,23 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { checkEmailText, normalizeEmail, signupOutcome } from "./signup-outcome";
+import { ALREADY_REGISTERED, checkEmailText, normalizeEmail, signupOutcome } from "./signup-outcome";
 
 describe("sign-up outcomes (duplicate-email bug)", () => {
   it("normalizes the address the way Supabase Auth compares it, without provider-specific rewriting", () => {
     expect(normalizeEmail("  Ayesha.Malik+brand@Gmail.COM ")).toBe("ayesha.malik+brand@gmail.com");
   });
 
-  it("answers a new and an already-registered address identically (no account enumeration)", () => {
+  it("tells the person when the address is already registered (owner decision 2026-11-02)", () => {
     const fresh = signupOutcome("a@b.pk", { session: null, user: { identities: [{ id: "x" }] } }, null);
     const existingHidden = signupOutcome("a@b.pk", { session: null, user: { identities: [] } }, null);
     const existingError = signupOutcome("a@b.pk", null, { code: "user_already_exists", status: 422, message: "User already registered" });
     expect(fresh).toEqual({ kind: "check_email", email: "a@b.pk" });
-    expect(existingHidden).toEqual(fresh);
-    expect(existingError).toEqual(fresh);
-    expect(checkEmailText("a@b.pk")).toMatch(/sign in, or reset your password/);
+    expect(existingHidden).toEqual({ kind: "exists", message: ALREADY_REGISTERED });
+    expect(existingError).toEqual({ kind: "exists", message: ALREADY_REGISTERED });
+    expect(checkEmailText("a@b.pk")).toMatch(/verify your email/);
   });
 
-  it("signs in only when a session came back", () => {
-    expect(signupOutcome("a@b.pk", { session: {}, user: { identities: [{}] } }, null)).toEqual({ kind: "signed_in" });
+  it("signs in only with a session for a confirmed email; an unverified account never reaches the dashboard", () => {
+    expect(signupOutcome("a@b.pk", { session: {}, user: { identities: [{}], email_confirmed_at: "2026-11-02T00:00:00Z" } }, null)).toEqual({ kind: "signed_in" });
+    expect(signupOutcome("a@b.pk", { session: {}, user: { identities: [{}], email_confirmed_at: null } }, null)).toEqual({ kind: "check_email", email: "a@b.pk" });
   });
 
   it("never claims success or failure when the service could not be reached", () => {

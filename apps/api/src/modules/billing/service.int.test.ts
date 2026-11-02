@@ -3,6 +3,7 @@ import { createLogger, type TenantContext } from "@mushin/core";
 import { createTestDatabase, createTestWorkspace, ownerQuery, resetTables } from "@mushin/db/testing";
 import { MockPayments } from "@mushin/integrations";
 import { MemoryAccessCache } from "./access-cache";
+import { createActivityService } from "../activity/index";
 import { createBillingService } from "./service";
 
 const db = createTestDatabase();
@@ -457,6 +458,35 @@ describe("complimentary plans (owner grant, scripts/grant-comp-plan.ts)", () => 
     await billing.runJob("comp_period_end");
     expect((await sub(c.workspaceId))?.status).toBe("canceled");
     expect((await monthlyLots(c.workspaceId)).every((l) => l.remaining === 0)).toBe(true);
+  });
+
+  // Owner instruction 2026-11-02: complimentary access is an entitlement, not a payment.
+  it("COMP-01 creates no payment, invoice or checkout and calls no provider; reads as complimentary and is announced once", async () => {
+    const c = await trialCustomer();
+    const r = await billing.grantComplimentaryPlan({ workspaceId: c.workspaceId, planId: "scale", months: 12 });
+    const count = async (t: string) => (await ownerQuery<{ n: number }>(`select count(*)::int n from wp.${t} where workspace_id = '${c.workspaceId}'`))[0]?.n;
+    expect({ payments: await count("payments"), checkouts: await count("checkouts"), adjustments: await count("payment_adjustments") }).toEqual({ payments: 0, checkouts: 0, adjustments: 0 });
+    expect((await billing.invoices(c)).invoices).toEqual([]);
+    expect(sent).toEqual([]);
+    const s = await billing.summary(c);
+    expect(s).toMatchObject({ plan: { id: "scale" }, interval: null, complimentary: true, status: "active" });
+    // Credits come as a grant marked complimentary, never as a purchase.
+    const kinds = await ownerQuery<{ kind: string; note: string | null }>(`select kind, note from wp.credit_ledger where workspace_id = '${c.workspaceId}' and source_ref like 'monthly:comp:%'`);
+    expect(kinds).toEqual([{ kind: "grant", note: "Scale monthly credits (complimentary)" }]);
+    const feed = await createActivityService({ db }).feed(c, { limit: 20 });
+    const gift = feed.events.filter((e) => e.kind === "complimentary_plan");
+    expect(gift).toHaveLength(1);
+    expect(gift[0]?.text).toBe(`Congratulations! You've received complimentary Scale access until ${new Date(r.periodEnd).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Karachi" })}. Enjoy your Scale benefits!`);
+    expect(gift[0]?.actor).toBeNull();
+  });
+
+  it("COMP-02 a genuine paid plan still shows its interval, is not complimentary, and records its payment", async () => {
+    const c = await trialCustomer();
+    await subscribe(c, "growth");
+    const s = await billing.summary(c);
+    expect(s).toMatchObject({ plan: { id: "growth" }, complimentary: false });
+    expect(s.interval).not.toBeNull();
+    expect((await ownerQuery<{ n: number }>(`select count(*)::int n from wp.payments where workspace_id = '${c.workspaceId}'`))[0]?.n).toBeGreaterThan(0);
   });
 
   it("refuses a workspace that already pays through the provider, and an invalid period", async () => {

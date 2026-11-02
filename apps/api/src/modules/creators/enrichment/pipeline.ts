@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+import { contentPerformance } from "../eligibility-v3";
 import { sha256Hex, type Logger } from "@mushin/core";
 import type { DiscoveryJobStep } from "@mushin/contracts";
 import type { Db, TenantTx } from "@mushin/db";
@@ -98,10 +100,10 @@ export function createEnrichmentPipeline(deps: Deps) {
    * Evidence-based attributes; when the rules cannot read the niche clearly, a semantic reading replaces theirs. YouTube
    * text is never sent for it while the YouTube policy gate is off.
    */
-  async function deriveWithSemantics(p: StandardProfile, a: Assessment | null, ctx: { jobId?: string; workspaceId?: string }) {
+  async function deriveWithSemantics(p: StandardProfile, a: Assessment | null, ctx: { jobId?: string; workspaceId?: string }, o: { rulesOnly?: boolean } = {}) {
     const permitted = p.platform !== "youtube" || youtube.contentEvidence;
     const d = deriveAttributes(p, a, { usePostText: permitted });
-    if (!deps.semanticNiche || d.niche.clear || !permitted) return d;
+    if (!deps.semanticNiche || d.niche.clear || !permitted || o.rulesOnly) return d;
     const sem = await semanticNiche({ llm: deps.llm, input: d.niche.semanticInput, rulesMain: d.niche.main, ctx });
     return sem ? withSemanticNiche(d, sem) : d;
   }
@@ -154,8 +156,12 @@ export function createEnrichmentPipeline(deps: Deps) {
     return standardized.kind === "ok" ? { profile: standardized.profile, fetchedAt: ref.fetchedAt } : null;
   }
 
-  /** Steps after fetching (spec 4A §5.1 steps 3–5) for one profile whose response is already archived. */
-  async function processProfile(job: EnrichJob, payloadId: string, raw: unknown, hooks: ProcessHooks): Promise<EnrichResult> {
+  /**
+   * Steps after fetching (spec 4A §5.1 steps 3–5) for one profile whose response is already archived. `system`: a
+   * scheduled source refresh (YouTube retention) with no workspace: the stored data and the rule-based attributes are
+   * renewed, no AI call is made and no new assessment is requested (the current one is kept).
+   */
+  async function processProfile(job: EnrichJob, payloadId: string, raw: unknown, hooks: ProcessHooks, o: { system?: boolean } = {}): Promise<EnrichResult> {
     const settings = await deps.db.withSystem((tx) => repo.getEnrichmentSettings(tx));
     // Erased creators stay out, whichever path reaches here (sub-project 4B D9).
     if ((await deps.db.withSystem((tx) => suppressedUrls(tx, [job.canonicalUrl]))).size > 0) {
@@ -176,11 +182,10 @@ export function createEnrichmentPipeline(deps: Deps) {
     const known = await deps.db.withSystem((tx) => repo.findProfileByUrl(tx, job.canonicalUrl));
     const previous = known ? await deps.db.withSystem((tx) => repo.latestMetrics(tx, known.profileId)) : null;
     const report = measureSignals(p, previous, { benchmarks: settings.engagementBenchmarks, minPostsForScore: settings.minPostsForScore, growthMinDays: settings.growthMinDays, scoreBand: settings.scoreBand }, now());
-    const assessment = await assess(p, report, { jobId: job.jobId, workspaceId: job.workspaceId });
-    const attributes = evidencePolicy ? await deriveWithSemantics(p, assessment?.value ?? null, { jobId: job.jobId, workspaceId: job.workspaceId }) : undefined;
+    const assessment = o.system ? null : await assess(p, report, { jobId: job.jobId, workspaceId: job.workspaceId });
+    const attributes = evidencePolicy ? await deriveWithSemantics(p, assessment?.value ?? null, { jobId: job.jobId, workspaceId: job.workspaceId }, { rulesOnly: o.system === true }) : undefined;
     await hooks.onStep?.("saving");
-    const out = await deps.db.withWorkspace(job.workspaceId, async (tx) => {
-      const saved = await repo.saveEnrichment(tx, {
+    const input = (): repo.SaveInput => ({
         profile: p,
         canonicalUrl: job.canonicalUrl,
         payloadId,
@@ -196,11 +201,20 @@ export function createEnrichmentPipeline(deps: Deps) {
         encryptionKey: deps.encryptionKey,
         requestId: job.requestId,
         ...(attributes ? { attributes } : {}),
+        ...(o.system ? { keepAssessment: true } : {}),
+        performance: contentPerformance(p),
       });
-      const result: SavedResult = { kind: "saved", creatorId: saved.creatorId, outcome: saved.created ? "created" : "refreshed", assessment: saved.assessment, profile: p };
-      await hooks.onSaved(tx, result);
-      return result;
-    });
+    const out: SavedResult = o.system
+      ? await deps.db.withSystem(async (tx) => {
+          const saved = await repo.saveEnrichment(tx, input());
+          return { kind: "saved", creatorId: saved.creatorId, outcome: saved.created ? "created" : "refreshed", assessment: saved.assessment, profile: p };
+        })
+      : await deps.db.withWorkspace(job.workspaceId, async (tx) => {
+          const saved = await repo.saveEnrichment(tx, input());
+          const result: SavedResult = { kind: "saved", creatorId: saved.creatorId, outcome: saved.created ? "created" : "refreshed", assessment: saved.assessment, profile: p };
+          await hooks.onSaved(tx, result);
+          return result;
+        });
     await deps.db.withSystem((tx) => recordAvailability(tx, { canonicalUrl: job.canonicalUrl, observed: "found", source: "enrichment", reason: "The provider returned the profile", now: now() }));
     return out;
   }
@@ -218,6 +232,17 @@ export function createEnrichmentPipeline(deps: Deps) {
     const scraped = await deps.scraper.fetchProfile({ platform: job.platform, handle: job.handle, ctx: { workspaceId: job.workspaceId, jobId: job.jobId, requestId: job.requestId } });
     await hooks.onStep("archiving");
     return processProfile(job, await archive(job, scraped.provider, scraped.raw), scraped.raw, hooks);
+  }
+
+  /**
+   * Scheduled refresh of a profile MUSHIN already stores (YouTube retention, 20-day target): fetches it again through the
+   * same provider path, archives the answer (deleted after 30 days for YouTube) and saves it as a system refresh. The
+   * stored fetch time moves only when the save succeeds; a failed fetch throws and leaves the deadline where it was.
+   */
+  async function refreshKnown(target: { platform: CreatorPlatform; handle: string; canonicalUrl: string }): Promise<EnrichResult> {
+    const job: EnrichJob = { jobId: randomUUID(), workspaceId: "", platform: target.platform, handle: target.handle, canonicalUrl: target.canonicalUrl, requestId: null };
+    const scraped = await deps.scraper.fetchProfile({ platform: job.platform, handle: job.handle, ctx: { workspaceId: null, jobId: job.jobId, requestId: null } });
+    return processProfile(job, await archive(job, scraped.provider, scraped.raw), scraped.raw, { onSaved: async () => {} }, { system: true });
   }
 
   /** Re-runs signals and the AI from the archived response (after an AI failure). Throws so the queue retries. */
@@ -257,7 +282,7 @@ export function createEnrichmentPipeline(deps: Deps) {
     await storage.ensureBucket(AVATAR_BUCKET, { public: true });
   }
 
-  return { enrich, archive, archived, profileForUrl, processProfile, reassess, purgeExpiredPayloads, ensureBuckets, storage };
+  return { enrich, archive, archived, profileForUrl, processProfile, refreshKnown, reassess, purgeExpiredPayloads, ensureBuckets, storage };
 }
 
 export type EnrichmentPipeline = ReturnType<typeof createEnrichmentPipeline>;

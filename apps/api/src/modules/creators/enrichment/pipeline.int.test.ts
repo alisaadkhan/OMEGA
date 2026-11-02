@@ -323,3 +323,25 @@ describe("semantic niche reading in the pipeline (2026-10-26)", () => {
     expect(out.kind).toBe("saved");
   });
 });
+
+// Owner decision 2026-11-02 (elig-3): typical content performance is stored at every fetch; never for YouTube while
+// YouTube-derived metrics are not permitted.
+describe("content performance (0066)", () => {
+  const perf = (url: string) =>
+    ownerQuery<{ median_views: number | null; median_engagement_rate: number | null; performance_views_sample: number | null; performance_at: string | null }>(
+      `select median_views, median_engagement_rate, performance_views_sample, performance_at from gcp.creator_profiles where canonical_url = '${url}'`,
+    );
+  it("PERF-01 an Instagram fetch stores median views and engagement with the sample size; a YouTube fetch stores none", async () => {
+    const { pipeline } = setup();
+    const ig = await job("instagram");
+    expect((await pipeline.enrich(ig, hooks().h)).kind).toBe("saved");
+    const [i] = await perf(ig.canonicalUrl);
+    expect(i?.performance_at).not.toBeNull();
+    expect(i?.performance_views_sample === null || (i?.performance_views_sample ?? 0) <= 10).toBe(true);
+    expect(i?.median_engagement_rate === null || Number(i?.median_engagement_rate) >= 0).toBe(true);
+    const yt = await job("youtube");
+    expect((await setup().pipeline.enrich(yt, hooks().h)).kind).toBe("saved");
+    const [y] = await perf(yt.canonicalUrl);
+    expect(y).toMatchObject({ median_views: null, median_engagement_rate: null, performance_views_sample: null });
+  });
+});

@@ -92,6 +92,15 @@ export const creatorProfiles = gcp.table("creator_profiles", {
   countryReason: text("country_reason"),
   countryConfidence: text("country_confidence", { enum: ["high", "medium", "low"] }),
   countryCheckedAt: ts("country_checked_at"),
+  /** Typical content performance (0066, elig-3): medians of the latest 10 non-pinned items of one fetch. */
+  medianViews: integer("median_views"),
+  medianEngagementRate: doublePrecision("median_engagement_rate"),
+  performanceViewsSample: smallint("performance_views_sample"),
+  performanceEngagementSample: smallint("performance_engagement_sample"),
+  performanceFormat: text("performance_format", { enum: ["reel", "video"] }),
+  performanceFrom: ts("performance_from"),
+  performanceTo: ts("performance_to"),
+  performanceAt: ts("performance_at"),
   createdAt: ts("created_at").notNull().defaultNow(),
   updatedAt: ts("updated_at").notNull().defaultNow(),
 });

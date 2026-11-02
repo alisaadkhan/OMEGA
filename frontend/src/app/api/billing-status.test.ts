@@ -12,6 +12,7 @@ const summary = (over: Partial<BillingSummary> = {}, meter: BillingSummary["bala
   trialDaysLeft: 7,
   awaitingTrial: false,
   cancelAtPeriodEnd: false,
+  complimentary: false,
   scheduledChange: null,
   balance: { available: 200, reserved: 0, base: 200, meter },
   canPurchase: true,
@@ -38,6 +39,7 @@ describe("dashboard billing badges (E2E findings F-7, F-8)", () => {
   it("names every subscription state, never 'Inactive' for a trial", () => {
     expect(subscriptionBadge(summary({ status: "trialing" }))?.label).toBe("Trial");
     expect(subscriptionBadge(summary({ status: "active" }))?.label).toBe("Active");
+    expect(subscriptionBadge(summary({ status: "active", cancelAtPeriodEnd: true, complimentary: true }))).toEqual({ label: "Complimentary", tone: "good" });
     expect(subscriptionBadge(summary({ status: "active", cancelAtPeriodEnd: true }))?.label).toBe("Ends at period end");
     expect(subscriptionBadge(summary({ status: "past_due" }))?.label).toBe("Payment due");
     expect(subscriptionBadge(summary({ status: "canceled" }))?.label).toBe("Canceled");

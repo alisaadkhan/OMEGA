@@ -1,107 +1,91 @@
 /**
- * Shadow check of the 2 November 2026 Creator Supply & Eligibility plan thresholds (report-only; nothing is written to
- * the database and the active rule stays elig-2):
- *   Instagram 5,000 followers + median Reel views 2,000 (and 3,000)
- *   TikTok    10,000 followers + median video views 15,000
- *   YouTube   10,000 subscribers + median video views 5,000 (not computed: see below)
- * Median of up to the latest 10 relevant items from the stored Apify payloads (Instagram videos/Reels with a view count;
- * TikTok non-pinned videos). Items without the metric are left out, never read as 0; fewer than 3 items = awaiting assessment.
- * YouTube medians are NOT computed: they would be a metric derived from YouTube API data, which needs the owner's
- * derived-metrics decision (YOUTUBE_DECISION_BRIEF.md, decision 2).
+ * Dry run: the active rule (elig-2) against the owner's elig-3 thresholds (2026-11-02) for every catalogue profile.
+ * Report-only: nothing is written to the database; statuses and search stay as they are.
  *   node --import tsx scripts/catalog/plan-thresholds-shadow.ts --db mushin_catalog_v3
+ * elig-3 uses the application's own evaluateV3 and contentPerformance (apps/api/src/modules/creators/eligibility-v3.ts).
+ * Performance comes from the 0066 columns when a fetch stored them, otherwise from the stored Apify answer of that profile
+ * (Instagram and TikTok). YouTube performance is not computed while YouTube-derived metrics are not permitted.
  */
-import { existsSync, readdirSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { sql } from "drizzle-orm";
 import { createDatabase } from "@mushin/db";
+import { contentPerformance, evaluateV3, type ContentPerformance, type V3Status } from "../../apps/api/src/modules/creators/eligibility-v3";
+import { standardize } from "../../apps/api/src/modules/creators/index";
 
 const { values } = parseArgs({ options: { db: { type: "string" } } });
 const dbName = values.db ?? "";
 if (!/^mushin_catalog_[a-z0-9_]+$/.test(dbName)) throw new Error("--db must name a local catalogue copy (mushin_catalog_*)");
 const root = resolve(fileURLToPath(new URL("../..", import.meta.url)));
-const db = createDatabase(`postgres://postgres@127.0.0.1:54330/${dbName}`, { max: 1, applicationName: "plan-thresholds-shadow" });
+const db = createDatabase(`postgres://postgres@127.0.0.1:54330/${dbName}`, { max: 1, applicationName: "elig3-dry-run" });
 type Row = Record<string, unknown>;
+const now = new Date();
 
+const hasPerf = async () => (await db.withSystem((tx) => tx.execute<{ n: number }>(sql`select count(*)::int n from information_schema.columns where table_schema = 'gcp' and table_name = 'creator_profiles' and column_name = 'median_views'`)))[0]?.n === 1;
+const perfCols = (await hasPerf())
+  ? sql`p.median_views, p.median_engagement_rate, p.performance_views_sample, p.performance_engagement_sample, p.performance_at`
+  : sql`null median_views, null median_engagement_rate, null performance_views_sample, null performance_engagement_sample, null performance_at`;
 const rows = await db.withSystem(async (tx) => {
   await tx.execute(sql`set transaction read only`);
   return [...(await tx.execute<Row>(sql`
-    select p.creator_id, p.platform, p.followers, p.country_status,
+    select p.creator_id, p.platform, p.handle, p.followers, p.following, p.followers_updated_at, p.country_status, p.availability, ${perfCols},
+      (c.is_minor and c.minor_override_by_staff_id is null) minor, c.status creator_status,
       (select r.storage_key from platform.raw_payloads r where r.creator_id = p.creator_id and r.platform = p.platform and r.provider = 'apify' order by r.fetched_at desc limit 1) storage_key,
-      exists (select 1 from gcp.creator_search_documents d where d.creator_id = p.creator_id and p.platform::text = any(d.qualifying_platforms::text[])) eligible_now
-    from gcp.creator_profiles p join gcp.creators c on c.id = p.creator_id
-    where c.status = 'active' and not (c.is_minor and c.minor_override_by_staff_id is null)`))];
+      exists (select 1 from gcp.creator_search_documents d where d.creator_id = p.creator_id and p.platform::text = any(d.qualifying_platforms::text[])) elig2
+    from gcp.creator_profiles p join gcp.creators c on c.id = p.creator_id`))];
 });
 await db.close();
 
-// Payload files: stored under .catalog-storage/<catalogue>/raw-payloads/<key>; the v3 copy points at v2's files.
 const storageRoots = existsSync(join(root, ".catalog-storage")) ? readdirSync(join(root, ".catalog-storage")).map((d) => join(root, ".catalog-storage", d, "raw-payloads")) : [];
-const readPayload = (key: string): unknown => {
-  for (const base of storageRoots) {
-    const f = join(base, key);
-    if (existsSync(f)) return JSON.parse(readFileSync(f, "utf8"));
-  }
+const payload = (key: string): unknown => {
+  for (const base of storageRoots) if (existsSync(join(base, key))) return JSON.parse(readFileSync(join(base, key), "utf8"));
   return null;
 };
-const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null);
-export function median(xs: number[]): number | null {
-  if (xs.length === 0) return null;
-  const s = [...xs].sort((a, b) => a - b);
-  const m = Math.floor(s.length / 2);
-  return s.length % 2 ? (s[m] as number) : ((s[m - 1] as number) + (s[m] as number)) / 2;
-}
-function sample(platform: string, payload: unknown): number[] {
-  if (platform === "instagram") {
-    const p = (Array.isArray(payload) ? payload[0] : payload) as { latestPosts?: Row[]; latestIgtvVideos?: Row[] } | null;
-    const posts = [...(p?.latestPosts ?? []), ...(p?.latestIgtvVideos ?? [])]
-      .filter((x) => num(x["videoViewCount"]) !== null)
-      .sort((a, b) => String(b["timestamp"]).localeCompare(String(a["timestamp"])));
-    const seen = new Set<unknown>();
-    return posts.filter((x) => !seen.has(x["id"]) && seen.add(x["id"])).slice(0, 10).map((x) => num(x["videoViewCount"]) as number);
-  }
-  if (platform === "tiktok") {
-    const items = (Array.isArray(payload) ? payload : []) as Row[];
-    return items.filter((x) => x["isPinned"] !== true && num(x["playCount"]) !== null)
-      .sort((a, b) => String(b["createTimeISO"]).localeCompare(String(a["createTimeISO"])))
-      .slice(0, 10).map((x) => num(x["playCount"]) as number);
-  }
-  return [];
-}
-
-type Out = { platform: string; outcome: "eligible" | "below_minimum" | "awaiting_assessment" | "not_pakistan_evidence"; reason: string; sample: number; median: number | null; eligibleNow: boolean };
-const results: Out[] = [];
-const MIN = { instagram: 5_000, tiktok: 10_000, youtube: 10_000 } as Record<string, number>;
-const VIEWS = { instagram: [2_000, 3_000], tiktok: [15_000, 15_000], youtube: [5_000, 5_000] } as Record<string, [number, number]>;
+const DAY = 86_400_000;
+type Out = { platform: string; elig2: boolean; v3: V3Status | "excluded_minor"; reasons: string[]; warnings: string[]; source: string };
+const out: Out[] = [];
 for (const r of rows) {
-  const platform = r["platform"] as string;
-  const followers = num(r["followers"]);
-  const eligibleNow = r["eligible_now"] === true;
-  const base = { platform, eligibleNow };
-  // The plan keeps the evidence requirement: no Pakistani country evidence = not in the qualified pool (kept, not deleted).
-  if (r["country_status"] !== "pakistan") { results.push({ ...base, outcome: "not_pakistan_evidence", reason: String(r["country_status"]), sample: 0, median: null }); continue; }
-  if (followers === null) { results.push({ ...base, outcome: "awaiting_assessment", reason: "followers unknown", sample: 0, median: null }); continue; }
-  if (followers < (MIN[platform] ?? Infinity)) { results.push({ ...base, outcome: "below_minimum", reason: "audience", sample: 0, median: null }); continue; }
-  if (platform === "youtube") { results.push({ ...base, outcome: "awaiting_assessment", reason: "median views not computed (YouTube derived-metrics decision)", sample: 0, median: null }); continue; }
-  const key = r["storage_key"] as string | null;
-  const views = key ? sample(platform, readPayload(key)) : [];
-  const m = median(views);
-  if (views.length < 3 || m === null) { results.push({ ...base, outcome: "awaiting_assessment", reason: key ? "fewer than 3 recent items with views" : "no stored content", sample: views.length, median: m }); continue; }
-  const [low] = VIEWS[platform] ?? [Infinity];
-  results.push({ ...base, outcome: m >= (low ?? Infinity) ? "eligible" : "below_minimum", reason: m >= (low ?? Infinity) ? "meets audience and median views" : "median views", sample: views.length, median: m });
+  const platform = r["platform"] as "youtube" | "instagram" | "tiktok";
+  const elig2 = r["elig2"] === true;
+  if (r["minor"] === true || r["creator_status"] !== "active") { out.push({ platform, elig2, v3: "excluded_minor", reasons: ["possible_minor_or_inactive_creator"], warnings: [], source: "-" }); continue; }
+  let perf: ContentPerformance | null = null;
+  let source = "none";
+  if (r["performance_at"]) {
+    perf = { medianViews: (r["median_views"] as number | null) ?? null, medianEngagementRate: r["median_engagement_rate"] === null ? null : Number(r["median_engagement_rate"]), viewsSample: Number(r["performance_views_sample"] ?? 0), engagementSample: Number(r["performance_engagement_sample"] ?? 0), format: platform === "instagram" ? "reel" : "video", sampleFrom: null, sampleTo: null };
+    source = "stored";
+  } else if (platform !== "youtube" && r["storage_key"]) {
+    const std = standardize(platform, String(r["handle"]), payload(String(r["storage_key"])), { maxPosts: 30 });
+    if (std.kind === "ok") { perf = contentPerformance(std.profile); source = "stored_payload"; }
+  }
+  const updated = r["followers_updated_at"] ? new Date(String(r["followers_updated_at"])).getTime() : null;
+  const fresh = updated !== null && now.getTime() - updated <= (platform === "youtube" ? 30 : 90) * DAY;
+  const res = evaluateV3({
+    platform,
+    followers: (r["followers"] as number | null) ?? null,
+    following: (r["following"] as number | null) ?? null,
+    followersFresh: fresh,
+    countryStatus: (r["country_status"] as never) ?? "unknown",
+    available: !["not_found", "private"].includes(String(r["availability"])),
+    performance: perf,
+  });
+  out.push({ platform, elig2, v3: res.status, reasons: res.reasons, warnings: res.warnings, source });
 }
 
 const summary: Record<string, Record<string, number>> = {};
-for (const r of results) {
-  const s = (summary[r.platform] ??= { profiles: 0, eligible: 0, below_minimum: 0, awaiting_assessment: 0, not_pakistan_evidence: 0, eligibleUnderElig2: 0, igAt3000: 0 });
-  s["profiles"] = (s["profiles"] ?? 0) + 1;
-  s[r.outcome] = (s[r.outcome] ?? 0) + 1;
-  if (r.eligibleNow) s["eligibleUnderElig2"] = (s["eligibleUnderElig2"] ?? 0) + 1;
-  if (r.platform === "instagram" && r.median !== null && r.sample >= 3 && r.median >= 3_000 && r.outcome === "eligible") s["igAt3000"] = (s["igAt3000"] ?? 0) + 1;
+const inc = (p: string, k: string) => { const s = (summary[p] ??= {}); s[k] = (s[k] ?? 0) + 1; };
+for (const o of out) {
+  inc(o.platform, "profiles");
+  inc(o.platform, `elig3_${o.v3}`);
+  if (o.elig2) inc(o.platform, "elig2_eligible");
+  inc(o.platform, `change: ${o.elig2 ? "eligible" : "not eligible"} -> ${o.v3}`);
+  if (o.source !== "none" && o.source !== "-") inc(o.platform, `performance_from_${o.source}`);
+  for (const w of o.warnings) inc(o.platform, `warning_${w}`);
 }
 const reasons: Record<string, number> = {};
-for (const r of results) reasons[`${r.platform}|${r.outcome}|${r.reason}`] = (reasons[`${r.platform}|${r.outcome}|${r.reason}`] ?? 0) + 1;
-const out = join(root, "docs", "completion", "inventory", `${new Date().toISOString().slice(0, 10)}-plan-thresholds-${dbName}.json`);
+for (const o of out) for (const r of o.reasons) reasons[`${o.platform} ${o.v3} ${r}`] = (reasons[`${o.platform} ${o.v3} ${r}`] ?? 0) + 1;
+const file = join(root, "docs", "completion", "inventory", `${now.toISOString().slice(0, 10)}-elig3-dry-run-${dbName}.json`);
 mkdirSync(join(root, "docs", "completion", "inventory"), { recursive: true });
-writeFileSync(out, JSON.stringify({ database: dbName, at: new Date().toISOString(), writes: "none", summary, reasons }, null, 2));
+writeFileSync(file, JSON.stringify({ database: dbName, at: now.toISOString(), writes: "none", activePolicy: "elig-2 (unchanged)", summary, reasons }, null, 2));
 console.log(JSON.stringify({ summary, reasons }, null, 1));

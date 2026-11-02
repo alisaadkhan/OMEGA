@@ -90,6 +90,7 @@ export function FormField({
   autoComplete,
   icon,
   aside,
+  error,
 }: {
   label: string;
   type?: string;
@@ -103,6 +104,8 @@ export function FormField({
   icon?: typeof Mail;
   /** Shown at the right of the label, e.g. "Forgot password?" (outside the label, so it never names the input). */
   aside?: ReactNode;
+  /** Inline validation message: rose border and helper text under the input. */
+  error?: string | null;
 }) {
   const id = useId();
   const [visible, setVisible] = useState(false);
@@ -126,7 +129,9 @@ export function FormField({
           placeholder={placeholder}
           autoFocus={autoFocus}
           autoComplete={autoComplete ?? AUTOCOMPLETE[type] ?? "off"}
-          className={`h-12 w-full rounded-xl border border-transparent bg-slate-100 text-sm text-slate-900 placeholder:text-slate-500 transition-colors focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/15 ${Icon ? "pl-10" : "pl-3.5"} ${isPassword ? "pr-11" : "pr-3.5"}`}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? `${id}-error` : undefined}
+          className={`h-12 w-full rounded-xl border ${error ? "border-rose-500 bg-rose-50/40" : "border-transparent bg-slate-100"} text-sm text-slate-900 placeholder:text-slate-500 transition-colors focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/15 ${Icon ? "pl-10" : "pl-3.5"} ${isPassword ? "pr-11" : "pr-3.5"}`}
         />
         {isPassword && (
           <button
@@ -141,6 +146,11 @@ export function FormField({
           </button>
         )}
       </div>
+      {error && (
+        <p id={`${id}-error`} className="mt-1.5 text-xs text-rose-600 animate-in fade-in slide-in-from-top-1 duration-200">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

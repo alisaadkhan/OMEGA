@@ -42,3 +42,18 @@ needing approval:
    files in `docs/readiness/youtube-eval-data-inventory.md` by their dates.
 
 Under option A, the refresh must run before step 2 for the channels to be kept; channels not refreshed are still cleared.
+
+## Owner questions of 2 November 2026: what exists now
+
+| # | Requirement | Status (evidence) |
+|---|---|---|
+| 1 | Automatic 20-day refresh | **Built 2 Nov** (was missing: the lifecycle sweep only reported profiles over 75 days). `creators/youtube-refresh.ts` + worker job `creator.youtube_refresh`, daily 03:10, before retention (03:50). Picks YouTube profiles 20-29 days since their last fetch, oldest first, up to 500 a day, whatever their eligibility. Tests: `youtube-refresh.int` RF-01..04, `queues.test` |
+| 2 | Worker must run | **External.** Staging has no hosted worker; nothing scheduled runs there until one is hosted |
+| 3 | API key and `YOUTUBE_API_CALLS=on` on the worker | **Owner action.** Without them the job logs "skipped" and makes no call (test) |
+| 4 | User refresh resets only on success | **Already true.** "Update info" refreshes immediately; `last_scraped_at` is written only when the fetched profile is saved (`enrichment/repository.ts`), a failure throws before it. RF-02 shows a failed fetch leaves the clock unchanged |
+| 5 | Retry, then delete | A failed refresh is retried by the next daily run (days 20-29, up to ten attempts); at day 30 the retention job clears it. Staff get an alert (counts only) when refreshes fail or profiles are within 3 days of deletion |
+| 6 | 0063 on staging | **Owner action**: `scripts/ops/migration-preflight.ts`, then `npm run db:migrate` |
+| 7 | Derived metrics | **Not solved by the timer.** A scheduled refresh makes no AI call and asks for no new assessment, but engagement rate and niche/category tags are still derived from YouTube data: decision 2 (amendment or stop deriving) |
+| 8 | Search consistency | A refresh writes `creator.changed` (search re-projected); retention re-projects the creators it clears; eligibility counts a YouTube follower count as stale after 30 days even if no job ran |
+
+Cost when switched on: about 3 API units per channel (all 2,379 channels ≈ 7,140 units; default quota 10,000 a day), no AI spend.

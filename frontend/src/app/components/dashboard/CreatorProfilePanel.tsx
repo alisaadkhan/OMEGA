@@ -139,14 +139,14 @@ export function CreatorProfilePanel({ creator, onClose, onCompare }: { creator: 
   async function onForget() {
     const ok = await confirm({
       title: "Remove revealed contacts?",
-      body: "Their email and phone are hidden again for everyone in your workspace. Revealing them again costs credits.",
+      body: "Their email and phone are hidden again for everyone on your team. Revealing them again costs credits.",
       confirmLabel: "Remove",
       cancelLabel: "Keep",
       destructive: true,
     });
     if (!ok) return;
     forget.mutate(undefined, {
-      onSuccess: () => toast.success("Revealed contacts removed from this workspace"),
+      onSuccess: () => toast.success("Revealed contacts removed for your team"),
       onError: (err) => toast.error("Couldn't remove the contacts", err instanceof Error ? err.message : undefined),
     });
   }
@@ -155,7 +155,7 @@ export function CreatorProfilePanel({ creator, onClose, onCompare }: { creator: 
     if (!p) return;
     const ok = await confirm({
       title: `Reveal contact info for ${p.revealCost} credits?`,
-      body: "You pay once: everyone in your workspace can see these contact details afterwards. Contact quality varies — check the trust label.",
+      body: "You pay once: everyone on your team can see these contact details afterwards. Contact quality varies — check the trust label.",
       confirmLabel: `Reveal for ${p.revealCost} credits`,
       cancelLabel: "Not now",
     });
@@ -393,7 +393,7 @@ export function CreatorProfilePanel({ creator, onClose, onCompare }: { creator: 
                               disabled={forget.isPending}
                               className="mt-1 text-[11px] text-slate-500 underline-offset-2 hover:text-red-600 hover:underline disabled:opacity-60"
                             >
-                              Remove revealed contacts from this workspace
+                              Remove revealed contacts for your team
                             </button>
                             )}
                             {!p.revealed && (

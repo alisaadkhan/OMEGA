@@ -193,3 +193,27 @@ describe("audience handlers", () => {
     expect(SCHEDULES.find((s) => s.key === "audience_sweep")).toMatchObject({ queue: "system", cron: "*/5 * * * *" });
   });
 });
+
+describe("YouTube refresh schedule (2026-11-02)", () => {
+  const job = { eventId: "e", eventType: "creator.youtube_refresh", aggregateType: "schedule", aggregateId: "youtube_refresh", workspaceId: null, requestId: null, payload: {} };
+  const base = { indexer: { sync: async () => 0, reconcile: async () => ({ missing: 0, outdated: 0, removed: 0 }) }, summaries: { generate: async () => "skipped" as const } };
+
+  it("runs daily before retention, and without YouTube API access makes no call at all", async () => {
+    const refresh = SCHEDULES.find((s) => s.key === "youtube_refresh");
+    const retention = SCHEDULES.find((s) => s.key === "youtube_retention");
+    expect(refresh).toMatchObject({ cron: "10 3 * * *" });
+    expect(retention).toMatchObject({ cron: "50 3 * * *" });
+    const alerts: string[] = [];
+    const off = createDispatcher(creatorHandlers({ ...base, refreshYoutube: null, alert: async (e: { key: string }) => void alerts.push(e.key) } as never), createLogger({ level: "silent" }));
+    await off([{ id: "j1", data: job }]);
+    expect(alerts).toEqual([]);
+  });
+
+  it("alerts staff (counts only) when refreshes fail or profiles near the 30-day deletion", async () => {
+    const alerts: { key: string; severity: string; message: string }[] = [];
+    const report = { due: 3, attempted: 3, refreshed: 1, failed: 2, unavailable: 0, nearDeadline: 1 };
+    const on = createDispatcher(creatorHandlers({ ...base, refreshYoutube: async () => report, alert: async (e: { key: string; severity: string; message: string }) => void alerts.push(e) } as never), createLogger({ level: "silent" }));
+    await on([{ id: "j1", data: job }]);
+    expect(alerts).toEqual([{ key: "youtube_refresh", severity: "critical", message: "YouTube refresh: 1 refreshed, 2 failed, 0 unavailable; 1 profiles within 3 days of the 30-day deletion. See the worker log." }]);
+  });
+});
