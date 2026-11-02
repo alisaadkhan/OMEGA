@@ -9,7 +9,11 @@ import {
   Settings,
   LifeBuoy,
   LogOut,
+  History,
+  Inbox as InboxIcon,
+  Star,
 } from "lucide-react";
+import { OPEN_REVIEW_EVENT } from "./LeaveReview";
 import { Logo } from "../landing/Logo";
 import { useAuth } from "../../auth/AuthContext";
 
@@ -29,7 +33,6 @@ export type DashView =
   | "settings"
   | "support"
   | "activity"
-  // Rendered by Dashboard but not in the sidebar yet; outreach (a later sub-project) links to it.
   | "inbox";
 
 export const DASH_VIEWS: readonly DashView[] = ["overview", "search", "lists", "campaigns", "analytics", "billing", "settings", "support", "activity", "inbox"];
@@ -46,10 +49,12 @@ const groups: NavGroup[] = [
       { id: "lists", label: "Shortlists", icon: ListChecks },
       { id: "campaigns", label: "Campaigns", icon: FolderKanban },
       { id: "analytics", label: "Analytics", icon: BarChart3 },
+      { id: "inbox", label: "Inbox", icon: InboxIcon },
+      { id: "activity", label: "Activity log", icon: History },
     ],
   },
   {
-    label: "Workspace",
+    label: "Account",
     items: [
       { id: "billing", label: "Credits & billing", icon: CreditCard },
       { id: "settings", label: "Settings", icon: Settings },
@@ -91,6 +96,14 @@ export function Sidebar({ view, setView, onExit }: Props) {
             </div>
           </div>
         ))}
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new Event(OPEN_REVIEW_EVENT))}
+          className="mt-6 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+        >
+          <Star aria-hidden className="h-4 w-4 text-slate-500" strokeWidth={1.75} />
+          Leave a review
+        </button>
       </nav>
       <div className="border-t border-slate-200 p-3">
         {user && (
