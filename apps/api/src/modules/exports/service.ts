@@ -10,10 +10,13 @@ export type ExportsDeps = { db: Db; billing: Pick<BillingService, "getAccess">; 
 export const MAX_EXPORT_ROWS = 20_000;
 export const EXPORT_TTL_MS = 24 * 3_600_000;
 
-/** One CSV cell: quoted, and a leading = + - @ (spreadsheet formula) neutralised with an apostrophe. */
+/**
+ * One CSV cell: quoted, and a spreadsheet formula neutralised with an apostrophe: a leading = + - @ (also after spaces,
+ * and their full-width forms, which some spreadsheets accept), tab or carriage return (security hardening 2026-11-03).
+ */
 export function csvCell(v: unknown): string {
   let s = v === null || v === undefined ? "" : v instanceof Date ? v.toISOString() : String(v);
-  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+  if (/^[\s]*[=+\-@\uff1d\uff0b\uff0d\uff20]|^[\t\r]/.test(s)) s = `'${s}`;
   return `"${s.replace(/"/g, '""')}"`;
 }
 const csv = (header: string[], rows: unknown[][]) => [header, ...rows].map((r) => r.map(csvCell).join(",")).join("\r\n") + "\r\n";
