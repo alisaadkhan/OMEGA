@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
-import { staffTicketDetailSchema, staffTicketListSchema } from "@mushin/contracts";
+import { approvalSchema, staffTicketDetailSchema, staffTicketListSchema } from "@mushin/contracts";
+import type { AdminRole } from "../../admin/AdminAuthContext";
 import { adminRequest } from "../../admin/adminApi";
 import { useToast } from "../../lib/toast";
 import { ErrorState, LoadingBlock } from "../dashboard/states";
@@ -12,7 +13,7 @@ const STATUS = { open: "Open", in_progress: "In progress", waiting_on_customer: 
 type Status = keyof typeof STATUS;
 
 /** Support queue (canonical spec page 20): tickets across workspaces; viewing and replying are audited by the API. */
-export function SupportQueue({ me, canAssignOthers }: { me: string; canAssignOthers: boolean }) {
+export function SupportQueue({ me, canAssignOthers, role }: { me: string; canAssignOthers: boolean; role: AdminRole }) {
   const [status, setStatus] = useState<Status | "">("open");
   const [openId, setOpenId] = useState<string | null>(null);
   const list = useQuery({ queryKey: ["admin", "tickets", status], queryFn: () => adminRequest(`/admin/v1/support/tickets${status ? `?status=${status}` : ""}`, staffTicketListSchema) });
@@ -39,13 +40,13 @@ export function SupportQueue({ me, canAssignOthers }: { me: string; canAssignOth
             </ul>
           )}
         </div>
-        {openId && <TicketPanel id={openId} me={me} canAssignOthers={canAssignOthers} />}
+        {openId && <TicketPanel id={openId} me={me} canAssignOthers={canAssignOthers} role={role} />}
       </div>
     </div>
   );
 }
 
-function TicketPanel({ id, me, canAssignOthers }: { id: string; me: string; canAssignOthers: boolean }) {
+function TicketPanel({ id, me, canAssignOthers, role }: { id: string; me: string; canAssignOthers: boolean; role: AdminRole }) {
   const qc = useQueryClient();
   const toast = useToast();
   const q = useQuery({ queryKey: ["admin", "ticket", id], queryFn: () => adminRequest(`/admin/v1/support/tickets/${id}`, staffTicketDetailSchema) });
@@ -73,6 +74,43 @@ function TicketPanel({ id, me, canAssignOthers }: { id: string; me: string; canA
     onSuccess: () => { setNote(""); void qc.invalidateQueries({ queryKey: ["admin", "ticket", id] }); toast.success("Internal note added"); },
     onError: (err) => toast.error("Couldn't add the note", errText(err)),
   });
+  const [credits, setCredits] = useState("");
+  const [creditReason, setCreditReason] = useState("");
+  const [granting, setGranting] = useState(false);
+  const amount = Number(credits);
+  const creditOk = Number.isInteger(amount) && amount >= 1 && amount <= 100_000 && creditReason.trim().length >= 12;
+  /**
+   * Credits for this ticket's customer (owner directive 2026-11-03): a Super Admin's grant is approved in the same click
+   * (0071); an Admin's goes to Approvals for a second person. Either way an internal note records it on the ticket.
+   */
+  const grantCredits = async (workspaceId: string) => {
+    const withKey = async <T,>(run: () => Promise<T>): Promise<T> => {
+      try {
+        return await run();
+      } catch (err) {
+        if (needsKey(err) && (await step.confirm())) return run();
+        throw err;
+      }
+    };
+    setGranting(true);
+    try {
+      const reason = creditReason.trim();
+      const req = await withKey(() => adminRequest("/admin/v1/approvals", approvalSchema, { method: "POST", body: { action: "credits.grant", payload: { workspaceId, amount, expiresInDays: 90 }, reason } }));
+      const done = role === "super_admin" ? await withKey(() => adminRequest(`/admin/v1/approvals/${req.id}/decision`, approvalSchema, { method: "POST", body: { decision: "approve", note: `Support ticket ${id}` } })) : req;
+      const added = done.status === "executed";
+      await adminRequest(`/admin/v1/support/tickets/${id}/notes`, staffTicketDetailSchema, { method: "POST", body: { body: added ? `Added ${amount} credits (valid 90 days): ${reason}` : `Requested ${amount} credits for approval: ${reason}` } });
+      if (added) toast.success(`Added ${amount} credits`, "They are available to the customer now and expire in 90 days.");
+      else if (done.status === "failed") toast.error("Couldn't add the credits", typeof done.result?.["error"] === "string" ? done.result["error"] : undefined);
+      else toast.info("Sent for approval", "Another admin approves it on the Approvals page.");
+      setCredits("");
+      setCreditReason("");
+      void qc.invalidateQueries({ queryKey: ["admin"] });
+    } catch (err) {
+      toast.error("Couldn't add the credits", errText(err));
+    } finally {
+      setGranting(false);
+    }
+  };
   if (q.isPending) return <LoadingBlock lines={5} />;
   if (q.isError) return <ErrorState body={q.error instanceof Error ? q.error.message : undefined} onRetry={() => void q.refetch()} />;
   const t = q.data;
@@ -97,6 +135,23 @@ function TicketPanel({ id, me, canAssignOthers }: { id: string; me: string; canA
           </li>
         ))}
       </ol>
+      {canAssignOthers && (
+        <form
+          className="flex flex-wrap items-center gap-2 border-t border-slate-100 p-3 text-xs"
+          aria-label="Credits for this customer"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (creditOk && !granting) void grantCredits(t.workspaceId);
+          }}
+        >
+          <span className="text-slate-700" style={{ fontWeight: 600 }}>Credits</span>
+          <input value={credits} onChange={(e) => setCredits(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))} inputMode="numeric" aria-label="Credits to add" placeholder="Amount" className="w-24 rounded-md border border-slate-200 px-2 py-1.5" />
+          <input value={creditReason} onChange={(e) => setCreditReason(e.target.value)} maxLength={1000} aria-label="Reason for the credits" placeholder="Reason, e.g. refund for a failed search (12+ characters)" className="min-w-[220px] flex-1 rounded-md border border-slate-200 px-2 py-1.5" />
+          <button type="submit" disabled={!creditOk || granting} className="rounded-md bg-cyan-700 px-3 py-1.5 text-white hover:bg-cyan-800 disabled:opacity-50" style={{ fontWeight: 600 }}>
+            {granting ? "Working…" : role === "super_admin" ? "Add credits" : "Request credits"}
+          </button>
+        </form>
+      )}
       <form className="flex gap-2 border-t border-slate-100 p-3" onSubmit={(e) => { e.preventDefault(); if (note.trim()) addNote.mutate(); }}>
         <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={5000} aria-label="Internal note" placeholder="Internal note for staff (the customer never sees it)" className="flex-1 rounded-md border border-dashed border-amber-300 bg-amber-50/40 px-2.5 py-1.5 text-xs" />
         <button type="submit" disabled={!note.trim() || addNote.isPending} className="rounded-md border border-amber-300 px-3 py-1.5 text-xs text-amber-900 disabled:opacity-50">Add note</button>
