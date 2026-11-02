@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { BarChart3, Briefcase, CheckSquare, Eye, History, KeyRound, LayoutDashboard, LifeBuoy, MessageSquareText, PhoneCall, Server, Users, UserX, Workflow, X } from "lucide-react";
+import { BarChart3, Briefcase, CheckSquare, Eye, History, ListChecks, KeyRound, LayoutDashboard, LifeBuoy, MessageSquareText, PhoneCall, Server, Users, UserX, Workflow, X } from "lucide-react";
 import type { AdminRole } from "../../admin/AdminAuthContext";
 import { AuditSearch, OpsAlerts, ProviderControls } from "../admin/OpsControls";
 import { OpsJobs, OpsOverview, OpsProviders, OpsWorkspaces } from "../admin/OpsViews";
 import { RemovalRequests } from "../admin/RemovalRequests";
+import { CatalogueReview } from "../admin/CatalogueReview";
 import { Approvals, StaffDirectory } from "../admin/StaffAdmin";
 import { StaffSecurity } from "../admin/StaffSecurity";
 import { SupportAccessStaff } from "../admin/SupportAccessStaff";
@@ -16,7 +17,7 @@ import { StepUpBar, StepUpProvider } from "../admin/staff-ui";
  * Staff console (canonical spec pages 16, 20–23; staff spec §4). Every view reads the staff API, and the server enforces
  * each permission and the hardware-key step-up again, so this navigation filter is only a convenience.
  */
-type AdminView = "overview" | "jobs" | "workspaces" | "access" | "support" | "trials" | "reviews" | "usage" | "providers" | "removals" | "approvals" | "staff" | "audit" | "security";
+type AdminView = "overview" | "jobs" | "workspaces" | "access" | "support" | "trials" | "catalogue" | "reviews" | "usage" | "providers" | "removals" | "approvals" | "staff" | "audit" | "security";
 
 const ALL: AdminRole[] = ["support", "admin", "super_admin"];
 const ADMINS: AdminRole[] = ["admin", "super_admin"];
@@ -27,6 +28,7 @@ const NAV: { id: AdminView; label: string; icon: typeof X; roles: AdminRole[] }[
   { id: "access", label: "Workspace access", icon: Eye, roles: ALL },
   { id: "support", label: "Support queue", icon: LifeBuoy, roles: ALL },
   { id: "trials", label: "Trial requests", icon: PhoneCall, roles: ALL },
+  { id: "catalogue", label: "Catalogue review", icon: ListChecks, roles: ALL },
   { id: "reviews", label: "Reviews", icon: MessageSquareText, roles: ADMINS },
   { id: "usage", label: "Usage", icon: BarChart3, roles: ADMINS },
   { id: "providers", label: "Providers", icon: Server, roles: ADMINS },
@@ -83,6 +85,7 @@ export function AdminConsole({ onExit, role, staffId }: { onExit: () => void; ro
                 <OpsProviders />
               </>
             )}
+            {view === "catalogue" && <CatalogueReview canDecide={admin} />}
             {view === "reviews" && admin && <ProductReviews />}
             {view === "usage" && admin && <UsageInsights role={role} />}
             {view === "removals" && admin && <RemovalRequests />}

@@ -26,6 +26,8 @@ export const STAFF_PERMISSIONS = {
   // Founder-assisted trial: everyone sees the callback queue and records a call back (0050).
   "trials.read": ALL,
   "trials.contact": ALL,
+  // Catalogue review queue (owner directive 2026-11-03): everyone can look; deciding a country or a minor flag is Admin.
+  "catalogue.review.read": ALL,
   // Admin (operations) and above. These require a hardware-key step-up (HARDWARE_KEY_ACTIONS).
   "staff.webauthn.manage": ADMIN,
   "creators.removal.review": ADMIN,
@@ -35,6 +37,7 @@ export const STAFF_PERMISSIONS = {
   "ops.jobs.retry": ADMIN,
   "ops.jobs.cancel": ADMIN,
   "support.tickets.assign": ADMIN,
+  "catalogue.review.decide": ADMIN,
   "staff.audit.read": ADMIN,
   "staff.list": ADMIN,
   "approvals.read": ADMIN,
@@ -67,7 +70,7 @@ export const HARDWARE_KEY_ACTIONS: ReadonlySet<StaffAction> = new Set(
 
 /**
  * High-impact actions that need a second person (staff spec §2), who may request them, and whether the approver must be
- * a Super Admin (co-sign). The requester never approves their own request. Not offered because nothing can execute
+ * a Super Admin (co-sign). The requester never approves their own request, except a Super Admin's own credit grant (0071). Not offered because nothing can execute
  * them yet: provider cap changes (caps are deployment configuration) and suspending a customer workspace (no
  * workspace status exists); the database lists them so they can be added without a schema change.
  */

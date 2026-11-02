@@ -18,6 +18,7 @@ import { createStaffModule, createStaffTokens, type StaffRole } from "../staff/i
 import { softwareKey, TEST_WEBAUTHN } from "../staff/test-fixtures";
 import { createSupportModule, createSupportService } from "../support/index";
 import { createStaffOpsModule } from "./index";
+import { addCreator } from "../creators/test-fixtures";
 
 const db = createTestDatabase();
 const logger = createLogger({ level: "silent" });
@@ -155,6 +156,43 @@ describe("two-person approvals", () => {
     const req = (await call("POST", "/admin/v1/approvals", s1.h, { action: "staff.suspend", payload: { staffId: admin.id, suspended: true }, reason })).json() as { id: string };
     expect((await call("POST", `/admin/v1/approvals/${req.id}/decision`, s2.h, { decision: "approve" })).json()).toMatchObject({ status: "executed" });
     expect((await call("GET", "/admin/v1/me", admin.h)).statusCode).toBe(401);
+  });
+});
+
+// Owner directive 2026-11-03 (addendum item 4): staff review creators whose country is unknown and possible minors.
+describe("catalogue review", () => {
+  it("lists unknown countries; Support can look but not decide; an Admin's evidence-backed country re-decides the profiles and is audited", async () => {
+    const { call, signIn } = await setup();
+    const id = await addCreator(db, { displayName: "Unknown Country", confirmedCountry: null, country: null, profiles: [{ followers: 40_000, bio: "Bridal looks" }] });
+    const small = await addCreator(db, { displayName: "Too Small", confirmedCountry: null, country: null, profiles: [{ followers: 900, bio: "hi" }] });
+    await ownerQuery(`update gcp.creator_profiles set country_status = 'unknown', country = null, country_source = null where creator_id in ('${id}', '${small}')`);
+    const [support, admin] = [await signIn("support"), await signIn("admin")];
+    const list = (await call("GET", "/admin/v1/catalogue/review?kind=country", support.h)).json() as { items: { id: string; profiles: { countryStatus: string }[] }[]; counts: { country: number } };
+    expect(list.items.map((i) => i.id)).toEqual([id]);
+    expect(list.counts.country).toBe(1);
+    const body = { country: "pk", evidence: "Wikipedia: Lahore-based bridal artist (https://en.wikipedia.org/wiki/Example)" };
+    expect((await call("POST", `/admin/v1/catalogue/creators/${id}/country`, support.h, body)).statusCode).toBe(403);
+    expect((await call("POST", `/admin/v1/catalogue/creators/${id}/country`, admin.h, { ...body, evidence: "trust me" })).statusCode).toBe(400);
+    const done = (await call("POST", `/admin/v1/catalogue/creators/${id}/country`, admin.h, body)).json() as { changed: { to: string }[] };
+    expect(done.changed).toEqual([expect.objectContaining({ to: "pakistan" })]);
+    const [row] = await ownerQuery<{ public_country: string; public_country_source: string; country_status: string; country_source: string }>(`select c.public_country, c.public_country_source, p.country_status, p.country_source from gcp.creators c join gcp.creator_profiles p on p.creator_id = c.id where c.id = '${id}'`);
+    expect(row).toMatchObject({ public_country: "PK", country_status: "pakistan", country_source: "public_record" });
+    expect(row?.public_country_source).toMatch(/^Staff review: Wikipedia/);
+    expect((await ownerQuery<{ n: number }>(`select count(*)::int n from platform.outbox where event_type = 'creator.changed' and aggregate_id = '${id}'`))[0]?.n).toBeGreaterThan(0);
+    expect((await audit("catalogue.country_set"))[0]).toMatchObject({ staff_id: admin.id, metadata: { creatorId: id, country: "PK" } });
+    expect(((await call("GET", "/admin/v1/catalogue/review?kind=country", admin.h)).json() as { items: unknown[] }).items).toEqual([]);
+    expect((await call("POST", `/admin/v1/catalogue/creators/${randomUUID()}/country`, admin.h, body)).statusCode).toBe(404);
+  });
+
+  it("clears a possible-minor flag once, with who and why", async () => {
+    const { call, signIn } = await setup();
+    const id = await addCreator(db, { displayName: "Flagged Minor", isMinor: true });
+    const admin = await signIn("admin");
+    expect(((await call("GET", "/admin/v1/catalogue/review?kind=minor", admin.h)).json() as { items: { id: string }[] }).items.map((i) => i.id)).toEqual([id]);
+    expect((await call("POST", `/admin/v1/catalogue/creators/${id}/minor-override`, admin.h, { reason: "Verified adult: graduated university in 2019 (LinkedIn)." })).json()).toEqual({ cleared: true });
+    expect((await ownerQuery<{ by: string }>(`select minor_override_by_staff_id by from gcp.creators where id = '${id}'`))[0]?.by).toBe(admin.id);
+    expect((await call("POST", `/admin/v1/catalogue/creators/${id}/minor-override`, admin.h, { reason: "Verified adult: graduated university in 2019 (LinkedIn)." })).statusCode).toBe(409);
+    expect((await audit("catalogue.minor_cleared"))[0]).toMatchObject({ staff_id: admin.id });
   });
 });
 

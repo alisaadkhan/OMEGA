@@ -38,6 +38,7 @@ import { createSupportAccess } from "./access";
 import { createStaffActions } from "./actions";
 import type { AlertNotifier } from "./alert-notifier";
 import { createApprovals } from "./approvals";
+import { clearMinorSchema, createCatalogueReview, reviewListSchema, reviewQuerySchema, setCountrySchema } from "./catalogue-review";
 
 const idParams = z.object({ id: z.uuid() });
 const meta = (req: FastifyRequest) => ({ ip: req.ip ?? null, requestId: req.id });
@@ -58,6 +59,7 @@ export function createStaffOpsModule(o: {
 }): AppModule {
   const deps = { db: o.db, ...(o.now ? { now: o.now } : {}) };
   const approvals = createApprovals({ ...deps, billing: o.billing });
+  const review = createCatalogueReview({ db: o.db });
   const actions = createStaffActions(deps);
   const access = createSupportAccess(deps);
   const staffOf = (req: FastifyRequest): StaffPrincipal => {
@@ -137,6 +139,20 @@ export function createStaffOpsModule(o: {
     });
 
     // ── Approvals ──
+    // Catalogue review (owner directive 2026-11-03): unknown or conflicting countries, possible minors, pending assessments.
+    app.get("/admin/v1/catalogue/review", { preHandler: r("catalogue.review.read") }, async (req, reply) =>
+      sendOk(reply, reviewListSchema, await review.list(parseInput(reviewQuerySchema, req.query))),
+    );
+    app.post("/admin/v1/catalogue/creators/:id/country", { preHandler: r("catalogue.review.decide") }, async (req, reply) => {
+      const { id } = parseInput(idParams, req.params);
+      const out = await review.setCountry(staffOf(req), id, parseInput(setCountrySchema, req.body), meta(req));
+      return sendOk(reply, z.object({ changed: z.array(z.object({ platform: z.string(), from: z.string(), to: z.string() })) }), out);
+    });
+    app.post("/admin/v1/catalogue/creators/:id/minor-override", { preHandler: r("catalogue.review.decide") }, async (req, reply) => {
+      const { id } = parseInput(idParams, req.params);
+      return sendOk(reply, z.object({ cleared: z.literal(true) }), await review.clearMinor(staffOf(req), id, parseInput(clearMinorSchema, req.body), meta(req)));
+    });
+
     app.get("/admin/v1/approvals", { preHandler: r("approvals.read") }, async (req, reply) => {
       const { status } = parseInput(z.object({ status: approvalSchema.shape.status.optional() }), req.query);
       return sendOk(reply, approvalListSchema, { approvals: await approvals.list(status ?? null) });

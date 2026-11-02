@@ -47,7 +47,7 @@ const serverErrors = [];
 const pageErrors = [];
 const coverageCards = {};
 const ADMIN_ONLY = ["Providers", "Removal requests", "Approvals", "Staff", "Audit log"];
-const EVERYONE = ["Overview", "Jobs", "Workspaces", "Workspace access", "Support queue", "Security"];
+const EVERYONE = ["Overview", "Jobs", "Workspaces", "Workspace access", "Support queue", "Catalogue review", "Security"];
 
 for (const who of ["super1", "support"]) {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 950 } });
