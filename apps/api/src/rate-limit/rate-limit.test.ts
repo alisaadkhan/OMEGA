@@ -8,7 +8,7 @@ const buckets: RateLimitBuckets = {
   ip: { limit: 3, windowSeconds: 60 },
   user: { limit: 2, windowSeconds: 60 },
   auth: { limit: 1, windowSeconds: 60 },
-  ai: { limit: 1, windowSeconds: 60 },
+  ai: { limit: 1, windowSeconds: 60 }, lookup: { limit: 1, windowSeconds: 60 },
   jobs: { limit: 1, windowSeconds: 3600 },
   workspaceJobs: { limit: 2, windowSeconds: 3600 }, callback: { limit: 1000, windowSeconds: 3600 },
 };
@@ -83,6 +83,7 @@ describe("bucketsFromConfig", () => {
       user: { limit: 50, windowSeconds: 30 },
       auth: { limit: 5, windowSeconds: 60 },
       ai: { limit: 20, windowSeconds: 60 },
+      lookup: { limit: 30, windowSeconds: 60 },
       jobs: { limit: 20, windowSeconds: 3600 },
       workspaceJobs: { limit: 100, windowSeconds: 3600 },
       callback: { limit: 5, windowSeconds: 3600 },

@@ -29,7 +29,7 @@ async function setup() {
   const identity = createIdentityModule({ db, autoTrial: billing.startTrial });
   const platform = createPlatformModule({ db, ttlHours: 24 });
   const big = { limit: 1000, windowSeconds: 60 };
-  const limiter = new MemoryRateLimiter({ ip: big, user: big, auth: big, ai: big, jobs: big, workspaceJobs: big, callback: big });
+  const limiter = new MemoryRateLimiter({ ip: big, user: big, auth: big, ai: big, lookup: big, jobs: big, workspaceJobs: big, callback: big });
   const tokens = createStaffTokens("r".repeat(48));
   const staff = createStaffModule({ db, tokens, encryptionKey: TEST_KEY, webauthn: TEST_WEBAUTHN });
   const iss = await createTestIssuer();

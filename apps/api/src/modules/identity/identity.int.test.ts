@@ -81,7 +81,7 @@ describe("GET /v1/me", () => {
         ip: { limit: 100, windowSeconds: 60 },
         user: { limit: 100, windowSeconds: 60 },
         auth: { limit: 100, windowSeconds: 60 },
-        ai: { limit: 100, windowSeconds: 60 },
+        ai: { limit: 100, windowSeconds: 60 }, lookup: { limit: 100, windowSeconds: 60 },
         jobs: { limit: 100, windowSeconds: 3600 }, workspaceJobs: { limit: 100_000, windowSeconds: 3600 }, callback: { limit: 1000, windowSeconds: 3600 },
       }),
     });

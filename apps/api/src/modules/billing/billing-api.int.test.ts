@@ -19,7 +19,7 @@ beforeEach(resetTables);
 afterAll(() => db.close());
 
 const roomy = () =>
-  new MemoryRateLimiter({ ip: { limit: 1000, windowSeconds: 60 }, user: { limit: 1000, windowSeconds: 60 }, auth: { limit: 1000, windowSeconds: 60 }, ai: { limit: 1000, windowSeconds: 60 }, jobs: { limit: 1000, windowSeconds: 3600 }, workspaceJobs: { limit: 100_000, windowSeconds: 3600 }, callback: { limit: 1000, windowSeconds: 3600 } });
+  new MemoryRateLimiter({ ip: { limit: 1000, windowSeconds: 60 }, user: { limit: 1000, windowSeconds: 60 }, auth: { limit: 1000, windowSeconds: 60 }, ai: { limit: 1000, windowSeconds: 60 }, lookup: { limit: 1000, windowSeconds: 60 }, jobs: { limit: 1000, windowSeconds: 3600 }, workspaceJobs: { limit: 100_000, windowSeconds: 3600 }, callback: { limit: 1000, windowSeconds: 3600 } });
 
 async function setup() {
   const target: { app?: FastifyInstance } = {};

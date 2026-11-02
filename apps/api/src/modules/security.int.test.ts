@@ -30,7 +30,7 @@ beforeAll(async () => {
   const identity = createIdentityModule({ db, autoTrial: billing.startTrial });
   const platform = createPlatformModule({ db, ttlHours: 24 });
   const big = { limit: 1000, windowSeconds: 60 };
-  const limiter = new MemoryRateLimiter({ ip: big, user: big, auth: big, ai: big, jobs: big, workspaceJobs: big, callback: big });
+  const limiter = new MemoryRateLimiter({ ip: big, user: big, auth: big, ai: big, lookup: big, jobs: big, workspaceJobs: big, callback: big });
   const iss = await createTestIssuer();
   sign = (sub, email) => iss.sign({ sub, email, fullName: email.split("@")[0] ?? "x" });
   app = await buildTestApp({

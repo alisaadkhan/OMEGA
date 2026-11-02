@@ -98,7 +98,7 @@ describe("lists API", () => {
     const identity = createIdentityModule({ db, autoTrial: billing.startTrial });
     const platform = createPlatformModule({ db, ttlHours: 24 });
     const big = { limit: 1000, windowSeconds: 60 };
-    const limiter = new MemoryRateLimiter({ ip: big, user: big, auth: big, ai: big, jobs: big, workspaceJobs: big, callback: big });
+    const limiter = new MemoryRateLimiter({ ip: big, user: big, auth: big, ai: big, lookup: big, jobs: big, workspaceJobs: big, callback: big });
     const iss = await createTestIssuer();
     const app = await buildTestApp({
       guards: { customer: createCustomerGuard({ verify: createCustomerTokenVerifier(iss), resolveTenant: identity.resolveTenant, limiter }), idempotent: platform.requireIdempotencyKey },
