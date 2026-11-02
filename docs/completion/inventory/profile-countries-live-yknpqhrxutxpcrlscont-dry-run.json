@@ -1,0 +1,26 @@
+{
+ "db": "live-yknpqhrxutxpcrlscont",
+ "mode": "dry-run",
+ "at": "2026-11-02T17:03:44.666Z",
+ "creators": 2503,
+ "changed": 1610,
+ "transitions": {
+  "instagram: unknown -> pakistan": 27,
+  "youtube: unknown -> foreign": 294,
+  "youtube: unknown -> pakistan": 1275,
+  "youtube: unknown -> conflicting": 14
+ },
+ "before": {
+  "instagram": {
+   "unknown": 108
+  },
+  "youtube": {
+   "unknown": 2362
+  },
+  "tiktok": {
+   "unknown": 33
+  }
+ },
+ "after": "unchanged (dry run)",
+ "projection": null
+}

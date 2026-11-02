@@ -35,9 +35,11 @@ const session = (who) => ({ access_token: ids[who].token, token_type: "bearer", 
 const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: true });
 const consoleErrors = [];
 const serverErrors = [];
-async function pageAs(who, viewport = { width: 1440, height: 950 }) {
+// The first-run welcome is a modal: dismissed in advance except where a check is about it ({ welcome: true }).
+async function pageAs(who, viewport = { width: 1440, height: 950 }, { welcome = false } = {}) {
   const ctx = await browser.newContext({ viewport });
   if (who) await ctx.addInitScript(([k, v]) => localStorage.setItem(k, v), [`sb-${ref}-auth-token`, JSON.stringify(session(who))]);
+  if (who && !welcome) await ctx.addInitScript((k) => localStorage.setItem(k, "1"), `mushin.welcomeDismissed.${ids[who].sub}`);
   const p = await ctx.newPage();
   p.on("pageerror", (e) => consoleErrors.push(`${who}: ${e.message}`));
   p.on("response", (r) => { if (r.status() >= 500 && r.url().includes(":4000")) serverErrors.push(`${r.status()} ${r.request().method()} ${r.url()}`); });
@@ -61,24 +63,24 @@ check("SETUP-1", "campaign with the fixture creator exists", Boolean(campaignId)
 
 // ── WEL: first-run welcome card (design 2026-10-27): shown to an empty workspace, hidden once it has work, dismissal kept ──
 {
-  const fresh = await pageAs("outsider");
+  const fresh = await pageAs("outsider", undefined, { welcome: true });
   await fresh.goto("http://localhost:5173/#/dashboard");
   await fresh.getByRole("heading", { name: /Welcome back/ }).waitFor({ timeout: 15000 });
-  const card = fresh.getByRole("region", { name: "Welcome to MUSHIN" });
+  const card = fresh.getByRole("dialog", { name: "Welcome to MUSHIN" });
   // isVisible() does not wait (its timeout is ignored): wait for the card, which appears once the workspace data loads.
   const shown = await card.waitFor({ state: "visible", timeout: 15000 }).then(() => true, () => false);
   check("WEL-1", "an empty workspace sees the welcome card, with no claim MUSHIN cannot back (no creator total, no bot detection)", shown && !/3.4M|bot|pod detection|ROI/i.test(await card.innerText().catch(() => "")));
-  if (shown) await card.getByRole("button", { name: "Dismiss" }).click();
+  if (shown) await card.getByRole("button", { name: /Skip for now/ }).click();
   await fresh.reload();
   await fresh.getByRole("heading", { name: /Welcome back/ }).waitFor({ timeout: 15000 });
   await fresh.waitForTimeout(1500);
   check("WEL-2", "a dismissed welcome card stays dismissed after reloading", shown && !(await card.isVisible().catch(() => false)));
   await fresh.context().close();
-  const busy = await pageAs("owner");
+  const busy = await pageAs("owner", undefined, { welcome: true });
   await busy.goto("http://localhost:5173/#/dashboard");
   await busy.getByRole("heading", { name: /Welcome back/ }).waitFor({ timeout: 15000 });
   await busy.waitForTimeout(1500);
-  check("WEL-3", "a workspace with lists or campaigns does not see the welcome card", !(await busy.getByRole("region", { name: "Welcome to MUSHIN" }).isVisible().catch(() => false)));
+  check("WEL-3", "a workspace with lists or campaigns does not see the welcome card", !(await busy.getByRole("dialog", { name: "Welcome to MUSHIN" }).isVisible().catch(() => false)));
   await busy.context().close();
 }
 
@@ -253,8 +255,8 @@ check("SETUP-1", "campaign with the fixture creator exists", Boolean(campaignId)
 {
   const p = await pageAs("owner");
   await p.goto(`http://localhost:5173/#/dashboard`);
-  await nav(p, "Shortlistings");
-  await p.getByRole("button", { name: "Import CSV" }).click();
+  await nav(p, "Shortlists");
+  await p.getByRole("button", { name: "Import creators" }).click();
   const csvPath = join(tmpdir(), `breakit-${label}.csv`);
   writeFileSync(csvPath, `profile_url,platform,niche,country\nhttps://youtube.com/@${FX.main},youtube,cooking,Pakistan\nyoutube.com/@${FX.main},,,\nhttps://facebook.com/x,,,\n=HYPERLINK("http://evil"),,,\n`);
   await p.getByLabel("CSV file").setInputFiles(csvPath);

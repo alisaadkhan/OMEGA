@@ -59,14 +59,34 @@ function engagementRaw(p: StandardProfile): number | null {
   return withViews.length ? mean(withViews.map((x) => ((x.likes ?? 0) + (x.comments ?? 0)) / (x.views ?? 1))) * 100 : null;
 }
 
+/** Latest posts used for the stored engagement rate (owner 2026-11-02: a typical post, never one viral post). */
+export const ENGAGEMENT_SAMPLE = 10;
+export const ENGAGEMENT_MIN_SAMPLE = 3;
+
+/**
+ * Stored engagement rate (%): the MEDIAN per-post rate over the latest ${ENGAGEMENT_SAMPLE} non-pinned posts that show
+ * their likes (per follower on Instagram, per view on TikTok and YouTube). Never capped: a capped average hid viral
+ * outliers as "100%". Fewer than ${ENGAGEMENT_MIN_SAMPLE} usable posts gives null (not enough evidence), never 0.
+ */
+export function storedEngagementRate(p: StandardProfile): number | null {
+  const recent = engaged(p.recentPosts).filter((x) => !x.isPinned).sort((a, b) => b.postedAt.getTime() - a.postedAt.getTime());
+  const rates =
+    p.platform === "instagram"
+      ? p.followers && p.followers > 0
+        ? recent.slice(0, ENGAGEMENT_SAMPLE).map((x) => ((x.likes ?? 0) + (x.comments ?? 0)) / (p.followers as number))
+        : []
+      : recent.filter((x) => (x.views ?? 0) > 0).slice(0, ENGAGEMENT_SAMPLE).map((x) => ((x.likes ?? 0) + (x.comments ?? 0)) / (x.views as number));
+  if (rates.length < ENGAGEMENT_MIN_SAMPLE) return null;
+  return Math.round(median(rates) * 100 * 100) / 100;
+}
+
 /** Stored profile metrics (rounded). */
 export function profileMetrics(p: StandardProfile): { engagementRate: number | null; avgLikes: number | null; avgComments: number | null; avgViews: number | null } {
   const posts = engaged(p.recentPosts);
   if (posts.length === 0) return { engagementRate: null, avgLikes: null, avgComments: null, avgViews: null };
   const withViews = posts.filter((x) => (x.views ?? 0) > 0);
-  const rate = engagementRaw(p);
   return {
-    engagementRate: rate === null ? null : Math.min(100, Math.round(rate * 100) / 100),
+    engagementRate: storedEngagementRate(p),
     avgLikes: Math.round(mean(posts.map((x) => x.likes ?? 0))),
     avgComments: Math.round(mean(posts.map((x) => x.comments ?? 0))),
     avgViews: withViews.length ? Math.round(mean(withViews.map((x) => x.views ?? 0))) : null,

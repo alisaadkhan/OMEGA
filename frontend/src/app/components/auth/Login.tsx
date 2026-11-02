@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion } from "motion/react";
 import { ArrowRight, Clock } from "lucide-react";
 import { Button } from "../ui/button";
-import { AuthShell, FormField, StaggerItem } from "./AuthShell";
+import { AuthAlert, AuthShell, FormField, StaggerItem } from "./AuthShell";
 import { useAuth } from "../../auth/AuthContext";
 import { takeSessionExpired } from "../../api/session";
 
@@ -18,12 +18,15 @@ export function Login({ onSuccess, goSignup, goForgot }: Props) {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [touched, setTouched] = useState(false);
   // Read once: after a session expired on its own, say so (AUTH-08).
   const [expired] = useState(() => takeSessionExpired());
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setTouched(true);
+    if (!email.trim() || !password) return;
     setSubmitting(true);
     try {
       await login(email, password);
@@ -38,7 +41,7 @@ export function Login({ onSuccess, goSignup, goForgot }: Props) {
     <AuthShell
       formKey="login"
       title="Welcome back"
-      subtitle="Sign in to continue to your MUSHIN workspace."
+      subtitle="Sign in to manage your creator shortlists and campaigns."
       footer={
         <>
           New to MUSHIN?{" "}
@@ -51,12 +54,11 @@ export function Login({ onSuccess, goSignup, goForgot }: Props) {
         </>
       }
     >
-      <form onSubmit={submit} className="space-y-4">
+      <form onSubmit={submit} className="space-y-4" noValidate>
         {expired && (
-          <p role="status" className="flex items-start gap-2 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
-            <Clock className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
-            Your session expired. Sign in again to continue where you left off.
-          </p>
+          <AuthAlert kind="info">
+            <span className="flex items-start gap-2"><Clock className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" /> Your session expired. Sign in again to continue where you left off.</span>
+          </AuthAlert>
         )}
         <StaggerItem index={0}>
           <FormField
@@ -66,6 +68,7 @@ export function Login({ onSuccess, goSignup, goForgot }: Props) {
             onChange={setEmail}
             placeholder="name@company.pk"
             autoFocus
+            error={touched && !email.trim() ? "Enter your work email." : null}
           />
         </StaggerItem>
         <StaggerItem index={1}>
@@ -75,25 +78,22 @@ export function Login({ onSuccess, goSignup, goForgot }: Props) {
             value={password}
             onChange={setPassword}
             placeholder="Your password"
+            error={touched && !password ? "Enter your password." : null}
             aside={
-              <button type="button" onClick={goForgot} className="text-xs font-semibold text-indigo-600 hover:text-indigo-700">
+              <button type="button" onClick={goForgot} className="rounded text-xs font-semibold text-cyan-700 hover:text-cyan-900 hover:underline focus:outline-none focus:ring-2 focus:ring-cyan-400/40">
                 Forgot password?
               </button>
             }
           />
         </StaggerItem>
 
-        {error && (
-          <p role="alert" className="text-sm text-red-600">
-            {error}
-          </p>
-        )}
+        {error && <AuthAlert kind="error">{error}</AuthAlert>}
         <StaggerItem index={3}>
           <motion.div whileTap={{ scale: 0.98 }}>
             <Button
               type="submit"
               disabled={submitting}
-              className="group relative h-12 w-full overflow-hidden rounded-full bg-slate-950 text-white shadow-sm transition-all hover:-translate-y-px hover:bg-slate-800 hover:shadow-md disabled:opacity-90"
+              className="group relative h-12 w-full overflow-hidden rounded-full bg-[#131b2e] text-white shadow-md transition-all hover:-translate-y-px hover:bg-slate-800 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-cyan-400/50 disabled:opacity-50"
             >
               {submitting ? (
                 <motion.span

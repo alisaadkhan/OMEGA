@@ -4,6 +4,7 @@ import { BookmarkPlus, Check, PlusCircle, Search, X } from "lucide-react";
 import { useAddToList, useCreateList, useLists, useRemoveFromList } from "../../api/lists";
 import { useToast } from "../../lib/toast";
 import { relative } from "../../lib/time";
+import { avatarFallback } from "../../api/search-mapping";
 import { Spinner } from "./states";
 
 export type DrawerCreator = { id: string; name: string; handle: string; avatar: string; city?: string | null };
@@ -28,11 +29,18 @@ export function ShortlistDrawer({ open, creators, onClose }: { open: boolean; cr
   const [saving, setSaving] = useState(false);
 
   const initial = useMemo(() => new Set((lists.data?.lists ?? []).filter((l) => l.containsCreator === true).map((l) => l.id)), [lists.data]);
+  // The server's ticks load once per opening; later refreshes (e.g. after creating a list) never undo the user's picks.
+  const [seeded, setSeeded] = useState(false);
   useEffect(() => {
-    if (open) setPicked(new Set(initial));
-  }, [open, initial]);
+    if (open && !seeded && lists.data) {
+      setPicked(new Set(initial));
+      setSeeded(true);
+    }
+  }, [open, seeded, lists.data, initial]);
   useEffect(() => {
     if (!open) {
+      setSeeded(false);
+      setPicked(new Set());
       setFilter("");
       setCreating(false);
       setNewName("");
@@ -221,7 +229,7 @@ export function CreatorContext({ creators, dark = false }: { creators: DrawerCre
     <div className={`flex items-center gap-3 rounded-xl p-3 ${dark ? "bg-white/5" : "bg-slate-50"}`}>
       <div className="flex -space-x-2">
         {creators.slice(0, 3).map((c) => (
-          <img key={c.id} src={c.avatar} alt="" className={`h-10 w-10 rounded-full object-cover ring-2 ${dark ? "ring-[#0A0F24]" : "ring-white"}`} />
+          <img key={c.id} src={c.avatar} alt="" onError={avatarFallback(c.name)} className={`h-10 w-10 rounded-full object-cover ring-2 ${dark ? "ring-[#0A0F24]" : "ring-white"}`} />
         ))}
       </div>
       <div className="min-w-0">

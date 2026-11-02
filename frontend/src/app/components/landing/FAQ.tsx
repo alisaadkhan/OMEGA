@@ -3,11 +3,11 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "..
 const faqs = [
   {
     q: "What does MUSHIN actually do?",
-    a: "MUSHIN helps brands and agencies in Pakistan find creators on Instagram, TikTok, and YouTube, see how well each one fits a brief (the Creator Fit score), review suspicious-activity signals, and keep lists, campaigns and an outreach log in one workspace.",
+    a: "MUSHIN helps brands and agencies in Pakistan find creators on Instagram, TikTok, and YouTube, see how well each one fits a brief (the MUSHIN IQ score), review suspicious-activity signals, and keep lists, campaigns and an outreach log in one workspace.",
   },
   {
-    q: "How is the Creator Fit score calculated?",
-    a: "The Creator Fit score combines audience trust, engagement health, posting consistency, niche alignment, and campaign suitability into one number from 0 to 100. Each score includes a reasoning panel so you can see exactly what contributed — we don't hide the logic behind the number.",
+    q: "How is the MUSHIN IQ score calculated?",
+    a: "The MUSHIN IQ score combines audience trust, engagement health, posting consistency, niche alignment, and campaign suitability into one number from 0 to 100. Each score includes a reasoning panel so you can see exactly what contributed — we don't hide the logic behind the number.",
   },
   {
     q: "Which platforms are supported?",

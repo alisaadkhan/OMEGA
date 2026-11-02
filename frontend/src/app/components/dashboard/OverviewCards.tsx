@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { ArrowRight, ArrowUpRight, Bookmark, FolderKanban, Radar, Search, ShieldCheck } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { ArrowRight, ArrowUpRight, Bookmark, FolderKanban, Megaphone, PauseCircle, Radar, Search, ShieldCheck, Zap } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { analyticsSummarySchema } from "@mushin/contracts";
 import { useRecentActivity } from "../../api/activity";
@@ -17,14 +18,14 @@ import type { DashView } from "./Sidebar";
 /** Dashboard cards (canonical spec page 05): every number comes from the API; empty states say what will appear. */
 function Shell({ title, subtitle, action, children, className = "" }: { title: string; subtitle?: string; action?: { label: string; onClick: () => void }; children: React.ReactNode; className?: string }) {
   return (
-    <section className={`rounded-2xl border border-slate-200/80 bg-white p-6 ${className}`} aria-label={title}>
+    <section className={`rounded-2xl bg-white p-6 shadow-sm transition-shadow hover:shadow-md ${className}`} aria-label={title}>
       <div className="flex items-start justify-between gap-2">
         <div>
           <div className="text-[18px] font-semibold leading-6 tracking-[-0.015em] text-slate-900">{title}</div>
           {subtitle && <div className="mt-0.5 text-xs text-slate-500">{subtitle}</div>}
         </div>
         {action && (
-          <button onClick={action.onClick} className="inline-flex items-center gap-1 text-[13px] font-medium text-indigo-600 hover:text-indigo-700">
+          <button onClick={action.onClick} className="inline-flex items-center gap-1 rounded text-[13px] font-semibold text-slate-900 transition-colors hover:text-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-400/40">
             {action.label} <ArrowUpRight aria-hidden className="h-3.5 w-3.5" />
           </button>
         )}
@@ -44,31 +45,36 @@ export function SnapshotCard({ go }: { go: (v: DashView) => void }) {
   const q = useQuery({ queryKey: ["analytics", from, to], queryFn: () => apiRequest(`/v1/analytics/summary?from=${from}&to=${to}`, analyticsSummarySchema), enabled: status === "signedIn" });
   const tiles = q.data
     ? [
-        { label: "Credits spent", value: String(q.data.credits.spent), note: `${q.data.credits.refunded} refunded` },
-        { label: "Creators delivered", value: String(q.data.discovery.creatorsDelivered), note: `${q.data.discovery.liveRuns} Find New Creators runs` },
-        { label: "Outreach logged", value: String(q.data.outreach.total), note: `${q.data.outreach.creatorsContacted} creators` },
-        { label: "Confirmed creators", value: String(q.data.pipeline.byStage.confirmed), note: `${rupees(q.data.pipeline.agreedFeesMinor)} agreed` },
+        { label: "Credits used", icon: Zap, value: String(q.data.credits.spent), note: `${q.data.credits.refunded} refunded · ${q.data.discovery.creatorsDelivered} creators found`, accent: false },
+        { label: "Shortlists", icon: Bookmark, value: String(q.data.lists.total), note: `${q.data.lists.savedCreators} creators saved`, accent: false },
+        { label: "Active campaigns", icon: Megaphone, value: String(q.data.campaigns.byStatus.active ?? 0), note: `${rupees(q.data.pipeline.budgetMinor)} budget`, accent: true },
+        { label: "Paused campaigns", icon: PauseCircle, value: String(q.data.campaigns.byStatus.paused ?? 0), note: `${q.data.campaigns.byStatus.draft ?? 0} drafts`, accent: false },
       ]
     : [];
   return (
     // Design: four figure tiles across the page. Every figure is the workspace's own record for the last 30 days.
     <section aria-label="Last 30 days">
       <div className="mb-3 flex items-baseline justify-between">
-        <h2 className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-500">Last 30 days · from your workspace's records</h2>
+        <h2 className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-500">Last 30 days · from your account's records</h2>
         <button onClick={() => go("analytics")} className="inline-flex items-center gap-1 text-[13px] font-medium text-indigo-600 hover:text-indigo-700">
           Analytics <ArrowUpRight aria-hidden className="h-3.5 w-3.5" />
         </button>
       </div>
       {q.isPending ? <Loading /> : q.isError ? <Muted>Couldn't load your numbers. Try again shortly.</Muted> : (
-        <dl className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           {tiles.map((t) => (
-            <div key={t.label} className="rounded-2xl border border-slate-200/80 bg-white p-5">
-              <dt className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-500">{t.label}</dt>
-              <dd className="mt-3 text-[28px] font-semibold leading-8 tracking-[-0.02em] tabular-nums text-slate-900">{t.value}</dd>
-              <dd className="mt-1 text-xs text-indigo-700">{t.note}</dd>
+            <div key={t.label} className="flex flex-col justify-between rounded-2xl bg-white p-6 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t.label}</p>
+                <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${t.accent ? "bg-cyan-50 text-cyan-700" : "bg-slate-50 text-slate-500"}`}>
+                  <t.icon aria-hidden className="h-4 w-4" />
+                </span>
+              </div>
+              <p className="text-[32px] font-bold leading-10 tracking-tight tabular-nums text-slate-900">{t.value}</p>
+              <p className={`mt-2 text-xs font-medium ${t.accent ? "text-cyan-700" : "text-slate-500"}`}>{t.note}</p>
             </div>
           ))}
-        </dl>
+        </div>
       )}
     </section>
   );
@@ -99,7 +105,7 @@ export function ListsCard({ go }: { go: (v: DashView) => void }) {
   const q = useLists();
   const items = q.data?.lists.slice(0, 4) ?? [];
   return (
-    <Shell title="Shortlistings" action={{ label: "All shortlistings", onClick: () => go("lists") }} className="lg:col-span-2">
+    <Shell title="Shortlists" action={{ label: "All shortlists", onClick: () => go("lists") }} className="lg:col-span-2">
       {q.isPending ? <Loading /> : q.isError ? <Muted>Couldn't load your lists.</Muted> : items.length === 0 ? <Muted>No lists yet. Save creators from Search to start a shortlist.</Muted> : (
         <ul className="divide-y divide-slate-100">
           {items.map((l) => (
@@ -117,11 +123,11 @@ export function ListsCard({ go }: { go: (v: DashView) => void }) {
   );
 }
 
-export function CampaignsCard({ go }: { go: (v: DashView) => void }) {
+export function CampaignsCard({ go, className = "" }: { go: (v: DashView) => void; className?: string }) {
   const q = useCampaigns();
   const items = q.data?.campaigns.slice(0, 4) ?? [];
   return (
-    <Shell title="Campaigns" action={{ label: "All campaigns", onClick: () => go("campaigns") }}>
+    <Shell title="Campaign overview" className={className} action={{ label: "View all", onClick: () => go("campaigns") }}>
       {q.isPending ? <Loading /> : q.isError ? <Muted>Couldn't load campaigns.</Muted> : items.length === 0 ? <Muted>No campaigns yet.</Muted> : (
         <ul className="space-y-2">
           {items.map((c) => (
@@ -140,10 +146,10 @@ export function CampaignsCard({ go }: { go: (v: DashView) => void }) {
   );
 }
 
-export function ActivityCard({ go }: { go: (v: DashView) => void }) {
+export function ActivityCard({ go, className = "" }: { go: (v: DashView) => void; className?: string }) {
   const q = useRecentActivity(6);
   return (
-    <Shell title="Recent activity" action={{ label: "Activity log", onClick: () => go("activity") }}>
+    <Shell title="Recent activity" className={className} action={{ label: "Activity log", onClick: () => go("activity") }}>
       {q.isPending ? <Loading /> : q.isError ? <Muted>Couldn't load activity.</Muted> : q.data.events.length === 0 ? <Muted>No recorded activity yet.</Muted> : (
         <ol className="-mx-4 divide-y divide-slate-100">{q.data.events.map((e) => <ActivityRow key={e.id} e={e} />)}</ol>
       )}
@@ -179,38 +185,54 @@ export function WelcomeCard({ go }: { go: (v: DashView) => void }) {
     }
   };
   const points = [
-    { icon: ShieldCheck, title: "Pakistani creators, checked per profile", body: "Every creator in search has at least 10,000 followers on the profile shown, and each count shows when it was last checked." },
+    { icon: ShieldCheck, title: "Pakistani creators, checked per profile", body: "Each creator in search meets the follower minimum and shows when it was last checked." },
     { icon: Radar, title: "Find New Creators when the catalogue is thin", body: "Live discovery looks beyond MUSHIN's catalogue. You see the credit cost before anything runs." },
-    { icon: FolderKanban, title: "Lists and campaigns", body: "Shortlist creators, then track them from first contact to confirmed, with fees and an outreach log." },
+    { icon: FolderKanban, title: "Shortlists and campaigns", body: "Shortlist creators, then track them from first contact to confirmed, with fees and an outreach log." },
   ];
   return (
-    <section aria-label="Welcome to MUSHIN" className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 sm:p-8">
-      <div aria-hidden className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(87,223,254,0.25), transparent)" }} />
-      <div className="relative">
-        <h2 className="text-[24px] font-semibold leading-8 tracking-[-0.02em] text-slate-900">Welcome to MUSHIN</h2>
-        <p className="mt-1 text-sm text-slate-600">Your workspace is ready. Start by finding your first creators.</p>
-        <ul className="mt-5 grid gap-3 md:grid-cols-3">
-          {points.map((p) => (
-            <li key={p.title} className="flex gap-3 rounded-xl bg-slate-50 p-4">
-              <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-white text-indigo-600 ring-1 ring-slate-200">
-                <p.icon aria-hidden className="h-4 w-4" />
+    <AnimatePresence>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="fixed inset-0 z-50 flex items-center justify-center bg-[#131b2e]/60 p-4 backdrop-blur-md">
+        <motion.section
+          role="dialog"
+          aria-modal="true"
+          aria-label="Welcome to MUSHIN"
+          initial={{ opacity: 0, scale: 0.95, y: 12 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+          className="relative w-full max-w-[490px] overflow-hidden rounded-[28px] bg-white p-8 text-center shadow-2xl sm:p-10"
+        >
+          <div aria-hidden className="pointer-events-none absolute -top-16 left-1/2 h-48 w-48 -translate-x-1/2 rounded-full bg-cyan-200/30 blur-2xl" />
+          <div className="relative mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[#131b2e] shadow-lg shadow-cyan-900/20">
+            <span aria-hidden className="absolute inset-0 animate-ping rounded-full bg-cyan-300/20" />
+            <span className="relative flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-tr from-[#131b2e] via-[#004e5c] to-[#57dffe] p-0.5">
+              <span className="flex h-full w-full items-center justify-center rounded-full bg-[#131b2e]">
+                <Radar aria-hidden className="h-8 w-8 text-[#57dffe]" />
               </span>
-              <span>
-                <span className="block text-sm font-semibold text-slate-900">{p.title}</span>
-                <span className="mt-0.5 block text-xs leading-[18px] text-slate-600">{p.body}</span>
-              </span>
-            </li>
-          ))}
-        </ul>
-        <div className="mt-5 flex flex-wrap items-center gap-3">
-          <button onClick={() => go("search")} className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800">
-            Search the catalogue <ArrowRight aria-hidden className="h-4 w-4" />
+            </span>
+          </div>
+          <h2 className="relative mt-6 text-2xl font-semibold tracking-tight text-slate-900">Welcome to MUSHIN.</h2>
+          <p className="relative mx-auto mt-2 max-w-sm text-sm leading-relaxed text-slate-600">Your account is ready. Let&apos;s find your first creators.</p>
+          <ul className="relative mb-7 mt-7 flex flex-col gap-2.5 text-left">
+            {points.map((p, i) => (
+              <motion.li key={p.title} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 + i * 0.07, duration: 0.3 }} className="flex items-center gap-3 rounded-xl bg-slate-50 px-3.5 py-3 transition-colors hover:bg-slate-100">
+                <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-white text-cyan-700 shadow-sm">
+                  <p.icon aria-hidden className="h-4 w-4" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[13px] font-semibold leading-tight text-slate-900">{p.title}</span>
+                  <span className="block text-xs text-slate-600">{p.body}</span>
+                </span>
+              </motion.li>
+            ))}
+          </ul>
+          <button onClick={() => { dismiss(); go("search"); }} className="group relative inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#57dffe] px-6 py-3.5 text-sm font-semibold text-[#001f26] shadow-sm transition-all hover:bg-[#acedff] focus:outline-none focus:ring-2 focus:ring-cyan-400/60 active:scale-[0.99]">
+            Start a search <ArrowRight aria-hidden className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
           </button>
-          <button onClick={dismiss} className="text-sm font-medium text-slate-600 hover:text-slate-900">
-            Dismiss
+          <button onClick={dismiss} className="relative mt-4 block w-full rounded text-center text-xs text-slate-600 transition-colors hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-cyan-400/40">
+            Skip for now, take me to the dashboard
           </button>
-        </div>
-      </div>
-    </section>
+        </motion.section>
+      </motion.div>
+    </AnimatePresence>
   );
 }

@@ -1,6 +1,6 @@
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
-import { useId, useState, type ReactNode } from "react";
-import { Eye, EyeOff, Lock, Mail } from "lucide-react";
+import { useEffect, useId, useState, type ReactNode } from "react";
+import { ArrowRight, Eye, EyeOff, Info, Lock, Mail, MailCheck, RefreshCw } from "lucide-react";
 import { Logo } from "../landing/Logo";
 
 export function AuthShell({
@@ -20,24 +20,28 @@ export function AuthShell({
   // audience chip and a centred heading. No looping background animation; motion honours "reduce motion".
   return (
     <MotionConfig reducedMotion="user">
-      <div className="relative min-h-screen overflow-hidden bg-[#f7f9fb]">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -top-48 left-1/2 h-[560px] w-[900px] -translate-x-1/2 rounded-full"
-          style={{ background: "radial-gradient(closest-side, rgba(87,223,254,0.28), rgba(87,223,254,0.08) 60%, transparent 75%)" }}
-        />
+      <div
+        className="relative min-h-screen overflow-hidden bg-white"
+        style={{
+          backgroundImage:
+            "radial-gradient(circle at 50% 40%, #fafafa 0%, #ffffff 100%), linear-gradient(to right, rgba(198,198,205,0.12) 1px, transparent 1px), linear-gradient(to bottom, rgba(198,198,205,0.12) 1px, transparent 1px)",
+          backgroundSize: "100% 100%, 32px 32px, 32px 32px",
+        }}
+      >
+        <div aria-hidden className="pointer-events-none absolute -top-32 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-cyan-200/30 blur-3xl" />
+        <div aria-hidden className="pointer-events-none absolute right-1/4 top-48 h-80 w-80 rounded-full bg-indigo-100/40 blur-3xl" />
 
         <div className="relative mx-auto flex min-h-screen w-full max-w-[480px] flex-col justify-center px-4 py-10 sm:px-6">
           <motion.div
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-            className="rounded-3xl border border-slate-200/70 bg-white px-6 py-9 shadow-[0_24px_60px_-28px_rgba(15,23,42,0.22)] sm:px-10"
+            className="overflow-hidden rounded-3xl bg-white px-6 pt-9 shadow-xl sm:px-10"
           >
             <div className="flex flex-col items-center text-center">
               <Logo />
               <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-600">
-                <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-indigo-600" />
+                <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[#06B6D4]" />
                 For brands &amp; agencies
               </span>
             </div>
@@ -56,7 +60,7 @@ export function AuthShell({
               </motion.div>
             </AnimatePresence>
 
-            {footer && <div className="mt-7 text-center text-sm text-slate-600">{footer}</div>}
+            {footer ? <div className="-mx-6 mt-8 bg-slate-50/70 px-6 py-5 text-center text-sm text-slate-600 sm:-mx-10">{footer}</div> : <div className="pb-9" />}
           </motion.div>
         </div>
       </div>
@@ -151,6 +155,69 @@ export function FormField({
           {error}
         </p>
       )}
+    </div>
+  );
+}
+
+/** Animated message under a form: rose for errors, cyan for success. */
+export function AuthAlert({ kind, children }: { kind: "error" | "success" | "info"; children: ReactNode }) {
+  const cls = kind === "error" ? "border-rose-200 bg-rose-50 text-rose-700" : kind === "success" ? "border-cyan-200 bg-cyan-50 text-cyan-900" : "border-amber-200 bg-amber-50 text-amber-900";
+  return (
+    <motion.div role={kind === "error" ? "alert" : "status"} initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, ease: "easeOut" }} className={`rounded-xl border px-3.5 py-2.5 text-sm ${cls}`}>
+      {children}
+    </motion.div>
+  );
+}
+
+/**
+ * "Check your email" success screen (sign-up confirmation and password recovery): the address it went to, a 45-second
+ * cooldown before a resend, and the way back to sign-in.
+ */
+export function CheckEmailState({ email, message, onResend, onBack }: { email: string; message: ReactNode; onResend: () => Promise<void>; onBack: () => void }) {
+  const [seconds, setSeconds] = useState(45);
+  const [sending, setSending] = useState(false);
+  const [note, setNote] = useState<{ kind: "success" | "error"; text: string } | null>(null);
+  useEffect(() => {
+    if (seconds <= 0) return;
+    const t = setTimeout(() => setSeconds((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [seconds]);
+  const resend = async () => {
+    setSending(true);
+    setNote(null);
+    try {
+      await onResend();
+      setNote({ kind: "success", text: `Sent again to ${email}.` });
+      setSeconds(45);
+    } catch (err) {
+      setNote({ kind: "error", text: err instanceof Error ? err.message : "Couldn't send it again. Try again in a minute." });
+    } finally {
+      setSending(false);
+    }
+  };
+  return (
+    <div className="flex flex-col items-center text-center">
+      <motion.div initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 320, damping: 18 }} className="relative mb-4 flex items-center justify-center">
+        <span aria-hidden className="absolute inset-0 scale-125 animate-pulse rounded-full bg-cyan-200/50 blur-xl" />
+        <span className="relative flex h-16 w-16 items-center justify-center rounded-full bg-cyan-50 text-cyan-700">
+          <MailCheck className="h-8 w-8" />
+        </span>
+      </motion.div>
+      <p className="max-w-xs text-sm text-slate-600">{message}</p>
+      <div className="my-5 flex w-full items-start gap-2.5 rounded-xl bg-slate-50 p-3 text-left">
+        <Info aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-cyan-700" />
+        <div className="text-xs">
+          <div className="font-semibold text-slate-900">Didn't receive the email?</div>
+          <div className="text-slate-500">Check your spam folder, or resend {seconds > 0 ? <>in <span className="font-semibold tabular-nums text-slate-900">{seconds}s</span></> : "now"}.</div>
+        </div>
+      </div>
+      {note && <div className="mb-3 w-full"><AuthAlert kind={note.kind}>{note.text}</AuthAlert></div>}
+      <button type="button" onClick={onBack} className="group inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[#131b2e] text-sm font-medium text-white shadow-md transition-all hover:-translate-y-px hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-400/50">
+        Back to sign in <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+      </button>
+      <button type="button" onClick={() => void resend()} disabled={seconds > 0 || sending} className="mt-4 inline-flex items-center gap-1.5 rounded-full text-xs font-semibold text-slate-600 transition-colors hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:opacity-50">
+        <RefreshCw aria-hidden className={`h-3.5 w-3.5 ${sending ? "animate-spin" : ""}`} /> {sending ? "Sending…" : "Resend email"}
+      </button>
     </div>
   );
 }

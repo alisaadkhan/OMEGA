@@ -16,7 +16,7 @@ import { useAuth } from "../../auth/AuthContext";
 /**
  * Primary navigation (MUSHIN design system, 2026-10-27): the working pages, then the workspace pages, then the person
  * signed in. Settings and Support are here as in the design and stay in the profile menu too. Labels match the page
- * headings: "Search & Discovery" and "Shortlistings" (owner decision 2026-10-27); routes and view ids are unchanged.
+ * headings: "Search & Discovery" and "Shortlists" (owner decision 2026-10-27); routes and view ids are unchanged.
  */
 
 export type DashView =
@@ -43,7 +43,7 @@ const groups: NavGroup[] = [
     items: [
       { id: "overview", label: "Dashboard", icon: LayoutDashboard },
       { id: "search", label: "Search & Discovery", icon: Search },
-      { id: "lists", label: "Shortlistings", icon: ListChecks },
+      { id: "lists", label: "Shortlists", icon: ListChecks },
       { id: "campaigns", label: "Campaigns", icon: FolderKanban },
       { id: "analytics", label: "Analytics", icon: BarChart3 },
     ],

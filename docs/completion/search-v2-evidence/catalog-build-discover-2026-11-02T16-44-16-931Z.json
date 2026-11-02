@@ -1,0 +1,559 @@
+{
+ "mode": "discover",
+ "db": "mushin_catalog_v4",
+ "capUsd": 7,
+ "started": "2026-11-02T16:44:16.931Z",
+ "finished": "2026-11-02T17:24:01.449Z",
+ "spendByProvider": [
+  {
+   "provider": "apify",
+   "calls": 36,
+   "usd": "0.470600"
+  },
+  {
+   "provider": "gemini",
+   "calls": 150,
+   "usd": "0.000000"
+  },
+  {
+   "provider": "ollama",
+   "calls": 532,
+   "usd": "0.143970"
+  },
+  {
+   "provider": "serper",
+   "calls": 198,
+   "usd": "0.198000"
+  }
+ ],
+ "jobs": [
+  {
+   "city": "Lahore",
+   "niche": "food",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 0,
+   "error": null,
+   "ms": 78970,
+   "spentUsd": 2.057608
+  },
+  {
+   "city": "Lahore",
+   "niche": "cooking",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 1,
+   "error": null,
+   "ms": 71606,
+   "spentUsd": 2.06429
+  },
+  {
+   "city": "Lahore",
+   "niche": "beauty",
+   "status": "completed",
+   "outcome": "insufficient",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 8814,
+   "spentUsd": 2.06929
+  },
+  {
+   "city": "Lahore",
+   "niche": "makeup",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 161409,
+   "spentUsd": 2.110419
+  },
+  {
+   "city": "Lahore",
+   "niche": "skincare",
+   "status": "completed",
+   "outcome": "insufficient",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 7397,
+   "spentUsd": 2.115419
+  },
+  {
+   "city": "Lahore",
+   "niche": "fashion",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 1,
+   "error": null,
+   "ms": 77132,
+   "spentUsd": 2.142484
+  },
+  {
+   "city": "Lahore",
+   "niche": "travel",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 0,
+   "error": null,
+   "ms": 72416,
+   "spentUsd": 2.172375
+  },
+  {
+   "city": "Lahore",
+   "niche": "fitness",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 70301,
+   "spentUsd": 2.19408
+  },
+  {
+   "city": "Lahore",
+   "niche": "technology",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 74317,
+   "spentUsd": 2.219256
+  },
+  {
+   "city": "Lahore",
+   "niche": "gaming",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 43661,
+   "spentUsd": 2.23541
+  },
+  {
+   "city": "Lahore",
+   "niche": "education",
+   "status": "completed",
+   "outcome": "insufficient",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 4784,
+   "spentUsd": 2.24041
+  },
+  {
+   "city": "Lahore",
+   "niche": "comedy",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 1,
+   "error": null,
+   "ms": 71455,
+   "spentUsd": 2.264447
+  },
+  {
+   "city": "Lahore",
+   "niche": "finance",
+   "status": "completed",
+   "outcome": "insufficient",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 6937,
+   "spentUsd": 2.269447
+  },
+  {
+   "city": "Lahore",
+   "niche": "lifestyle",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 0,
+   "error": null,
+   "ms": 61865,
+   "spentUsd": 2.291089
+  },
+  {
+   "city": "Lahore",
+   "niche": "agriculture",
+   "status": "completed",
+   "outcome": "insufficient",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 5058,
+   "spentUsd": 2.296089
+  },
+  {
+   "city": "Lahore",
+   "niche": "literature",
+   "status": "completed",
+   "outcome": "insufficient",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 4592,
+   "spentUsd": 2.301089
+  },
+  {
+   "city": "Karachi",
+   "niche": "food",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 0,
+   "error": null,
+   "ms": 116827,
+   "spentUsd": 2.340347
+  },
+  {
+   "city": "Karachi",
+   "niche": "cooking",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 47087,
+   "spentUsd": 2.350839
+  },
+  {
+   "city": "Karachi",
+   "niche": "beauty",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 1,
+   "error": null,
+   "ms": 94499,
+   "spentUsd": 2.384851
+  },
+  {
+   "city": "Karachi",
+   "niche": "makeup",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 2,
+   "new": 2,
+   "error": null,
+   "ms": 132371,
+   "spentUsd": 2.430542
+  },
+  {
+   "city": "Karachi",
+   "niche": "skincare",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 29639,
+   "spentUsd": 2.446516
+  },
+  {
+   "city": "Karachi",
+   "niche": "fashion",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 1,
+   "error": null,
+   "ms": 60675,
+   "spentUsd": 2.470489
+  },
+  {
+   "city": "Karachi",
+   "niche": "travel",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 0,
+   "error": null,
+   "ms": 53348,
+   "spentUsd": 2.489327
+  },
+  {
+   "city": "Karachi",
+   "niche": "fitness",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 96131,
+   "spentUsd": 2.518399
+  },
+  {
+   "city": "Karachi",
+   "niche": "technology",
+   "status": "completed",
+   "outcome": "insufficient",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 5334,
+   "spentUsd": 2.523399
+  },
+  {
+   "city": "Karachi",
+   "niche": "gaming",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 50645,
+   "spentUsd": 2.540912
+  },
+  {
+   "city": "Karachi",
+   "niche": "education",
+   "status": "completed",
+   "outcome": "insufficient",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 4988,
+   "spentUsd": 2.545912
+  },
+  {
+   "city": "Karachi",
+   "niche": "comedy",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 43853,
+   "spentUsd": 2.556052
+  },
+  {
+   "city": "Karachi",
+   "niche": "finance",
+   "status": "completed",
+   "outcome": "insufficient",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 5218,
+   "spentUsd": 2.561052
+  },
+  {
+   "city": "Karachi",
+   "niche": "lifestyle",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 98624,
+   "spentUsd": 2.592882
+  },
+  {
+   "city": "Karachi",
+   "niche": "agriculture",
+   "status": "completed",
+   "outcome": "insufficient",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 6988,
+   "spentUsd": 2.597882
+  },
+  {
+   "city": "Karachi",
+   "niche": "literature",
+   "status": "completed",
+   "outcome": "insufficient",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 5492,
+   "spentUsd": 2.602882
+  },
+  {
+   "city": "Islamabad",
+   "niche": "food",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 2,
+   "new": 2,
+   "error": null,
+   "ms": 97302,
+   "spentUsd": 2.63892
+  },
+  {
+   "city": "Islamabad",
+   "niche": "cooking",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 6109,
+   "spentUsd": 2.64211
+  },
+  {
+   "city": "Islamabad",
+   "niche": "beauty",
+   "status": "completed",
+   "outcome": "insufficient",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 6901,
+   "spentUsd": 2.64711
+  },
+  {
+   "city": "Islamabad",
+   "niche": "makeup",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 2,
+   "new": 2,
+   "error": null,
+   "ms": 133317,
+   "spentUsd": 2.688438
+  },
+  {
+   "city": "Islamabad",
+   "niche": "skincare",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 1,
+   "error": null,
+   "ms": 89637,
+   "spentUsd": 2.717743
+  },
+  {
+   "city": "Islamabad",
+   "niche": "fashion",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 59628,
+   "spentUsd": 2.733786
+  },
+  {
+   "city": "Islamabad",
+   "niche": "travel",
+   "status": "completed",
+   "outcome": "succeeded",
+   "found": 1,
+   "new": 0,
+   "error": null,
+   "ms": 28821,
+   "spentUsd": 2.749805
+  },
+  {
+   "city": "Islamabad",
+   "niche": "fitness",
+   "status": "completed",
+   "outcome": "insufficient",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 6291,
+   "spentUsd": 2.754805
+  },
+  {
+   "city": "Islamabad",
+   "niche": "technology",
+   "status": "completed",
+   "outcome": "insufficient",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 5040,
+   "spentUsd": 2.759805
+  },
+  {
+   "city": "Islamabad",
+   "niche": "gaming",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 50553,
+   "spentUsd": 2.774117
+  },
+  {
+   "city": "Islamabad",
+   "niche": "education",
+   "status": "completed",
+   "outcome": "insufficient",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 7755,
+   "spentUsd": 2.779117
+  },
+  {
+   "city": "Islamabad",
+   "niche": "comedy",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 63556,
+   "spentUsd": 2.795414
+  },
+  {
+   "city": "Islamabad",
+   "niche": "finance",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 69168,
+   "spentUsd": 2.817633
+  },
+  {
+   "city": "Islamabad",
+   "niche": "lifestyle",
+   "status": "completed",
+   "outcome": "completed_empty",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 77978,
+   "spentUsd": 2.834163
+  },
+  {
+   "city": "Islamabad",
+   "niche": "agriculture",
+   "status": "completed",
+   "outcome": "insufficient",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 5552,
+   "spentUsd": 2.839163
+  },
+  {
+   "city": "Islamabad",
+   "niche": "literature",
+   "status": "completed",
+   "outcome": "insufficient",
+   "found": 0,
+   "new": 0,
+   "error": null,
+   "ms": 3920,
+   "spentUsd": 2.844163
+  }
+ ]
+}

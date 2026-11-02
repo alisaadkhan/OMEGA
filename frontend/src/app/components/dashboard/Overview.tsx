@@ -57,22 +57,27 @@ export function Overview({ credits, setView }: { credits: number | null; setView
       <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <h1
-            className="text-[32px] font-semibold leading-10 tracking-[-0.025em] text-slate-900"
+            className="text-[32px] font-bold leading-10 tracking-[-0.025em] text-slate-900"
           >
-            Welcome back, {firstName}
+            Welcome back, {firstName}.
           </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Here's what's happening across your MUSHIN workspace today.
-          </p>
+          <p className="mt-1 text-sm text-slate-500">Here is the overview of your account, creator shortlists and campaigns.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => go("lists")} className="inline-flex h-10 items-center gap-1.5 rounded-2xl border border-slate-200/80 bg-white px-4 text-sm font-medium text-slate-800 transition-all hover:bg-slate-50">
-            <Plus className="h-3.5 w-3.5" strokeWidth={2} />
-            New list
+        <div className="flex flex-wrap items-center gap-3">
+          {credits !== null && (
+            <span className="inline-flex items-center gap-1.5 rounded-xl border border-cyan-200/60 bg-cyan-50 px-4 py-2.5 text-xs font-semibold tabular-nums text-cyan-900 shadow-sm">
+              <Zap className="h-4 w-4 text-cyan-700" /> {credits.toLocaleString("en-PK")} credits
+              <span className="text-slate-300">·</span>
+              <button onClick={() => go("billing")} className="rounded font-bold text-cyan-800 hover:underline focus:outline-none focus:ring-2 focus:ring-cyan-400/40">Top up</button>
+            </span>
+          )}
+          <button onClick={() => go("search")} className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-white px-4 text-sm font-semibold text-slate-900 shadow-sm transition-all hover:-translate-y-px hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-cyan-400/40">
+            <Search className="h-4 w-4" strokeWidth={2} />
+            Run a search
           </button>
-          <button onClick={() => go("search")} className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-slate-900 px-4 text-sm font-medium text-white transition-all hover:bg-slate-800">
-            <Search className="h-3.5 w-3.5" strokeWidth={2} />
-            New search
+          <button onClick={() => go("campaigns")} className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-[#0A0F24] px-5 text-sm font-semibold text-white shadow-sm transition-all hover:-translate-y-px hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-400/50">
+            <Plus className="h-4 w-4" strokeWidth={2} />
+            New campaign
           </button>
         </div>
       </div>
@@ -104,9 +109,9 @@ export function Overview({ credits, setView }: { credits: number | null; setView
       {/* MUSHIN design (2026-10-27): figures first, then activity beside campaigns, then account and saved work. */}
       <SnapshotCard go={go} />
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <ActivityCard go={go} />
-        <CampaignsCard go={go} />
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
+        <ActivityCard go={go} className="lg:col-span-7" />
+        <CampaignsCard go={go} className="lg:col-span-5" />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">

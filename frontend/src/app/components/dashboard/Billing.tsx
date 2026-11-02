@@ -135,11 +135,15 @@ export function Billing({ checkoutResult }: { checkoutResult?: "success" | "fail
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-[32px] font-semibold leading-10 tracking-[-0.025em] text-slate-900">
-          Credits &amp; billing
-        </h1>
-        <p className="mt-1 text-sm text-slate-500">Your balance, plan, credit history and invoices.</p>
+      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+        <div>
+          <h1 className="text-[32px] font-bold leading-10 tracking-[-0.025em] text-slate-900">Credits &amp; billing</h1>
+          <p className="mt-1 text-sm text-slate-500">Manage your plan and track your credit usage.</p>
+        </div>
+        <span className="inline-flex items-center gap-1.5 self-start rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-600">
+          <span className={`h-2 w-2 rounded-full ${s?.plan || trialing ? "bg-[#06B6D4]" : "bg-slate-400"}`} />
+          {s?.plan ? (s.complimentary ? "Complimentary access active" : "Billing cycle active") : trialing ? "Free trial active" : "No active plan"}
+        </span>
       </div>
 
       {checkoutResult && (
@@ -334,41 +338,8 @@ export function Billing({ checkoutResult }: { checkoutResult?: "success" | "fail
         </div>
       </div>
 
-      {/* Credit history (the ledger) */}
-      {canManage && (
-        <div className="rounded-2xl border border-slate-200/80 bg-white">
-          <div className="border-b border-slate-100 px-5 py-4">
-            <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Credit history</div>
-            <div className="text-xs text-slate-500">Every credit added, reserved, spent, released and expired</div>
-          </div>
-          <div className="divide-y divide-slate-100">
-            {(ledger.data?.entries ?? []).map((e) => {
-              const meta = e.action ? ACTION_META[e.action] : null;
-              const Icon = meta?.icon ?? Plus;
-              // Reserve rows store the held amount as a positive number; show it as a deduction.
-              const signed = e.kind === "reserve" ? -e.amount : e.amount;
-              return (
-                <div key={e.id} className="flex items-center gap-3 px-5 py-3">
-                  <span className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg ${meta?.tone ?? "bg-slate-100 text-slate-600"}`}>
-                    <Icon className="h-4 w-4" strokeWidth={1.75} />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-slate-900" style={{ fontWeight: 500 }}>{meta ? `${KIND_LABEL[e.kind]} · ${meta.label}` : KIND_LABEL[e.kind]}</span>
-                      <span className="text-[11px] text-slate-500">{formatDate(e.createdAt)}</span>
-                    </div>
-                    {e.note && <div className="truncate text-xs text-slate-500">{e.note}</div>}
-                  </div>
-                  <span className={`flex-shrink-0 tabular-nums text-sm ${signed < 0 ? "text-slate-900" : "text-emerald-700"}`} style={{ fontWeight: 600 }}>
-                    {signed > 0 ? `+${signed}` : signed}
-                  </span>
-                </div>
-              );
-            })}
-            {ledger.data && ledger.data.entries.length === 0 && <div className="px-5 py-6 text-sm text-slate-500">No credit activity yet.</div>}
-          </div>
-        </div>
-      )}
+      {/* Credit history (the ledger): every credit added, reserved, spent, released and expired. */}
+      {canManage && <TransactionHistory entries={ledger.data?.entries ?? null} />}
 
       {/* Invoices */}
       {canManage && (
@@ -408,9 +379,72 @@ export function Billing({ checkoutResult }: { checkoutResult?: "success" | "fail
   );
 }
 
+const USAGE_KINDS = new Set(["spend", "reserve", "release", "expire"]);
+
+function TransactionHistory({ entries }: { entries: NonNullable<ReturnType<typeof useLedger>["data"]>["entries"] | null }) {
+  const [filter, setFilter] = useState<"all" | "usage" | "purchases">("all");
+  const rows = (entries ?? []).filter((e) => filter === "all" || (filter === "usage" ? USAGE_KINDS.has(e.kind) : !USAGE_KINDS.has(e.kind)));
+  return (
+    <section className="space-y-4 rounded-2xl bg-white p-6 shadow-sm" aria-label="Credit history">
+      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900">Credit history</h2>
+          <p className="mt-0.5 text-xs text-slate-500">Every credit added, reserved, spent, released and expired.</p>
+        </div>
+        <div className="inline-flex gap-1 rounded-xl bg-slate-100 p-1" role="group" aria-label="Filter transactions">
+          {(["all", "usage", "purchases"] as const).map((k) => (
+            <button key={k} onClick={() => setFilter(k)} aria-pressed={filter === k} className={`rounded-lg px-3 py-1.5 text-[13px] capitalize transition-all focus:outline-none focus:ring-2 focus:ring-cyan-400/40 ${filter === k ? "bg-white font-semibold text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"}`}>
+              {k === "purchases" ? "Credits added" : k}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="-mx-6 overflow-x-auto px-6" tabIndex={0} role="region" aria-label="Credit history table">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500">
+              <th className="rounded-l-lg px-4 py-3 font-semibold">Date &amp; time</th>
+              <th className="px-4 py-3 font-semibold">Action</th>
+              <th className="rounded-r-lg px-4 py-3 text-right font-semibold">Amount</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-50">
+            {entries === null ? (
+              <tr><td colSpan={3} className="px-4 py-6 text-center text-sm text-slate-500">Loading…</td></tr>
+            ) : rows.length === 0 ? (
+              <tr><td colSpan={3} className="px-4 py-6 text-center text-sm text-slate-500">{entries.length === 0 ? "No credit activity yet." : "Nothing in this view."}</td></tr>
+            ) : (
+              rows.map((e) => {
+                const meta = e.action ? ACTION_META[e.action as keyof typeof ACTION_META] : null;
+                const Icon = meta?.icon ?? Plus;
+                const signed = e.kind === "reserve" ? -e.amount : e.amount;
+                return (
+                  <tr key={e.id} className="transition-colors hover:bg-slate-50/70">
+                    <td className="whitespace-nowrap px-4 py-3.5 text-xs text-slate-500">{formatDate(e.createdAt)}</td>
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center gap-2">
+                        <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${meta?.tone ?? "bg-slate-100 text-slate-600"}`}><Icon className="h-3.5 w-3.5" strokeWidth={1.75} /></span>
+                        <span>
+                          <span className="block text-[13px] font-medium text-slate-900">{meta ? `${KIND_LABEL[e.kind]} · ${meta.label}` : KIND_LABEL[e.kind]}</span>
+                          {e.note && <span className="block max-w-md truncate text-[11px] text-slate-500">{e.note}</span>}
+                        </span>
+                      </div>
+                    </td>
+                    <td className={`whitespace-nowrap px-4 py-3.5 text-right text-[13px] font-semibold tabular-nums ${signed < 0 ? "text-rose-600" : "text-cyan-700"}`}>{signed > 0 ? `+${signed}` : signed} credits</td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
 function BalanceTile({ label, value, sub, accent }: { label: string; value: number; sub?: string; accent?: boolean }) {
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="rounded-2xl border border-slate-200/80 bg-white p-6">
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="rounded-2xl bg-white p-6 shadow-sm">
       <div className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-500">{label}</div>
       <div className={`mt-3 tabular-nums tracking-[-0.025em] ${accent ? "text-[40px] font-semibold leading-[44px] text-slate-900" : "text-[28px] font-semibold leading-9 text-slate-700"}`}>
         <AnimatedNumber value={value} />

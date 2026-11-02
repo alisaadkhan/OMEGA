@@ -108,7 +108,7 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
           <LeaveReview page={view} />
         </main>
       </div>
-      <CreatorProfilePanel creator={omniCreator} onClose={() => setOmniCreator(null)} />
+      <CreatorProfilePanel creator={omniCreator} onClose={() => setOmniCreator(null)} onGoToCampaigns={() => { setOmniCreator(null); setView("campaigns"); }} />
     </div>
   );
 }

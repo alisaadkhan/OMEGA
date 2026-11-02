@@ -4,6 +4,8 @@
  *   refresh   re-fetch existing creators through discovery refresh jobs (fetch → archive → AI assessment → save with
  *             evidence), so niches, city and country come from the creator's own recent content, never invented;
  *   discover  Live Discovery runs over a general niche × city grid (not shaped by the frozen evaluation queries);
+ *   seed      adds the handles of a researched seed manifest (docs/completion/seed/*.json) through the add-by-link
+ *             path: one fetch each, saved with evidence; Pakistani status comes from the country rule, never the list;
  *   reassess  completes AI assessments left pending (provider rate limits) from the archived payload, as the worker's
  *             creator.assessment_requested handler does: score, audience and the minor check; no new fetch.
  * Every job runs in an internal "MUSHIN catalogue build" workspace with granted credits; provider spend is read from
@@ -31,10 +33,10 @@ import { createCachedSearch, createDiscoveryRunner, createDiscoveryService, crea
 
 const { positionals, values } = parseArgs({
   allowPositionals: true,
-  options: { db: { type: "string" }, cap: { type: "string", default: "20" }, platform: { type: "string" }, limit: { type: "string" }, niches: { type: "string" }, cities: { type: "string" }, size: { type: "string", default: "10" }, label: { type: "string", default: "main" } },
+  options: { manifest: { type: "string" }, db: { type: "string" }, cap: { type: "string", default: "20" }, platform: { type: "string" }, limit: { type: "string" }, niches: { type: "string" }, cities: { type: "string" }, size: { type: "string", default: "10" }, label: { type: "string", default: "main" } },
 });
 const mode = positionals[0];
-if (mode !== "refresh" && mode !== "discover" && mode !== "reassess") throw new Error("usage: build.ts <refresh|discover|reassess> --db <catalogue db> --cap <usd>");
+if (mode !== "refresh" && mode !== "discover" && mode !== "reassess" && mode !== "seed") throw new Error("usage: build.ts <refresh|discover|reassess|seed> --db <catalogue db> --cap <usd> [--manifest <seed.json>]");
 const dbName = values.db ?? "";
 if (!/^mushin_catalog_[a-z0-9_]+$/.test(dbName)) throw new Error("--db must name a local catalogue database (mushin_catalog_*); the frozen corpus is never a target");
 const capUsd = Number(values.cap);
@@ -185,6 +187,27 @@ if (mode === "reassess") {
     if (i % 50 === 0) logger.info({ done: i + 1, of: rows.length, outcome, spentUsd: await spentUsd() }, "reassess progress");
   }
   report.push({ mode, pending: rows.length, outcome });
+} else if (mode === "seed") {
+  if (!values.manifest) throw new Error("seed needs --manifest <file>");
+  const manifest = JSON.parse(readFileSync(values.manifest, "utf8")) as { candidates: { handle: string; url: string }[] };
+  const limit = Number(values.limit ?? manifest.candidates.length);
+  for (const [i, c] of manifest.candidates.slice(0, limit).entries()) {
+    if ((await spentUsd()) >= capUsd - JOB_HEADROOM_USD) {
+      logger.warn({ spent: await spentUsd(), capUsd }, "spend cap reached: stopping");
+      break;
+    }
+    const started1 = Date.now();
+    try {
+      const out = await discovery.start(ctx, { kind: "add_by_url", url: c.url, confirmedCost: 50 });
+      const jobId = out.body.status === "started" ? out.body.job.id : null;
+      if (jobId) await profileRunner.run(jobId, ctx.workspaceId).catch((e: Error) => logger.warn({ err: e.message, handle: c.handle }, "seed attempt failed"));
+      const job = jobId ? await discovery.get(ctx, jobId) : null;
+      report.push({ i, handle: c.handle, status: job?.status ?? out.body.status, outcome: job?.outcome ?? null, error: job?.error?.code ?? null, ms: Date.now() - started1 });
+    } catch (err) {
+      report.push({ i, handle: c.handle, status: "refused", error: err instanceof Error ? err.message.slice(0, 120) : String(err) });
+    }
+    logger.info(report.at(-1), "seed");
+  }
 } else if (mode === "refresh") {
   const platform = values.platform ?? "youtube";
   const limit = Number(values.limit ?? 1000);

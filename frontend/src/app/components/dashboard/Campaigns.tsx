@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { ExportButton } from "./ExportButton";
 import { CalendarDays, Megaphone, Plus, Users } from "lucide-react";
 import type { CampaignSummary, CreateCampaign } from "@mushin/contracts";
 import { rupees, toMinor, useCampaigns, useCreateCampaign } from "../../api/campaigns";
@@ -170,7 +169,6 @@ function CampaignIndex({ onOpen }: { onOpen: (id: string) => void }) {
           <p className="mt-1 text-sm text-slate-500">Track creators from first contact to confirmed, with fees and an outreach log.</p>
         </div>
         <div className="flex items-center gap-2">
-          <ExportButton kind="campaigns" />
           <button onClick={() => setCreating(true)} className="inline-flex h-10 items-center gap-1.5 whitespace-nowrap rounded-xl bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800">
             <Plus className="h-4 w-4" /> New campaign
           </button>

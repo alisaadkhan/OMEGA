@@ -1,0 +1,354 @@
+{
+ "mode": "seed",
+ "db": "mushin_catalog_v4",
+ "capUsd": 7,
+ "started": "2026-11-02T17:48:29.818Z",
+ "finished": "2026-11-02T18:08:29.845Z",
+ "spendByProvider": [
+  {
+   "provider": "apify",
+   "calls": 41,
+   "usd": "0.106600"
+  },
+  {
+   "provider": "gemini",
+   "calls": 34,
+   "usd": "0.000000"
+  },
+  {
+   "provider": "ollama",
+   "calls": 121,
+   "usd": "0.032756"
+  }
+ ],
+ "jobs": [
+  {
+   "i": 0,
+   "handle": "minalkhan.official",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 25838
+  },
+  {
+   "i": 1,
+   "handle": "mikaalzulfiqar",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 25922
+  },
+  {
+   "i": 2,
+   "handle": "that_fooodie_girl",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 28835
+  },
+  {
+   "i": 3,
+   "handle": "tayyabakiran.official",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 39878
+  },
+  {
+   "i": 4,
+   "handle": "javedbashirmusic",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 16198
+  },
+  {
+   "i": 5,
+   "handle": "sharmilafaruqui",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 32020
+  },
+  {
+   "i": 6,
+   "handle": "dr.sheee",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 21449
+  },
+  {
+   "i": 7,
+   "handle": "ayezakhan.ak",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 27389
+  },
+  {
+   "i": 8,
+   "handle": "aimankhan.official",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 33652
+  },
+  {
+   "i": 9,
+   "handle": "aima_baig_official",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 34309
+  },
+  {
+   "i": 10,
+   "handle": "urwatistic",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 24655
+  },
+  {
+   "i": 11,
+   "handle": "kunwarmoeez",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 23959
+  },
+  {
+   "i": 12,
+   "handle": "thekubism",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 28963
+  },
+  {
+   "i": 13,
+   "handle": "zaidalit",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 22584
+  },
+  {
+   "i": 14,
+   "handle": "dr.madihakhan",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 29507
+  },
+  {
+   "i": 15,
+   "handle": "sanamchauhdry",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 14032
+  },
+  {
+   "i": 16,
+   "handle": "dananeerr",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 30441
+  },
+  {
+   "i": 17,
+   "handle": "wahaj.official",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 23652
+  },
+  {
+   "i": 18,
+   "handle": "areeka__haq",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 40955
+  },
+  {
+   "i": 19,
+   "handle": "sonyahussyn",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 30247
+  },
+  {
+   "i": 20,
+   "handle": "hafsa._.khan1",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 27283
+  },
+  {
+   "i": 21,
+   "handle": "falakshabir1",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 28303
+  },
+  {
+   "i": 22,
+   "handle": "nomanandbhaiya",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 28522
+  },
+  {
+   "i": 23,
+   "handle": "thesahiralibagga_official",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 30143
+  },
+  {
+   "i": 24,
+   "handle": "amnaaa.nasir__",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 44788
+  },
+  {
+   "i": 25,
+   "handle": "fakharzaman719",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 35944
+  },
+  {
+   "i": 26,
+   "handle": "irfanjunejo",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 32831
+  },
+  {
+   "i": 27,
+   "handle": "javeria.kahn",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 33031
+  },
+  {
+   "i": 28,
+   "handle": "fouziaaman",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 31618
+  },
+  {
+   "i": 29,
+   "handle": "iqbalsidra",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 27684
+  },
+  {
+   "i": 30,
+   "handle": "iasimkamal",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 24023
+  },
+  {
+   "i": 31,
+   "handle": "abdulbasitworld",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 39606
+  },
+  {
+   "i": 32,
+   "handle": "anamfalak",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 28380
+  },
+  {
+   "i": 33,
+   "handle": "aijazzaslamofficial",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 45332
+  },
+  {
+   "i": 34,
+   "handle": "mohsinwahidofficial",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 15486
+  },
+  {
+   "i": 35,
+   "handle": "zaraa_princess1",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 34309
+  },
+  {
+   "i": 36,
+   "handle": "zainabshabbir.11",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 30056
+  },
+  {
+   "i": 37,
+   "handle": "ghanaaliofficial",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 31571
+  },
+  {
+   "i": 38,
+   "handle": "hibaalikhanofficial",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 26260
+  },
+  {
+   "i": 39,
+   "handle": "sadiaslayy",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 19422
+  },
+  {
+   "i": 40,
+   "handle": "emmadirfani",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 30398
+  }
+ ]
+}

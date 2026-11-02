@@ -1,0 +1,334 @@
+{
+ "wave": 1,
+ "platform": "instagram",
+ "prepared": "2026-11-02",
+ "method": "Candidate handles from public influencer rankings (sources below). A ranking is not evidence of nationality: each profile is fetched and its Pakistani status is decided by the MUSHIN country rule from the creator's own bio. Unresolved candidates stay unresolved; none is admitted as Pakistani without evidence.",
+ "sources": {
+  "food": "https://www.heepsy.com/top-instagram/food/pakistan",
+  "beauty": "https://www.heepsy.com/ranking/top-beauty-and-make-up-influencers-in-pakistan",
+  "fashion": "https://www.heepsy.com/top-instagram/fashion/pakistan",
+  "lifestyle": "https://www.heepsy.com/ranking/top-lifestyle-influencers-in-pakistan",
+  "travel": "https://www.heepsy.com/top-instagram/travel/pakistan",
+  "fitness": "https://www.heepsy.com/top-instagram/fitness/pakistan"
+ },
+ "candidates": [
+  {
+   "handle": "minalkhan.official",
+   "name": "Minal Ahsan",
+   "listedNiche": "food",
+   "source": "https://www.heepsy.com/top-instagram/food/pakistan",
+   "url": "https://www.instagram.com/minalkhan.official/"
+  },
+  {
+   "handle": "mikaalzulfiqar",
+   "name": "Mikaal Zulfiqar",
+   "listedNiche": "food",
+   "source": "https://www.heepsy.com/top-instagram/food/pakistan",
+   "url": "https://www.instagram.com/mikaalzulfiqar/"
+  },
+  {
+   "handle": "that_fooodie_girl",
+   "name": "Tayaba Moazzam",
+   "listedNiche": "food",
+   "source": "https://www.heepsy.com/top-instagram/food/pakistan",
+   "url": "https://www.instagram.com/that_fooodie_girl/"
+  },
+  {
+   "handle": "tayyabakiran.official",
+   "name": "Tayyaba Kiran",
+   "listedNiche": "food",
+   "source": "https://www.heepsy.com/top-instagram/food/pakistan",
+   "url": "https://www.instagram.com/tayyabakiran.official/"
+  },
+  {
+   "handle": "javedbashirmusic",
+   "name": "Javed Bashir",
+   "listedNiche": "food",
+   "source": "https://www.heepsy.com/top-instagram/food/pakistan",
+   "url": "https://www.instagram.com/javedbashirmusic/"
+  },
+  {
+   "handle": "sharmilafaruqui",
+   "name": "Sharmila Faruqui",
+   "listedNiche": "food",
+   "source": "https://www.heepsy.com/top-instagram/food/pakistan",
+   "url": "https://www.instagram.com/sharmilafaruqui/"
+  },
+  {
+   "handle": "dr.sheee",
+   "name": "Dr Shereen Fatima",
+   "listedNiche": "food",
+   "source": "https://www.heepsy.com/top-instagram/food/pakistan",
+   "url": "https://www.instagram.com/dr.sheee/"
+  },
+  {
+   "handle": "ayezakhan.ak",
+   "name": "Ayeza Khan",
+   "listedNiche": "beauty",
+   "source": "https://www.heepsy.com/ranking/top-beauty-and-make-up-influencers-in-pakistan",
+   "url": "https://www.instagram.com/ayezakhan.ak/"
+  },
+  {
+   "handle": "aimankhan.official",
+   "name": "Aiman Muneeb",
+   "listedNiche": "beauty",
+   "source": "https://www.heepsy.com/ranking/top-beauty-and-make-up-influencers-in-pakistan",
+   "url": "https://www.instagram.com/aimankhan.official/"
+  },
+  {
+   "handle": "aima_baig_official",
+   "name": "Aima Baig",
+   "listedNiche": "beauty",
+   "source": "https://www.heepsy.com/ranking/top-beauty-and-make-up-influencers-in-pakistan",
+   "url": "https://www.instagram.com/aima_baig_official/"
+  },
+  {
+   "handle": "urwatistic",
+   "name": "Urwa Hocane",
+   "listedNiche": "beauty",
+   "source": "https://www.heepsy.com/ranking/top-beauty-and-make-up-influencers-in-pakistan",
+   "url": "https://www.instagram.com/urwatistic/"
+  },
+  {
+   "handle": "kunwarmoeez",
+   "name": "Kunwar Moeez Khan",
+   "listedNiche": "beauty",
+   "source": "https://www.heepsy.com/ranking/top-beauty-and-make-up-influencers-in-pakistan",
+   "url": "https://www.instagram.com/kunwarmoeez/"
+  },
+  {
+   "handle": "thekubism",
+   "name": "Kubra Khan",
+   "listedNiche": "beauty",
+   "source": "https://www.heepsy.com/ranking/top-beauty-and-make-up-influencers-in-pakistan",
+   "url": "https://www.instagram.com/thekubism/"
+  },
+  {
+   "handle": "zaidalit",
+   "name": "ZaidAliT",
+   "listedNiche": "beauty",
+   "source": "https://www.heepsy.com/ranking/top-beauty-and-make-up-influencers-in-pakistan",
+   "url": "https://www.instagram.com/zaidalit/"
+  },
+  {
+   "handle": "dr.madihakhan",
+   "name": "Madiha Ahsan",
+   "listedNiche": "beauty",
+   "source": "https://www.heepsy.com/ranking/top-beauty-and-make-up-influencers-in-pakistan",
+   "url": "https://www.instagram.com/dr.madihakhan/"
+  },
+  {
+   "handle": "sanamchauhdry",
+   "name": "Sanam Chauhdry",
+   "listedNiche": "beauty",
+   "source": "https://www.heepsy.com/ranking/top-beauty-and-make-up-influencers-in-pakistan",
+   "url": "https://www.instagram.com/sanamchauhdry/"
+  },
+  {
+   "handle": "dananeerr",
+   "name": "Dananeer",
+   "listedNiche": "fashion",
+   "source": "https://www.heepsy.com/top-instagram/fashion/pakistan",
+   "url": "https://www.instagram.com/dananeerr/"
+  },
+  {
+   "handle": "wahaj.official",
+   "name": "Wahaj Ali",
+   "listedNiche": "fashion",
+   "source": "https://www.heepsy.com/top-instagram/fashion/pakistan",
+   "url": "https://www.instagram.com/wahaj.official/"
+  },
+  {
+   "handle": "areeka__haq",
+   "name": "Areeka Haq",
+   "listedNiche": "fashion",
+   "source": "https://www.heepsy.com/top-instagram/fashion/pakistan",
+   "url": "https://www.instagram.com/areeka__haq/"
+  },
+  {
+   "handle": "sonyahussyn",
+   "name": "Sonya Hussyn",
+   "listedNiche": "fashion",
+   "source": "https://www.heepsy.com/top-instagram/fashion/pakistan",
+   "url": "https://www.instagram.com/sonyahussyn/"
+  },
+  {
+   "handle": "hafsa._.khan1",
+   "name": "Hafsa Shaheer Khan",
+   "listedNiche": "fashion",
+   "source": "https://www.heepsy.com/top-instagram/fashion/pakistan",
+   "url": "https://www.instagram.com/hafsa._.khan1/"
+  },
+  {
+   "handle": "falakshabir1",
+   "name": "Falak Shabir",
+   "listedNiche": "fashion",
+   "source": "https://www.heepsy.com/top-instagram/fashion/pakistan",
+   "url": "https://www.instagram.com/falakshabir1/"
+  },
+  {
+   "handle": "nomanandbhaiya",
+   "name": "Noman Siddiqui",
+   "listedNiche": "fashion",
+   "source": "https://www.heepsy.com/top-instagram/fashion/pakistan",
+   "url": "https://www.instagram.com/nomanandbhaiya/"
+  },
+  {
+   "handle": "thesahiralibagga_official",
+   "name": "Sahir Ali Bagga",
+   "listedNiche": "lifestyle",
+   "source": "https://www.heepsy.com/ranking/top-lifestyle-influencers-in-pakistan",
+   "url": "https://www.instagram.com/thesahiralibagga_official/"
+  },
+  {
+   "handle": "amnaaa.nasir__",
+   "name": "Amna Nasir",
+   "listedNiche": "lifestyle",
+   "source": "https://www.heepsy.com/ranking/top-lifestyle-influencers-in-pakistan",
+   "url": "https://www.instagram.com/amnaaa.nasir__/"
+  },
+  {
+   "handle": "fakharzaman719",
+   "name": "Fakhar Zaman",
+   "listedNiche": "lifestyle",
+   "source": "https://www.heepsy.com/ranking/top-lifestyle-influencers-in-pakistan",
+   "url": "https://www.instagram.com/fakharzaman719/"
+  },
+  {
+   "handle": "irfanjunejo",
+   "name": "Irfan Junejo",
+   "listedNiche": "lifestyle",
+   "source": "https://www.heepsy.com/ranking/top-lifestyle-influencers-in-pakistan",
+   "url": "https://www.instagram.com/irfanjunejo/"
+  },
+  {
+   "handle": "javeria.kahn",
+   "name": "Javeria Khan",
+   "listedNiche": "lifestyle",
+   "source": "https://www.heepsy.com/ranking/top-lifestyle-influencers-in-pakistan",
+   "url": "https://www.instagram.com/javeria.kahn/"
+  },
+  {
+   "handle": "fouziaaman",
+   "name": "Fouzia Aman",
+   "listedNiche": "lifestyle",
+   "source": "https://www.heepsy.com/ranking/top-lifestyle-influencers-in-pakistan",
+   "url": "https://www.instagram.com/fouziaaman/"
+  },
+  {
+   "handle": "iqbalsidra",
+   "name": "Sidra Iqbal",
+   "listedNiche": "lifestyle",
+   "source": "https://www.heepsy.com/ranking/top-lifestyle-influencers-in-pakistan",
+   "url": "https://www.instagram.com/iqbalsidra/"
+  },
+  {
+   "handle": "iasimkamal",
+   "name": "Asim Kamal",
+   "listedNiche": "travel",
+   "source": "https://www.heepsy.com/top-instagram/travel/pakistan",
+   "url": "https://www.instagram.com/iasimkamal/"
+  },
+  {
+   "handle": "abdulbasitworld",
+   "name": "Muhammad Basit Khan",
+   "listedNiche": "travel",
+   "source": "https://www.heepsy.com/top-instagram/travel/pakistan",
+   "url": "https://www.instagram.com/abdulbasitworld/"
+  },
+  {
+   "handle": "anamfalak",
+   "name": "Anum Falak",
+   "listedNiche": "travel",
+   "source": "https://www.heepsy.com/top-instagram/travel/pakistan",
+   "url": "https://www.instagram.com/anamfalak/"
+  },
+  {
+   "handle": "aijazzaslamofficial",
+   "name": "Aijaz Aslam",
+   "listedNiche": "travel",
+   "source": "https://www.heepsy.com/top-instagram/travel/pakistan",
+   "url": "https://www.instagram.com/aijazzaslamofficial/"
+  },
+  {
+   "handle": "mohsinwahidofficial",
+   "name": "Mohsin Wahid",
+   "listedNiche": "travel",
+   "source": "https://www.heepsy.com/top-instagram/travel/pakistan",
+   "url": "https://www.instagram.com/mohsinwahidofficial/"
+  },
+  {
+   "handle": "zaraa_princess1",
+   "name": "r.zahra",
+   "listedNiche": "travel",
+   "source": "https://www.heepsy.com/top-instagram/travel/pakistan",
+   "url": "https://www.instagram.com/zaraa_princess1/"
+  },
+  {
+   "handle": "zainabshabbir.11",
+   "name": "Zainab Shabbir",
+   "listedNiche": "fitness",
+   "source": "https://www.heepsy.com/top-instagram/fitness/pakistan",
+   "url": "https://www.instagram.com/zainabshabbir.11/"
+  },
+  {
+   "handle": "ghanaaliofficial",
+   "name": "Ghana Ali",
+   "listedNiche": "fitness",
+   "source": "https://www.heepsy.com/top-instagram/fitness/pakistan",
+   "url": "https://www.instagram.com/ghanaaliofficial/"
+  },
+  {
+   "handle": "hibaalikhanofficial",
+   "name": "Hiba Ali Khan",
+   "listedNiche": "fitness",
+   "source": "https://www.heepsy.com/top-instagram/fitness/pakistan",
+   "url": "https://www.instagram.com/hibaalikhanofficial/"
+  },
+  {
+   "handle": "sadiaslayy",
+   "name": "Sadia Slayy",
+   "listedNiche": "fitness",
+   "source": "https://www.heepsy.com/top-instagram/fitness/pakistan",
+   "url": "https://www.instagram.com/sadiaslayy/"
+  },
+  {
+   "handle": "emmadirfani",
+   "name": "Emmad Irfani",
+   "listedNiche": "fitness",
+   "source": "https://www.heepsy.com/top-instagram/fitness/pakistan",
+   "url": "https://www.instagram.com/emmadirfani/"
+  }
+ ],
+ "alreadyInCatalogue": [
+  "m1danial",
+  "hiraa_faisal",
+  "beyondbeautynatasha"
+ ],
+ "excluded": [
+  {
+   "handle": "migrationology",
+   "reason": "foreign creator (Mark Wiens) who visited Pakistan"
+  },
+  {
+   "handle": "thefoodranger",
+   "reason": "foreign creator (Trevor James)"
+  },
+  {
+   "handle": "evazubeck",
+   "reason": "foreign creator (Eva zu Beck)"
+  },
+  {
+   "handle": "divamagazinepakistan",
+   "reason": "publication, not a creator"
+  },
+  {
+   "handle": "riseofitness",
+   "reason": "compilation page, not a creator"
+  },
+  {
+   "handle": "ishaqzaadi_77",
+   "reason": "identity unclear from the source"
+  }
+ ]
+}

@@ -278,7 +278,7 @@ function DiscoverPreview() {
                 <div className="tabular-nums text-slate-500">{c.er} ER</div>
               </div>
               <div className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-xs text-emerald-700 tabular-nums" style={{ fontWeight: 600 }}>
-                Fit {c.iq}
+                IQ {c.iq}
               </div>
             </motion.div>
           ))}
@@ -301,7 +301,7 @@ function AnalyzePreview() {
             { l: "Audience trust", v: "92" },
             { l: "Engagement", v: "5.6%" },
             { l: "Consistency", v: "88" },
-            { l: "Fit score", v: "91" },
+            { l: "MUSHIN IQ", v: "91" },
           ].map((m) => (
             <div key={m.l} className="rounded-md border border-slate-200 bg-white p-2.5">
               <div className="text-slate-500">{m.l}</div>
@@ -450,7 +450,7 @@ function ManagePreview() {
                 </div>
                 <div className="mt-2 flex items-center justify-between text-[10px] text-slate-500">
                   <span className="inline-flex items-center gap-1 tabular-nums">
-                    <TrendingUp className="h-2.5 w-2.5" /> Fit {84 + ((si * 3 + i) % 10)}
+                    <TrendingUp className="h-2.5 w-2.5" /> IQ {84 + ((si * 3 + i) % 10)}
                   </span>
                   <span>2d</span>
                 </div>

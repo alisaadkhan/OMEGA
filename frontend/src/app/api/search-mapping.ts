@@ -299,3 +299,11 @@ export function platformMixText(counts: SearchResponse["platformCounts"]): strin
   const note = thin.length ? ` All platforms were searched; MUSHIN's catalogue has few ${thin.join(" and ")} creators for this search so far.` : "";
   return `Matches by platform: ${parts.join(" · ")}.${note}`;
 }
+
+/** An <img> onError handler: a stored photo that no longer loads falls back to the initials avatar (never a blank). */
+export function avatarFallback(name: string) {
+  return (e: { currentTarget: HTMLImageElement }) => {
+    const fallback = initialsAvatar(name);
+    if (e.currentTarget.src !== fallback) e.currentTarget.src = fallback;
+  };
+}

@@ -1,0 +1,29 @@
+{
+ "db": "mushin_catalog_v4",
+ "mode": "dry-run",
+ "at": "2026-11-02T17:43:49.938Z",
+ "creators": 2706,
+ "changed": 9,
+ "transitions": {
+  "instagram: unknown -> pakistan": 8,
+  "youtube: unknown -> pakistan": 1
+ },
+ "before": {
+  "instagram": {
+   "unknown": 233,
+   "pakistan": 56,
+   "foreign": 5
+  },
+  "tiktok": {
+   "unknown": 33
+  },
+  "youtube": {
+   "pakistan": 1283,
+   "foreign": 297,
+   "unknown": 785,
+   "conflicting": 14
+  }
+ },
+ "after": "unchanged (dry run)",
+ "projection": null
+}
