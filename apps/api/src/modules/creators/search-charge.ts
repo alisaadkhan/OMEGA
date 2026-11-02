@@ -58,3 +58,42 @@ export async function chargeCatalogSearch(
     return { charged: price > 0, creditsCharged: price };
   });
 }
+
+class DryRun extends Error {}
+
+/**
+ * Refuses a search the workspace could not pay for before it runs (security hardening 2026-11-03): charging only after a
+ * search found creators let an account with no credits tell "matches exist" (refused) from "nothing matches" (free, empty).
+ * The real charge is attempted and rolled back, so the same price and balance rules answer; a search already paid for
+ * inside the window, or a free price, passes.
+ */
+export async function assertCanPayCatalogSearch(
+  deps: { db: Db; billing: Pick<BillingService, "engine">; now: () => Date },
+  ctx: TenantContext,
+  req: Pick<SearchRequest, "text" | "filters" | "confirmedCost">,
+): Promise<void> {
+  const hash = searchChargeHash(req);
+  try {
+    await deps.db.withTenant({ userId: ctx.userId, workspaceId: ctx.workspaceId }, async (tx) => {
+      const since = new Date(deps.now().getTime() - SEARCH_CHARGE_WINDOW_MS).toISOString();
+      const [recent] = await tx.execute<{ id: string }>(sql`
+        select id from wp.catalog_search_charges
+        where workspace_id = ${ctx.workspaceId} and user_id = ${ctx.userId} and search_hash = ${hash} and charged_at > ${since}::timestamptz
+        limit 1`);
+      if (recent) throw new DryRun();
+      const { search_existing: price } = await deps.billing.engine.costs(tx, ["search_existing"]);
+      if (price > 0) {
+        await deps.billing.engine.spendInstant(
+          tx,
+          ctx.workspaceId,
+          { action: "search_existing", confirmedCost: req.confirmedCost, refType: "catalog_search", refId: randomUUID() },
+          { userId: ctx.userId, requestId: ctx.requestId },
+        );
+      }
+      throw new DryRun();
+    });
+  } catch (err) {
+    if (err instanceof DryRun) return;
+    throw err;
+  }
+}

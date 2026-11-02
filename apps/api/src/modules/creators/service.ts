@@ -22,7 +22,7 @@ import * as repo from "./repository";
 import { cleanInterpretation, contactAvailability, fenced, freshnessOf, isContactable, isMinorProtected, meiliFilter, normalizeProfileUrl, refreshActionFor, sourceHash } from "./rules";
 import { toCards } from "./ranking";
 import { suppressedUrls } from "./suppressions";
-import { chargeCatalogSearch } from "./search-charge";
+import { assertCanPayCatalogSearch, chargeCatalogSearch } from "./search-charge";
 import { decodeCursor, encodeCursor } from "./cursor";
 import { understandQuery } from "./understand";
 import { understandQueryV2 } from "./understand-v2";
@@ -136,6 +136,8 @@ export function createCreatorsService(deps: CreatorsDeps) {
     const parsed = searchFiltersSchema.safeParse(merged);
     if (!parsed.success) throw new AppError("VALIDATION_FAILED", "The search asks for an impossible range (the minimum is above the maximum). Adjust it and search again.", { reason: "conflicting_range" });
     const q = { ...req, text: understood.text, filters: parsed.data };
+    // A search the workspace cannot pay for is refused before it runs, whatever it would find (no zero-credit oracle).
+    await assertCanPayCatalogSearch({ db: deps.db, billing: deps.billing, now }, ctx, req);
     // Without text, Meilisearch returns matches in storage order; sorting by the fit score's strongest signals keeps the
     // capped candidate pool on the best creators when more match than it holds (SRS REQ-02.03).
     const { hits, total: indexTotal, backend } = await fromIndex(
