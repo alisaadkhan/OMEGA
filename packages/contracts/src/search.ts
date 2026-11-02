@@ -192,7 +192,7 @@ export const creatorProfileSchema = z.object({
   city: z.string().nullable(),
   country: z.string().nullable(),
   /** Where the shown country comes from (0054): the creator's confirmation, the creator's own bio, or the platform. */
-  countrySource: z.enum(["creator_confirmed", "creator_stated", "platform_declared"]).nullable().default(null),
+  countrySource: z.enum(["creator_confirmed", "creator_stated", "platform_declared", "public_record", "linked_profile"]).nullable().default(null),
   niches: z.array(z.string()),
   /** How the niches were reached (0054): one main niche (plus up to two secondary), variety, or unknown. Null = not yet classified. */
   nicheClassification: z

@@ -36,7 +36,9 @@ describe("city residence → country (CITY)", () => {
   });
 
   it("CITY-05 travel, visits and topics are not residence", () => {
-    for (const bio of ["Travelling in Dubai this week", "Currently visiting London", "Best biryani in Karachi reviewed", "Lahore food vlogger"]) expect(pc(bio).status).toBe("unknown");
+    for (const bio of ["Travelling in Dubai this week", "Currently visiting London", "Best biryani in Karachi reviewed"]) expect(pc(bio).status).toBe("unknown");
+    // Owner 2026-11-03: a Pakistani city opening the bio header ("Lahore food vlogger") is a storefront location.
+    expect(pc("Lahore food vlogger").status).toBe("pakistan");
   });
 
   it("CITY-06 birthplace or origin is not current residence", () => {

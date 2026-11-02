@@ -27,7 +27,8 @@ describe("evidence-based creator attributes", () => {
     const d = deriveAttributes(profile({ bio: "Food vlogger based in Lahore. Collabs via DM" }), null);
     expect(d.city).toBe("Lahore");
     expect(d.countries).toEqual({ platform: null, stated: "PK", statedConfidence: "medium" });
-    expect(deriveAttributes(profile({ bio: "Lahore food vlogger" }), null).countries.stated).toBeNull();
+    // Owner 2026-11-03: a city opening the bio header is a storefront location (medium confidence).
+    expect(deriveAttributes(profile({ bio: "Lahore food vlogger" }), null).countries.stated).toBe("PK");
     expect(deriveAttributes(profile({ bio: "Food vlogger based in Lahore, Pakistan" }), null).countries).toEqual({ platform: null, stated: "PK", statedConfidence: "high" });
     expect(d.evidence.find((r) => r.attribute === "city")).toMatchObject({ source: "profile_text", status: "supported", evidence: expect.stringContaining("Lahore") });
   });

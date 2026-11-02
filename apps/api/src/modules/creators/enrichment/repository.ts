@@ -382,15 +382,32 @@ export async function refreshProfileCountries(
   creatorId: string,
   o: { source: "enrichment" | "backfill" | "staff"; now?: Date } = { source: "enrichment" },
 ): Promise<{ profileId: string; platform: string; from: string; to: ProfileCountry }[]> {
-  const rows = await tx.execute<{ id: string; platform: string; bio: string | null; country: string | null; country_status: string; country_source: string | null; country_reason: string | null; country_confidence: string | null; platform_country: string | null; confirmed_country: string | null }>(sql`
-    select p.id, p.platform, p.bio, p.country, p.country_status, p.country_source, p.country_reason, p.country_confidence, c.platform_country, c.confirmed_country
+  const rows = await tx.execute<{ id: string; platform: string; bio: string | null; country: string | null; country_status: string; country_source: string | null; country_reason: string | null; country_confidence: string | null; platform_country: string | null; confirmed_country: string | null; public_country: string | null; public_country_source: string | null; urls: string[] | null }>(sql`
+    select p.id, p.platform, p.bio, p.country, p.country_status, p.country_source, p.country_reason, p.country_confidence, c.platform_country, c.confirmed_country,
+           c.public_country, c.public_country_source,
+           (select array_agg(l.url) from gcp.creator_links l where l.creator_id = c.id) urls
     from gcp.creator_profiles p join gcp.creators c on c.id = p.creator_id
     where p.creator_id = ${creatorId}
     for update of p`);
   const changed: { profileId: string; platform: string; from: string; to: ProfileCountry }[] = [];
   const at = (o.now ?? new Date()).toISOString();
+  const input = (r: (typeof rows)[number]) => ({
+    bio: r.bio,
+    platformCountry: r.platform === "youtube" ? r.platform_country : null,
+    confirmed: r.confirmed_country,
+    extras: { urls: r.urls ?? [] },
+    publicRecord: r.public_country ? { country: r.public_country, source: r.public_country_source } : null,
+  });
+  // Two passes: each profile on its own evidence, then a Pakistani profile may corroborate the creator's other profiles
+  // that have no evidence of their own (a stated life abroad on a profile still wins there).
+  const own = new Map([...rows].map((r) => [r.id, profileCountry(input(r))]));
+  const pkSibling = (id: string) => {
+    const s = [...rows].find((x) => x.id !== id && own.get(x.id)?.status === "pakistan" && own.get(x.id)?.source !== "linked_profile");
+    return s ? { platform: s.platform, reason: own.get(s.id)?.reason ?? "" } : null;
+  };
   for (const r of rows) {
-    const next = profileCountry({ bio: r.bio, platformCountry: r.platform === "youtube" ? r.platform_country : null, confirmed: r.confirmed_country });
+    const mine = own.get(r.id) as ProfileCountry;
+    const next = mine.status === "unknown" ? profileCountry({ ...input(r), linkedPakistani: pkSibling(r.id) }) : mine;
     if (next.status === r.country_status && next.country === r.country) {
       // Fresh provider data re-confirms the evidence; a recomputation from stored data does not.
       // Same decision, different evidence (source, reason, confidence): refreshed in place; no lifecycle event, because
@@ -413,6 +430,127 @@ export async function refreshProfileCountries(
     changed.push({ profileId: r.id, platform: r.platform, from: r.country_status, to: next });
   }
   return changed;
+}
+
+/** The (platform, handle) a social profile URL points at; null for anything else. */
+export function socialTarget(url: string): { platform: "instagram" | "tiktok" | "youtube"; handle: string } | null {
+  let u: URL;
+  try {
+    u = new URL(url.startsWith("http") ? url : `https://${url}`);
+  } catch {
+    return null;
+  }
+  const host = u.hostname.replace(/^(www\.|m\.)/u, "").toLowerCase();
+  const parts = u.pathname.split("/").filter(Boolean);
+  const first = parts[0] ?? "";
+  if (host === "instagram.com" && first && !["p", "reel", "reels", "stories", "explore"].includes(first)) return { platform: "instagram", handle: first.toLowerCase() };
+  if (host === "tiktok.com" && first.startsWith("@")) return { platform: "tiktok", handle: first.slice(1).toLowerCase() };
+  if (host === "youtube.com" || host === "youtu.be") {
+    if (first.startsWith("@")) return { platform: "youtube", handle: first.slice(1).toLowerCase() };
+    if (["c", "user"].includes(first) && parts[1]) return { platform: "youtube", handle: parts[1].toLowerCase() };
+    if (first && !["watch", "channel", "shorts", "playlist", "results", "embed"].includes(first)) return { platform: "youtube", handle: first.toLowerCase() };
+  }
+  return null;
+}
+
+type GraphCreator = { platform: string; handle: string; public_country: string | null; public_country_source: string | null; status: string; source: string | null; reason: string | null };
+/** Creators linked to the given ones by a profile link in either direction (the links' targets must exist as profiles). */
+async function linkedCreatorGraph(tx: Tx, creatorIds: string[]): Promise<{ linked: Map<string, string[]>; creators: Map<string, GraphCreator> }> {
+  const profiles = await tx.execute<{ creator_id: string; platform: string; handle: string; public_country: string | null; public_country_source: string | null; country_status: string; country_source: string | null; country_reason: string | null }>(sql`
+    select p.creator_id, p.platform, lower(p.handle) handle, c.public_country, c.public_country_source, p.country_status, p.country_source, p.country_reason
+    from gcp.creator_profiles p join gcp.creators c on c.id = p.creator_id where c.status = 'active'`);
+  const byTarget = new Map<string, string>();
+  const creators = new Map<string, GraphCreator>();
+  for (const p of profiles) {
+    byTarget.set(`${p.platform}:${p.handle}`, p.creator_id);
+    if (!creators.has(p.creator_id) || p.country_status === "pakistan") creators.set(p.creator_id, { platform: p.platform, handle: p.handle, public_country: p.public_country, public_country_source: p.public_country_source, status: p.country_status, source: p.country_source, reason: p.country_reason });
+  }
+  const links = await tx.execute<{ creator_id: string; url: string }>(sql`select creator_id, url from gcp.creator_links`);
+  const linked = new Map<string, string[]>();
+  const add = (a: string, b: string) => linked.set(a, [...new Set([...(linked.get(a) ?? []), b])]);
+  const wanted = new Set(creatorIds);
+  for (const l of links) {
+    const t = socialTarget(l.url);
+    const other = t ? byTarget.get(`${t.platform}:${t.handle}`) : undefined;
+    if (!other || other === l.creator_id) continue;
+    if (wanted.has(l.creator_id) || wanted.has(other)) {
+      add(l.creator_id, other);
+      add(other, l.creator_id);
+    }
+  }
+  return { linked, creators };
+}
+
+/**
+ * Bulk form of refreshProfileCountries for backfills (same rules, same lifecycle events): one read for the batch, decisions in
+ * memory, one UPDATE (jsonb_to_recordset) and one INSERT of lifecycle events. Use batches of about 500 creators.
+ */
+export async function bulkRefreshProfileCountries(tx: Tx, creatorIds: string[], o: { source: "backfill" | "staff"; now?: Date } = { source: "backfill" }): Promise<{ profileId: string; platform: string; from: string; to: ProfileCountry }[]> {
+  if (creatorIds.length === 0) return [];
+  const rows = await tx.execute<{ id: string; creator_id: string; platform: string; bio: string | null; country: string | null; country_status: string; country_source: string | null; country_reason: string | null; country_confidence: string | null; platform_country: string | null; confirmed_country: string | null; public_country: string | null; public_country_source: string | null; urls: string[] | null }>(sql`
+    select p.id, p.creator_id, p.platform, p.bio, p.country, p.country_status, p.country_source, p.country_reason, p.country_confidence, c.platform_country, c.confirmed_country,
+           c.public_country, c.public_country_source, l.urls
+    from gcp.creator_profiles p join gcp.creators c on c.id = p.creator_id
+    left join (select creator_id, array_agg(url) urls from gcp.creator_links where creator_id = any(array(select jsonb_array_elements_text(${JSON.stringify(creatorIds)}::jsonb)::uuid)) group by creator_id) l on l.creator_id = c.id
+    where p.creator_id = any(array(select jsonb_array_elements_text(${JSON.stringify(creatorIds)}::jsonb)::uuid))`);
+  const at = (o.now ?? new Date()).toISOString();
+  // Cross-platform identity without merging records: a creator whose links point at another creator's profile (either
+  // direction) is the same person. Their public record carries over; a Pakistani decision corroborates an empty profile.
+  const graph = await linkedCreatorGraph(tx, creatorIds);
+  const input = (r: (typeof rows)[number]) => {
+    const linkedPublic = (graph.linked.get(r.creator_id) ?? []).map((id) => graph.creators.get(id)).find((c) => c?.public_country);
+    return {
+      bio: r.bio,
+      platformCountry: r.platform === "youtube" ? r.platform_country : null,
+      confirmed: r.confirmed_country,
+      extras: { urls: r.urls ?? [] },
+      publicRecord: r.public_country
+        ? { country: r.public_country, source: r.public_country_source }
+        : linkedPublic?.public_country
+          ? { country: linkedPublic.public_country, source: `linked ${linkedPublic.platform} profile @${linkedPublic.handle}: ${linkedPublic.public_country_source ?? ""}` }
+          : null,
+    };
+  };
+  const all = [...rows];
+  const own = new Map(all.map((r) => [r.id, profileCountry(input(r))]));
+  const changed: { profileId: string; platform: string; from: string; to: ProfileCountry; creatorId: string; prevCountry: string | null }[] = [];
+  const updates: { id: string; country: string | null; source: string | null; status: string; reason: string; confidence: string | null; checked: string | null }[] = [];
+  for (const r of all) {
+    const mine = own.get(r.id) as ProfileCountry;
+    const sameCreator = mine.status === "unknown" ? all.find((x) => x.creator_id === r.creator_id && x.id !== r.id && own.get(x.id)?.status === "pakistan" && own.get(x.id)?.source !== "linked_profile") : undefined;
+    const linkedPk = mine.status === "unknown" && !sameCreator ? (graph.linked.get(r.creator_id) ?? []).map((id) => graph.creators.get(id)).find((c) => c?.status === "pakistan" && c.source !== "linked_profile") : undefined;
+    const sib = sameCreator ? { platform: sameCreator.platform, reason: own.get(sameCreator.id)?.reason ?? "" } : linkedPk ? { platform: linkedPk.platform, reason: `@${linkedPk.handle}: ${linkedPk.reason ?? ""}` } : null;
+    const next = sib ? profileCountry({ ...input(r), linkedPakistani: sib }) : mine;
+    const reason = next.reason.slice(0, 300);
+    const decisionChanged = next.status !== r.country_status || next.country !== r.country;
+    if (!decisionChanged && next.source === r.country_source && reason === r.country_reason && next.confidence === r.country_confidence) continue;
+    updates.push({ id: r.id, country: next.country, source: next.source, status: next.status, reason, confidence: next.confidence, checked: decisionChanged ? (next.status === "unknown" ? null : at) : null });
+    if (decisionChanged) changed.push({ profileId: r.id, platform: r.platform, from: r.country_status, to: next, creatorId: r.creator_id, prevCountry: r.country });
+  }
+  if (updates.length > 0) {
+    await tx.execute(sql`
+      update gcp.creator_profiles p
+      set country = u.country, country_source = u.source, country_status = u.status, country_reason = u.reason, country_confidence = u.confidence,
+          country_checked_at = case when u.checked is null and p.country_status = u.status then p.country_checked_at else u.checked::timestamptz end,
+          updated_at = case when p.country_status = u.status and p.country is not distinct from u.country then p.updated_at else now() end
+      from jsonb_to_recordset(${JSON.stringify(updates)}::jsonb) as u(id uuid, country text, source text, status text, reason text, confidence text, checked text)
+      where p.id = u.id`);
+  }
+  if (changed.length > 0) {
+    const events = changed.map((c) => ({
+      creator_id: c.creatorId,
+      profile_id: c.profileId,
+      from_state: c.from + (c.prevCountry ? ":" + c.prevCountry : ""),
+      to_state: c.to.status + (c.to.country ? ":" + c.to.country : ""),
+      reason: c.to.status === "conflicting" ? "Conflicting country evidence on this profile" : c.to.reason.slice(0, 300),
+      action: c.to.status === "pakistan" ? "may appear in customer search" : "excluded from customer search (kept, reviewable)",
+    }));
+    await tx.execute(sql`
+      insert into gcp.creator_lifecycle_events (creator_id, profile_id, kind, from_state, to_state, reason, source, action)
+      select e.creator_id, e.profile_id, 'location', e.from_state, e.to_state, e.reason, ${o.source}, e.action
+      from jsonb_to_recordset(${JSON.stringify(events)}::jsonb) as e(creator_id uuid, profile_id uuid, from_state text, to_state text, reason text, action text)`);
+  }
+  return changed.map(({ profileId, platform, from, to }) => ({ profileId, platform, from, to }));
 }
 
 /** Replaces a creator's evidence rows with this decision's; with `keepNiches` the earlier niche rows stay instead. */
