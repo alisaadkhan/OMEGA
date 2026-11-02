@@ -103,6 +103,27 @@ describe("two-person approvals", () => {
     expect((await audit("approvals.executed"))[0]).toMatchObject({ staff_id: a2.id });
   });
 
+  // Owner directive 2026-11-03 (0071): the owner can grant or refund credits in one step; nothing else loses its second person.
+  it("a Super Admin may approve their own credit grant (flagged and audited); nobody else self-approves, and nothing else is", async () => {
+    const { call, customer, signIn } = await setup();
+    const { workspaceId } = await customer("bilal@brand.pk");
+    const [sa, admin] = [await signIn("super_admin"), await signIn("admin")];
+    const grant = (await call("POST", "/admin/v1/approvals", sa.h, { action: "credits.grant", payload: { workspaceId, amount: 50, expiresInDays: 30 }, reason })).json() as { id: string };
+    const done = (await call("POST", `/admin/v1/approvals/${grant.id}/decision`, sa.h, { decision: "approve", note: "Ticket refund." })).json();
+    expect(done).toMatchObject({ status: "executed", decidedBy: { id: sa.id }, requestedBy: { id: sa.id }, result: { amount: 50 } });
+    expect((await ownerQuery<{ self_approved: boolean }>(`select self_approved from staff.approvals where id = '${grant.id}'`))[0]?.self_approved).toBe(true);
+    expect((await audit("approvals.approved")).find((r) => (r.metadata as { approvalId?: string }).approvalId === grant.id)?.metadata).toMatchObject({ selfApproved: true });
+    // An Admin still cannot approve their own grant.
+    const own = (await call("POST", "/admin/v1/approvals", admin.h, { action: "credits.grant", payload: { workspaceId, amount: 50, expiresInDays: 30 }, reason })).json() as { id: string };
+    expect((await call("POST", `/admin/v1/approvals/${own.id}/decision`, admin.h, { decision: "approve" })).json().error.details).toMatchObject({ reason: "self_approval" });
+    // A Super Admin's own staff request still needs a second Super Admin.
+    const suspend = (await call("POST", "/admin/v1/approvals", sa.h, { action: "staff.suspend", payload: { staffId: admin.id, suspended: true }, reason })).json() as { id: string };
+    expect((await call("POST", `/admin/v1/approvals/${suspend.id}/decision`, sa.h, { decision: "approve" })).json().error.details).toMatchObject({ reason: "self_approval" });
+    // The database refuses a self-approval flag for anyone but an active Super Admin, and for any other action.
+    await expect(ownerQuery(`update staff.approvals set status = 'approved', decided_by = requested_by, decided_at = now(), self_approved = true where id = '${own.id}'`)).rejects.toThrow(/Super Admin/);
+    await expect(ownerQuery(`update staff.approvals set status = 'approved', decided_by = requested_by, decided_at = now(), self_approved = true where id = '${suspend.id}'`)).rejects.toThrow(/approvals_decider_check/);
+  });
+
   it("staff role changes need a Super Admin request and a different Super Admin's approval; Super Admins are untouchable", async () => {
     const { call, signIn } = await setup();
     const [s1, s2, admin, support] = [await signIn("super_admin"), await signIn("super_admin"), await signIn("admin"), await signIn("support")];
