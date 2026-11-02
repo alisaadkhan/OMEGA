@@ -184,10 +184,20 @@ describe("zero-result searches (ZR)", () => {
     expect(await creators.search(c, req("Zeta"))).toMatchObject({ results: [], charged: false, creditsCharged: 0 });
   });
 
-  it("ZR-05 a workspace without a plan or credits can see that a search finds nothing, but cannot see results unpaid", async () => {
+  // Security hardening 2026-11-03: refused before the search runs, so an unpaid account cannot tell "matches exist" from
+  // "nothing matches" by which answer comes back.
+  it("ZR-05 a workspace without a plan or credits is refused the same way whether or not the search would find anyone", async () => {
     const none = await customer("none");
-    expect(await creators.search(none, req("zz nothing here"))).toMatchObject({ results: [], charged: false });
+    await expect(creators.search(none, req("zz nothing here"))).rejects.toMatchObject({ code: "ENTITLEMENT_REQUIRED" });
     await expect(creators.search(none, req("Sana"))).rejects.toMatchObject({ code: "ENTITLEMENT_REQUIRED" });
+    const spent = await customer();
+    for (const min of [1_000, 2_000, 3_000, 4_000]) await creators.search(spent, req("Sana", { followersMin: min }));
+    expect(await available(spent)).toBe(0);
+    await expect(creators.search(spent, req("zz nothing here"))).rejects.toMatchObject({ code: "INSUFFICIENT_CREDITS" });
+    await expect(creators.search(spent, req("Sana", { followersMin: 5_000 }))).rejects.toMatchObject({ code: "INSUFFICIENT_CREDITS" });
+    // A search already paid for inside the window still pages for free.
+    expect(await creators.search(spent, req("Sana", { followersMin: 1_000 }))).toMatchObject({ charged: false });
+    expect(await searchSpends(spent)).toBe(4);
   });
 });
 
