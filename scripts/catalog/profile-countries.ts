@@ -5,6 +5,8 @@
  *
  *   node --import tsx scripts/catalog/profile-countries.ts --db mushin_catalog_v3            # dry run (default)
  *   node --import tsx scripts/catalog/profile-countries.ts --db mushin_catalog_v3 --apply    # write, log, re-project
+ *   node --env-file=.env --import tsx scripts/catalog/profile-countries.ts --live [--apply]  # the hosted database in
+ *     DIRECT_URL (owner approval 2026-11-02: backfill after migration 0060 on the live project); TLS required
  *
  * Each change is logged as a "location" lifecycle event (source "backfill"). Nothing is deleted: profiles that are not
  * Pakistani are excluded from customer search by the eligibility rule (elig-2) and stay reviewable.
@@ -18,12 +20,17 @@ import { createDatabase } from "@mushin/db";
 import { sql } from "drizzle-orm";
 import { createCreatorIndexer, profileCountry, refreshProfileCountries } from "../../apps/api/src/modules/creators/index";
 
-const { values } = parseArgs({ options: { db: { type: "string" }, apply: { type: "boolean", default: false } } });
-const dbName = values.db ?? "";
-if (!/^mushin_catalog_[a-z0-9_]+$/.test(dbName) || /eval/.test(dbName)) throw new Error("--db must name a local operational catalogue (mushin_catalog_*), never an evaluation corpus");
+const { values } = parseArgs({ options: { db: { type: "string" }, apply: { type: "boolean", default: false }, live: { type: "boolean", default: false } } });
+const liveUrl = values.live ? process.env["DIRECT_URL"] : undefined;
+if (values.live && !liveUrl) throw new Error("--live needs DIRECT_URL (run with --env-file=.env)");
+const liveRef = liveUrl ? (new URL(liveUrl).username.split(".")[1] ?? new URL(liveUrl).hostname) : null;
+const dbName = liveRef ? `live-${liveRef}` : (values.db ?? "");
+if (!liveRef && (!/^mushin_catalog_[a-z0-9_]+$/.test(dbName) || /eval/.test(dbName))) throw new Error("--db must name a local operational catalogue (mushin_catalog_*), never an evaluation corpus");
 const repo = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const logger = createLogger({ level: "info", name: "profile-countries" });
-const db = createDatabase(`postgres://postgres@127.0.0.1:54330/${dbName}`, { max: 2, applicationName: "profile-countries" });
+const db = liveUrl
+  ? createDatabase(liveUrl, { max: 2, applicationName: "profile-countries", caPem: null })
+  : createDatabase(`postgres://postgres@127.0.0.1:54330/${dbName}`, { max: 2, applicationName: "profile-countries" });
 const sourcePolicy = { youtubeDerivedMetrics: process.env["YOUTUBE_DERIVED_METRICS"] === "on" };
 
 const tally = (rows: { platform: string; status: string }[]) =>

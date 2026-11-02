@@ -99,9 +99,13 @@ export function SearchCreatorCard({
               </div>
               <div className="border-l border-slate-200/60 pl-3">
                 <dt className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Eng. rate</dt>
-                <dd className="text-lg font-bold leading-none tabular-nums text-cyan-700" title={creator.engagement === null ? "Not known for this creator" : undefined}>
-                  {creator.engagement === null ? "—" : `${creator.engagement.toFixed(1)}%`}
-                </dd>
+                {creator.engagement !== null ? (
+                  <dd className="text-lg font-bold leading-none tabular-nums text-cyan-700">{`${creator.engagement.toFixed(1)}%`}</dd>
+                ) : creator.platform === "youtube" ? (
+                  <dd className="text-[11px] font-medium leading-tight text-slate-500" title="YouTube's API rules don't allow MUSHIN to calculate engagement for YouTube channels.">Not available for YouTube</dd>
+                ) : (
+                  <dd className="text-[11px] font-medium leading-tight text-slate-500" title="Not enough recent posts to calculate it yet.">Not enough posts yet</dd>
+                )}
               </div>
             </dl>
             {matched && (

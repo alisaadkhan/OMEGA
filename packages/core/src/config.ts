@@ -74,7 +74,8 @@ const sharedObject = z.object({
   GEMINI_BASE_URL: z.url().default("https://generativelanguage.googleapis.com/v1beta/openai/"),
   GEMINI_PRICE_IN_PER_MTOK: z.coerce.number().min(0).optional(),
   GEMINI_PRICE_OUT_PER_MTOK: z.coerce.number().min(0).optional(),
-  GEMINI_BILLING: z.enum(["paid"]).optional(),
+  // "free_accepted": the owner knowingly uses an unpaid-tier key (decision 2026-11-02), accepting that Google may use the prompts.
+  GEMINI_BILLING: z.enum(["paid", "free_accepted"]).optional(),
   // Ollama Cloud gpt-oss:20b pay-as-you-go price (ollama.com/pricing, checked 2026-10-14). Plans include usage credits,
   // but usage is still recorded at the per-token price so paid fallback traffic is never booked as free.
   OLLAMA_API_KEY: z.string().min(1).optional(),
@@ -101,8 +102,8 @@ function checkGemini(v: LlmValues, ctx: z.RefinementCtx) {
     for (const key of ["GEMINI_MODEL", "GEMINI_PRICE_IN_PER_MTOK", "GEMINI_PRICE_OUT_PER_MTOK"] as const) {
       if (v[key] === undefined) ctx.addIssue({ code: "custom", path: [key], message: "is required with GEMINI_API_KEY (from Google's model and pricing pages; no value is assumed)" });
     }
-    if (v.GEMINI_BILLING !== "paid") {
-      ctx.addIssue({ code: "custom", path: ["GEMINI_BILLING"], message: "set GEMINI_BILLING=paid to confirm the key belongs to a billed project (unpaid-tier prompts may be used to improve Google's products)" });
+    if (v.GEMINI_BILLING === undefined) {
+      ctx.addIssue({ code: "custom", path: ["GEMINI_BILLING"], message: "set GEMINI_BILLING=paid (billed project) or GEMINI_BILLING=free_accepted (unpaid tier: Google may use the prompts to improve its products)" });
     }
   }
 }
@@ -366,7 +367,7 @@ function searchFrom(v: SharedValues, key: string | undefined): SearchConfig {
 function llmFrom(v: LlmValues): LlmProviderConfig[] {
   const out: LlmProviderConfig[] = [];
   // checkShared guarantees the model, prices and paid billing whenever the key is set.
-  if (v.GEMINI_API_KEY && v.GEMINI_MODEL && v.GEMINI_PRICE_IN_PER_MTOK !== undefined && v.GEMINI_PRICE_OUT_PER_MTOK !== undefined && v.GEMINI_BILLING === "paid") {
+  if (v.GEMINI_API_KEY && v.GEMINI_MODEL && v.GEMINI_PRICE_IN_PER_MTOK !== undefined && v.GEMINI_PRICE_OUT_PER_MTOK !== undefined && v.GEMINI_BILLING !== undefined) {
     out.push({
       name: "gemini",
       baseUrl: v.GEMINI_BASE_URL.replace(/\/+$/, ""),

@@ -222,6 +222,9 @@ describe("search and LLM settings", () => {
     }
     // An unpaid key is refused: unpaid-tier prompts may be used to improve Google's products.
     expect(() => loadApiConfig({ ...valid, ...gemini, GEMINI_BILLING: undefined })).toThrow(/GEMINI_BILLING/);
+    // The owner may knowingly accept the unpaid tier (2026-11-02); it must be stated, never assumed.
+    expect(loadApiConfig({ ...valid, ...gemini, GEMINI_BILLING: "free_accepted" }).llm[0]?.name).toBe("gemini");
+    expect(() => loadApiConfig({ ...valid, ...gemini, GEMINI_BILLING: "free" })).toThrow(/GEMINI_BILLING/);
     // Groq is no longer a provider: a leftover key configures nothing.
     expect(loadApiConfig({ ...valid, GROQ_API_KEY: "g" }).llm).toEqual([]);
     expect(loadApiConfig(valid).llm).toEqual([]);
