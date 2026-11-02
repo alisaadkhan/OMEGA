@@ -86,10 +86,13 @@ export function searchErrorMessage(err: unknown): string {
 }
 
 /**
- * City filtering is switched off for now (owner decision 2026-10-26): no search sends a city condition, whether typed,
- * suggested by the AI or saved earlier. City data stays stored; set this to true to offer the filter again.
+ * City filtering is on again (owner directive 2026-11-03, addendum item 6: creator cities are populated). It was off from
+ * 2026-10-26; set this to false to stop every search, typed, AI-suggested or saved, from sending a city condition.
  */
-export const CITY_FILTER_ENABLED = false;
+export const CITY_FILTER_ENABLED = true;
+
+/** The cities offered as filter chips: the Pakistani cities the catalogue covers (most creators first). */
+export const FILTER_CITIES = ["Karachi", "Lahore", "Islamabad", "Rawalpindi", "Peshawar", "Multan", "Faisalabad", "Quetta"] as const;
 
 export function toFilters(s: UiFilters): SearchFilters {
   const band = s.followerBand ? BANDS[s.followerBand] : undefined;

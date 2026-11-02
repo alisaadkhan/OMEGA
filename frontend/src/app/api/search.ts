@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   creatorProfileSchema,
@@ -49,6 +50,14 @@ export function useCreateSavedSearch() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: { name: string; queryText: string; filters: SearchFilters }) => apiRequest("/v1/search/saved", savedSearchSchema, { method: "POST", body }),
+    onSettled: () => qc.invalidateQueries({ queryKey: ["search", "saved"] }),
+  });
+}
+
+export function useDeleteSavedSearch() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiRequest(`/v1/search/saved/${id}`, z.null(), { method: "DELETE" }),
     onSettled: () => qc.invalidateQueries({ queryKey: ["search", "saved"] }),
   });
 }

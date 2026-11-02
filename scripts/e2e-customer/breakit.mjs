@@ -289,11 +289,12 @@ check("SETUP-1", "campaign with the fixture creator exists", Boolean(campaignId)
   if (await filters.isVisible().catch(() => false)) {
     await filters.click();
     await p.waitForTimeout(500);
-    check("SRCH-3", "the filter panel has no city filter", (await p.getByText("City", { exact: true }).count()) === 0);
+    // Owner directive 2026-11-03: the city filter is offered again.
+    check("SRCH-3", "the filter panel offers the city filter", (await p.getByText("City", { exact: true }).count()) > 0 && (await p.getByRole("button", { name: "Lahore", exact: true }).count()) > 0);
     await p.keyboard.press("Escape");
-  } else check("SRCH-3", "the filter panel has no city filter", false, "filters button not found");
+  } else check("SRCH-3", "the filter panel offers the city filter", false, "filters button not found");
   const sent = await api("owner", "POST", "/v1/search", { text: "food", filters: { creatorCity: "Karachi" }, confirmedCost: 50 });
-  check("SRCH-4", "the server still honours an explicit city filter sent directly (frozen v1; decision recorded)", sent.status === 200, sent.status);
+  check("SRCH-4", "the server honours an explicit city filter", sent.status === 200, sent.status);
   await p.context().close();
 }
 
