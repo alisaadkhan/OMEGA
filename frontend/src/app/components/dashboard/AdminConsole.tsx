@@ -77,7 +77,7 @@ export function AdminConsole({ onExit, role, staffId }: { onExit: () => void; ro
             {view === "jobs" && <OpsJobs canAct={admin} />}
             {view === "workspaces" && <OpsWorkspaces />}
             {view === "access" && <SupportAccessStaff />}
-            {view === "support" && <SupportQueue me={staffId} canAssignOthers={admin} />}
+            {view === "support" && <SupportQueue me={staffId} canAssignOthers={admin} role={role} />}
             {view === "trials" && <TrialRequests role={role} />}
             {view === "providers" && admin && (
               <>
