@@ -126,3 +126,21 @@ export function decodeCursor(s: string): LedgerCursor | null {
   if (!at || !id || !MICRO_ISO.test(at) || !UUID.test(id)) return null;
   return Number.isNaN(new Date(at).getTime()) ? null : { at, id };
 }
+
+/**
+ * Monthly testing allowance (0061). The month is the calendar month in Asia/Karachi (UTC+5 all year: Pakistan has no
+ * daylight saving), so a month starts at 19:00 UTC on the last day of the previous month.
+ */
+const PKT_OFFSET_MS = 5 * 3_600_000;
+export const TESTING_ACTIONS = ["search_existing", "reveal_contact"] as const;
+export function karachiMonth(at: Date): { key: string; start: Date; end: Date } {
+  const local = new Date(at.getTime() + PKT_OFFSET_MS);
+  const y = local.getUTCFullYear();
+  const m = local.getUTCMonth();
+  return {
+    key: `${y}-${String(m + 1).padStart(2, "0")}`,
+    start: new Date(Date.UTC(y, m, 1) - PKT_OFFSET_MS),
+    end: new Date(Date.UTC(y, m + 1, 1) - PKT_OFFSET_MS),
+  };
+}
+export const testingGrantRef = (workspaceId: string, monthKey: string) => `testing:${workspaceId}:${monthKey}`;

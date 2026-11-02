@@ -32,7 +32,7 @@ export function SupportAccessStaff({ initialWorkspaceId }: { initialWorkspaceId?
   return (
     <div>
       <Header title="Workspace access" sub="Read-only access to a customer's workspace, only with their consent, for at most 60 minutes. You cannot change, buy, export or send anything during it." />
-      <form className="mb-4 rounded-xl border border-slate-200 bg-white p-3 text-xs shadow-sm" onSubmit={(e) => { e.preventDefault(); ask.mutate(); }}>
+      <form className="mb-4 rounded-2xl border border-slate-200/80 bg-white p-3 text-xs" onSubmit={(e) => { e.preventDefault(); ask.mutate(); }}>
         <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Ask for access</div>
         <div className="mt-2 flex flex-wrap items-end gap-2">
           <label className="text-slate-600">Workspace id<input value={workspaceId} onChange={(e) => setWorkspaceId(e.target.value)} className="mt-0.5 block w-80 rounded-md border border-slate-200 px-2 py-1" /></label>
@@ -43,7 +43,7 @@ export function SupportAccessStaff({ initialWorkspaceId }: { initialWorkspaceId?
       {q.isPending ? <LoadingBlock lines={3} /> : q.isError ? <ErrorState body={errText(q.error)} onRetry={() => void q.refetch()} /> : q.data.requests.length === 0 ? <p className="text-sm text-slate-500">You have not asked for access to any workspace.</p> : (
         <ul className="space-y-2">
           {q.data.requests.map((r) => (
-            <li key={r.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs shadow-sm">
+            <li key={r.id} className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200/80 bg-white px-3 py-2 text-xs">
               <div className="flex-1"><div className="text-slate-900" style={{ fontWeight: 600 }}>Workspace {r.workspaceId.slice(0, 8)}… · {STATUS[r.status] ?? r.status}</div><div className="text-slate-500">{r.purpose} · asked {when(r.createdAt)}{r.expiresAt ? ` · until ${when(r.expiresAt)}` : ""}</div></div>
               {r.status === "granted" && <button onClick={() => setViewing(r.id)} className="inline-flex items-center gap-1 rounded-md bg-slate-900 px-2.5 py-1 text-white"><Eye className="h-3 w-3" />Open read-only view</button>}
               {(r.status === "requested" || r.status === "granted") && <button onClick={() => void adminRequest(`/admin/v1/access-requests/${r.id}/end`, supportAccessSchema, { method: "POST" }).then(() => qc.invalidateQueries({ queryKey: ["admin", "access"] }))} className="rounded-md border border-slate-200 px-2.5 py-1">{r.status === "requested" ? "Withdraw" : "End access"}</button>}
@@ -91,6 +91,6 @@ function AccessView({ id, onClose }: { id: string; onClose: () => void }) {
 }
 
 const Block = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm"><div className="mb-1.5 text-sm text-slate-900" style={{ fontWeight: 600 }}>{title}</div>{children}</section>
+  <section className="rounded-2xl border border-slate-200/80 bg-white p-3"><div className="mb-1.5 text-sm text-slate-900" style={{ fontWeight: 600 }}>{title}</div>{children}</section>
 );
 const Row = ({ k, v }: { k: string; v: string }) => <div className="flex justify-between gap-2"><dt className="text-slate-500">{k}</dt><dd className="text-slate-900">{v}</dd></div>;

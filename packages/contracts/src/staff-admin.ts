@@ -82,6 +82,22 @@ export const staffAlertsSchema = z.object({
   providerCalls1h: z.record(z.string(), z.number()),
   monthSpendUsd: z.record(z.string(), z.number()),
   pausedProviders: z.array(z.string()),
+  /** Calls refused with HTTP 401/403 in the last hour, per provider (a rejected or revoked key). */
+  providerAuthErrors1h: z.record(z.string(), z.number()).default({}),
+  /** What the worker last recorded per provider (0055): usage/limit only where it is actually known. */
+  providerStatus: z
+    .array(
+      z.object({
+        provider: z.string(),
+        configured: z.boolean(),
+        quotaUsed: z.number().nullable(),
+        quotaLimit: z.number().nullable(),
+        quotaUnit: z.enum(["usd", "searches"]).nullable(),
+        checkError: z.string().nullable(),
+        checkedSecondsAgo: z.number().int(),
+      }),
+    )
+    .default([]),
   pendingApprovals: z.number().int(),
   pendingRemovals: z.number().int(),
   oldestRemovalDays: z.number().int().nullable(),

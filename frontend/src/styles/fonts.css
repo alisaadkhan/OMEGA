@@ -1,6 +1,7 @@
-/* Inter, served from the app itself (audit SEC-14): no request to Google Fonts, so the strict Content-Security-Policy
-   holds and visitors' addresses are not sent to a third party. Latin subset only; the UI is in English. */
-@import "@fontsource/inter/latin-400.css";
-@import "@fontsource/inter/latin-500.css";
-@import "@fontsource/inter/latin-600.css";
-@import "@fontsource/inter/latin-700.css";
+/* Geist (MUSHIN design system), served from the app itself (audit SEC-14): no request to a font CDN, so the strict
+   Content-Security-Policy (font-src 'self') holds and visitors' addresses are not sent to a third party. Latin subset
+   only; the UI is in English. */
+@import "@fontsource/geist-sans/latin-400.css";
+@import "@fontsource/geist-sans/latin-500.css";
+@import "@fontsource/geist-sans/latin-600.css";
+@import "@fontsource/geist-sans/latin-700.css";

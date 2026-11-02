@@ -1,0 +1,70 @@
+label,platform,stored_main,stored_main_or_secondary,meets_10000,pakistan_profile,eligible,main_high_or_medium_confidence,country_evidence_present
+Bridal,youtube,13,75,7,,6,13,8
+Bridal,instagram,13,16,8,,8,13,1
+Bridal,tiktok,0,1,0,,0,0,0
+Fashion,youtube,28,163,5,,5,28,19
+Fashion,instagram,5,19,4,,4,5,1
+Fashion,tiktok,1,2,0,,0,1,0
+Beauty,youtube,81,257,22,,19,81,53
+Beauty,instagram,5,12,5,,5,5,1
+Beauty,tiktok,1,2,0,,0,1,0
+Tech,youtube,96,213,31,,26,96,77
+Tech,instagram,0,0,0,,0,0,0
+Tech,tiktok,0,0,0,,0,0,0
+Food,youtube,244,519,77,,70,244,174
+Food,instagram,18,31,15,,15,18,2
+Food,tiktok,9,10,4,,4,9,0
+Travel,youtube,99,405,32,,29,99,79
+Travel,instagram,8,16,4,,4,8,1
+Travel,tiktok,0,0,0,,0,0,0
+Comedy,youtube,53,232,16,,15,53,39
+Comedy,instagram,0,1,0,,0,0,0
+Comedy,tiktok,2,4,2,,2,2,0
+Finance,youtube,32,93,13,,10,32,27
+Finance,instagram,3,3,1,,1,3,0
+Finance,tiktok,0,0,0,,0,0,0
+Wellness,youtube,30,75,5,,5,30,21
+Wellness,instagram,5,5,2,,2,5,1
+Wellness,tiktok,0,0,0,,0,0,0
+Lifestyle,youtube,38,192,8,,8,38,25
+Lifestyle,instagram,4,12,3,,3,4,1
+Lifestyle,tiktok,0,0,0,,0,0,0
+Education & How-to,youtube,98,140,27,,24,98,73
+Education & How-to,instagram,0,0,0,,0,0,0
+Education & How-to,tiktok,0,0,0,,0,0,0
+Gaming,youtube,75,90,29,,25,75,54
+Gaming,instagram,0,0,0,,0,0,0
+Gaming,tiktok,0,0,0,,0,0,0
+History,youtube,35,53,9,,9,35,29
+History,instagram,0,0,0,,0,0,0
+History,tiktok,0,0,0,,0,0,0
+Literature,youtube,20,29,6,,4,20,16
+Literature,instagram,1,1,1,,1,1,0
+Literature,tiktok,0,0,0,,0,0,0
+Agriculture,youtube,9,16,6,,6,9,7
+Agriculture,instagram,0,0,0,,0,0,0
+Agriculture,tiktok,0,0,0,,0,0,0
+Business & Ecommerce,youtube,95,150,43,,39,95,79
+Business & Ecommerce,instagram,1,5,0,,0,1,0
+Business & Ecommerce,tiktok,2,2,1,,1,2,0
+Automotive,youtube,21,27,10,,10,21,18
+Automotive,instagram,0,0,0,,0,0,0
+Automotive,tiktok,0,0,0,,0,0,0
+Religion,youtube,11,25,2,,2,11,10
+Religion,instagram,0,0,0,,0,0,0
+Religion,tiktok,0,0,0,,0,0,0
+Music,youtube,5,13,3,,3,5,3
+Music,instagram,0,0,0,,0,0,0
+Music,tiktok,1,1,0,,0,1,0
+News & Commentary,youtube,16,23,8,,8,16,12
+News & Commentary,instagram,0,0,0,,0,0,0
+News & Commentary,tiktok,0,0,0,,0,0,0
+Sports,youtube,16,26,4,,4,16,10
+Sports,instagram,0,0,0,,0,0,0
+Sports,tiktok,0,0,0,,0,0,0
+Entertainment,youtube,33,69,11,,10,33,26
+Entertainment,instagram,0,0,0,,0,0,0
+Entertainment,tiktok,0,0,0,,0,0,0
+Real Estate,youtube,7,10,4,,4,7,6
+Real Estate,instagram,0,0,0,,0,0,0
+Real Estate,tiktok,0,0,0,,0,0,0

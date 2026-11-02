@@ -74,7 +74,7 @@ export function Navbar({ onPrimary, onLogin }: Props) {
             window.scrollTo({ top: 0, behavior: "smooth" });
           }}
           className="flex flex-shrink-0 items-center px-2 py-2 transition-opacity duration-200 hover:opacity-80"
-          aria-label="Mushin home"
+          aria-label="MUSHIN home"
         >
           <motion.div
             initial={false}

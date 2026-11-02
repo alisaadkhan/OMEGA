@@ -30,7 +30,7 @@ export function OpsAlerts({ canTest = false }: { canTest?: boolean }) {
   if (q.isError) return <ErrorState body={errText(q.error)} onRetry={() => void q.refetch()} />;
   const a = q.data;
   return (
-    <section className="mb-4 rounded-xl border border-slate-200 bg-white p-4 text-xs shadow-sm" aria-label="Alerts">
+    <section className="mb-4 rounded-2xl border border-slate-200/80 bg-white p-4 text-xs" aria-label="Alerts">
       <div className="flex items-center justify-between gap-2">
         <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Alerts</div>
         {canTest && <button onClick={() => void sendTest()} disabled={testing} className="min-h-[28px] rounded-md border border-slate-200 px-2.5 text-xs text-slate-700 hover:bg-slate-50 disabled:opacity-50">Send test alert</button>}
@@ -65,7 +65,7 @@ export function ProviderControls() {
     toast.success(paused ? `${provider} paused` : `${provider} resumed`);
   };
   return (
-    <section className="mb-4 rounded-xl border border-slate-200 bg-white p-4 text-xs shadow-sm" aria-label="Provider controls">
+    <section className="mb-4 rounded-2xl border border-slate-200/80 bg-white p-4 text-xs" aria-label="Provider controls">
       <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Provider controls</div>
       <p className="mt-0.5 text-slate-500">A paused provider takes no new calls; runs that need it fail and return their credits. Budgets and quotas are deployment settings and are not changed here.</p>
       {q.isPending ? <LoadingBlock lines={2} /> : q.isError ? <ErrorState body={errText(q.error)} onRetry={() => void q.refetch()} /> : (
@@ -125,7 +125,7 @@ export function AuditSearch() {
       </form>
       {q.isPending ? <LoadingBlock lines={5} /> : q.isError ? <ErrorState body={errText(q.error)} onRetry={() => void q.refetch()} /> : q.data.events.length === 0 ? <p className="text-sm text-slate-500">No events match.</p> : (
         <>
-          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="overflow-x-auto rounded-2xl border border-slate-200/80 bg-white">
             <table className="w-full text-left text-xs">
               <thead className="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500"><tr>{["When", "Staff", "Action", "Workspace", "Details", "IP"].map((h) => <th key={h} className="px-3 py-2">{h}</th>)}</tr></thead>
               <tbody className="divide-y divide-slate-100">

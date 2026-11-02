@@ -86,7 +86,7 @@ describe("Meilisearch filter", () => {
     const eligibility = ["eligible = true", `eligible_until > ${Math.floor(now.getTime() / 1000)}`];
     expect(meiliFilter(f, now, 7)).toEqual([
       ...eligibility,
-      'platforms = "tiktok"',
+      'qualifying_platforms = "tiktok"',
       'country = "PK"',
       'city IN ["La\\"hore", "la hore"]',
       'audience_countries = "AE"',

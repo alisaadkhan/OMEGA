@@ -4,6 +4,7 @@ import { blockedReasonFor, ineligibleText } from "../../lib/eligibility";
 import { ArrowLeft, Download, FolderPlus, ListChecks, Pencil, Star, Trash2, Users } from "lucide-react";
 import type { ListMember, ListSummary } from "@mushin/contracts";
 import { useCreateList, useDeleteList, useList, useLists, useRemoveFromList, useSetListNote, useUpdateList } from "../../api/lists";
+import { ImportCreators } from "./ImportCreators";
 import { formatCount, initialsAvatar, toCreator } from "../../api/search-mapping";
 import { relative } from "../../lib/time";
 import { useConfirm, useToast } from "../../lib/toast";
@@ -25,7 +26,7 @@ function ListForm({ initial, submitLabel, busy, onSubmit, onCancel }: { initial?
   const [description, setDescription] = useState(initial?.description ?? "");
   return (
     <form
-      className="space-y-2 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+      className="space-y-2 rounded-2xl border border-slate-200/80 bg-white p-4"
       onSubmit={(e) => {
         e.preventDefault();
         if (name.trim()) onSubmit({ name: name.trim(), description: description.trim() });
@@ -71,21 +72,24 @@ function ListIndex({ onOpen, onGoToSearch }: { onOpen: (id: string) => void; onG
   const create = useCreateList();
   const toast = useToast();
   const [creating, setCreating] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   return (
     <div className="space-y-5">
-      <div className="flex items-end justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-slate-900" style={{ fontSize: 26, fontWeight: 700 }}>Lists</h1>
+          <h1 className="text-[32px] font-semibold leading-10 tracking-[-0.025em] text-slate-900">Shortlistings</h1>
           <p className="mt-1 text-sm text-slate-500">Shortlists of saved creators, private to your workspace.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <ExportButton kind="lists" />
-          <button onClick={() => setCreating(true)} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-sm text-white hover:bg-slate-800" style={{ fontWeight: 600 }}>
+          <button onClick={() => setImporting(true)} className="inline-flex h-10 items-center gap-1.5 whitespace-nowrap rounded-2xl border border-slate-200/80 bg-white px-4 text-sm font-medium text-slate-800 hover:bg-slate-50">Import CSV</button>
+          <button onClick={() => setCreating(true)} className="inline-flex h-10 items-center gap-1.5 whitespace-nowrap rounded-xl bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800">
             <FolderPlus className="h-4 w-4" /> New list
           </button>
         </div>
       </div>
+      {importing && <ImportCreators onClose={() => setImporting(false)} />}
       {creating && (
         <ListForm
           submitLabel="Create list"
@@ -114,35 +118,50 @@ function ListIndex({ onOpen, onGoToSearch }: { onOpen: (id: string) => void; onG
           action={<button onClick={onGoToSearch} className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs text-white" style={{ fontWeight: 600 }}>Search creators</button>}
         />
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2">
           {lists.data.lists.map((l) => (
             // The list name is the card's button, stretched over the whole card; the favourite star sits above it, so no
             // control is nested inside another (WCAG nested-interactive).
             <div
               key={l.id}
-              className="relative rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-shadow focus-within:ring-2 focus-within:ring-indigo-400 hover:shadow-md"
+              // MUSHIN design (2026-10-27): name, description, the first members' photos, then a figures bar.
+              className="relative rounded-2xl border border-slate-200/80 bg-white p-6 text-left transition-shadow focus-within:ring-2 focus-within:ring-indigo-500 hover:shadow-[0_12px_32px_-16px_rgba(15,23,42,0.25)]"
             >
               <div className="flex items-start justify-between gap-2">
                 <button
                   onClick={() => onOpen(l.id)}
-                  className="min-w-0 truncate text-left text-slate-900 after:absolute after:inset-0 after:rounded-xl after:content-[''] focus:outline-none"
-                  style={{ fontSize: 15, fontWeight: 600 }}
+                  className="flex min-w-0 items-center gap-2 text-left text-[20px] font-semibold tracking-[-0.02em] text-slate-900 after:absolute after:inset-0 after:rounded-2xl after:content-[''] focus:outline-none"
                 >
-                  {l.name}
+                  <span aria-hidden className="h-2 w-2 flex-shrink-0 rounded-full bg-indigo-600" />
+                  <span className="truncate">{l.name}</span>
                 </button>
                 <span className="relative z-10"><FavoriteButton list={l} /></span>
               </div>
-              <p className="mt-1 line-clamp-2 min-h-[2.5em] text-xs text-slate-500">{l.description || "No description"}</p>
-              <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="flex -space-x-2">
+              <p className="mt-2 line-clamp-2 min-h-[2.5em] text-sm text-slate-600">{l.description || "No description"}</p>
+              <div className="mt-5 flex h-12 items-center">
+                {l.preview.length === 0 ? (
+                  <span className="text-xs text-slate-500">No creators yet</span>
+                ) : (
+                  <span className="flex -space-x-3">
                     {l.preview.map((p) => (
-                      <img key={p.id} src={p.avatarUrl ?? initialsAvatar(p.displayName)} alt="" className="h-6 w-6 rounded-full border-2 border-white object-cover" />
+                      <img key={p.id} src={p.avatarUrl ?? initialsAvatar(p.displayName)} alt="" className="h-12 w-12 rounded-full border-[3px] border-white object-cover" />
                     ))}
+                    {l.count > l.preview.length && (
+                      <span className="flex h-12 w-12 items-center justify-center rounded-full border-[3px] border-white bg-slate-100 text-xs font-semibold text-slate-700">
+                        +{l.count - l.preview.length}
+                      </span>
+                    )}
                   </span>
-                  <Users className="h-3.5 w-3.5" /> {l.count} creator{l.count === 1 ? "" : "s"}
-                </span>
-                <span>Updated {relative(l.updatedAt)}</span>
+                )}
+              </div>
+              <div className="mt-5 flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-4 py-3">
+                <div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-500">Creators</div>
+                  <div className="mt-0.5 flex items-center gap-1.5 text-[15px] font-semibold tabular-nums text-slate-900">
+                    <Users aria-hidden className="h-4 w-4 text-slate-500" /> {l.count} creator{l.count === 1 ? "" : "s"}
+                  </div>
+                </div>
+                <span className="text-xs text-slate-600">Updated {relative(l.updatedAt)}</span>
               </div>
             </div>
           ))}
@@ -227,7 +246,7 @@ function ListDetail({ id, onBack, onOpenCreator, onGoToSearch }: { id: string; o
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h1 className="truncate text-slate-900" style={{ fontSize: 24, fontWeight: 700 }}>{l.name}</h1>
+              <h1 className="truncate text-[28px] font-semibold leading-9 tracking-[-0.025em] text-slate-900">{l.name}</h1>
               <FavoriteButton list={l} />
             </div>
             <p className="mt-1 text-sm text-slate-500">{l.description || "No description"} · {l.count} creator{l.count === 1 ? "" : "s"} · updated {relative(l.updatedAt)}</p>
@@ -243,7 +262,7 @@ function ListDetail({ id, onBack, onOpenCreator, onGoToSearch }: { id: string; o
       {l.members.length === 0 ? (
         <EmptyState icon={<Users className="h-5 w-5" />} title="No creators on this list yet" body="Open a creator from Search and use Save to add them here." action={<button onClick={onGoToSearch} className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs text-white" style={{ fontWeight: 600 }}>Search creators</button>} />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white">
           {selected.size > 0 && (
             <div className="flex items-center justify-between border-b border-slate-200 bg-indigo-50/60 px-4 py-2 text-xs text-indigo-900">
               <span>{selected.size} selected</span>

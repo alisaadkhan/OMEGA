@@ -52,7 +52,7 @@ describe("creator eligibility in catalogue search (elig-1)", () => {
     const unknown = await add("Unknown Count", null);
     await indexer.reconcile();
     expect(await names("food")).toEqual(["Above Ten K", "At Ten K"]);
-    expect(await doc(below)).toMatchObject({ eligible: false, eligibility_reasons: ["below_follower_minimum"], eligibility_version: "elig-1" });
+    expect(await doc(below)).toMatchObject({ eligible: false, eligibility_reasons: ["below_follower_minimum"], eligibility_version: "elig-2" });
     expect(await doc(unknown)).toMatchObject({ eligible: false, eligibility_reasons: ["followers_unknown"] });
     expect(await doc(at)).toMatchObject({ eligible: true, qualifying_platforms: ["instagram"] });
   });
@@ -66,6 +66,11 @@ describe("creator eligibility in catalogue search (elig-1)", () => {
     await indexer.reconcile();
     expect(await names("food")).toEqual(["Two Profiles"]);
     expect(await doc(id)).toMatchObject({ eligible: true, qualifying_platforms: ["youtube"] });
+    // The YouTube count never makes the 2,000-follower Instagram profile eligible: an Instagram search leaves it out.
+    const onPlatform = async (platform: "instagram" | "youtube") =>
+      (await creators.search(await customer(), searchRequestSchema.parse({ text: "food", filters: { platform }, confirmedCost: 0 }))).results.map((r) => r.displayName);
+    expect(await onPlatform("instagram")).toEqual([]);
+    expect(await onPlatform("youtube")).toEqual(["Two Profiles"]);
   });
 
   it("hides a creator once the count is older than 90 days, without re-indexing", async () => {
@@ -108,7 +113,7 @@ describe("creator eligibility in catalogue search (elig-1)", () => {
     await indexer.reconcile();
     const c = await customer();
     const list = await lists.create(c, { name: "Bakers", description: "" });
-    await expect(lists.addMembers(c, list.id, [big, small])).rejects.toMatchObject({ code: "VALIDATION_FAILED", details: { reason: "creator_ineligible", creatorIds: [small], policy: "elig-1" } });
+    await expect(lists.addMembers(c, list.id, [big, small])).rejects.toMatchObject({ code: "VALIDATION_FAILED", details: { reason: "creator_ineligible", creatorIds: [small], policy: "elig-2" } });
     expect(await lists.addMembers(c, list.id, [big])).toEqual({ added: 1, alreadyOnList: 0 });
     const k = await campaigns.create(c, { ...campaignBase, name: "Bake sale" });
     await expect(campaigns.addCreators(c, k.id, [small])).rejects.toMatchObject({ code: "VALIDATION_FAILED", details: { reason: "creator_ineligible" } });
@@ -140,7 +145,7 @@ describe("creator eligibility in catalogue search (elig-1)", () => {
     await addCreator(db, { displayName: "YT Big", profiles: [{ platform: "youtube", followers: 20_000, bio: "x" }] });
     await indexer.reconcile();
     const r = await creators.eligibilityCoverage();
-    expect(r).toMatchObject({ policy: "elig-1", total: 4, eligible: 2, activityUnverified: 2 });
+    expect(r).toMatchObject({ policy: "elig-2", total: 4, eligible: 2, activityUnverified: 2 });
     expect(r.byReason).toEqual(expect.arrayContaining([{ reason: "below_follower_minimum", creators: 1 }, { reason: "followers_unknown", creators: 1 }]));
     expect(r.byPlatform).toEqual([{ platform: "instagram", eligibleCreators: 1 }, { platform: "youtube", eligibleCreators: 1 }]);
     expect(JSON.stringify(r)).not.toMatch(/Big One|Small One|creator_/);

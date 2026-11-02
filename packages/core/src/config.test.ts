@@ -115,6 +115,18 @@ describe("loadWorkerConfig", () => {
     expect([c.databaseUrl, c.directUrl]).toEqual(["postgresql://u:p@pooler.example.com:6543/postgres", "postgresql://u:p@pooler.example.com:5432/postgres"]);
     expect(() => loadWorkerConfig({ DIRECT_URL: "postgresql://u:p@pooler.example.com:5432/postgres", MOCK_PADDLE_WEBHOOK_SECRET: MOCK })).toThrow(/DATABASE_URL/);
   });
+
+  it("keeps the enrichment policy apart from SEARCH_PROFILE, with the YouTube gates off by default", () => {
+    const base = { DATABASE_URL: "postgresql://u:p@pooler.example.com:6543/postgres", DIRECT_URL: "postgresql://u:p@pooler.example.com:5432/postgres", MOCK_PADDLE_WEBHOOK_SECRET: MOCK, DATA_ENCRYPTION_KEY: KEY };
+    expect(loadWorkerConfig(base).enrichment).toEqual({ attributePolicy: "evidence", youtubeContentEvidence: false, youtubeDescriptionContacts: false, semanticNiche: true });
+    // No YouTube API call is possible while YOUTUBE_API_CALLS is off: the key is withheld from every adapter.
+    expect(loadWorkerConfig({ ...base, YOUTUBE_API_KEY: "yt" }).scraping).toMatchObject({ youtubeApiKey: null, youtubeSearch: false });
+    expect(loadWorkerConfig({ ...base, YOUTUBE_API_KEY: "yt", YOUTUBE_API_CALLS: "on" }).scraping).toMatchObject({ youtubeApiKey: "yt", youtubeSearch: true });
+    // SEARCH_PROFILE no longer changes how enrichment stores attributes.
+    expect(loadWorkerConfig({ ...base, SEARCH_PROFILE: "v1" }).enrichment.attributePolicy).toBe("evidence");
+    expect(loadWorkerConfig({ ...base, SEARCH_PROFILE: "v2", ENRICHMENT_ATTRIBUTE_POLICY: "legacy" }).enrichment.attributePolicy).toBe("legacy");
+    expect(loadWorkerConfig({ ...base, YOUTUBE_CONTENT_EVIDENCE: "on", YOUTUBE_DESCRIPTION_CONTACTS: "on" }).enrichment).toMatchObject({ youtubeContentEvidence: true, youtubeDescriptionContacts: true });
+  });
 });
 
 describe("database CA certificate", () => {
@@ -193,18 +205,25 @@ describe("search and LLM settings", () => {
     expect(loadApiConfig({ ...valid, CATALOG_SEARCH_BACKEND: "meilisearch" }).catalogSearchBackend).toBe("meilisearch");
   });
 
-  it("orders LLM providers Groq first, then Ollama Cloud, with model and price defaults", () => {
-    const c = loadApiConfig({ ...valid, GROQ_API_KEY: "g", OLLAMA_API_KEY: "o" });
+  it("orders LLM providers Gemini first, then Ollama Cloud; Gemini needs a model, prices and paid billing", () => {
+    const gemini = { GEMINI_API_KEY: "k", GEMINI_MODEL: "gemini-model-from-config", GEMINI_PRICE_IN_PER_MTOK: "0.3", GEMINI_PRICE_OUT_PER_MTOK: "2.5", GEMINI_BILLING: "paid" };
+    const c = loadApiConfig({ ...valid, ...gemini, OLLAMA_API_KEY: "o" });
     expect(c.llm.map((p) => [p.name, p.model, p.baseUrl])).toEqual([
-      ["groq", "openai/gpt-oss-20b", "https://api.groq.com/openai/v1"],
+      ["gemini", "gemini-model-from-config", "https://generativelanguage.googleapis.com/v1beta/openai"],
       ["ollama", "gpt-oss:20b", "https://ollama.com/v1"],
     ]);
-    expect(c.llm[0]?.priceInPerMTok).toBeGreaterThan(0);
-    // The paid Ollama Cloud fallback must never be recorded as free by default.
+    // Prices come from configuration (never assumed); the paid Ollama Cloud fallback is never recorded as free.
     expect(c.llm.map((p) => [p.name, p.priceInPerMTok, p.priceOutPerMTok])).toEqual([
-      ["groq", 0.075, 0.3],
+      ["gemini", 0.3, 2.5],
       ["ollama", 0.07, 0.3],
     ]);
+    for (const missing of ["GEMINI_MODEL", "GEMINI_PRICE_IN_PER_MTOK", "GEMINI_PRICE_OUT_PER_MTOK"]) {
+      expect(() => loadApiConfig({ ...valid, ...gemini, [missing]: undefined }), missing).toThrow(new RegExp(missing));
+    }
+    // An unpaid key is refused: unpaid-tier prompts may be used to improve Google's products.
+    expect(() => loadApiConfig({ ...valid, ...gemini, GEMINI_BILLING: undefined })).toThrow(/GEMINI_BILLING/);
+    // Groq is no longer a provider: a leftover key configures nothing.
+    expect(loadApiConfig({ ...valid, GROQ_API_KEY: "g" }).llm).toEqual([]);
     expect(loadApiConfig(valid).llm).toEqual([]);
     expect([loadApiConfig(valid).llmMonthlyBudgetUsd, loadApiConfig({ ...valid, LLM_MONTHLY_BUDGET_USD: "12.5" }).llmMonthlyBudgetUsd]).toEqual([5, 12.5]);
     // Production needs an explicit cap; 0 is a cap (every call refused), not "no cap".
@@ -236,6 +255,7 @@ describe("scraping and storage settings (worker only)", () => {
       ...worker,
       APIFY_TOKEN: "apify",
       YOUTUBE_API_KEY: "yt",
+      YOUTUBE_API_CALLS: "on",
       SUPABASE_URL: "https://ref.supabase.co/",
       SUPABASE_SERVICE_ROLE_KEY: "service",
     });

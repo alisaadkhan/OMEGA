@@ -20,6 +20,10 @@ export const ALERT_THRESHOLDS = {
   oldestRemovalDays: { warning: 7, critical: 21 },
   // The worker's heartbeat job runs every minute (audit OPS-03); missing for this long means its queue is not running.
   workerHeartbeatSeconds: { warning: 180, critical: 300 },
+  // Share of a reported quota already used (Apify account usage, Serper searches against Roster's monthly limit).
+  quotaShare: { warning: 0.8, critical: 1 },
+  // The worker checks provider status hourly; older than this means the check is not running.
+  providerStatusAgeSeconds: { warning: 3 * 3600, critical: 24 * 3600 },
 } as const;
 
 /** Operations actions (staff spec §4): each checks its preconditions, needs a reason, is idempotent and audited. */
@@ -148,6 +152,19 @@ export function createStaffActions(deps: { db: Db; now?: () => Date }) {
       if (m.workerHeartbeatSeconds === null) alerts.push({ key: "worker", severity: "critical", message: "The background worker has never reported: no jobs, billing renewals or live runs are processed." });
       else push("worker", level(m.workerHeartbeatSeconds, ALERT_THRESHOLDS.workerHeartbeatSeconds), `The background worker last reported ${m.workerHeartbeatSeconds} s ago: jobs may not be running.`);
       for (const p of m.pausedProviders) alerts.push({ key: `paused_${p}`, severity: "warning", message: `${p} is paused by operations.` });
+      for (const [provider, n] of Object.entries(m.providerAuthErrors1h)) {
+        if (n > 0) alerts.push({ key: `auth_${provider}`, severity: "critical", message: `${provider} refused MUSHIN's credentials ${n} time(s) in the last hour: check or replace the key.` });
+      }
+      for (const p of m.providerStatus.filter((x) => x.configured)) {
+        if (p.quotaUsed !== null && p.quotaLimit !== null) {
+          const share = p.quotaLimit === 0 ? 1 : p.quotaUsed / p.quotaLimit;
+          const unit = p.quotaUnit === "usd" ? "USD " : "";
+          const sev = level(share, ALERT_THRESHOLDS.quotaShare);
+          push(`quota_${p.provider}`, sev, sev === "critical" ? `${p.provider} quota is used up: ${unit}${p.quotaUsed} of ${unit}${p.quotaLimit}.` : `${p.provider} quota is running low: ${unit}${p.quotaUsed} of ${unit}${p.quotaLimit} used.`);
+        }
+        if (p.checkError) alerts.push({ key: `status_${p.provider}`, severity: p.checkError === "http_401" || p.checkError === "http_403" ? "critical" : "warning", message: `${p.provider} status check failed (${p.checkError}).` });
+        push(`status_age_${p.provider}`, level(p.checkedSecondsAgo, ALERT_THRESHOLDS.providerStatusAgeSeconds), `${p.provider} status was last checked ${Math.round(p.checkedSecondsAgo / 3600)} h ago.`);
+      }
       return { ...m, alerts };
     },
 

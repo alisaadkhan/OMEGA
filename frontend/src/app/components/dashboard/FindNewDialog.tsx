@@ -74,7 +74,7 @@ export function FindNewDialog({ open, onOpenChange, search, onStarted }: { open:
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 px-4" onClick={() => onOpenChange(false)}>
-      <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-md rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="text-slate-900" style={{ fontSize: 15, fontWeight: 600 }}>Find new creators</div>
         <p className="mt-1 text-xs text-slate-500">MUSHIN searches Google for “{liveSummary(search)}”, fetches the profiles it doesn’t know yet and assesses them. Creators MUSHIN already knows carry no per-creator charge.</p>
         {/* The platforms set the price (TikTok's is higher): show them so a widened scope can't go unnoticed. */}

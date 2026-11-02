@@ -1,6 +1,6 @@
 import type { CreatorEligibilityView } from "@mushin/contracts";
 
-/** Plain-language reasons for the creator eligibility policy (elig-1); one line each, no invented detail. */
+/** Plain-language reasons for the creator eligibility policy (elig-2); one line each, no invented detail. */
 const REASON_TEXT: Record<string, string> = {
   below_follower_minimum: "Below MUSHIN's 10,000-follower minimum",
   followers_unknown: "Follower count unknown",
@@ -8,6 +8,13 @@ const REASON_TEXT: Record<string, string> = {
   evidence_expired: "Follower count older than 90 days",
   inactive: "No public post in the last 90 days",
   invalid_profile_url: "No valid profile link",
+  profile_not_found: "Profile no longer found on the platform (checked twice)",
+  profile_private: "Profile is private",
+  // elig-2 (2026-10-27): MUSHIN's catalogue shows Pakistani profiles only.
+  country_not_pakistan: "Based outside Pakistan",
+  country_unknown: "Country not confirmed as Pakistan",
+  country_conflicting: "Country evidence conflicts (under review)",
+  country_stale: "Country evidence older than a year",
   creator_not_active: "No longer available",
   minor_protected: "Hidden by MUSHIN's minor protection",
   no_profile: "No profile on record",
@@ -18,7 +25,7 @@ const REASON_TEXT: Record<string, string> = {
 export function ineligibleText(e: CreatorEligibilityView | undefined | null): string | null {
   if (!e || e.eligible) return null;
   const known = e.reasons.map((r) => REASON_TEXT[r]).filter((t): t is string => Boolean(t));
-  const first = known[0] ?? "Doesn't meet MUSHIN's creator minimum";
+  const first = known[0] ?? "Doesn't meet MUSHIN's creator rules";
   return known.length > 1 ? `${first} (+${known.length - 1} more)` : first;
 }
 

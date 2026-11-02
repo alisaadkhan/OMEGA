@@ -31,6 +31,13 @@ async function exactly(workspaceId: string, n: number) {
 }
 
 describe("catalogue search charging (CR)", () => {
+  // Searches that find creators are charged; one that finds none is free (owner decision D-05, 2026-10-28), so the
+  // charging cases search a catalogue that has matching Lahore food creators on two platforms.
+  beforeEach(async () => {
+    await synthetic({ name: "Food Lahore IG", niches: ["Food"], bio: "food vlogger and food blogger in lahore" });
+    await synthetic({ name: "Food Lahore YT", niches: ["Food"], bio: "food vlogger and food blogger in lahore", platform: "youtube" });
+  });
+
   it("CR-01 a catalogue search charges 50 credits once, with one ledger spend row; balance equals the tables", async () => {
     const api = await buildApi();
     await synthetic({ name: "Food A", niches: ["Food"], bio: "food" });
@@ -88,13 +95,16 @@ describe("catalogue search charging (CR)", () => {
     expect(b.creditsCharged).toBe(50);
   });
 
-  it("CR-06 a zero-result search is charged under the current rule (owner decision D-05 still open)", async () => {
+  it("CR-06 a zero-result search is free (owner decision D-05, 2026-10-28): no charge, no ledger spend", async () => {
     const api = await buildApi();
     const u = await api.person();
+    const before = await api.balance(u.ctx);
     const r = (await api.search(u.headers, "nothingmatchesthisword")).json();
-    evidence("CR-06", { results: r.results.length, charged: r.creditsCharged, decision: "D-05 open" });
+    evidence("CR-06", { results: r.results.length, charged: r.creditsCharged, decision: "D-05: zero results are free" });
     expect(r.results).toEqual([]);
-    expect(r.creditsCharged).toBe(50);
+    expect(r).toMatchObject({ charged: false, creditsCharged: 0 });
+    expect(await api.balance(u.ctx)).toEqual(before);
+    expect((await spends(u.workspaceId))?.n).toBe(0);
   });
 
   it("CR-07 an insufficient balance refuses the search: no results returned, nothing charged, never negative", async () => {
@@ -141,7 +151,8 @@ describe("catalogue search charging (CR)", () => {
     const api = await buildApi();
     const u = await api.person();
     await exactly(u.workspaceId, 50);
-    const out = await Promise.all(["food lahore", "fashion karachi", "tech islamabad"].map((t) => api.search(u.headers, t)));
+    // Three different logical searches that all find creators (an empty search would be free and not compete).
+    const out = await Promise.all(["food lahore", "food vlogger lahore", "food blogger lahore"].map((t) => api.search(u.headers, t)));
     const after = await truth(u.workspaceId);
     evidence("CR-10", { statuses: out.map((o) => o.statusCode), after });
     expect(out.filter((o) => o.statusCode === 200)).toHaveLength(1);

@@ -19,7 +19,7 @@ import {
 import { AnimatedNumber } from "./AnimatedNumber";
 import { useAuth } from "../../auth/AuthContext";
 import type { DashView } from "./Sidebar";
-import { ActivityCard, CampaignsCard, ListsCard, SavedSearchesCard, SnapshotCard } from "./OverviewCards";
+import { ActivityCard, CampaignsCard, ListsCard, SavedSearchesCard, SnapshotCard, WelcomeCard } from "./OverviewCards";
 import { useBillingPlans, useBillingSummary } from "../../api/billing";
 import { COPY } from "../../lib/copy";
 import { creditBadge, subscriptionBadge } from "../../lib/billing-status";
@@ -57,8 +57,7 @@ export function Overview({ credits, setView }: { credits: number | null; setView
       <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <h1
-            className="tracking-tight text-slate-900"
-            style={{ fontSize: "1.75rem", fontWeight: 600, letterSpacing: "-0.025em" }}
+            className="text-[32px] font-semibold leading-10 tracking-[-0.025em] text-slate-900"
           >
             Welcome back, {firstName}
           </h1>
@@ -67,11 +66,11 @@ export function Overview({ credits, setView }: { credits: number | null; setView
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => go("lists")} className="inline-flex h-9 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 transition-all hover:-translate-y-px hover:bg-slate-50 hover:shadow-sm">
+          <button onClick={() => go("lists")} className="inline-flex h-10 items-center gap-1.5 rounded-2xl border border-slate-200/80 bg-white px-4 text-sm font-medium text-slate-800 transition-all hover:bg-slate-50">
             <Plus className="h-3.5 w-3.5" strokeWidth={2} />
             New list
           </button>
-          <button onClick={() => go("search")} className="inline-flex h-9 items-center gap-1.5 rounded-md bg-slate-900 px-4 text-sm text-white transition-all hover:-translate-y-px hover:bg-slate-800 hover:shadow-md">
+          <button onClick={() => go("search")} className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-slate-900 px-4 text-sm font-medium text-white transition-all hover:bg-slate-800">
             <Search className="h-3.5 w-3.5" strokeWidth={2} />
             New search
           </button>
@@ -86,7 +85,7 @@ export function Overview({ credits, setView }: { credits: number | null; setView
           onChange={(e) => setEntryQuery(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && startSearch()}
           placeholder="Describe who you're looking for — e.g. bridal creators in Lahore, 50k+, 5%+ engagement…"
-          className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-28 text-sm text-slate-900 shadow-sm transition-all placeholder:text-slate-400 focus:border-indigo-300 focus:outline-none focus:ring-4 focus:ring-indigo-100"
+          className="h-12 w-full rounded-2xl border border-slate-200/80 bg-white pl-11 pr-28 text-sm text-slate-900 transition-all placeholder:text-slate-400 focus:border-indigo-300 focus:outline-none focus:ring-4 focus:ring-indigo-100"
         />
         <button
           onClick={startSearch}
@@ -100,27 +99,26 @@ export function Overview({ credits, setView }: { credits: number | null; setView
 
       {/* The data-freshness notice (§6, §8.3) returns when lists are backed by the API: it must reflect real list data. */}
 
-      {/* Row 1: Credit balance · Subscription · Quick actions */}
+      <WelcomeCard go={go} />
+
+      {/* MUSHIN design (2026-10-27): figures first, then activity beside campaigns, then account and saved work. */}
+      <SnapshotCard go={go} />
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <ActivityCard go={go} />
+        <CampaignsCard go={go} />
+      </div>
+
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <CreditBalanceCard credits={credits} loading={loading} go={go} />
         <SubscriptionCard loading={loading} go={go} />
         <QuickActionsCard go={go} />
       </div>
 
-      {/* Row 2: last 30 days (2/3) + saved searches (1/3) */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <SnapshotCard go={go} />
-        <SavedSearchesCard go={go} />
-      </div>
-
-      {/* Row 3: lists (2/3) + campaigns (1/3) */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <ListsCard go={go} />
-        <CampaignsCard go={go} />
+        <SavedSearchesCard go={go} />
       </div>
-
-      {/* Row 4: Activity feed */}
-      <ActivityCard go={go} />
     </div>
   );
 }
@@ -133,7 +131,7 @@ function Card({ children, className = "" }: { children: React.ReactNode; classNa
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-      className={`rounded-xl border border-slate-200 bg-white p-5 shadow-sm ${className}`}
+      className={`rounded-2xl border border-slate-200/80 bg-white p-6 ${className}`}
     >
       {children}
     </motion.div>
@@ -273,7 +271,7 @@ function SubscriptionCard({ loading, go }: { loading: boolean; go: (v: DashView)
           <div className="mt-1 text-xs text-slate-500">{summary?.currentPeriodEnd ? `Renews ${new Date(summary.currentPeriodEnd).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}` : "Choose a plan in Credits & billing"}</div>
           <ul className="mt-4 space-y-1.5 text-xs text-slate-600">
             {["Multi-platform discovery", COPY.suspiciousActivity, COPY.priorityRefresh].map((f) => (
-              <li key={f} className="inline-flex items-center gap-1.5">
+              <li key={f} className="flex items-center gap-1.5">
                 <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> {f}
               </li>
             ))}

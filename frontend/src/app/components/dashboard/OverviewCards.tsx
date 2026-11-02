@@ -1,4 +1,5 @@
-import { ArrowUpRight, Bookmark, FolderKanban, Search } from "lucide-react";
+import { useState } from "react";
+import { ArrowRight, ArrowUpRight, Bookmark, FolderKanban, Radar, Search, ShieldCheck } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { analyticsSummarySchema } from "@mushin/contracts";
 import { useRecentActivity } from "../../api/activity";
@@ -16,19 +17,19 @@ import type { DashView } from "./Sidebar";
 /** Dashboard cards (canonical spec page 05): every number comes from the API; empty states say what will appear. */
 function Shell({ title, subtitle, action, children, className = "" }: { title: string; subtitle?: string; action?: { label: string; onClick: () => void }; children: React.ReactNode; className?: string }) {
   return (
-    <section className={`rounded-xl border border-slate-200 bg-white p-5 shadow-sm ${className}`} aria-label={title}>
+    <section className={`rounded-2xl border border-slate-200/80 bg-white p-6 ${className}`} aria-label={title}>
       <div className="flex items-start justify-between gap-2">
         <div>
-          <div className="text-slate-900" style={{ fontSize: 14, fontWeight: 600 }}>{title}</div>
+          <div className="text-[18px] font-semibold leading-6 tracking-[-0.015em] text-slate-900">{title}</div>
           {subtitle && <div className="mt-0.5 text-xs text-slate-500">{subtitle}</div>}
         </div>
         {action && (
-          <button onClick={action.onClick} className="inline-flex items-center gap-0.5 text-[11px] text-indigo-600 hover:text-indigo-700" style={{ fontWeight: 500 }}>
-            {action.label} <ArrowUpRight className="h-3 w-3" />
+          <button onClick={action.onClick} className="inline-flex items-center gap-1 text-[13px] font-medium text-indigo-600 hover:text-indigo-700">
+            {action.label} <ArrowUpRight aria-hidden className="h-3.5 w-3.5" />
           </button>
         )}
       </div>
-      <div className="mt-3">{children}</div>
+      <div className="mt-4">{children}</div>
     </section>
   );
 }
@@ -50,19 +51,26 @@ export function SnapshotCard({ go }: { go: (v: DashView) => void }) {
       ]
     : [];
   return (
-    <Shell title="Last 30 days" subtitle="From your workspace's records" action={{ label: "Analytics", onClick: () => go("analytics") }} className="lg:col-span-2">
+    // Design: four figure tiles across the page. Every figure is the workspace's own record for the last 30 days.
+    <section aria-label="Last 30 days">
+      <div className="mb-3 flex items-baseline justify-between">
+        <h2 className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-500">Last 30 days · from your workspace's records</h2>
+        <button onClick={() => go("analytics")} className="inline-flex items-center gap-1 text-[13px] font-medium text-indigo-600 hover:text-indigo-700">
+          Analytics <ArrowUpRight aria-hidden className="h-3.5 w-3.5" />
+        </button>
+      </div>
       {q.isPending ? <Loading /> : q.isError ? <Muted>Couldn't load your numbers. Try again shortly.</Muted> : (
-        <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <dl className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           {tiles.map((t) => (
-            <div key={t.label} className="rounded-lg bg-slate-50 p-3">
-              <dt className="text-[11px] text-slate-500">{t.label}</dt>
-              <dd className="mt-0.5 tabular-nums text-slate-900" style={{ fontSize: 20, fontWeight: 700 }}>{t.value}</dd>
-              <dd className="text-[11px] text-slate-500">{t.note}</dd>
+            <div key={t.label} className="rounded-2xl border border-slate-200/80 bg-white p-5">
+              <dt className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-500">{t.label}</dt>
+              <dd className="mt-3 text-[28px] font-semibold leading-8 tracking-[-0.02em] tabular-nums text-slate-900">{t.value}</dd>
+              <dd className="mt-1 text-xs text-indigo-700">{t.note}</dd>
             </div>
           ))}
         </dl>
       )}
-    </Shell>
+    </section>
   );
 }
 
@@ -91,7 +99,7 @@ export function ListsCard({ go }: { go: (v: DashView) => void }) {
   const q = useLists();
   const items = q.data?.lists.slice(0, 4) ?? [];
   return (
-    <Shell title="Lists" action={{ label: "All lists", onClick: () => go("lists") }} className="lg:col-span-2">
+    <Shell title="Shortlistings" action={{ label: "All shortlistings", onClick: () => go("lists") }} className="lg:col-span-2">
       {q.isPending ? <Loading /> : q.isError ? <Muted>Couldn't load your lists.</Muted> : items.length === 0 ? <Muted>No lists yet. Save creators from Search to start a shortlist.</Muted> : (
         <ul className="divide-y divide-slate-100">
           {items.map((l) => (
@@ -140,5 +148,69 @@ export function ActivityCard({ go }: { go: (v: DashView) => void }) {
         <ol className="-mx-4 divide-y divide-slate-100">{q.data.events.map((e) => <ActivityRow key={e.id} e={e} />)}</ol>
       )}
     </Shell>
+  );
+}
+
+/**
+ * First-run welcome (design "page for new user", 2026-10-27). Inline, not a modal, so it never blocks the page; shown
+ * while the workspace has no lists, campaigns or activity, until dismissed. Every line describes what MUSHIN does today.
+ */
+export function WelcomeCard({ go }: { go: (v: DashView) => void }) {
+  const { user } = useAuth();
+  const lists = useLists();
+  const campaigns = useCampaigns();
+  const activity = useRecentActivity(6);
+  const key = `mushin.welcomeDismissed.${user?.id ?? ""}`;
+  const [dismissed, setDismissed] = useState(() => {
+    try {
+      return localStorage.getItem(key) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const isNew = lists.data?.lists.length === 0 && campaigns.data?.campaigns.length === 0 && activity.data?.events.length === 0;
+  if (dismissed || !isNew) return null;
+  const dismiss = () => {
+    setDismissed(true);
+    try {
+      localStorage.setItem(key, "1");
+    } catch {
+      /* storage unavailable: hidden for this visit only */
+    }
+  };
+  const points = [
+    { icon: ShieldCheck, title: "Pakistani creators, checked per profile", body: "Every creator in search has at least 10,000 followers on the profile shown, and each count shows when it was last checked." },
+    { icon: Radar, title: "Find New Creators when the catalogue is thin", body: "Live discovery looks beyond MUSHIN's catalogue. You see the credit cost before anything runs." },
+    { icon: FolderKanban, title: "Lists and campaigns", body: "Shortlist creators, then track them from first contact to confirmed, with fees and an outreach log." },
+  ];
+  return (
+    <section aria-label="Welcome to MUSHIN" className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 sm:p-8">
+      <div aria-hidden className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(87,223,254,0.25), transparent)" }} />
+      <div className="relative">
+        <h2 className="text-[24px] font-semibold leading-8 tracking-[-0.02em] text-slate-900">Welcome to MUSHIN</h2>
+        <p className="mt-1 text-sm text-slate-600">Your workspace is ready. Start by finding your first creators.</p>
+        <ul className="mt-5 grid gap-3 md:grid-cols-3">
+          {points.map((p) => (
+            <li key={p.title} className="flex gap-3 rounded-xl bg-slate-50 p-4">
+              <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-white text-indigo-600 ring-1 ring-slate-200">
+                <p.icon aria-hidden className="h-4 w-4" />
+              </span>
+              <span>
+                <span className="block text-sm font-semibold text-slate-900">{p.title}</span>
+                <span className="mt-0.5 block text-xs leading-[18px] text-slate-600">{p.body}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+        <div className="mt-5 flex flex-wrap items-center gap-3">
+          <button onClick={() => go("search")} className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800">
+            Search the catalogue <ArrowRight aria-hidden className="h-4 w-4" />
+          </button>
+          <button onClick={dismiss} className="text-sm font-medium text-slate-600 hover:text-slate-900">
+            Dismiss
+          </button>
+        </div>
+      </div>
+    </section>
   );
 }

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "motion/react";
-import { ArrowRight, Clock, Mail } from "lucide-react";
+import { ArrowRight, Clock } from "lucide-react";
 import { Button } from "../ui/button";
 import { AuthShell, FormField, StaggerItem } from "./AuthShell";
 import { useAuth } from "../../auth/AuthContext";
@@ -38,14 +38,13 @@ export function Login({ onSuccess, goSignup, goForgot }: Props) {
     <AuthShell
       formKey="login"
       title="Welcome back"
-      subtitle="Sign in to continue to your Mushin workspace."
+      subtitle="Sign in to continue to your MUSHIN workspace."
       footer={
         <>
-          New to Mushin?{" "}
+          New to MUSHIN?{" "}
           <button
             onClick={goSignup}
-            className="text-indigo-600 transition-colors hover:text-indigo-700"
-            style={{ fontWeight: 500 }}
+            className="text-sm font-semibold text-slate-900 underline-offset-4 transition-colors hover:underline"
           >
             Create an account
           </button>
@@ -61,11 +60,11 @@ export function Login({ onSuccess, goSignup, goForgot }: Props) {
         )}
         <StaggerItem index={0}>
           <FormField
-            label="Email"
+            label="Work email"
             type="email"
             value={email}
             onChange={setEmail}
-            placeholder="ahmed@mushin.pk"
+            placeholder="name@company.pk"
             autoFocus
           />
         </StaggerItem>
@@ -75,21 +74,13 @@ export function Login({ onSuccess, goSignup, goForgot }: Props) {
             type="password"
             value={password}
             onChange={setPassword}
-            placeholder="••••••••"
+            placeholder="Your password"
+            aside={
+              <button type="button" onClick={goForgot} className="text-xs font-semibold text-indigo-600 hover:text-indigo-700">
+                Forgot password?
+              </button>
+            }
           />
-        </StaggerItem>
-
-        <StaggerItem index={2}>
-          <div className="flex items-center justify-end text-xs">
-            <button
-              type="button"
-              onClick={goForgot}
-              className="text-indigo-600 hover:text-indigo-700"
-              style={{ fontWeight: 500 }}
-            >
-              Forgot password?
-            </button>
-          </div>
         </StaggerItem>
 
         {error && (
@@ -102,7 +93,7 @@ export function Login({ onSuccess, goSignup, goForgot }: Props) {
             <Button
               type="submit"
               disabled={submitting}
-              className="group relative h-11 w-full overflow-hidden rounded-md bg-slate-900 text-white shadow-sm transition-all hover:-translate-y-px hover:bg-slate-800 hover:shadow-md disabled:opacity-90"
+              className="group relative h-12 w-full overflow-hidden rounded-full bg-slate-950 text-white shadow-sm transition-all hover:-translate-y-px hover:bg-slate-800 hover:shadow-md disabled:opacity-90"
             >
               {submitting ? (
                 <motion.span
@@ -121,7 +112,6 @@ export function Login({ onSuccess, goSignup, goForgot }: Props) {
                   animate={{ opacity: 1 }}
                   className="inline-flex items-center"
                 >
-                  <Mail className="mr-2 h-4 w-4" />
                   Sign in
                   <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                 </motion.span>

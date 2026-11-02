@@ -78,6 +78,11 @@ export const billingSummarySchema = z.object({
   }),
   canPurchase: z.boolean(),
   lostAccess: z.array(lostAccessItemSchema),
+  /**
+   * Monthly testing allowance (0061): credits for this Asia/Karachi month, what is left, and when it renews (unused
+   * credits lapse then). Null when the workspace has no allowance. Without a plan they pay for searches and reveals only.
+   */
+  testingAllowance: z.object({ monthlyCredits: z.number().int().nonnegative(), remaining: z.number().int().nonnegative(), renewsAt: z.iso.datetime(), actions: z.array(z.string()) }).nullable(),
 });
 export type BillingSummary = z.infer<typeof billingSummarySchema>;
 
@@ -117,7 +122,7 @@ export const ledgerEntrySchema = z.object({
   kind: ledgerKindSchema,
   amount: z.number().int(),
   action: creditActionSchema.nullable(),
-  lotSource: z.enum(["trial", "monthly", "topup", "adjustment"]).nullable(),
+  lotSource: z.enum(["trial", "monthly", "topup", "adjustment", "testing"]).nullable(),
   note: z.string().nullable(),
   createdAt: z.iso.datetime(),
 });

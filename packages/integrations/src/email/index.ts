@@ -10,6 +10,8 @@ export type OutboundEmail = {
   /** Used as the provider idempotency key, so a retry of the same send is never sent twice. */
   sendId: string;
   from: string;
+  /** Where replies go: the sending person's own address (never Roster's mailbox). */
+  replyTo?: string;
   to: string;
   subject: string;
   text: string;
@@ -58,6 +60,7 @@ export class ResendEmailProvider implements EmailProvider {
         body: JSON.stringify({
           from: email.from,
           to: [email.to],
+          ...(email.replyTo ? { reply_to: [email.replyTo] } : {}),
           subject: email.subject,
           text: email.text,
           headers: { "List-Unsubscribe": `<${email.unsubscribeUrl}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },

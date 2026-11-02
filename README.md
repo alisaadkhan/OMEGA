@@ -74,7 +74,9 @@ npm run seed:creators    # optional: 8 demo creators for development (refused in
 ```
 
 The worker indexes creators after any change and reconciles the index nightly. AI features (plain-English search,
-creator summaries) use Groq, falling back to Ollama Cloud; every call's cost is recorded in `platform.provider_calls`.
+creator summaries) use Gemini, falling back to Ollama Cloud; every call's cost is recorded in `platform.provider_calls`.
+Catalogue search itself never calls an AI: the AI reading of a query runs only when the user clicks "Suggest filters with AI".
+After configuring Gemini, run the one-request smoke test: `node --env-file=.env --import tsx scripts/llm-smoke.ts --confirm`.
 Set `LIVE_LLM_TESTS=1` to run the one live AI check (`packages/integrations/src/llm/llm.live.int.test.ts`).
 
 ## Creator data (sub-project 4A)

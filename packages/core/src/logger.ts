@@ -36,7 +36,27 @@ const SENSITIVE_KEYS = new Set([
 // Credential-looking key names in any spelling (apiKey, api_key, serviceRoleKey, webhookSecret, privateKey, …), so a new
 // field holding a secret is censored without being listed here first (acceptance SEC-12, 2026-10-20).
 const SENSITIVE_KEY_PATTERN = /(?:api[-_]?key|secret|passw(?:or)?d|token|credential|private[-_]?key|service[-_]?(?:role[-_]?)?key|session[-_]?key|dsn)$/i;
-const isSensitiveKey = (key: string) => SENSITIVE_KEYS.has(key) || SENSITIVE_KEY_PATTERN.test(key);
+// Phone numbers are personal data with no operational use in logs (personal data audit 2026-10-28).
+const PHONE_KEY_PATTERN = /^(?:phone|phone[-_]?number|mobile|whatsapp)$/i;
+const isSensitiveKey = (key: string) => SENSITIVE_KEYS.has(key) || SENSITIVE_KEY_PATTERN.test(key) || PHONE_KEY_PATTERN.test(key);
+
+/**
+ * Logs keep a coarse client address for abuse investigation, never the full one: IPv4 keeps its /24 network
+ * (203.0.113.57 -> 203.0.113.0), IPv6 its first three groups (/48).
+ */
+export function maskIp(value: unknown): string | undefined {
+  if (typeof value !== "string" || value === "") return undefined;
+  const v4 = /^(?:::ffff:)?(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.\d{1,3}$/i.exec(value);
+  if (v4) return `${v4[1]}.${v4[2]}.${v4[3]}.0`;
+  if (value.includes(":")) return `${value.split(":").slice(0, 3).join(":")}::`;
+  return "[REDACTED]";
+}
+
+type LoggedRequest = { method?: string; url?: string; host?: string; hostname?: string; ip?: string; headers?: Record<string, unknown>; socket?: { remoteAddress?: string } };
+/** Request lines: method, path, host and the masked address only (no port, headers or body). */
+function requestSerializer(req: LoggedRequest): Record<string, unknown> {
+  return { method: req.method, url: req.url, host: req.host ?? req.hostname ?? req.headers?.["host"], remoteAddress: maskIp(req.ip ?? req.socket?.remoteAddress) };
+}
 // The password part of a URL (postgres://user:password@host) in any logged text, including error messages.
 const URL_CREDENTIALS = /\b([a-z][a-z0-9+.-]*:\/\/[^\s:/@]+:)[^\s@/]+@/gi;
 export function maskUrlCredentials(text: string): string {
@@ -83,6 +103,7 @@ export function createLogger(opts: { level: LogLevel; name?: string }, destinati
       formatters: { log: (obj) => scrub(obj, 0, new WeakSet()) as Record<string, unknown> },
       // Errors are serialised before the formatter runs: mask URL credentials in their message and stack too.
       serializers: {
+        req: requestSerializer,
         err: (err: unknown) => {
           const out = pino.stdSerializers.err(err as Error) as unknown as Record<string, unknown>;
           for (const k of ["message", "stack"]) if (typeof out[k] === "string") out[k] = maskUrlCredentials(out[k] as string);

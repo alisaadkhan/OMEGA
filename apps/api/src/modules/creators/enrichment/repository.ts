@@ -1,5 +1,5 @@
 import { and, desc, eq, lt, sql } from "drizzle-orm";
-import { encryptSecret, sha256Hex } from "@mushin/core";
+import { encryptSecret, sha256Hex, truncate } from "@mushin/core";
 import {
   creatorAttributeEvidence,
   creatorContacts,
@@ -17,6 +17,8 @@ import {
 import { maskContact, type CreatorPlatform } from "../rules";
 import type { Assessment } from "./assessment";
 import type { AttributeDecision } from "./attribute-evidence";
+import { profileCountry, resolveCountry, type ProfileCountry } from "./country-evidence";
+import { wholeChars } from "./quote";
 import type { ExtractedContact, ExtractedLink } from "./links";
 import type { PreviousMetrics, SignalReport } from "./signals";
 import type { StandardProfile } from "./standardize";
@@ -150,6 +152,7 @@ export async function saveEnrichment(tx: Tx, i: SaveInput): Promise<{ creatorId:
   const a = i.assessment?.value ?? null;
   let creatorId: string;
   let profileId: string;
+  let keepNiches = false;
   // Activity evidence for eligibility: the newest dated public post in this fetch (posts arrive newest first). A fetch
   // without dated posts keeps the earlier date, which still ages out of the activity window.
   const latestPost = p.recentPosts.reduce<Date | null>((max, x) => (max === null || x.postedAt > max ? x.postedAt : max), null);
@@ -167,6 +170,7 @@ export async function saveEnrichment(tx: Tx, i: SaveInput): Promise<{ creatorId:
         city: i.attributes ? i.attributes.city : (a?.creatorCity ?? null),
         country: i.attributes ? i.attributes.country : (p.country ?? a?.creatorCountry ?? null),
         niches: i.attributes ? i.attributes.niches : (a?.niches ?? []),
+        ...(i.attributes ? attributeColumns(i.attributes, null) : {}),
         tags: i.tags,
         verified: p.verified,
         authenticityScore: score,
@@ -206,6 +210,8 @@ export async function saveEnrichment(tx: Tx, i: SaveInput): Promise<{ creatorId:
   } else {
     creatorId = existing.creatorId;
     profileId = existing.profileId;
+    const placed = i.attributes ? await placeAttributes(tx, creatorId, i.attributes) : null;
+    keepNiches = placed?.keptNiches ?? false;
     await tx
       .update(creatorProfiles)
       .set({
@@ -229,8 +235,8 @@ export async function saveEnrichment(tx: Tx, i: SaveInput): Promise<{ creatorId:
         verified: p.verified,
         ...(i.avatar ? { avatarUrl: i.avatar.url, avatarKey: i.avatar.key } : {}),
         ...(i.tags.length > 0 ? { tags: i.tags } : {}),
-        ...(i.attributes
-          ? await placeAttributes(tx, creatorId, i.attributes, [p.country, a?.creatorCountry], [a?.creatorCity])
+        ...(placed
+          ? placed.values
           : {
               ...(a && a.niches.length > 0 ? { niches: a.niches } : {}),
               city: sql`coalesce(${creators.city}, ${a?.creatorCity ?? null})`,
@@ -280,7 +286,8 @@ export async function saveEnrichment(tx: Tx, i: SaveInput): Promise<{ creatorId:
       .onConflictDoUpdate({ target: [creatorLinks.creatorId, creatorLinks.url], set: { lastSeenAt: sql`now()` } });
   }
   if (a) await insertSnapshot(tx, creatorId, a, i.report, i.modelVersion, i.assessment?.model ?? "");
-  if (i.attributes) await replaceAttributeEvidence(tx, creatorId, i.attributes, i.payloadId);
+  if (i.attributes) await replaceAttributeEvidence(tx, creatorId, i.attributes, i.payloadId, { keepNiches });
+  await refreshProfileCountries(tx, creatorId, { source: "enrichment" });
   await tx.update(rawPayloads).set({ creatorId }).where(eq(rawPayloads.id, i.payloadId));
   await writeOutbox(tx, { eventType: "creator.changed", aggregateType: "creator", aggregateId: creatorId, workspaceId: null, payload: { creatorId }, requestId: i.requestId });
   if (status === "pending") {
@@ -289,31 +296,111 @@ export async function saveEnrichment(tx: Tx, i: SaveInput): Promise<{ creatorId:
   return { creatorId, created: !existing, assessment: status };
 }
 
-/**
- * search-v2 placement on an existing creator. A supported value replaces the stored one. Without support, a stored value
- * is kept unless it is exactly what a weak source said (registration country, AI reading), which is cleared: that is
- * how registration-derived countries were stored before. Niches are replaced only when the text supports some.
- */
-export async function placeAttributes(
-  tx: Tx,
-  creatorId: string,
-  d: AttributeDecision,
-  weakCountries: (string | null | undefined)[],
-  weakCities: (string | null | undefined)[],
-): Promise<{ city: string | null; country: string | null; niches?: string[] }> {
-  const [cur] = await tx.select({ city: creators.city, country: creators.country }).from(creators).where(eq(creators.id, creatorId)).limit(1);
-  const weak = (v: string | null | undefined, list: (string | null | undefined)[]) => v != null && list.some((w) => w != null && w.toLowerCase() === v.toLowerCase());
-  const conflictingCity = d.evidence.some((r) => r.attribute === "city" && r.status === "conflicting");
-  const city = d.city ?? (conflictingCity || weak(cur?.city, weakCities) ? null : (cur?.city ?? null));
-  const country = d.country ?? (weak(cur?.country, weakCountries) ? null : (cur?.country ?? null));
-  return { city, country, ...(d.niches.length > 0 ? { niches: d.niches } : {}) };
+/** The creator columns a decision sets (0054). `confirmed` is what the creator confirmed to Roster, never derived. */
+export function attributeColumns(d: AttributeDecision, confirmed: string | null) {
+  return { ...countryColumns(d, confirmed), ...nicheColumns(d) };
 }
 
-export async function replaceAttributeEvidence(tx: Tx, creatorId: string, d: AttributeDecision, payloadId: string | null): Promise<void> {
-  await tx.delete(creatorAttributeEvidence).where(eq(creatorAttributeEvidence.creatorId, creatorId));
-  if (d.evidence.length === 0) return;
+function countryColumns(d: AttributeDecision, confirmed: string | null) {
+  const c = resolveCountry({ confirmed, stated: d.countries.stated, statedConfidence: d.countries.statedConfidence, platform: d.countries.platform });
+  return {
+    country: c.country,
+    countrySource: c.source,
+    countryConfidence: c.confidence,
+    platformCountry: d.countries.platform,
+    statedCountry: d.countries.stated,
+    countryCheckedAt: new Date(),
+  };
+}
+
+function nicheColumns(d: AttributeDecision) {
+  return {
+    niches: d.niches,
+    nicheMain: d.niche.main,
+    nicheStatus: d.niche.status,
+    nicheConfidence: d.niche.confidence,
+    nicheAssessedAt: new Date(),
+  };
+}
+
+/**
+ * Placement on an existing creator. City: a supported value replaces the stored one; a conflict or a value only the AI
+ * read clears it. Country: the documented resolution rule (confirmed, else stated, else platform-declared) from this
+ * evidence; a creator confirmation is never overwritten. Niche: when today's permitted evidence is insufficient
+ * ("unknown", or only a low-confidence reading), niches an earlier assessment supported with text evidence are kept rather than replaced by a weaker
+ * reading (`keptNiches`); their evidence rows are kept too.
+ */
+export async function placeAttributes(tx: Tx, creatorId: string, d: AttributeDecision): Promise<{ values: Partial<typeof creators.$inferInsert>; keptNiches: boolean }> {
+  const [cur] = await tx.select({ city: creators.city, niches: creators.niches, confirmedCountry: creators.confirmedCountry }).from(creators).where(eq(creators.id, creatorId)).limit(1);
+  const conflictingCity = d.evidence.some((r) => r.attribute === "city" && r.status === "conflicting");
+  const aiCities = d.evidence.filter((r) => r.attribute === "city" && r.source === "ai_assessment").map((r) => r.value.toLowerCase());
+  const city = d.city ?? (conflictingCity || (cur?.city != null && aiCities.includes(cur.city.toLowerCase())) ? null : (cur?.city ?? null));
+  const base: Partial<typeof creators.$inferInsert> = { city, ...countryColumns(d, cur?.confirmedCountry ?? null) };
+  const values: Partial<typeof creators.$inferInsert> = { ...base, ...nicheColumns(d) };
+  // A low-confidence reading is weaker than niches earlier text evidence supported, like an unknown one.
+  if ((d.niche.status !== "unknown" && d.niche.confidence !== "low") || !cur?.niches.length) return { values, keptNiches: false };
+  const supported = await tx
+    .select({ value: creatorAttributeEvidence.value })
+    .from(creatorAttributeEvidence)
+    .where(and(eq(creatorAttributeEvidence.creatorId, creatorId), eq(creatorAttributeEvidence.attribute, "niche"), eq(creatorAttributeEvidence.status, "supported"), sql`${creatorAttributeEvidence.source} in ('profile_text', 'post_text', 'account_category')`));
+  const kept = cur.niches.filter((n) => supported.some((r) => r.value === n));
+  if (kept.length === 0) return { values, keptNiches: false };
+  // The earlier classification stands (its model fields are left as they were).
+  return { values: { ...base, niches: kept }, keptNiches: true };
+}
+
+/**
+ * Recomputes each profile's own country (0060) from what is stored: that profile's bio, the platform country the creator
+ * record holds (only YouTube supplies one), and a country the creator confirmed. Only changed rows are written, and each
+ * change is logged as a "location" lifecycle event, so retries and repeated runs write nothing new.
+ */
+export async function refreshProfileCountries(
+  tx: Tx,
+  creatorId: string,
+  o: { source: "enrichment" | "backfill" | "staff"; now?: Date } = { source: "enrichment" },
+): Promise<{ profileId: string; platform: string; from: string; to: ProfileCountry }[]> {
+  const rows = await tx.execute<{ id: string; platform: string; bio: string | null; country: string | null; country_status: string; country_source: string | null; country_reason: string | null; country_confidence: string | null; platform_country: string | null; confirmed_country: string | null }>(sql`
+    select p.id, p.platform, p.bio, p.country, p.country_status, p.country_source, p.country_reason, p.country_confidence, c.platform_country, c.confirmed_country
+    from gcp.creator_profiles p join gcp.creators c on c.id = p.creator_id
+    where p.creator_id = ${creatorId}
+    for update of p`);
+  const changed: { profileId: string; platform: string; from: string; to: ProfileCountry }[] = [];
+  const at = (o.now ?? new Date()).toISOString();
+  for (const r of rows) {
+    const next = profileCountry({ bio: r.bio, platformCountry: r.platform === "youtube" ? r.platform_country : null, confirmed: r.confirmed_country });
+    if (next.status === r.country_status && next.country === r.country) {
+      // Fresh provider data re-confirms the evidence; a recomputation from stored data does not.
+      // Same decision, different evidence (source, reason, confidence): refreshed in place; no lifecycle event, because
+      // whether the profile may be shown did not change.
+      if (next.source !== r.country_source || next.reason.slice(0, 300) !== r.country_reason || next.confidence !== r.country_confidence) {
+        await tx.execute(sql`update gcp.creator_profiles set country_source = ${next.source}, country_reason = ${next.reason.slice(0, 300)}, country_confidence = ${next.confidence} where id = ${r.id}`);
+      }
+      if (o.source === "enrichment") await tx.execute(sql`update gcp.creator_profiles set country_checked_at = ${at}::timestamptz where id = ${r.id} and country_checked_at is distinct from ${at}::timestamptz and country_status <> 'unknown'`);
+      continue;
+    }
+    await tx.execute(sql`
+      update gcp.creator_profiles
+      set country = ${next.country}, country_source = ${next.source}, country_status = ${next.status},
+          country_reason = ${next.reason.slice(0, 300)}, country_confidence = ${next.confidence}, country_checked_at = ${next.status === "unknown" ? null : at}::timestamptz, updated_at = now()
+      where id = ${r.id}`);
+    await tx.execute(sql`
+      insert into gcp.creator_lifecycle_events (creator_id, profile_id, kind, from_state, to_state, reason, source, action)
+      values (${creatorId}, ${r.id}, 'location', ${r.country_status + (r.country ? ":" + r.country : "")}, ${next.status + (next.country ? ":" + next.country : "")},
+              ${next.status === "conflicting" ? "Conflicting country evidence on this profile" : next.reason.slice(0, 300)}, ${o.source}, ${next.status === "pakistan" ? "may appear in customer search" : "excluded from customer search (kept, reviewable)"})`);
+    changed.push({ profileId: r.id, platform: r.platform, from: r.country_status, to: next });
+  }
+  return changed;
+}
+
+/** Replaces a creator's evidence rows with this decision's; with `keepNiches` the earlier niche rows stay instead. */
+export async function replaceAttributeEvidence(tx: Tx, creatorId: string, d: AttributeDecision, payloadId: string | null, o: { keepNiches?: boolean } = {}): Promise<void> {
+  await tx
+    .delete(creatorAttributeEvidence)
+    .where(and(eq(creatorAttributeEvidence.creatorId, creatorId), ...(o.keepNiches ? [sql`${creatorAttributeEvidence.attribute} <> 'niche'`] : [])));
+  const rows = d.evidence.filter((r) => !(o.keepNiches && r.attribute === "niche"));
+  if (rows.length === 0) return;
   await tx.insert(creatorAttributeEvidence).values(
-    d.evidence.map((r) => ({ creatorId, attribute: r.attribute, value: r.value.slice(0, 80), source: r.source, status: r.status, evidence: r.evidence.slice(0, 300), payloadId })),
+    rows.map((r) => ({ creatorId, attribute: r.attribute, value: truncate(r.value, 80), source: r.source, status: r.status, evidence: truncate(wholeChars(r.evidence), 300), payloadId })),
   );
 }
 
@@ -329,15 +416,19 @@ async function insertSnapshot(tx: Tx, creatorId: string, a: Assessment, report: 
   });
 }
 
-/** Background re-assessment after an AI failure (spec §5.2): a new snapshot and the creator's score; data is unchanged. */
-export async function saveReassessment(tx: Tx, creatorId: string, a: Assessment, report: SignalReport, modelVersion: string, model: string, minorReason: string | null): Promise<void> {
+/**
+ * Background re-assessment after an AI failure (spec §5.2): a new snapshot and the creator's score. Under the evidence
+ * policy (`evidenceNiches`) the AI's niches never replace the evidence-based classification; under the legacy policy
+ * they are stored as before.
+ */
+export async function saveReassessment(tx: Tx, creatorId: string, a: Assessment, report: SignalReport, modelVersion: string, model: string, minorReason: string | null, o: { evidenceNiches: boolean }): Promise<void> {
   await insertSnapshot(tx, creatorId, a, report, modelVersion, model);
   await tx
     .update(creators)
     .set({
       authenticityScore: report.kind === "scored" ? a.score : null,
       assessmentStatus: report.kind === "scored" ? "assessed" : "insufficient_data",
-      ...(a.niches.length > 0 ? { niches: a.niches } : {}),
+      ...(!o.evidenceNiches && a.niches.length > 0 ? { niches: a.niches } : {}),
       ...(minorReason !== null
         ? { isMinor: true, minorReason: sql`coalesce(${creators.minorReason}, ${minorReason})`, minorFlaggedAt: sql`coalesce(${creators.minorFlaggedAt}, now())` }
         : {}),

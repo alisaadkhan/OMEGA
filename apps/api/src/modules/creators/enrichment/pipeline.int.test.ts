@@ -37,7 +37,7 @@ function setup(o: { scraper?: FixtureScraper; llm?: MockLlm } = {}) {
   const scraper = o.scraper ?? FixtureScraper.defaults();
   const storage = new MemoryStorage();
   const llm = o.llm ?? new MockLlm(llmReply);
-  const pipeline = createEnrichmentPipeline({ db, scraper, storage, llm, encryptionKey: TEST_KEY, logger, fetchImage: async () => new Response("img", { headers: { "content-type": "image/jpeg" } }) });
+  const pipeline = createEnrichmentPipeline({ db, scraper, storage, llm, encryptionKey: TEST_KEY, logger, fetchImage: async () => new Response(new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]), { headers: { "content-type": "image/jpeg" } }) });
   return { pipeline, scraper, storage, llm };
 }
 
@@ -179,6 +179,37 @@ describe("enrichment pipeline", () => {
     expect(c).toEqual({ assessment_status: "assessed", n: 1 });
   });
 
+  // Regression (audit 2026-10-26): saveReassessment wrote the AI's niches over the evidence-based classification.
+  it("keeps evidence-based niches when the AI reassesses later (evidence policy), and still stores them under legacy", async () => {
+    const failing = new MockLlm(() => ({ score: "nope" }));
+    const storage = new MemoryStorage();
+    const make = (llm: MockLlm, attributePolicy: "evidence" | "legacy") =>
+      createEnrichmentPipeline({ db, scraper: FixtureScraper.defaults(), storage, llm, encryptionKey: TEST_KEY, logger, attributePolicy, fetchImage: async () => new Response("", { status: 404 }) });
+    const out = await make(failing, "evidence").enrich(await job(), hooks().h);
+    if (out.kind !== "saved") throw new Error("expected a saved creator");
+    const before = await ownerQuery<{ niches: string[]; niche_status: string | null }>(`select niches, niche_status from gcp.creators where id = '${out.creatorId}'`);
+    expect(before[0]?.niche_status).not.toBeNull();
+    // The AI now answers, choosing Lifestyle (its usual fallback), which the creator's text does not support.
+    expect(await make(new MockLlm(llmReply), "evidence").reassess(out.creatorId)).toBe("assessed");
+    const after = await ownerQuery<{ niches: string[]; niche_status: string | null; assessment_status: string }>(`select niches, niche_status, assessment_status from gcp.creators where id = '${out.creatorId}'`);
+    expect(after[0]).toMatchObject({ niches: before[0]?.niches, niche_status: before[0]?.niche_status, assessment_status: "assessed" });
+    expect(after[0]?.niches).not.toContain("Lifestyle");
+    // The legacy policy (rollback setting) keeps the earlier behaviour: the AI's niches are stored.
+    expect(await make(new MockLlm(llmReply), "legacy").reassess(out.creatorId)).toBe("assessed");
+    expect((await ownerQuery<{ niches: string[] }>(`select niches from gcp.creators where id = '${out.creatorId}'`))[0]?.niches).toEqual(["Lifestyle"]);
+  });
+
+  it("stores no contacts from a YouTube channel description while the policy gate is off", async () => {
+    const storage = new MemoryStorage();
+    const p = createEnrichmentPipeline({ db, scraper: FixtureScraper.defaults(), storage, llm: new MockLlm(llmReply), encryptionKey: TEST_KEY, logger, attributePolicy: "evidence", youtube: { contentEvidence: false, descriptionContacts: false }, fetchImage: async () => new Response("", { status: 404 }) });
+    const out = await p.enrich(await job("youtube"), hooks().h);
+    if (out.kind !== "saved") throw new Error("expected a saved creator");
+    expect(await ownerQuery(`select 1 from gcp.creator_contacts where creator_id = '${out.creatorId}'`)).toEqual([]);
+    // Without video text the niche comes from the channel description only.
+    const [c] = await ownerQuery<{ niche_status: string | null }>(`select niche_status from gcp.creators where id = '${out.creatorId}'`);
+    expect(c?.niche_status).not.toBeNull();
+  });
+
   it("flags a possible minor from the bio and keeps them out of the search index", async () => {
     const raw = structuredClone(scraperFixture("instagram-profile.json")) as Record<string, unknown>[];
     (raw[0] as Record<string, unknown>)["biography"] = "15 y/o dancer from Lahore";
@@ -242,3 +273,53 @@ describe("enrichment pipeline", () => {
 function getStorage(p: unknown): MemoryStorage {
   return (p as { storage: MemoryStorage }).storage;
 }
+
+describe("semantic niche reading in the pipeline (2026-10-26)", () => {
+  const igRaw = (handle: string, biography: string) => [{ username: handle, fullName: handle, biography, followersCount: 50_000, followsCount: 10, postsCount: 20, latestPosts: [] }];
+  const ytRaw = (description: string) => ({ channel: { items: [{ snippet: { title: "Channel", description, country: "PK" }, statistics: { subscriberCount: "50000", videoCount: "10" } }] }, videos: { items: [] } });
+  const semanticReply = { status: "classified", main: "Tech", secondary: [], confidence: "high", reason: "Reviews phones; explicitly not food.", evidence: [{ quote: "Honest phone reviews", source: "bio", supports: "Tech" }] };
+  const make = (features: string[], youtube = { contentEvidence: false, descriptionContacts: false }) => {
+    const llm = new MockLlm((req) => {
+      features.push(req.feature);
+      return req.feature === "niche_classification" ? semanticReply : llmReply(req as { input: string });
+    });
+    return createEnrichmentPipeline({ db, scraper: FixtureScraper.defaults(), storage: new MemoryStorage(), llm, encryptionKey: TEST_KEY, logger, attributePolicy: "evidence", semanticNiche: true, youtube, fetchImage: async () => new Response("", { status: 404 }) });
+  };
+  const run = async (p: ReturnType<typeof make>, platform: "instagram" | "youtube", handle: string, raw: unknown) => {
+    const ws = await createTestWorkspace();
+    const j: EnrichJob = { jobId: randomUUID(), workspaceId: ws.workspaceId, platform, handle, canonicalUrl: `https://${platform}.com/${platform === "youtube" ? "@" : ""}${handle}`, requestId: null };
+    const payloadId = await p.archive(j, platform === "youtube" ? "youtube" : "apify", raw);
+    const out = await p.processProfile(j, payloadId, raw, { onSaved: async () => {} });
+    if (out.kind !== "saved") throw new Error("not saved");
+    return (await ownerQuery<{ niche_main: string | null; niches: string[] }>(`select niche_main, niches from gcp.creators where id = '${out.creatorId}'`))[0];
+  };
+
+  it("reads an unclear bio semantically (negation), with grounded evidence; a clear bio needs no extra AI call", async () => {
+    const features: string[] = [];
+    const p = make(features);
+    expect(await run(p, "instagram", "notfood", igRaw("notfood", "Not a food channel! Honest phone reviews"))).toMatchObject({ niche_main: "Tech", niches: ["Tech"] });
+    expect(features.filter((f) => f === "niche_classification")).toHaveLength(1);
+    const rows = await ownerQuery<{ source: string; status: string; evidence: string }>(`select e.source, e.status, e.evidence from gcp.creator_attribute_evidence e join gcp.creator_profiles p on p.creator_id = e.creator_id where p.handle = 'notfood' and e.attribute = 'niche'`);
+    expect(rows).toContainEqual(expect.objectContaining({ source: "profile_text", status: "supported", evidence: expect.stringContaining("Honest phone reviews") }));
+    expect(rows.some((r) => r.status === "weak" && r.evidence.startsWith("Keyword reading, not used"))).toBe(true);
+    features.length = 0;
+    expect(await run(p, "instagram", "cooks", igRaw("cooks", "Home cooking recipes and baking"))).toMatchObject({ niche_main: "Food" });
+    expect(features).not.toContain("niche_classification");
+  });
+
+  it("never sends YouTube text for a semantic reading while the YouTube policy gate is off", async () => {
+    const features: string[] = [];
+    await run(make(features), "youtube", "ytnotfood", ytRaw("Not a food channel! Honest phone reviews"));
+    expect(features).not.toContain("niche_classification");
+  });
+
+  it("keeps the rules' reading when the semantic reading fails", async () => {
+    const llm = new MockLlm((req) => (req.feature === "niche_classification" ? { status: "classified", main: "Gadgets" } : llmReply(req as { input: string })));
+    const p = createEnrichmentPipeline({ db, scraper: FixtureScraper.defaults(), storage: new MemoryStorage(), llm, encryptionKey: TEST_KEY, logger, attributePolicy: "evidence", semanticNiche: true, fetchImage: async () => new Response("", { status: 404 }) });
+    const ws = await createTestWorkspace();
+    const raw = igRaw("mixed", "Not a food channel! Honest phone reviews");
+    const j: EnrichJob = { jobId: randomUUID(), workspaceId: ws.workspaceId, platform: "instagram", handle: "mixed", canonicalUrl: "https://instagram.com/mixed", requestId: null };
+    const out = await p.processProfile(j, await p.archive(j, "apify", raw), raw, { onSaved: async () => {} });
+    expect(out.kind).toBe("saved");
+  });
+});

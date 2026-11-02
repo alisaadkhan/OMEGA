@@ -111,8 +111,9 @@ describe("catalogue search price", () => {
     await expect(creators.search(c, req("Sana", {}, null, 10))).rejects.toMatchObject({ code: "CONFLICT" });
     expect(await available(c)).toBe(200);
     expect((await ownerQuery<{ n: number }>(`select count(*)::int n from wp.catalog_search_charges`))[0]?.n).toBe(0);
-    for (const text of ["a1", "a2", "a3", "a4"]) await creators.search(c, req(text)); // 4 × 50 spends the 200-credit trial
-    await expect(creators.search(c, req("a5"))).rejects.toMatchObject({ code: "INSUFFICIENT_CREDITS" });
+    // Four different logical searches that each find the creator: 4 × 50 spends the 200-credit trial.
+    for (const min of [1_000, 2_000, 3_000, 4_000]) expect(await creators.search(c, req("Sana", { followersMin: min }))).toMatchObject({ charged: true });
+    await expect(creators.search(c, req("Sana", { followersMin: 5_000 }))).rejects.toMatchObject({ code: "INSUFFICIENT_CREDITS" });
     expect(await searchSpends(c)).toBe(4);
     expect(await available(c)).toBe(0);
     await expect(creators.search(await customer("none"), req("Sana"))).rejects.toMatchObject({ code: "ENTITLEMENT_REQUIRED" });
@@ -142,4 +143,69 @@ describe("catalogue search price", () => {
     expect(sources.length).toBeGreaterThan(5);
     for (const s of sources) expect(s).not.toMatch(/chargeCatalogSearch|search-charge|creators\.search\(/);
   });
+});
+
+// Owner decision 2026-10-28: a completed search that finds no eligible creator costs nothing; one that finds some costs
+// the advertised price once per logical search.
+describe("zero-result searches (ZR)", () => {
+  it("ZR-01 a search with no eligible result is free, records no charge and leaves the ledger untouched", async () => {
+    const c = await customer();
+    const out = await creators.search(c, req("zz no such creator"));
+    expect(out).toMatchObject({ results: [], total: 0, charged: false, creditsCharged: 0, complete: true });
+    expect(await available(c)).toBe(200);
+    expect(await searchSpends(c)).toBe(0);
+    expect((await ownerQuery<{ n: number }>(`select count(*)::int n from wp.catalog_search_charges`))[0]?.n).toBe(0);
+  });
+
+  it("ZR-02 twenty concurrent empty searches cost nothing; the first search with results is charged once", async () => {
+    const c = await customer();
+    const empties = await Promise.all(Array.from({ length: 20 }, (_, i) => creators.search(c, req(`zz nothing ${i}`))));
+    expect(empties.every((o) => o.charged === false && o.results.length === 0)).toBe(true);
+    expect(await available(c)).toBe(200);
+    const found = await Promise.all(Array.from({ length: 5 }, () => creators.search(c, req("Sana"))));
+    expect(found.filter((o) => o.charged)).toHaveLength(1);
+    expect(await available(c)).toBe(150);
+  });
+
+  it("ZR-03 a filter that excludes every eligible creator is free; the same text without it is charged", async () => {
+    const c = await customer();
+    expect(await creators.search(c, req("Sana", { platform: "tiktok" }))).toMatchObject({ charged: false, results: [] });
+    expect(await creators.search(c, req("Sana", { followersMin: 10_000_000 }))).toMatchObject({ charged: false, results: [] });
+    expect(await creators.search(c, req("Sana"))).toMatchObject({ charged: true, creditsCharged: 50 });
+  });
+
+  it("ZR-04 only ineligible creators match (abroad, below 10,000): free, and nothing ineligible is shown", async () => {
+    await addCreator(db, { displayName: "Zeta Abroad", niches: ["Bridal"], confirmedCountry: null, country: null, profiles: [{ bio: "Bridal makeup, based in Dubai, UAE" }] });
+    await addCreator(db, { displayName: "Zeta Small", niches: ["Bridal"], profiles: [{ followers: 900 }] });
+    const zetaIds = (await ownerQuery<{ id: string }>(`select id from gcp.creators where display_name like 'Zeta%'`)).map((r) => r.id);
+    const docs = (await db.withSystem((tx) => repo.indexRows(tx, zetaIds))).filter(isIndexable).map(toDocument);
+    await db.withSystem((tx) => repo.upsertPostgresSearchDocuments(tx, docs));
+    const c = await customer();
+    expect(await creators.search(c, req("Zeta"))).toMatchObject({ results: [], charged: false, creditsCharged: 0 });
+  });
+
+  it("ZR-05 a workspace without a plan or credits can see that a search finds nothing, but cannot see results unpaid", async () => {
+    const none = await customer("none");
+    expect(await creators.search(none, req("zz nothing here"))).toMatchObject({ results: [], charged: false });
+    await expect(creators.search(none, req("Sana"))).rejects.toMatchObject({ code: "ENTITLEMENT_REQUIRED" });
+  });
+});
+
+// BUG-33: the charge row and the 30-minute window must use one clock. The database clock stays real here while the app
+// clock is moved two hours either way; with charged_at from the database clock, both cases below give the wrong charge.
+describe("CLK-01 search charge when the database and app clocks disagree", () => {
+  const twoHours = 2 * 60 * 60 * 1000;
+  for (const [label, skew] of [["app clock ahead", twoHours], ["app clock behind", -twoHours]] as const) {
+    it(`${label}: a repeat inside 30 minutes is free; after 30 minutes it is charged again`, async () => {
+      const c = await customer();
+      clock = Date.now() + skew;
+      expect(await creators.search(c, req("Sana"))).toMatchObject({ charged: true, creditsCharged: 50 });
+      clock += 10 * 60 * 1000;
+      expect(await creators.search(c, req("Sana"))).toMatchObject({ charged: false, creditsCharged: 0 });
+      clock += SEARCH_CHARGE_WINDOW_MS;
+      expect(await creators.search(c, req("Sana"))).toMatchObject({ charged: true, creditsCharged: 50 });
+      expect(await searchSpends(c)).toBe(2);
+      expect(await available(c)).toBe(100);
+    });
+  }
 });

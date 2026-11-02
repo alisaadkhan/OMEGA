@@ -1,0 +1,186 @@
+platform,main_niche,profile_country,profiles,meets_10000,eligible_for_customer_search
+instagram,(unknown),(unknown),23,12,0
+instagram,(unknown),PK,5,3,2
+instagram,(variety),(unknown),12,10,0
+instagram,(variety),PK,5,3,3
+instagram,Beauty,(unknown),4,4,0
+instagram,Beauty,PK,1,1,1
+instagram,Bridal,(unknown),9,6,0
+instagram,Bridal,PK,4,2,2
+instagram,Business & Ecommerce,(unknown),1,0,0
+instagram,Fashion,(unknown),4,4,0
+instagram,Fashion,PK,1,0,0
+instagram,Finance,(unknown),3,1,0
+instagram,Food,(unknown),12,9,0
+instagram,Food,PK,6,6,6
+instagram,Lifestyle,(unknown),2,2,0
+instagram,Lifestyle,PK,2,1,1
+instagram,Literature,(unknown),1,1,0
+instagram,Travel,(unknown),6,3,0
+instagram,Travel,PK,2,1,1
+instagram,Wellness,(unknown),4,2,0
+instagram,Wellness,PK,1,0,0
+tiktok,(unknown),(unknown),17,7,0
+tiktok,Beauty,(unknown),1,0,0
+tiktok,Business & Ecommerce,(unknown),2,1,0
+tiktok,Comedy,(unknown),2,2,0
+tiktok,Fashion,(unknown),1,0,0
+tiktok,Food,(unknown),9,4,0
+tiktok,Music,(unknown),1,0,0
+youtube,(unknown),(conflicting),6,3,0
+youtube,(unknown),(unknown),492,32,0
+youtube,(unknown),AE,11,3,0
+youtube,(unknown),AR,1,0,0
+youtube,(unknown),AU,4,0,0
+youtube,(unknown),CA,7,2,0
+youtube,(unknown),DE,3,1,0
+youtube,(unknown),EG,1,0,0
+youtube,(unknown),GB,13,9,0
+youtube,(unknown),ID,2,1,0
+youtube,(unknown),IE,1,1,0
+youtube,(unknown),IN,31,12,0
+youtube,(unknown),KR,1,0,0
+youtube,(unknown),NG,1,1,0
+youtube,(unknown),NL,1,1,0
+youtube,(unknown),NO,1,1,0
+youtube,(unknown),NP,1,1,0
+youtube,(unknown),OM,1,1,0
+youtube,(unknown),PH,1,1,0
+youtube,(unknown),PK,583,162,149
+youtube,(unknown),QA,1,0,0
+youtube,(unknown),SA,5,1,0
+youtube,(unknown),TR,3,2,0
+youtube,(unknown),US,39,20,0
+youtube,(variety),(unknown),8,0,0
+youtube,(variety),PK,6,2,1
+youtube,Agriculture,(unknown),2,0,0
+youtube,Agriculture,PK,7,6,6
+youtube,Automotive,(conflicting),1,1,0
+youtube,Automotive,(unknown),2,0,0
+youtube,Automotive,DE,1,1,0
+youtube,Automotive,IN,1,0,0
+youtube,Automotive,NZ,1,1,0
+youtube,Automotive,PK,13,5,5
+youtube,Automotive,US,2,2,0
+youtube,Beauty,(unknown),28,2,0
+youtube,Beauty,CA,1,1,0
+youtube,Beauty,IN,1,1,0
+youtube,Beauty,LU,1,0,0
+youtube,Beauty,OM,1,0,0
+youtube,Beauty,PK,46,16,14
+youtube,Beauty,US,3,2,0
+youtube,Bridal,(unknown),3,1,0
+youtube,Bridal,PK,10,6,5
+youtube,Business & Ecommerce,(conflicting),1,1,0
+youtube,Business & Ecommerce,(unknown),16,3,0
+youtube,Business & Ecommerce,AE,2,0,0
+youtube,Business & Ecommerce,DE,1,1,0
+youtube,Business & Ecommerce,GB,6,3,0
+youtube,Business & Ecommerce,IN,7,7,0
+youtube,Business & Ecommerce,NL,1,1,0
+youtube,Business & Ecommerce,PK,55,24,21
+youtube,Business & Ecommerce,US,6,3,0
+youtube,Comedy,(unknown),14,0,0
+youtube,Comedy,IN,4,2,0
+youtube,Comedy,PK,34,13,12
+youtube,Comedy,US,1,1,0
+youtube,Education & How-to,(conflicting),1,0,0
+youtube,Education & How-to,(unknown),25,2,0
+youtube,Education & How-to,AU,2,1,0
+youtube,Education & How-to,BD,2,2,0
+youtube,Education & How-to,BR,1,1,0
+youtube,Education & How-to,GB,2,0,0
+youtube,Education & How-to,IN,1,1,0
+youtube,Education & How-to,PK,61,18,15
+youtube,Education & How-to,US,3,2,0
+youtube,Entertainment,(unknown),7,1,0
+youtube,Entertainment,CA,1,0,0
+youtube,Entertainment,HU,1,1,0
+youtube,Entertainment,IN,1,1,0
+youtube,Entertainment,PK,21,7,7
+youtube,Entertainment,US,2,1,0
+youtube,Fashion,(unknown),9,0,0
+youtube,Fashion,IN,1,0,0
+youtube,Fashion,PK,16,5,5
+youtube,Fashion,PT,1,0,0
+youtube,Fashion,US,1,0,0
+youtube,Finance,(unknown),5,0,0
+youtube,Finance,IN,1,0,0
+youtube,Finance,PK,24,12,9
+youtube,Finance,US,2,1,0
+youtube,Food,(conflicting),1,1,0
+youtube,Food,(unknown),69,16,0
+youtube,Food,AE,4,0,0
+youtube,Food,AM,1,1,0
+youtube,Food,AU,2,1,0
+youtube,Food,BD,2,0,0
+youtube,Food,CA,2,1,0
+youtube,Food,FR,2,1,0
+youtube,Food,GB,2,0,0
+youtube,Food,IN,4,1,0
+youtube,Food,IT,1,0,0
+youtube,Food,NP,1,0,0
+youtube,Food,PK,145,50,45
+youtube,Food,US,8,5,0
+youtube,Gaming,(conflicting),3,1,0
+youtube,Gaming,(unknown),21,2,0
+youtube,Gaming,BD,1,1,0
+youtube,Gaming,GB,2,1,0
+youtube,Gaming,IN,11,9,0
+youtube,Gaming,PK,35,15,13
+youtube,Gaming,US,2,0,0
+youtube,History,(unknown),6,0,0
+youtube,History,AU,1,0,0
+youtube,History,GB,1,0,0
+youtube,History,IN,2,2,0
+youtube,History,PK,25,7,7
+youtube,Lifestyle,(unknown),13,2,0
+youtube,Lifestyle,AE,1,0,0
+youtube,Lifestyle,CA,1,1,0
+youtube,Lifestyle,PK,21,5,5
+youtube,Lifestyle,US,2,0,0
+youtube,Literature,(unknown),4,1,0
+youtube,Literature,GB,1,0,0
+youtube,Literature,IN,1,0,0
+youtube,Literature,PK,13,5,4
+youtube,Literature,US,1,0,0
+youtube,Music,(conflicting),1,1,0
+youtube,Music,(unknown),2,0,0
+youtube,Music,US,2,2,0
+youtube,News & Commentary,(unknown),4,0,0
+youtube,News & Commentary,AE,1,1,0
+youtube,News & Commentary,GB,2,2,0
+youtube,News & Commentary,PK,9,5,5
+youtube,Real Estate,PK,6,4,4
+youtube,Real Estate,US,1,0,0
+youtube,Religion,(unknown),1,0,0
+youtube,Religion,CA,1,0,0
+youtube,Religion,PK,9,2,2
+youtube,Sports,(unknown),6,0,0
+youtube,Sports,BH,1,0,0
+youtube,Sports,IN,1,0,0
+youtube,Sports,PK,6,2,2
+youtube,Sports,US,2,2,0
+youtube,Tech,(unknown),19,1,0
+youtube,Tech,AE,1,0,0
+youtube,Tech,CA,3,2,0
+youtube,Tech,GB,1,1,0
+youtube,Tech,IN,6,4,0
+youtube,Tech,PK,62,23,19
+youtube,Tech,SA,1,0,0
+youtube,Tech,US,3,0,0
+youtube,Travel,(unknown),20,3,0
+youtube,Travel,AE,3,3,0
+youtube,Travel,CA,2,2,0
+youtube,Travel,GB,3,2,0
+youtube,Travel,IN,4,1,0
+youtube,Travel,IQ,1,0,0
+youtube,Travel,NL,2,2,0
+youtube,Travel,PK,60,16,14
+youtube,Travel,TR,1,1,0
+youtube,Travel,US,3,2,0
+youtube,Wellness,(unknown),9,0,0
+youtube,Wellness,AE,1,0,0
+youtube,Wellness,GB,1,1,0
+youtube,Wellness,IN,3,2,0
+youtube,Wellness,PK,16,2,2

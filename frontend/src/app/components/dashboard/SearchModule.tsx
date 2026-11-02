@@ -25,6 +25,7 @@ import {
   Radio,
   Wand2,
   Check,
+  ArrowRight,
   Mail,
   Phone,
   Ban,
@@ -35,12 +36,14 @@ import { AddByLinkDialog } from "./AddByLinkDialog";
 import { Compare } from "./Compare";
 import type { SearchFilters, SearchRequest } from "@mushin/contracts";
 import { useCreateSavedSearch, useCreatorSearch, useInterpret, useSavedSearches } from "../../api/search";
-import { useActionCosts } from "../../api/billing";
+import { useActionCosts, useBillingSummary } from "../../api/billing";
+import { providerActionsLockedText } from "../../lib/provider-actions";
 import {
   extraChips,
   fromChips,
   pageCount,
   applySuggestion,
+  CITY_FILTER_ENABLED,
   CONTACT_AVAILABILITY_TEXT,
   requestFor,
   sameRequest,
@@ -83,7 +86,8 @@ const SORT_LABELS: Record<SortKey, string> = {
 const FRESH_RANK: Record<string, number> = { current: 0, aging: 1, stale: 2, unavailable: 3 };
 
 const CITIES = ["Karachi", "Lahore", "Islamabad", "Faisalabad", "Peshawar"];
-const NICHES = ["Bridal", "Fashion", "Beauty", "Tech", "Food", "Travel", "Comedy", "Finance", "Wellness", "Lifestyle"];
+// The canonical niche list (platform.niches, migration 0054).
+const NICHES = ["Bridal", "Fashion", "Beauty", "Tech", "Food", "Travel", "Comedy", "Finance", "Wellness", "Lifestyle", "Education & How-to", "Gaming", "History", "Literature", "Agriculture", "Business & Ecommerce", "Automotive", "Religion", "Music", "News & Commentary", "Sports", "Entertainment", "Real Estate"];
 
 export function SearchModule({ liveJobId = null }: { liveJobId?: string | null } = {}) {
   const toast = useToast();
@@ -117,7 +121,7 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
   const liveStreaming = liveJob !== null && !live.done && !live.isError;
   const cancelLive = useCancelJob();
   const stopping = liveJobInfo.data?.cancelRequested === true;
-  const [showInterpret, setShowInterpret] = useState(true);
+  const [showInterpret, setShowInterpret] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
   const [request, setRequest] = useState<SearchRequest | null>(null);
   const [extra, setExtra] = useState<Partial<SearchFilters>>({});
@@ -129,6 +133,7 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
   const uiFilters = (): UiFilters => ({ platform, city, niche, followerBand, minEng, minScore, verifiedOnly, contactOnly, freshOnly, extra });
   // A catalogue search is charged per logical search (server price, shown on the button). Filter changes therefore
   // wait for the user to search again instead of re-running, and nothing searches without a user action.
+  const findNewLocked = providerActionsLockedText(useBillingSummary().data);
   const costs = useActionCosts();
   const searchCost = costs?.search_existing ?? null;
   const filtersChanged = request !== null && JSON.stringify(toFilters(uiFilters())) !== JSON.stringify(request.filters);
@@ -186,15 +191,21 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
     setMode(searchMode);
     setSelected(new Set());
     submit(requestFor(query, uiFilters(), searchCost));
-    if (query.trim()) {
-      interpret.mutate(query.trim(), {
-        onSuccess: (r) => {
-          setSuggested(fromChips(r.chips));
-          setShowInterpret(true);
-        },
-        onError: () => setSuggested(null),
-      });
-    }
+    // Catalogue search itself is deterministic; the AI reading is asked for only when the user clicks for it.
+    setSuggested(null);
+    setShowInterpret(false);
+  };
+
+  /** The optional AI reading of the query (one LLM call), only on request. */
+  const suggestFilters = () => {
+    if (!query.trim()) return;
+    interpret.mutate(query.trim(), {
+      onSuccess: (r) => {
+        setSuggested(fromChips(r.chips));
+        setShowInterpret(true);
+      },
+      onError: () => setSuggested(null),
+    });
   };
 
   /** The AI's reading is a suggestion: it changes the filters only when the user applies it (SRS REQ-02.02, REQ-03.06). */
@@ -302,11 +313,8 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
       {/* Header */}
       <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
         <div>
-          <h1
-            className="tracking-tight text-slate-900"
-            style={{ fontSize: "1.75rem", fontWeight: 600, letterSpacing: "-0.025em" }}
-          >
-            Search
+          <h1 className="text-[32px] font-semibold leading-10 tracking-[-0.025em] text-slate-900">
+            Search &amp; Discovery
           </h1>
           <p className="mt-1 text-sm text-slate-500">
             Multi-platform creator discovery — filter, verify, and shortlist in one place.
@@ -325,7 +333,7 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
           onKeyDown={(e) => e.key === "Enter" && runSearch("fast")}
           placeholder="Find Pakistani creators — e.g. bridal Lahore 50k+ engagement 5%+…"
           aria-label="Search creators"
-          className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-3 text-sm text-slate-900 shadow-sm transition-all placeholder:text-slate-400 focus:border-indigo-300 focus:outline-none focus:ring-4 focus:ring-indigo-100"
+          className="h-12 w-full rounded-2xl border border-slate-200/80 bg-white pl-11 pr-3 text-sm text-slate-900 transition-all placeholder:text-slate-400 focus:border-indigo-300 focus:outline-none focus:ring-4 focus:ring-indigo-100"
         />
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
@@ -350,15 +358,36 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
           </button>
           <button
             onClick={() => setCreditConfirmOpen(true)}
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 px-3 text-xs text-amber-800 transition-all hover:-translate-y-px hover:shadow-md"
+            disabled={findNewLocked !== null}
+            aria-describedby={findNewLocked ? "find-new-locked" : undefined}
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 px-3 text-xs text-amber-800 transition-all hover:-translate-y-px hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-none"
             style={{ fontWeight: 500 }}
-            title={costs ? `Find New Creators · searches Google in real time · ${costs.find_new} credits when it delivers creators, plus ${costs.live_creator} per new creator, never more than the quote you confirm; nothing if it delivers none` : "Find New Creators · quoted before you confirm"}
+            title={findNewLocked ?? (costs ? `Find New Creators · searches Google in real time · ${costs.find_new} credits when it delivers creators, plus ${costs.live_creator} per new creator, never more than the quote you confirm; nothing if it delivers none` : "Find New Creators · quoted before you confirm")}
           >
             <Radio className="h-3.5 w-3.5" strokeWidth={2} />
             Find New Creators
           </button>
         </div>
       </div>
+      {findNewLocked && (
+        <p id="find-new-locked" className="text-xs text-slate-600" data-testid="find-new-locked">
+          Find New Creators: {findNewLocked}
+        </p>
+      )}
+
+      {/* The fee before the click: a search that finds no eligible creator is free (owner decision 2026-10-28). */}
+      {searchCost !== null && (
+        <p className="text-xs text-slate-600" data-testid="search-fee-note">
+          Each new search costs {searchCost} credits when it finds creators; a search that finds none is free. Repeating the same search, changing page or sorting within 30 minutes is free.
+        </p>
+      )}
+
+      {query.trim() && !showInterpret && (
+        <button type="button" onClick={suggestFilters} disabled={interpret.isPending} className="inline-flex items-center gap-1.5 self-start rounded-md border border-indigo-100 bg-white px-2.5 py-1 text-[11px] text-indigo-700 hover:bg-indigo-50 disabled:opacity-50">
+          <Wand2 className="h-3 w-3" strokeWidth={2} />
+          {interpret.isPending ? "Reading your search…" : "Suggest filters with AI"}
+        </button>
+      )}
 
       {/* AI interpretation (§7.2) — transparent, editable reading of the query */}
       <AnimatePresence>
@@ -681,9 +710,14 @@ export function SearchModule({ liveJobId = null }: { liveJobId?: string | null }
             {search.data && request?.filters.platform === undefined && search.data.understood.filters.platform === undefined && (
               <p className="text-xs text-slate-500">{platformMixText(search.data.platformCounts)}</p>
             )}
+            {search.data && !search.data.complete && (
+              <p className="text-xs text-slate-600" data-testid="partial-note">
+                More creators matched than MUSHIN ranks at once: these are the best matches, not all of them. Add a filter or more words to narrow the search.
+              </p>
+            )}
             {search.data?.fewResults && (
               <p className="flex flex-wrap items-center gap-1 text-xs text-slate-500">
-                Only a few creators match.
+                Only a few creators match: MUSHIN's catalogue has limited coverage for this search.
                 <button onClick={() => setCreditConfirmOpen(true)} className="text-indigo-600 hover:text-indigo-700" style={{ fontWeight: 600 }}>Find new creators</button>
                 or
                 <button onClick={() => setAddOpen(true)} className="text-indigo-600 hover:text-indigo-700" style={{ fontWeight: 600 }}>add a creator by profile link</button>.
@@ -904,126 +938,122 @@ function CreatorCard({
   const contact = creator.contactAvailability ?? (creator.hasContact ? "email_unverified" : "none");
   const contactText = CONTACT_AVAILABILITY_TEXT[contact];
   const ContactIcon = contact === "email_invalid" ? Ban : contact === "phone_unverified" ? Phone : contact === "none" ? Clock : Mail;
+  // MUSHIN design (2026-10-27): photo on top with the platform and the fit score, then the figures, the honesty
+  // markers (fit sentence, matched fields, freshness, contact) and the actions. Every value is the creator's record.
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: index * 0.03 }}
-      whileHover={{ y: -2 }}
-      className={`group relative overflow-hidden rounded-xl border bg-white p-4 shadow-sm transition-all hover:shadow-md ${
-        selected ? "border-indigo-400 ring-2 ring-indigo-100" : "border-slate-200"
+      className={`group relative flex flex-col overflow-hidden rounded-2xl border bg-white transition-shadow hover:shadow-[0_12px_32px_-16px_rgba(15,23,42,0.25)] ${
+        selected ? "border-indigo-500 ring-2 ring-indigo-500/20" : "border-slate-200/80"
       }`}
     >
       <button
+        type="button"
+        role="checkbox"
+        aria-checked={selected}
         onClick={onSelect}
-        aria-label="Select"
-        className={`absolute right-3 top-3 z-10 flex h-5 w-5 items-center justify-center rounded border transition-all ${
-          selected
-            ? "border-indigo-500 bg-indigo-500 text-white"
-            : "border-slate-300 bg-white opacity-0 hover:border-slate-400 group-hover:opacity-100"
+        aria-label={`Select ${creator.name}`}
+        className={`absolute left-3 top-3 z-10 flex h-6 w-6 items-center justify-center rounded-md border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+          selected ? "border-slate-900 bg-slate-900 text-white" : "border-white/80 bg-white/90 text-transparent hover:border-slate-300"
         }`}
       >
-        {selected && <Sparkles className="h-3 w-3" strokeWidth={2.5} />}
+        <Check aria-hidden className="h-3.5 w-3.5" strokeWidth={3} />
       </button>
 
-      <button onClick={onOpen} className="block w-full text-left">
-        <div className="flex items-start gap-3">
-          <div className="relative flex-shrink-0">
-            <img src={creator.avatar} alt={creator.name} className="h-11 w-11 rounded-full object-cover" />
-            <span className="absolute -bottom-0.5 -right-0.5">
-              <PlatformIcon platform={creator.platform} />
-            </span>
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1">
-              <div className="truncate text-slate-900" style={{ fontSize: 13, fontWeight: 600 }}>
-                {creator.name}
-              </div>
-              {creator.verified && (
-                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 flex-shrink-0 fill-indigo-500">
-                  <path d="M12 2l2.4 2.1 3.2-.4.8 3.1 2.6 1.9-1.5 2.8L21 15l-3 1-.4 3.2-3.2.3L12 22l-2.4-2.1-3.2.3L6 17l-3-1 .5-3.2L1.9 10 3.5 7.2 3 4.7l3.2-.4L9.6 2 12 4z" />
-                </svg>
-              )}
+      <button onClick={onOpen} className="block w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500">
+        <div className="relative aspect-[5/4] w-full overflow-hidden bg-slate-100">
+          {creator.avatar.startsWith("data:") ? (
+            // No saved photo yet: the initials stay avatar-sized instead of filling the photo area.
+            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-100 to-indigo-50">
+              <img src={creator.avatar} alt="" className="h-20 w-20 rounded-full ring-4 ring-white" />
             </div>
-            <div className="truncate text-xs text-slate-500">@{creator.handle}</div>
-            <div className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-slate-500">
-              <MapPin className="h-2.5 w-2.5" strokeWidth={2} />
-              {creator.city} · {creator.niche}
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-          <Metric label="Followers" value={creator.followers} />
-          <Metric label="ER" value={creator.engagement === null ? "—" : `${creator.engagement.toFixed(1)}%`} />
-          <Metric label="Auth." value={creator.authenticity === null ? "—" : String(creator.authenticity)} />
-        </div>
-
-        <div className="mt-3 flex items-center justify-between">
-          <div className="flex flex-wrap gap-1">
-            {creator.tags.slice(0, 2).map((t) => (
-              <span key={t} className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-600">
-                {t}
-              </span>
-            ))}
-          </div>
-          <span className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] ${scoreBg(creator.score)}`} style={{ fontWeight: 700 }}>
-            <Star className="h-2.5 w-2.5 fill-current" />
+          ) : (
+            <img src={creator.avatar} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]" />
+          )}
+          <span className={`absolute right-3 top-3 inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px] font-semibold ${scoreBg(creator.score)}`}>
+            <Star aria-hidden className="h-3 w-3 fill-current" />
             Fit {creator.score}
           </span>
+          <span className="absolute bottom-3 right-3 inline-flex items-center gap-1.5 rounded-full bg-slate-950/75 py-0.5 pl-0.5 pr-2.5 text-[11px] font-semibold text-white backdrop-blur-sm">
+            <PlatformIcon platform={creator.platform} />
+            {{"instagram":"Instagram","tiktok":"TikTok","youtube":"YouTube"}[creator.platform]}
+          </span>
+        </div>
+        <div className="px-4 pt-4">
+          <div className="flex items-center gap-1">
+            <div className="truncate text-[15px] font-semibold tracking-[-0.01em] text-slate-900">{creator.name}</div>
+            {creator.verified && (
+              <svg viewBox="0 0 24 24" aria-label="Verified" className="h-3.5 w-3.5 flex-shrink-0 fill-indigo-600">
+                <path d="M12 2l2.4 2.1 3.2-.4.8 3.1 2.6 1.9-1.5 2.8L21 15l-3 1-.4 3.2-3.2.3L12 22l-2.4-2.1-3.2.3L6 17l-3-1 .5-3.2L1.9 10 3.5 7.2 3 4.7l3.2-.4L9.6 2 12 4z" />
+              </svg>
+            )}
+          </div>
+          <div className="truncate text-xs text-slate-500">@{creator.handle}</div>
+          <div className="mt-1.5 flex items-center gap-1 truncate text-xs text-slate-600">
+            <MapPin aria-hidden className="h-3 w-3 flex-shrink-0 text-slate-400" strokeWidth={2} />
+            <span className="truncate">{creator.city} · {creator.niche}</span>
+          </div>
+          <dl className="mt-3 grid grid-cols-3 divide-x divide-slate-200/80 rounded-xl border border-slate-200/80">
+            <Metric label="Followers" value={creator.followers} />
+            <Metric label="Eng. rate" value={creator.engagement === null ? "—" : `${creator.engagement.toFixed(1)}%`} accent />
+            <Metric label="Auth." value={creator.authenticity === null ? "—" : String(creator.authenticity)} />
+          </dl>
         </div>
       </button>
 
-      {/* Fit sentence + honesty markers (§7.4) */}
-      <p className="mt-2.5 text-[11px] text-slate-500" style={{ lineHeight: 1.5 }}>
-        {creator.fitLabel}
-      </p>
-      {matchSummary(creator.matchedOn) && (
-        <p className="mt-1 text-[11px] text-slate-500" style={{ lineHeight: 1.5 }} data-testid="match-reasons">
-          <span className="text-slate-600" style={{ fontWeight: 500 }}>Matched: </span>
-          {matchSummary(creator.matchedOn)}
-        </p>
-      )}
-      <div className="mt-2 flex flex-wrap items-center gap-1.5">
-        <FreshnessBadge value={creator.followersFreshness} />
-        <span
-          className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] ${
-            contact === "email_invalid"
-              ? "border-rose-100 bg-rose-50 text-rose-700"
-              : contact === "none"
-                ? "border-slate-200 bg-slate-50 text-slate-600"
-                : "border-sky-100 bg-sky-50 text-sky-700"
-          }`}
-          style={{ fontWeight: 500 }}
-          title={contactText.title}
-        >
-          <ContactIcon className="h-3 w-3" strokeWidth={2} />
-          {contactText.label}
-        </span>
-      </div>
+      <div className="flex flex-1 flex-col px-4 pb-4">
+        {/* Fit sentence + honesty markers (§7.4) */}
+        <p className="mt-3 text-xs leading-[18px] text-slate-600">{creator.fitLabel}</p>
+        {matchSummary(creator.matchedOn) && (
+          <p className="mt-1 text-xs leading-[18px] text-slate-500" data-testid="match-reasons">
+            <span className="font-medium text-slate-700">Matched: </span>
+            {matchSummary(creator.matchedOn)}
+          </p>
+        )}
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          {creator.tags.slice(0, 2).map((t) => (
+            <span key={t} className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600">
+              {t}
+            </span>
+          ))}
+          <FreshnessBadge value={creator.followersFreshness} />
+          <span
+            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${
+              contact === "email_invalid"
+                ? "border-rose-100 bg-rose-50 text-rose-700"
+                : contact === "none"
+                  ? "border-slate-200 bg-slate-50 text-slate-600"
+                  : "border-sky-100 bg-sky-50 text-sky-800"
+            }`}
+            title={contactText.title}
+          >
+            <ContactIcon aria-hidden className="h-3 w-3" strokeWidth={2} />
+            {contactText.label}
+          </span>
+        </div>
 
-      <div className="mt-3 flex items-center gap-1.5 border-t border-slate-100 pt-3">
-        <button
-          onClick={onOpen}
-          className="inline-flex flex-1 items-center justify-center gap-1 rounded-md bg-slate-900 px-2.5 py-1.5 text-[11px] text-white transition-colors hover:bg-slate-800"
-          style={{ fontWeight: 500 }}
-        >
-          View profile
-          <ArrowUpRight className="h-3 w-3" />
-        </button>
-        <SaveToListMenu creatorIds={[creator.id]} variant="icon" />
+        <div className="mt-auto flex items-center gap-2 pt-4">
+          <button
+            onClick={onOpen}
+            className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-slate-900 px-3 text-[13px] font-medium text-white transition-colors hover:bg-slate-800"
+          >
+            View profile
+            <ArrowRight aria-hidden className="h-3.5 w-3.5" />
+          </button>
+          <SaveToListMenu creatorIds={[creator.id]} variant="icon" />
+        </div>
       </div>
     </motion.div>
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function Metric({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
   return (
-    <div className="rounded-md bg-slate-50 py-1.5">
-      <div className="text-[9px] uppercase tracking-wider text-slate-600">{label}</div>
-      <div className="tabular-nums text-slate-900" style={{ fontSize: 12, fontWeight: 600 }}>
-        {value}
-      </div>
+    <div className="px-2.5 py-2">
+      <dt className="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-500">{label}</dt>
+      <dd className={`mt-0.5 text-sm font-semibold tabular-nums ${accent ? "text-indigo-700" : "text-slate-900"}`}>{value}</dd>
     </div>
   );
 }
@@ -1042,7 +1072,7 @@ function ResultsTable({
   onOpen: (h: string) => void;
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white">
       <table className="w-full text-sm">
         <thead className="sticky top-0 bg-slate-50/80 backdrop-blur">
           <tr className="text-left text-[10px] uppercase tracking-wider text-slate-500">
@@ -1106,7 +1136,7 @@ function ResultsTable({
 function ResultsSkeleton({ view }: { view: ViewMode }) {
   if (view === "table") {
     return (
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white">
         {Array.from({ length: 6 }).map((_, i) => (
           <div key={i} className="flex items-center gap-3 border-t border-slate-100 px-4 py-3 first:border-t-0">
             <div className="h-8 w-8 animate-pulse rounded-full bg-slate-100" />
@@ -1123,7 +1153,7 @@ function ResultsSkeleton({ view }: { view: ViewMode }) {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {Array.from({ length: 8 }).map((_, i) => (
-        <div key={i} className="animate-pulse rounded-xl border border-slate-200 bg-white p-4">
+        <div key={i} className="animate-pulse rounded-2xl border border-slate-200/80 bg-white p-4">
           <div className="flex gap-3">
             <div className="h-11 w-11 rounded-full bg-slate-100" />
             <div className="flex-1 space-y-1.5">
@@ -1153,7 +1183,7 @@ function EmptyResults({ onReset, onAddByLink, onFindNew }: { onReset: () => void
         No creators match your filters
       </div>
       <p className="mt-1 max-w-sm text-sm text-slate-500">
-        No creators match these filters yet. Find new creators live, add a creator you know by their profile link, or widen the filters.
+        No eligible Pakistani creators match these filters yet, so this search cost nothing. Widen the filters, add a creator you know by their profile link, or find new creators live where your plan allows it.
       </p>
       <div className="mt-4 flex gap-2">
         <button onClick={onFindNew} className="rounded-md bg-slate-900 px-3 py-1.5 text-xs text-white hover:bg-slate-800" style={{ fontWeight: 500 }}>
@@ -1267,13 +1297,15 @@ function AdvancedFilterDrawer(props: {
             </div>
 
             <div className="flex-1 space-y-6 overflow-y-auto px-5 py-5 text-sm">
-              <FilterGroup label="City" icon={MapPin}>
-                {["Karachi", "Lahore", "Islamabad", "Faisalabad", "Peshawar"].map((c) => (
-                  <Chip key={c} active={props.city === c} onClick={() => props.setCity(props.city === c ? null : c)}>
-                    {c}
-                  </Chip>
-                ))}
-              </FilterGroup>
+              {CITY_FILTER_ENABLED && (
+                <FilterGroup label="City" icon={MapPin}>
+                  {["Karachi", "Lahore", "Islamabad", "Faisalabad", "Peshawar"].map((c) => (
+                    <Chip key={c} active={props.city === c} onClick={() => props.setCity(props.city === c ? null : c)}>
+                      {c}
+                    </Chip>
+                  ))}
+                </FilterGroup>
+              )}
 
               <FilterGroup label="Niche" icon={Sparkles}>
                 {NICHES.map((n) => (

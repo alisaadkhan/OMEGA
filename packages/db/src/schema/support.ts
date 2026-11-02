@@ -1,4 +1,4 @@
-import { smallint, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { integer, smallint, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { wp } from "./identity";
 
 const ts = (name: string) => timestamp(name, { withTimezone: true, mode: "date" });
@@ -9,9 +9,14 @@ export const supportTickets = wp.table("support_tickets", {
   createdBy: uuid("created_by").notNull(),
   subject: text("subject").notNull(),
   category: text("category", { enum: ["search", "discovery", "billing", "account", "data_removal", "other"] }).notNull(),
-  status: text("status", { enum: ["open", "waiting_on_customer", "resolved", "closed"] }).notNull().default("open"),
+  status: text("status", { enum: ["open", "in_progress", "waiting_on_customer", "resolved", "closed"] }).notNull().default("open"),
   lastMessageAt: ts("last_message_at").notNull().defaultNow(),
   assignedStaffId: uuid("assigned_staff_id"),
+  /** Lifecycle timestamps (0064), maintained by triggers; never written by the app. */
+  firstResponseAt: ts("first_response_at"),
+  resolvedAt: ts("resolved_at"),
+  reopenedCount: integer("reopened_count").notNull().default(0),
+  lastReopenedAt: ts("last_reopened_at"),
   createdAt: ts("created_at").notNull().defaultNow(),
   updatedAt: ts("updated_at").notNull().defaultNow(),
 });

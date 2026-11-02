@@ -1,0 +1,70 @@
+label,platform,stored_main,stored_main_or_secondary,meets_10000,pakistan_profile,eligible,main_high_or_medium_confidence,country_evidence_present,initial_target,initial_deficit,long_term_target,long_term_deficit
+Bridal,youtube,13,75,7,10,5,13,10,10,5,20,15
+Bridal,instagram,13,16,8,4,2,13,4,10,8,20,18
+Bridal,tiktok,0,1,0,0,0,0,0,5,5,10,10
+Fashion,youtube,28,163,5,16,5,28,19,10,5,20,15
+Fashion,instagram,5,19,4,1,0,5,1,10,10,20,20
+Fashion,tiktok,1,2,0,0,0,1,0,5,5,10,10
+Beauty,youtube,81,257,22,46,14,81,53,10,0,20,6
+Beauty,instagram,5,12,5,1,1,5,1,10,9,20,19
+Beauty,tiktok,1,2,0,0,0,1,0,5,5,10,10
+Tech,youtube,96,213,31,62,19,96,77,10,0,20,1
+Tech,instagram,0,0,0,0,0,0,0,10,10,20,20
+Tech,tiktok,0,0,0,0,0,0,0,5,5,10,10
+Food,youtube,244,519,77,145,45,244,175,10,0,20,0
+Food,instagram,18,31,15,6,6,18,6,10,4,20,14
+Food,tiktok,9,10,4,0,0,9,0,5,5,10,10
+Travel,youtube,99,405,32,60,14,99,79,10,0,20,6
+Travel,instagram,8,16,4,2,1,8,2,10,9,20,19
+Travel,tiktok,0,0,0,0,0,0,0,5,5,10,10
+Comedy,youtube,53,232,16,34,12,53,39,10,0,20,8
+Comedy,instagram,0,1,0,0,0,0,0,10,10,20,20
+Comedy,tiktok,2,4,2,0,0,2,0,5,5,10,10
+Finance,youtube,32,93,13,24,9,32,27,10,1,20,11
+Finance,instagram,3,3,1,0,0,3,0,10,10,20,20
+Finance,tiktok,0,0,0,0,0,0,0,5,5,10,10
+Wellness,youtube,30,75,5,16,2,30,21,10,8,20,18
+Wellness,instagram,5,5,2,1,0,5,1,10,10,20,20
+Wellness,tiktok,0,0,0,0,0,0,0,5,5,10,10
+Lifestyle,youtube,38,192,8,21,5,38,25,10,5,20,15
+Lifestyle,instagram,4,12,3,2,1,4,2,10,9,20,19
+Lifestyle,tiktok,0,0,0,0,0,0,0,5,5,10,10
+Education & How-to,youtube,98,140,27,61,15,98,73,10,0,20,5
+Education & How-to,instagram,0,0,0,0,0,0,0,10,10,20,20
+Education & How-to,tiktok,0,0,0,0,0,0,0,5,5,10,10
+Gaming,youtube,75,90,29,35,13,75,54,10,0,20,7
+Gaming,instagram,0,0,0,0,0,0,0,10,10,20,20
+Gaming,tiktok,0,0,0,0,0,0,0,5,5,10,10
+History,youtube,35,53,9,25,7,35,29,10,3,20,13
+History,instagram,0,0,0,0,0,0,0,10,10,20,20
+History,tiktok,0,0,0,0,0,0,0,5,5,10,10
+Literature,youtube,20,29,6,13,4,20,16,10,6,20,16
+Literature,instagram,1,1,1,0,0,1,0,10,10,20,20
+Literature,tiktok,0,0,0,0,0,0,0,5,5,10,10
+Agriculture,youtube,9,16,6,7,6,9,7,10,4,20,14
+Agriculture,instagram,0,0,0,0,0,0,0,10,10,20,20
+Agriculture,tiktok,0,0,0,0,0,0,0,5,5,10,10
+Business & Ecommerce,youtube,95,150,43,55,21,95,79,10,0,20,0
+Business & Ecommerce,instagram,1,5,0,0,0,1,0,10,10,20,20
+Business & Ecommerce,tiktok,2,2,1,0,0,2,0,5,5,10,10
+Automotive,youtube,21,27,10,13,5,21,19,10,5,20,15
+Automotive,instagram,0,0,0,0,0,0,0,10,10,20,20
+Automotive,tiktok,0,0,0,0,0,0,0,5,5,10,10
+Religion,youtube,11,25,2,9,2,11,10,10,8,20,18
+Religion,instagram,0,0,0,0,0,0,0,10,10,20,20
+Religion,tiktok,0,0,0,0,0,0,0,5,5,10,10
+Music,youtube,5,13,3,0,0,5,3,10,10,20,20
+Music,instagram,0,0,0,0,0,0,0,10,10,20,20
+Music,tiktok,1,1,0,0,0,1,0,5,5,10,10
+News & Commentary,youtube,16,23,8,9,5,16,12,10,5,20,15
+News & Commentary,instagram,0,0,0,0,0,0,0,10,10,20,20
+News & Commentary,tiktok,0,0,0,0,0,0,0,5,5,10,10
+Sports,youtube,16,26,4,6,2,16,10,10,8,20,18
+Sports,instagram,0,0,0,0,0,0,0,10,10,20,20
+Sports,tiktok,0,0,0,0,0,0,0,5,5,10,10
+Entertainment,youtube,33,69,11,21,7,33,26,10,3,20,13
+Entertainment,instagram,0,0,0,0,0,0,0,10,10,20,20
+Entertainment,tiktok,0,0,0,0,0,0,0,5,5,10,10
+Real Estate,youtube,7,10,4,6,4,7,7,10,6,20,16
+Real Estate,instagram,0,0,0,0,0,0,0,10,10,20,20
+Real Estate,tiktok,0,0,0,0,0,0,0,5,5,10,10

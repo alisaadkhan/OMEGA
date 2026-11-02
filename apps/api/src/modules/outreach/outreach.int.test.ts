@@ -152,3 +152,94 @@ describe("outreach email: provider webhooks, suppression and unsubscribe", () =>
     await expect(service().send(s.ctx, s.campaignId, s.creatorId, email(s.contactId), key())).rejects.toMatchObject({ details: { reason: "recipient_suppressed" } });
   });
 });
+
+describe("outreach email: draft, preview, recipients and sender identity (2026-10-26)", () => {
+  const svc = (o: { postal?: string | null; mode?: "test" | "resend" } = {}) => {
+    const p = o.mode === "resend" ? Object.assign(new MockEmailProvider(), { mode: "resend" as const }) : provider;
+    return createOutreachEmailService({ db, billing, provider: p as never, from: "Roster <outreach@roster.test>", postalAddress: o.postal === undefined ? "Roster, 1 Test Road, Lahore, Pakistan" : o.postal, encryptionKey: TEST_KEY, unsubscribeKey: Buffer.alloc(32, 7), appUrl: "https://app.mushin.test", webhookSecret: SECRET, logger: createLogger({ level: "silent" }) });
+  };
+  const namedCampaign = async () => {
+    const s = await setup();
+    await campaigns.update(s.ctx, s.campaignId, { client: "Shan Foods" });
+    return s;
+  };
+
+  it("drafts from the real brand and campaign, prefills the revealed address, and never claims a deal is agreed", async () => {
+    const s = await namedCampaign();
+    const d = await svc().draft(s.ctx, s.campaignId, s.creatorId);
+    expect(d.subject).toContain("Shan Foods");
+    expect(d.subject).toContain("Eid push");
+    expect(d.body).toContain("Nothing is agreed or confirmed yet");
+    expect(d.recipients).toEqual([expect.objectContaining({ id: s.contactId, source: "creator_contact", value: "sana@example.com", status: "unverified" })]);
+    expect(d.sender).toMatchObject({ fromAddress: "outreach@roster.test", postalAddress: "Roster, 1 Test Road, Lahore, Pakistan" });
+    expect(d.sender.replyTo).toMatch(/@/);
+    expect(d.profileLinks.length).toBeGreaterThan(0);
+    // Without a reveal the address is not shown; the draft only says one exists.
+    const hidden = await setup({ reveal: false });
+    expect(await svc().draft(hidden.ctx, hidden.campaignId, hidden.creatorId)).toMatchObject({ recipients: [], revealNeeded: true });
+  });
+
+  it("sends exactly what the preview showed: transparent sender, replies to the person, postal address and opt-out", async () => {
+    const s = await namedCampaign();
+    const input = { contactId: s.contactId, subject: "Eid collaboration", body: "Salaam! Would you like to work with us?" };
+    const p = await svc().preview(s.ctx, s.campaignId, s.creatorId, input);
+    // The product is named MUSHIN; the configured sender address is used unchanged (owner instruction 2026-10-27).
+    expect(p.from).toMatch(/^".+ via MUSHIN" <outreach@roster\.test>$/);
+    expect(p.text).toContain("on behalf of Shan Foods through MUSHIN");
+    expect(p.text).toContain("Roster, 1 Test Road, Lahore, Pakistan");
+    expect(p.text).toContain("To stop receiving emails sent through MUSHIN: https://app.mushin.test/#/unsubscribe/");
+    expect(p.warnings.join(" ")).toContain("has not been checked");
+    expect(provider.sent).toEqual([]);
+    await svc().send(s.ctx, s.campaignId, s.creatorId, { ...input, confirm: true }, key());
+    expect(provider.sent).toEqual([expect.objectContaining({ from: p.from, replyTo: p.replyTo, to: "sana@example.com", subject: p.subject, text: p.text })]);
+  });
+
+  it("accepts an address the person enters, keeps it for that workspace only, and leaves the creator's contacts unchanged", async () => {
+    const s = await namedCampaign();
+    const before = await ownerQuery(`select id, status from gcp.creator_contacts where creator_id = '${s.creatorId}' order by id`);
+    const sent = await svc().send(s.ctx, s.campaignId, s.creatorId, { manualEmail: "Agent@ShanFoods.pk", subject: "Hi", body: "Hello", confirm: true }, key());
+    expect(sent.status).toBe("accepted");
+    expect(provider.sent.at(-1)?.to).toBe("agent@shanfoods.pk");
+    expect(await ownerQuery(`select id, status from gcp.creator_contacts where creator_id = '${s.creatorId}' order by id`)).toEqual(before);
+    const typed = await ownerQuery<{ workspace_id: string; source: string; status: string }>(`select workspace_id, source, status from wp.workspace_contacts where creator_id = '${s.creatorId}'`);
+    expect(typed).toEqual([{ workspace_id: s.ctx.workspaceId, source: "user_provided", status: "unverified" }]);
+    expect((await ownerQuery<{ contact_source: string }>(`select contact_source from wp.outreach_emails where id = '${sent.id}'`))[0]?.contact_source).toBe("workspace_contact");
+    // The draft now offers it, labelled as user-provided.
+    expect((await svc().draft(s.ctx, s.campaignId, s.creatorId)).recipients).toContainEqual(expect.objectContaining({ source: "workspace_contact", value: "agent@shanfoods.pk", status: "user_provided" }));
+    // Another workspace can neither see it nor use its id, even with the same creator in its own campaign.
+    const other: TenantContext = { ...(await createTestWorkspace()), requestId: "req2", role: "member" };
+    const k2 = await campaigns.create(other, { ...base, name: "Other" });
+    await campaigns.addCreators(other, k2.id, [s.creatorId]);
+    expect((await svc().draft(other, k2.id, s.creatorId)).recipients.filter((r) => r.source === "workspace_contact")).toEqual([]);
+    const [wc] = await ownerQuery<{ id: string }>(`select id from wp.workspace_contacts where creator_id = '${s.creatorId}'`);
+    await expect(svc().send(other, k2.id, s.creatorId, { contactId: wc?.id ?? "", subject: "Hi", body: "Hello", confirm: true }, key())).rejects.toMatchObject({ details: { reason: "contact_not_revealed" } });
+  });
+
+  it("refuses an unusable or suppressed entered address, and a send that names two recipients", async () => {
+    const s = await namedCampaign();
+    await expect(svc().send(s.ctx, s.campaignId, s.creatorId, { manualEmail: "logo@2x.png", subject: "Hi", body: "Hello", confirm: true }, key())).rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+    await ownerQuery(`insert into platform.email_suppressions (recipient_hash, reason) values (encode(sha256('gone@shanfoods.pk'::bytea), 'hex'), 'unsubscribed')`);
+    await expect(svc().send(s.ctx, s.campaignId, s.creatorId, { manualEmail: "gone@shanfoods.pk", subject: "Hi", body: "Hello", confirm: true }, key())).rejects.toMatchObject({ details: { reason: "recipient_suppressed" } });
+    expect((await svc().preview(s.ctx, s.campaignId, s.creatorId, { manualEmail: "gone@shanfoods.pk", subject: "Hi", body: "Hello" })).warnings[0]).toContain("will not email it");
+    const { sendOutreachEmailSchema } = await import("@mushin/contracts");
+    expect(sendOutreachEmailSchema.safeParse({ contactId: s.contactId, manualEmail: "a@b.org", subject: "x", body: "y", confirm: true }).success).toBe(false);
+    expect(sendOutreachEmailSchema.safeParse({ subject: "x", body: "y", confirm: true }).success).toBe(false);
+    expect(provider.sent).toEqual([]);
+  });
+
+  // Regression (browser break-it run, 2026-10-27): the composer guessed "can send" from warning text and silently did
+  // nothing in test mode without a postal address. The server now says whether the previewed email is sendable.
+  it("says in the preview whether this exact email can be sent, and why not", async () => {
+    const s = await namedCampaign();
+    const input = { contactId: s.contactId, subject: "Hi", body: "Hello" };
+    expect(await svc({ postal: null }).preview(s.ctx, s.campaignId, s.creatorId, input)).toMatchObject({ sendable: true, blockedReason: null });
+    expect(await svc({ mode: "resend", postal: null }).preview(s.ctx, s.campaignId, s.creatorId, input)).toMatchObject({ sendable: false, blockedReason: expect.stringContaining("postal address") });
+    await ownerQuery(`insert into platform.email_suppressions (recipient_hash, reason) values (encode(sha256('blocked@shanfoods.pk'::bytea), 'hex'), 'complained')`);
+    expect(await svc().preview(s.ctx, s.campaignId, s.creatorId, { manualEmail: "blocked@shanfoods.pk", subject: "Hi", body: "Hello" })).toMatchObject({ sendable: false });
+  });
+
+  it("refuses a real send without a configured postal address", async () => {
+    const s = await namedCampaign();
+    await expect(svc({ mode: "resend", postal: null }).send(s.ctx, s.campaignId, s.creatorId, email(s.contactId), key())).rejects.toMatchObject({ details: { reason: "outreach_email_unavailable" } });
+  });
+});

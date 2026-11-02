@@ -2,8 +2,8 @@
 
 :root {
   --font-size: 16px;
-  --background: #ffffff;
-  --foreground: oklch(0.145 0 0);
+  --background: #f7f9fb; /* design surface */
+  --foreground: #0f172a; /* design ink (slate-900) */
   --card: #ffffff;
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
@@ -124,13 +124,33 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/* MUSHIN design system (2026-10-27): Geist, slate neutrals (Tailwind's slate already matches the design's #0F172A /
+   #E2E8F0), and the design's cyan/teal accent in place of indigo. Components use `indigo-*` classes for the accent, so
+   the accent scale is redefined here once instead of in every component; reverting this block restores the old look.
+   600 (#00687a) is the text/button shade: 6.3:1 on white (WCAG AA). 500 is decorative only (focus rings, dots). */
+@theme {
+  --font-sans: "Geist Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --color-indigo-50: #ecfeff;
+  --color-indigo-100: #cffafe;
+  --color-indigo-200: #a5f3fc;
+  --color-indigo-300: #67e8f9;
+  --color-indigo-400: #22d3ee;
+  --color-indigo-500: #06b6d4;
+  --color-indigo-600: #00687a;
+  --color-indigo-700: #005766;
+  --color-indigo-800: #004e5c;
+  --color-indigo-900: #001f26;
+  --color-indigo-950: #00151a;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
+    font-feature-settings: "tnum" 1; /* tabular numerals: counts and credits line up in tables */
   }
 
   /**
@@ -173,7 +193,8 @@
   }
 
   button {
-    font-size: var(--text-base);
+    /* Inherit, so a link-style button inside a sentence matches the sentence (was a fixed 16px). */
+    font-size: inherit;
     font-weight: var(--font-weight-medium);
     line-height: 1.5;
   }

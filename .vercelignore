@@ -7,6 +7,8 @@ eval-v2/
 .catalog-storage/
 frontend.zip
 reference_files/
+MUSHIN_Claude_Code_Execution_Bundle/
+MUSHIN_Urgent_Continuation_Bundle/
 docs/
 design/
 .claude-flow/

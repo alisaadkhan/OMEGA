@@ -26,7 +26,7 @@ function useAnalytics(from: string, to: string) {
 
 function Tile({ label, value, note }: { label: string; value: string; note: string }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="rounded-2xl border border-slate-200/80 bg-white p-4">
       <div className="text-[11px] uppercase tracking-wide text-slate-500">{label}</div>
       <div className="mt-1 tabular-nums text-slate-900" style={{ fontSize: 24, fontWeight: 700 }}>{value}</div>
       <div className="mt-0.5 text-[11px] text-slate-500">{note}</div>
@@ -39,7 +39,7 @@ function Bars({ title, definition, rows }: { title: string; definition: string; 
   const max = Math.max(1, ...rows.map((r) => r.value));
   const total = rows.reduce((n, r) => n + r.value, 0);
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm" aria-label={title}>
+    <section className="rounded-2xl border border-slate-200/80 bg-white p-4" aria-label={title}>
       <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>{title}</div>
       <p className="mt-0.5 text-[11px] text-slate-500">{definition}</p>
       {total === 0 ? (
@@ -74,7 +74,7 @@ export function Analytics() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-slate-900" style={{ fontSize: 26, fontWeight: 700 }}>Analytics</h1>
+          <h1 className="text-[32px] font-semibold leading-10 tracking-[-0.025em] text-slate-900">Analytics</h1>
           <p className="mt-1 text-sm text-slate-500">Counts from your workspace's own records. Nothing here is estimated.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs" role="group" aria-label="Period">
@@ -123,7 +123,7 @@ export function Analytics() {
             />
             <Bars
               title="Outreach outcomes"
-              definition="Outreach your team logged in this period, by what happened. MUSHIN doesn't send messages or track replies itself."
+              definition="Outreach your team logged in this period, by what happened. MUSHIN doesn't track replies."
               rows={[
                 { label: "Reached out", value: q.data.outreach.byOutcome.attempted },
                 { label: "Replied", value: q.data.outreach.byOutcome.replied },
@@ -132,7 +132,7 @@ export function Analytics() {
                 { label: "Declined", value: q.data.outreach.byOutcome.declined },
               ]}
             />
-            <section className="rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-700 shadow-sm" aria-label="Discovery and lists">
+            <section className="rounded-2xl border border-slate-200/80 bg-white p-4 text-xs text-slate-700" aria-label="Discovery and lists">
               <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Discovery and lists</div>
               <dl className="mt-3 grid grid-cols-2 gap-y-2">
                 <dt className="text-slate-500">Find New Creators runs finished (period)</dt><dd className="text-right tabular-nums">{q.data.discovery.liveRuns}</dd>

@@ -2,7 +2,7 @@ import { z } from "zod";
 
 const iso = z.iso.datetime({ offset: true });
 export const ticketCategorySchema = z.enum(["search", "discovery", "billing", "account", "data_removal", "other"]);
-export const ticketStatusSchema = z.enum(["open", "waiting_on_customer", "resolved", "closed"]);
+export const ticketStatusSchema = z.enum(["open", "in_progress", "waiting_on_customer", "resolved", "closed"]);
 
 export const ticketMessageSchema = z.object({ id: z.uuid(), authorKind: z.enum(["customer", "staff"]), authorName: z.string(), body: z.string(), createdAt: iso });
 export const ticketSummarySchema = z.object({

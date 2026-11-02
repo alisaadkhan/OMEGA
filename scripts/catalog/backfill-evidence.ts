@@ -1,83 +1,98 @@
 /**
- * No-cost evidence backfill for the operational catalogue (search-v2; owner instruction 2026-10-20: store city, country
- * and niches only with evidence, keep unknown values unknown, treat a YouTube registration country as insufficient).
- * Creators refreshed before the evidence layer existed are re-derived from their archived payload on local disk; no
- * provider is called. Dry run by default; --apply writes the creator fields, the evidence rows and an outbox event.
+ * No-cost backfill of niche and country (and city evidence) for a local operational catalogue (owner instruction
+ * 2026-10-26). Re-derives each creator from its newest archived response while that is inside its retention period,
+ * otherwise from the stored name, bio and recorded platform country; no provider or AI is called.
  *
- *   node --env-file=.env --import tsx scripts/catalog/backfill-evidence.ts --db mushin_catalog_v2 [--apply]
- * The frozen evaluation corpus (mushin_eval_disposable) is refused as a target.
+ *   node --import tsx scripts/catalog/backfill-evidence.ts --db mushin_catalog_v3            # dry run (default)
+ *   node --import tsx scripts/catalog/backfill-evidence.ts --db mushin_catalog_v3 --apply    # write, then re-project
+ *   ... --resume            continue after the last finished batch of an interrupted --apply run
+ *   ... --rollback <file>   restore the before-images an --apply run saved
+ * Options: --batch <n> (default 200), --limit <n>, --payloads-from <db> (a clone reads its source's archived files). YouTube video text stays out unless YOUTUBE_CONTENT_EVIDENCE=on.
+ * Only local mushin_catalog_* databases are accepted; the frozen evaluation corpus is refused. Run files (which quote
+ * creator bios) go to the git-excluded .catalog-storage/<db>/backfill/; the summary goes to docs/completion.
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import { createLogger, loadWorkerConfig } from "@mushin/core";
-import { creators, createDatabase, writeOutbox } from "@mushin/db";
+import { createLogger } from "@mushin/core";
+import { createDatabase } from "@mushin/db";
 import { RAW_PAYLOAD_BUCKET } from "@mushin/integrations";
-import { eq, sql } from "drizzle-orm";
-import { createCreatorIndexer, deriveAttributes, getEnrichmentSettings, placeAttributes, replaceAttributeEvidence, standardize, type Assessment } from "../../apps/api/src/modules/creators/index";
+import { backfillAttributes, createCreatorIndexer, getEnrichmentSettings, restoreBeforeImages, type BeforeImage } from "../../apps/api/src/modules/creators/index";
 
-const { values } = parseArgs({ options: { db: { type: "string" }, apply: { type: "boolean", default: false } } });
+const { values } = parseArgs({
+  options: {
+    db: { type: "string" },
+    apply: { type: "boolean", default: false },
+    resume: { type: "boolean", default: false },
+    rollback: { type: "string" },
+    batch: { type: "string" },
+    limit: { type: "string" },
+    "payloads-from": { type: "string" },
+  },
+});
 const dbName = values.db ?? "";
-if (!/^mushin_catalog_[a-z0-9_]+$/.test(dbName)) throw new Error("--db must name a local operational catalogue (mushin_catalog_*)");
+if (!/^mushin_catalog_[a-z0-9_]+$/.test(dbName) || /eval/.test(dbName)) throw new Error("--db must name a local operational catalogue (mushin_catalog_*), never an evaluation corpus");
 const url = `postgres://postgres@127.0.0.1:54330/${dbName}`;
-const config = loadWorkerConfig({ ...process.env, DATABASE_URL: url, DIRECT_URL: url, DATABASE_SSL_CA_FILE: "", SEARCH_PROFILE: "v2" });
-const logger = createLogger({ level: "info", name: "catalog-evidence" });
-const db = createDatabase(url, { max: 2, applicationName: "catalog-evidence", caPem: null });
+// Only the two policy switches are read (never .env secrets): no key, token or provider is needed for a backfill.
+const sourcePolicy = { youtubeDerivedMetrics: process.env["YOUTUBE_DERIVED_METRICS"] === "on" };
+const youtubeContentEvidence = process.env["YOUTUBE_CONTENT_EVIDENCE"] === "on";
+const logger = createLogger({ level: "info", name: "catalog-backfill" });
+const db = createDatabase(url, { max: 2, applicationName: "catalog-backfill", caPem: null });
 const repo = resolve(fileURLToPath(new URL("../..", import.meta.url)));
-const store = join(repo, ".catalog-storage", dbName, RAW_PAYLOAD_BUCKET);
-const settings = await db.withSystem((tx) => getEnrichmentSettings(tx));
+// A cloned catalogue reads the archived responses of the catalogue it was cloned from (no second copy of YouTube data).
+const payloadDb = values["payloads-from"] ?? dbName;
+if (!/^mushin_catalog_[a-z0-9_]+$/.test(payloadDb)) throw new Error("--payloads-from must name a local catalogue");
+const store = join(repo, ".catalog-storage", payloadDb, RAW_PAYLOAD_BUCKET);
+const runDir = join(repo, ".catalog-storage", dbName, "backfill");
+mkdirSync(runDir, { recursive: true });
+const checkpointFile = join(runDir, "checkpoint.json");
+const stamp = new Date().toISOString().replace(/[:.]/g, "-");
 
-// The newest archived payload of every creator profile (only refreshed or discovered creators have one).
-const rows = await db.withSystem((tx) =>
-  tx.execute<{ creator_id: string; platform: "instagram" | "tiktok" | "youtube"; handle: string; payload_id: string; storage_key: string; niches: string[]; city: string | null; country: string | null }>(sql`
-    select distinct on (pr.creator_id) pr.creator_id, pr.platform, pr.handle, rp.id payload_id, rp.storage_key, c.niches, c.city, c.country
-    from gcp.creator_profiles pr
-    join gcp.creators c on c.id = pr.creator_id and c.status = 'active'
-    join platform.raw_payloads rp on rp.canonical_url = pr.canonical_url
-    order by pr.creator_id, rp.fetched_at desc`),
-);
-
-const tally = { creators: rows.length, missingPayload: 0, unreadable: 0, city: { before: 0, after: 0 }, country: { before: 0, after: 0, cleared: 0, pkAfter: 0 }, changed: 0 };
-const changes: Record<string, unknown>[] = [];
-for (const r of rows) {
-  const file = join(store, ...r.storage_key.split("/"));
-  if (!existsSync(file)) {
-    tally.missingPayload++;
-    continue;
-  }
-  const std = standardize(r.platform, r.handle, JSON.parse(readFileSync(file, "utf8")), { maxPosts: r.platform === "tiktok" ? settings.tiktokRecentVideos : settings.recentPosts });
-  if (std.kind !== "ok") {
-    tally.unreadable++;
-    continue;
-  }
-  // The AI's niches were stored on the creator; they are kept as "weak" evidence unless the text supports them.
-  const d = deriveAttributes(std.profile, { niches: r.niches } as Assessment);
-  const placed = await db.withSystem((tx) => placeAttributes(tx, r.creator_id, d, [std.profile.country], []));
-  if (r.city) tally.city.before++;
-  if (r.country) tally.country.before++;
-  if (placed.city) tally.city.after++;
-  if (placed.country) tally.country.after++;
-  if (placed.country === "PK") tally.country.pkAfter++;
-  if (r.country && !placed.country) tally.country.cleared++;
-  const moved = placed.city !== r.city || placed.country !== r.country || (placed.niches !== undefined && placed.niches.join("|") !== r.niches.join("|"));
-  if (moved) {
-    tally.changed++;
-    changes.push({ handle: r.handle, platform: r.platform, before: { city: r.city, country: r.country, niches: r.niches }, after: placed, registration: std.profile.country });
-  }
-  if (values.apply) {
-    await db.withSystem(async (tx) => {
-      await tx.update(creators).set(placed).where(eq(creators.id, r.creator_id));
-      await replaceAttributeEvidence(tx, r.creator_id, d, r.payload_id);
-      await writeOutbox(tx, { eventType: "creator.changed", aggregateType: "creator", aggregateId: r.creator_id, workspaceId: null, payload: { creatorId: r.creator_id }, requestId: null });
-    });
-  }
+if (values.rollback) {
+  const images = JSON.parse(readFileSync(values.rollback, "utf8")) as BeforeImage[];
+  const n = await restoreBeforeImages(db, images);
+  await createCreatorIndexer({ db, index: null, logger, sourcePolicy }).reconcile();
+  logger.info({ restored: n }, "rollback done; search projection reconciled");
+  await db.close();
+  process.exit(0);
 }
-if (values.apply) await createCreatorIndexer({ db, index: null, logger, sourcePolicy: config.sourcePolicy }).reconcile();
 
+const settings = await db.withSystem((tx) => getEnrichmentSettings(tx));
+const after = values.resume && existsSync(checkpointFile) ? (JSON.parse(readFileSync(checkpointFile, "utf8")) as { lastId: string }).lastId : null;
+const report = await backfillAttributes({
+  db,
+  apply: values.apply,
+  after,
+  ...(values.batch ? { batchSize: Number(values.batch) } : {}),
+  ...(values.limit ? { limit: Number(values.limit) } : {}),
+  readPayload: async (key) => {
+    const file = join(store, ...key.split("/"));
+    return existsSync(file) ? (JSON.parse(await readFile(file, "utf8")) as unknown) : null;
+  },
+  usePostText: (platform) => platform !== "youtube" || youtubeContentEvidence,
+  maxPosts: (platform) => (platform === "tiktok" ? settings.tiktokRecentVideos : settings.recentPosts),
+  onBatch: ({ lastId, processed }) => {
+    if (values.apply) writeFileSync(checkpointFile, JSON.stringify({ lastId, processed, at: new Date().toISOString() }));
+    logger.info({ processed }, "batch done");
+  },
+});
+
+const { beforeImages, needsFreshData, changes, ...summary } = report;
+const changedFields: Record<string, number> = {};
+for (const ch of changes) for (const k of ch.fields) changedFields[k] = (changedFields[k] ?? 0) + 1;
+Object.assign(summary, { changedFields });
+const mode = values.apply ? "apply" : "dry-run";
+if (values.apply) {
+  writeFileSync(join(runDir, `before-images-${stamp}.json`), JSON.stringify(beforeImages));
+  const projected = await createCreatorIndexer({ db, index: null, logger, sourcePolicy }).reconcile();
+  Object.assign(summary, { projection: projected });
+}
+writeFileSync(join(runDir, `${mode}-${stamp}.json`), `${JSON.stringify({ db: dbName, ...summary, needsFreshData, changes }, null, 1)}\n`);
 const outDir = join(repo, "docs", "completion", "search-v2-evidence");
 mkdirSync(outDir, { recursive: true });
-const out = join(outDir, `catalog-evidence-backfill-${values.apply ? "apply" : "dry-run"}.json`);
-writeFileSync(out, `${JSON.stringify({ db: dbName, applied: values.apply, at: new Date().toISOString(), tally, changes }, null, 1)}\n`);
-logger.info({ tally, out }, "evidence backfill done");
+// The committed summary holds counts only (no creator text).
+writeFileSync(join(outDir, `attribute-backfill-${mode}.json`), `${JSON.stringify({ db: dbName, at: new Date().toISOString(), ...summary, failed: summary.failed.length, needsFreshData: needsFreshData.length }, null, 1)}\n`);
+logger.info({ ...summary, needsFreshData: needsFreshData.length, runDir }, `attribute backfill ${mode} done`);
 await db.close();

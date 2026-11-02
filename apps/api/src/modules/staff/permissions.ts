@@ -40,7 +40,13 @@ export const STAFF_PERMISSIONS = {
   "approvals.read": ADMIN,
   "approvals.request": ADMIN,
   "approvals.decide": ADMIN,
+  // Product reviews and usage analytics (plan Phase 12, 2026-10-29): Staff Admin and Super Admin.
+  "feedback.read": ADMIN,
+  "feedback.review": ADMIN,
+  "analytics.read": ADMIN,
   // Super Admin only.
+  // Staff performance oversight (plan Phase 11).
+  "support.performance.read": SUPER,
   "staff.manage": SUPER,
   // Owner decision 2026-10-19: only the platform owners approve, reject or look up trials, and read trial feedback.
   "trials.decide": SUPER,

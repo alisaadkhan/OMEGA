@@ -10,6 +10,7 @@ import { SearchModule } from "./SearchModule";
 import { Billing } from "./Billing";
 import { BillingStatusBanner } from "./BillingStatusBanner";
 import { Support } from "./Support";
+import { LeaveReview } from "./LeaveReview";
 import { ActivityLog } from "./ActivityLog";
 import { Lists } from "./Lists";
 import { Campaigns } from "./Campaigns";
@@ -104,6 +105,7 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
               {view === "activity" && <ActivityLog />}
             </motion.div>
           </AnimatePresence>
+          <LeaveReview page={view} />
         </main>
       </div>
       <CreatorProfilePanel creator={omniCreator} onClose={() => setOmniCreator(null)} />

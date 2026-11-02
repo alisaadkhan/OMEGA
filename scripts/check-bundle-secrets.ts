@@ -10,13 +10,14 @@ import { join, relative } from "node:path";
 /** Server-only settings (packages/core config); a VITE_ name is public by design and never listed here. */
 export const SERVER_SETTING_NAMES = [
   "SUPABASE_SERVICE_ROLE_KEY", "DATABASE_URL", "DIRECT_URL", "STAFF_JWT_SECRET", "DATA_ENCRYPTION_KEY", "APIFY_TOKEN",
-  "SERPER_API_KEY", "YOUTUBE_API_KEY", "GROQ_API_KEY", "OLLAMA_API_KEY", "PADDLE_API_KEY", "PADDLE_WEBHOOK_SECRET",
+  "SERPER_API_KEY", "YOUTUBE_API_KEY", "GROQ_API_KEY", "GEMINI_API_KEY", "OLLAMA_API_KEY", "PADDLE_API_KEY", "PADDLE_WEBHOOK_SECRET",
   "MOCK_PADDLE_WEBHOOK_SECRET", "UPSTASH_REDIS_REST_TOKEN", "MEILISEARCH_API_KEY", "MEILISEARCH_MASTER_KEY", "RESEND_API_KEY",
 ];
 
 export const SECRET_FORMATS: [kind: string, re: RegExp][] = [
   ["apify_token", /apify_api_[A-Za-z0-9]{20,}/],
   ["groq_key", /gsk_[A-Za-z0-9]{20,}/],
+  ["google_api_key", /AIza[0-9A-Za-z_-]{35}/],
   ["resend_key", /\bre_[A-Za-z0-9]{8,}_[A-Za-z0-9]{8,}/],
   ["paddle_key", /\bpdl_(?:live|sdbx)_apikey_[A-Za-z0-9_]{10,}/],
   ["stripe_like_secret", /\bsk_(?:live|test)_[A-Za-z0-9]{16,}/],

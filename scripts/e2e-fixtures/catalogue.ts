@@ -27,7 +27,7 @@ const tt = (handle: string, followers: number, bio: string): NewProfile => ({
 });
 const email = (handle: string) => ({ kind: "email" as const, value: `${handle}@example.com`, trust: "likely" as const, source: "bio (synthetic fixture)" });
 const phone = (n: number) => ({ kind: "phone" as const, value: `+92 300 00000${String(n).padStart(2, "0")}`, trust: "unverified" as const, source: "bio (synthetic fixture)" });
-const creator = (c: Omit<NewCreator, "country" | "tags"> & { tags?: string[] }): NewCreator => ({ country: "PK", tags: [], ...c });
+const creator = (c: Omit<NewCreator, "country" | "tags"> & { tags?: string[] }): NewCreator => ({ country: "PK", confirmedCountry: "PK", tags: [], ...c });
 
 export const FIXTURE_CREATORS: NewCreator[] = [
   // Food
@@ -51,7 +51,8 @@ export const FIXTURE_CREATORS: NewCreator[] = [
   creator({ displayName: "Fixture Tiny Dance", primaryHandle: "fxtinydance", primaryPlatform: "tiktok", niches: ["Lifestyle"], profiles: [tt("fxtinydance", 688, "Dance clips (synthetic fixture)")] }),
   creator({ displayName: "Fixture Money Talk", primaryHandle: "fxmoneytalk", primaryPlatform: "youtube", niches: ["Finance", "Lifestyle"], profiles: [yt("fxmoneytalk", 2_360, "Personal finance basics (synthetic fixture)")] }),
   creator({ displayName: "Fixture Wellness Daily", primaryHandle: "fxwellness", primaryPlatform: "youtube", niches: ["Wellness", "Tech"], profiles: [yt("fxwellness", 663, "Wellness routines (synthetic fixture)")] }),
-  creator({ displayName: "Fixture Toronto Tech", primaryHandle: "fxtorontotech", primaryPlatform: "youtube", city: "Toronto", niches: ["Tech"], profiles: [yt("fxtorontotech", 23_400, "Pakistani tech creator abroad (synthetic fixture)")] }),
+  // Based abroad (elig-2, Pakistan-only): kept in the database, never shown to customers, refused by id, link and lists.
+  creator({ displayName: "Fixture Toronto Tech", primaryHandle: "fxtorontotech", primaryPlatform: "youtube", city: "Toronto", niches: ["Tech"], confirmedCountry: null, platformCountry: "CA", profiles: [yt("fxtorontotech", 23_400, "Tech reviews, based in Toronto, Canada (synthetic fixture)")] }),
   // A possible minor: never shown to customers.
   creator({ displayName: "Fixture Young Gamer", primaryHandle: "fxyounggamer", primaryPlatform: "youtube", niches: ["Gaming"], isMinor: true, profiles: [yt("fxyounggamer", 54_000, "Gaming clips (synthetic fixture)")] }),
 ];

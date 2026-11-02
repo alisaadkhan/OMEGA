@@ -51,7 +51,7 @@ export function AudienceEstimate({ creatorId, handle }: { creatorId: string; han
             style={{ fontWeight: 500 }}
           >
             {request.isPending ? <Spinner /> : <BarChart3 className="h-3.5 w-3.5" strokeWidth={2} />}
-            Estimate Audience Demographics — {s.cost} credits
+            Estimate Audience Details — {s.cost} credits
           </button>
         </>
       )}

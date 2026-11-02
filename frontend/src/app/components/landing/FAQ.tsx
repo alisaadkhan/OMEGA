@@ -2,8 +2,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "..
 
 const faqs = [
   {
-    q: "What does Mushin actually do?",
-    a: "Mushin helps brands and agencies in Pakistan find creators on Instagram, TikTok, and YouTube, see how well each one fits a brief (the Creator Fit score), review suspicious-activity signals, and keep lists, campaigns and an outreach log in one workspace.",
+    q: "What does MUSHIN actually do?",
+    a: "MUSHIN helps brands and agencies in Pakistan find creators on Instagram, TikTok, and YouTube, see how well each one fits a brief (the Creator Fit score), review suspicious-activity signals, and keep lists, campaigns and an outreach log in one workspace.",
   },
   {
     q: "How is the Creator Fit score calculated?",
@@ -15,19 +15,19 @@ const faqs = [
   },
   {
     q: "How does bot and fake-follower detection work?",
-    a: "Mushin looks at public engagement and follower patterns and flags what looks unusual, with the evidence behind each signal. These are signals to investigate before you commit budget, not verdicts.",
+    a: "MUSHIN looks at public engagement and follower patterns and flags what looks unusual, with the evidence behind each signal. These are signals to investigate before you commit budget, not verdicts.",
   },
   {
     q: "Can multiple teammates collaborate in one workspace?",
     a: "Yes. Invite teammates as owner, admin or member; lists, campaigns and the activity feed are shared across the workspace.",
   },
   {
-    q: "How is Mushin priced?",
+    q: "How is MUSHIN priced?",
     a: "Each plan includes monthly credits, and you can buy top-up credits that never expire. Credits pay for searches, finding new creators, data refreshes and contact reveals, and every action shows its price before you confirm.",
   },
   {
-    q: "How does Mushin handle security and data?",
-    a: "Mushin uses role-based access within each workspace, keeps workspaces separate from each other, and lets you export your workspace or delete it at any time. Creator profiles are built from public information and labeled by freshness and confidence; estimates are never presented as verified facts.",
+    q: "How does MUSHIN handle security and data?",
+    a: "MUSHIN uses role-based access within each workspace, keeps workspaces separate from each other, and lets you export your workspace or delete it at any time. Creator profiles are built from public information and labeled by freshness and confidence; estimates are never presented as verified facts.",
   },
 ];
 

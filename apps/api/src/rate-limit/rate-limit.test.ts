@@ -81,7 +81,7 @@ describe("bucketsFromConfig", () => {
     expect(bucketsFromConfig({ windowMs: 30_000, maxRequests: 50 })).toEqual({
       ip: { limit: 50, windowSeconds: 30 },
       user: { limit: 50, windowSeconds: 30 },
-      auth: { limit: 10, windowSeconds: 60 },
+      auth: { limit: 5, windowSeconds: 60 },
       ai: { limit: 20, windowSeconds: 60 },
       jobs: { limit: 20, windowSeconds: 3600 },
       workspaceJobs: { limit: 100, windowSeconds: 3600 },

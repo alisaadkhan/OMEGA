@@ -33,7 +33,7 @@ export function RemoveMyData({ onExit }: { onExit: () => void }) {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-12">
-      <div className="w-full max-w-lg rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="w-full max-w-lg rounded-2xl border border-slate-200/80 bg-white p-6">
         <button onClick={onExit} className="mb-4 flex items-center gap-2 text-xs text-slate-500 hover:text-slate-800"><LogoMark size={20} /> Back to mushin.io</button>
         <h1 className="text-slate-900" style={{ fontSize: 20, fontWeight: 600 }}>Remove my data from MUSHIN</h1>
         {state === "done" ? (

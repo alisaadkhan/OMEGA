@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { outreachEmailListSchema, outreachEmailSchema, outreachUsageSchema, sendOutreachEmailSchema, unsubscribeRequestSchema } from "@mushin/contracts";
+import { outreachComposeSchema, outreachDraftSchema, outreachEmailListSchema, outreachEmailSchema, outreachPreviewSchema, outreachUsageSchema, sendOutreachEmailSchema, unsubscribeRequestSchema } from "@mushin/contracts";
 import { AppError } from "@mushin/core";
 import { WebhookSignatureError } from "@mushin/integrations";
 import { tenantOf } from "../../auth/customer-guard";
@@ -25,6 +25,15 @@ export function createOutreachModule(deps: OutreachDeps): { module: AppModule; s
       app.get("/v1/campaigns/:id/emails", read, async (req, reply) =>
         sendOk(reply, outreachEmailListSchema, { emails: await service.list(tenantOf(req), parseInput(campaignParams, req.params).id) }),
       );
+      // A ready-to-edit draft and an exact preview (nothing is stored or sent by either).
+      app.get("/v1/campaigns/:id/creators/:creatorId/email-draft", read, async (req, reply) => {
+        const p = parseInput(sendParams, req.params);
+        return sendOk(reply, outreachDraftSchema, await service.draft(tenantOf(req), p.id, p.creatorId));
+      });
+      app.post("/v1/campaigns/:id/creators/:creatorId/email-preview", read, async (req, reply) => {
+        const p = parseInput(sendParams, req.params);
+        return sendOk(reply, outreachPreviewSchema, await service.preview(tenantOf(req), p.id, p.creatorId, parseInput(outreachComposeSchema, req.body)));
+      });
       app.post("/v1/campaigns/:id/creators/:creatorId/emails", write, async (req, reply) => {
         const p = parseInput(sendParams, req.params);
         const body = parseInput(sendOutreachEmailSchema, req.body);

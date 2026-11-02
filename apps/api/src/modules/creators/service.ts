@@ -12,7 +12,7 @@ import {
   type EligibilityCoverage,
 } from "@mushin/contracts";
 import { AppError, decryptSecret, type Logger, type TenantContext } from "@mushin/core";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { contactReveals, writeOutbox, type Db, type TenantTx } from "@mushin/db";
 import type { Llm, SearchHit, SearchIndex } from "@mushin/integrations";
 import type { CatalogSearch } from "./postgres-search";
@@ -27,7 +27,7 @@ import { decodeCursor, encodeCursor } from "./cursor";
 import { understandQuery } from "./understand";
 import { understandQueryV2 } from "./understand-v2";
 import { matchReasons } from "./match-reasons";
-import { creatorEligibility, ELIGIBILITY_VERSION } from "./eligibility";
+import { countryLocked, creatorEligibility, ELIGIBILITY_VERSION, type EligibilityProfile } from "./eligibility";
 import { DEFAULT_SOURCE_POLICY, restrictsDerived, type SourcePolicy } from "./source-policy";
 
 export type CreatorsDeps = {
@@ -76,14 +76,44 @@ export function createCreatorsService(deps: CreatorsDeps) {
   }
 
   /** Meilisearch first when it is the backend; only its unavailability (not a bad request) falls back to PostgreSQL. */
-  async function fromIndex(meili: () => Promise<{ hits: SearchHit[]; total: number }>, native: (s: CatalogSearch) => Promise<{ hits: SearchHit[]; total: number }>) {
-    if (deps.nativeSearch) return native(deps.nativeSearch);
+  async function fromIndex(
+    meili: () => Promise<{ hits: SearchHit[]; total: number }>,
+    native: (s: CatalogSearch) => Promise<{ hits: SearchHit[]; total: number }>,
+  ): Promise<{ hits: SearchHit[]; total: number; backend: "postgres" | "meilisearch" }> {
+    if (deps.nativeSearch) return { ...(await native(deps.nativeSearch)), backend: "postgres" };
     try {
-      return await meili();
+      return { ...(await meili()), backend: "meilisearch" };
     } catch (err) {
       if (!deps.fallbackSearch || !(err instanceof AppError && err.code === "PROVIDER_UNAVAILABLE")) throw err;
       deps.logger.warn({ err }, "Meilisearch unavailable: catalog search answered from the PostgreSQL projection");
-      return native(deps.fallbackSearch);
+      return { ...(await native(deps.fallbackSearch)), backend: "postgres" };
+    }
+  }
+
+  /**
+   * Usage events (0065). Recorded after the answer is built and never allowed to fail it: an event that cannot be written
+   * is logged and dropped. No query text and nothing about the viewer is exposed to staff.
+   */
+  async function recordSearch(ctx: TenantContext, e: { backend: "postgres" | "meilisearch"; results: number; complete: boolean; charged: boolean; hasText: boolean; filterCount: number }) {
+    try {
+      await deps.db.withTenant(tenant(ctx), (tx) =>
+        tx.execute(sql`insert into wp.search_events (workspace_id, user_id, backend, results, complete, charged, has_text, filter_count)
+          values (${ctx.workspaceId}, ${ctx.userId}, ${e.backend}, ${e.results}, ${e.complete}, ${e.charged}, ${e.hasText}, ${e.filterCount})`),
+      );
+    } catch (err) {
+      deps.logger.warn({ err }, "search event not recorded");
+    }
+  }
+  /** One view per person and creator per 30 minutes (repeated opens and reloads count once). */
+  async function recordView(ctx: TenantContext, creatorId: string, platform: string) {
+    try {
+      await deps.db.withTenant(tenant(ctx), (tx) =>
+        tx.execute(sql`insert into wp.creator_profile_views (workspace_id, user_id, creator_id, platform)
+          select ${ctx.workspaceId}, ${ctx.userId}, ${creatorId}, ${platform}
+          where not exists (select 1 from wp.creator_profile_views v where v.user_id = ${ctx.userId} and v.creator_id = ${creatorId} and v.viewed_at > now() - interval '30 minutes')`),
+      );
+    } catch (err) {
+      deps.logger.warn({ err }, "profile view not recorded");
     }
   }
 
@@ -108,7 +138,7 @@ export function createCreatorsService(deps: CreatorsDeps) {
     const q = { ...req, text: understood.text, filters: parsed.data };
     // Without text, Meilisearch returns matches in storage order; sorting by the fit score's strongest signals keeps the
     // capped candidate pool on the best creators when more match than it holds (SRS REQ-02.03).
-    const { hits, total: indexTotal } = await fromIndex(
+    const { hits, total: indexTotal, backend } = await fromIndex(
       () =>
         deps.index.search({
           text: q.text,
@@ -122,8 +152,9 @@ export function createCreatorsService(deps: CreatorsDeps) {
     const rows = await deps.db.withTenant(tenant(ctx), (tx) => repo.cardRows(tx, hits.map((h) => h.id)));
     const cards = toCards(rows, q, settings, t, relevance, policy);
     const start = decodeCursor(req, req.cursor, settings.pageSize);
-    // Paid only once the search has answered; refused (no results returned) when the price or balance does not allow it.
-    const charge = await chargeCatalogSearch({ db: deps.db, billing: deps.billing, now }, ctx, req);
+    // Paid only once the search has answered with at least one eligible creator (owner decision 2026-10-28: a search
+    // that finds none costs nothing); refused (no results returned) when the price or balance does not allow it.
+    const charge = cards.length === 0 ? { charged: false, creditsCharged: 0 } : await chargeCatalogSearch({ db: deps.db, billing: deps.billing, now }, ctx, req);
     // Why each creator on this page matched (CAT-005), from the text the projection indexed; ordering is unchanged.
     const page = cards.slice(start, start + settings.pageSize);
     const fields = q.text ? new Map((await deps.db.withTenant(tenant(ctx), (tx) => repo.matchFieldRows(tx, page.map((c) => c.id)))).map((f) => [f.id, f])) : new Map();
@@ -131,6 +162,11 @@ export function createCreatorsService(deps: CreatorsDeps) {
       const f = fields.get(c.id);
       return { ...c, matchedOn: f ? matchReasons(q.text, f) : [] };
     });
+    // A new search is its first page; paging, sorting and repeats are the same search.
+    if (!req.cursor) {
+      const filterCount = Object.values(parsed.data).filter((v) => v !== undefined && v !== null && v !== false && !(Array.isArray(v) && v.length === 0)).length;
+      await recordSearch(ctx, { backend, results: cards.length, complete: hits.length < settings.candidatePool, charged: charge.charged, hasText: q.text.trim().length > 0, filterCount });
+    }
     return {
       ...charge,
       understood: { text: understood.text, filters: Object.fromEntries(Object.entries(understood.filters).filter(([k, v]) => v !== undefined && req.filters[k as keyof typeof req.filters] === undefined)) },
@@ -142,6 +178,7 @@ export function createCreatorsService(deps: CreatorsDeps) {
       page: Math.floor(start / settings.pageSize) + 1,
       pageSize: settings.pageSize,
       fewResults: cards.length < settings.fewResults,
+      complete: hits.length < settings.candidatePool,
       platformCounts: {
         instagram: cards.filter((c) => c.platform === "instagram").length,
         tiktok: cards.filter((c) => c.platform === "tiktok").length,
@@ -167,9 +204,13 @@ export function createCreatorsService(deps: CreatorsDeps) {
   async function lookup(ctx: TenantContext, q: string): Promise<LookupResponse> {
     const url = normalizeProfileUrl(q);
     let ids: string[];
+    let locked = false;
     if (url) {
       const id = await deps.db.withTenant(tenant(ctx), (tx) => repo.findIdByCanonicalUrl(tx, url.canonicalUrl));
-      ids = id ? [id] : [];
+      // A link to a creator locked by the catalogue rules (elig-2) reveals nothing unless this workspace already holds it.
+      const visible = id ? await deps.db.withTenant(tenant(ctx), async (tx) => { const e = (await repo.eligibilityOf(tx, [id], now())).get(id); return (e !== undefined && !countryLocked(e)) || (await repo.workspaceHasCreator(tx, id)); }) : false;
+      locked = id !== null && !visible;
+      ids = id && visible ? [id] : [];
     } else {
       ids = (await fromIndex(
         () => deps.index.search({ text: q, filter: meiliFilter(searchFiltersShape.parse({}), now(), 0), limit: 8 }),
@@ -182,7 +223,7 @@ export function createCreatorsService(deps: CreatorsDeps) {
     const suppressed = url && ids.length === 0 ? await deps.db.withTenant(tenant(ctx), (tx) => suppressedUrls(tx, [url.canonicalUrl])) : new Set<string>();
     // A profile link MUSHIN does not have yet can be added (a hidden creator's link matched an id, so it is not addable).
     const addable =
-      url && ids.length === 0 && !suppressed.has(url.canonicalUrl)
+      url && ids.length === 0 && !locked && !suppressed.has(url.canonicalUrl)
         ? {
             platform: url.platform,
             handle: (url.canonicalUrl.split("/").pop() ?? "").replace(/^@/, ""),
@@ -260,10 +301,14 @@ export function createCreatorsService(deps: CreatorsDeps) {
     const t = now();
     const { settings, revealCost, refreshCost } = await config(ctx);
     const workerUp = deps.workerAvailable ? await deps.workerAvailable() : true;
-    return deps.db.withTenant(tenant(ctx), async (tx) => {
+    const shown = await deps.db.withTenant(tenant(ctx), async (tx) => {
       const c = await repo.getCreator(tx, id);
       if (!c || c.status === "erased" || c.status === "removal_requested") throw new AppError("NOT_FOUND", "Creator not found");
       const profiles = await repo.getProfiles(tx, id);
+      // Locked by the Pakistan-only rule (elig-2: no profile of the creator is Pakistani): only a workspace that already
+      // holds the creator may open it; an id from anywhere else gets the same answer as an unknown id. Other exclusions
+      // (follower count, possible minor) keep their existing behaviour: the profile opens, labelled or protected.
+      if (countryLocked(profileEligibilityView(c, profiles, t)) && !(await repo.workspaceHasCreator(tx, id))) throw new AppError("NOT_FOUND", "Creator not found");
       const snap = await repo.latestSnapshot(tx, id);
       const contacts = await repo.contactSummaries(tx, id);
       const links = isMinorProtected(c) ? [] : await repo.linkedAccounts(tx, id);
@@ -284,7 +329,9 @@ export function createCreatorsService(deps: CreatorsDeps) {
         avatarUrl: c.avatarUrl,
         city: c.city,
         country: c.country,
+        countrySource: c.countrySource,
         niches: c.niches,
+        nicheClassification: c.nicheStatus ? { main: c.nicheMain, status: c.nicheStatus, confidence: c.nicheConfidence } : null,
         tags: c.tags,
         verified: c.verified,
         profiles: profiles.map((p) => ({
@@ -337,6 +384,8 @@ export function createCreatorsService(deps: CreatorsDeps) {
         attributeEvidence: attributeEvidence.map((e) => ({ ...e, observedAt: e.observedAt.toISOString() })),
       };
     });
+    await recordView(ctx, shown.id, shown.platform);
+    return shown;
   }
 
   // ── contact reveal (spec D4) ──────────────────────────────────────────────
@@ -344,6 +393,8 @@ export function createCreatorsService(deps: CreatorsDeps) {
     return deps.db.withTenant(tenant(ctx), async (tx) => {
       const c = await repo.getCreator(tx, id);
       if (!c || c.status !== "active") throw new AppError("NOT_FOUND", "Creator not found");
+      // A creator locked by the Pakistan-only rule answers like an unknown id here too, unless this workspace holds it (BUG-32).
+      if (countryLocked(profileEligibilityView(c, await repo.getProfiles(tx, id), now())) && !(await repo.workspaceHasCreator(tx, id))) throw new AppError("NOT_FOUND", "Creator not found");
       if (isMinorProtected(c)) throw new AppError("FORBIDDEN", "Contact details of possible minors cannot be revealed.", { reason: "minor_protected" });
       if (!isContactable(contactAvailability(await repo.contactSummaries(tx, id)))) {
         throw new AppError("CONFLICT", "We have no contact details for this creator yet.", { reason: "no_contacts" });
@@ -385,10 +436,10 @@ export type CreatorsService = ReturnType<typeof createCreatorsService>;
 /** The profile view of eligibility (elig-1): the creator verdict and each profile's own (no counts beyond what the profile shows). */
 function profileEligibilityView(
   c: { status: string; isMinor: boolean; minorOverrideByStaffId: string | null },
-  profiles: { platform: "instagram" | "tiktok" | "youtube"; canonicalUrl: string; followers: number | null; followersUpdatedAt: Date | null; lastPostAt: Date | null }[],
+  profiles: { platform: "instagram" | "tiktok" | "youtube"; canonicalUrl: string; followers: number | null; followersUpdatedAt: Date | null; lastPostAt: Date | null; availability?: EligibilityProfile["availability"]; country?: string | null; countryStatus?: "pakistan" | "foreign" | "unknown" | "conflicting"; countryCheckedAt?: Date | null }[],
   now: Date,
 ) {
-  const e = creatorEligibility(c, profiles.map((p) => ({ ...p, followers: p.platform === "youtube" && p.followers === 0 ? null : p.followers })), now);
+  const e = creatorEligibility(c, profiles.map((p) => ({ ...p, followers: p.platform === "youtube" && p.followers === 0 ? null : p.followers, country: { code: p.country ?? null, status: p.countryStatus ?? null, checkedAt: p.countryCheckedAt ?? null } })), now);
   return {
     eligible: e.eligible,
     version: e.version,

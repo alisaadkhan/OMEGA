@@ -92,6 +92,8 @@ export async function eraseRows(tx: SystemTx, creatorId: string, payloadIds: str
   await tx.delete(creatorAttributeEvidence).where(eq(creatorAttributeEvidence.creatorId, creatorId));
   // Snapshots are append-only for every app role; only this function deletes them (migration 0015).
   await tx.execute(sql`select platform.erase_creator_snapshots(${creatorId}::uuid)`);
+  // Lifecycle history can carry profile states and reasons; only the record that the removal happened stays (0060 review).
+  await tx.execute(sql`select platform.erase_creator_lifecycle(${creatorId}::uuid)`);
   await tx.delete(creatorProfiles).where(eq(creatorProfiles.creatorId, creatorId));
   await tx
     .update(creators)
@@ -103,7 +105,17 @@ export async function eraseRows(tx: SystemTx, creatorId: string, payloadIds: str
       avatarKey: null,
       city: null,
       country: null,
+      platformCountry: null,
+      statedCountry: null,
+      confirmedCountry: null,
+      countrySource: null,
+      countryConfidence: null,
+      countryCheckedAt: null,
       niches: [],
+      nicheMain: null,
+      nicheStatus: null,
+      nicheConfidence: null,
+      nicheAssessedAt: null,
       tags: [],
       verified: false,
       authenticityScore: null,

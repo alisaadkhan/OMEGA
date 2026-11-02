@@ -50,7 +50,7 @@ export function CampaignDetail({ id, onBack, onOpenCreator, onGoToSearch }: { id
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h1 className="truncate text-slate-900" style={{ fontSize: 24, fontWeight: 700 }}>{c.name}</h1>
+              <h1 className="truncate text-[28px] font-semibold leading-9 tracking-[-0.025em] text-slate-900">{c.name}</h1>
               <span className={`rounded-full px-2 py-0.5 text-[11px] ${STATUS_TONE[c.status]}`} style={{ fontWeight: 600 }}>{STATUS_LABEL[c.status]}</span>
             </div>
             <p className="mt-1 text-sm text-slate-500">
@@ -69,7 +69,7 @@ export function CampaignDetail({ id, onBack, onOpenCreator, onGoToSearch }: { id
           </div>
         </div>
       )}
-      <p className="text-[11px] text-slate-500">Tasks and reminders are planned and not available yet. MUSHIN doesn't send messages: log outreach you did yourself.</p>
+      <p className="text-[11px] text-slate-500">Tasks and reminders are not available yet. Log outreach you did yourself, or use Outreach on a creator to write an email (sending depends on your plan).</p>
 
       {c.creators.length === 0 ? (
         <EmptyState icon={<Users className="h-5 w-5" />} title="No creators in this campaign yet" body="Add creators from Search, a list or a creator's profile with Add to campaign." action={<button onClick={onGoToSearch} className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs text-white" style={{ fontWeight: 600 }}>Search creators</button>} />
@@ -81,7 +81,7 @@ export function CampaignDetail({ id, onBack, onOpenCreator, onGoToSearch }: { id
           <Column title="Declined" items={declined} campaignId={id} onOutreach={setOutreachFor} onOpenCreator={onOpenCreator} muted />
         </div>
       )}
-      {outreachFor && <OutreachPanel campaignId={id} member={outreachFor} onClose={() => setOutreachFor(null)} />}
+      {outreachFor && <OutreachPanel campaignId={id} campaign={{ name: c.name, client: c.client }} member={outreachFor} onClose={() => setOutreachFor(null)} />}
     </div>
   );
 }

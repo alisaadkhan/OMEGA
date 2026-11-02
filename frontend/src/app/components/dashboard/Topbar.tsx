@@ -108,7 +108,7 @@ export function Topbar({ credits, view, setView, onExit, onOpenCreator, onViewRe
                   exit={{ opacity: 0, y: -4, scale: 0.98 }}
                   transition={{ duration: 0.15 }}
                   role="menu"
-                  className="absolute right-0 top-12 z-50 w-60 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl"
+                  className="absolute right-0 top-12 z-50 w-60 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xl"
                 >
                   <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-3">
                     {avatar ? (

@@ -25,7 +25,7 @@ export function TrialFeedback() {
     return <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900" role="status">Thank you. Your feedback was sent to the MUSHIN team.</section>;
   }
   return (
-    <section aria-labelledby="tf-title" className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <section aria-labelledby="tf-title" className="rounded-2xl border border-slate-200/80 bg-white p-4">
       <h2 id="tf-title" className="text-slate-900" style={{ fontSize: 15, fontWeight: 600 }}>Tell us how the trial went</h2>
       <p className="mt-1 text-xs text-slate-500">Answer any questions you like; critical answers help most. 1 = poor, 5 = excellent.</p>
       <form

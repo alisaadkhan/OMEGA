@@ -136,7 +136,7 @@ export function Billing({ checkoutResult }: { checkoutResult?: "success" | "fail
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="tracking-tight text-slate-900" style={{ fontSize: "1.5rem", fontWeight: 600, letterSpacing: "-0.02em" }}>
+        <h1 className="text-[32px] font-semibold leading-10 tracking-[-0.025em] text-slate-900">
           Credits &amp; billing
         </h1>
         <p className="mt-1 text-sm text-slate-500">Your balance, plan, credit history and invoices.</p>
@@ -164,6 +164,21 @@ export function Billing({ checkoutResult }: { checkoutResult?: "success" | "fail
                 ? "Cancelling your subscription… confirming with the payment provider."
                 : "Upgrading your plan… confirming with the payment provider."
               : notice}
+        </div>
+      )}
+
+      {/* Monthly testing allowance (0061): what is left, when it renews, and what it pays for. */}
+      {s?.testingAllowance && (
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 text-sm text-slate-700" data-testid="testing-allowance">
+          <div className="font-semibold text-slate-900">
+            Testing credits: <span className="tabular-nums">{s.testingAllowance.remaining.toLocaleString("en-US")}</span> of{" "}
+            <span className="tabular-nums">{s.testingAllowance.monthlyCredits.toLocaleString("en-US")}</span> left this month
+          </div>
+          <p className="mt-1 text-xs text-slate-600">
+            Renews to {s.testingAllowance.monthlyCredits.toLocaleString("en-US")} on{" "}
+            {new Date(s.testingAllowance.renewsAt).toLocaleString("en-GB", { timeZone: "Asia/Karachi", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })} (Pakistan time). Unused testing credits do
+            not carry over.{!s.plan && !trialing ? " Without a plan they pay for catalogue searches and contact reveals." : ""}
+          </p>
         </div>
       )}
 
@@ -241,7 +256,7 @@ export function Billing({ checkoutResult }: { checkoutResult?: "success" | "fail
 
       {/* Plans and top-ups */}
       {canManage && showPlans && plans.data && (
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-6">
           <div className="flex items-center justify-between">
             <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Plans</div>
             {annual && <div className="inline-flex rounded-md border border-slate-200 p-0.5 text-xs">
@@ -319,7 +334,7 @@ export function Billing({ checkoutResult }: { checkoutResult?: "success" | "fail
 
       {/* Credit history (the ledger) */}
       {canManage && (
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="rounded-2xl border border-slate-200/80 bg-white">
           <div className="border-b border-slate-100 px-5 py-4">
             <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Credit history</div>
             <div className="text-xs text-slate-500">Every credit added, reserved, spent, released and expired</div>
@@ -355,7 +370,7 @@ export function Billing({ checkoutResult }: { checkoutResult?: "success" | "fail
 
       {/* Invoices */}
       {canManage && (
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-6">
           <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Invoices</div>
           <div className="mt-4 space-y-3">
             {(invoices.data?.invoices ?? []).map((i) => (
@@ -381,7 +396,7 @@ export function Billing({ checkoutResult }: { checkoutResult?: "success" | "fail
       )}
 
       {/* Payment methods are held by the payment provider at checkout; MUSHIN never stores them (BILL-001/002). */}
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="rounded-2xl border border-slate-200/80 bg-white p-6">
         <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Payment methods</div>
         <p className="mt-1 text-xs text-slate-500" style={{ lineHeight: 1.55 }}>
           You enter payment details on the secure checkout page when you subscribe or buy credits. MUSHIN doesn&apos;t store cards or wallet details, so there are no saved methods to manage here.
@@ -393,9 +408,9 @@ export function Billing({ checkoutResult }: { checkoutResult?: "success" | "fail
 
 function BalanceTile({ label, value, sub, accent }: { label: string; value: number; sub?: string; accent?: boolean }) {
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="text-xs text-slate-500">{label}</div>
-      <div className={`mt-2 tabular-nums ${accent ? "text-slate-900" : "text-slate-700"}`} style={{ fontSize: "1.75rem", fontWeight: 600, letterSpacing: "-0.02em" }}>
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="rounded-2xl border border-slate-200/80 bg-white p-6">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-500">{label}</div>
+      <div className={`mt-3 tabular-nums tracking-[-0.025em] ${accent ? "text-[40px] font-semibold leading-[44px] text-slate-900" : "text-[28px] font-semibold leading-9 text-slate-700"}`}>
         <AnimatedNumber value={value} />
       </div>
       {sub && <div className="mt-1.5 text-[11px] text-slate-500" style={{ lineHeight: 1.5 }}>{sub}</div>}

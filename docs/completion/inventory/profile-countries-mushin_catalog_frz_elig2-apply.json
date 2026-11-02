@@ -1,0 +1,43 @@
+{
+ "db": "mushin_catalog_frz_elig2",
+ "mode": "apply",
+ "at": "2026-10-28T05:53:23.775Z",
+ "creators": 455,
+ "changed": 53,
+ "transitions": {
+  "youtube: unknown -> pakistan": 20,
+  "instagram: unknown -> pakistan": 25,
+  "youtube: unknown -> foreign": 7,
+  "youtube: unknown -> conflicting": 1
+ },
+ "before": {
+  "instagram": {
+   "unknown": 104
+  },
+  "tiktok": {
+   "unknown": 23
+  },
+  "youtube": {
+   "unknown": 328
+  }
+ },
+ "after": {
+  "instagram": {
+   "pakistan": 25,
+   "unknown": 79
+  },
+  "tiktok": {
+   "unknown": 23
+  },
+  "youtube": {
+   "unknown": 300,
+   "pakistan": 20,
+   "foreign": 7,
+   "conflicting": 1
+  }
+ },
+ "projection": {
+  "upserted": 455,
+  "removed": 0
+ }
+}

@@ -53,7 +53,10 @@ export function registerMockPaddleRoutes(app: FastifyInstance, service: BillingS
       const { workspaceId, id } = parseInput(params, req.params);
       const checkout = await service.mockCheckout(workspaceId, id);
       if (!checkout) throw new AppError("NOT_FOUND", "Checkout not found");
-      return reply.type("text/html; charset=utf-8").header("cache-control", "no-store").send(checkoutPage(checkout));
+      // The one HTML page the API serves (development only). The API-wide CSP allows nothing; this page needs its inline
+      // styles, its two forms posting back here, and the redirect to the app after paying (browsers check that too).
+      const csp = `default-src 'none'; style-src 'unsafe-inline'; img-src data:; form-action 'self' ${new URL(appUrl).origin}; frame-ancestors 'none'; base-uri 'none'`;
+      return reply.type("text/html; charset=utf-8").header("cache-control", "no-store").header("content-security-policy", csp).send(checkoutPage(checkout));
     });
     for (const outcome of ["pay", "fail"] as const) {
       scope.post(`/mock-paddle/checkout/:workspaceId/:id/${outcome}`, async (req, reply) => {

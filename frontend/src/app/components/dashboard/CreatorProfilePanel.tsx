@@ -1,3 +1,5 @@
+import { useBillingSummary } from "../../api/billing";
+import { providerActionsLockedText } from "../../lib/provider-actions";
 import { AnimatePresence, motion } from "motion/react";
 import { X, Instagram, Youtube, Music2, MapPin, Mail, Phone, Sparkles, ShieldCheck,  Plus, ExternalLink, RefreshCw, GitCompare } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -7,6 +9,7 @@ import { isOpenJob, jobStatusText } from "../../api/discovery-mapping";
 import { useCreatorProfile, useForgetReveal, useRevealContact } from "../../api/search";
 import { useAuth } from "../../auth/AuthContext";
 import { CONTACT_AVAILABILITY_TEXT, contactEvidenceText, formatCount, uiContactState } from "../../api/search-mapping";
+import { countryWithSource } from "../../api/evidence-mapping";
 import { useConfirm, useToast } from "../../lib/toast";
 import { AudienceEstimate } from "./AudienceEstimate";
 import { AttributeEvidence } from "./AttributeEvidence";
@@ -97,6 +100,7 @@ export function CreatorProfilePanel({ creator, onClose, onCompare }: { creator: 
   const blocked = p ? blockedReasonFor([p.eligibility]) : null;
   const primary = p?.profiles[0];
   const start = useStartJob();
+  const refreshLocked = providerActionsLockedText(useBillingSummary().data);
   const jobs = useActiveJobs();
   const refreshing = jobs.data?.jobs.find((j) => j.kind === "refresh" && j.creatorId === id && isOpenJob(j)) ?? null;
 
@@ -233,7 +237,9 @@ export function CreatorProfilePanel({ creator, onClose, onCompare }: { creator: 
                       )}
                     </div>
                     <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px]">
-                      {p?.city && <Chip><MapPin className="h-3 w-3" /> {p.city}{p.country === "PK" ? ", Pakistan" : ""}</Chip>}
+                      {p?.city && <Chip><MapPin className="h-3 w-3" /> {p.city}</Chip>}
+                      {p && countryWithSource(p.country, p.countrySource) && <Chip>{countryWithSource(p.country, p.countrySource)}</Chip>}
+                      {p?.nicheClassification?.status === "variety" && <Chip>Variety</Chip>}
                       {p?.niches.map((n) => <Chip key={n}>{n}</Chip>)}
                       {p?.tags.map((t) => (
                         <span key={t} className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600">{t}</span>
@@ -414,13 +420,15 @@ export function CreatorProfilePanel({ creator, onClose, onCompare }: { creator: 
                   <span>{refreshing ? jobStatusText(refreshing) : `Last updated ${p ? relative(p.lastScrapedAt) : "—"}`}</span>
                   <button
                     onClick={() => void onRefresh()}
-                    disabled={!p || refreshing !== null || start.isPending}
+                    disabled={!p || refreshing !== null || start.isPending || refreshLocked !== null}
+                    title={refreshLocked ?? undefined}
                     className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-indigo-600 transition-colors hover:bg-slate-50 disabled:opacity-60"
                     style={{ fontWeight: 500 }}
                   >
                     <RefreshCw className={`h-3 w-3 ${refreshing ? "animate-spin" : ""}`} strokeWidth={2} /> {refreshing ? "Refreshing…" : `Update info · ${p?.refreshCost ?? "—"} credits`}
                   </button>
                 </div>
+                {refreshLocked && <p className="mt-1 text-right text-xs text-slate-600" data-testid="update-locked">Update info: {refreshLocked}</p>}
               </div>
             </div>
           </motion.aside>
@@ -432,7 +440,7 @@ export function CreatorProfilePanel({ creator, onClose, onCompare }: { creator: 
 
 function Section({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="rounded-2xl border border-slate-200/80 bg-white p-4">
       <div className="flex items-baseline justify-between">
         <div className="text-slate-900" style={{ fontSize: 13, fontWeight: 600 }}>
           {title}

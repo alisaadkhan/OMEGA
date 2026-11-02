@@ -1,10 +1,11 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { and, desc, eq, gte, ne, sql } from "drizzle-orm";
-import type { OutreachEmail, OutreachUsage, SendOutreachEmail } from "@mushin/contracts";
-import { AppError, decryptSecret, type Logger, type TenantContext } from "@mushin/core";
-import { campaignCreators, campaigns, outreachEmails, type Db, type SystemTx, type TenantTx } from "@mushin/db";
+import type { OutreachCompose, OutreachDraft, OutreachEmail, OutreachPreview, OutreachUsage, SendOutreachEmail } from "@mushin/contracts";
+import { AppError, decryptSecret, sha256Hex, type Logger, type TenantContext } from "@mushin/core";
+import { outreachEmails, type Db, type SystemTx, type TenantTx } from "@mushin/db";
 import { parseEmailEvent, verifyEmailWebhook, type EmailProvider } from "@mushin/integrations";
 import type { BillingService } from "../billing/index";
+import { composeContext, draftText, renderEmail, resolveRecipient, senderAddress } from "./compose";
 
 export type OutreachDeps = {
   db: Db;
@@ -12,6 +13,8 @@ export type OutreachDeps = {
   /** Null when outreach email is off on this server (OUTREACH_EMAIL_MODE=off). */
   provider: EmailProvider | null;
   from: string;
+  /** The sender's postal address for the email footer; required for real sends (configuration), optional in test mode. */
+  postalAddress?: string | null;
   /** Decrypts the revealed contact value at send time (the address is never stored with the send). */
   encryptionKey: Buffer;
   /** Signs unsubscribe links. */
@@ -104,18 +107,17 @@ export function createOutreachEmailService(deps: OutreachDeps) {
 
     const claimed = await deps.db.withTenant(tenant(ctx), async (tx) => {
       const existing = await tx.select().from(outreachEmails).where(and(eq(outreachEmails.workspaceId, ctx.workspaceId), eq(outreachEmails.idempotencyKey, idempotencyKey))).limit(1);
-      if (existing[0]) return { row: existing[0], fresh: false, to: null };
+      if (existing[0]) return { row: existing[0], fresh: false, to: null, c: null };
 
-      const [k] = await tx.select({ status: campaigns.status }).from(campaigns).where(and(eq(campaigns.workspaceId, ctx.workspaceId), eq(campaigns.id, campaignId)));
-      if (!k) throw new AppError("NOT_FOUND", "Campaign not found");
-      if (k.status === "archived") throw new AppError("CONFLICT", "This campaign is archived. Restore it to contact creators.", { reason: "campaign_archived" });
-      const [member] = await tx.select({ c: campaignCreators.creatorId }).from(campaignCreators).where(and(eq(campaignCreators.workspaceId, ctx.workspaceId), eq(campaignCreators.campaignId, campaignId), eq(campaignCreators.creatorId, creatorId)));
-      if (!member) throw new AppError("NOT_FOUND", "This creator is not in the campaign");
+      const c = await composeContext(tx, ctx, campaignId, creatorId);
+      if (c.campaign.status === "archived") throw new AppError("CONFLICT", "This campaign is archived. Restore it to contact creators.", { reason: "campaign_archived" });
+      // Real sends need the sender's postal address in the footer (configuration requires it for live mode).
+      if (provider.mode === "resend" && !deps.postalAddress) throw new AppError("CONFLICT", "Sending is not available: no sender postal address is configured.", { reason: "outreach_email_unavailable" });
 
-      const [contact] = await tx.execute<{ id: string; value_encrypted: string; value_hash: string; masked: string; status: string }>(sql`select * from gcp.revealed_email(${creatorId}, ${input.contactId})`);
-      if (!contact) throw new AppError("CONFLICT", "Reveal this creator's email address first.", { reason: "contact_not_revealed" });
+      // A revealed creator contact, or an address this person entered (stored for this workspace only).
+      const contact = await resolveRecipient(tx, ctx, creatorId, input, { encryptionKey: deps.encryptionKey, persist: true });
       if (contact.status === "invalid") throw new AppError("CONFLICT", "This email address is known to be invalid. Contact the creator another way and log it.", { reason: "contact_invalid" });
-      const [suppressed] = await tx.execute<{ reason: string }>(sql`select reason from platform.email_suppressions where recipient_hash = ${contact.value_hash}`);
+      const [suppressed] = await tx.execute<{ reason: string }>(sql`select reason from platform.email_suppressions where recipient_hash = ${contact.hash}`);
       if (suppressed) throw new AppError("CONFLICT", "This address cannot be emailed through MUSHIN (it bounced, complained or unsubscribed).", { reason: "recipient_suppressed" });
 
       const [recent] = await tx.select({ n: sql<number>`count(*)::int` }).from(outreachEmails).where(and(eq(outreachEmails.requestedBy, ctx.userId), gte(outreachEmails.createdAt, new Date(t.getTime() - HOUR))));
@@ -133,10 +135,11 @@ export function createOutreachEmailService(deps: OutreachDeps) {
           workspaceId: ctx.workspaceId,
           campaignId,
           creatorId,
-          contactId: contact.id,
+          contactId: contact.id ?? creatorId,
+          contactSource: contact.source,
           requestedBy: ctx.userId,
           idempotencyKey,
-          recipientHash: contact.value_hash,
+          recipientHash: contact.hash,
           recipientMasked: contact.masked,
           subject: input.subject,
           body: input.body,
@@ -145,13 +148,14 @@ export function createOutreachEmailService(deps: OutreachDeps) {
         })
         .returning();
       if (!row) throw new Error("outreach email insert returned no row");
-      return { row, fresh: true, to: decryptSecret(contact.value_encrypted, deps.encryptionKey) };
+      return { row, fresh: true, to: contact, c };
     });
 
     let row = claimed.row;
-    if (claimed.fresh && claimed.to) {
-      const footer = `\n\n--\nSent through MUSHIN. To stop receiving emails sent through MUSHIN: ${unsubscribeUrl(row.recipientHash)}`;
-      const result = await provider.send({ sendId: row.id, from: deps.from, to: claimed.to, subject: row.subject, text: `${row.body}${footer}`, unsubscribeUrl: unsubscribeUrl(row.recipientHash) });
+    if (claimed.fresh && claimed.to && claimed.c) {
+      // The same rendering as the preview: transparent sender, replies to the person, footer with address and opt-out.
+      const email = renderEmail({ c: claimed.c, recipient: claimed.to, subject: row.subject, body: row.body, from: deps.from, postalAddress: deps.postalAddress ?? null, unsubscribeUrl: unsubscribeUrl(row.recipientHash) });
+      const result = await provider.send({ sendId: row.id, from: email.from, replyTo: email.replyTo, to: email.to, subject: email.subject, text: email.text, unsubscribeUrl: unsubscribeUrl(row.recipientHash) });
       const patch = result.ok
         ? { status: "accepted" as const, providerMessageId: result.messageId, statusAt: now() }
         : { status: "failed" as const, failureReason: result.reason, statusAt: now() };
@@ -161,6 +165,79 @@ export function createOutreachEmailService(deps: OutreachDeps) {
     }
     const name = await deps.db.withTenant(tenant(ctx), async (tx) => (await tx.execute<{ n: string | null }>(sql`select display_name n from platform.workspace_people() where id = ${row.requestedBy}`))[0]?.n ?? "Former member");
     return toApi({ ...row, sentByName: name });
+  }
+
+  /** A ready-to-edit email for one creator in one campaign, from its real brand and name. Nothing is stored or sent. */
+  async function draft(ctx: TenantContext, campaignId: string, creatorId: string): Promise<OutreachDraft> {
+    return deps.db.withTenant(tenant(ctx), async (tx) => {
+      const c = await composeContext(tx, ctx, campaignId, creatorId);
+      const text = draftText(c);
+      // Values only through the reveal function; the status column is readable to the app role (0032).
+      const statuses = new Map((await tx.execute<{ id: string; status: string }>(sql`select id, status from gcp.creator_contacts where creator_id = ${creatorId} and kind = 'email'`)).map((r) => [r.id, r.status]));
+      const revealed = (await tx.execute<{ id: string; kind: string; value_encrypted: string }>(sql`select id, kind, value_encrypted from gcp.revealed_contacts(${creatorId})`))
+        .filter((r) => r.kind === "email")
+        .map((r) => {
+          const value = decryptSecret(r.value_encrypted, deps.encryptionKey);
+          return { id: r.id, value_encrypted: r.value_encrypted, value_hash: sha256Hex(value.trim().toLowerCase()), status: statuses.get(r.id) ?? "unverified" };
+        });
+      const typed = await tx.execute<{ id: string; value_encrypted: string; value_hash: string }>(
+        sql`select id, value_encrypted, value_hash from wp.workspace_contacts where workspace_id = ${ctx.workspaceId} and creator_id = ${creatorId} order by created_at`,
+      );
+      const hashes = [...revealed.map((r) => r.value_hash), ...typed.map((r) => r.value_hash)];
+      const suppressed = new Set(
+        hashes.length === 0
+          ? []
+          : (await tx.execute<{ h: string }>(sql`select recipient_hash h from platform.email_suppressions where recipient_hash in (${sql.join(hashes.map((h) => sql`${h}`), sql`, `)})`)).map((r) => r.h),
+      );
+      // The creator has an email this workspace has not revealed (revealing costs credits; it is never done here).
+      const [hidden] = await tx.execute<{ n: number }>(
+        sql`select count(*)::int n from gcp.creator_contacts c where c.creator_id = ${creatorId} and c.kind = 'email' and c.status <> 'invalid'
+            and not exists (select 1 from wp.contact_reveals r where r.workspace_id = ${ctx.workspaceId} and r.creator_id = ${creatorId})`,
+      );
+      const links = await tx.execute<{ platform: "instagram" | "tiktok" | "youtube"; url: string }>(
+        sql`select platform, canonical_url url from gcp.creator_profiles where creator_id = ${creatorId} order by followers desc nulls last`,
+      );
+      const usable = revealed.filter((r) => r.status !== "invalid" && !suppressed.has(r.value_hash));
+      return {
+        ...text,
+        sender: { fromName: `${c.workspaceName} via MUSHIN`, fromAddress: deps.from ? senderAddress(deps.from) : "", replyTo: c.senderEmail, postalAddress: deps.postalAddress ?? null },
+        recipients: [
+          ...usable.map((r) => ({ id: r.id, source: "creator_contact" as const, value: decryptSecret(r.value_encrypted, deps.encryptionKey), status: r.status as "unverified" | "domain_ok" | "verified" })),
+          ...typed
+            .filter((r) => !suppressed.has(r.value_hash))
+            .map((r) => ({ id: r.id, source: "workspace_contact" as const, value: decryptSecret(r.value_encrypted, deps.encryptionKey), status: "user_provided" as const })),
+        ],
+        revealNeeded: (hidden?.n ?? 0) > 0,
+        profileLinks: [...links],
+        manualMessage: `${text.subject}\n\n${text.body}`,
+      };
+    });
+  }
+
+  /** The complete email exactly as a send would deliver it, with what to know first. Nothing is stored or sent. */
+  async function preview(ctx: TenantContext, campaignId: string, creatorId: string, input: OutreachCompose): Promise<OutreachPreview> {
+    return deps.db.withTenant(tenant(ctx), async (tx) => {
+      const c = await composeContext(tx, ctx, campaignId, creatorId);
+      const recipient = await resolveRecipient(tx, ctx, creatorId, input, { encryptionKey: deps.encryptionKey, persist: false });
+      const [suppressed] = await tx.execute<{ reason: string }>(sql`select reason from platform.email_suppressions where recipient_hash = ${recipient.hash}`);
+      const email = renderEmail({ c, recipient, subject: input.subject, body: input.body, from: deps.from || "outreach@roster.invalid", postalAddress: deps.postalAddress ?? null, unsubscribeUrl: unsubscribeUrl(recipient.hash) });
+      const warnings = [...email.warnings];
+      if (recipient.status === "invalid") warnings.unshift("This address is known to be invalid: sending is refused.");
+      if (suppressed) warnings.unshift("This address bounced, complained or unsubscribed: MUSHIN will not email it.");
+      // The same refusals send() applies, decided here so the UI never guesses from warning text.
+      const blockedReason = !deps.provider
+        ? "Sending email through MUSHIN is not available yet."
+        : recipient.status === "invalid"
+          ? "This address is known to be invalid."
+          : suppressed
+            ? "This address bounced, complained or unsubscribed."
+            : c.campaign.status === "archived"
+              ? "This campaign is archived."
+              : deps.provider.mode === "resend" && !deps.postalAddress
+                ? "No sender postal address is configured."
+                : null;
+      return { from: email.from, replyTo: email.replyTo, to: email.to, subject: email.subject, text: email.text, warnings, sendable: blockedReason === null, blockedReason };
+    });
   }
 
   /** One-click unsubscribe from a link in an email: suppresses the address for every workspace. */
@@ -202,7 +279,7 @@ export function createOutreachEmailService(deps: OutreachDeps) {
     });
   }
 
-  return { mode, usage, list, send, unsubscribe, handleWebhook, unsubscribeUrl };
+  return { mode, usage, list, draft, preview, send, unsubscribe, handleWebhook, unsubscribeUrl };
 }
 
 export type OutreachEmailService = ReturnType<typeof createOutreachEmailService>;

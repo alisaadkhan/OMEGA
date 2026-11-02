@@ -6,13 +6,15 @@ import { ArrowRight, Check } from "lucide-react";
 import { Button } from "../ui/button";
 import { AuthShell, FormField, StaggerItem } from "./AuthShell";
 import { useAuth } from "../../auth/AuthContext";
+import { checkEmailText } from "../../api/signup-outcome";
 
 type Props = {
   onSuccess: () => void;
   goLogin: () => void;
+  goForgot: () => void;
 };
 
-export function Signup({ onSuccess, goLogin }: Props) {
+export function Signup({ onSuccess, goLogin, goForgot }: Props) {
   const { signup } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -36,13 +38,14 @@ export function Signup({ onSuccess, goLogin }: Props) {
     rememberLegalAcceptance();
     setSubmitting(true);
     try {
-      const { needsConfirmation } = await signup(name, email, password);
-      if (needsConfirmation) {
-        setNotice(`We've sent a confirmation link to ${email}. Confirm your email, then sign in.`);
-        setSubmitting(false);
+      const outcome = await signup(name, email, password);
+      if (outcome.kind === "signed_in") {
+        onSuccess();
         return;
       }
-      onSuccess();
+      if (outcome.kind === "check_email") setNotice(checkEmailText(outcome.email));
+      else setError(outcome.message);
+      setSubmitting(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign-up failed. Please try again.");
       setSubmitting(false);
@@ -56,11 +59,10 @@ export function Signup({ onSuccess, goLogin }: Props) {
       subtitle="Discover Pakistani creators in minutes — no card required."
       footer={
         <>
-          Already on Mushin?{" "}
+          Already on MUSHIN?{" "}
           <button
             onClick={goLogin}
-            className="text-indigo-600 transition-colors hover:text-indigo-700"
-            style={{ fontWeight: 500 }}
+            className="text-sm font-semibold text-slate-900 underline-offset-4 transition-colors hover:underline"
           >
             Sign in
           </button>
@@ -69,7 +71,7 @@ export function Signup({ onSuccess, goLogin }: Props) {
     >
       <form onSubmit={submit} className="space-y-4">
         <StaggerItem index={0}>
-          <FormField label="Full name" value={name} onChange={setName} placeholder="Ayesha Malik" autoFocus />
+          <FormField label="Full name" value={name} onChange={setName} placeholder="Ayesha Malik" autoFocus autoComplete="name" />
         </StaggerItem>
         <StaggerItem index={1}>
           <FormField label="Work email" type="email" value={email} onChange={setEmail} placeholder="you@brand.pk" />
@@ -81,6 +83,7 @@ export function Signup({ onSuccess, goLogin }: Props) {
             value={password}
             onChange={setPassword}
             placeholder="At least 8 characters"
+            autoComplete="new-password"
           />
           <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-slate-100">
             <motion.div
@@ -107,7 +110,7 @@ export function Signup({ onSuccess, goLogin }: Props) {
                 initial={{ opacity: 0, x: -6 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.55 + i * 0.06, duration: 0.3 }}
-                className="inline-flex items-center gap-1.5"
+                className="flex items-center gap-1.5"
               >
                 <Check className="h-3.5 w-3.5 text-emerald-600" /> {t}
               </motion.li>
@@ -121,16 +124,30 @@ export function Signup({ onSuccess, goLogin }: Props) {
           </p>
         )}
         {notice && (
-          <p role="status" className="text-sm text-emerald-700">
-            {notice}
-          </p>
+          <div role="status" className="space-y-2 text-sm text-slate-700">
+            <p>{notice}</p>
+            <p className="flex gap-3">
+              <button type="button" onClick={goLogin} className="text-indigo-600 underline">Sign in</button>
+              <button type="button" onClick={goForgot} className="text-indigo-600 underline">Reset password</button>
+            </p>
+          </div>
         )}
         <StaggerItem index={4}>
+          <label className="flex items-start gap-2.5 text-xs text-slate-600">
+            <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-0.5 h-4 w-4 accent-indigo-600" aria-describedby="legal-draft-note" />
+            <span>
+              I accept the <a href="#/terms" target="_blank" rel="noreferrer" className="text-indigo-700 underline">Terms of Service</a> and the{" "}
+              <a href="#/privacy" target="_blank" rel="noreferrer" className="text-indigo-700 underline">Privacy Policy</a>.
+              <span id="legal-draft-note" className="block text-slate-500">These are drafts pending legal review (version {LEGAL_VERSION}).</span>
+            </span>
+          </label>
+        </StaggerItem>
+        <StaggerItem index={5}>
           <motion.div whileTap={{ scale: 0.98 }}>
             <Button
               type="submit"
               disabled={submitting}
-              className="group relative h-11 w-full overflow-hidden rounded-md bg-slate-900 text-white shadow-sm transition-all hover:-translate-y-px hover:bg-slate-800 hover:shadow-md disabled:opacity-90"
+              className="group relative h-12 w-full overflow-hidden rounded-full bg-slate-950 text-white shadow-sm transition-all hover:-translate-y-px hover:bg-slate-800 hover:shadow-md disabled:opacity-90"
             >
               {submitting ? (
                 <span className="inline-flex items-center">
@@ -147,16 +164,6 @@ export function Signup({ onSuccess, goLogin }: Props) {
           </motion.div>
         </StaggerItem>
 
-        <StaggerItem index={5}>
-          <label className="flex items-start gap-2 text-[11px] text-slate-600">
-            <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-0.5" aria-describedby="legal-draft-note" />
-            <span>
-              I accept the <a href="#/terms" target="_blank" rel="noreferrer" className="text-indigo-700 underline">Terms of Service</a> and the{" "}
-              <a href="#/privacy" target="_blank" rel="noreferrer" className="text-indigo-700 underline">Privacy Policy</a>.
-              <span id="legal-draft-note" className="block text-slate-500">These are drafts pending legal review (version {LEGAL_VERSION}).</span>
-            </span>
-          </label>
-        </StaggerItem>
       </form>
     </AuthShell>
   );

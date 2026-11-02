@@ -49,7 +49,7 @@ export function ActivityLog() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-slate-900" style={{ fontSize: 26, fontWeight: 700 }}>Activity log</h1>
+        <h1 className="text-[32px] font-semibold leading-10 tracking-[-0.025em] text-slate-900">Activity log</h1>
         <p className="mt-1 text-sm text-slate-500">Lists, campaigns, outreach, Find New Creators runs and contact reveals in your workspace, newest first.</p>
         <label className="mt-3 inline-flex items-center gap-2 text-xs text-slate-600">
           Show
@@ -69,7 +69,7 @@ export function ActivityLog() {
           <EmptyState icon={<Activity className="h-5 w-5" />} title="No recorded activity yet" body="Activity appears here as your team saves creators, runs campaigns and finds new creators." />
         )
       ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white">
           <ol className="divide-y divide-slate-100">{events.map((e) => <ActivityRow key={e.id} e={e} />)}</ol>
           {feed.hasNextPage && (
             <div className="border-t border-slate-100 p-3 text-center">

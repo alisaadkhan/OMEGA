@@ -63,7 +63,7 @@ export function EmptyState({
     <div
       className={`flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/40 px-6 py-12 text-center ${className}`}
     >
-      <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm">
+      <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200/80 bg-white text-slate-500">
         {icon ?? <Inbox className="h-5 w-5" strokeWidth={1.75} />}
       </div>
       <div className="mt-4 text-slate-900" style={{ fontSize: 15, fontWeight: 600 }}>

@@ -1,0 +1,33 @@
+{
+  "database": "mushin_catalog_v3",
+  "label": "start-2026-10-28",
+  "reportedAt": "2026-10-28T04:46:14.019Z",
+  "script": "scripts/catalog/inventory.ts",
+  "eligibilityRule": "per-profile country rule present (elig-2)",
+  "creators": 2520,
+  "creatorsByStatus": {
+    "active": 2520
+  },
+  "creatorsWithPlatformCount": {
+    "one": 2520,
+    "two": 0,
+    "three": 0,
+    "none": 0
+  },
+  "platformProfiles": {
+    "youtube": 2379,
+    "instagram": 108,
+    "tiktok": 33
+  },
+  "duplicateProfileUrls": 0,
+  "sameHandleOnDifferentCreators": 0,
+  "suspectedDuplicateIdentitiesBySameName": 14,
+  "storedSearchDocuments": {
+    "total": 2501,
+    "eligible": 387,
+    "versions": [
+      "elig-2"
+    ]
+  },
+  "eligibleCreators": 387
+}

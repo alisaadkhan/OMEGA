@@ -1,0 +1,92 @@
+{
+ "at": "2026-10-26T17:13:40.082Z",
+ "note": "Counts only. before = mushin_catalog_v2 (unchanged, kept as rollback); after = mushin_catalog_v3 after the attribute backfill (YouTube video text off). Coverage is not accuracy: accuracy needs the two-rater review sheet.",
+ "before": [
+  {
+   "platform": "instagram",
+   "total": 108,
+   "niche_known": 8,
+   "niche_unknown": 100,
+   "niche_variety": 0,
+   "niche_kept_from_earlier_evidence": null,
+   "niche_conflicting_evidence": null,
+   "country_known": 6,
+   "country_unknown": 102,
+   "country_platform_declared": null,
+   "country_creator_stated": null,
+   "eligible_on_own_platform": 70
+  },
+  {
+   "platform": "tiktok",
+   "total": 33,
+   "niche_known": 12,
+   "niche_unknown": 21,
+   "niche_variety": 0,
+   "niche_kept_from_earlier_evidence": null,
+   "niche_conflicting_evidence": null,
+   "country_known": 4,
+   "country_unknown": 29,
+   "country_platform_declared": null,
+   "country_creator_stated": null,
+   "eligible_on_own_platform": 14
+  },
+  {
+   "platform": "youtube",
+   "total": 2379,
+   "niche_known": 1960,
+   "niche_unknown": 419,
+   "niche_variety": 0,
+   "niche_kept_from_earlier_evidence": null,
+   "niche_conflicting_evidence": null,
+   "country_known": 733,
+   "country_unknown": 1646,
+   "country_platform_declared": null,
+   "country_creator_stated": null,
+   "eligible_on_own_platform": 577
+  }
+ ],
+ "after": [
+  {
+   "platform": "instagram",
+   "total": 108,
+   "niche_known": 81,
+   "niche_unknown": 27,
+   "niche_variety": 17,
+   "niche_kept_from_earlier_evidence": 1,
+   "niche_conflicting_evidence": 0,
+   "country_known": 13,
+   "country_unknown": 95,
+   "country_platform_declared": 0,
+   "country_creator_stated": 13,
+   "eligible_on_own_platform": 70
+  },
+  {
+   "platform": "tiktok",
+   "total": 33,
+   "niche_known": 19,
+   "niche_unknown": 14,
+   "niche_variety": 0,
+   "niche_kept_from_earlier_evidence": 3,
+   "niche_conflicting_evidence": 0,
+   "country_known": 0,
+   "country_unknown": 33,
+   "country_platform_declared": 0,
+   "country_creator_stated": 0,
+   "eligible_on_own_platform": 14
+  },
+  {
+   "platform": "youtube",
+   "total": 2379,
+   "niche_known": 1963,
+   "niche_unknown": 416,
+   "niche_variety": 14,
+   "niche_kept_from_earlier_evidence": 794,
+   "niche_conflicting_evidence": 0,
+   "country_known": 1586,
+   "country_unknown": 793,
+   "country_platform_declared": 1461,
+   "country_creator_stated": 125,
+   "eligible_on_own_platform": 574
+  }
+ ]
+}

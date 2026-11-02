@@ -8,7 +8,7 @@ import { ErrorState, LoadingBlock } from "../dashboard/states";
 import { Header } from "./OpsViews";
 import { errText, needsKey, useStepUp } from "./staff-ui";
 
-const STATUS = { open: "Open", waiting_on_customer: "Waiting on customer", resolved: "Resolved", closed: "Closed" } as const;
+const STATUS = { open: "Open", in_progress: "In progress", waiting_on_customer: "Waiting on customer", resolved: "Resolved", closed: "Closed" } as const;
 type Status = keyof typeof STATUS;
 
 /** Support queue (canonical spec page 20): tickets across workspaces; viewing and replying are audited by the API. */
@@ -20,14 +20,14 @@ export function SupportQueue({ me, canAssignOthers }: { me: string; canAssignOth
     <div>
       <Header title="Support queue" sub="Customer requests, most recent first. Replies are signed with your staff name." />
       <div className="mb-3 flex gap-1 text-xs" role="group" aria-label="Filter tickets">
-        {(["open", "waiting_on_customer", "resolved", "closed", ""] as const).map((s) => (
+        {(["open", "in_progress", "waiting_on_customer", "resolved", "closed", ""] as const).map((s) => (
           <button key={s} onClick={() => setStatus(s)} aria-pressed={status === s} className={`rounded-md px-2.5 py-1 ${status === s ? "bg-slate-900 text-white" : "border border-slate-200 text-slate-700"}`}>{s ? STATUS[s] : "All"}</button>
         ))}
       </div>
       <div className="grid gap-4 lg:grid-cols-[24rem_1fr]">
         <div>
           {list.isPending ? <LoadingBlock lines={4} /> : list.isError ? <ErrorState body={list.error instanceof Error ? list.error.message : undefined} onRetry={() => void list.refetch()} /> : list.data.tickets.length === 0 ? <p className="text-sm text-slate-500">No tickets.</p> : (
-            <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200/80 bg-white">
               {list.data.tickets.map((t) => (
                 <li key={t.id}>
                   <button onClick={() => setOpenId(t.id)} aria-current={openId === t.id} className={`block w-full px-4 py-3 text-left text-xs ${openId === t.id ? "bg-indigo-50/60" : "hover:bg-slate-50"}`}>
@@ -77,7 +77,7 @@ function TicketPanel({ id, me, canAssignOthers }: { id: string; me: string; canA
   if (q.isError) return <ErrorState body={q.error instanceof Error ? q.error.message : undefined} onRetry={() => void q.refetch()} />;
   const t = q.data;
   return (
-    <section className="rounded-xl border border-slate-200 bg-white shadow-sm" aria-label={t.subject}>
+    <section className="rounded-2xl border border-slate-200/80 bg-white" aria-label={t.subject}>
       <div className="border-b border-slate-100 px-4 py-3">
         <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>{t.subject}</div>
         <div className="text-[11px] text-slate-500">{t.workspaceName} · {t.category} · {STATUS[t.status]}</div>

@@ -19,6 +19,7 @@ const SETTINGS = {
     "followers_updated_epoch",
     "eligible",
     "eligible_until",
+    "qualifying_platforms",
   ],
   sortableAttributes: ["followers", "engagement_rate", "authenticity_score"],
   typoTolerance: { enabled: true, minWordSizeForTypos: { oneTypo: 4, twoTypos: 8 } },

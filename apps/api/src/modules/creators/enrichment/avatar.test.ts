@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { fetchAvatar, isAllowedAvatarUrl } from "./avatar";
 
+const JPEG = [0xff, 0xd8, 0xff, 0xe0];
+const PNG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+const WEBP = [0x52, 0x49, 0x46, 0x46, 1, 1, 1, 1, 0x57, 0x45, 0x42, 0x50];
+const body = (magic: number[], n: number) => { const b = new Uint8Array(n).fill(1); b.set(magic.slice(0, n)); return b; };
 const jpeg = (bytes = 10, headers: Record<string, string> = {}) =>
-  new Response(new Uint8Array(bytes).fill(1), { status: 200, headers: { "content-type": "image/jpeg", ...headers } });
+  new Response(body(JPEG, bytes), { status: 200, headers: { "content-type": "image/jpeg", ...headers } });
 
 describe("avatar copying (scraped URLs are untrusted)", () => {
   it("allows only HTTPS links on the platforms' image hosts", () => {
@@ -44,9 +48,17 @@ describe("avatar copying (scraped URLs are untrusted)", () => {
   it("accepts JPEG, PNG and WebP, and refuses SVG and other types", async () => {
     const url = "https://scontent.cdninstagram.com/x";
     expect(await fetchAvatar(url, async () => jpeg(10))).toMatchObject({ contentType: "image/jpeg", ext: "jpg" });
-    expect(await fetchAvatar(url, async () => new Response("x", { headers: { "content-type": "image/png" } }))).toMatchObject({ ext: "png" });
+    expect(await fetchAvatar(url, async () => new Response(body(PNG, 20), { headers: { "content-type": "image/png" } }))).toMatchObject({ ext: "png" });
+    expect(await fetchAvatar(url, async () => new Response(body(WEBP, 20), { headers: { "content-type": "image/webp" } }))).toMatchObject({ ext: "webp" });
     expect(await fetchAvatar(url, async () => new Response("<svg onload='x'/>", { headers: { "content-type": "image/svg+xml" } }))).toBeNull();
     expect(await fetchAvatar(url, async () => new Response("<html>", { headers: { "content-type": "text/html" } }))).toBeNull();
+  });
+
+  it("refuses bytes that do not match the declared image type", async () => {
+    const url = "https://scontent.cdninstagram.com/x";
+    expect(await fetchAvatar(url, async () => new Response("<script>alert(1)</script>", { headers: { "content-type": "image/jpeg" } }))).toBeNull();
+    expect(await fetchAvatar(url, async () => new Response(body(JPEG, 20), { headers: { "content-type": "image/png" } }))).toBeNull();
+    expect(await fetchAvatar(url, async () => new Response(body([0x52, 0x49, 0x46, 0x46, 1, 1, 1, 1, 0x41, 0x56, 0x49, 0x20], 20), { headers: { "content-type": "image/webp" } }))).toBeNull();
   });
 
   it("does not follow redirects", async () => {

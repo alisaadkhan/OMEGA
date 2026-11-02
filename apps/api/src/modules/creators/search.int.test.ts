@@ -152,15 +152,18 @@ describe("search", () => {
     "answers under a second at p95 over 1,000 creators (NFR-P01)",
     async () => {
       await ownerQuery(`
-        insert into gcp.creators (display_name, primary_handle, primary_platform, city, country, niches)
+        insert into gcp.creators (display_name, primary_handle, primary_platform, city, country, confirmed_country, country_source, niches)
           select 'Perf Creator ' || g, 'perf_' || g, (array['instagram','tiktok','youtube'])[1 + g % 3],
-            (array['Lahore','Karachi','Islamabad'])[1 + g % 3], 'PK', array[(array['Bridal','Food','Tech','Beauty'])[1 + g % 4]]
+            (array['Lahore','Karachi','Islamabad'])[1 + g % 3], 'PK', 'PK', 'creator_confirmed', array[(array['Bridal','Food','Tech','Beauty'])[1 + g % 4]]
           from generate_series(1, 1000) g;
-        insert into gcp.creator_profiles (creator_id, platform, handle, canonical_url, followers, engagement_rate, followers_updated_at)
-          -- Valid profile URLs and counts at or above the 10,000 eligibility minimum (elig-1), so all 1,000 are searchable.
+        insert into gcp.creator_profiles (creator_id, platform, handle, canonical_url, followers, engagement_rate, followers_updated_at, country, country_source, country_status, country_confidence, country_checked_at)
+          -- Valid profile URLs, counts at or above the 10,000 minimum and a creator-confirmed Pakistani country (elig-2),
+          -- so all 1,000 are searchable.
           select c.id, c.primary_platform, c.primary_handle,
             case c.primary_platform when 'instagram' then 'https://instagram.com/' else 'https://' || c.primary_platform || '.com/@' end || c.primary_handle,
-            10000 + (random() * 900000)::int, round((random() * 10)::numeric, 2)::float8, now() - (random() * 40 || ' days')::interval
+            -- Counts within 25 days: every fixture is eligible, YouTube ones included (30-day YouTube API data limit).
+            10000 + (random() * 900000)::int, round((random() * 10)::numeric, 2)::float8, now() - (random() * 25 || ' days')::interval,
+            'PK', 'creator_confirmed', 'pakistan', 'high', now()
           from gcp.creators c;`);
       const ids = (await ownerQuery<{ id: string }>(`select id from gcp.creators`)).map((r) => r.id);
       await indexAll(ids);

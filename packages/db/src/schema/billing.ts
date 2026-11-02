@@ -63,6 +63,8 @@ export const billingSettings = platform.table("billing_settings", {
   trialEndingNoticeDays: integer("trial_ending_notice_days").notNull(),
   /** Off until the owner approves annual prices (OD-002): yearly checkouts and changes are refused. */
   annualBillingEnabled: boolean("annual_billing_enabled").notNull().default(false),
+  /** Monthly testing allowance per new account (0061); 0 = no new grants. */
+  testingMonthlyCredits: integer("testing_monthly_credits").notNull().default(500),
   updatedAt: ts("updated_at").notNull().defaultNow(),
 });
 
@@ -87,6 +89,7 @@ export const billingJobs = [
   "reconcile",
   "mock_renewals",
   "comp_period_end",
+  "testing_allowance",
 ] as const;
 
 /** Due-work index: workspace ids and due times only (SRS §2.5). */
@@ -175,12 +178,14 @@ export const paymentAdjustments = wp.table("payment_adjustments", {
 export const creditLots = wp.table("credit_lots", {
   id: uuid("id").primaryKey().defaultRandom(),
   workspaceId: uuid("workspace_id").notNull(),
-  source: text("source", { enum: ["trial", "monthly", "topup", "adjustment"] }).notNull(),
+  source: text("source", { enum: ["trial", "monthly", "topup", "adjustment", "testing"] }).notNull(),
   amount: integer("amount").notNull(),
   remaining: integer("remaining").notNull(),
   /** Null = never expires (top-ups only, constraint credit_lots_expiry_rule). */
   expiresAt: ts("expires_at"),
   paymentId: uuid("payment_id"),
+  /** Testing lots only: the Asia/Karachi month ('YYYY-MM'); one testing lot per workspace and month (0062). */
+  period: text("period"),
   createdAt: ts("created_at").notNull().defaultNow(),
   updatedAt: ts("updated_at").notNull().defaultNow(),
 });
@@ -193,7 +198,7 @@ export const creditReservations = wp.table("credit_reservations", {
   confirmedCost: integer("confirmed_cost").notNull(),
   status: text("status", { enum: ["held", "committed", "released", "expired"] }).notNull(),
   /** Which lots the hold may be spent from, fixed when it is placed (migration 0007). */
-  spendScope: text("spend_scope", { enum: ["all", "topup_only"] }).notNull().default("all"),
+  spendScope: text("spend_scope", { enum: ["all", "topup_only", "testing_only"] }).notNull().default("all"),
   expiresAt: ts("expires_at").notNull(),
   refType: text("ref_type").notNull(),
   refId: text("ref_id").notNull(),

@@ -27,7 +27,7 @@ export function EmailConfirmed({ goDashboard, goLogin }: Props) {
         <div className="flex items-center gap-2 rounded-md border border-emerald-100 bg-emerald-50 p-3 text-sm text-emerald-800" role="status">
           <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-emerald-600" aria-hidden="true" /> You are signed in.
         </div>
-        <Button onClick={goDashboard} className="mt-4 h-11 w-full rounded-md bg-slate-900 text-white hover:bg-slate-800">
+        <Button onClick={goDashboard} className="mt-4 h-12 w-full rounded-full bg-slate-950 text-white hover:bg-slate-800">
           Continue to MUSHIN <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
       </AuthShell>
@@ -36,7 +36,7 @@ export function EmailConfirmed({ goDashboard, goLogin }: Props) {
   if (!linkError) {
     return (
       <AuthShell formKey="confirmed-signin" title="Your email is confirmed" subtitle="Sign in to continue. (The link was opened in a different browser from the one you signed up in.)">
-        <Button onClick={goLogin} className="h-11 w-full rounded-md bg-slate-900 text-white hover:bg-slate-800">
+        <Button onClick={goLogin} className="h-12 w-full rounded-full bg-slate-950 text-white hover:bg-slate-800">
           Sign in <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
       </AuthShell>
@@ -67,7 +67,7 @@ export function EmailConfirmed({ goDashboard, goLogin }: Props) {
         <form onSubmit={resend} className="space-y-4">
           <FormField label="Email" type="email" value={email} onChange={setEmail} placeholder="you@company.pk" />
           {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
-          <Button type="submit" className="h-11 w-full rounded-md bg-slate-900 text-white hover:bg-slate-800">Send a new confirmation link</Button>
+          <Button type="submit" className="h-12 w-full rounded-full bg-slate-950 text-white hover:bg-slate-800">Send a new confirmation link</Button>
         </form>
       )}
     </AuthShell>

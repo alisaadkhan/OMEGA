@@ -44,6 +44,30 @@ export async function claimTrial(tx: TenantTx, userId: string): Promise<boolean>
   return rows.length > 0;
 }
 
+/**
+ * Whether this person still has an unclaimed testing allowance and this workspace is the one it belongs to: the first
+ * workspace provisioned for them (the earliest they own). Invited memberships and later workspaces never qualify.
+ */
+export async function allowancePending(tx: TenantTx, userId: string, workspaceId: string): Promise<boolean> {
+  const [row] = await tx.execute<{ pending: boolean }>(sql`
+    select (u.testing_allowance_at is null)
+       and ${workspaceId}::uuid = (select w.id from wp.workspaces w where w.owner_user_id = u.id order by w.created_at, w.id limit 1) as pending
+    from wp.users u where u.id = ${userId}`);
+  return row?.pending === true;
+}
+
+/** Claims the one testing allowance of this person for this workspace (0061); false when already claimed. */
+export async function claimTestingAllowance(tx: TenantTx, userId: string, workspaceId: string): Promise<boolean> {
+  const rows = await tx
+    .update(users)
+    .set({ testingAllowanceAt: sql`now()` })
+    .where(sql`${users.id} = ${userId} and ${users.testingAllowanceAt} is null`)
+    .returning({ id: users.id });
+  if (rows.length === 0) return false;
+  await tx.update(workspaces).set({ testingAllowanceSince: sql`now()` }).where(sql`${workspaces.id} = ${workspaceId}`);
+  return true;
+}
+
 export async function insertWorkspace(tx: TenantTx, w: { id: string; name: string; ownerUserId: string }): Promise<void> {
   await tx.insert(workspaces).values(w);
 }

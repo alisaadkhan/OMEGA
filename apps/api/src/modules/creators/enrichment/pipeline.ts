@@ -11,7 +11,9 @@ import { minorByRules } from "./minors";
 import * as repo from "./repository";
 import { measureSignals, profileMetrics, type SignalReport } from "./signals";
 import { standardize, type StandardProfile } from "./standardize";
-import { deriveAttributes } from "./attribute-evidence";
+import { deriveAttributes, withSemanticNiche } from "./attribute-evidence";
+import { semanticNiche } from "./semantic-niche";
+import { recordAvailability } from "../lifecycle";
 import { suppressedUrls } from "../suppressions";
 
 /** YouTube API Services: non-authorised data may not be stored beyond 30 calendar days. */
@@ -33,8 +35,15 @@ type Deps = {
   now?: () => Date;
   /** Fetches a profile photo to copy into storage (injectable for tests). */
   fetchImage?: typeof fetch;
-  /** "v2" (SEARCH_PROFILE=v2): city, country and niches are stored from evidence only, with provenance rows. */
-  attributePolicy?: "v1" | "v2";
+  /**
+   * ENRICHMENT_ATTRIBUTE_POLICY (independent of SEARCH_PROFILE). "evidence": niche, country and city are stored from
+   * evidence only, with provenance rows; "legacy" (the default when unset, e.g. older tests): the AI's reading.
+   */
+  attributePolicy?: "evidence" | "legacy";
+  /** YouTube policy gates (both off in configuration until the owner confirms the use case; unset = previous behaviour). */
+  youtube?: { contentEvidence: boolean; descriptionContacts: boolean };
+  /** Semantic (AI) niche reading for evidence the rules cannot read clearly (NICHE_SEMANTIC; default on when set). */
+  semanticNiche?: boolean;
 };
 
 function topTags(p: StandardProfile): string[] {
@@ -46,6 +55,8 @@ function topTags(p: StandardProfile): string[] {
 export function createEnrichmentPipeline(deps: Deps) {
   const now = deps.now ?? (() => new Date());
   const storage = deps.storage;
+  const evidencePolicy = deps.attributePolicy === "evidence";
+  const youtube = deps.youtube ?? { contentEvidence: true, descriptionContacts: true };
   const needStorage = (): ObjectStorage => {
     if (!storage) throw new ProviderError(false, "not_configured", "File storage is not configured (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)");
     return storage;
@@ -81,6 +92,18 @@ export function createEnrichmentPipeline(deps: Deps) {
       deps.logger.warn({ err, handle: p.handle }, "creator assessment failed; saving the data and assessing again in the background");
       return null;
     }
+  }
+
+  /**
+   * Evidence-based attributes; when the rules cannot read the niche clearly, a semantic reading replaces theirs. YouTube
+   * text is never sent for it while the YouTube policy gate is off.
+   */
+  async function deriveWithSemantics(p: StandardProfile, a: Assessment | null, ctx: { jobId?: string; workspaceId?: string }) {
+    const permitted = p.platform !== "youtube" || youtube.contentEvidence;
+    const d = deriveAttributes(p, a, { usePostText: permitted });
+    if (!deps.semanticNiche || d.niche.clear || !permitted) return d;
+    const sem = await semanticNiche({ llm: deps.llm, input: d.niche.semanticInput, rulesMain: d.niche.main, ctx });
+    return sem ? withSemanticNiche(d, sem) : d;
   }
 
   const minorReasonFor = (p: StandardProfile, a: Assessment | null): string | null =>
@@ -140,8 +163,13 @@ export function createEnrichmentPipeline(deps: Deps) {
     }
     await hooks.onStep?.("cleaning");
     const std = standardize(job.platform, job.handle, raw, { maxPosts: job.platform === "tiktok" ? settings.tiktokRecentVideos : settings.recentPosts });
-    if (std.kind === "private") return { kind: "unavailable", code: "PRIVATE_ACCOUNT", message: "This account is private, so we can't assess it." };
-    if (std.kind === "not_found") return { kind: "unavailable", code: "NOT_FOUND", message: "We couldn't find this account. Check the link and try again." };
+    if (std.kind === "private" || std.kind === "not_found") {
+      // A stored profile's availability moves only on this evidence (lifecycle.ts): one "not found" is not a removal.
+      await deps.db.withSystem((tx) => recordAvailability(tx, { canonicalUrl: job.canonicalUrl, observed: std.kind === "private" ? "private" : "not_found", source: "enrichment", reason: `The provider reported the profile ${std.kind === "private" ? "private" : "not found"}`, now: now() }));
+      return std.kind === "private"
+        ? { kind: "unavailable", code: "PRIVATE_ACCOUNT", message: "This account is private, so we can't assess it." }
+        : { kind: "unavailable", code: "NOT_FOUND", message: "We couldn't find this account. Check the link and try again." };
+    }
     const p = std.profile;
     const avatar = await copyAvatar(p, job.canonicalUrl);
     await hooks.onStep?.("assessing");
@@ -149,8 +177,9 @@ export function createEnrichmentPipeline(deps: Deps) {
     const previous = known ? await deps.db.withSystem((tx) => repo.latestMetrics(tx, known.profileId)) : null;
     const report = measureSignals(p, previous, { benchmarks: settings.engagementBenchmarks, minPostsForScore: settings.minPostsForScore, growthMinDays: settings.growthMinDays, scoreBand: settings.scoreBand }, now());
     const assessment = await assess(p, report, { jobId: job.jobId, workspaceId: job.workspaceId });
+    const attributes = evidencePolicy ? await deriveWithSemantics(p, assessment?.value ?? null, { jobId: job.jobId, workspaceId: job.workspaceId }) : undefined;
     await hooks.onStep?.("saving");
-    return deps.db.withWorkspace(job.workspaceId, async (tx) => {
+    const out = await deps.db.withWorkspace(job.workspaceId, async (tx) => {
       const saved = await repo.saveEnrichment(tx, {
         profile: p,
         canonicalUrl: job.canonicalUrl,
@@ -160,18 +189,20 @@ export function createEnrichmentPipeline(deps: Deps) {
         assessment,
         modelVersion: settings.modelVersion,
         minorReason: minorReasonFor(p, assessment?.value ?? null),
-        contacts: extractContacts(p),
+        contacts: p.platform === "youtube" && !youtube.descriptionContacts ? [] : extractContacts(p),
         links: extractLinks(p, job.canonicalUrl),
         avatar,
         tags: topTags(p),
         encryptionKey: deps.encryptionKey,
         requestId: job.requestId,
-        ...(deps.attributePolicy === "v2" ? { attributes: deriveAttributes(p, assessment?.value ?? null) } : {}),
+        ...(attributes ? { attributes } : {}),
       });
       const result: SavedResult = { kind: "saved", creatorId: saved.creatorId, outcome: saved.created ? "created" : "refreshed", assessment: saved.assessment, profile: p };
       await hooks.onSaved(tx, result);
       return result;
     });
+    await deps.db.withSystem((tx) => recordAvailability(tx, { canonicalUrl: job.canonicalUrl, observed: "found", source: "enrichment", reason: "The provider returned the profile", now: now() }));
+    return out;
   }
 
   async function enrich(job: EnrichJob, hooks: EnrichHooks): Promise<EnrichResult> {
@@ -204,7 +235,7 @@ export function createEnrichmentPipeline(deps: Deps) {
     const report = measureSignals(std.profile, previous, { benchmarks: settings.engagementBenchmarks, minPostsForScore: settings.minPostsForScore, growthMinDays: settings.growthMinDays, scoreBand: settings.scoreBand }, now());
     const niches = await deps.db.withSystem((tx) => activeNiches(tx));
     const { assessment, model } = await assessCreator({ llm: deps.llm, report, profile: std.profile, nicheLabels: niches });
-    await deps.db.withSystem((tx) => repo.saveReassessment(tx, creatorId, assessment, report, settings.modelVersion, model, minorReasonFor(std.profile, assessment)));
+    await deps.db.withSystem((tx) => repo.saveReassessment(tx, creatorId, assessment, report, settings.modelVersion, model, minorReasonFor(std.profile, assessment), { evidenceNiches: evidencePolicy }));
     return "assessed";
   }
 

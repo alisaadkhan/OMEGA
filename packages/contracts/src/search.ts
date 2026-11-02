@@ -143,6 +143,11 @@ export const searchResponseSchema = z.object({
   /** Whether this call started a new logical search and paid for it; further pages and repeats inside the window are free. */
   charged: z.boolean(),
   creditsCharged: z.number().int().nonnegative(),
+  /**
+   * False when more creators matched than were scored (the candidate pool was full): the results are the best of a
+   * larger set, not every match. A search with no eligible result is never charged (owner decision 2026-10-28).
+   */
+  complete: z.boolean(),
 });
 export type SearchResponse = z.output<typeof searchResponseSchema>;
 
@@ -186,7 +191,14 @@ export const creatorProfileSchema = z.object({
   avatarUrl: z.string().nullable(),
   city: z.string().nullable(),
   country: z.string().nullable(),
+  /** Where the shown country comes from (0054): the creator's confirmation, the creator's own bio, or the platform. */
+  countrySource: z.enum(["creator_confirmed", "creator_stated", "platform_declared"]).nullable().default(null),
   niches: z.array(z.string()),
+  /** How the niches were reached (0054): one main niche (plus up to two secondary), variety, or unknown. Null = not yet classified. */
+  nicheClassification: z
+    .object({ main: z.string().nullable(), status: z.enum(["classified", "variety", "unknown"]), confidence: z.enum(["high", "medium", "low"]).nullable() })
+    .nullable()
+    .default(null),
   tags: z.array(z.string()),
   verified: z.boolean(),
   profiles: z.array(
@@ -253,7 +265,7 @@ export const creatorProfileSchema = z.object({
       z.object({
         attribute: z.enum(["city", "country", "niche", "language"]),
         value: z.string(),
-        source: z.enum(["profile_text", "post_text", "platform_registration", "ai_assessment"]),
+        source: z.enum(["profile_text", "post_text", "platform_registration", "ai_assessment", "display_name", "account_category"]),
         status: z.enum(["supported", "weak", "conflicting"]),
         quote: z.string(),
         observedAt: iso,

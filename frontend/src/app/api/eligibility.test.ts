@@ -9,7 +9,7 @@ describe("creator eligibility wording (elig-1)", () => {
     expect(ineligibleText(e())).toBeNull();
     expect(ineligibleText(e({ eligible: false, reasons: ["below_follower_minimum"] }))).toBe("Below MUSHIN's 10,000-follower minimum");
     expect(ineligibleText(e({ eligible: false, reasons: ["followers_unknown", "inactive"] }))).toBe("Follower count unknown (+1 more)");
-    expect(ineligibleText(e({ eligible: false, reasons: ["something_new"] }))).toBe("Doesn't meet MUSHIN's creator minimum");
+    expect(ineligibleText(e({ eligible: false, reasons: ["something_new"] }))).toBe("Doesn't meet MUSHIN's creator rules");
   });
 
   it("notes unverified activity without claiming the creator is active", () => {

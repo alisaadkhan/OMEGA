@@ -62,7 +62,7 @@ export function FreeTrial({ onExit, onSignup }: { onExit: () => void; onSignup: 
   const label = "text-xs text-slate-700";
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-12">
-      <div className="w-full max-w-lg rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="w-full max-w-lg rounded-2xl border border-slate-200/80 bg-white p-6">
         <button onClick={onExit} className="mb-4 flex items-center gap-2 text-xs text-slate-500 hover:text-slate-800"><LogoMark size={20} /> Back to mushin.io</button>
         <h1 className="text-slate-900" style={{ fontSize: 20, fontWeight: 600 }}>Call us for a free 14-day trial</h1>
         <p className="mt-2 text-sm text-slate-600">

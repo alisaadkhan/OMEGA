@@ -13,17 +13,23 @@ export type Concept = {
   kind: "niche" | "city" | "format";
   /** Stable key (lower case). */
   key: string;
-  /** The platform.niches name when one exists (filters and Live Discovery briefs use those names). */
+  /** The platform.niches label (the canonical taxonomy, migration 0054): every niche concept has exactly one. */
   niche?: string;
   forms: string[];
 };
 
-const niche = (key: string, niche: string | undefined, forms: string[]): Concept => ({ kind: "niche", key, ...(niche ? { niche } : {}), forms });
+const niche = (key: string, niche: string, forms: string[]): Concept => ({ kind: "niche", key, niche, forms });
 const city = (key: string, forms: string[]): Concept => ({ kind: "city", key, forms });
 
 // Cooking is its own intent (home cooks, recipes), not the same as food reviews: kept out of the food forms (measured
 // 2026-10-20: "home cooking creators" returned 30 restaurant reviewers when cooking forms were part of food).
 const COOKING = ["cooking", "cook", "cooks", "recipe", "recipes", "home cooking", "kitchen", "baking", "baker", "pakana", "کوکنگ", "ریسپی", "ترکیب"];
+
+/** The canonical niche taxonomy (platform.niches, migration 0054). Every niche concept below maps to exactly one. */
+export const NICHE_TAXONOMY = [
+  "Bridal", "Fashion", "Beauty", "Tech", "Food", "Travel", "Comedy", "Finance", "Wellness", "Lifestyle", "Education & How-to", "Gaming", "History",
+  "Literature", "Agriculture", "Business & Ecommerce", "Automotive", "Religion", "Music", "News & Commentary", "Sports", "Entertainment", "Real Estate",
+] as const;
 
 export const NICHES_V2: readonly Concept[] = [
   niche("food", "Food", ["food", "foodie", "foodies", "khana", "khaana", "khanay", "khane", "کھانا", "کھانے", "کھانوں", "فوڈ", "pakwan", "پکوان", "zaika", "ذائقہ", "restaurant", "restaurants", "restaurant review", "restaurant reviews", "eatery", "eateries", "dhaba", "street food", "food review", "food reviews", "food blogger", "food vlog", "foodvlog", "foodblogger", "foodreview", "biryani", "karahi", "nihari", "bbq", "dessert", "desserts"]),
@@ -36,18 +42,23 @@ export const NICHES_V2: readonly Concept[] = [
   niche("travel", "Travel", ["travel", "traveller", "traveler", "travelling", "traveling", "safar", "سفر", "ٹریول", "tour", "tourism", "trip", "trips", "hiking", "trekking", "explore", "exploring", "travel vlog"]),
   niche("fitness", "Wellness", ["fitness", "warzish", "ورزش", "فٹنس", "gym", "workout", "workouts", "exercise", "yoga", "health", "healthy", "nutrition", "diet", "sehat", "صحت", "wellness"]),
   niche("technology", "Tech", ["technology", "tech", "ٹیکنالوجی", "ٹیک", "gadget", "gadgets", "mobile", "mobiles", "smartphone", "smartphones", "phone", "phones", "laptop", "laptops", "unboxing", "pta"]),
-  niche("gaming", undefined, ["gaming", "gamer", "gamers", "game", "games", "gameplay", "pubg", "free fire", "freefire", "esports", "گیمنگ"]),
-  niche("education", undefined, ["education", "educational", "teaching", "tutorial", "tutorials", "study", "studies", "learning", "lecture", "lectures", "تعلیم", "پڑھائی"]),
-  niche("history", undefined, ["history", "historical", "tareekh", "tarikh", "تاریخ", "تاریخی"]),
-  niche("literature", undefined, ["literature", "literary", "adab", "ادب", "urdu literature", "urdu adab", "اردو ادب", "poetry", "poet", "shayari", "shayri", "شاعری", "nazm", "ghazal", "غزل", "books", "book review", "book reviews", "booktok", "bookstagram", "novel", "novels", "کتاب", "کتابیں"]),
-  niche("agriculture", undefined, ["agriculture", "agricultural", "farming", "farmer", "farmers", "farm", "kisan", "کسان", "zaraat", "زراعت", "crops", "livestock", "dairy", "kheti", "کھیتی"]),
-  niche("business", undefined, ["business", "businesses", "small business", "entrepreneur", "entrepreneurs", "entrepreneurship", "startup", "startups", "karobar", "کاروبار", "marketing"]),
-  niche("ecommerce", undefined, ["ecommerce", "e commerce", "online shopping", "online store", "online stores", "daraz", "product review", "product reviews"]),
+  niche("gaming", "Gaming", ["gaming", "gamer", "gamers", "game", "games", "gameplay", "pubg", "free fire", "freefire", "esports", "گیمنگ"]),
+  niche("education", "Education & How-to", ["education", "educational", "teaching", "tutorial", "tutorials", "how to", "howto", "diy", "study", "studies", "study tips", "learning", "lecture", "lectures", "lesson", "lessons", "course", "courses", "exam", "exams", "exam preparation", "math", "maths", "mathematics", "science", "physics", "chemistry", "biology", "seekhein", "seekho", "سیکھیں", "تعلیم", "پڑھائی"]),
+  niche("history", "History", ["history", "historical", "tareekh", "tarikh", "تاریخ", "تاریخی"]),
+  niche("literature", "Literature", ["literature", "literary", "adab", "ادب", "urdu literature", "urdu adab", "اردو ادب", "poetry", "poet", "shayari", "shayri", "شاعری", "nazm", "ghazal", "غزل", "books", "book review", "book reviews", "booktok", "bookstagram", "novel", "novels", "کتاب", "کتابیں"]),
+  niche("agriculture", "Agriculture", ["agriculture", "agricultural", "farming", "farmer", "farmers", "farm", "kisan", "کسان", "zaraat", "زراعت", "crops", "livestock", "dairy", "kheti", "کھیتی"]),
+  niche("business", "Business & Ecommerce", ["business", "businesses", "small business", "entrepreneur", "entrepreneurs", "entrepreneurship", "startup", "startups", "karobar", "کاروبار", "marketing"]),
+  niche("ecommerce", "Business & Ecommerce", ["ecommerce", "e commerce", "online shopping", "online store", "online stores", "daraz", "product review", "product reviews"]),
   niche("comedy", "Comedy", ["comedy", "comedian", "funny", "sketch", "skits", "prank", "pranks", "mazak", "mazaq", "مزاحیہ", "standup", "stand up", "memes"]),
   niche("finance", "Finance", ["finance", "financial", "money", "investing", "investment", "stocks", "psx", "crypto", "trading", "savings", "paisa", "پیسہ"]),
   niche("lifestyle", "Lifestyle", ["lifestyle", "daily vlog", "daily vlogs", "routine", "family vlog", "family vlogs", "motherhood", "parenting"]),
-  niche("automotive", undefined, ["automotive", "car", "cars", "auto", "autos", "bike", "bikes", "motorcycle", "gaari", "gari", "گاڑی", "گاڑیاں"]),
-  niche("religion", undefined, ["islamic", "islam", "deen", "دین", "quran", "قرآن", "naat", "نعت", "religious"]),
+  niche("automotive", "Automotive", ["automotive", "automobile", "automobiles", "car", "cars", "car review", "car reviews", "car repair", "auto", "autos", "bike", "bikes", "motorcycle", "gaari", "gari", "گاڑی", "گاڑیاں"]),
+  niche("religion", "Religion", ["islamic", "islam", "deen", "دین", "quran", "قرآن", "naat", "نعت", "religious", "hadith", "حدیث", "bayan", "بیان", "بیانات", "tilawat", "تلاوت", "اسلامی"]),
+  niche("music", "Music", ["music", "musician", "musicians", "singer", "singers", "singing", "song", "songs", "song cover", "qawwali", "قوالی", "gana", "gaana", "گانا", "گانے", "موسیقی", "mausiqi", "rapper", "rap"]),
+  niche("news", "News & Commentary", ["news", "breaking news", "current affairs", "politics", "political", "political analysis", "khabar", "khabrain", "خبر", "خبریں", "siyasat", "سیاست", "talk show"]),
+  niche("sports", "Sports", ["sports", "sport", "cricket", "کرکٹ", "football", "psl", "hockey", "kabaddi", "wrestling", "match highlights", "khel", "کھیل"]),
+  niche("entertainment", "Entertainment", ["entertainment", "showbiz", "drama", "dramas", "ڈرامہ", "ڈرامے", "movie", "movies", "film", "films", "فلم", "celebrity", "celebrities"]),
+  niche("real_estate", "Real Estate", ["real estate", "property", "properties", "plots", "land plot", "housing society", "zameen", "پراپرٹی", "پلاٹ"]),
 ];
 
 /** Cities: owner-reviewed forms from v1 plus common spellings; a city only ever matches text or a declared city. */

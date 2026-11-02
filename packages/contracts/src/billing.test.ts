@@ -29,6 +29,7 @@ describe("billing contracts", () => {
       balance: { available: 0, reserved: 0, base: 1000, meter: "red" },
       canPurchase: true,
       lostAccess: ["find_new", "reveal_contact", "refresh_data", "monthly_credits", "outreach", "audience_details", "export"],
+      testingAllowance: { monthlyCredits: 500, remaining: 450, renewsAt: "2026-10-31T19:00:00.000Z", actions: ["search_existing", "reveal_contact"] },
     });
     expect(ok.success).toBe(true);
     expect(planChangeRequestSchema.safeParse({ planId: "scale", interval: "year" }).success).toBe(true);

@@ -16,7 +16,7 @@ export function Header({ title, sub }: { title: string; sub: string }) {
   );
 }
 const Table = ({ head, children }: { head: string[]; children: React.ReactNode }) => (
-  <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+  <div className="overflow-x-auto rounded-2xl border border-slate-200/80 bg-white">
     <table className="w-full text-left text-xs">
       <thead className="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500"><tr>{head.map((h) => <th key={h} className="px-3 py-2">{h}</th>)}</tr></thead>
       <tbody className="divide-y divide-slate-100">{children}</tbody>
@@ -34,10 +34,10 @@ export function OpsOverview() {
         <>
           <dl className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
             {([["Workspaces", q.data.workspaces], ["Active users", q.data.users], ["Open tickets", q.data.openTickets], ["Pending removals", q.data.pendingRemovals], ["Open jobs", q.data.openJobs], ["Stuck jobs (>30 min)", q.data.stuckJobs]] as const).map(([l, v]) => (
-              <div key={l} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm"><dt className="text-[11px] text-slate-500">{l}</dt><dd className="mt-0.5 tabular-nums text-slate-900" style={{ fontSize: 22, fontWeight: 700 }}>{v}</dd></div>
+              <div key={l} className="rounded-2xl border border-slate-200/80 bg-white p-3"><dt className="text-[11px] text-slate-500">{l}</dt><dd className="mt-0.5 tabular-nums text-slate-900" style={{ fontSize: 22, fontWeight: 700 }}>{v}</dd></div>
             ))}
           </dl>
-          <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 text-xs shadow-sm">
+          <div className="mt-4 rounded-2xl border border-slate-200/80 bg-white p-4 text-xs">
             <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Jobs started in the last 24 hours, by outcome</div>
             {Object.keys(q.data.jobs24h).length === 0 ? <p className="mt-2 text-slate-500">No jobs in the last 24 hours.</p> : (
               <dl className="mt-2 grid grid-cols-2 gap-y-1 sm:grid-cols-4">{Object.entries(q.data.jobs24h).map(([k, v]) => <div key={k}><dt className="inline text-slate-500">{k}: </dt><dd className="inline tabular-nums text-slate-900">{v}</dd></div>)}</dl>
@@ -57,6 +57,8 @@ const REASONS: Record<string, string> = {
   followers_stale: "Count older than 90 days",
   inactive: "No post in 90 days",
   invalid_profile_url: "Not an own profile link",
+  profile_not_found: "Profile not found (confirmed)",
+  profile_private: "Profile private",
   no_profile: "No profile",
   minor_protected: "Protected (possible minor)",
   creator_not_active: "Creator removed or merged",
@@ -67,7 +69,7 @@ const REASONS: Record<string, string> = {
 function EligibilityCoverageCard() {
   const q = useQuery({ queryKey: ["admin", "eligibility"], queryFn: () => adminRequest("/admin/v1/ops/eligibility", eligibilityCoverageSchema) });
   return (
-    <section className="mt-4 rounded-xl border border-slate-200 bg-white p-4 text-xs shadow-sm" aria-label="Creator eligibility coverage">
+    <section className="mt-4 rounded-2xl border border-slate-200/80 bg-white p-4 text-xs" aria-label="Creator eligibility coverage">
       <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Creators customers can see (10,000-follower minimum)</div>
       {q.isPending ? <LoadingBlock lines={2} /> : q.isError ? <ErrorState body={errorBody(q.error)} onRetry={() => void q.refetch()} /> : (
         <>
@@ -130,7 +132,7 @@ export function OpsJobs({ canAct = false }: { canAct?: boolean }) {
         </Table>
       )}
       {openId && (
-        <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 text-xs shadow-sm">
+        <div className="mt-4 rounded-2xl border border-slate-200/80 bg-white p-4 text-xs">
           {detail.isPending ? <LoadingBlock lines={3} /> : detail.isError ? <ErrorState body={errorBody(detail.error)} /> : (
             <div className="grid gap-4 lg:grid-cols-3">
               <div><div className="mb-1 text-slate-900" style={{ fontWeight: 600 }}>Funnel</div><dl>{Object.entries(detail.data.progress).map(([k, v]) => <div key={k} className="flex justify-between"><dt className="text-slate-500">{k}</dt><dd className="tabular-nums">{v}</dd></div>)}</dl></div>
