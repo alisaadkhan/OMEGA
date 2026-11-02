@@ -80,6 +80,40 @@ describe("OpenAiCompatibleLlm", () => {
     expect(solo.bodies).toHaveLength(4);
   });
 
+  it("pauses a provider after 503 too, honours Retry-After, doubles the pause on repeats and resets it after a success", async () => {
+    let clock = 0;
+    let geminiDown = true;
+    const urls: string[] = [];
+    const fetchFake = async (input: string | URL | Request) => {
+      urls.push(String(input));
+      if (!String(input).startsWith("https://gemini.test")) return reply('{"ok":true}');
+      return geminiDown ? new Response("busy", { status: 503, headers: { "retry-after": "300" } }) : reply('{"ok":true}');
+    };
+    const client = new OpenAiCompatibleLlm({ providers: [gemini, ollama], sink: new MemoryProviderCallSink(), logger: createLogger({ level: "silent" }), fetch: fetchFake as typeof fetch, sleep: async () => {}, now: () => clock });
+    const ask = () => client.complete({ feature: "creator_assessment", system: "s", input: "i", schema });
+    const geminiCalls = () => urls.filter((u) => u.startsWith("https://gemini.test")).length;
+    await ask();
+    expect(geminiCalls()).toBe(2);
+    clock = 200_000; // within the 300 s the provider asked for
+    await ask();
+    expect(geminiCalls()).toBe(2);
+    clock = 301_000;
+    await ask(); // second strike: 2 min backoff, but Retry-After 300 s still wins
+    expect(geminiCalls()).toBe(4);
+    clock = 602_000;
+    geminiDown = false;
+    expect((await ask()).model).toBe("gemini:gemini-test-model");
+    geminiDown = true;
+    await ask(); // strikes were reset: one strike again, paused for the 300 s asked
+    expect(geminiCalls()).toBe(7);
+    clock = 860_000;
+    await ask();
+    expect(geminiCalls()).toBe(7);
+    clock = 903_000;
+    await ask();
+    expect(geminiCalls()).toBe(9);
+  });
+
   it("retries a rate-limited 429 once and records both provider attempts", async () => {
     let attempts = 0;
     const { client, bodies, sink } = llm([gemini], () => (++attempts === 1 ? reply("", 429) : reply('{"ok":true}')));
