@@ -36,22 +36,21 @@ const rows = await db.withSystem((tx) =>
       (select r.storage_key from platform.raw_payloads r where r.creator_id = p.creator_id and r.platform = p.platform and r.provider = 'apify' order by r.fetched_at desc limit 1) storage_key
     from gcp.creator_profiles p where p.platform in ('instagram', 'tiktok')`),
 );
-const updates: { id: string; er: number | null; likes: number | null; comments: number | null; views: number | null }[] = [];
+const updates: { id: string; er: number | null; likes: number | null; comments: number | null; views: number | null; locs: string[] | null }[] = [];
 const tally = { recomputed: 0, cleared: 0, unchanged: 0, noPayloadKept: 0 };
 for (const r of rows) {
   const raw = r.storage_key ? payload(r.storage_key) : null;
   const std = raw ? standardize(r.platform, r.handle, raw, { maxPosts: 30 }) : null;
   if (std?.kind === "ok") {
     const m = profileMetrics(std.profile);
+    const locs = std.profile.recentPosts.map((x) => x.location).filter((x): x is string => typeof x === "string" && x.length > 0).slice(0, 30);
     if (m.engagementRate === r.engagement_rate) tally.unchanged++;
-    else {
-      tally.recomputed++;
-      updates.push({ id: r.id, er: m.engagementRate, likes: m.avgLikes, comments: m.avgComments, views: m.avgViews });
-    }
+    else tally.recomputed++;
+    updates.push({ id: r.id, er: m.engagementRate, likes: m.avgLikes, comments: m.avgComments, views: m.avgViews, locs });
   } else if (r.engagement_rate !== null && r.avg_likes === null) {
     // No post sample was ever stored behind this figure: not supported, cleared until the next fetch.
     tally.cleared++;
-    updates.push({ id: r.id, er: null, likes: null, comments: null, views: null });
+    updates.push({ id: r.id, er: null, likes: null, comments: null, views: null, locs: null });
   } else tally.noPayloadKept++;
 }
 if (values.apply && updates.length > 0) {
@@ -59,8 +58,8 @@ if (values.apply && updates.length > 0) {
     const chunk = updates.slice(i, i + 500);
     await db.withSystem((tx) =>
       tx.execute(sql`
-        update gcp.creator_profiles p set engagement_rate = u.er, avg_likes = u.likes, avg_comments = u.comments, avg_views = u.views, updated_at = now()
-        from jsonb_to_recordset(${JSON.stringify(chunk)}::jsonb) as u(id uuid, er double precision, likes integer, comments integer, views integer)
+        update gcp.creator_profiles p set engagement_rate = u.er, avg_likes = u.likes, avg_comments = u.comments, avg_views = u.views, post_locations = coalesce(u.locs, p.post_locations), updated_at = now()
+        from jsonb_to_recordset(${JSON.stringify(chunk)}::jsonb) as u(id uuid, er double precision, likes integer, comments integer, views integer, locs text[])
         where p.id = u.id`),
     );
   }

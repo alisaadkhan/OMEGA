@@ -155,6 +155,8 @@ function performanceColumns(i: SaveInput) {
     performanceFrom: p?.sampleFrom ?? null,
     performanceTo: p?.sampleTo ?? null,
     performanceAt: new Date(),
+    // Geotags of this fetch (0068): replaced each time, so an old geotag never outlives the posts it came from.
+    postLocations: i.profile.recentPosts.map((x) => x.location).filter((x): x is string => typeof x === "string" && x.length > 0).slice(0, 30),
   };
 }
 
@@ -382,9 +384,9 @@ export async function refreshProfileCountries(
   creatorId: string,
   o: { source: "enrichment" | "backfill" | "staff"; now?: Date } = { source: "enrichment" },
 ): Promise<{ profileId: string; platform: string; from: string; to: ProfileCountry }[]> {
-  const rows = await tx.execute<{ id: string; platform: string; bio: string | null; country: string | null; country_status: string; country_source: string | null; country_reason: string | null; country_confidence: string | null; platform_country: string | null; confirmed_country: string | null; public_country: string | null; public_country_source: string | null; urls: string[] | null }>(sql`
+  const rows = await tx.execute<{ id: string; platform: string; bio: string | null; country: string | null; country_status: string; country_source: string | null; country_reason: string | null; country_confidence: string | null; platform_country: string | null; confirmed_country: string | null; public_country: string | null; public_country_source: string | null; post_locations: string[] | null; urls: string[] | null }>(sql`
     select p.id, p.platform, p.bio, p.country, p.country_status, p.country_source, p.country_reason, p.country_confidence, c.platform_country, c.confirmed_country,
-           c.public_country, c.public_country_source,
+           c.public_country, c.public_country_source, p.post_locations,
            (select array_agg(l.url) from gcp.creator_links l where l.creator_id = c.id) urls
     from gcp.creator_profiles p join gcp.creators c on c.id = p.creator_id
     where p.creator_id = ${creatorId}
@@ -395,7 +397,7 @@ export async function refreshProfileCountries(
     bio: r.bio,
     platformCountry: r.platform === "youtube" ? r.platform_country : null,
     confirmed: r.confirmed_country,
-    extras: { urls: r.urls ?? [] },
+    extras: { urls: r.urls ?? [], postLocations: r.post_locations ?? [] },
     publicRecord: r.public_country ? { country: r.public_country, source: r.public_country_source } : null,
   });
   // Two passes: each profile on its own evidence, then a Pakistani profile may corroborate the creator's other profiles
@@ -487,9 +489,9 @@ async function linkedCreatorGraph(tx: Tx, creatorIds: string[]): Promise<{ linke
  */
 export async function bulkRefreshProfileCountries(tx: Tx, creatorIds: string[], o: { source: "backfill" | "staff"; now?: Date } = { source: "backfill" }): Promise<{ profileId: string; platform: string; from: string; to: ProfileCountry }[]> {
   if (creatorIds.length === 0) return [];
-  const rows = await tx.execute<{ id: string; creator_id: string; platform: string; bio: string | null; country: string | null; country_status: string; country_source: string | null; country_reason: string | null; country_confidence: string | null; platform_country: string | null; confirmed_country: string | null; public_country: string | null; public_country_source: string | null; urls: string[] | null }>(sql`
+  const rows = await tx.execute<{ id: string; creator_id: string; platform: string; bio: string | null; country: string | null; country_status: string; country_source: string | null; country_reason: string | null; country_confidence: string | null; platform_country: string | null; confirmed_country: string | null; public_country: string | null; public_country_source: string | null; post_locations: string[] | null; urls: string[] | null }>(sql`
     select p.id, p.creator_id, p.platform, p.bio, p.country, p.country_status, p.country_source, p.country_reason, p.country_confidence, c.platform_country, c.confirmed_country,
-           c.public_country, c.public_country_source, l.urls
+           c.public_country, c.public_country_source, p.post_locations, l.urls
     from gcp.creator_profiles p join gcp.creators c on c.id = p.creator_id
     left join (select creator_id, array_agg(url) urls from gcp.creator_links where creator_id = any(array(select jsonb_array_elements_text(${JSON.stringify(creatorIds)}::jsonb)::uuid)) group by creator_id) l on l.creator_id = c.id
     where p.creator_id = any(array(select jsonb_array_elements_text(${JSON.stringify(creatorIds)}::jsonb)::uuid))`);
@@ -503,7 +505,7 @@ export async function bulkRefreshProfileCountries(tx: Tx, creatorIds: string[], 
       bio: r.bio,
       platformCountry: r.platform === "youtube" ? r.platform_country : null,
       confirmed: r.confirmed_country,
-      extras: { urls: r.urls ?? [] },
+      extras: { urls: r.urls ?? [], postLocations: r.post_locations ?? [] },
       publicRecord: r.public_country
         ? { country: r.public_country, source: r.public_country_source }
         : linkedPublic?.public_country

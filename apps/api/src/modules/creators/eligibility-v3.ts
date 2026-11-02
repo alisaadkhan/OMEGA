@@ -32,6 +32,8 @@ export type ContentPerformance = {
   format: "reel" | "video";
   sampleFrom: Date | null;
   sampleTo: Date | null;
+  /** YouTube Shorts (60 s or less), assessed apart from long-form; null elsewhere or with fewer than 3 Shorts. */
+  shortsMedianViews?: number | null;
 };
 
 const median = (xs: number[]): number | null => {
@@ -48,7 +50,10 @@ const median = (xs: number[]): number | null => {
 export function contentPerformance(p: StandardProfile, o: { youtubeDerived?: boolean } = {}): ContentPerformance | null {
   if (p.platform === "youtube" && !o.youtubeDerived) return null;
   const recent = [...p.recentPosts].filter((x) => !x.isPinned).sort((a, b) => b.postedAt.getTime() - a.postedAt.getTime());
-  const withViews = recent.filter((x) => x.isVideo && x.views !== null).slice(0, PERFORMANCE_SAMPLE);
+  // Instagram: Reels only when the fetch says which posts are Reels; YouTube: long-form (Shorts are reported apart).
+  const viewable = (x: (typeof recent)[number]) => x.isVideo && x.views !== null && (p.platform === "instagram" ? x.format !== "post" : p.platform === "youtube" ? x.format !== "short" : true);
+  const withViews = recent.filter(viewable).slice(0, PERFORMANCE_SAMPLE);
+  const shorts = p.platform === "youtube" ? recent.filter((x) => x.format === "short" && x.views !== null).slice(0, PERFORMANCE_SAMPLE) : [];
   const forEngagement = p.followers && p.followers > 0 ? recent.filter((x) => x.likes !== null && x.comments !== null).slice(0, PERFORMANCE_SAMPLE) : [];
   const used = [...withViews, ...forEngagement];
   if (used.length === 0) return null;
@@ -57,6 +62,7 @@ export function contentPerformance(p: StandardProfile, o: { youtubeDerived?: boo
     medianViews: median(withViews.map((x) => x.views as number)),
     medianEngagementRate: p.platform === "instagram" && forEngagement.length > 0 ? Math.round((median(forEngagement.map((x) => (((x.likes as number) + (x.comments as number)) / (p.followers as number)) * 100)) as number) * 100) / 100 : null,
     viewsSample: withViews.length,
+    shortsMedianViews: shorts.length >= MIN_SAMPLE ? median(shorts.map((x) => x.views as number)) : null,
     engagementSample: p.platform === "instagram" ? forEngagement.length : 0,
     format: p.platform === "instagram" ? "reel" : "video",
     sampleFrom: new Date(Math.min(...times)),

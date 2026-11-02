@@ -11,6 +11,14 @@ export type StandardPost = {
   isPinned: boolean;
   caption: string;
   hashtags: string[];
+  /** Geotag place name (Instagram locationName), when the post has one. */
+  location?: string | null;
+  /** Instagram "clips" = a Reel; YouTube "short" (60 s or less) or "long". */
+  format?: "reel" | "post" | "short" | "long" | null;
+  /** Video length in seconds (YouTube contentDetails.duration), when known. */
+  durationSeconds?: number | null;
+  /** Accounts the post @mentions or tags as co-authors (candidate creators, never evidence about this one). */
+  mentions?: string[];
 };
 
 export type StandardProfile = {
@@ -32,7 +40,20 @@ export type StandardProfile = {
   accountCategory?: string | null;
   /** The platform marks the account as a shop/seller (TikTok Shop seller or commerce account). */
   seller?: boolean;
+  /** Handles the platform suggests as related (Instagram relatedProfiles): candidates for discovery only. */
+  related?: string[];
 };
+
+const HANDLE = /^[a-z0-9._-]{1,60}$/u;
+const handles = (values: unknown[]): string[] => [...new Set(values.map((v) => (typeof v === "string" ? v.replace(/^@/u, "").toLowerCase() : "")).filter((h) => HANDLE.test(h)))].slice(0, 60);
+/** ISO 8601 duration (PT1H2M3S) in seconds; null when absent or malformed. */
+export function isoDurationSeconds(v: unknown): number | null {
+  if (typeof v !== "string") return null;
+  const m = /^P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/u.exec(v);
+  if (!m) return null;
+  const [d, h, mi, se] = [m[1], m[2], m[3], m[4]].map((x) => Number(x ?? 0));
+  return (d ?? 0) * 86400 + (h ?? 0) * 3600 + (mi ?? 0) * 60 + (se ?? 0);
+}
 
 export type StandardizeResult = { kind: "ok"; profile: StandardProfile } | { kind: "not_found" } | { kind: "private" };
 
@@ -122,9 +143,13 @@ function instagram(handle: string, raw: unknown, maxPosts: number): StandardizeR
       isPinned: p["isPinned"] === true,
       caption: cleanText(p["caption"], LIMITS.caption),
       hashtags: tags(p["hashtags"]),
+      location: cleanText(p["locationName"], 120) || null,
+      format: p["productType"] === "clips" ? "reel" : "post",
+      mentions: handles([...(Array.isArray(p["mentions"]) ? p["mentions"] : []), ...records.catch([]).parse(p["coauthorProducers"]).map((c) => c["username"]), ...records.catch([]).parse(p["taggedUsers"]).map((c) => c["username"])]),
     };
   });
   const external = records.catch([]).parse(first["externalUrls"]).map((u) => u["url"]);
+  const related = handles(records.catch([]).parse(first["relatedProfiles"]).map((r) => r["username"]));
   return {
     kind: "ok",
     profile: {
@@ -143,6 +168,7 @@ function instagram(handle: string, raw: unknown, maxPosts: number): StandardizeR
       avatarUrl: httpUrl(first["profilePicUrlHD"] ?? first["profilePicUrl"], LIMITS.photoUrl),
       recentPosts: newestFirst(posts, maxPosts),
       accountCategory: category(first["businessCategoryName"]),
+      related,
     },
   };
 }
@@ -210,6 +236,7 @@ function youtube(handle: string, raw: unknown, maxPosts: number): StandardizeRes
     const st = sub(v["statistics"]);
     const postedAt = when(s["publishedAt"]);
     if (!postedAt) return null;
+    const durationSeconds = isoDurationSeconds(sub(v["contentDetails"])["duration"]);
     return {
       postedAt,
       likes: count(st["likeCount"]),
@@ -219,6 +246,8 @@ function youtube(handle: string, raw: unknown, maxPosts: number): StandardizeRes
       isPinned: false,
       caption: cleanText(s["title"], LIMITS.caption),
       hashtags: tags(s["tags"]),
+      durationSeconds,
+      format: durationSeconds === null ? null : durationSeconds <= 60 ? "short" : "long",
     };
   });
   const country = typeof snippet["country"] === "string" && /^[A-Z]{2}$/.test(snippet["country"]) ? snippet["country"] : null;
