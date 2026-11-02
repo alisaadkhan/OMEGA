@@ -82,7 +82,7 @@ export function CatalogueReview({ canDecide }: { canDecide: boolean }) {
               className={`rounded-md px-2.5 py-1 text-xs transition-colors ${kind === t.id ? "bg-slate-900 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"}`}
             >
               {t.label}
-              {list.data && <span className="ml-1.5 tabular-nums opacity-70">{list.data.counts[t.id].toLocaleString()}</span>}
+              {list.data && <span className="ml-1.5 tabular-nums">{list.data.counts[t.id].toLocaleString()}</span>}
             </button>
           ))}
         </div>
