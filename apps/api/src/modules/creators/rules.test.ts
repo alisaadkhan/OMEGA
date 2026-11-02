@@ -28,7 +28,8 @@ describe("freshness", () => {
   it("is current within 7 days, aging within 30, stale after or when unknown", () => {
     expect(freshnessOf(days(7), now, T)).toBe("current");
     expect(freshnessOf(days(8), now, T)).toBe("aging");
-    expect(freshnessOf(days(30), now, T)).toBe("aging");
+    expect(freshnessOf(days(29), now, T)).toBe("aging");
+    expect(freshnessOf(days(30), now, T)).toBe("stale");
     expect(freshnessOf(days(31), now, T)).toBe("stale");
     expect(freshnessOf(null, now, T)).toBe("stale");
   });

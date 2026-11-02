@@ -30,7 +30,8 @@ export function freshnessOf(at: Date | null, now: Date, t: FreshnessThresholds):
   if (!at) return "stale";
   const age = now.getTime() - at.getTime();
   if (age <= t.currentDays * DAY_MS) return "current";
-  if (age <= t.agingDays * DAY_MS) return "aging";
+  // 30 days or older is stale, never "aging" (owner 2026-11-02).
+  if (age < t.agingDays * DAY_MS) return "aging";
   return "stale";
 }
 
