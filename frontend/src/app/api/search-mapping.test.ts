@@ -29,6 +29,7 @@ describe("search mapping", () => {
   it("turns the screen's filter state into API filters", () => {
     expect(toFilters(ui)).toEqual({
       platform: "instagram",
+      creatorCity: "Lahore",
       creatorCountry: "PK",
       niches: ["Bridal"],
       followersMin: 10_000,
@@ -53,7 +54,7 @@ describe("search mapping", () => {
       fromChips({ platform: "tiktok", creatorCity: "Karachi", creatorCountry: "PK", niches: ["Food", "Travel"], followersMin: 150_000, engagementMin: 6, verifiedOnly: false, hasContact: false, freshOnly: false }),
     ).toEqual({
       platform: "tiktok",
-      city: null,
+      city: "Karachi",
       niche: null,
       followerBand: null,
       minEng: null,
@@ -73,19 +74,20 @@ describe("search mapping", () => {
     // Regression: a reading with no platform used to reset an explicit YouTube search to "all" (and TikTok pricing).
     const current = { platform: "youtube" as const, city: "Lahore", niche: null, followerBand: null, minEng: null, verifiedOnly: false, extra: {} };
     const reading = fromChips({ niches: ["Food"], verifiedOnly: false, hasContact: false, freshOnly: false });
-    expect(applySuggestion(current, reading)).toEqual({ ...current, city: null, niche: "Food" });
+    expect(applySuggestion(current, reading)).toEqual({ ...current, niche: "Food" });
     // What the reading does name still replaces the user's value.
     expect(applySuggestion(current, fromChips({ platform: "instagram", creatorCity: "Karachi", niches: [], verifiedOnly: false, hasContact: false, freshOnly: false }))).toMatchObject({
       platform: "instagram",
-      city: null,
+      city: "Karachi",
     });
   });
 
-  it("never sends a city while city filtering is switched off (typed, suggested or saved)", () => {
-    expect(CITY_FILTER_ENABLED).toBe(false);
-    expect(toFilters({ ...ui, extra: { creatorCity: "Karachi", creatorCountry: "PK" } })).not.toHaveProperty("creatorCity");
-    expect(toFilters({ ...ui, extra: { creatorCity: "Karachi", creatorCountry: "PK" } }).creatorCountry).toBe("PK");
-    expect(fromChips({ creatorCity: "Lahore", niches: [], verifiedOnly: false, hasContact: false, freshOnly: false }).city).toBeNull();
+  // Owner directive 2026-11-03: city filtering is on again; the screen's city wins over a saved or suggested one.
+  it("sends the chosen city (typed, suggested or saved)", () => {
+    expect(CITY_FILTER_ENABLED).toBe(true);
+    expect(toFilters({ ...ui, extra: { creatorCity: "Karachi", creatorCountry: "PK" } })).toMatchObject({ creatorCity: "Lahore", creatorCountry: "PK" });
+    expect(toFilters({ ...ui, city: null, extra: { creatorCity: "Karachi" } })).toMatchObject({ creatorCity: "Karachi" });
+    expect(fromChips({ creatorCity: "Lahore", niches: [], verifiedOnly: false, hasContact: false, freshOnly: false }).city).toBe("Lahore");
   });
 
   it("never snaps an AI range onto a different one ('1k–10k', '500K–2M')", () => {

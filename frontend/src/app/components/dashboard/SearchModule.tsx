@@ -28,7 +28,7 @@ import { CreatorProfilePanel, type Creator } from "./CreatorProfilePanel";
 import { AddByLinkDialog } from "./AddByLinkDialog";
 import { Compare } from "./Compare";
 import type { SearchFilters, SearchRequest } from "@mushin/contracts";
-import { useCreateSavedSearch, useCreatorSearch, useInterpret, useSavedSearches } from "../../api/search";
+import { useCreateSavedSearch, useCreatorSearch, useDeleteSavedSearch, useInterpret, useSavedSearches } from "../../api/search";
 import { useActionCosts, useBillingSummary } from "../../api/billing";
 import { providerActionsLockedText } from "../../lib/provider-actions";
 import {
@@ -37,6 +37,7 @@ import {
   pageCount,
   applySuggestion,
   CITY_FILTER_ENABLED,
+  FILTER_CITIES,
   requestFor,
   sameRequest,
   searchErrorMessage,
@@ -76,7 +77,6 @@ const SORT_LABELS: Record<SortKey, string> = {
 
 const FRESH_RANK: Record<string, number> = { current: 0, aging: 1, stale: 2, unavailable: 3 };
 
-const CITIES = ["Karachi", "Lahore", "Islamabad", "Faisalabad", "Peshawar"];
 // The canonical niche list (platform.niches, migration 0054).
 const NICHES = ["Bridal", "Fashion", "Beauty", "Tech", "Food", "Travel", "Comedy", "Finance", "Wellness", "Lifestyle", "Education & How-to", "Gaming", "History", "Literature", "Agriculture", "Business & Ecommerce", "Automotive", "Religion", "Music", "News & Commentary", "Sports", "Entertainment", "Real Estate"];
 
@@ -125,6 +125,9 @@ export function SearchModule({ liveJobId = null, onGoToCampaigns }: { liveJobId?
   const interpret = useInterpret();
   const saved = useSavedSearches();
   const createSaved = useCreateSavedSearch();
+  const deleteSaved = useDeleteSavedSearch();
+  const removePreset = (p: { id: string; name: string }) =>
+    deleteSaved.mutate(p.id, { onSuccess: () => toast.success(`Removed saved search "${p.name}".`), onError: (err) => toast.error("Couldn't remove the saved search", err instanceof Error ? err.message : undefined) });
   const uiFilters = (): UiFilters => ({ platform, city, niche, followerBand, minEng, minScore, verifiedOnly, contactOnly, freshOnly, extra });
   // A catalogue search is charged per logical search (server price, shown on the button). Filter changes therefore
   // wait for the user to search again instead of re-running, and nothing searches without a user action.
@@ -457,15 +460,25 @@ export function SearchModule({ liveJobId = null, onGoToCampaigns }: { liveJobId?
             <Bookmark className="h-3 w-3" strokeWidth={2} /> Saved
           </span>
           {presets.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => loadPreset(p)}
-              className="max-w-[180px] truncate rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] text-slate-600 transition-colors hover:border-indigo-300 hover:text-indigo-700"
-              style={{ fontWeight: 500 }}
-              title={p.query}
-            >
-              {p.name}
-            </button>
+            <span key={p.id} className="inline-flex items-center rounded-full border border-slate-200 bg-white transition-colors hover:border-cyan-300">
+              <button
+                onClick={() => loadPreset(p)}
+                className="max-w-[180px] truncate rounded-l-full py-1 pl-2.5 pr-1.5 text-[11px] text-slate-600 hover:text-cyan-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50"
+                style={{ fontWeight: 500 }}
+                title={p.query}
+              >
+                {p.name}
+              </button>
+              <button
+                type="button"
+                onClick={() => removePreset(p)}
+                disabled={deleteSaved.isPending}
+                aria-label={`Remove saved search ${p.name}`}
+                className="inline-flex h-6 w-6 items-center justify-center rounded-r-full text-slate-500 hover:text-rose-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 disabled:opacity-50"
+              >
+                <X className="h-3 w-3" strokeWidth={2} />
+              </button>
+            </span>
           ))}
         </div>
       )}
@@ -1159,7 +1172,7 @@ function AdvancedFilterDrawer(props: {
             <div className="flex-1 space-y-6 overflow-y-auto px-5 py-5 text-sm">
               {CITY_FILTER_ENABLED && (
                 <FilterGroup label="City" icon={MapPin}>
-                  {["Karachi", "Lahore", "Islamabad", "Faisalabad", "Peshawar"].map((c) => (
+                  {FILTER_CITIES.map((c) => (
                     <Chip key={c} active={props.city === c} onClick={() => props.setCity(props.city === c ? null : c)}>
                       {c}
                     </Chip>
