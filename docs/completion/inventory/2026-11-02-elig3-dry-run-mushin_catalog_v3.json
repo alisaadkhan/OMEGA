@@ -1,0 +1,67 @@
+{
+  "database": "mushin_catalog_v3",
+  "at": "2026-11-02T12:15:53.675Z",
+  "writes": "none",
+  "activePolicy": "elig-2 (unchanged)",
+  "summary": {
+    "instagram": {
+      "profiles": 108,
+      "elig3_awaiting_assessment": 75,
+      "change: not eligible -> awaiting_assessment": 62,
+      "warning_following_over_10pct_of_followers": 20,
+      "elig2_eligible": 16,
+      "change: eligible -> awaiting_assessment": 13,
+      "elig3_below_minimum": 33,
+      "change: not eligible -> below_minimum": 30,
+      "change: eligible -> below_minimum": 3,
+      "performance_from_stored_payload": 8
+    },
+    "tiktok": {
+      "profiles": 33,
+      "elig3_below_minimum": 22,
+      "change: not eligible -> below_minimum": 22,
+      "warning_following_over_10pct_of_followers": 8,
+      "elig3_awaiting_assessment": 11,
+      "change: not eligible -> awaiting_assessment": 11,
+      "performance_from_stored_payload": 15,
+      "warning_tiktok_views_below_1_5x_followers": 11
+    },
+    "youtube": {
+      "profiles": 2379,
+      "elig3_awaiting_assessment": 481,
+      "elig2_eligible": 371,
+      "change: eligible -> awaiting_assessment": 371,
+      "elig3_below_minimum": 1879,
+      "change: not eligible -> below_minimum": 1879,
+      "change: not eligible -> awaiting_assessment": 110,
+      "elig3_excluded_minor": 19,
+      "change: not eligible -> excluded_minor": 19
+    }
+  },
+  "reasons": {
+    "instagram awaiting_assessment country_unknown": 59,
+    "instagram awaiting_assessment views_sample_too_small": 75,
+    "instagram awaiting_assessment engagement_sample_too_small": 75,
+    "instagram below_minimum below_audience_minimum": 25,
+    "instagram below_minimum country_unknown": 22,
+    "instagram below_minimum views_sample_too_small": 25,
+    "instagram below_minimum engagement_sample_too_small": 25,
+    "instagram below_minimum below_median_views": 3,
+    "instagram below_minimum below_median_engagement": 8,
+    "tiktok below_minimum below_audience_minimum": 19,
+    "tiktok below_minimum country_unknown": 22,
+    "tiktok below_minimum views_sample_too_small": 8,
+    "tiktok awaiting_assessment country_unknown": 11,
+    "tiktok awaiting_assessment views_sample_too_small": 10,
+    "tiktok below_minimum below_median_views": 13,
+    "youtube awaiting_assessment youtube_metrics_restricted": 481,
+    "youtube below_minimum country_not_pakistan": 294,
+    "youtube below_minimum youtube_metrics_restricted": 1879,
+    "youtube below_minimum below_audience_minimum": 1732,
+    "youtube below_minimum country_unknown": 713,
+    "youtube awaiting_assessment country_unknown": 65,
+    "youtube excluded_minor possible_minor_or_inactive_creator": 19,
+    "youtube below_minimum country_conflicting": 6,
+    "youtube awaiting_assessment country_conflicting": 8
+  }
+}

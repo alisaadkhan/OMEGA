@@ -40,6 +40,7 @@ export type { StandardPost, StandardProfile } from "./enrichment/standardize";
 export { fenced, hasContactOrLink, redactContacts } from "./rules";
 export { rankCards } from "./ranking";
 export { expireYoutubeApiData } from "./retention";
+export { refreshDueYoutube, REFRESH_AFTER_DAYS, type RefreshKnown, type YoutubeRefreshReport } from "./youtube-refresh";
 export { DEFAULT_SOURCE_POLICY, type SourcePolicy } from "./source-policy";
 export { fitLabel } from "./rules";
 export { getSearchSettings } from "./repository";

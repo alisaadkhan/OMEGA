@@ -198,11 +198,13 @@ export function Billing({ checkoutResult }: { checkoutResult?: "success" | "fail
         >
           <div className="text-xs uppercase tracking-wider text-slate-400">Current plan</div>
           <div className="mt-1 text-white" style={{ fontSize: "1.25rem", fontWeight: 600 }}>
-            {s?.plan ? `${s.plan.name} · ${s.interval === "year" ? "Yearly" : "Monthly"}` : trialing ? "Free trial" : "No active plan"}
+            {s?.plan ? (s.complimentary ? `${s.plan.name} — Complimentary` : `${s.plan.name} · ${s.interval === "year" ? "Yearly" : "Monthly"}`) : trialing ? "Free trial" : "No active plan"}
           </div>
           <div className="mt-3 text-xs text-slate-400">
             {s?.plan && s.currentPeriodEnd
-              ? s.cancelAtPeriodEnd
+              ? s.complimentary
+                ? `Complimentary access until ${formatDate(s.currentPeriodEnd)}. No payment is taken.`
+                : s.cancelAtPeriodEnd
                 ? `Ends on ${formatDate(s.currentPeriodEnd)}`
                 : `Renews on ${formatDate(s.currentPeriodEnd)}`
               : trialing && s?.trialDaysLeft !== null && s?.trialDaysLeft !== undefined
@@ -216,7 +218,7 @@ export function Billing({ checkoutResult }: { checkoutResult?: "success" | "fail
               Changes to {s.scheduledChange.planId} at the end of this period
             </div>
           )}
-          {canManage && (
+          {canManage && !s?.complimentary && (
             <div className="mt-6 grid gap-2">
               <button
                 onClick={() => setShowPlans((v) => !v)}

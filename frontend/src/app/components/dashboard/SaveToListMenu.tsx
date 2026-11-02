@@ -85,7 +85,7 @@ export function SaveToListMenu({ creatorIds, variant = "button", label = "Save",
       )}
       {open && (
         <div className="absolute bottom-auto right-0 top-full z-50 mt-1 w-64 rounded-lg border border-slate-200 bg-white p-2 shadow-lg" role="dialog" aria-label="Save to lists">
-          <div className="px-1.5 pb-1.5 text-[11px] text-slate-500">{single ? "Save to lists in this workspace" : `Add ${creatorIds.length} creators to a list`}</div>
+          <div className="px-1.5 pb-1.5 text-[11px] text-slate-500">{single ? "Save to your lists" : `Add ${creatorIds.length} creators to a list`}</div>
           {lists.isPending ? (
             <div className="flex justify-center py-3"><Spinner /></div>
           ) : lists.isError ? (

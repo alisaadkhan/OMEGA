@@ -34,6 +34,8 @@ export const SCHEDULES: Schedule[] = [
   billing("reconcile", "30 4 * * *"),
   { queue: "rescore-low", key: "search_reconcile", cron: "45 3 * * *", data: data("search_reconcile", "creator.reindex_all", {}) },
   { queue: "rescore-low", key: "lifecycle_sweep", cron: "20 4 * * *", data: data("lifecycle_sweep", "creator.lifecycle_sweep", {}) },
+  // YouTube refresh at 20 days (owner design), before retention clears what is still unrefreshed at 30. Skipped without API access.
+  { queue: "rescore-low", key: "youtube_refresh", cron: "10 3 * * *", data: data("youtube_refresh", "creator.youtube_refresh", {}) },
   { queue: "rescore-low", key: "youtube_retention", cron: "50 3 * * *", data: data("youtube_retention", "creator.youtube_retention", {}) },
   { queue: "system", key: "discovery_sweep", cron: "*/5 * * * *", data: data("discovery_sweep", "system.discovery_sweep", {}) },
   { queue: "system", key: "audience_sweep", cron: "*/5 * * * *", data: data("audience_sweep", "system.audience_sweep", {}) },

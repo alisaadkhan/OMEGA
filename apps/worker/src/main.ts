@@ -1,9 +1,9 @@
 import { createLogger, loadWorkerConfig } from "@mushin/core";
-import { createDatabase, createDbProviderCallSink, createDbProviderRunStore, createDbReservationLedger, llmSpendSince, providerPaused, recordWorkerHeartbeat, UNVERIFIED_TLS_WARNING } from "@mushin/db";
+import { createDatabase, createDbProviderCallSink, createDbProviderRunStore, createDbReservationLedger, llmSpendSince, providerPaused, recordAlertEvent, recordWorkerHeartbeat, UNVERIFIED_TLS_WARNING } from "@mushin/db";
 import { createApifyClient, createSharedSpendGuard, reconcileApifyRuns, createYouTubeAudienceSource, createLlm, pausableGuard, pausableLlm, createObjectStorage, createPayments, createProfileScraper, createSearchIndex, createSerperSearch, createYouTubeSearch } from "@mushin/integrations";
 import { createAudienceRunner } from "../../api/src/modules/audience/index";
 import { createBillingService, noAccessCache } from "../../api/src/modules/billing/index";
-import { createContactChecker, createCreatorIndexer, createEnrichmentPipeline, createEraser, createSummaryWriter, getEnrichmentSettings, expireYoutubeApiData, lifecycleSweep, systemMailResolver } from "../../api/src/modules/creators/index";
+import { createContactChecker, createCreatorIndexer, createEnrichmentPipeline, createEraser, createSummaryWriter, getEnrichmentSettings, expireYoutubeApiData, lifecycleSweep, refreshDueYoutube, systemMailResolver } from "../../api/src/modules/creators/index";
 import { createCachedSearch, createDiscoveryRunner, createLiveRunner } from "../../api/src/modules/discovery/index";
 import { audienceHandlers } from "./audience-handlers";
 import { billingHandlers, notifyHandlers } from "./billing-handlers";
@@ -90,7 +90,9 @@ const worker = await startWorker({
   db,
   boss,
   logger,
-  handlers: { ...defaultHandlers(db, { reconcileProviderRuns, checkProviders: () => checkProviderStatus({ db, config }) }), ...billingHandlers(billing), ...notifyHandlers(), ...creatorHandlers({ indexer, summaries, expireYoutube: () => expireYoutubeApiData(db, pipeline.storage ? { storage: pipeline.storage } : {}), sweep: () => lifecycleSweep({ db, apply: true, reproject: (ids) => indexer.sync(ids) }) }), ...discoveryHandlers({ runner, liveRunner, searchCache, pipeline }), ...erasureHandlers({ eraser }), ...contactCheckHandlers({ checker: contactChecker }), ...audienceHandlers({ runner: audienceRunner }) },
+  handlers: { ...defaultHandlers(db, { reconcileProviderRuns, checkProviders: () => checkProviderStatus({ db, config }) }), ...billingHandlers(billing), ...notifyHandlers(), ...creatorHandlers({ indexer, summaries, expireYoutube: () => expireYoutubeApiData(db, pipeline.storage ? { storage: pipeline.storage } : {}),
+      refreshYoutube: config.scraping.youtubeApiKey ? () => refreshDueYoutube({ db, refresh: pipeline.refreshKnown, onError: (err, url) => logger.warn({ err, url }, "YouTube refresh failed; retried tomorrow") }) : null,
+      alert: (e) => db.withSystem((tx) => recordAlertEvent(tx, e)), sweep: () => lifecycleSweep({ db, apply: true, reproject: (ids) => indexer.sync(ids) }) }), ...discoveryHandlers({ runner, liveRunner, searchCache, pipeline }), ...erasureHandlers({ eraser }), ...contactCheckHandlers({ checker: contactChecker }), ...audienceHandlers({ runner: audienceRunner }) },
 });
 // Report alive as soon as the queues run: waiting for the first minute cron left Live Discovery refused ("not running")
 // for up to two minutes after every start or deploy (found by the break-it browser run, 2026-10-26).

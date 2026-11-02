@@ -81,10 +81,10 @@ export function useToast() {
 /* ─────────────────────── viewport ─────────────────────── */
 
 const config: Record<ToastLevel, { icon: any; iconColor: string; ring: string }> = {
-  success: { icon: CheckCircle2, iconColor: "text-emerald-600", ring: "ring-emerald-100" },
-  error: { icon: XCircle, iconColor: "text-red-600", ring: "ring-red-100" },
-  warning: { icon: AlertTriangle, iconColor: "text-amber-600", ring: "ring-amber-100" },
-  info: { icon: Info, iconColor: "text-indigo-600", ring: "ring-indigo-100" },
+  success: { icon: CheckCircle2, iconColor: "text-[#06B6D4]", ring: "ring-cyan-400/20" },
+  error: { icon: XCircle, iconColor: "text-rose-400", ring: "ring-rose-400/25" },
+  warning: { icon: AlertTriangle, iconColor: "text-amber-300", ring: "ring-amber-300/20" },
+  info: { icon: Info, iconColor: "text-[#06B6D4]", ring: "ring-white/10" },
 };
 
 function ToastViewport({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id: number) => void }) {
@@ -101,15 +101,16 @@ function ToastViewport({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id:
               animate={{ opacity: 1, x: 0, scale: 1 }}
               exit={{ opacity: 0, x: 40, scale: 0.96, transition: { duration: 0.18 } }}
               transition={{ type: "spring", stiffness: 380, damping: 32 }}
-              className={`pointer-events-auto flex w-80 items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-lg ring-1 ${c.ring}`}
+              role={t.level === "error" ? "alert" : "status"}
+              className={`pointer-events-auto flex w-80 items-start gap-3 rounded-2xl border border-white/10 bg-[#0A0F24]/90 p-3.5 text-white shadow-2xl backdrop-blur-md ring-1 ${c.ring}`}
             >
               <c.icon className={`mt-0.5 h-4 w-4 flex-shrink-0 ${c.iconColor}`} strokeWidth={2} />
               <div className="min-w-0 flex-1">
-                <div className="text-slate-900" style={{ fontSize: 13, fontWeight: 600 }}>
+                <div className="text-white" style={{ fontSize: 13, fontWeight: 600 }}>
                   {t.title}
                 </div>
                 {t.description && (
-                  <div className="mt-0.5 text-[12px] text-slate-600" style={{ lineHeight: 1.45 }}>
+                  <div className="mt-0.5 text-[12px] text-slate-300" style={{ lineHeight: 1.45 }}>
                     {t.description}
                   </div>
                 )}
@@ -119,7 +120,7 @@ function ToastViewport({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id:
                       t.action!.onClick();
                       onDismiss(t.id);
                     }}
-                    className="mt-1.5 text-[11px] text-indigo-600 hover:text-indigo-700"
+                    className="mt-1.5 rounded-full text-[11px] text-[#06B6D4] underline-offset-2 hover:text-cyan-300 hover:underline focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
                     style={{ fontWeight: 600 }}
                   >
                     {t.action.label}
@@ -129,7 +130,7 @@ function ToastViewport({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id:
               <button
                 onClick={() => onDismiss(t.id)}
                 aria-label="Dismiss"
-                className="rounded-md p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                className="rounded-full p-0.5 text-slate-400 hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
               >
                 <X className="h-3 w-3" strokeWidth={2} />
               </button>

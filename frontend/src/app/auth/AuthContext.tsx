@@ -55,7 +55,9 @@ function toAuthUser(session: Session, me: MeResponse | undefined): AuthUser {
   return { id: me?.user.id ?? session.user.id, name, email, initials, avatar: me?.user.avatarUrl ?? initialsAvatar(initials), role: me?.workspace.role ?? "member" };
 }
 
-function messageOf(error: { message: string }): string {
+function messageOf(error: { message: string; code?: string }): string {
+  if (error.code === "email_not_confirmed" || /email not confirmed/i.test(error.message)) return "Please verify your email first. Open the confirmation link we sent you, then sign in.";
+  if (error.code === "invalid_credentials") return "That email and password don't match. Try again or reset your password.";
   return error.message || "Something went wrong. Please try again.";
 }
 
@@ -85,14 +87,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const me = useQuery({
     queryKey: ["me", session?.user.id],
     queryFn: () => apiRequest("/v1/me", meResponseSchema),
-    enabled: Boolean(session),
+    enabled: Boolean(session?.user.email_confirmed_at),
     staleTime: 60_000,
     retry: 1,
   });
 
+  // Only a confirmed email gets in: a session for an unverified address is treated as signed out (owner 2026-11-02).
+  const verified = Boolean(session?.user.email_confirmed_at);
+  useEffect(() => {
+    if (session && !session.user.email_confirmed_at) {
+      signingOut = true; // not an expiry: the account simply is not verified yet
+      void supabase.auth.signOut().finally(() => { signingOut = false; });
+    }
+  }, [session]);
   const status: AuthStatus =
-    session === undefined ? "loading" : session === null ? "signedOut" : me.isPending ? "loading" : "signedIn";
-  const user = session ? toAuthUser(session, me.data) : null;
+    session === undefined ? "loading" : session === null || !verified ? "signedOut" : me.isPending ? "loading" : "signedIn";
+  const user = session && verified ? toAuthUser(session, me.data) : null;
 
   const value: AuthContextValue = {
     status,
@@ -109,7 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password,
         options: { data: { full_name: name.trim() }, emailRedirectTo: `${window.location.origin}/#/confirmed` },
       });
-      // Supabase decides; the outcome never reveals whether the address already had an account (signup-outcome.ts).
+      // Supabase decides; an already-registered address gets an explicit message (signup-outcome.ts).
       return signupOutcome(address, data, error);
     },
     async logout() {

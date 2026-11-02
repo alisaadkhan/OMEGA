@@ -27,10 +27,20 @@ export function Signup({ onSuccess, goLogin, goForgot }: Props) {
 
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [exists, setExists] = useState(false);
+  const [touched, setTouched] = useState(false);
+  const missing = { name: touched && !name.trim(), email: touched && !email.trim(), password: touched && password.length < 8 };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setNotice(null);
+    setExists(false);
+    setTouched(true);
+    if (!name.trim() || !email.trim() || password.length < 8) {
+      setError("Fill in the highlighted fields to continue.");
+      return;
+    }
     if (!agreed) {
       setError("Please read and accept the Terms and the Privacy Policy to create an account.");
       return;
@@ -44,6 +54,7 @@ export function Signup({ onSuccess, goLogin, goForgot }: Props) {
         return;
       }
       if (outcome.kind === "check_email") setNotice(checkEmailText(outcome.email));
+      else if (outcome.kind === "exists") { setError(outcome.message); setExists(true); }
       else setError(outcome.message);
       setSubmitting(false);
     } catch (err) {
@@ -71,10 +82,10 @@ export function Signup({ onSuccess, goLogin, goForgot }: Props) {
     >
       <form onSubmit={submit} className="space-y-4">
         <StaggerItem index={0}>
-          <FormField label="Full name" value={name} onChange={setName} placeholder="Ayesha Malik" autoFocus autoComplete="name" />
+          <FormField label="Full name" value={name} onChange={setName} placeholder="Ayesha Malik" autoFocus autoComplete="name" error={missing.name ? "Enter your full name." : null} />
         </StaggerItem>
         <StaggerItem index={1}>
-          <FormField label="Work email" type="email" value={email} onChange={setEmail} placeholder="you@brand.pk" />
+          <FormField label="Work email" type="email" value={email} onChange={setEmail} placeholder="you@brand.pk" error={missing.email ? "Enter your work email." : exists ? "Already registered." : null} />
         </StaggerItem>
         <StaggerItem index={2}>
           <FormField
@@ -84,6 +95,7 @@ export function Signup({ onSuccess, goLogin, goForgot }: Props) {
             onChange={setPassword}
             placeholder="At least 8 characters"
             autoComplete="new-password"
+            error={missing.password ? "Use at least 8 characters." : null}
           />
           <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-slate-100">
             <motion.div
@@ -119,9 +131,15 @@ export function Signup({ onSuccess, goLogin, goForgot }: Props) {
         </StaggerItem>
 
         {error && (
-          <p role="alert" className="text-sm text-red-600">
-            {error}
-          </p>
+          <div role="alert" className="animate-in fade-in slide-in-from-top-2 duration-200 ease-out rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-sm text-rose-700">
+            <p>{error}</p>
+            {exists && (
+              <p className="mt-1.5 flex gap-3">
+                <button type="button" onClick={goLogin} className="font-semibold underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-rose-300 rounded">Sign in</button>
+                <button type="button" onClick={goForgot} className="font-semibold underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-rose-300 rounded">Reset password</button>
+              </p>
+            )}
+          </div>
         )}
         {notice && (
           <div role="status" className="space-y-2 text-sm text-slate-700">

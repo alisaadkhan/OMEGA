@@ -71,7 +71,7 @@ const api = async (who, method, path, body, extra = {}) => {
   return { status: r.status, json: await r.json().catch(() => null) };
 };
 const session = (who) => ({ access_token: ids[who].token, token_type: "bearer", expires_in: ids[who].exp - Math.floor(Date.now() / 1000), expires_at: ids[who].exp, refresh_token: "e2e-local",
-  user: { id: ids[who].sub, aud: "authenticated", role: "authenticated", email: ids[who].email, user_metadata: { full_name: ids[who].name }, app_metadata: {}, created_at: new Date().toISOString() } });
+  user: { id: ids[who].sub, aud: "authenticated", role: "authenticated", email: ids[who].email, user_metadata: { full_name: ids[who].name }, app_metadata: {}, email_confirmed_at: new Date().toISOString(), created_at: new Date().toISOString() } });
 
 const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: true });
 const consoleErrors = [];
@@ -129,6 +129,8 @@ const handles = (t) => [...new Set(t.match(/@[a-z0-9._]+/gi) ?? [])];
 async function openProfile(p, handle) {
   await search(p, handle);
   await p.getByText(`@${handle}`).first().click();
+  // A card opens the quick view first; its "Full profile" button opens the complete panel.
+  await p.getByRole("dialog", { name: /./ }).getByRole("button", { name: "Full profile" }).click();
   const panel = p.getByRole("dialog", { name: "Creator profile" });
   await panel.waitFor();
   return panel;
@@ -290,11 +292,11 @@ if (phase === "main") {
   const lahore = (await apiSearch("owner", "Lahore")).json;
   check("search", "different queries give different, query-related results", lahore.results.map((r) => r.id).join() !== apiFood.results.map((r) => r.id).join());
   check("search", "partial handle finds the creator", handles(await search(p, FX.mainPartial)).includes(`@${FX.main}`));
-  await p.getByRole("button", { name: "youtube", exact: true }).first().click();
+  await p.getByRole("button", { name: "YouTube", exact: true }).first().click();
   const yt = (await apiSearch("owner", "food", { platform: "youtube" })).json;
   t = await search(p, "food");
   check("search", "platform filter applied (API and UI)", yt.results.every((r) => r.platform === "youtube") && handles(t).every((h) => yt.results.some((r) => `@${r.handle}` === h)));
-  await p.getByRole("button", { name: "All platforms", exact: true }).first().click().catch(() => {});
+  await p.getByRole("button", { name: "All Platforms", exact: true }).first().click().catch(() => {});
   const spendsBeforeEmpty = searchSpends(ws);
   t = await search(p, "zzqx nothing matches this");
   check("search", "empty result is explained, says it was free and offers live discovery", /No creators match/.test(t) && /this search cost nothing/.test(t) && /Find new creators/i.test(t));

@@ -42,6 +42,11 @@ export function createActivityService(deps: { db: Db }) {
           union all
           select 'r:' || r.creator_id, 'contact_revealed', r.created_at, r.revealed_by, cr.display_name, null, null, 'creator', cr.id
             from wp.contact_reveals r join gcp.creators cr on cr.id = r.creator_id where r.workspace_id = ${ws}
+          union all
+          -- A complimentary plan (owner grant) is announced once, from the subscription itself: no payment exists for it.
+          select 'cp:' || s.workspace_id, 'complimentary_plan', s.current_period_start, null, p.name, to_char(s.current_period_end at time zone 'Asia/Karachi', 'FMDD Mon YYYY'), null, null, null
+            from wp.subscriptions s join platform.plans p on p.id = s.plan_id
+            where s.workspace_id = ${ws} and s.paddle_subscription_id like 'comp:%' and s.status = 'active'
         ) raw) e
         where ${after} ${q.kind ? sql`and e.kind = ${q.kind}` : sql``}
         order by e.at_us desc, e.id
@@ -62,6 +67,7 @@ export function createActivityService(deps: { db: Db }) {
         }
         case "live_run_finished": return `finished a Find New Creators run for "${r.a ?? ""}": ${r.b} found, ${r.c} new`;
         case "contact_revealed": return `revealed contact details for ${r.a}`;
+        case "complimentary_plan": return `Congratulations! You've received complimentary ${r.a} access until ${r.b}. Enjoy your ${r.a} benefits!`;
       }
     };
     return {

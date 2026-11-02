@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Activity, Bookmark, Megaphone, MessageSquareText, Radio, ShieldCheck } from "lucide-react";
+import { Activity, Bookmark, Gift, Megaphone, MessageSquareText, Radio, ShieldCheck } from "lucide-react";
 import type { ActivityEvent } from "@mushin/contracts";
 import { useActivityFeed } from "../../api/activity";
 import { EmptyState, ErrorState, LoadingBlock } from "./states";
 
 const ICON: Record<ActivityEvent["kind"], typeof Activity> = {
+  complimentary_plan: Gift,
   list_created: Bookmark,
   creator_saved: Bookmark,
   campaign_created: Megaphone,
@@ -22,7 +23,13 @@ export function ActivityRow({ e }: { e: ActivityEvent }) {
     <li className="flex items-start gap-3 px-4 py-3">
       <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600"><Icon className="h-3.5 w-3.5" /></span>
       <div className="min-w-0 flex-1 text-sm text-slate-700">
-        <span className="text-slate-900" style={{ fontWeight: 600 }}>{e.actor?.name ?? "MUSHIN"}</span> {e.text}
+        {e.kind === "complimentary_plan" ? (
+          <span className="text-slate-900">{e.text}</span>
+        ) : (
+          <>
+            <span className="text-slate-900" style={{ fontWeight: 600 }}>{e.actor?.name ?? "MUSHIN"}</span> {e.text}
+          </>
+        )}
       </div>
       <time dateTime={e.at} className="shrink-0 text-xs text-slate-500">{when(e.at)}</time>
     </li>
