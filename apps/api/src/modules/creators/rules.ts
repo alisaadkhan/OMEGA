@@ -171,6 +171,19 @@ export function redactContacts(text: string): string {
   return CONTACT_PATTERNS.reduce((t, re) => t.replace(new RegExp(re.source, "gi"), "[contact removed]"), text);
 }
 
+/**
+ * Hides emails and phone numbers in a bio or quote shown before the workspace paid to reveal contacts, and in the text the
+ * search index holds (security hardening 2026-11-03): otherwise the reveal could be skipped by reading the bio, or a
+ * number could be searched for. Links stay: they are the creator's public profile, not a paid contact.
+ */
+export const CONTACT_HIDDEN = "[contact hidden]";
+export function maskBioContacts(text: string): string;
+export function maskBioContacts(text: string | null): string | null;
+export function maskBioContacts(text: string | null): string | null {
+  if (text === null) return null;
+  return [EMAIL_RE, SPELLED_EMAIL_RE, PHONE_RE].reduce((t, re) => t.replace(new RegExp(re.source, "gi"), CONTACT_HIDDEN), text);
+}
+
 /** Summaries carry public facts only: no links, emails or phone numbers; at most 600 characters (spec §6). */
 /** True when the text holds a link, an email, a phone number or a spelled-out email (any length). */
 export function hasContactOrLink(text: string): boolean {

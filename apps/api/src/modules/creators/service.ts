@@ -19,7 +19,7 @@ import type { CatalogSearch } from "./postgres-search";
 import type { BillingService } from "../billing/index";
 import { interpretOutputSchema, interpretSystemPrompt } from "./prompts";
 import * as repo from "./repository";
-import { cleanInterpretation, contactAvailability, fenced, freshnessOf, isContactable, isMinorProtected, meiliFilter, normalizeProfileUrl, refreshActionFor, sourceHash } from "./rules";
+import { cleanInterpretation, contactAvailability, fenced, freshnessOf, isContactable, isMinorProtected, maskBioContacts, meiliFilter, normalizeProfileUrl, refreshActionFor, sourceHash } from "./rules";
 import { toCards } from "./ranking";
 import { suppressedUrls } from "./suppressions";
 import { assertCanPayCatalogSearch, chargeCatalogSearch } from "./search-charge";
@@ -348,7 +348,8 @@ export function createCreatorsService(deps: CreatorsDeps) {
           avgLikes: restrictsDerived(p.platform, policy) ? null : p.avgLikes,
           avgComments: restrictsDerived(p.platform, policy) ? null : p.avgComments,
           avgViews: restrictsDerived(p.platform, policy) ? null : p.avgViews,
-          bio: p.bio,
+          // Emails and phone numbers in the bio stay hidden until this workspace reveals the contacts.
+          bio: revealed ? p.bio : maskBioContacts(p.bio),
           freshness: {
             followers: freshnessOf(p.followersUpdatedAt, t, settings.fresh),
             engagement: freshnessOf(p.engagementUpdatedAt, t, settings.fresh),
@@ -383,7 +384,7 @@ export function createCreatorsService(deps: CreatorsDeps) {
         // Something worth revealing: not only addresses shown not to work.
         hasContacts: isContactable(contactAvailability(contacts)),
         mergedInto: c.mergedIntoId,
-        attributeEvidence: attributeEvidence.map((e) => ({ ...e, observedAt: e.observedAt.toISOString() })),
+        attributeEvidence: attributeEvidence.map((e) => ({ ...e, quote: revealed ? e.quote : maskBioContacts(e.quote), observedAt: e.observedAt.toISOString() })),
       };
     });
     await recordView(ctx, shown.id, shown.platform);

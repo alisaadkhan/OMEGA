@@ -3,7 +3,7 @@ import type { CreatorDocument } from "@mushin/integrations";
 import { handleWords } from "./aliases";
 import { creatorEligibility } from "./eligibility";
 import type { IndexRow } from "./repository";
-import { isMinorProtected } from "./rules";
+import { isMinorProtected, maskBioContacts } from "./rules";
 
 /** Only active creators that are not protected possible minors are searchable (spec §4.3). */
 export function isIndexable(r: IndexRow): boolean {
@@ -38,7 +38,8 @@ export function documentAt(r: IndexRow, now: Date): CreatorDocument {
     country: r.country,
     niches: r.niches,
     tags: r.tags,
-    bio: truncate(primary?.bio ?? "", 500),
+    // Searchable text never holds emails or phone numbers (they are paid contacts).
+    bio: truncate(maskBioContacts(primary?.bio ?? ""), 500),
     followers: knownFollowers.length ? Math.max(...knownFollowers) : null,
     engagement_rate: primary?.engagementRate ?? null,
     verified: r.verified,
