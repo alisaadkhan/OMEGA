@@ -27,8 +27,19 @@ describe("PostgreSQL rate limiter (platform.rate_limit_hit)", () => {
     const results = await Promise.all(Array.from({ length: 25 }, () => limiter.limit("ip", "198.51.100.1")));
     // A window boundary during the burst can only lower the count, never raise it above the limit.
     expect(results.filter((r) => r.allowed).length).toBeLessThanOrEqual(10);
-    const [row] = await ownerQuery<{ total: number }>("select sum(hits)::int as total from platform.rate_limit_counters where bucket = 'ip'");
-    expect(row?.total).toBe(25);
+    // Only admitted requests are counted (0069): refused hits are taken back.
+    const [row] = await ownerQuery<{ total: number }>("select coalesce(sum(hits), 0)::int as total from platform.rate_limit_counters where bucket = 'ip'");
+    expect(row?.total).toBe(results.filter((r) => r.allowed).length);
+  });
+
+  // Security hardening 2026-11-03 (0069): retrying while refused must not push the count up and extend the lockout.
+  it("does not count refused requests, so a retry storm cannot lock a client out for longer", async () => {
+    const limiter = new PostgresRateLimiter(db, { ...buckets, jobs: { limit: 3, windowSeconds: 3600 } });
+    const results = [];
+    for (let i = 0; i < 20; i += 1) results.push(await limiter.limit("jobs", "user-7"));
+    expect(results.filter((r) => r.allowed)).toHaveLength(3);
+    const [row] = await ownerQuery<{ hits: number }>("select sum(hits)::int as hits from platform.rate_limit_counters where bucket = 'jobs'");
+    expect(row?.hits).toBe(3);
   });
 
   it("shares one limit across API instances (two processes with their own connection pools)", async () => {
