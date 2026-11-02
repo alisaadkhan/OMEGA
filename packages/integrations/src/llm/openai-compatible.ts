@@ -12,6 +12,8 @@ class HttpStatusError extends Error {
   constructor(
     readonly status: number,
     body: string,
+    /** Seconds from the provider's Retry-After header, when it sent one. */
+    readonly retryAfterS: number | null = null,
   ) {
     super(`LLM provider answered ${status}${errorLabel(body)}`);
     this.name = "HttpStatusError";
@@ -29,10 +31,20 @@ function errorLabel(body: string): string {
 }
 
 const COOLDOWN_MS = 60_000;
-/** A 429 anywhere in the error's cause chain. */
-function rateLimited(err: unknown): boolean {
-  for (let e: unknown = err; e instanceof Error; e = e.cause) if (e instanceof HttpStatusError && e.status === 429) return true;
-  return false;
+const MAX_COOLDOWN_MS = 15 * 60_000;
+/**
+ * A 429 (rate limit) or 503 (overloaded) anywhere in the error's cause chain, with the provider's Retry-After when given.
+ * Measured 2026-11-02 on the Gemini free tier: bulk catalogue runs answered 429 and 503 for long stretches.
+ */
+function throttled(err: unknown): { retryAfterS: number | null } | null {
+  for (let e: unknown = err; e instanceof Error; e = e.cause) if (e instanceof HttpStatusError && (e.status === 429 || e.status === 503)) return { retryAfterS: e.retryAfterS };
+  return null;
+}
+function retryAfterSeconds(h: string | null, nowMs: number): number | null {
+  if (!h) return null;
+  if (/^\d{1,6}$/.test(h.trim())) return Number(h.trim());
+  const at = Date.parse(h);
+  return Number.isFinite(at) ? Math.max(0, Math.round((at - nowMs) / 1000)) : null;
 }
 
 class LlmOutputError extends Error {
@@ -73,6 +85,8 @@ export class OpenAiCompatibleLlm implements Llm {
 
   /** Provider name → time until which it is skipped after answering 429 (measured 2026-10-13 on the earlier provider: every call 429'd for hours). */
   private readonly coolingUntil = new Map<string, number>();
+  /** Provider name → consecutive throttled answers; each one doubles the pause, a success resets it. */
+  private readonly strikes = new Map<string, number>();
 
   async complete<T>(req: LlmRequest<T>): Promise<{ value: T; model: string }> {
     if (this.o.providers.length === 0) throw new AppError("PROVIDER_UNAVAILABLE", "AI features are not configured.");
@@ -82,13 +96,22 @@ export class OpenAiCompatibleLlm implements Llm {
     const usable = this.o.providers.filter((p) => (this.coolingUntil.get(p.name) ?? 0) <= nowMs);
     for (const p of usable.length > 0 ? usable : this.o.providers) {
       try {
-        return { value: await this.withProvider(p, req), model: `${p.name}:${p.model}` };
+        const value = await this.withProvider(p, req);
+        this.strikes.delete(p.name);
+        return { value, model: `${p.name}:${p.model}` };
       } catch (err) {
         if (err instanceof LlmOutputError) {
           throw new AppError("PROVIDER_UNAVAILABLE", "The AI could not produce a usable answer. Please try again.", undefined, { cause: err });
         }
         last = err;
-        if (rateLimited(err)) this.coolingUntil.set(p.name, (this.o.now ?? Date.now)() + COOLDOWN_MS);
+        const t = throttled(err);
+        if (t) {
+          const n = (this.strikes.get(p.name) ?? 0) + 1;
+          this.strikes.set(p.name, n);
+          const backoff = Math.min(COOLDOWN_MS * 2 ** (n - 1), MAX_COOLDOWN_MS);
+          const asked = t.retryAfterS === null ? 0 : Math.min(t.retryAfterS * 1000, MAX_COOLDOWN_MS);
+          this.coolingUntil.set(p.name, (this.o.now ?? Date.now)() + Math.max(backoff, asked));
+        }
         this.o.logger.warn({ err, provider: p.name, feature: req.feature }, "LLM provider failed; trying the next one");
       }
     }
@@ -149,7 +172,7 @@ export class OpenAiCompatibleLlm implements Llm {
           }),
         });
         const text = await res.text();
-        if (!res.ok) throw new HttpStatusError(res.status, text);
+        if (!res.ok) throw new HttpStatusError(res.status, text, retryAfterSeconds(res.headers.get("retry-after"), Date.now()));
         const j = JSON.parse(text) as ChatResponse;
         return { content: j.choices?.[0]?.message?.content ?? "", tokensIn: j.usage?.prompt_tokens ?? 0, tokensOut: j.usage?.completion_tokens ?? 0 };
       },
