@@ -51,7 +51,6 @@ import {
 import { useToast } from "../../lib/toast";
 import { FindNewDialog } from "./FindNewDialog";
 import { SearchCreatorCard } from "./SearchCreatorCard";
-import { CreatorQuickView } from "./CreatorQuickView";
 import { ShortlistDrawer, type DrawerCreator } from "./ShortlistDrawer";
 import { CampaignDrawer } from "./CampaignDrawer";
 import { useCancelJob, useDiscoveryJob, useLiveResults } from "../../api/discovery";
@@ -69,7 +68,7 @@ type Status = "idle" | "loading" | "streaming" | "results" | "empty" | "error";
 type SortKey = "relevance" | "followers" | "engagement" | "freshness";
 
 const SORT_LABELS: Record<SortKey, string> = {
-  relevance: "Relevance (Creator Fit score)",
+  relevance: "Relevance (MUSHIN IQ)",
   followers: "Followers",
   engagement: "Engagement rate",
   freshness: "Data freshness",
@@ -101,8 +100,6 @@ export function SearchModule({ liveJobId = null, onGoToCampaigns }: { liveJobId?
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [profileId, setProfileId] = useState<string | null>(null);
-  // "View Profile" opens the quick view first; "Full profile" there opens the complete panel.
-  const [quickId, setQuickId] = useState<string | null>(null);
   const [shortlistFor, setShortlistFor] = useState<DrawerCreator[] | null>(null);
   const [campaignFor, setCampaignFor] = useState<DrawerCreator[] | null>(null);
   const [addOpen, setAddOpen] = useState(false);
@@ -170,7 +167,6 @@ export function SearchModule({ liveJobId = null, onGoToCampaigns }: { liveJobId?
   const revealed = liveCards.length;
   const partialFail = 0;
   const activeProfile = filtered.find((c) => c.id === profileId) ?? liveCards.find((c) => c.id === profileId) ?? null;
-  const quickCreator = filtered.find((c) => c.id === quickId) ?? liveCards.find((c) => c.id === quickId) ?? null;
   const selectedCreators = [...filtered, ...liveCards].filter((c, i, all) => selected.has(c.id) && all.findIndex((x) => x.id === c.id) === i);
   const interpreted = suggested
     ? Object.fromEntries(
@@ -671,7 +667,7 @@ export function SearchModule({ liveJobId = null, onGoToCampaigns }: { liveJobId?
                 >
                   {c.discovery.isNew ? "New" : "Already in MUSHIN"}
                 </span>
-                <SearchCreatorCard creator={c} index={i} selected={selected.has(c.id)} onSelect={() => toggleSelect(c.id)} onOpen={() => setQuickId(c.id)} onShortlist={() => setShortlistFor([asDrawer(c)])} />
+                <SearchCreatorCard creator={c} index={i} selected={selected.has(c.id)} onSelect={() => toggleSelect(c.id)} onOpen={() => setProfileId(c.id)} onShortlist={() => setShortlistFor([asDrawer(c)])} />
                 {c.discovery.campaignFit && <p className="px-1 text-[11px] text-indigo-700">Fit based on {c.discovery.campaignFit.sampleSize} recent posts · {Math.round(c.discovery.campaignFit.confidence * 100)}% evidence confidence</p>}
                 {c.discovery.campaignFit && c.discovery.campaignFit.evidence.length > 0 && (
                   <details className="px-1 text-[11px] text-slate-600">
@@ -797,7 +793,7 @@ export function SearchModule({ liveJobId = null, onGoToCampaigns }: { liveJobId?
                     index={i}
                     selected={selected.has(c.id)}
                     onSelect={() => toggleSelect(c.id)}
-                    onOpen={() => setQuickId(c.id)}
+                    onOpen={() => setProfileId(c.id)}
                     onShortlist={() => setShortlistFor([asDrawer(c)])}
                   />
                 ))}
@@ -807,7 +803,7 @@ export function SearchModule({ liveJobId = null, onGoToCampaigns }: { liveJobId?
                 creators={visible}
                 selected={selected}
                 onSelect={toggleSelect}
-                onOpen={(id) => setQuickId(id)}
+                onOpen={(id) => setProfileId(id)}
               />
             )}
 
@@ -854,21 +850,12 @@ export function SearchModule({ liveJobId = null, onGoToCampaigns }: { liveJobId?
 
       <AddByLinkDialog open={addOpen} onClose={() => setAddOpen(false)} onOpenCreator={setLinkCreator} />
 
-      <CreatorQuickView
-        creator={quickCreator}
-        onClose={() => setQuickId(null)}
-        onShortlist={(c) => setShortlistFor([asDrawer(c)])}
-        onCampaign={(c) => setCampaignFor([asDrawer(c)])}
-        onFullProfile={(c) => {
-          setQuickId(null);
-          setProfileId(c.id);
-        }}
-      />
       <ShortlistDrawer open={shortlistFor !== null} creators={shortlistFor ?? []} onClose={() => setShortlistFor(null)} />
       <CampaignDrawer open={campaignFor !== null} creators={campaignFor ?? []} onClose={() => setCampaignFor(null)} onGoToCampaigns={onGoToCampaigns} />
 
       {/* Creator profile panel (Vol 4B) */}
       <CreatorProfilePanel
+        onGoToCampaigns={onGoToCampaigns}
         creator={activeProfile ?? linkCreator}
         onClose={() => {
           setProfileId(null);
@@ -956,7 +943,7 @@ function ResultsTable({
             <th className="py-3 text-right" style={{ fontWeight: 600 }}>Followers</th>
             <th className="py-3 text-right" style={{ fontWeight: 600 }}>ER</th>
             <th className="py-3 text-right" style={{ fontWeight: 600 }}>Auth.</th>
-            <th className="py-3 pr-4 text-right" style={{ fontWeight: 600 }}>Fit</th>
+            <th className="py-3 pr-4 text-right" style={{ fontWeight: 600 }}>IQ</th>
           </tr>
         </thead>
         <tbody>

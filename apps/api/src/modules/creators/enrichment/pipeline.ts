@@ -17,6 +17,16 @@ import { deriveAttributes, withSemanticNiche } from "./attribute-evidence";
 import { semanticNiche } from "./semantic-niche";
 import { recordAvailability } from "../lifecycle";
 import { suppressedUrls } from "../suppressions";
+import { profileCountry } from "./country-evidence";
+
+/**
+ * YouTube location pre-screen (owner 2026-11-02): a channel whose declared country (snippet.country) is not Pakistan is
+ * saved and flagged foreign by the country rule without an AI assessment. A channel that declares no country stays
+ * unknown (never passed by default) and is assessed as usual, since its bio may still state Pakistan.
+ */
+export function youtubeDeclaredForeign(p: StandardProfile): boolean {
+  return p.platform === "youtube" && p.country !== null && profileCountry({ bio: p.bio, platformCountry: p.country, confirmed: null }).status === "foreign";
+}
 
 /** YouTube API Services: non-authorised data may not be stored beyond 30 calendar days. */
 export const YOUTUBE_API_RETENTION_DAYS = 30;
@@ -182,8 +192,11 @@ export function createEnrichmentPipeline(deps: Deps) {
     const known = await deps.db.withSystem((tx) => repo.findProfileByUrl(tx, job.canonicalUrl));
     const previous = known ? await deps.db.withSystem((tx) => repo.latestMetrics(tx, known.profileId)) : null;
     const report = measureSignals(p, previous, { benchmarks: settings.engagementBenchmarks, minPostsForScore: settings.minPostsForScore, growthMinDays: settings.growthMinDays, scoreBand: settings.scoreBand }, now());
-    const assessment = o.system ? null : await assess(p, report, { jobId: job.jobId, workspaceId: job.workspaceId });
-    const attributes = evidencePolicy ? await deriveWithSemantics(p, assessment?.value ?? null, { jobId: job.jobId, workspaceId: job.workspaceId }, { rulesOnly: o.system === true }) : undefined;
+    const foreign = youtubeDeclaredForeign(p);
+    const noAi = o.system === true || foreign;
+    if (foreign) deps.logger.info({ canonicalUrl: job.canonicalUrl, country: p.country }, "YouTube channel declares a non-Pakistani country: saved without an AI assessment");
+    const assessment = noAi ? null : await assess(p, report, { jobId: job.jobId, workspaceId: job.workspaceId });
+    const attributes = evidencePolicy ? await deriveWithSemantics(p, assessment?.value ?? null, { jobId: job.jobId, workspaceId: job.workspaceId }, { rulesOnly: noAi }) : undefined;
     await hooks.onStep?.("saving");
     const input = (): repo.SaveInput => ({
         profile: p,
@@ -201,7 +214,7 @@ export function createEnrichmentPipeline(deps: Deps) {
         encryptionKey: deps.encryptionKey,
         requestId: job.requestId,
         ...(attributes ? { attributes } : {}),
-        ...(o.system ? { keepAssessment: true } : {}),
+        ...(noAi ? { keepAssessment: true } : {}),
         performance: contentPerformance(p),
       });
     const out: SavedResult = o.system

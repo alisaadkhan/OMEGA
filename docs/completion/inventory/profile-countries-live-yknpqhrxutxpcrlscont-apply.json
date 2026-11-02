@@ -1,0 +1,43 @@
+{
+ "db": "live-yknpqhrxutxpcrlscont",
+ "mode": "apply",
+ "at": "2026-11-02T18:23:27.292Z",
+ "creators": 2503,
+ "changed": 1610,
+ "transitions": {
+  "youtube: unknown -> foreign": 294,
+  "youtube: unknown -> pakistan": 1275,
+  "youtube: unknown -> conflicting": 14,
+  "instagram: unknown -> pakistan": 27
+ },
+ "before": {
+  "instagram": {
+   "unknown": 108
+  },
+  "youtube": {
+   "unknown": 2362
+  },
+  "tiktok": {
+   "unknown": 33
+  }
+ },
+ "after": {
+  "instagram": {
+   "unknown": 81,
+   "pakistan": 27
+  },
+  "youtube": {
+   "foreign": 294,
+   "unknown": 779,
+   "pakistan": 1275,
+   "conflicting": 14
+  },
+  "tiktok": {
+   "unknown": 33
+  }
+ },
+ "projection": {
+  "upserted": 2501,
+  "removed": 0
+ }
+}

@@ -198,3 +198,32 @@ re-applied; the browser template is rebuilt every run). Another Claude session (
 unit 589; frontend 74 + typecheck + build; integration **745 passed, 0 failed** (3 expected failures, 7 skipped
 live-provider tests); browser on PostgreSQL 108 / 55 / 54 and on Meilisearch 108 / 55 / 54 (break-it now includes REV-1).
 Baseline before the 29 Oct implementation (for comparison): integration 736, browser 108 / 54 / 54 on both backends.
+
+## Update 2 November 2026
+
+Commits pushed: `070fc3f`, `69082eb`, `fcdcec9`, `2aac43b` (and this batch). **Every push to this branch deploys to
+Vercel Production** (`omega-api-kappa.vercel.app`).
+
+| Item | State |
+|---|---|
+| Migrations 0054–0066 on the live database | Applied 2026-11-02 (preflight passed; schema snapshot taken first) |
+| Per-profile country on the live database | Backfill applied (bios + recorded YouTube channel countries) |
+| YouTube 20-day refresh (Option A) | Implemented and tested locally; **not running in production**: no YouTube API key and no confirmed worker host |
+| elig-2 | Active policy. elig-3 evaluated only |
+| Complimentary Pro display | Implemented and tested |
+| Sign-up "already registered" + verified-only access | Implemented and tested (browser suite) |
+| Engagement median (no cap), location line, YouTube pre-screen, 30-day stale | Implemented and unit-tested |
+| Fit → IQ, single creator view, avatar fallback | Implemented; browser suite updated |
+| Wave 1 Instagram seed (41 researched handles) | Manifest `seed/wave1-instagram-2026-11-02.json`; loaded into the local copy `mushin_catalog_v4` only |
+
+### Risks and blockers (2 November)
+
+| Risk | Effect | Mitigation / owner action |
+|---|---|---|
+| Feature-branch pushes deploy Production | Untested code can reach customers | Point Vercel's production branch at a release branch |
+| Live database lacks the 26 Oct evidence backfill (main niche, location source, 6,594 evidence rows) | Cards show "niche not known yet" for classified creators | Sync from the local evidence-backed copy (needs approval) |
+| 122 live Instagram/TikTok profiles have no stored photo or posts (loaded from the 13 Oct recordings) | Initials instead of photos; no engagement | Refetch through Apify (about USD 0.40; needs approval) |
+| Engagement values without a post sample on the live database (≈119 profiles) | Unsupported figures such as "100%" | Clear them until refetched (needs approval) |
+| Gemini free tier | 429 rate limits (work falls back to Ollama); prompts may be used by Google | Paid key, or accept Ollama as the main model |
+| YouTube data deadline 12 Nov | Retention must run in production | YouTube decision, API key, worker host |
+| Sign-up reveals whether an email is registered | Account enumeration | Owner accepted; rate limits apply |

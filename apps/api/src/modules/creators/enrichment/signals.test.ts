@@ -115,4 +115,18 @@ describe("signals", () => {
     expect(byKey(report)["views_to_followers"]).toBeUndefined();
     expect(byKey(report)["follow_ratio"]).toBeUndefined();
   });
+
+  it("ENG-01 engagement is the median over the latest 10 non-pinned posts: one viral post does not decide, nothing is capped", () => {
+    // 10,000 followers; nine ordinary posts at 3% and one viral post at 1,500%.
+    const ordinary = Array.from({ length: 9 }, (_, i) => post(i + 1, 280, 20));
+    const viral = post(0, 150_000, 0);
+    const m = profileMetrics(profile({ platform: "instagram", followers: 10_000, recentPosts: [viral, ...ordinary] }));
+    expect(m.engagementRate).toBe(3);
+    // A creator whose typical post really exceeds the follower count keeps the real figure (no silent 100% cap).
+    const huge = Array.from({ length: 5 }, (_, i) => post(i, 20_000, 1_000));
+    expect(profileMetrics(profile({ platform: "instagram", followers: 10_000, recentPosts: huge })).engagementRate).toBe(210);
+    // Pinned posts are left out; fewer than 3 usable posts is "not enough evidence", never 0.
+    const thin = [post(0, 300, 0), post(1, 300, 0), post(2, 99_000, 0, null, true)];
+    expect(profileMetrics(profile({ platform: "instagram", followers: 10_000, recentPosts: thin })).engagementRate).toBeNull();
+  });
 });

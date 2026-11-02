@@ -64,6 +64,10 @@ const ORIGIN = new RegExp(`\\b(?:(?:i am|i m|im|we are|originally|hailing|proudl
 const URDU = /(پاکستان|امریکہ|برطانیہ|کینیڈا|بھارت|انڈیا)\s*(سے|میں)/gu;
 // A demonym counts only when it describes the creator ("Pakistani food blogger"), not a topic ("Pakistani recipes").
 const DEMONYM = new RegExp(`\\b(${Object.keys(DEMONYMS).join("|")})\\s+(?:\\S+\\s+){0,2}?${ROLE}(?=\\s|$)`, "gu");
+// A location line (owner 2026-11-02): a bio line that opens with a known city followed by its own country, e.g.
+// "Lahore, Pakistan" or "📍Islamabad, Pakistan 🇵🇰". It must open the line, so a topic mid-sentence ("food tours of Lahore
+// Pakistan") is not read as where the creator is based; the city must belong to the named country.
+const LOCATION_LINE = new RegExp(`^(?:located in\\s+)?(${CITY_ALT})\\s+(${NAME_ALT})(?=\\s|$)`, "u");
 const NAMED = new RegExp(`(?:^|\\s)(${NAME_ALT})(?=\\s|$)`, "gu");
 
 const codesIn = (re: RegExp, text: string, pick: (m: RegExpExecArray) => string | undefined): { code: string; match: string }[] => {
@@ -89,6 +93,12 @@ export function deriveCountry(bio: string, platformCountry: string | null | unde
     else if (!residence.some((r) => !r.city && r.match.includes(m[1] ?? ""))) {
       observations.push({ value: cc.countries.join("/"), source: "profile_text", status: "weak", evidence: `"${m[0]}": ${cc.city} is a city in more than one country (${cc.countries.join(", ")}) and the bio does not say which` });
     }
+  }
+  for (const line of bio.split(/\n|•|\|/u)) {
+    const m = LOCATION_LINE.exec(normalizeTerms(line.replace(/[📍📌]/gu, " located in ")).trim());
+    const code = m ? NAMES.get(m[2] ?? "") : undefined;
+    const cc = m ? cityCountry(m[1] ?? "") : null;
+    if (m && code && cc?.countries.includes(code) && !residence.some((r) => r.code === code)) residence.push({ code, match: m[0], city: cc.city });
   }
   const viaCityOnly = (code: string) => residence.filter((r) => r.code === code).every((r) => r.city);
   const origin = [

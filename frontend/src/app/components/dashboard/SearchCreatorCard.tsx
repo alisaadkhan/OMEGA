@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { motion } from "motion/react";
 import { ArrowRight, BadgeCheck, Ban, Bookmark, Check, Clock, Instagram, Mail, MapPin, Music2, Phone, Star, Youtube } from "lucide-react";
-import { CONTACT_AVAILABILITY_TEXT, matchSummary } from "../../api/search-mapping";
+import { CONTACT_AVAILABILITY_TEXT, initialsAvatar, matchSummary } from "../../api/search-mapping";
 import { FreshnessBadge } from "./states";
 import type { Creator } from "./CreatorProfilePanel";
 
@@ -34,6 +35,9 @@ export function SearchCreatorCard({
   const contactText = CONTACT_AVAILABILITY_TEXT[contact];
   const ContactIcon = contact === "email_invalid" ? Ban : contact === "phone_unverified" ? Phone : contact === "none" ? Clock : Mail;
   const plat = PLATFORM[creator.platform];
+  // A stored photo that fails to load shows the initials avatar, like a creator with no photo (never an empty box).
+  const [photoFailed, setPhotoFailed] = useState(false);
+  const noPhoto = creator.avatar.startsWith("data:") || photoFailed;
   const matched = matchSummary(creator.matchedOn);
   const place = [creator.city, creator.niche].filter((x) => x && x !== "Unknown").join(" • ");
   return (
@@ -45,12 +49,12 @@ export function SearchCreatorCard({
       >
         <div className="relative aspect-[4/4.4] w-full overflow-hidden bg-slate-100">
           <button type="button" onClick={onOpen} tabIndex={-1} aria-hidden className="block h-full w-full">
-            {creator.avatar.startsWith("data:") ? (
+            {noPhoto ? (
               <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-100 to-cyan-50">
-                <img src={creator.avatar} alt="" className="h-20 w-20 rounded-full ring-4 ring-white" />
+                <img src={photoFailed ? initialsAvatar(creator.name) : creator.avatar} alt="" className="h-20 w-20 rounded-full ring-4 ring-white" />
               </div>
             ) : (
-              <img src={creator.avatar} alt="" loading="lazy" className="h-full w-full object-cover object-top transition-transform duration-500 ease-out group-hover:scale-105" />
+              <img src={creator.avatar} alt="" loading="lazy" onError={() => setPhotoFailed(true)} className="h-full w-full object-cover object-top transition-transform duration-500 ease-out group-hover:scale-105" />
             )}
             <span className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/20" />
           </button>
@@ -67,9 +71,9 @@ export function SearchCreatorCard({
             <Check aria-hidden className="h-4 w-4" strokeWidth={3} />
           </button>
           {creator.score > 0 && (
-            <span className="absolute right-3 top-3 z-10 inline-flex items-center gap-1 rounded-full border border-white/20 bg-slate-900/60 px-2.5 py-1 text-xs font-semibold tracking-wide text-white shadow-sm backdrop-blur-md" title="How well this creator fits your search">
+            <span className="absolute right-3 top-3 z-10 inline-flex items-center gap-1 rounded-full border border-white/20 bg-slate-900/60 px-2.5 py-1 text-xs font-semibold tracking-wide text-white shadow-sm backdrop-blur-md" title="MUSHIN IQ: how well this creator matches your search (0-100). It is a match score, not an authenticity rating.">
               <Star aria-hidden className="h-3 w-3 fill-[#06B6D4] text-[#06B6D4]" />
-              Fit {creator.score}
+              IQ {creator.score}
             </span>
           )}
           <span className="absolute bottom-3 right-3 z-10 inline-flex items-center gap-1 rounded-full border border-white/20 bg-black/50 px-2 py-0.5 text-[10px] font-medium tracking-wide text-white backdrop-blur-md">

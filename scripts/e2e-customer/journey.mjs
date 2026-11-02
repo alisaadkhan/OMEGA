@@ -82,9 +82,11 @@ const staffCallsFromCustomerPages = [];
 const openPages = [];
 const dbg = (m) => appendFileSync(new URL(`debug-${label}-${phase}.log`, here), `${new Date().toISOString()} ${m}\n`);
 process.on("uncaughtException", async (e) => { dbg("FATAL " + e.message); for (const [n, q] of openPages.entries()) { await shot(q, `FAILED-${phase}-${n}`); dbg(`page ${n} ${q.url()} :: ${(await q.locator("body").innerText().catch(() => "")).replace(/\s+/g, " ").slice(0, 600)}`); } process.exit(1); });
-async function pageAs(who, viewport = { width: 1440, height: 950 }) {
+// The first-run welcome is a modal: dismissed in advance except where a check is about it ({ welcome: true }).
+async function pageAs(who, viewport = { width: 1440, height: 950 }, { welcome = false } = {}) {
   const ctx = await browser.newContext({ viewport, ...(viewport.width < 600 ? { isMobile: true, hasTouch: true } : {}) });
   if (who) await ctx.addInitScript(([k, v]) => localStorage.setItem(k, v), [`sb-${ref}-auth-token`, JSON.stringify(session(who))]);
+  if (who && !welcome) await ctx.addInitScript((k) => localStorage.setItem(k, "1"), `mushin.welcomeDismissed.${ids[who].sub}`);
   const p = await ctx.newPage();
   p.on("pageerror", (e) => consoleErrors.push(`${who}: ${e.message}`));
   p.on("console", (m) => { if (m.type() === "error" && !/Failed to load resource|status of 4\d\d|AuthApiError|Invalid Refresh Token|supabase\.co/.test(m.text())) consoleErrors.push(`${who}: ${m.text()}`); });
@@ -129,8 +131,6 @@ const handles = (t) => [...new Set(t.match(/@[a-z0-9._]+/gi) ?? [])];
 async function openProfile(p, handle) {
   await search(p, handle);
   await p.getByText(`@${handle}`).first().click();
-  // A card opens the quick view first; its "Full profile" button opens the complete panel.
-  await p.getByRole("dialog", { name: /./ }).getByRole("button", { name: "Full profile" }).click();
   const panel = p.getByRole("dialog", { name: "Creator profile" });
   await panel.waitFor();
   return panel;
@@ -223,7 +223,7 @@ if (phase === "main") {
   p = await pageAs("owner");
   await p.goto("http://localhost:5173/#/dashboard");
   await p.getByRole("heading", { name: /Welcome back, Olivia/ }).waitFor({ timeout: 30000 });
-  await p.getByRole("region", { name: "Shortlistings" }).getByText("No lists yet").waitFor({ timeout: 20000 });
+  await p.getByRole("region", { name: "Shortlists" }).getByText("No lists yet").waitFor({ timeout: 20000 });
   await p.waitForTimeout(1500);
   await shot(p, "01-dashboard");
   let t = await mainText(p);
@@ -311,20 +311,26 @@ if (phase === "main") {
   await shot(p, "03-profile");
 
   // ── 4. Lists ──
-  await panel.getByRole("button", { name: /^Save/ }).click();
-  const saveMenu = p.getByRole("dialog", { name: "Save to lists" });
-  await saveMenu.getByLabel("New list name").fill("Food shortlist");
-  await saveMenu.getByRole("button", { name: "Add" }).click();
+  // The shortlist side panel: create a list inline (it is ticked), then save.
+  await panel.getByRole("button", { name: "Save to Shortlist" }).click();
+  const saveMenu = p.getByRole("dialog", { name: "Save to shortlist" });
+  await saveMenu.getByRole("button", { name: "Create New Shortlist" }).click();
+  await saveMenu.getByLabel("New shortlist name").fill("Food shortlist");
+  await saveMenu.getByRole("button", { name: "Create", exact: true }).click();
+  await saveMenu.getByRole("checkbox", { name: /Food shortlist/ }).waitFor({ timeout: 10000 });
+  await saveMenu.getByRole("button", { name: "Save to Selected Shortlists" }).click();
   await p.waitForTimeout(1500);
   await closeAll(p);
   const fb = await openProfile(p, FX.second);
-  await fb.getByRole("button", { name: /^Save/ }).click();
-  await p.getByRole("dialog", { name: "Save to lists" }).getByRole("menuitemcheckbox", { name: /Food shortlist/ }).click();
+  await fb.getByRole("button", { name: "Save to Shortlist" }).click();
+  const saveMenu2 = p.getByRole("dialog", { name: "Save to shortlist" });
+  await saveMenu2.getByRole("checkbox", { name: /Food shortlist/ }).click();
+  await saveMenu2.getByRole("button", { name: "Save to Selected Shortlists" }).click();
   await p.waitForTimeout(1500);
   await closeAll(p);
   let list = (await api("owner", "GET", "/v1/lists")).json.lists.find((l) => l.name === "Food shortlist");
   check("lists", "two creators saved from profiles", list?.count === 2);
-  await nav(p, "Shortlistings");
+  await nav(p, "Shortlists");
   await p.getByRole("button", { name: /Food shortlist/ }).first().click();
   await p.getByText(`@${FX.main}`).first().waitFor();
   await p.getByRole("button", { name: "Add note" }).first().click();
@@ -340,7 +346,7 @@ if (phase === "main") {
   const temp = (await api("owner", "POST", "/v1/lists", { name: "Temporary list" })).json;
   // The sidebar item leaves an open list for the index (design gap G-17, fixed).
   let backToIndex = true;
-  await nav(p, "Shortlistings").catch(() => { backToIndex = false; });
+  await nav(p, "Shortlists").catch(() => { backToIndex = false; });
   check("lists", "choosing Lists in the sidebar while a list is open returns to all lists", backToIndex);
   if (!backToIndex) await p.getByRole("button", { name: "All lists" }).click();
   await p.getByRole("button", { name: /Temporary list/ }).first().click();
@@ -350,7 +356,7 @@ if (phase === "main") {
   await p.waitForTimeout(1200);
   const renamed = sql(`select name from wp.lists where id = '${temp.id ?? temp.list?.id}'`);
   await p.getByRole("button", { name: "Delete", exact: true }).click();
-  await p.getByRole("button", { name: "Delete list", exact: true }).click();
+  await p.getByRole("button", { name: "Delete shortlist", exact: true }).click();
   await p.getByRole("button", { name: /Food shortlist/ }).first().waitFor({ timeout: 15000 });
   await p.waitForTimeout(1200);
   check("lists", "a list is renamed and deleted in the UI (confirmed before deleting)", renamed === "Renamed list" && sql(`select count(*) from wp.lists where name in ('Temporary list', 'Renamed list')`) === "0", `renamed to ${renamed}`);
@@ -366,13 +372,15 @@ if (phase === "main") {
   await p.getByRole("heading", { name: "Eid food push" }).waitFor();
   const k = (await api("owner", "GET", "/v1/campaigns")).json.campaigns.find((c) => c.name === "Eid food push");
   // Add both list members from the list page bulk bar.
-  await nav(p, "Shortlistings");
+  await nav(p, "Shortlists");
   await p.getByRole("button", { name: /Food shortlist/ }).first().click();
   await p.getByLabel("Select all").check();
-  await p.getByRole("button", { name: /Add 2 to a campaign/ }).click();
+  await p.getByRole("region", { name: "Selected creators" }).getByRole("button", { name: "Add to Campaign" }).click();
   // Wait for the add itself, not a fixed delay: under load it took over 4 s (run fix3-1, harness defect T-3).
   const added = p.waitForResponse((r) => r.request().method() === "POST" && /\/v1\/campaigns\/[^/]+\/creators$/.test(r.url()), { timeout: 30000 });
-  await p.getByRole("dialog", { name: "Add to campaign" }).getByRole("button", { name: /Eid food push/ }).click();
+  const cd = p.getByRole("dialog", { name: "Add to campaign" });
+  await cd.getByRole("checkbox", { name: /Eid food push/ }).click();
+  await cd.getByRole("button", { name: /Add to 1 campaign/ }).click();
   await added;
   check("campaigns", "creators added from a list selection", (await api("owner", "GET", `/v1/campaigns/${k.id}`)).json.creatorCount === 2);
   await nav(p, "Campaigns");
@@ -493,7 +501,7 @@ if (phase === "main") {
   // Inner sections have no URLs of their own: return to the dashboard through the sidebar.
   await p.getByRole("button", { name: "Dashboard", exact: true }).first().click();
   await p.getByRole("heading", { name: /Welcome back/ }).waitFor({ timeout: 30000 });
-  await p.getByRole("region", { name: "Shortlistings" }).getByText("Food shortlist").waitFor({ timeout: 15000 });
+  await p.getByRole("region", { name: "Shortlists" }).getByText("Food shortlist").waitFor({ timeout: 15000 });
   t = await mainText(p);
   // The API counts days in Pakistan time (Asia/Karachi), so the range is computed there too.
   const pkDate = (ms) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(new Date(ms));
@@ -697,10 +705,8 @@ if (phase === "main") {
 
   // Starter: no data export and no outreach email, refused by the API and explained in the UI.
   const exportDenied = (await api("owner", "POST", "/v1/exports", { kind: "lists" }, { "idempotency-key": `e2e-x1-${label}` })).json;
-  await nav(pl, "Shortlistings");
-  await pl.getByRole("button", { name: "Export CSV" }).click();
-  await pl.getByText(/Data export is included in the Scale plan/).first().waitFor({ timeout: 15000 });
-  check("plans", "Starter: data export is refused by the API and the UI says it is a Scale feature", exportDenied?.error?.details?.reason === "plan_feature");
+  // Owner 2026-11-02: no export buttons in the customer UI; the API rule is still checked.
+  check("plans", "Starter: data export is refused by the API", exportDenied?.error?.details?.reason === "plan_feature");
   const emailDenied = (await api("owner", "POST", `/v1/campaigns/${k.id}/creators/${rw.id}/emails`, { contactId: rw.id, subject: "Hi", body: "Hello", confirm: true }, { "idempotency-key": `e2e-m1-${label}` })).json;
   await nav(pl, "Campaigns");
   await pl.getByRole("button", { name: /Eid food push/ }).first().click();
@@ -719,10 +725,8 @@ if (phase === "main") {
   check("plans", "Scale: unlimited campaigns (a restore that was refused on Starter now works)", (await api("owner", "PATCH", `/v1/campaigns/${sql(`select id from wp.campaigns where workspace_id = '${ws}' and name = 'Starter slot 0'`)}`, { status: "paused" })).status === 200);
   await pl.reload();
   await pl.getByRole("heading", { name: /Welcome back, Olivia/ }).waitFor({ timeout: 30000 });
-  await nav(pl, "Shortlistings");
-  const [csvDownload] = await Promise.all([pl.waitForEvent("download", { timeout: 20000 }), pl.getByRole("button", { name: "Export CSV" }).click()]);
-  const csvText = readFileSync(await csvDownload.path(), "utf8");
-  check("plans", "Scale: the lists export downloads as CSV with the workspace's list and no contact values", /^"List","List description"/.test(csvText) && csvText.includes("Food shortlist") && !/@[a-z0-9-]+\.[a-z]{2,}/i.test(csvText), csvDownload.suggestedFilename());
+  const scaleExport = await api("owner", "POST", "/v1/exports", { kind: "lists" }, { "idempotency-key": `e2e-x2-${label}` });
+  check("plans", "Scale: the lists export is allowed by the API (no button in the UI, owner 2026-11-02)", scaleExport.status === 201 || scaleExport.status === 202, scaleExport.status);
   const usage = (await api("owner", "GET", "/v1/outreach/usage")).json;
   check("plans", "Scale: 2,000 outreach emails per billing period, in test mode (nothing is delivered)", usage.limit === 2000 && usage.used === 0 && usage.mode === "test");
   await pl.context().close();
@@ -740,7 +744,7 @@ if (phase === "main") {
   const p = await pageAs("owner");
   await p.goto("http://localhost:5173/#/dashboard");
   await p.getByRole("heading", { name: /Welcome back, Olivia/ }).waitFor({ timeout: 30000 });
-  await nav(p, "Shortlistings");
+  await nav(p, "Shortlists");
   await p.getByRole("button", { name: /Food shortlist/ }).first().click();
   await p.getByText("Shortlisted for Eid").waitFor({ timeout: 15000 });
   check("restart", "list, members and note persist after API/worker restart", true);
@@ -755,7 +759,7 @@ if (phase === "main") {
   await p.getByRole("heading", { name: /Welcome back/ }).waitFor({ timeout: 15000 });
   await p.waitForTimeout(400);
   check("a11y", "Dashboard: no serious or critical WCAG 2.2 A/AA issues (desktop)", (await axeFindings(p)).length === 0, (await axeFindings(p)).join(" | "));
-  for (const name of ["Search & Discovery", "Shortlistings", "Campaigns", "Credits & billing"]) {
+  for (const name of ["Search & Discovery", "Shortlists", "Campaigns", "Credits & billing"]) {
     await nav(p, name);
     await p.waitForTimeout(400);
     const found = await axeFindings(p);
@@ -810,7 +814,7 @@ if (phase === "main") {
   await m.goto("http://localhost:5173/#/dashboard");
   await m.getByRole("heading", { name: /Welcome back, Olivia/ }).waitFor({ timeout: 30000 });
   check("phone", "dashboard fits a 390 px screen", (await widthOffenders(m)).length === 0, (await widthOffenders(m)).join(" | "));
-  for (const name of ["Search & Discovery", "Shortlistings", "Campaigns", "Billing"]) {
+  for (const name of ["Search & Discovery", "Shortlists", "Campaigns", "Billing"]) {
     let reached = true;
     try {
       await nav(m, name === "Billing" ? "Credits & billing" : name);
