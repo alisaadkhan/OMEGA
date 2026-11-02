@@ -5,6 +5,7 @@ import type { AdminRole } from "../../admin/AdminAuthContext";
 import { adminRequest } from "../../admin/adminApi";
 import { formatTrialDate } from "../../api/trial";
 import { useConfirm, useToast } from "../../lib/toast";
+import { csvCell } from "../../lib/csv";
 
 type Status = TrialRequest["status"];
 const STATUS_LABEL: Record<Status, string> = { new: "New", contacted: "Contacted", approved: "Approved", rejected: "Rejected" };
@@ -48,8 +49,8 @@ export function TrialRequests({ role }: { role: AdminRole }) {
   function downloadCsv() {
     const rows = feedback.data?.feedback ?? [];
     const head = ["createdAt", "workspaceName", "searchQuality", "contactAccuracy", "easeOfUse", "savedTime", "wouldPay", "preferredPlan", "missingFeatures", "comments"] as const;
-    const cell = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-    const csv = [head.join(","), ...rows.map((r) => head.map((h) => cell(r[h])).join(","))].join("\n");
+    // Feedback is customer-written: a cell starting with = or + must not run as a formula in staff's spreadsheet.
+    const csv = [head.join(","), ...rows.map((r) => head.map((h) => csvCell(r[h])).join(","))].join("\n");
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
     a.download = `mushin-trial-feedback-${new Date().toISOString().slice(0, 10)}.csv`;
