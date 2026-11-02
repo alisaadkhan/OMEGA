@@ -76,7 +76,8 @@ export function meiliFilter(f: SearchFilters, now: Date, freshCurrentDays: numbe
   // Creator eligibility (elig-1) first: only eligible creators whose evidence still holds; documents without the field
   // (built before the policy) never match, so a stale index fails closed.
   const out: string[] = ["eligible = true", `eligible_until > ${Math.floor(now.getTime() / 1000)}`];
-  if (f.platform) out.push(`platforms = ${q(f.platform)}`);
+  // Only platforms where the creator qualifies (elig-1 is per profile; counts are never added across platforms).
+  if (f.platform) out.push(`qualifying_platforms = ${q(f.platform)}`);
   if (f.creatorCountry) out.push(`country = ${q(f.creatorCountry)}`);
   // Any reviewed alias of the city (lhr → Lahore); the stored value and canonical spelling are included as written.
   if (f.creatorCity) out.push(`city IN [${[...new Set([f.creatorCity, ...cityFilterValues(f.creatorCity)])].map(q).join(", ")}]`);
@@ -110,13 +111,18 @@ export type RawInterpretation = {
 const PLATFORMS = ["instagram", "tiktok", "youtube"] as const;
 const regionNames = new Intl.DisplayNames(["en"], { type: "region", fallback: "none" });
 
+// Codes the region list names that are not countries (reserved or grouping codes).
+const NOT_COUNTRIES = new Set(["ZZ", "EU", "EZ", "UN", "QO", "XA", "XB"]);
+
 function isoCountry(v: string | null | undefined): string | undefined {
-  const code = v?.trim().toUpperCase();
-  if (!code || !/^[A-Z]{2}$/.test(code) || code === "ZZ") return undefined;
+  const raw = v?.trim().toUpperCase();
+  // "UK" is the common legacy spelling; the ISO code is GB.
+  const code = raw === "UK" ? "GB" : raw;
+  if (!code || !/^[A-Z]{2}$/.test(code) || NOT_COUNTRIES.has(code)) return undefined;
   return regionNames.of(code) ? code : undefined;
 }
 
-/** A real ISO 3166-1 alpha-2 code (upper-cased) or undefined. */
+/** A real ISO 3166-1 alpha-2 code (upper-cased, legacy UK → GB) or undefined. */
 export const isoCountryCode = isoCountry;
 
 function range(min: number | null | undefined, max: number | null | undefined, lo: number, hi: number, integer: boolean) {

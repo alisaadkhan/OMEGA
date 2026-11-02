@@ -118,7 +118,9 @@ describe("API security", () => {
     const a = await user("hdr@brand.pk");
     const r = await app.inject({ method: "GET", url: "/v1/lists", headers: a.headers });
     expect(r.headers["x-content-type-options"]).toBe("nosniff");
-    expect(r.headers["x-frame-options"]).toBeDefined();
+    expect(r.headers["x-frame-options"]).toBe("DENY");
+    expect(r.headers["strict-transport-security"]).toBe("max-age=31536000; includeSubDomains");
+    expect(r.headers["content-security-policy"]).toBe("default-src 'none';frame-ancestors 'none';base-uri 'none';form-action 'none'");
     expect(String(r.headers["cache-control"])).toMatch(/private/);
     expect(String(r.headers["cache-control"])).toMatch(/no-store/);
     expect(r.headers["x-powered-by"]).toBeUndefined();

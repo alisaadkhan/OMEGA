@@ -20,7 +20,8 @@ export function searchChargeHash(req: Pick<SearchRequest, "text" | "filters">): 
 
 /**
  * Charges the standalone catalogue search price once per logical search, with the price the user confirmed. Runs after
- * the search answered, so a failed search never costs anything; an internal lookup by Live Discovery never calls this.
+ * the search answered with at least one eligible creator (a search that finds none is free, owner decision 2026-10-28),
+ * so a failed or empty search never costs anything; an internal lookup by Live Discovery never calls this.
  */
 export async function chargeCatalogSearch(
   deps: { db: Db; billing: Pick<BillingService, "engine">; now: () => Date },
@@ -51,8 +52,9 @@ export async function chargeCatalogSearch(
       reservationId = held.reservationId;
     }
     await tx.execute(sql`
-      insert into wp.catalog_search_charges (id, workspace_id, user_id, search_hash, reservation_id, credits)
-      values (${id}, ${ctx.workspaceId}, ${ctx.userId}, ${hash}, ${reservationId}, ${price})`);
+      insert into wp.catalog_search_charges (id, workspace_id, user_id, search_hash, reservation_id, credits, charged_at)
+      values (${id}, ${ctx.workspaceId}, ${ctx.userId}, ${hash}, ${reservationId}, ${price}, ${deps.now().toISOString()}::timestamptz)`);
+    // charged_at uses the same clock as the window check above (BUG-33): the database clock and the app clock can differ.
     return { charged: price > 0, creditsCharged: price };
   });
 }

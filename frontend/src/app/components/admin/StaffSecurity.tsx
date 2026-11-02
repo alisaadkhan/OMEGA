@@ -58,14 +58,14 @@ export function StaffSecurity() {
       {!supported && <p className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">This browser does not support security keys. Use a current Chrome, Edge, Firefox or Safari.</p>}
       {q.isPending ? <LoadingBlock lines={3} /> : q.isError ? <ErrorState body={errText(q.error)} onRetry={() => void q.refetch()} /> : (
         <div className="space-y-4">
-          <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm shadow-sm">
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-4 text-sm">
             <div style={{ fontWeight: 600 }}>This session</div>
             <p className="mt-1 text-xs text-slate-600">
               Signed in with password and authenticator code{q.data.factors.includes("hwk") ? "; security key confirmed." : "."}
               {q.data.hardwareKeyRequired ? " Your role's admin actions need a confirmed security key." : " Your role does not need a security key."}
             </p>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="rounded-2xl border border-slate-200/80 bg-white">
             <div className="border-b border-slate-100 px-4 py-3 text-sm" style={{ fontWeight: 600 }}>Registered keys</div>
             {q.data.keys.length === 0 ? <p className="px-4 py-3 text-xs text-slate-500">No security key registered yet.</p> : (
               <ul className="divide-y divide-slate-100">

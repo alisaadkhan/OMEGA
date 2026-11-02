@@ -16,6 +16,8 @@ export const users = wp.table("users", {
   legalAcceptedAt: ts("legal_accepted_at"),
   /** Set when this person's first own workspace received the free trial; a later workspace gets none (0036). */
   trialGrantedAt: ts("trial_granted_at"),
+  /** The monthly testing allowance was claimed for this person (0061); one per person. */
+  testingAllowanceAt: ts("testing_allowance_at"),
   createdAt: ts("created_at").notNull().defaultNow(),
   updatedAt: ts("updated_at").notNull().defaultNow(),
 });
@@ -27,6 +29,8 @@ export const workspaces = wp.table("workspaces", {
   /** "deleted": content erased and unreachable (migration 0035); billing records are kept. */
   status: text("status", { enum: ["active", "deleted"] }).notNull().default("active"),
   deletedAt: ts("deleted_at"),
+  /** This workspace receives the monthly testing allowance (0061). */
+  testingAllowanceSince: ts("testing_allowance_since"),
   createdAt: ts("created_at").notNull().defaultNow(),
   updatedAt: ts("updated_at").notNull().defaultNow(),
 });

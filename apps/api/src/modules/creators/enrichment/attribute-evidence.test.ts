@@ -22,26 +22,30 @@ const profile = (o: Partial<StandardProfile> & { captions?: string[] } = {}): St
 const ai = (o: Partial<Assessment>): Assessment => ({ verdict: null, score: null, evidence: [], watchOuts: [], audience: { age: [], gender: null, cities: [], countries: [] }, niches: [], creatorCity: null, creatorCountry: null, minorSigns: { likely: false, reason: "" }, ...o }) as Assessment;
 const statusOf = (rows: ReturnType<typeof deriveAttributes>["evidence"], attribute: string, source: string) => rows.find((r) => r.attribute === attribute && r.source === source)?.status;
 
-describe("evidence-based creator attributes (v2)", () => {
-  it("stores a city named in the creator's own bio, with a quote", () => {
+describe("evidence-based creator attributes", () => {
+  it("stores a city named in the creator's own bio, with a quote; an explicit residence in a known city states its country (owner correction 2026-10-27)", () => {
     const d = deriveAttributes(profile({ bio: "Food vlogger based in Lahore. Collabs via DM" }), null);
     expect(d.city).toBe("Lahore");
-    expect(d.country).toBe("PK");
+    expect(d.countries).toEqual({ platform: null, stated: "PK", statedConfidence: "medium" });
+    expect(deriveAttributes(profile({ bio: "Lahore food vlogger" }), null).countries.stated).toBeNull();
+    expect(deriveAttributes(profile({ bio: "Food vlogger based in Lahore, Pakistan" }), null).countries).toEqual({ platform: null, stated: "PK", statedConfidence: "high" });
     expect(d.evidence.find((r) => r.attribute === "city")).toMatchObject({ source: "profile_text", status: "supported", evidence: expect.stringContaining("Lahore") });
   });
 
-  it("never stores a city only the AI read, nor a registration country alone", () => {
+  it("never stores a city or country only the AI read; a platform country is kept, labelled as the platform's", () => {
     const d = deriveAttributes(profile({ bio: "Daily vlogs and challenges", country: "US" }), ai({ creatorCity: "Karachi", creatorCountry: "PK" }));
     expect(d.city).toBeNull();
-    expect(d.country).toBeNull();
+    expect(d.countries).toEqual({ platform: "US", stated: null, statedConfidence: null });
+    expect(d.country).toBe("US");
     expect(statusOf(d.evidence, "city", "ai_assessment")).toBe("weak");
-    expect(statusOf(d.evidence, "country", "platform_registration")).toBe("weak");
+    expect(d.evidence.find((r) => r.source === "platform_registration")).toMatchObject({ status: "supported", evidence: expect.stringContaining("not proof of residence") });
     expect(statusOf(d.evidence, "country", "ai_assessment")).toBe("weak");
   });
 
-  it("flags a registration country that contradicts the creator's own words, and keeps Pakistan", () => {
+  it("flags a platform country that contradicts the creator's own words; the creator's statement wins", () => {
     const d = deriveAttributes(profile({ bio: "Pakistani YouTuber 🇵🇰 roasting the internet", country: "US" }), null);
     expect(d.country).toBe("PK");
+    expect(d.countries).toMatchObject({ platform: "US", stated: "PK", statedConfidence: "medium" });
     expect(statusOf(d.evidence, "country", "platform_registration")).toBe("conflicting");
   });
 
@@ -55,26 +59,30 @@ describe("evidence-based creator attributes (v2)", () => {
     const captions = ["Craziest market 🇵🇰 pakistan peshawar", "Peshawar street food", "Peshawar old city", "Hunza valley", "Skardu road", "Lahore fort", "Lahore food street", "Karachi beach", "Istanbul", "Cairo", "Dubai", "Q&A"];
     const d = deriveAttributes(profile({ displayName: "Travelwithchris", bio: "Let's travel the world together!", country: "US", captions }), null);
     expect(d.city).toBeNull();
-    expect(d.country).toBeNull();
+    // Visiting Pakistan is not living there; only the platform's own country is known.
+    expect(d.countries).toEqual({ platform: "US", stated: null, statedConfidence: null });
     expect(statusOf(d.evidence, "city", "post_text")).toBe("weak");
   });
 
   it("does not read the abbreviation ISB (Indian School of Business) as Islamabad", () => {
     const d = deriveAttributes(profile({ bio: "One of India's top content creators. He holds an MBA degree from ISB.", country: "IN" }), null);
     expect(d.city).toBeNull();
-    expect(d.country).toBeNull();
+    expect(d.countries).toMatchObject({ platform: "IN", stated: null });
   });
 
   it("does not count a city or Pakistan that appears only as a bio hashtag", () => {
     const d = deriveAttributes(profile({ bio: "gadgets, trending products #hania #lahore #srk #pakistan #bollywood", country: "AE" }), null);
     expect(d.city).toBeNull();
-    expect(d.country).toBeNull();
+    expect(d.countries).toMatchObject({ platform: "AE", stated: null });
   });
 
-  it("flags Pakistan as conflicting when the creator says they live abroad", () => {
+  it("reads where a creator who moved abroad now lives, not where they came from", () => {
     const d = deriveAttributes(profile({ bio: "Daily life of a family that immigrated to Canada from Pakistan in 2023", country: "CA" }), null);
-    expect(d.country).toBeNull();
-    expect(d.evidence.find((r) => r.attribute === "country" && r.value === "PK")).toMatchObject({ status: "conflicting" });
+    expect(d.countries).toEqual({ platform: "CA", stated: "CA", statedConfidence: "high" });
+    expect(d.evidence.find((r) => r.attribute === "country" && r.value === "PK")).toMatchObject({ status: "weak" });
+    const two = deriveAttributes(profile({ bio: "Based in Dubai, UAE and living in London, UK" }), null);
+    expect(two.countries.stated).toBeNull();
+    expect([...new Set(two.evidence.filter((r) => r.attribute === "country" && r.source === "profile_text" && r.status === "conflicting").map((r) => r.value))].sort()).toEqual(["AE", "GB"]);
   });
 
   it("needs a Pakistan cue for Hyderabad, which is also a city in India", () => {
@@ -92,10 +100,22 @@ describe("evidence-based creator attributes (v2)", () => {
 
   it("does not read Pakistan named as a topic as the creator's country", () => {
     const d = deriveAttributes(profile({ displayName: "Coffee With Sumeet Jain", bio: "Insights on political and financial developments in China, India, and Pakistan!", country: "US" }), null);
-    expect(d.country).toBeNull();
+    expect(d.countries.stated).toBeNull();
     expect(statusOf(d.evidence, "country", "profile_text")).toBe("weak");
     expect(deriveAttributes(profile({ bio: "I am from Pakistan city Faisalabad. Live streamer" }), null)).toMatchObject({ city: "Faisalabad", country: "PK" });
-    expect(deriveAttributes(profile({ displayName: "Tech Valley Pakistan", bio: "Ed-tech and entrepreneurship" }), null).country).toBe("PK");
+    // A country in the display name, a content topic, a recipe origin or a video title is not a statement about the creator.
+    expect(deriveAttributes(profile({ displayName: "Tech Valley Pakistan", bio: "Ed-tech and entrepreneurship" }), null).country).toBeNull();
+    expect(deriveAttributes(profile({ bio: "Pakistani recipes and recipes from Italy" }), null).country).toBeNull();
+    expect(deriveAttributes(profile({ bio: "پاکستانی کھانوں کی ترکیبیں" }), null).country).toBeNull();
+    expect(deriveAttributes(profile({ bio: "Recipes", captions: ["Trip to Pakistan", "Lahore vlog", "Pakistan food"] }), null).country).toBeNull();
+  });
+
+  it("supports any country and normalizes the legacy UK code", () => {
+    expect(deriveAttributes(profile({ bio: "📍 Toronto, Canada | food reviews" }), null).countries.stated).toBe("CA");
+    expect(deriveAttributes(profile({ bio: "Proudly from Bangladesh" }), null).countries.stated).toBe("BD");
+    expect(deriveAttributes(profile({ bio: "میں پاکستان سے ہوں" }), null).countries.stated).toBe("PK");
+    expect(deriveAttributes(profile({ bio: "Recipes", country: "UK" }), null).countries.platform).toBe("GB");
+    expect(deriveAttributes(profile({ bio: "Recipes", country: "EU" }), null).countries.platform).toBeNull();
   });
 
   it("does not take a niche from words too general to prove it", () => {

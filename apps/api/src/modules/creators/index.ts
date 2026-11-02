@@ -13,8 +13,8 @@ export { createCreatorIndexer } from "./indexer";
 export type { CreatorIndexer } from "./indexer";
 export { createSummaryWriter } from "./summaries";
 export type { SummaryWriter } from "./summaries";
-export { ineligibleCreatorIds, insertCreator, isVisibleCreator } from "./repository";
-export { creatorEligibility, DEFAULT_ELIGIBILITY, ELIGIBILITY_VERSION, ineligibleError, MIN_FOLLOWERS, profileEligibility, type EligibilityProfile } from "./eligibility";
+export { ineligibleCreatorIds, insertCreator, isVisibleCreator, lockedForWorkspace } from "./repository";
+export { countryLocked, creatorEligibility, DEFAULT_ELIGIBILITY, ELIGIBILITY_VERSION, ineligibleError, MIN_FOLLOWERS, profileEligibility, type EligibilityProfile } from "./eligibility";
 export type { NewCreator, NewProfile } from "./repository";
 
 export function createCreatorsModule(o: { service: CreatorsService; limiter: RateLimiter; removals?: RemovalService; requireStaff?: (action: StaffAction) => PreHandler }): AppModule {
@@ -23,11 +23,16 @@ export function createCreatorsModule(o: { service: CreatorsService; limiter: Rat
 }
 export { createEnrichmentPipeline } from "./enrichment/pipeline";
 export type { EnrichHooks, EnrichJob, EnrichmentPipeline, EnrichResult, SavedResult } from "./enrichment/pipeline";
-export { findProfileByUrl, getEnrichmentSettings, placeAttributes, profileTarget, replaceAttributeEvidence } from "./enrichment/repository";
+export { findProfileByUrl, getEnrichmentSettings, placeAttributes, profileTarget, refreshProfileCountries, replaceAttributeEvidence } from "./enrichment/repository";
 export { deriveAttributes } from "./enrichment/attribute-evidence";
+export { profileCountry, type ProfileCountry } from "./enrichment/country-evidence";
+export { backfillAttributes, restoreBeforeImages } from "./enrichment/backfill";
+export type { BackfillReport, BeforeImage } from "./enrichment/backfill";
 export type { AttributeDecision, EvidenceRow } from "./enrichment/attribute-evidence";
 export type { Assessment } from "./enrichment/assessment";
-export { normalizeProfileUrl, refreshActionFor } from "./rules";
+export { maskContact, normalizeProfileUrl, refreshActionFor } from "./rules";
+export { countryCode } from "./enrichment/country-evidence";
+export { conceptsOf, NICHE_TAXONOMY } from "./terminology";
 export type { CreatorPlatform } from "./rules";
 export { cleanText } from "./enrichment/standardize";
 export { standardize } from "./enrichment/standardize";
@@ -51,3 +56,6 @@ export { understandQuery, type Understood } from "./understand";
 export { understandQueryV2, type PlanGroup, type UnderstoodV2 } from "./understand-v2";
 export { TERMINOLOGY_VERSION, topicFormsV2 } from "./terminology";
 export { profileMetrics } from "./enrichment/signals";
+
+export { lifecycleSweep, locationState, nextAvailability, permittedActions, recordAvailability } from "./lifecycle";
+export type { Availability, LocationState, PermittedActions, SweepReport } from "./lifecycle";

@@ -25,7 +25,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "privacy", label: "Privacy & data" },
 ];
 
-const card = "rounded-xl border border-slate-200 bg-white p-5 shadow-sm";
+const card = "rounded-2xl border border-slate-200/80 bg-white p-5";
 const field = "mt-1 w-full max-w-md rounded-md border border-slate-200 px-2.5 py-1.5 text-sm focus:border-indigo-400 focus:outline-none";
 const button = "rounded-md bg-slate-900 px-3 py-1.5 text-xs text-white disabled:opacity-50";
 
@@ -38,7 +38,7 @@ export function Settings({ onOpenSupport, initialTab = "profile" }: { onOpenSupp
   const [tab, setTab] = useState<Tab>(initialTab);
   return (
     <div className="space-y-5">
-      <h1 className="text-slate-900" style={{ fontSize: 26, fontWeight: 700 }}>Settings</h1>
+      <h1 className="text-[32px] font-semibold leading-10 tracking-[-0.025em] text-slate-900">Settings</h1>
       <div className="flex flex-col gap-5 md:flex-row">
         <nav className="flex shrink-0 gap-1 overflow-x-auto md:w-52 md:flex-col" aria-label="Settings sections">
           {TABS.map((t) => (

@@ -250,3 +250,31 @@ describe("running an estimate", () => {
     expect(left).toEqual([{ e: 0, j: 0 }]);
   });
 });
+
+// BUG-35: the audience endpoints ignored the Pakistan-only lock. A creator whose every profile is excluded by country
+// was quoted, reserved for and queued by any workspace holding its id, which also confirmed that the id exists.
+describe("BUG-35 audience and the Pakistan-only lock", () => {
+  const abroad = () => youtubeCreator({ confirmedCountry: null, country: null, platformCountry: "AE", profiles: [{ platform: "youtube", handle: `abroad_${randomUUID().slice(0, 6)}`, bio: "Food vlogger based in Dubai, UAE" }] });
+
+  it("a workspace that does not hold a country-locked creator gets 'not found' from reading and requesting, and nothing is charged or queued", async () => {
+    const id = await abroad();
+    const c = await customer();
+    await expect(audience.state(c, id)).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(audience.request(c, id, 5)).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(await balance(c)).toMatchObject({ available: 200, reserved: 0 });
+    expect((await ownerQuery<{ n: number }>(`select count(*)::int n from wp.audience_jobs where creator_id = '${id}'`))[0]?.n).toBe(0);
+  });
+
+  it("a workspace that already holds the creator (saved before the lock) can still read its audience state", async () => {
+    const id = await abroad();
+    const c = await customer();
+    const [list] = await ownerQuery<{ id: string }>(`insert into wp.lists (workspace_id, name, created_by) values ('${c.workspaceId}', 'Saved', '${c.userId}') returning id`);
+    await ownerQuery(`insert into wp.list_members (workspace_id, list_id, creator_id, added_by) values ('${c.workspaceId}', '${list?.id}', '${id}', '${c.userId}')`);
+    await expect(audience.state(c, id)).resolves.toMatchObject({ creatorId: id });
+  });
+
+  it("a Pakistani creator is unaffected", async () => {
+    const id = await youtubeCreator();
+    await expect(audience.state(await customer(), id)).resolves.toMatchObject({ creatorId: id, cost: 5 });
+  });
+});

@@ -40,6 +40,20 @@ const sharedObject = z.object({
   TRIAL_ACTIVATION: z.enum(["approval", "automatic"]).default("approval"),
   // MUSHIN-derived metrics from YouTube API data (DATA-004): off until the owner confirms policy eligibility.
   YOUTUBE_DERIVED_METRICS: z.enum(["on", "off"]).default("off"),
+  // How enrichment stores niche, country and city (owner instruction 2026-10-26), separate from SEARCH_PROFILE (which
+  // only chooses query understanding). "evidence": stored from evidence with provenance; "legacy": the AI's reading.
+  ENRICHMENT_ATTRIBUTE_POLICY: z.enum(["evidence", "legacy"]).default("evidence"),
+  // YouTube video titles/descriptions as niche, city and language evidence, and contacts read from a channel's
+  // description: off until the owner confirms Roster's YouTube API use case allows them (Developer Policies III.E.4.h,
+  // YouTube Terms "collect information that might identify a person"). Existing stored data is not deleted by this.
+  YOUTUBE_CONTENT_EVIDENCE: z.enum(["on", "off"]).default("off"),
+  YOUTUBE_DESCRIPTION_CONTACTS: z.enum(["on", "off"]).default("off"),
+  // Owner decision 2026-10-26: no new YouTube Data API calls (channel fetches, video search, audience) while the YouTube
+  // policy decision is pending. Off withholds the key from every YouTube adapter, so no request can be made; YouTube
+  // jobs then fail as "not configured" and are refunded. Retention purges of stored YouTube data keep running.
+  YOUTUBE_API_CALLS: z.enum(["on", "off"]).default("off"),
+  // Semantic (AI) niche reading when the rules cannot read the evidence clearly; needs a configured LLM.
+  NICHE_SEMANTIC: z.enum(["on", "off"]).default("on"),
   // Audience estimate sources, comma-separated; empty (the default) turns the feature off. Only "youtube" exists, and it
   // may be enabled only once MUSHIN may derive metrics from YouTube API data (Developer Policies III.E.2, III.E.4.h, L).
   AUDIENCE_SOURCES: z
@@ -51,19 +65,24 @@ const sharedObject = z.object({
   MEILISEARCH_API_KEY: z.string().min(1).optional(),
   MEILISEARCH_SEARCH_KEY: z.string().min(1).optional(),
   MEILISEARCH_INDEX_PREFIX: z.string().regex(/^[a-z0-9_]*$/, "lowercase letters, digits and _ only").default(""),
-  GROQ_API_KEY: z.string().min(1).optional(),
-  GROQ_MODEL: z.string().min(1).default("openai/gpt-oss-20b"),
-  // Published USD prices per million tokens, checked 2026-10-14: Groq openai/gpt-oss-20b (console.groq.com model page)
-  // and Ollama Cloud gpt-oss:20b pay-as-you-go (ollama.com/pricing). Ollama plans include usage credits, but usage is
-  // still recorded at the per-token price so paid fallback traffic is never booked as free. Re-check on model changes.
-  GROQ_PRICE_IN_PER_MTOK: z.coerce.number().min(0).default(0.075),
-  GROQ_PRICE_OUT_PER_MTOK: z.coerce.number().min(0).default(0.3),
+  // Gemini (main provider, owner decision 2026-10-26) through its OpenAI-compatible endpoint. No model or price is
+  // assumed: set both from https://ai.google.dev/gemini-api/docs/models and /pricing. GEMINI_BILLING=paid confirms the
+  // key belongs to a billed project: unpaid-tier prompts may be used by Google to improve its products, which is not
+  // acceptable for creator data.
+  GEMINI_API_KEY: z.string().min(1).optional(),
+  GEMINI_MODEL: z.string().min(1).optional(),
+  GEMINI_BASE_URL: z.url().default("https://generativelanguage.googleapis.com/v1beta/openai/"),
+  GEMINI_PRICE_IN_PER_MTOK: z.coerce.number().min(0).optional(),
+  GEMINI_PRICE_OUT_PER_MTOK: z.coerce.number().min(0).optional(),
+  GEMINI_BILLING: z.enum(["paid"]).optional(),
+  // Ollama Cloud gpt-oss:20b pay-as-you-go price (ollama.com/pricing, checked 2026-10-14). Plans include usage credits,
+  // but usage is still recorded at the per-token price so paid fallback traffic is never booked as free.
   OLLAMA_API_KEY: z.string().min(1).optional(),
   OLLAMA_BASE_URL: z.url().default("https://ollama.com/v1"),
   OLLAMA_MODEL: z.string().min(1).default("gpt-oss:20b"),
   OLLAMA_PRICE_IN_PER_MTOK: z.coerce.number().min(0).default(0.07),
   OLLAMA_PRICE_OUT_PER_MTOK: z.coerce.number().min(0).default(0.3),
-  // Monthly cap on hosted-LLM spend across Groq and Ollama (USD). Required in production (owner decision 2026-10-14);
+  // Monthly cap on hosted-LLM spend across Gemini and Ollama (USD). Required in production (owner decision 2026-10-14);
   // local and staging use USD 5 when unset. 0 refuses every AI call; no value disables the cap.
   LLM_MONTHLY_BUDGET_USD: z.coerce.number().min(0).optional(),
 });
@@ -71,7 +90,25 @@ type SharedValues = z.output<typeof sharedObject>;
 
 const PADDLE_KEYS = ["PADDLE_API_KEY", "PADDLE_CLIENT_TOKEN", "PADDLE_WEBHOOK_SECRET"] as const;
 
+const LLM_KEYS = {
+  GEMINI_API_KEY: true, GEMINI_MODEL: true, GEMINI_BASE_URL: true, GEMINI_PRICE_IN_PER_MTOK: true, GEMINI_PRICE_OUT_PER_MTOK: true, GEMINI_BILLING: true,
+  OLLAMA_API_KEY: true, OLLAMA_BASE_URL: true, OLLAMA_MODEL: true, OLLAMA_PRICE_IN_PER_MTOK: true, OLLAMA_PRICE_OUT_PER_MTOK: true,
+} as const;
+type LlmValues = Pick<SharedValues, keyof typeof LLM_KEYS>;
+
+function checkGemini(v: LlmValues, ctx: z.RefinementCtx) {
+  if (v.GEMINI_API_KEY) {
+    for (const key of ["GEMINI_MODEL", "GEMINI_PRICE_IN_PER_MTOK", "GEMINI_PRICE_OUT_PER_MTOK"] as const) {
+      if (v[key] === undefined) ctx.addIssue({ code: "custom", path: [key], message: "is required with GEMINI_API_KEY (from Google's model and pricing pages; no value is assumed)" });
+    }
+    if (v.GEMINI_BILLING !== "paid") {
+      ctx.addIssue({ code: "custom", path: ["GEMINI_BILLING"], message: "set GEMINI_BILLING=paid to confirm the key belongs to a billed project (unpaid-tier prompts may be used to improve Google's products)" });
+    }
+  }
+}
+
 function checkShared(v: SharedValues, ctx: z.RefinementCtx) {
+  checkGemini(v, ctx);
   if (v.NODE_ENV === "production" && v.LLM_MONTHLY_BUDGET_USD === undefined) {
     ctx.addIssue({ code: "custom", path: ["LLM_MONTHLY_BUDGET_USD"], message: "is required in production: set the monthly AI spend cap explicitly (USD)" });
   }
@@ -131,6 +168,9 @@ const apiSchema = sharedObject
     RESEND_API_KEY: z.string().min(1).optional(),
     RESEND_WEBHOOK_SECRET: z.string().regex(/^whsec_[A-Za-z0-9+/=]+$/, "must be the whsec_ signing secret").optional(),
     OUTREACH_EMAIL_SENDS_AUTHORIZED: z.enum(["yes", "no"]).default("no"),
+    // The sender's postal address shown in every outreach email footer (commercial email rules require a physical
+    // address of the sender). Required for real sends; test mode shows that it is missing.
+    OUTREACH_POSTAL_ADDRESS: z.string().trim().min(10).max(300).optional(),
     // Where alerts go (audit OPS-03): an incoming-webhook URL of the team's chat (Slack- and Discord-compatible JSON).
     // Unset: alerts are only logged (development). Required in production, over HTTPS. The URL is a secret.
     ALERT_WEBHOOK_URL: z.url().optional(),
@@ -182,7 +222,7 @@ const apiSchema = sharedObject
       ctx.addIssue({ code: "custom", path: ["OUTREACH_EMAIL_MODE"], message: "test mode delivers nothing and is for development only" });
     }
     if (v.OUTREACH_EMAIL_MODE === "resend") {
-      for (const key of ["RESEND_API_KEY", "RESEND_WEBHOOK_SECRET", "OUTREACH_EMAIL_FROM"] as const) {
+      for (const key of ["RESEND_API_KEY", "RESEND_WEBHOOK_SECRET", "OUTREACH_EMAIL_FROM", "OUTREACH_POSTAL_ADDRESS"] as const) {
         if (!v[key]) ctx.addIssue({ code: "custom", path: [key], message: "required when OUTREACH_EMAIL_MODE=resend" });
       }
       if (v.OUTREACH_EMAIL_SENDS_AUTHORIZED !== "yes") {
@@ -304,9 +344,12 @@ function paymentsFrom(v: SharedValues): PaymentsConfig {
 
 
 
+/** Enrichment policy (owner instruction 2026-10-26), independent of SEARCH_PROFILE. */
+export type EnrichmentPolicy = { attributePolicy: "evidence" | "legacy"; youtubeContentEvidence: boolean; youtubeDescriptionContacts: boolean; semanticNiche: boolean };
+
 export type SearchConfig = { host: string; apiKey: string; indexPrefix: string } | null;
 export type LlmProviderConfig = {
-  name: "groq" | "ollama";
+  name: "gemini" | "ollama";
   baseUrl: string;
   apiKey: string;
   model: string;
@@ -319,17 +362,18 @@ function searchFrom(v: SharedValues, key: string | undefined): SearchConfig {
   return { host: v.MEILISEARCH_HOST.replace(/\/+$/, ""), apiKey: key, indexPrefix: v.MEILISEARCH_INDEX_PREFIX };
 }
 
-/** Groq first (cheap default), Ollama Cloud as the fallback when Groq fails (SRS §3.3, architecture Q8). */
-function llmFrom(v: SharedValues): LlmProviderConfig[] {
+/** Gemini first, Ollama Cloud as the fallback when Gemini fails (owner decision 2026-10-26; was Groq, SRS §3.3). */
+function llmFrom(v: LlmValues): LlmProviderConfig[] {
   const out: LlmProviderConfig[] = [];
-  if (v.GROQ_API_KEY) {
+  // checkShared guarantees the model, prices and paid billing whenever the key is set.
+  if (v.GEMINI_API_KEY && v.GEMINI_MODEL && v.GEMINI_PRICE_IN_PER_MTOK !== undefined && v.GEMINI_PRICE_OUT_PER_MTOK !== undefined && v.GEMINI_BILLING === "paid") {
     out.push({
-      name: "groq",
-      baseUrl: "https://api.groq.com/openai/v1",
-      apiKey: v.GROQ_API_KEY,
-      model: v.GROQ_MODEL,
-      priceInPerMTok: v.GROQ_PRICE_IN_PER_MTOK,
-      priceOutPerMTok: v.GROQ_PRICE_OUT_PER_MTOK,
+      name: "gemini",
+      baseUrl: v.GEMINI_BASE_URL.replace(/\/+$/, ""),
+      apiKey: v.GEMINI_API_KEY,
+      model: v.GEMINI_MODEL,
+      priceInPerMTok: v.GEMINI_PRICE_IN_PER_MTOK,
+      priceOutPerMTok: v.GEMINI_PRICE_OUT_PER_MTOK,
     });
   }
   if (v.OLLAMA_API_KEY) {
@@ -410,8 +454,13 @@ export type ApiConfig = {
 
 export type OutreachEmailConfig =
   | { mode: "off" }
-  | { mode: "test"; from: string }
-  | { mode: "resend"; from: string; apiKey: string; webhookSecret: string };
+  | { mode: "test"; from: string; postalAddress: string | null }
+  | { mode: "resend"; from: string; apiKey: string; webhookSecret: string; postalAddress: string };
+
+/** Only the hosted-LLM providers (for the manual smoke test): no database URL or other secret is read. */
+export function loadLlmConfig(env: Env): LlmProviderConfig[] {
+  return llmFrom(parse(sharedObject.pick(LLM_KEYS).superRefine(checkGemini), env));
+}
 
 export function loadApiConfig(env: Env): ApiConfig {
   const v = parse(apiSchema, env);
@@ -442,10 +491,10 @@ export function loadApiConfig(env: Env): ApiConfig {
     llm: llmFrom(v),
     audienceSources: [...new Set(v.AUDIENCE_SOURCES)],
     outreachEmail:
-      v.OUTREACH_EMAIL_MODE === "resend" && v.RESEND_API_KEY && v.RESEND_WEBHOOK_SECRET && v.OUTREACH_EMAIL_FROM
-        ? { mode: "resend", from: v.OUTREACH_EMAIL_FROM, apiKey: v.RESEND_API_KEY, webhookSecret: v.RESEND_WEBHOOK_SECRET }
+      v.OUTREACH_EMAIL_MODE === "resend" && v.RESEND_API_KEY && v.RESEND_WEBHOOK_SECRET && v.OUTREACH_EMAIL_FROM && v.OUTREACH_POSTAL_ADDRESS
+        ? { mode: "resend", from: v.OUTREACH_EMAIL_FROM, apiKey: v.RESEND_API_KEY, webhookSecret: v.RESEND_WEBHOOK_SECRET, postalAddress: v.OUTREACH_POSTAL_ADDRESS }
         : v.OUTREACH_EMAIL_MODE === "test"
-          ? { mode: "test", from: v.OUTREACH_EMAIL_FROM ?? "MUSHIN test <outreach@test.mushin.invalid>" }
+          ? { mode: "test", from: v.OUTREACH_EMAIL_FROM ?? "MUSHIN test <outreach@test.mushin.invalid>", postalAddress: v.OUTREACH_POSTAL_ADDRESS ?? null }
           : { mode: "off" },
     alertWebhookUrl: v.ALERT_WEBHOOK_URL ?? null,
     trustedProxies: v.TRUSTED_PROXIES.split(",").map((s) => s.trim()).filter((s) => s && s !== "none"),
@@ -466,6 +515,7 @@ export type WorkerConfig = {
   catalogSearchBackend: "postgres" | "meilisearch";
   searchProfile: "v1" | "v2";
   sourcePolicy: { youtubeDerivedMetrics: boolean };
+  enrichment: EnrichmentPolicy;
   search: SearchConfig;
   llm: LlmProviderConfig[];
   llmMonthlyBudgetUsd: number;
@@ -488,6 +538,12 @@ export function loadWorkerConfig(env: Env): WorkerConfig {
     catalogSearchBackend: v.CATALOG_SEARCH_BACKEND,
     searchProfile: v.SEARCH_PROFILE,
     sourcePolicy: { youtubeDerivedMetrics: v.YOUTUBE_DERIVED_METRICS === "on" },
+    enrichment: {
+      attributePolicy: v.ENRICHMENT_ATTRIBUTE_POLICY,
+      youtubeContentEvidence: v.YOUTUBE_CONTENT_EVIDENCE === "on",
+      youtubeDescriptionContacts: v.YOUTUBE_DESCRIPTION_CONTACTS === "on",
+      semanticNiche: v.NICHE_SEMANTIC === "on",
+    },
     llmMonthlyBudgetUsd: v.LLM_MONTHLY_BUDGET_USD ?? 5,
     search: searchFrom(v, v.MEILISEARCH_API_KEY),
     llm: llmFrom(v),
@@ -502,7 +558,7 @@ export function loadWorkerConfig(env: Env): WorkerConfig {
       instagramPostActor: v.APIFY_INSTAGRAM_POST_ACTOR_ID === "off" ? null : v.APIFY_INSTAGRAM_POST_ACTOR_ID,
       instagramPostBuild: v.APIFY_INSTAGRAM_POST_BUILD ?? (v.APIFY_INSTAGRAM_POST_ACTOR_ID === "apify/instagram-scraper" ? "0.0.812" : null),
       contentResolutionMax: v.LIVE_CONTENT_RESOLUTION_MAX,
-      youtubeSearch: v.LIVE_YOUTUBE_SEARCH === "video" && Boolean(v.YOUTUBE_API_KEY),
+      youtubeSearch: v.LIVE_YOUTUBE_SEARCH === "video" && v.YOUTUBE_API_CALLS === "on" && Boolean(v.YOUTUBE_API_KEY),
       extractionMultiplier: { instagram: v.LIVE_EXTRACTION_MULTIPLIER_INSTAGRAM, youtube: v.LIVE_EXTRACTION_MULTIPLIER_YOUTUBE, tiktok: v.LIVE_EXTRACTION_MULTIPLIER_TIKTOK },
       profileConcurrency: v.LIVE_PROFILE_CONCURRENCY,
       jobCostCap: {
@@ -512,7 +568,7 @@ export function loadWorkerConfig(env: Env): WorkerConfig {
       },
       jobDeadlineMs: v.LIVE_JOB_DEADLINE_MINUTES * 60_000,
       apifyMonthlyBudgetUsd: v.APIFY_MONTHLY_BUDGET_USD,
-      youtubeApiKey: v.YOUTUBE_API_KEY ?? null,
+      youtubeApiKey: v.YOUTUBE_API_CALLS === "on" ? (v.YOUTUBE_API_KEY ?? null) : null,
       serperApiKey: v.SERPER_API_KEY ?? null,
       serperMonthlySearchLimit: v.SERPER_MONTHLY_SEARCH_LIMIT,
     },

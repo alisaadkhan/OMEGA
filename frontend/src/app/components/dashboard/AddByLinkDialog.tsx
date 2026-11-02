@@ -53,7 +53,7 @@ export function AddByLinkDialog({ open, onClose, onOpenCreator }: { open: boolea
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 px-4" onClick={onClose}>
-      <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-md rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="text-slate-900" style={{ fontSize: 15, fontWeight: 600 }}>Add a creator by profile link</div>
         <p className="mt-1 text-xs text-slate-500">Paste a public Instagram, TikTok or YouTube profile. If MUSHIN already knows them, their profile opens for free.</p>
         <input

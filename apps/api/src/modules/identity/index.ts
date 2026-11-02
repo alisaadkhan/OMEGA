@@ -6,9 +6,10 @@ import { createPrivacyService } from "./privacy";
 import { registerIdentityRoutes } from "./routes";
 import { createTeamService } from "./team";
 import { registerTeamRoutes } from "./team-routes";
-import { createIdentityService, type StartTrial } from "./service";
+import { createIdentityService, type StartTestingAllowance, type StartTrial } from "./service";
 
 export type { StartTrial };
+export { createIdentityService };
 
 /**
  * `appUrl` builds invitation links; `onWorkspaceErased` clears per-workspace caches (the billing access cache) after a
@@ -18,13 +19,15 @@ export function createIdentityModule(o: {
   db: Db;
   /** Starts the trial at first sign-in (TRIAL_ACTIVATION=automatic); null when trials need staff approval. */
   autoTrial: StartTrial | null;
+  /** Monthly testing credits for a new account's first workspace (0061); null = off. */
+  testingAllowance?: StartTestingAllowance | null;
   appUrl?: string;
   verifyEmail?: VerifyEmail | null;
   deleteIdentity?: DeleteIdentity | null;
   onIdentityDeleteFailed?: (userId: string) => void;
   onWorkspaceErased?: (workspaceId: string) => Promise<void>;
 }): { resolveTenant: ResolveTenant; module: AppModule } {
-  const service = createIdentityService(o.db, o.autoTrial);
+  const service = createIdentityService(o.db, o.autoTrial, o.testingAllowance ?? null, o.verifyEmail ?? null);
   const team = createTeamService({ db: o.db, appUrl: o.appUrl ?? "http://localhost:5173", verifyEmail: o.verifyEmail ?? null });
   const privacy = createPrivacyService({
     db: o.db,

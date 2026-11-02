@@ -3,7 +3,7 @@ import { AppError, type Logger } from "@mushin/core";
 import type { Db } from "@mushin/db";
 import { ProviderError } from "@mushin/integrations";
 import type { BillingService } from "../billing/index";
-import { getEnrichmentSettings, type EnrichmentPipeline } from "../creators/index";
+import { getEnrichmentSettings, recordAvailability, type EnrichmentPipeline } from "../creators/index";
 import { failJob, notifyFinished, releaseHeld } from "./finish";
 import * as repo from "./repository";
 
@@ -81,6 +81,11 @@ export function createDiscoveryRunner(deps: Deps) {
       const retryable = pe ? pe.retryable : !(err instanceof AppError) || err.code === "PROVIDER_UNAVAILABLE";
       if (retryable && job.attempts < maxAttempts) throw err; // the queue tries again with backoff
       deps.logger.warn({ err, jobId }, "creator data job failed");
+      // A provider failure concludes nothing about the account: a stored profile is only marked temporarily unavailable.
+      if (job.canonicalUrl) {
+        const url = job.canonicalUrl;
+        await deps.db.withSystem((tx) => recordAvailability(tx, { canonicalUrl: url, observed: "provider_error", source: "refresh_job", reason: `Refresh failed: ${pe?.reason ?? "provider error"}`.slice(0, 300), now: new Date() }));
+      }
       await failJob(deps, job, "PROVIDER_UNAVAILABLE", MESSAGES[pe?.reason ?? "provider"]);
     }
   }

@@ -1,6 +1,6 @@
 import { Writable } from "node:stream";
 import { describe, expect, it } from "vitest";
-import { createLogger, maskEmail } from "./logger";
+import { createLogger, maskEmail, maskIp } from "./logger";
 
 function capture() {
   const lines: Record<string, unknown>[] = [];
@@ -27,9 +27,20 @@ describe("logger", () => {
   it("redacts the authorization header of logged requests", () => {
     const { lines, stream } = capture();
     createLogger({ level: "info" }, stream).info({ req: { headers: { authorization: "Bearer x", cookie: "a=b" } } });
-    const line = lines[0] as { req: { headers: Record<string, string> } };
-    expect(line.req.headers.authorization).toBe("[REDACTED]");
-    expect(line.req.headers.cookie).toBe("[REDACTED]");
+    // Request lines carry no headers at all since 2026-10-28 (method, path, host, masked address only).
+    const text = JSON.stringify(lines[0]);
+    expect(text).not.toContain("Bearer x");
+    expect(text).not.toContain("a=b");
+  });
+
+  it("masks client addresses and phone numbers", () => {
+    const { lines, stream } = capture();
+    createLogger({ level: "info" }, stream).info({ req: { method: "GET", url: "/v1/x", ip: "198.51.100.23" }, trial: { phone: "+92 300 1234567", mobile: "03001234567" } });
+    const text = JSON.stringify(lines[0]);
+    expect(text).toContain("198.51.100.0");
+    expect(text).not.toMatch(/198\.51\.100\.23|1234567/);
+    expect(maskIp("2001:db8:85a3:0:0:8a2e:370:7334")).toBe("2001:db8:85a3::");
+    expect(maskIp("::ffff:10.1.2.3")).toBe("10.1.2.0");
   });
 
   it("redacts secrets nested at any depth without mutating the input", () => {

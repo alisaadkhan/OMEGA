@@ -10,7 +10,7 @@ import { useConfirm, useToast } from "../../lib/toast";
 import { ErrorState, LoadingBlock } from "./states";
 
 type Role = "owner" | "admin" | "member";
-const card = "rounded-xl border border-slate-200 bg-white p-5 shadow-sm";
+const card = "rounded-2xl border border-slate-200/80 bg-white p-5";
 const errText = (err: unknown) => (err instanceof Error ? err.message : undefined);
 
 /** Members (roles, removal, ownership) and invitations. What a role may do is enforced again by the API. */

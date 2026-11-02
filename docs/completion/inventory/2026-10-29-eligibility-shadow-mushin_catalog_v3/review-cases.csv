@@ -1,0 +1,572 @@
+creatorId,platform,band,kind,detail
+10d7b241-423f-42c6-bf68-99f588cee863,instagram,100K-500K,possible_false_negative,passes everything except an unknown country
+12d20010-9fac-4c1f-8d88-f82f351340f9,instagram,50K-100K,possible_false_negative,passes everything except an unknown country
+1dd1e2b5-6cda-487e-9486-17dcd210ff9f,instagram,25K-50K,possible_false_positive,eligible with engagement under 1%
+1dd1e2b5-6cda-487e-9486-17dcd210ff9f,instagram,25K-50K,possible_false_positive,eligible without a stored post date (activity unverified)
+3f9e6514-2753-4e64-b841-89b35c44e038,instagram,50K-100K,possible_false_positive,eligible with engagement under 1%
+3f9e6514-2753-4e64-b841-89b35c44e038,instagram,50K-100K,possible_false_positive,eligible without a stored post date (activity unverified)
+4c8a1e72-de21-4b78-909f-47f61c47fca8,instagram,10K-20K,possible_false_negative,passes everything except an unknown country
+57007806-d870-4cf2-8802-1bb0b88384c2,instagram,10K-20K,possible_false_negative,passes everything except an unknown country
+61e69695-70e3-4289-8bbd-1588807c5a2f,instagram,500K+,possible_false_negative,passes everything except an unknown country
+7428137f-36be-4bfd-ab45-234a161671e5,instagram,100K-500K,possible_false_negative,passes everything except an unknown country
+7a54b4b6-a830-46bd-a133-ea303d1e8a04,instagram,100K-500K,possible_false_positive,eligible without a stored post date (activity unverified)
+7bac2a9a-d3eb-46cd-99a2-eea337ff4cf0,instagram,50K-100K,possible_false_negative,passes everything except an unknown country
+85314ba9-4cb4-4c4c-bdb5-688cc69c3d49,instagram,500K+,possible_false_negative,passes everything except an unknown country
+8ad92538-f0d5-4757-8abe-5aa283cb92f4,instagram,100K-500K,possible_false_positive,eligible without a stored post date (activity unverified)
+8fa6ed65-abec-4c62-9db0-2f6188614b71,instagram,100K-500K,possible_false_negative,passes everything except an unknown country
+b1351d70-120f-4887-8cf5-7dd507d00822,instagram,25K-50K,possible_false_negative,passes everything except an unknown country
+b3207d75-1779-4652-8103-4130594576d7,instagram,10K-20K,possible_false_positive,eligible with engagement under 1%
+b3207d75-1779-4652-8103-4130594576d7,instagram,10K-20K,possible_false_positive,eligible without a stored post date (activity unverified)
+b9dd6d48-8820-47f8-927f-033d307f0a8b,instagram,100K-500K,possible_false_positive,eligible without a stored post date (activity unverified)
+bb3c5132-967e-426c-8330-1f0dd21e995c,instagram,100K-500K,possible_false_negative,passes everything except an unknown country
+e832b427-4f6b-47e6-b4c0-6d6783b1abff,instagram,50K-100K,possible_false_negative,passes everything except an unknown country
+ea2cee26-22b4-4cb5-9f22-8ef112eebd1b,instagram,100K-500K,possible_false_negative,passes everything except an unknown country
+53ba313f-eb81-488e-9a55-5ecdbad2f095,instagram,20K-25K,possible_false_positive,eligible with engagement under 1%
+53ba313f-eb81-488e-9a55-5ecdbad2f095,instagram,20K-25K,possible_false_positive,eligible without a stored post date (activity unverified)
+ef1b9e1c-8eb7-4b57-8360-415c7bf0cb9f,instagram,100K-500K,possible_false_negative,passes everything except an unknown country
+fdd71523-87f2-4798-81d1-7b09046240ed,instagram,500K+,possible_false_negative,passes everything except an unknown country
+0b59bb0a-b60a-45ca-99e6-44c082efc7eb,instagram,10K-20K,possible_false_negative,passes everything except an unknown country
+143d7141-7e96-4ff8-89b2-c86d1de49be6,instagram,50K-100K,possible_false_negative,passes everything except an unknown country
+21227a62-a329-479f-a666-2f91493a65c2,instagram,25K-50K,possible_false_negative,passes everything except an unknown country
+2cfc7273-74b7-414d-9cee-ccea03746956,instagram,500K+,possible_false_negative,passes everything except an unknown country
+2e26b02e-624f-4476-bca3-83e563ac7732,instagram,500K+,possible_false_negative,passes everything except an unknown country
+395c0c3f-9a90-4705-bb26-31a827839881,instagram,100K-500K,possible_false_negative,passes everything except an unknown country
+4dbb1a9c-94ef-4b20-9478-b45d4b9ced07,instagram,100K-500K,possible_false_negative,passes everything except an unknown country
+5278e3e6-2b48-4682-9e72-719cb84b648c,instagram,100K-500K,possible_false_negative,passes everything except an unknown country
+69da222e-2064-4d0a-8ea7-c77492314fd6,instagram,100K-500K,possible_false_negative,passes everything except an unknown country
+7097574f-1e41-4729-b6e4-5ffdd01d49b7,instagram,25K-50K,possible_false_negative,passes everything except an unknown country
+8843817c-f634-4b08-afe3-f565b8b2ddf8,instagram,10K-20K,possible_false_negative,passes everything except an unknown country
+8c598999-bb18-4e13-b75b-9655d9e29176,instagram,50K-100K,possible_false_negative,passes everything except an unknown country
+91f8966c-3668-4298-9c07-2e48c1f65073,instagram,100K-500K,possible_false_negative,passes everything except an unknown country
+a6faa221-8eae-4733-99e7-4ceb59bea841,instagram,100K-500K,possible_false_negative,passes everything except an unknown country
+a77cac22-e38b-48fb-ab6d-a4a7d1bc97b4,instagram,50K-100K,possible_false_negative,passes everything except an unknown country
+bc21e6f6-a2ad-4357-9740-442fb64afeb7,instagram,100K-500K,possible_false_negative,passes everything except an unknown country
+c4683000-99c7-49a9-948a-e5b6176512c7,instagram,100K-500K,possible_false_negative,passes everything except an unknown country
+cb2ad380-57d6-44b2-ad99-7735e2013e4b,instagram,10K-20K,possible_false_positive,eligible with engagement under 1%
+cb2ad380-57d6-44b2-ad99-7735e2013e4b,instagram,10K-20K,possible_false_positive,eligible without a stored post date (activity unverified)
+d847d5a5-de3f-4c36-a5b3-351ed01ab34d,instagram,50K-100K,possible_false_negative,passes everything except an unknown country
+ea2d05d4-4e9e-41a5-8dc3-24009ab28381,instagram,25K-50K,possible_false_negative,passes everything except an unknown country
+ed6e6892-2999-40ef-81bc-8c0dd8b6be0d,instagram,100K-500K,possible_false_negative,passes everything except an unknown country
+f00e5c7f-e7f8-4818-952d-f02754f7aa02,instagram,100K-500K,possible_false_positive,eligible without a stored post date (activity unverified)
+f4097943-932a-4a3f-b784-f83afc0a7162,instagram,25K-50K,possible_false_positive,eligible without a stored post date (activity unverified)
+ffc7d1c1-6cf7-4a7a-9d90-6f7bfe1ef449,instagram,100K-500K,possible_false_negative,passes everything except an unknown country
+2c4cd428-5cf3-4f1b-b63a-c78da899e5ed,tiktok,10K-20K,possible_false_negative,passes everything except an unknown country
+a1b4b7ef-bdb5-426b-9b4a-869cf99fa62d,tiktok,25K-50K,possible_false_negative,passes everything except an unknown country
+2e34a8ee-2e90-44f6-ad6f-0ccee6884b70,instagram,500K+,possible_false_negative,passes everything except an unknown country
+4d823e1d-d2fe-4df8-bde2-73a759815bab,tiktok,25K-50K,possible_false_negative,passes everything except an unknown country
+6ebdfacb-0fa6-4990-8b9c-6d6dbf3a2e80,tiktok,25K-50K,possible_false_negative,passes everything except an unknown country
+df9d5f80-4041-49e3-85f9-811986cb8b00,tiktok,100K-500K,possible_false_negative,passes everything except an unknown country
+77d7c1e2-aba2-4476-8dc0-aa3bf4ef6717,tiktok,100K-500K,possible_false_negative,passes everything except an unknown country
+96aaee73-279b-4ed8-b28f-c572251bd2f4,tiktok,100K-500K,possible_false_negative,passes everything except an unknown country
+ae55b5a7-3a34-4375-9de7-43bb6a1014c1,tiktok,500K+,possible_false_negative,passes everything except an unknown country
+b155066f-daca-473e-904b-5957ec315c93,instagram,100K-500K,possible_false_negative,passes everything except an unknown country
+b24eff7f-8fae-4733-980c-088104a29727,instagram,100K-500K,possible_false_negative,passes everything except an unknown country
+eb9c4196-12af-4301-bd0d-debf120ba4c7,tiktok,100K-500K,possible_false_negative,passes everything except an unknown country
+ec6a4498-880c-416e-9234-078e41800c3f,tiktok,500K+,possible_false_negative,passes everything except an unknown country
+796adfc1-0649-4142-aa32-4bbb269238e4,youtube,100K-500K,possible_false_negative,"last post 91-120 days ago, passes everything else"
+7206aac7-e806-44df-a38d-2e768524e2a0,youtube,50K-100K,needs_review,conflicting country evidence
+ace5f63e-82fc-4da4-b0fb-ff4d33350c04,youtube,10K-20K,possible_false_positive,eligible with engagement under 1%
+ace5f63e-82fc-4da4-b0fb-ff4d33350c04,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+fe80b50f-7003-4e5d-a59e-df9e6ae9f1ee,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+8977e814-c2ce-47c3-9b91-cee540c3538c,youtube,50K-100K,possible_false_positive,eligible YouTube channel with no upload in 45 days
+8977e814-c2ce-47c3-9b91-cee540c3538c,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+7e91fb71-c024-4b09-8796-5ab4b815ef7c,youtube,10K-20K,possible_false_positive,eligible YouTube channel with no upload in 45 days
+7e91fb71-c024-4b09-8796-5ab4b815ef7c,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+9484ed3e-d6ac-4468-b1ff-748a32169973,youtube,10K-20K,possible_false_negative,passes everything except an unknown country
+a0fb4aaf-6714-4306-9b0d-f21d1b0bb3d6,youtube,100K-500K,possible_false_negative,passes everything except an unknown country
+c81af1d4-075a-4b15-b4c7-40d88c14dc94,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+baeabf8e-590b-4b7c-960a-6d5f1bbeb467,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+894141b2-6138-41f8-8948-c42a378712fe,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+ddddf86f-e560-4b5f-a7fc-acb72e5cf9f8,youtube,25K-50K,possible_false_negative,"last post 91-120 days ago, passes everything else"
+6b4b2ca3-82d6-4ff5-9ddc-c2d4aefcfcdc,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+521286ee-8f6e-4e0b-86bb-e8a72bdff388,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+e9de4ef6-ec2a-4412-a46d-73fa625d3fd3,youtube,25K-50K,possible_false_positive,eligible with engagement under 1%
+e9de4ef6-ec2a-4412-a46d-73fa625d3fd3,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+e5be8920-5df6-4b74-8bee-06cd7711f102,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+77f2061e-b424-463d-8adf-18b9b5940116,youtube,500K+,needs_review,conflicting country evidence
+0728d4bb-cbfa-4749-a32d-4df6915b5fd4,youtube,<10K,possible_false_negative,"9,000-9,999 followers, passes everything else"
+1f9f8c0f-1875-4938-9626-844f9675237b,youtube,500K+,possible_false_positive,eligible YouTube channel with no upload in 45 days
+1f9f8c0f-1875-4938-9626-844f9675237b,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+868f41da-12cf-45ac-a438-4eeb06ea8286,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+36c3e529-18f5-4a98-99b1-142802d86bd5,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+7d907050-ab78-4c3b-9a50-01a98ac56309,youtube,100K-500K,possible_false_negative,passes everything except an unknown country
+8075d773-0f10-467d-9955-bafe2a1e5c4b,instagram,10K-20K,possible_false_negative,"last post 91-120 days ago, passes everything else"
+b8006560-3889-4306-bcf3-fda61dd4635d,youtube,100K-500K,possible_false_negative,passes everything except an unknown country
+2b29ff03-9c3d-4ea3-a1e9-f50ccd6b7d7f,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+d8f99b74-8ca1-4844-adac-129a5809148e,tiktok,500K+,possible_false_negative,passes everything except an unknown country
+dccba46c-897b-43a4-8611-9e48784fc679,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+7481c487-7fe2-407d-a105-b4fca482723c,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+83b30d19-308a-486e-b36f-0e0b4d3d1f21,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+df9fc188-f30b-4f4f-9349-88f020abb0d6,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+eef770ea-7d17-4113-8b93-2dcdf1a5e855,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+51150bdf-6636-4eab-9aa5-7102da455e58,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+b2ced42c-ea00-4f50-ac0b-25053cef71fa,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+81efb0e2-56bf-4362-b04a-f8f25e1ab6e9,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+b44b084f-0318-4efd-827f-3e8f9a2e8751,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+be692ecb-9ac8-40b1-aaaf-a709070f211a,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+7303efd1-01eb-49e8-9abd-b876f1c2ab50,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+26a0e872-ffaa-495d-b01f-380fd031c956,youtube,25K-50K,needs_review,conflicting country evidence
+a4fae986-9b52-48dc-9a09-cfaf4fab50ba,youtube,10K-20K,possible_false_negative,passes everything except an unknown country
+b899764e-7eb4-4045-be8d-334d52efe148,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+df1098aa-5815-449f-8738-6afe1cd26a08,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+d6590763-81c6-494e-9923-5d0982eec7ff,youtube,20K-25K,possible_false_negative,passes everything except an unknown country
+f687fa1e-2379-4077-91c6-f9694e14d311,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+31d88c0a-30c1-4b21-b28a-13b74d63c504,youtube,<10K,needs_review,conflicting country evidence
+7f36933d-0a23-424e-b9b9-7f73f8add86f,youtube,<10K,needs_review,conflicting country evidence
+40e4e978-8313-4845-b51d-afa1ca8398e1,youtube,100K-500K,possible_false_positive,eligible YouTube channel with no upload in 45 days
+40e4e978-8313-4845-b51d-afa1ca8398e1,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+33bea25f-dbce-48ad-9d2d-b63e222e3ede,youtube,<10K,needs_review,conflicting country evidence
+1c148a49-86fb-472b-a63b-d07d6c81fcd5,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+2488861d-3c79-43e2-b4fd-5efdcbfee517,youtube,10K-20K,possible_false_positive,eligible YouTube channel with no upload in 45 days
+039151b8-ccae-4fc1-bac2-1486c56c45c5,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+013c0fae-5bd7-4567-b16f-c345402a924a,youtube,20K-25K,possible_false_positive,eligible YouTube channel with no upload in 45 days
+013c0fae-5bd7-4567-b16f-c345402a924a,youtube,20K-25K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+01ab865f-75e4-409c-b147-5db396ae2062,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+16bdfbba-cb8c-4899-a479-fb5add53bd7d,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+3f70e165-fc30-43ca-bb55-2fd9649a690d,youtube,50K-100K,possible_false_negative,passes everything except an unknown country
+412667de-8da7-4bb1-b46f-37efb6489315,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+4ba0c143-3901-4056-a9b1-d69892a2849f,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+9d5d0cc7-137f-40e1-b83c-44e8c1107b5b,youtube,<10K,possible_false_negative,"9,000-9,999 followers, passes everything else"
+f9b5cbf1-e973-4c4b-a86d-8ad1c92a47a5,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+42306f40-ba03-4e35-acdd-f5b75d312a7b,instagram,50K-100K,possible_false_positive,eligible with engagement under 1%
+63495ea9-e652-4406-82f0-1a503932f701,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+91bb4073-a05c-41d1-88ec-3a50a1291fad,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+ad4c5b7a-2d8f-4ad9-83d7-6a31a875c005,instagram,25K-50K,possible_false_negative,passes everything except an unknown country
+c1dd9b22-11b4-454f-b9cd-b830e8227269,tiktok,10K-20K,possible_false_negative,passes everything except an unknown country
+d75602d1-db3b-40c6-a627-19fa0ad7d3ad,youtube,10K-20K,possible_false_positive,eligible YouTube channel with no upload in 45 days
+d75602d1-db3b-40c6-a627-19fa0ad7d3ad,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+d8e16503-d2e3-4771-92bc-c5d798e6fe1a,instagram,100K-500K,possible_false_negative,passes everything except an unknown country
+db770bea-815d-429d-bb95-f5920d0caa55,instagram,10K-20K,possible_false_negative,passes everything except an unknown country
+085f387f-6f1b-4f5c-abf1-4bfcd66f86c5,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+08ea6adc-cc8a-4ecf-8172-77b0803e2459,youtube,50K-100K,possible_false_negative,passes everything except an unknown country
+ef23ba49-c509-408b-baf9-2afda917591b,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+702add28-7b23-4886-a82b-d2b8bdaf13bd,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+9e70d7d4-f53f-4f3d-999c-4962dd1df7b9,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+0161a5e0-117a-44d9-8828-005164e3bd09,youtube,50K-100K,possible_false_negative,passes everything except an unknown country
+12cdab0d-0b1d-42b8-8b6f-80506e9de2e5,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+380c4e78-1fb9-4e41-b653-4162de8a30c7,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+44c2e250-b2bf-4a2c-b564-7e5bae084aa8,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+4bcb1dd3-d5e5-4f1d-af61-d3a6607b52bc,youtube,10K-20K,possible_false_negative,passes everything except an unknown country
+4c0f1132-ab08-47b3-8bc7-fb5b466be764,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+7eb24b21-1849-4c0e-8f01-4ebb0ab185dc,youtube,100K-500K,possible_false_negative,passes everything except an unknown country
+88fff560-b15e-4d6e-9d0f-1ad0c8780045,youtube,100K-500K,possible_false_negative,passes everything except an unknown country
+5b8bb903-2ebc-4bee-ad23-8367c16e6127,youtube,500K+,possible_false_negative,passes everything except an unknown country
+4d2093a7-1410-4dea-9cde-8fcba8c4a169,youtube,25K-50K,possible_false_negative,passes everything except an unknown country
+3d721209-ee5c-45be-b80f-63948a21199a,youtube,20K-25K,possible_false_positive,eligible with engagement under 1%
+3d721209-ee5c-45be-b80f-63948a21199a,youtube,20K-25K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+915f258a-19e1-4a02-b67c-93e8c7cb46e6,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+ab48356b-1f95-4a50-b8c8-964d9ff08d18,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+0931bb18-25da-4973-8972-aa31aba036cf,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+0a010145-4bfc-4439-be37-05b1940caa47,instagram,25K-50K,possible_false_negative,passes everything except an unknown country
+0b621542-a694-4809-8e4a-45a6c31c4723,youtube,100K-500K,possible_false_positive,eligible with engagement under 1%
+0b621542-a694-4809-8e4a-45a6c31c4723,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+0d747feb-2fb5-42f6-9047-bd0caf7798e1,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+15c59c7c-8ad7-48d1-8e62-12d4d3469e8e,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+3572540b-da42-441d-9635-ce4d6209b8c4,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+6a50c2ce-7f3c-4e4d-b0e3-4450184c8640,youtube,25K-50K,possible_false_negative,passes everything except an unknown country
+8231e481-9b9d-46c6-b88f-6bd54ed40679,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+a93b4396-a5cd-44d2-b860-6f328a91100b,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+edf09810-5ebf-4110-8f70-f835db63aba6,youtube,100K-500K,possible_false_negative,passes everything except an unknown country
+10218223-b20b-4718-bf62-7a675c6eec61,youtube,20K-25K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+773b4d69-3bba-4535-8876-4c906d801e65,youtube,500K+,possible_false_negative,passes everything except an unknown country
+e303c43f-bb72-42da-a366-1fb6f4dc5364,youtube,10K-20K,possible_false_negative,passes everything except an unknown country
+e7285b11-5afd-424d-842b-dc3a7711f514,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+f5997d29-d643-44b5-a6e5-d2cab5a4898b,youtube,20K-25K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+32cd8c0b-b7a5-465a-b636-5df2ed63c4ae,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+658c22c8-6909-4e55-8e4a-8874cee3f0e7,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+f89c562f-f88b-43c3-ba20-ff33cbbf9922,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+119e0d29-67b2-4c4c-b95c-99c524ef3a4d,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+11eb53ad-dec5-4ca0-8c04-ad768381e827,youtube,20K-25K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+1453e7e4-11af-465c-bc96-5b046310e245,instagram,500K+,possible_false_negative,passes everything except an unknown country
+15a2f02b-a212-48f1-aee0-bf00411b255a,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+15a4e447-62d1-4a90-abac-f18b2c5477b1,instagram,10K-20K,possible_false_positive,eligible without a stored post date (activity unverified)
+5f2172cc-8f9c-418a-94d4-a864793c2e2e,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+918143f0-407b-4730-a7cf-1a9694cbb320,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+abc6c71b-ec56-44c7-b532-c99e2b5910a2,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+19182d21-b7d9-45e4-a674-92a6ffd2d07b,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+1b57de6b-cf9d-4494-84ab-925ac0059a9e,tiktok,500K+,possible_false_negative,passes everything except an unknown country
+1ca1127d-ee34-4722-83b7-20a9f21ac526,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+86766a2f-e704-426d-8e84-7daa492924e1,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+1762ed8f-f124-45a8-8afe-feff1a181a54,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+98b8bb3c-ad84-49ea-86b9-a703a4233516,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+b1d72e04-0efc-48ca-9b78-0e3c68f3dd7e,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+0677e9cd-6929-445b-a388-cca7b6f8dbd7,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+ec410e66-d025-42f6-8296-abe3a7ccc73d,youtube,<10K,possible_false_negative,"9,000-9,999 followers, passes everything else"
+f856c832-b956-4bcb-8046-da04e4a12012,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+754735fe-c21a-4fd7-96e5-d0c7b456ff10,youtube,50K-100K,possible_false_positive,eligible with engagement under 1%
+754735fe-c21a-4fd7-96e5-d0c7b456ff10,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+60685fe4-bb57-4679-91b1-7691e79cf0b7,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+733ff08c-12f4-40b1-b773-9a51ecc86955,youtube,10K-20K,possible_false_negative,passes everything except an unknown country
+7b327b44-5f5e-4d9a-8b8a-33f56f376a50,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+32d7cff4-a0ab-403f-b28d-c8a7c54ad044,youtube,25K-50K,possible_false_positive,eligible with engagement under 1%
+32d7cff4-a0ab-403f-b28d-c8a7c54ad044,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+4f422721-0218-4d84-8eb6-8c4204bc63c1,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+ca8ac59a-65b0-4b45-a69c-fce5a44292cd,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+717218e2-2608-4679-ad5d-d3dd857c04c9,youtube,50K-100K,possible_false_positive,eligible YouTube channel with no upload in 45 days
+717218e2-2608-4679-ad5d-d3dd857c04c9,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+e5fcf073-36d4-41dd-9c0c-4bef810a34ad,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+2475dc22-90f5-42ca-b5a6-b67fab6b0a51,youtube,20K-25K,possible_false_negative,passes everything except an unknown country
+a43ecea6-f2d8-4a00-bb36-59079159ec86,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+b4fe1162-ce56-4731-aa19-325c2760e4c8,youtube,20K-25K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+128eb5f3-5406-4538-af4a-892b98ca4524,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+b6335518-fd5a-4210-b444-614a2023d1c0,youtube,20K-25K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+ef73643d-bce0-4df0-bcee-5b545648d569,youtube,25K-50K,possible_false_negative,passes everything except an unknown country
+208ae61b-4d0c-44da-911e-62ce26b6fdbc,youtube,25K-50K,possible_false_positive,eligible YouTube channel with no upload in 45 days
+208ae61b-4d0c-44da-911e-62ce26b6fdbc,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+294b21a2-27aa-4a74-8b09-fae16898321e,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+2bc8ad72-ec1f-492d-b41a-6f536c27dcba,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+2445eacf-1372-4325-a5cf-71dbbc6d4101,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+4074bcc0-905f-4d73-923e-29804da0f306,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+8f266629-33bf-4e5b-90be-3e3243c1076e,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+98ea9e18-5013-4a00-9b1a-0458ec8b68c9,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+cd4ab34c-5403-418a-95e5-eda1081549c0,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+9e8d76b8-59c0-4c0a-a017-87ef00babb6a,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+9a59f136-52e2-4d5f-8763-909d9a64a7c6,youtube,50K-100K,possible_false_negative,passes everything except an unknown country
+a5b89559-0c02-4cbf-b813-aa92beffb037,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+ca0f08f3-477f-468c-b7b9-8dcacae4964c,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+315f09b5-e2b6-480f-bd2a-b2fea77cacf4,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+51fcf925-24e0-4ad2-b749-04e25b79bfb9,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+8d9428bb-3362-4b20-85c7-fa5f52c54a91,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+90f75379-ee3b-43cb-ab99-e125861615ed,youtube,10K-20K,possible_false_positive,eligible with engagement under 1%
+90f75379-ee3b-43cb-ab99-e125861615ed,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+a657e303-40e3-4d08-afd0-f3f3cf779976,youtube,<10K,possible_false_negative,"9,000-9,999 followers, passes everything else"
+22231cdd-a123-4496-adb4-4a023ec1572f,youtube,20K-25K,possible_false_positive,eligible with engagement under 1%
+22231cdd-a123-4496-adb4-4a023ec1572f,youtube,20K-25K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+e6d14a93-6e13-4dd7-be9a-981e3f4877eb,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+f8b66a3d-5bef-4d7b-a1e9-8c6e606744c9,youtube,10K-20K,possible_false_positive,eligible with engagement under 1%
+f8b66a3d-5bef-4d7b-a1e9-8c6e606744c9,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+33261ddf-95ed-4b4f-8b74-e2b46d0937f7,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+0e3df102-6fee-4a6e-a04c-8aa792025243,youtube,100K-500K,possible_false_positive,eligible YouTube channel with no upload in 45 days
+0e3df102-6fee-4a6e-a04c-8aa792025243,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+0f0ba96b-f784-4e53-bc28-383ab908085d,youtube,100K-500K,possible_false_positive,eligible with engagement under 1%
+0f0ba96b-f784-4e53-bc28-383ab908085d,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+83d860de-9337-495c-b43c-fe004cbec12d,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+a1c49673-b7a5-436b-b20e-4b2b62e1e320,youtube,50K-100K,possible_false_positive,eligible YouTube channel with no upload in 45 days
+a1c49673-b7a5-436b-b20e-4b2b62e1e320,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+68e0a932-449a-443e-9959-600b4a1443c4,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+9636ae8c-d9fb-4573-801c-5ceddc24b939,youtube,10K-20K,possible_false_negative,passes everything except an unknown country
+53130b04-c812-4e37-a881-2d5af289b1a4,youtube,25K-50K,possible_false_negative,passes everything except an unknown country
+bae7e581-a1d3-459a-8070-335c8ff84d20,youtube,100K-500K,possible_false_negative,passes everything except an unknown country
+3a5751be-4893-4341-8ae2-7bcda4ec317e,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+998e1bc3-47c6-47f4-ba4b-ee859dcd684b,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+b138907d-c58b-4fae-a746-589c5acabc60,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+cb3bfb25-02a5-43fd-8f5a-0b09f2cd6173,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+d00d95a8-f0ee-4aa4-9eb7-83a48523c1b1,youtube,<10K,possible_false_negative,"9,000-9,999 followers, passes everything else"
+d6fbc58a-491a-4006-9c9d-c7248ca723b3,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+f3eccba9-09fa-4ace-b764-0d2799c17532,youtube,100K-500K,possible_false_negative,passes everything except an unknown country
+666a038c-058a-4b6d-aa06-62ac34e24fb4,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+d827621c-89e3-400c-a40d-10019fadaf58,youtube,25K-50K,possible_false_positive,eligible with engagement under 1%
+d827621c-89e3-400c-a40d-10019fadaf58,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+13fe7d23-7b21-46a4-b53b-f34892d77419,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+d2af608b-df84-43d7-a2f1-d4012795ace9,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+b865fae2-c884-48b3-8f68-793cb200bf7b,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+036eb631-ac27-4cc2-96c3-cc54d10c90b0,youtube,500K+,possible_false_negative,passes everything except an unknown country
+ba2903eb-35e2-4de1-8fc3-267a4f1152a6,youtube,50K-100K,possible_false_negative,passes everything except an unknown country
+3830d6f6-1354-4a1b-aa40-3c25a4955404,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+d30d5cd4-4482-42d9-bbb5-8d22b7eef68c,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+fea9c033-afa8-470c-8bdf-081b11e440f0,youtube,20K-25K,possible_false_negative,passes everything except an unknown country
+2fddd217-0465-419b-b706-ffca3c6cd27b,youtube,50K-100K,needs_review,conflicting country evidence
+baafd287-ffb4-4375-b893-7aed0c5753af,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+9cff24ad-b38d-4cc0-adbe-f813d28ae869,youtube,50K-100K,possible_false_negative,passes everything except an unknown country
+caf71d9c-592e-4476-8383-322ca5d41b70,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+d341b19a-2bac-4882-85f3-f583ee963b3f,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+4cbf754b-d871-4570-ab9e-486bf0497990,youtube,10K-20K,possible_false_negative,passes everything except an unknown country
+c254cb4d-2c05-4ee6-8f0c-0cd84c47fac5,youtube,100K-500K,possible_false_positive,eligible with engagement under 1%
+c254cb4d-2c05-4ee6-8f0c-0cd84c47fac5,youtube,100K-500K,possible_false_positive,eligible YouTube channel with no upload in 45 days
+c254cb4d-2c05-4ee6-8f0c-0cd84c47fac5,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+36a06cf1-8450-48de-af87-ead8b8e7ff2c,youtube,100K-500K,possible_false_positive,eligible with engagement under 1%
+36a06cf1-8450-48de-af87-ead8b8e7ff2c,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+8ff16457-c809-4d22-ae89-d7401e781496,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+b63f18fb-ef53-4ac8-9752-6a6eb025a0b8,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+ddc71f40-040a-4941-ad7e-febb6c2b806c,youtube,100K-500K,needs_review,conflicting country evidence
+3566d812-eeff-46a9-901c-f9b01732a4f7,youtube,500K+,possible_false_negative,"last post 91-120 days ago, passes everything else"
+a99b66b6-e0a2-47c4-8947-c91d922ee11b,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+ec350af6-d467-4624-b7b2-c3be26b90a06,youtube,50K-100K,possible_false_negative,passes everything except an unknown country
+cfdead50-0401-4231-bdf1-88f89a4a90ff,youtube,100K-500K,possible_false_negative,passes everything except an unknown country
+fbcee961-3e3c-43ac-9a17-cbfd41302391,youtube,10K-20K,possible_false_positive,eligible YouTube channel with no upload in 45 days
+fbcee961-3e3c-43ac-9a17-cbfd41302391,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+fa884d01-09d1-4d19-8a9b-31359bfdcae2,youtube,100K-500K,needs_review,conflicting country evidence
+2f3c5255-6780-4cf1-b2ad-df30d1211606,youtube,50K-100K,possible_false_positive,eligible YouTube channel with no upload in 45 days
+2f3c5255-6780-4cf1-b2ad-df30d1211606,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+1757102a-b595-48e0-93dd-bdc9117a1c3a,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+23b25fce-cb7c-46e1-a774-577ba734faa7,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+84e304b6-865b-42b6-8c29-7be4b9e4090e,youtube,500K+,possible_false_negative,passes everything except an unknown country
+8e3e25f2-3ffb-46a5-9fc1-87fedfb95d3f,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+2f8dd162-1bd3-4e88-a163-db3f79617153,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+2fd5dbd8-4cbc-463f-8035-aa128cf46b72,instagram,500K+,possible_false_negative,passes everything except an unknown country
+300d1f8c-5c9d-414b-94ab-e2b90b412a4d,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+30e65649-9efe-4a1a-a312-b5372887fa54,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+3106fc4c-04af-4e8a-9023-76984ef3c251,tiktok,50K-100K,possible_false_negative,passes everything except an unknown country
+32730dc8-71a0-49ad-b159-9b980ca91ca6,youtube,500K+,possible_false_positive,eligible with engagement under 1%
+32730dc8-71a0-49ad-b159-9b980ca91ca6,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+8d4e9ed9-6845-4061-a5c0-ab05eb829106,youtube,100K-500K,possible_false_negative,passes everything except an unknown country
+7ff40a8e-8926-42fb-b774-d35baccda1d9,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+9413b009-050c-4d2c-b2db-7a62588b4c48,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+c68c37ef-33e9-4d92-b221-74cccf5a0332,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+83e2bb5c-f11e-4ace-b640-b0999f7ebf4e,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+7edc8834-bbb9-4bcd-8041-fc9942ad4044,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+82446a3a-1826-4dc5-bd8b-b7dc24dbff03,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+eb17626e-638d-4986-9bef-41cacd4a9f60,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+f03a9ef8-89ab-4ee3-9dbf-23106d64ffc3,youtube,20K-25K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+3720f113-3e89-481b-8e6c-e629f8e471a3,youtube,50K-100K,possible_false_positive,eligible with engagement under 1%
+3720f113-3e89-481b-8e6c-e629f8e471a3,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+38fa7a7c-0608-4e91-b03f-1a540c82ba0b,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+242836e2-012f-4441-bb1e-4319d2d1eddf,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+3a0f66ad-ce88-4d8b-850f-d82b17830abe,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+10032ff0-a9c6-4f97-9fee-b332e3ce4307,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+4608b359-3c26-4368-bd70-fe1e3bca3c2a,youtube,100K-500K,possible_false_negative,passes everything except an unknown country
+47277726-abfc-4858-83d2-561bc38f5e9c,instagram,25K-50K,possible_false_positive,eligible without a stored post date (activity unverified)
+42fa7fe6-638d-4690-a25d-691ec5517e93,youtube,100K-500K,possible_false_positive,eligible YouTube channel with no upload in 45 days
+42fa7fe6-638d-4690-a25d-691ec5517e93,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+4d6a3921-a7bb-43a9-afce-3e5b4a72e450,instagram,100K-500K,possible_false_negative,passes everything except an unknown country
+47591db0-d690-4ac2-9d3b-5f46ae17f7ff,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+49a06493-55da-4996-9b26-cf4e19c97ae1,instagram,10K-20K,possible_false_negative,passes everything except an unknown country
+f052ebee-5afb-4487-82f8-de284bea1f98,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+949909de-2395-4abe-b593-b581bd27c94c,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+a5f059cd-4ffe-4738-82d0-e88da09571c8,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+57246541-cbba-4489-bdff-8b043f277fd9,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+5953896d-2743-441f-accc-3aeb211fca22,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+6af3738a-e265-41ca-89e6-e43549ee5825,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+65450ab7-4f7e-4012-9f85-8adc07c3dc92,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+8e5f041c-ef25-4fbd-80e3-95154fac6ff0,youtube,20K-25K,possible_false_negative,passes everything except an unknown country
+3b14d13a-a607-4322-9d84-91e74d3c1b60,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+93b8e100-783a-47fa-971b-3b6461b73488,youtube,20K-25K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+b1e4cf51-28fa-4caf-8103-c74ad3724d9d,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+74b80363-8712-4dd6-ab0c-b0550bf30372,youtube,500K+,possible_false_negative,passes everything except an unknown country
+6fb1eaef-dce8-4d91-9bae-aba7d2bcf98a,youtube,500K+,possible_false_negative,passes everything except an unknown country
+781a3ec5-73f5-46ed-9132-7cf6eec216cd,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+7943ddeb-5cbd-42e3-ab5f-1975ffe25e1d,youtube,50K-100K,possible_false_negative,passes everything except an unknown country
+c13ef9dd-de71-45ad-a652-ab9033d1bc52,youtube,20K-25K,possible_false_positive,eligible YouTube channel with no upload in 45 days
+c13ef9dd-de71-45ad-a652-ab9033d1bc52,youtube,20K-25K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+98a1fe09-9e4f-46b1-9084-304c313f9f62,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+b9bc9ffc-027e-4232-8d99-3719b2c2e574,youtube,100K-500K,possible_false_positive,eligible with engagement under 1%
+b9bc9ffc-027e-4232-8d99-3719b2c2e574,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+aee0af84-c262-4212-b30f-386729c65e03,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+7964135f-924c-4f63-a2a9-6b9bd497e638,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+01002ca3-e363-4923-9ccd-2331f46672b0,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+0fab35e1-7129-4411-8117-47a6a89fd8c4,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+3c399e36-2f15-46cc-baf0-d552342cffe7,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+61d0c0ec-f251-4bf5-8d76-dd82142845db,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+7ccf1bb4-d74a-49d5-aedd-cdb4281402bf,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+0f8f4174-0b05-4840-bcc4-919ef6c267da,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+7d140a66-1736-456b-a97a-e4fcea7bc8b4,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+897eb2eb-a139-41cb-b9ec-28c379e64fbb,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+8c834f75-f151-4e5c-8c23-c6310dc43418,instagram,10K-20K,possible_false_negative,passes everything except an unknown country
+8e595686-cd34-4ebd-a739-c64bbb7d2a47,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+9414e2f8-bde8-4b75-9448-c52fe5c19593,youtube,50K-100K,possible_false_negative,passes everything except an unknown country
+8c0dfbb2-1e2f-44ed-ae4e-4643242db353,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+cbe7e66f-5903-4ccd-acbf-9725d6423517,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+929a166e-3761-4e92-a3cf-eb7a082def93,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+f481f620-b733-42cd-8975-f7a6e6e48d51,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+d600bc2b-089c-43bb-89c6-d570ecc7ae88,youtube,20K-25K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+7fe0b574-b97e-488f-81c8-a1f6b2769424,youtube,<10K,possible_false_negative,"9,000-9,999 followers, passes everything else"
+e65f4785-1284-4a93-99b7-57c38bdfd27a,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+9bf17460-f785-47b7-b66f-70b3a6fc5867,instagram,100K-500K,possible_false_negative,passes everything except an unknown country
+97f0488a-d35e-444c-abbf-99c3b105e6fd,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+9999a699-0f71-4037-b686-4e45564969d8,youtube,25K-50K,possible_false_negative,passes everything except an unknown country
+9ca14c82-8768-4b37-8318-ac7bd0b32da2,instagram,100K-500K,possible_false_negative,passes everything except an unknown country
+d72698a4-6171-42f7-ad33-e48404b42280,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+9ef0977e-d5e7-4eca-9d2c-677b863270a6,youtube,500K+,possible_false_positive,eligible YouTube channel with no upload in 45 days
+9ef0977e-d5e7-4eca-9d2c-677b863270a6,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+fe796b9e-573c-437c-826d-cafe63a01706,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+885eee07-3fac-4dd9-9ff1-41bf41162752,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+25b69dc6-7828-4cc3-b2f5-d579eb657b0d,youtube,20K-25K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+dd59fd7d-b6d8-4ac8-b2a1-2d77e1c7df83,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+aca3efaf-68f6-429d-bae6-e3796b2f7a18,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+2f587728-2e04-48b2-bee7-243186af2c50,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+dab727bb-0ed3-424b-90ce-712c94edc3fd,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+d0e5dcc3-a5d8-4fb1-8680-68dec5e8fe02,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+9331d3a2-210b-44ae-9e31-fdb8275bfd9b,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+99609c90-3d18-4820-9e89-d6cf356dc171,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+a5cb2e5f-6745-4b68-ab42-5a9df5e52b89,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+274de4ae-0962-489d-87d8-486136db6084,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+98a79465-7b83-4526-b5ab-115a882330b7,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+78f46808-364c-48e3-9b8f-f6c9446b28dc,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+afece01a-ea70-4491-a4be-8cb700acd056,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+b419906a-d7e2-4320-bc2f-904ac5f643dc,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+baa718ad-7bca-43a2-a19a-141308af62ee,instagram,100K-500K,possible_false_negative,passes everything except an unknown country
+049b641f-f5f9-473d-80ce-5a65408b69ff,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+52ceb1d3-30f0-4fbd-aef4-fde51f09209e,youtube,50K-100K,possible_false_negative,passes everything except an unknown country
+830c79cc-af3c-43af-b763-46b9e068c5ed,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+9d3af8d5-caea-4d3e-af99-24d067ec4add,youtube,<10K,needs_review,conflicting country evidence
+bf2592e7-7adf-4e42-8d5a-3b12ec3def0d,instagram,500K+,possible_false_negative,passes everything except an unknown country
+c4a04f67-9cb7-4ffb-a413-60e34b09d953,youtube,25K-50K,possible_false_negative,passes everything except an unknown country
+0024efc3-d2d5-43d3-b35a-b6051344f88e,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+94bc4330-7fa6-461b-b667-78c9ab0f6b3d,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+1a467d01-5226-44e4-aeeb-249f9b69b649,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+60c3e0f5-9e70-4bf7-b3d5-afbc6ed16609,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+cbf769bc-2ba4-4317-aeda-39e0639eefd7,youtube,25K-50K,possible_false_negative,passes everything except an unknown country
+cb327cda-0c6d-415c-a2e9-64c84c30b7cd,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+ce971b9d-7b24-4795-863d-1625b8a4c0e8,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+d000f06a-3764-46b6-a832-39f25d4898bc,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+47ae6a76-aff8-47e1-9752-33e4ff70f5b1,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+d62fca05-3465-41d3-8618-8381e56e1a68,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+df8f8037-6135-47fc-aad5-a562660fe685,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+eb2d4832-6acb-48dd-bd4d-87405e5c40ec,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+91ca6247-dd73-4367-ac8c-c4ee5c87106e,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+eb76f04b-7c48-44b3-8792-d2e7ab924a54,youtube,25K-50K,possible_false_negative,passes everything except an unknown country
+edb980d2-52b3-4f45-9e73-8f434b7c914b,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+8de23060-712a-47af-a253-82ad4f9d056f,youtube,20K-25K,possible_false_negative,passes everything except an unknown country
+4465e140-92e8-46ea-96be-ee5ae56b5f9d,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+be665017-9192-49fa-90e8-656ed86879a7,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+c2655a90-32f4-4f62-96a2-6b0062520d9c,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+d89bcf03-2c89-4dca-8389-59601404e6b5,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+c7b57947-281c-4b63-92e8-db9d35e7c785,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+4c17853f-748e-489e-b752-c90c8a681ea0,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+878475c2-0c05-4303-b9b2-9e844edf67a1,youtube,50K-100K,possible_false_negative,passes everything except an unknown country
+6b06f3ee-9a81-463e-bef9-5131de6fc201,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+8e14dccf-6d2e-45e2-ad8c-5ceaf4859fef,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+9cbc752d-a548-4e66-9594-d690a960a256,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+f1410d48-3005-4c74-8830-b52f681be7fa,youtube,<10K,possible_false_negative,"9,000-9,999 followers, passes everything else"
+f61ef58f-dd4f-4f78-a1f8-903d33aa19ea,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+8728ef02-c31e-4dd9-acaf-e604029f67cc,youtube,50K-100K,possible_false_negative,passes everything except an unknown country
+beb4f37d-d8ea-44a9-b91d-adbf924db9d6,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+39ba8346-03dc-4852-9566-3e5d87f12663,youtube,25K-50K,possible_false_positive,eligible YouTube channel with no upload in 45 days
+39ba8346-03dc-4852-9566-3e5d87f12663,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+76c51206-a8bf-4cee-b328-7227aa433d64,youtube,25K-50K,possible_false_positive,eligible YouTube channel with no upload in 45 days
+f9476194-fe16-419d-b1bf-48d58e5abb9f,instagram,25K-50K,possible_false_negative,passes everything except an unknown country
+f98b7f34-c52d-443b-bf3a-e8a5db13dac7,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+759afdc0-950f-430d-a755-591481bf705e,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+0bed83f6-17fb-4503-876f-fa65ca7a6311,youtube,<10K,needs_review,conflicting country evidence
+ce0de027-1390-4d3c-90fb-58b26e798779,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+08caeb93-c281-4501-8c26-ec03b6a1e858,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+9aac4b03-bf50-4f1a-b5ae-f25b6276cbad,youtube,500K+,possible_false_positive,eligible with engagement under 1%
+9aac4b03-bf50-4f1a-b5ae-f25b6276cbad,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+f9d1cf02-50f8-480b-a7af-77d8bda4b13a,instagram,25K-50K,possible_false_positive,eligible without a stored post date (activity unverified)
+8163b32a-71f2-4f7b-a97d-55cd48c328cb,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+c5382823-08db-48e9-b69e-170c52622f8b,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+7e85a6e2-3ca7-484f-8462-65ffd4a64e35,youtube,100K-500K,possible_false_negative,"last post 91-120 days ago, passes everything else"
+316655d5-257e-434e-a287-2733554c6a19,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+612cbf6a-363e-46d4-99be-da214bb969fb,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+be42127c-bcfd-45c4-abe2-475dfea466f5,youtube,10K-20K,possible_false_negative,passes everything except an unknown country
+ca0f1fba-fd8e-4c9e-a649-17dcb391c5ae,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+73218ebe-0824-4e30-905f-9407e291020e,youtube,50K-100K,possible_false_positive,eligible with engagement under 1%
+73218ebe-0824-4e30-905f-9407e291020e,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+8c5033f5-489f-4115-a2c2-a7a7756d3d3e,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+2f961c7b-c92f-40ef-ad78-cc2e0538534b,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+426449b3-f8a2-4c65-aa55-dc6d685adb04,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+94b659c8-6d72-4566-bad1-e3abe43f31b5,youtube,100K-500K,possible_false_positive,eligible YouTube channel with no upload in 45 days
+94b659c8-6d72-4566-bad1-e3abe43f31b5,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+9d283db6-c614-48b6-994b-5af89620d718,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+fc7abe07-f648-4666-a57a-8b950d3e441c,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+d77c92d8-7cfc-450c-971d-d7e2159872bd,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+8010ccb1-0be2-4076-8052-1d36abccb215,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+cc213a5b-efe2-48bf-b077-eb6f60efa718,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+ad4980b9-cdaf-4403-8ba4-aeb9f64a4df6,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+2b318ac8-7343-4e87-9a4e-611fb52e46fe,youtube,20K-25K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+b34f2492-36ec-4c4a-813d-08c26f59fd8d,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+bc09bc77-e34a-4f19-8f56-ded8edeb2ba5,youtube,10K-20K,possible_false_positive,eligible with engagement under 1%
+bc09bc77-e34a-4f19-8f56-ded8edeb2ba5,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+37a99903-fb6a-4ba9-9660-9adbe864aa6e,youtube,25K-50K,possible_false_negative,passes everything except an unknown country
+48294578-97fe-4530-851e-9b9f513edbb8,youtube,10K-20K,possible_false_negative,passes everything except an unknown country
+053dfca9-b8ae-4cc1-ba2b-ec06ab66ce75,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+83f2cb7e-f8c9-4231-aaea-834408c597cf,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+58be9a40-47d1-4aa4-be6c-2d9bdd62a694,youtube,500K+,possible_false_negative,passes everything except an unknown country
+f8ac59cc-2ab5-467f-bea8-47b1648e5ffc,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+b8ba6650-3abe-4739-9219-7d1696405ed1,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+0a4e2196-e828-4957-800f-ce3deed2b18c,youtube,<10K,possible_false_negative,"9,000-9,999 followers, passes everything else"
+44d97f5c-c899-474a-b384-4af1f6981bd2,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+e26f556c-f0fa-4fb7-9f90-ca98477a8432,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+2845c787-515c-494a-9566-250b064e51f4,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+70fed49c-3f53-4c3b-88ab-238ab1d7674a,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+d66a9bd0-de88-49fa-a37c-f57205b11506,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+66d35017-76b1-4db0-af4d-4f09dba79de6,youtube,10K-20K,possible_false_positive,eligible with engagement under 1%
+66d35017-76b1-4db0-af4d-4f09dba79de6,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+40cef797-890c-4ddf-960e-d4b15dc6a7f3,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+000e8aef-5a7e-402f-a9c1-7f4f4638732c,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+1e476ed9-df37-4328-a302-a4cb3deed0d1,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+e801c023-8e6e-472e-8bc4-619b023b9b55,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+ce4273fa-a214-4be4-8232-f99625f36596,youtube,20K-25K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+07ff8c62-c3ff-42b2-afde-5691a2e19685,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+a0b62074-98bc-4b7e-81a7-e9d266501572,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+104aee5a-9a17-41c5-9bab-20977a694ad9,youtube,50K-100K,possible_false_positive,eligible with engagement under 1%
+104aee5a-9a17-41c5-9bab-20977a694ad9,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+657feae6-f23d-406b-8fc8-95e4b4342996,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+801f460b-826b-412d-8363-6f57aec34cda,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+2741af6a-9c3d-4036-9701-bcb604552faf,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+476c7493-32c4-4ad0-8b6a-78c45b7ef6e4,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+5ebcb2f5-df87-4247-9680-6b13d5fc07c6,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+121d1e79-1fd0-4232-9b75-abd5848d2ac1,youtube,<10K,possible_false_negative,"9,000-9,999 followers, passes everything else"
+2c7e88c5-d874-45b3-99a0-b7aa5df86c49,youtube,50K-100K,possible_false_positive,eligible with engagement under 1%
+2c7e88c5-d874-45b3-99a0-b7aa5df86c49,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+4dfdf692-059d-4286-a0c8-c3c23e9fed19,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+77ed491a-7463-4a62-90ca-a1fc79be2400,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+d00a910e-b71b-42ca-9899-33fd2b25566a,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+a06d03e1-ed14-436e-b4f9-83c019d643a9,youtube,50K-100K,possible_false_negative,passes everything except an unknown country
+e5d1e9dc-1f56-4a3b-9017-69a6441ddedb,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+88579c58-476f-41ee-9540-43a700de0d46,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+4e4fc68a-6109-4c77-98ea-49f3b58b007a,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+5e3fa265-5c0f-486f-b6a9-4eb2a3c480e0,youtube,20K-25K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+c1297543-8da0-4936-93f6-7a2962b2c9bc,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+d6551f06-63ad-4b93-bc24-c36da7946943,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+491729df-29eb-4aec-918e-c30e534be184,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+f268fcd7-95f9-4343-b206-85396ad458a6,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+7e58c41e-28ac-47f3-82d8-a68aac6ee3f3,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+00f3f269-51d5-4f7a-81d3-ce8ef96d6b90,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+d4131696-2c8b-4525-89a0-c083740fd2b4,youtube,25K-50K,possible_false_positive,eligible YouTube channel with no upload in 45 days
+d4131696-2c8b-4525-89a0-c083740fd2b4,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+14573648-e5d1-4b45-91fc-b18225f0a9c6,youtube,20K-25K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+ddccab2d-5e25-4083-8e46-b39ff4f01dc9,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+2bc92d96-1729-41fe-b663-df128af15afb,youtube,50K-100K,possible_false_negative,passes everything except an unknown country
+37f8ad90-ee83-4a19-b1b1-c39950116f7f,youtube,25K-50K,possible_false_negative,passes everything except an unknown country
+44a4e7fb-d563-4f4f-91b8-4e07d9d79252,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+e90bde38-7533-4ec9-9277-241080457be1,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+b131bd1e-ebcf-40f2-ac70-300e85b6ffe8,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+8eaca7b6-96fd-48fc-8161-141a9be59e54,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+d1062e2c-556b-47a8-986c-1f9faed2a50e,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+04d69eb0-4a0a-4eaa-b53c-392728417705,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+ceb3d6cb-26e5-4943-bea1-f6d1ef397b8f,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+3a852cbc-d3b1-4730-ad6e-27f1b9604e1c,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+586c869a-b28a-4d57-97bf-48c5fe4c5c1a,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+b74beb1f-bb66-432b-b87e-8b9908051d0a,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+553d7156-01d8-4a60-b8cf-2da7562c5a2b,youtube,10K-20K,possible_false_positive,eligible with engagement under 1%
+553d7156-01d8-4a60-b8cf-2da7562c5a2b,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+612319bf-c368-401a-ab5d-e056f55fcc52,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+d24e1380-91c1-42ce-8647-2f1fac692569,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+949460c5-5f67-4900-9cdd-2e454f5cf773,youtube,<10K,possible_false_negative,"9,000-9,999 followers, passes everything else"
+a1ecb44b-3656-48bc-92c7-aef85586a637,youtube,50K-100K,possible_false_negative,passes everything except an unknown country
+817bc9e3-11d8-4e56-85a8-cf9d40c0c5d2,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+cb682006-4619-4537-91b5-ab267a9b7ae6,youtube,25K-50K,possible_false_positive,eligible YouTube channel with no upload in 45 days
+cb682006-4619-4537-91b5-ab267a9b7ae6,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+e2aeb360-fc47-4842-912f-d161bb8c90e6,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+e1599260-6f65-4712-92ea-b486387b1f8f,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+a791d603-266f-49a4-b4a6-252dfbb35694,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+a17f19d8-f8ab-4d07-8f1b-55e92abf93bc,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+021577e7-bb24-48b3-8f91-40c9b337835b,youtube,100K-500K,possible_false_negative,passes everything except an unknown country
+b349d10d-31c3-4856-abaf-a834cd579126,youtube,10K-20K,possible_false_negative,passes everything except an unknown country
+db741132-548c-425d-bc22-e4d8089bcba4,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+969a0154-1d36-40c7-a888-265bcad4ab85,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+ceafe78b-f463-4fbb-93be-13fe37d3d8e0,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+942a1dd7-25a6-4cc2-86d5-22d2156a61f1,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+5c25960d-6655-498c-8b9c-8bbdc6f9a41d,youtube,25K-50K,possible_false_positive,eligible with engagement under 1%
+5c25960d-6655-498c-8b9c-8bbdc6f9a41d,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+353bf633-4c5a-49b8-9494-2f1df5eb0935,youtube,20K-25K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+8e905fdb-a16d-44ca-ba4e-0baa8b784a9b,youtube,<10K,needs_review,conflicting country evidence
+a9907322-67f8-42eb-ab05-cc316a32586b,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+f0c14afe-60fa-4e4d-9450-f7f02be80666,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+1227d948-2fcc-49c4-afad-824b3d84dcdc,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+3bd53bf9-827b-4d2a-811b-60835a6667ba,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+7d2b1991-70d1-488c-883a-f336ef271eac,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+ea77c33b-12bd-456c-bc86-39c9300044b4,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+82c85f8b-1b84-42a9-a526-456d51c49e7a,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+0a72bb4d-8b98-428f-bd61-7b87cc5fbe52,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+3f4363ed-949f-4bc1-a29e-9b72cdd8718f,youtube,20K-25K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+7e9d3b9f-7b66-4f86-85b5-c8d3acb42510,youtube,<10K,possible_false_negative,"9,000-9,999 followers, passes everything else"
+31d1e579-0479-4c5e-80f4-84999970038f,youtube,10K-20K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+9433977e-4f17-4a72-8b90-5750c63ae8c5,instagram,100K-500K,possible_false_negative,passes everything except an unknown country
+0025625a-f774-416d-87b0-444515b26cf7,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+003dc480-cf85-47c6-8f50-b4d3c56216f6,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+9daa255c-5008-4399-8cfa-8e3ac20a6ab2,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+21f3fca4-5521-408f-a0e9-9aca9f95e505,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+ad70a649-86c5-4188-bbad-6dd52936fe4b,youtube,25K-50K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+028985de-9772-4140-9af1-dc0ffd7596fd,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+04114ddb-b707-4936-ac13-ffc4239d2f79,youtube,100K-500K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+f55d1750-d8c4-4349-aa59-75a92e0823a4,youtube,500K+,possible_false_negative,passes everything except an unknown country
+b321ee17-ba05-468b-9b83-cac22a3f8ca7,youtube,50K-100K,possible_false_positive,eligible YouTube channel with no upload in 45 days
+b321ee17-ba05-468b-9b83-cac22a3f8ca7,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+5eb756af-a4a5-4853-8e92-dca391e8c14d,youtube,50K-100K,possible_false_positive,eligible YouTube channel with no upload in 45 days
+5eb756af-a4a5-4853-8e92-dca391e8c14d,youtube,50K-100K,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+9de13524-73ea-406b-b039-ced45c0e310f,youtube,10K-20K,needs_review,conflicting country evidence
+9e357d23-deda-48e4-95b9-b6ba1c5a305e,youtube,500K+,low_confidence_eligible,Pakistan only from the platform-declared country (low confidence)
+361f90b5-8649-4e57-b875-a3d78c92fe8a,youtube,10K-20K,possible_false_negative,passes everything except an unknown country
+435a699c-b565-4872-b7fa-cce33f6deb38,youtube,100K-500K,needs_review,conflicting country evidence

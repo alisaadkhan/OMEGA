@@ -73,6 +73,8 @@ describe("billing API", () => {
     const page = await app.inject({ method: "GET", url: path });
     expect(page.headers["content-type"]).toMatch(/text\/html/);
     expect(page.body).toContain("$46.00");
+    // Its own CSP: forms may post back to the API and land on the app; no scripts, no framing (browser PAY-1 regression).
+    expect(page.headers["content-security-policy"]).toBe("default-src 'none'; style-src 'unsafe-inline'; img-src data:; form-action 'self' http://localhost:5173; frame-ancestors 'none'; base-uri 'none'");
 
     const pay = await app.inject({
       method: "POST",

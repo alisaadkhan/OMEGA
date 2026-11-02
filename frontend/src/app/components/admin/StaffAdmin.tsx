@@ -41,7 +41,7 @@ export function Approvals({ me, role }: { me: string; role: AdminRole }) {
             const mine = a.requestedBy.id === me;
             const needsSuper = a.requiresSuperAdmin && role !== "super_admin";
             return (
-              <li key={a.id} className="rounded-xl border border-slate-200 bg-white p-3 text-xs shadow-sm">
+              <li key={a.id} className="rounded-2xl border border-slate-200/80 bg-white p-3 text-xs">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm text-slate-900" style={{ fontWeight: 600 }}>{ACTION_LABEL[a.action]}</span>
                   <span className="rounded-full border border-slate-200 px-2 py-0.5 text-[10px] text-slate-600">{a.status}</span>
@@ -80,7 +80,7 @@ function CreditCorrectionForm() {
   const [days, setDays] = useState(90);
   const valid = /^[0-9a-f-]{36}$/i.test(workspaceId.trim()) && amount >= 1 && amount <= 100_000 && days >= 1 && days <= 365;
   return (
-    <details className="mb-4 rounded-xl border border-slate-200 bg-white p-3 text-xs shadow-sm">
+    <details className="mb-4 rounded-2xl border border-slate-200/80 bg-white p-3 text-xs">
       <summary className="cursor-pointer text-sm text-slate-900" style={{ fontWeight: 600 }}>Request a credit correction</summary>
       <div className="mt-2 flex flex-wrap items-end gap-2">
         <label className="text-slate-600">Workspace id<input value={workspaceId} onChange={(e) => setWorkspaceId(e.target.value)} className="mt-0.5 block w-80 rounded-md border border-slate-200 px-2 py-1" /></label>
@@ -125,7 +125,7 @@ export function StaffDirectory({ me, role }: { me: string; role: AdminRole }) {
     <div>
       <Header title="Staff" sub="Staff accounts and their access. Super Admin accounts are created and recovered only through the owner's bootstrap process, never from this console." />
       {q.isPending ? <LoadingBlock lines={4} /> : q.isError ? <ErrorState body={errText(q.error)} onRetry={() => void q.refetch()} /> : (
-        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-2xl border border-slate-200/80 bg-white">
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500"><tr>{["Name", "Email", "Role", "Status", "Keys", "Last sign-in", ""].map((h) => <th key={h} className="px-3 py-2">{h}</th>)}</tr></thead>
             <tbody className="divide-y divide-slate-100">
@@ -152,7 +152,7 @@ export function StaffDirectory({ me, role }: { me: string; role: AdminRole }) {
         </div>
       )}
       {superAdmin && (
-        <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3 text-xs shadow-sm">
+        <div className="mt-4 rounded-2xl border border-slate-200/80 bg-white p-3 text-xs">
           <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Add a staff member</div>
           <p className="mt-1 text-slate-500">New staff start as Support. Hand the temporary password and authenticator key over in person or by another secure channel; they are shown once.</p>
           <div className="mt-2 flex flex-wrap items-end gap-2">

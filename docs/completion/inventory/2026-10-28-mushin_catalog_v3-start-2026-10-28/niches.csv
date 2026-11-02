@@ -1,0 +1,88 @@
+platform,label,main_niche_profiles,secondary_niche_profiles,main_high,main_medium,main_low,main_from_bio,main_from_recent_content,main_from_ai,main_from_name_only,eligible_main
+youtube,Bridal,13,62,8,5,0,13,0,0,0,5
+youtube,Fashion,28,135,10,18,0,28,0,0,0,5
+youtube,Beauty,81,176,55,26,0,81,0,0,0,14
+youtube,Tech,96,117,58,38,0,96,0,0,0,19
+youtube,Food,244,275,174,70,0,244,0,0,0,45
+youtube,Travel,99,306,38,61,0,99,0,0,0,14
+youtube,Comedy,53,179,33,20,0,53,0,0,0,12
+youtube,Finance,32,61,25,7,0,32,0,0,0,9
+youtube,Wellness,30,45,20,10,0,30,0,0,0,2
+youtube,Lifestyle,38,154,9,29,0,38,0,0,0,5
+youtube,Education & How-to,98,42,50,48,0,98,0,0,0,15
+youtube,Gaming,75,15,33,42,0,75,0,0,0,13
+youtube,History,35,18,18,17,0,35,0,0,0,7
+youtube,Literature,20,9,14,6,0,20,0,0,0,4
+youtube,Agriculture,9,7,6,3,0,9,0,0,0,6
+youtube,Business & Ecommerce,95,55,28,67,0,95,0,0,0,21
+youtube,Automotive,21,6,7,14,0,21,0,0,0,5
+youtube,Religion,11,14,5,6,0,11,0,0,0,2
+youtube,Music,5,8,0,5,0,5,0,0,0,0
+youtube,News & Commentary,16,7,13,3,0,16,0,0,0,5
+youtube,Sports,16,10,4,12,0,16,0,0,0,2
+youtube,Entertainment,33,36,5,28,0,33,0,0,0,7
+youtube,Real Estate,7,3,4,3,0,7,0,0,0,4
+youtube,(variety),14,,,,,,,,,1
+youtube,"(unknown: assessed, no reliable niche)",416,,,,,,,,,53
+youtube,(not assessed under the 0054 model),794,,,,,,,,,
+youtube,(main niche kept although its only evidence is now-gated YouTube video text),0,,,,,,,,,
+youtube,(conflicting niche evidence recorded),0,,,,,,,,,
+youtube,(no niche evidence at all),356,,,,,,,,,
+instagram,Bridal,13,3,2,11,0,13,0,0,0,2
+instagram,Fashion,5,14,2,3,0,5,0,0,0,0
+instagram,Beauty,5,7,3,2,0,5,0,0,0,1
+instagram,Tech,0,0,0,0,0,0,0,0,0,0
+instagram,Food,18,13,11,7,0,18,0,0,0,6
+instagram,Travel,8,8,2,6,0,8,0,0,0,1
+instagram,Comedy,0,1,0,0,0,0,0,0,0,0
+instagram,Finance,3,0,1,2,0,3,0,0,0,0
+instagram,Wellness,5,0,0,5,0,5,0,0,0,0
+instagram,Lifestyle,4,8,2,2,0,4,0,0,0,1
+instagram,Education & How-to,0,0,0,0,0,0,0,0,0,0
+instagram,Gaming,0,0,0,0,0,0,0,0,0,0
+instagram,History,0,0,0,0,0,0,0,0,0,0
+instagram,Literature,1,0,0,1,0,1,0,0,0,0
+instagram,Agriculture,0,0,0,0,0,0,0,0,0,0
+instagram,Business & Ecommerce,1,4,1,0,0,1,0,0,0,0
+instagram,Automotive,0,0,0,0,0,0,0,0,0,0
+instagram,Religion,0,0,0,0,0,0,0,0,0,0
+instagram,Music,0,0,0,0,0,0,0,0,0,0
+instagram,News & Commentary,0,0,0,0,0,0,0,0,0,0
+instagram,Sports,0,0,0,0,0,0,0,0,0,0
+instagram,Entertainment,0,0,0,0,0,0,0,0,0,0
+instagram,Real Estate,0,0,0,0,0,0,0,0,0,0
+instagram,(variety),17,,,,,,,,,3
+instagram,"(unknown: assessed, no reliable niche)",26,,,,,,,,,2
+instagram,(not assessed under the 0054 model),2,,,,,,,,,
+instagram,(main niche kept although its only evidence is now-gated YouTube video text),0,,,,,,,,,
+instagram,(conflicting niche evidence recorded),0,,,,,,,,,
+instagram,(no niche evidence at all),23,,,,,,,,,
+tiktok,Bridal,0,1,0,0,0,0,0,0,0,0
+tiktok,Fashion,1,1,1,0,0,0,1,0,0,0
+tiktok,Beauty,1,1,0,1,0,1,0,0,0,0
+tiktok,Tech,0,0,0,0,0,0,0,0,0,0
+tiktok,Food,9,1,4,5,0,6,3,0,0,0
+tiktok,Travel,0,0,0,0,0,0,0,0,0,0
+tiktok,Comedy,2,2,0,2,0,2,0,0,0,0
+tiktok,Finance,0,0,0,0,0,0,0,0,0,0
+tiktok,Wellness,0,0,0,0,0,0,0,0,0,0
+tiktok,Lifestyle,0,0,0,0,0,0,0,0,0,0
+tiktok,Education & How-to,0,0,0,0,0,0,0,0,0,0
+tiktok,Gaming,0,0,0,0,0,0,0,0,0,0
+tiktok,History,0,0,0,0,0,0,0,0,0,0
+tiktok,Literature,0,0,0,0,0,0,0,0,0,0
+tiktok,Agriculture,0,0,0,0,0,0,0,0,0,0
+tiktok,Business & Ecommerce,2,0,1,1,0,1,1,0,0,0
+tiktok,Automotive,0,0,0,0,0,0,0,0,0,0
+tiktok,Religion,0,0,0,0,0,0,0,0,0,0
+tiktok,Music,1,0,1,0,0,0,1,0,0,0
+tiktok,News & Commentary,0,0,0,0,0,0,0,0,0,0
+tiktok,Sports,0,0,0,0,0,0,0,0,0,0
+tiktok,Entertainment,0,0,0,0,0,0,0,0,0,0
+tiktok,Real Estate,0,0,0,0,0,0,0,0,0,0
+tiktok,(variety),0,,,,,,,,,0
+tiktok,"(unknown: assessed, no reliable niche)",14,,,,,,,,,0
+tiktok,(not assessed under the 0054 model),3,,,,,,,,,
+tiktok,(main niche kept although its only evidence is now-gated YouTube video text),0,,,,,,,,,
+tiktok,(conflicting niche evidence recorded),0,,,,,,,,,
+tiktok,(no niche evidence at all),14,,,,,,,,,

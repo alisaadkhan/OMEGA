@@ -106,7 +106,7 @@ describe("live discovery under v2 (VAR2-L)", () => {
     expect(results.length).toBe(8);
     expect(job.live?.creditsCharged).toBe(50 + 8 * 10);
   });
-  it("VAR2-L04 stores city and country only from the creator's own words, and keeps provenance", async () => {
+  it("VAR2-L04 stores city and country only from the creator's own words (never country from a city or name), and keeps provenance", async () => {
     const bios: Record<string, string> = {
       v2_ev_1: "Food vlogger in Lahore",
       v2_ev_2: "Food reviews | Lahore | Karachi",
@@ -129,14 +129,20 @@ describe("live discovery under v2 (VAR2-L)", () => {
     const reasons = await owner<{ decision: string; reason: string | null; n: number }>(`select decision, reason, count(*)::int n from wp.discovery_candidates where job_id = '${jobId}' group by 1,2`);
     evidence("VAR2-L04", { outcome: (await live.discovery.get(p.ctx, jobId)).outcome, reasons, stored, rows });
     const by = Object.fromEntries(stored.map((r) => [r.handle, r]));
-    expect(by["v2_ev_1"]).toMatchObject({ city: "Lahore", country: "PK" });
-    // The fixture's display name is "Coke Studio Pakistan": own words support Pakistan, but two cities support none.
-    expect(by["v2_ev_2"]).toMatchObject({ city: null, country: "PK" });
+    // Owner rules 2026-10-26: a city never implies the country, and a country in the display name (the fixture's is
+    // "Coke Studio Pakistan") is not a statement about the creator; Instagram declares no country, so it stays unknown.
+    expect(by["v2_ev_1"]).toMatchObject({ city: "Lahore", country: null });
+    expect(by["v2_ev_2"]).toMatchObject({ city: null, country: null });
     expect(by["v2_ev_3"]?.city).toBeNull();
     expect(rows).toContainEqual({ handle: "v2_ev_1", attribute: "city", value: "Lahore", source: "profile_text", status: "supported" });
     expect(rows.filter((r) => r.handle === "v2_ev_2" && r.attribute === "city").every((r) => r.status === "conflicting")).toBe(true);
     // The profile explains where the city came from, with the quote (FRONTEND_REQUIREMENTS CR-01).
     const id1 = by["v2_ev_1"]?.id ?? "";
+    // "in Lahore" is not a residence statement, so the profile is locked (elig-2) for a workspace that never received it.
+    await expect(live.creators.profile(p.ctx, id1)).rejects.toMatchObject({ code: "NOT_FOUND" });
+    // Once the creator confirms Pakistan to MUSHIN it may be opened, and the city's evidence is shown with its quote.
+    await owner(`update gcp.creators set confirmed_country = 'PK' where id = '${id1}'`);
+    await db.withSystem(async (tx) => (await import("../modules/creators/index")).refreshProfileCountries(tx, id1, { source: "staff" }));
     const shown = (await live.creators.profile(p.ctx, id1)).attributeEvidence;
     expect(shown).toContainEqual(expect.objectContaining({ attribute: "city", value: "Lahore", source: "profile_text", status: "supported", quote: expect.stringContaining("Lahore") }));
     // Under minor protection the quotes are withheld, like linked accounts.

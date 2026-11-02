@@ -1,5 +1,5 @@
 /**
- * Creator eligibility coverage (policy elig-1): how many catalogue creators and profiles qualify, per platform, and the
+ * Creator eligibility coverage (policy elig-2: includes the per-profile Pakistan rule): how many catalogue creators and profiles qualify, per platform, and the
  * reasons the others do not. Counts only; no creator names, handles or contact data are printed.
  *
  *   node --import tsx scripts/eligibility-report.ts <postgres-url> [--json]
@@ -16,11 +16,12 @@ if (!url || !/^postgres(ql)?:\/\//.test(url)) {
 const sql = postgres(url, { max: 1, onnotice: () => {} });
 type Row = { id: string; status: string; is_minor: boolean; minor_override_by_staff_id: string | null; profiles: (Omit<EligibilityProfile, "followers"> & { followers: number | null })[] };
 const hasLastPost = (await sql`select 1 from information_schema.columns where table_schema = 'gcp' and table_name = 'creator_profiles' and column_name = 'last_post_at'`).length > 0;
+const hasCountry = (await sql`select 1 from information_schema.columns where table_schema = 'gcp' and table_name = 'creator_profiles' and column_name = 'country_status'`).length > 0;
 const rows = await sql.unsafe<Row[]>(`
   select c.id, c.status, c.is_minor, c.minor_override_by_staff_id,
     coalesce((select jsonb_agg(jsonb_build_object('platform', p.platform, 'canonicalUrl', p.canonical_url,
       'followers', case when p.platform = 'youtube' and p.followers = 0 then null else p.followers end,
-      'followersUpdatedAt', p.followers_updated_at, 'lastPostAt', ${hasLastPost ? "p.last_post_at" : "null"}))
+      'followersUpdatedAt', p.followers_updated_at, 'lastPostAt', ${hasLastPost ? "p.last_post_at" : "null"}${hasCountry ? ", 'availability', p.availability, 'country', jsonb_build_object('code', p.country, 'status', p.country_status, 'checkedAt', p.country_checked_at)" : ""}))
       from gcp.creator_profiles p where p.creator_id = c.id), '[]'::jsonb) as profiles
   from gcp.creators c`);
 await sql.end();

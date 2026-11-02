@@ -1,0 +1,24 @@
+# Background worker (pg-boss queues, Live Discovery, enrichment, indexing, billing schedules, retention purges).
+# It is a long-running process with a persistent PostgreSQL session (LISTEN / pg-boss), so it cannot run as a Vercel
+# function. Build from the repository root:  docker build -f Dockerfile.worker -t roster-worker .
+# Configuration comes only from the host's environment variables (docs/readiness/worker-hosting.md); no .env file is
+# copied into the image (.dockerignore).
+FROM node:24-slim
+WORKDIR /app
+ENV NODE_ENV=production
+COPY package.json package-lock.json ./
+COPY apps/worker/package.json apps/worker/package.json
+COPY apps/api/package.json apps/api/package.json
+COPY packages/core/package.json packages/core/package.json
+COPY packages/db/package.json packages/db/package.json
+COPY packages/integrations/package.json packages/integrations/package.json
+COPY packages/contracts/package.json packages/contracts/package.json
+# tsx runs the TypeScript sources directly (as in development), so dev dependencies are installed too.
+RUN npm ci --include=dev --workspaces --include-workspace-root --ignore-scripts --no-audit --no-fund
+COPY tsconfig.json ./
+COPY packages packages
+COPY apps/api/src apps/api/src
+COPY apps/worker/src apps/worker/src
+USER node
+# Liveness: the worker writes platform.process_heartbeats every minute; the staff console alerts when it goes stale.
+CMD ["node", "--import", "tsx", "apps/worker/src/main.ts"]

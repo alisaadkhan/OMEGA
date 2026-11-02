@@ -103,7 +103,9 @@ describe("creator plane", () => {
 
   it("seeds the niche list and search settings", async () => {
     const list = await ownerQuery<{ label: string }>(`select label from platform.niches order by sort_order`);
-    expect(list.map((n) => n.label)).toEqual(["Bridal", "Fashion", "Beauty", "Tech", "Food", "Travel", "Comedy", "Finance", "Wellness", "Lifestyle"]);
+    expect(list.map((n) => n.label)).toEqual(["Bridal", "Fashion", "Beauty", "Tech", "Food", "Travel", "Comedy", "Finance", "Wellness", "Lifestyle",
+      // The canonical taxonomy (0054).
+      "Education & How-to", "Gaming", "History", "Literature", "Agriculture", "Business & Ecommerce", "Automotive", "Religion", "Music", "News & Commentary", "Sports", "Entertainment", "Real Estate"]);
     const s = await ownerQuery<{ weight_text: number; label_best: number; candidate_pool: number }>(
       `select weight_text, label_best, candidate_pool from platform.search_settings`,
     );

@@ -1,0 +1,47 @@
+{
+  "database": "mushin_catalog_v3",
+  "at": "2026-11-02T11:13:13.457Z",
+  "writes": "none",
+  "summary": {
+    "instagram": {
+      "profiles": 108,
+      "eligible": 2,
+      "below_minimum": 9,
+      "awaiting_assessment": 16,
+      "not_pakistan_evidence": 81,
+      "eligibleUnderElig2": 16,
+      "igAt3000": 1
+    },
+    "tiktok": {
+      "profiles": 33,
+      "eligible": 0,
+      "below_minimum": 0,
+      "awaiting_assessment": 0,
+      "not_pakistan_evidence": 33,
+      "eligibleUnderElig2": 0,
+      "igAt3000": 0
+    },
+    "youtube": {
+      "profiles": 2360,
+      "eligible": 0,
+      "below_minimum": 866,
+      "awaiting_assessment": 408,
+      "not_pakistan_evidence": 1086,
+      "eligibleUnderElig2": 371,
+      "igAt3000": 0
+    }
+  },
+  "reasons": {
+    "instagram|not_pakistan_evidence|unknown": 81,
+    "instagram|awaiting_assessment|no stored content": 16,
+    "instagram|below_minimum|median views": 2,
+    "instagram|below_minimum|audience": 7,
+    "tiktok|not_pakistan_evidence|unknown": 33,
+    "youtube|awaiting_assessment|median views not computed (YouTube derived-metrics decision)": 408,
+    "youtube|not_pakistan_evidence|foreign": 294,
+    "youtube|not_pakistan_evidence|unknown": 778,
+    "youtube|below_minimum|audience": 866,
+    "youtube|not_pakistan_evidence|conflicting": 14,
+    "instagram|eligible|meets audience and median views": 2
+  }
+}

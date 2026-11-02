@@ -1,3 +1,4 @@
+import { normalizeEmail, signupOutcome, type SignupOutcome } from "../api/signup-outcome";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -16,7 +17,7 @@ type AuthContextValue = {
   status: AuthStatus;
   user: AuthUser | null;
   login: (email: string, password: string) => Promise<void>;
-  signup: (name: string, email: string, password: string) => Promise<{ needsConfirmation: boolean }>;
+  signup: (name: string, email: string, password: string) => Promise<SignupOutcome>;
   logout: () => Promise<void>;
   requestPasswordReset: (email: string) => Promise<void>;
   /** Sends a new sign-up confirmation email (expired or used link, gap UX-08). */
@@ -97,18 +98,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     status,
     user,
     async login(email, password) {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await supabase.auth.signInWithPassword({ email: normalizeEmail(email), password });
       if (error) throw new Error(messageOf(error));
     },
     async signup(name, email, password) {
       rememberEmailLink("signup");
+      const address = normalizeEmail(email);
       const { data, error } = await supabase.auth.signUp({
-        email,
+        email: address,
         password,
         options: { data: { full_name: name.trim() }, emailRedirectTo: `${window.location.origin}/#/confirmed` },
       });
-      if (error) throw new Error(messageOf(error));
-      return { needsConfirmation: !data.session };
+      // Supabase decides; the outcome never reveals whether the address already had an account (signup-outcome.ts).
+      return signupOutcome(address, data, error);
     },
     async logout() {
       signingOut = true;
@@ -122,12 +124,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     async resendConfirmation(email) {
       rememberEmailLink("signup");
-      const { error } = await supabase.auth.resend({ type: "signup", email, options: { emailRedirectTo: `${window.location.origin}/#/confirmed` } });
+      const { error } = await supabase.auth.resend({ type: "signup", email: normalizeEmail(email), options: { emailRedirectTo: `${window.location.origin}/#/confirmed` } });
       if (error) throw new Error(messageOf(error));
     },
     async requestPasswordReset(email) {
       rememberEmailLink("recovery");
-      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/#/reset-password` });
+      const { error } = await supabase.auth.resetPasswordForEmail(normalizeEmail(email), { redirectTo: `${window.location.origin}/#/reset-password` });
       if (error) throw new Error(messageOf(error));
     },
     async updatePassword(password) {

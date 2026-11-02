@@ -10,7 +10,7 @@ export function AttributeEvidence({ items }: { items: readonly EvidenceItem[] })
   const groups = groupEvidence(items);
   if (groups.length === 0) return null;
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="rounded-2xl border border-slate-200/80 bg-white p-4">
       <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex w-full items-center justify-between text-left">
         <span>
           <span className="block text-slate-900" style={{ fontSize: 13, fontWeight: 600 }}>Where these details come from</span>

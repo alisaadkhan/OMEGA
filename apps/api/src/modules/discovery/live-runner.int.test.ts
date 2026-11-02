@@ -20,7 +20,7 @@ const discovery = createDiscoveryService({ db, billing });
 beforeEach(resetTables);
 afterAll(() => db.close());
 
-const profile = (username: string, bio = "Bridal makeup artist in Lahore") => {
+const profile = (username: string, bio = "Bridal makeup artist based in Lahore, Pakistan") => {
   const one = structuredClone((scraperFixture("instagram-profile.json") as Record<string, unknown>[])[0] ?? {});
   const posts = Array.isArray(one["latestPosts"]) ? one["latestPosts"] : [];
   one["latestPosts"] = posts.map((post, index) => typeof post === "object" && post !== null ? {

@@ -20,6 +20,7 @@ export const SCHEDULES: Schedule[] = [
   { queue: "system", key: "heartbeat", cron: "* * * * *", data: data("heartbeat", "system.heartbeat", {}) },
   // Hourly: expired idempotency keys, old rate-limit windows and expired data export files (kept at most 24 h + 1 h).
   { queue: "system", key: "reconcile_provider_runs", cron: "40 * * * *", data: data("reconcile_provider_runs", "system.reconcile_provider_runs", {}) },
+  { queue: "system", key: "provider_status", cron: "7 * * * *", data: data("provider_status", "system.provider_status", {}) },
   { queue: "system", key: "purge_expired", cron: "15 * * * *", data: data("purge_expired", "system.purge_expired", {}) },
   billing("release_abandoned", "* * * * *"),
   billing("expire_lots", "5 * * * *"),
@@ -32,6 +33,7 @@ export const SCHEDULES: Schedule[] = [
   billing("comp_period_end", "55 2 * * *"),
   billing("reconcile", "30 4 * * *"),
   { queue: "rescore-low", key: "search_reconcile", cron: "45 3 * * *", data: data("search_reconcile", "creator.reindex_all", {}) },
+  { queue: "rescore-low", key: "lifecycle_sweep", cron: "20 4 * * *", data: data("lifecycle_sweep", "creator.lifecycle_sweep", {}) },
   { queue: "rescore-low", key: "youtube_retention", cron: "50 3 * * *", data: data("youtube_retention", "creator.youtube_retention", {}) },
   { queue: "system", key: "discovery_sweep", cron: "*/5 * * * *", data: data("discovery_sweep", "system.discovery_sweep", {}) },
   { queue: "system", key: "audience_sweep", cron: "*/5 * * * *", data: data("audience_sweep", "system.audience_sweep", {}) },

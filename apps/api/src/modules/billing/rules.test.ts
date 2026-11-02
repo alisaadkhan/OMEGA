@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   addMonths,
+  karachiMonth,
+  TESTING_ACTIONS,
+  testingGrantRef,
   allocateLots,
   classifyChange,
   daysLeft,
@@ -134,5 +137,28 @@ describe("dates and cursors", () => {
     expect(decodeCursor(Buffer.from("2026-10-07T00:00:00Z|nope").toString("base64url"))).toBeNull();
     expect(decodeCursor(Buffer.from(`2026-10-07T01:02:03.456Z|${c.id}`).toString("base64url"))).toBeNull();
     expect(decodeCursor(Buffer.from(`2026-10-07T01:02:03.456789Z'--|${c.id}`).toString("base64url"))).toBeNull();
+  });
+});
+
+describe("monthly testing allowance period (Asia/Karachi, 0061)", () => {
+  it("starts each month at 00:00 PKT (19:00 UTC the day before) and ends at the next", () => {
+    const m = karachiMonth(new Date("2026-10-27T12:00:00Z"));
+    expect(m).toEqual({ key: "2026-10", start: new Date("2026-09-30T19:00:00.000Z"), end: new Date("2026-10-31T19:00:00.000Z") });
+  });
+
+  it("switches month at 00:00 Karachi time, not at midnight UTC", () => {
+    expect(karachiMonth(new Date("2026-10-31T18:59:59.999Z")).key).toBe("2026-10");
+    expect(karachiMonth(new Date("2026-10-31T19:00:00.000Z")).key).toBe("2026-11");
+    expect(karachiMonth(new Date("2026-11-01T00:00:00.000Z")).key).toBe("2026-11");
+  });
+
+  it("handles the year end and February", () => {
+    expect(karachiMonth(new Date("2026-12-31T20:00:00Z"))).toMatchObject({ key: "2027-01", end: new Date("2027-01-31T19:00:00.000Z") });
+    expect(karachiMonth(new Date("2028-02-15T00:00:00Z")).end).toEqual(new Date("2028-02-29T19:00:00.000Z"));
+  });
+
+  it("names one grant per workspace and month", () => {
+    expect(testingGrantRef("w1", "2026-10")).toBe("testing:w1:2026-10");
+    expect(TESTING_ACTIONS).toEqual(["search_existing", "reveal_contact"]);
   });
 });

@@ -126,9 +126,9 @@ describe("eraser", () => {
       llm: new MockLlm(() => ({ nonsense: true })),
       encryptionKey: TEST_KEY,
       logger,
-      fetchImage: async () => new Response("img", { headers: { "content-type": "image/jpeg" } }),
+      fetchImage: async () => new Response(new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]), { headers: { "content-type": "image/jpeg" } }),
       // search-v2: attribute evidence quotes the creator's own text, so erasure must remove it too.
-      attributePolicy: "v2",
+      attributePolicy: "evidence",
     });
     const a = await createTestWorkspace();
     const b = await createTestWorkspace();
@@ -138,7 +138,13 @@ describe("eraser", () => {
     for (const ws of [a, b]) {
       await ownerQuery(`insert into wp.contact_reveals (workspace_id, creator_id, revealed_by) values ('${ws.workspaceId}', '${id}', '${ws.userId}')`);
       await ownerQuery(`insert into wp.audience_views (workspace_id, creator_id, month, viewed_by) values ('${ws.workspaceId}', '${id}', date_trunc('month', now())::date, '${ws.userId}')`);
+      // An address the workspace typed in for this creator (0056) is personal data too.
+      await ownerQuery(`insert into wp.workspace_contacts (workspace_id, creator_id, value_encrypted, value_hash, masked, created_by) values ('${ws.workspaceId}', '${id}', 'x', '${"d".repeat(64)}', 'm***@x.pk', '${ws.userId}')`);
+      // An imported list row that names the creator (0058) keeps its count but loses the link to them.
+      const impId = (await ownerQuery<{ id: string }>(`insert into wp.creator_imports (workspace_id, created_by, idempotency_key, source, rows_total) values ('${ws.workspaceId}', '${ws.userId}', 'erase-${ws.workspaceId}', 'list', 1) returning id`))[0]?.id;
+      await ownerQuery(`insert into wp.creator_import_rows (import_id, workspace_id, row_no, input_url, canonical_url, platform, creator_id, status, declared_niche) values ('${impId}', '${ws.workspaceId}', 1, 'https://instagram.com/coke_studio', 'https://instagram.com/coke_studio', 'instagram', '${id}', 'matched', 'Music')`);
     }
+    await ownerQuery(`update gcp.creators set niche_main = 'Music', niche_status = 'classified', niche_confidence = 'high', platform_country = 'PK', stated_country = 'PK', confirmed_country = 'PK', country_source = 'creator_confirmed', country_confidence = 'high' where id = '${id}'`);
     expect(storage.objects.size).toBeGreaterThanOrEqual(2);
     expect((await ownerQuery<{ n: number }>(`select count(*)::int n from gcp.creator_attribute_evidence where creator_id = '${id}'`))[0]?.n).toBeGreaterThan(0);
     // An earlier add-by-link job and a cached Google result also name the creator (security review of 0012).
@@ -162,14 +168,19 @@ describe("eraser", () => {
       (select count(*)::int from platform.raw_payloads where canonical_url = 'https://instagram.com/coke_studio') payloads,
       (select count(*)::int from wp.contact_reveals where creator_id = '${id}') reveals,
       (select count(*)::int from wp.audience_views where creator_id = '${id}') views,
-      (select count(*)::int from gcp.creator_attribute_evidence where creator_id = '${id}') evidence`);
-    expect(left[0]).toEqual({ contacts: 0, links: 0, profiles: 0, snapshots: 0, payloads: 0, reveals: 0, views: 0, evidence: 0 });
+      (select count(*)::int from gcp.creator_attribute_evidence where creator_id = '${id}') evidence,
+      (select count(*)::int from wp.workspace_contacts where creator_id = '${id}') typed,
+      (select count(*)::int from wp.creator_import_rows where creator_id = '${id}' or canonical_url = 'https://instagram.com/coke_studio' or input_url <> 'erased') imported`);
+    expect(left[0]).toEqual({ contacts: 0, links: 0, profiles: 0, snapshots: 0, payloads: 0, reveals: 0, views: 0, evidence: 0, typed: 0, imported: 0 });
     expect(storage.objects.size).toBe(0);
     const job = await ownerQuery<{ handle: string; input_url: string | null }>(`select handle, input_url from wp.discovery_jobs where workspace_id = '${b.workspaceId}'`);
     expect(job).toEqual([{ handle: "erased", input_url: null }]);
     expect((await ownerQuery<{ query: string }>(`select query from platform.serper_cache`)).map((r) => r.query)).toEqual(["site:instagram.com food"]);
     const [c] = await ownerQuery<{ status: string; display_name: string; avatar_url: string | null; ai_summary: string | null }>(`select status, display_name, avatar_url, ai_summary from gcp.creators where id = '${id}'`);
     expect(c).toEqual({ status: "erased", display_name: "Erased creator", avatar_url: null, ai_summary: null });
+    // Regression (2026-10-26): the niche and country model fields (0054) are cleared too, not left on the tombstone.
+    const [m] = await ownerQuery(`select niche_main, niche_status, niche_confidence, platform_country, stated_country, confirmed_country, country_source, country_confidence from gcp.creators where id = '${id}'`);
+    expect(Object.values(m ?? {}).every((v) => v === null)).toBe(true);
     expect(await db.withSystem((tx) => suppressedUrls(tx, ["https://instagram.com/coke_studio"]))).toEqual(new Set(["https://instagram.com/coke_studio"]));
     const [after] = await ownerQuery<{ urls: string[] }>(`select urls from gcp.removal_requests where id = '${r?.id}'`);
     expect(after?.urls[0]).toMatch(/^sha256:[0-9a-f]{64}$/);

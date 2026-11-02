@@ -8,7 +8,7 @@ import { EmptyState } from "./states";
 export function Inbox({ onGoToCampaigns }: { onGoToCampaigns?: () => void }) {
   return (
     <div className="space-y-5">
-      <h1 className="text-slate-900" style={{ fontSize: 26, fontWeight: 700 }}>Inbox</h1>
+      <h1 className="text-[32px] font-semibold leading-10 tracking-[-0.025em] text-slate-900">Inbox</h1>
       <EmptyState
         icon={<InboxIcon className="h-5 w-5" />}
         title="Planned: not available yet"

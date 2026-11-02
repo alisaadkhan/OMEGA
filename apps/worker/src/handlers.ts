@@ -2,11 +2,15 @@ import { sql } from "drizzle-orm";
 import { recordWorkerHeartbeat, type Db } from "@mushin/db";
 import type { HandlerRegistry } from "./dispatcher";
 
-export function defaultHandlers(db: Db, o: { reconcileProviderRuns?: () => Promise<void> } = {}): HandlerRegistry {
+export function defaultHandlers(db: Db, o: { reconcileProviderRuns?: () => Promise<void>; checkProviders?: () => Promise<unknown> } = {}): HandlerRegistry {
   return {
     // Audit SRCH-04: paid provider runs left open by a crash or deploy are settled (and aborted past their deadline).
     "system.reconcile_provider_runs": async () => {
       await o.reconcileProviderRuns?.();
+    },
+    // Hourly: what is configured and the quota providers report (migration 0055); shown and alerted in the staff console.
+    "system.provider_status": async () => {
+      await o.checkProviders?.();
     },
     "system.heartbeat": async () => {
       await db.withSystem((tx) => recordWorkerHeartbeat(tx));

@@ -118,3 +118,20 @@ describe("reading jobs", () => {
     expect((await discovery.listActive(b)).jobs).toEqual([]);
   });
 });
+
+describe("Pakistan-only lock on direct actions (BUG-32)", () => {
+  it("a creator locked by the country rule cannot be refreshed or added by link by a workspace that does not hold it; nothing is charged", async () => {
+    const id = await addCreator(db, { confirmedCountry: null, country: null, profiles: [{ platform: "instagram", handle: "abroad_one", bio: "Based in Dubai, UAE", updatedAt: new Date(Date.now() - 40 * 86_400_000) }] });
+    const c = await customer();
+    const before = await balance(c);
+    await expect(discovery.start(c, { kind: "refresh", creatorId: id, confirmedCost: 50 })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(discovery.start(c, addByUrl("https://www.instagram.com/abroad_one/"))).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(await balance(c)).toEqual(before);
+    // A workspace that saved the creator before the lock may still refresh it (its saved work keeps working).
+    const holder = await customer();
+    const listId = randomUUID();
+    await ownerQuery(`insert into wp.lists (id, workspace_id, name, created_by) values ('${listId}', '${holder.workspaceId}', 'Saved', '${holder.userId}');
+      insert into wp.list_members (list_id, workspace_id, creator_id, added_by) values ('${listId}', '${holder.workspaceId}', '${id}', '${holder.userId}');`);
+    expect((await discovery.start(holder, { kind: "refresh", creatorId: id, confirmedCost: 50 })).body).toMatchObject({ status: "started" });
+  });
+});

@@ -72,6 +72,22 @@ export const staffJobDetailSchema = z.object({
 export const providerUsageSchema = z.object({
   since: iso,
   providers: z.array(z.object({ provider: z.string(), calls: count, errors: count, costUsd: z.number(), p95LatencyMs: z.number().nullable(), lastCallAt: iso.nullable(), lastErrorCode: z.string().nullable() })),
+  /**
+   * Configuration and quota as the worker last checked them (0055). Never a key. `quota` is present only when the
+   * provider reported it or it is Roster's own configured limit (`source` says which); otherwise it is null (unknown).
+   */
+  status: z
+    .array(
+      z.object({
+        provider: z.string(),
+        configured: z.boolean(),
+        detail: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])),
+        quota: z.object({ used: z.number(), limit: z.number(), unit: z.enum(["usd", "searches"]), source: z.string() }).nullable(),
+        checkError: z.string().nullable(),
+        checkedAt: iso,
+      }),
+    )
+    .default([]),
 });
 export const providerUsageQuerySchema = z.object({ hours: z.coerce.number().int().min(1).max(24 * 31).default(24) });
 

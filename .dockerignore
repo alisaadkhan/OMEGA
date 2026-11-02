@@ -1,0 +1,18 @@
+# Never send secrets, local data or YouTube API data to an image build context.
+.env
+.env.*
+**/.env
+**/.env.*
+node_modules
+**/node_modules
+.git
+eval-data
+eval-v2
+.catalog-storage
+tmp
+supabase/.temp
+frontend.zip
+reference_files
+coverage
+dist
+*.log

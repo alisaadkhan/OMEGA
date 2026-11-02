@@ -55,8 +55,8 @@ function parseReply<T>(content: string, schema: z.ZodType<T>): { ok: true; value
 }
 
 /**
- * Chat completions over the OpenAI-compatible API that Groq and Ollama Cloud both serve.
- * Providers are tried in order on provider failure (Groq first, SRS §3.3). An unusable reply gets one corrective
+ * Chat completions over the OpenAI-compatible API that Gemini and Ollama Cloud both serve.
+ * Providers are tried in order on provider failure (Gemini first, then Ollama). An unusable reply gets one corrective
  * retry on the same provider and then fails: a different model would not fix a bad request.
  */
 export class OpenAiCompatibleLlm implements Llm {
@@ -71,7 +71,7 @@ export class OpenAiCompatibleLlm implements Llm {
     },
   ) {}
 
-  /** Provider name → time until which it is skipped after answering 429 (measured: every Groq call 429'd for hours). */
+  /** Provider name → time until which it is skipped after answering 429 (measured 2026-10-13 on the earlier provider: every call 429'd for hours). */
   private readonly coolingUntil = new Map<string, number>();
 
   async complete<T>(req: LlmRequest<T>): Promise<{ value: T; model: string }> {

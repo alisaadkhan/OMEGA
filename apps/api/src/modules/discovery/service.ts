@@ -3,7 +3,7 @@ import { searchFiltersSchema, validateLiveBrief, type CreateLiveEstimate, type D
 import { AppError, sha256Hex, stableJson, type TenantContext } from "@mushin/core";
 import { writeOutbox, type Db } from "@mushin/db";
 import type { BillingService } from "../billing/index";
-import { findProfileByUrl, fitLabel, getEnrichmentSettings, getSearchSettings, isVisibleCreator, suppressedUrls, type SourcePolicy, normalizeProfileUrl, profileTarget, rankCards, refreshActionFor, type CreatorPlatform } from "../creators/index";
+import { findProfileByUrl, fitLabel, getEnrichmentSettings, getSearchSettings, isVisibleCreator, lockedForWorkspace, suppressedUrls, type SourcePolicy, normalizeProfileUrl, profileTarget, rankCards, refreshActionFor, type CreatorPlatform } from "../creators/index";
 import { platformsFor } from "./live/queries";
 import * as repo from "./repository";
 
@@ -62,14 +62,14 @@ export function createDiscoveryService(deps: DiscoveryDeps) {
         const known = await findProfileByUrl(tx, n.canonicalUrl);
         if (known) {
           // Creators hidden from customers (possible minors, removal requested) are not found here either, as in search.
-          if (!(await isVisibleCreator(tx, known.creatorId))) throw new AppError("NOT_FOUND", "This creator can't be added.");
+          if (!(await isVisibleCreator(tx, known.creatorId)) || (await lockedForWorkspace(tx, known.creatorId, now()))) throw new AppError("NOT_FOUND", "This creator can't be added.");
           return { answer: { status: "known", creatorId: known.creatorId } };
         }
         const segment = n.canonicalUrl.split("/").pop() ?? "";
         return { platform: n.platform, handle: segment.replace(/^@/, ""), canonicalUrl: n.canonicalUrl, creatorId: null, inputUrl: body.url };
       }
       const t = await profileTarget(tx, body.creatorId);
-      if (!t || !(await isVisibleCreator(tx, body.creatorId))) throw new AppError("NOT_FOUND", "Creator not found");
+      if (!t || !(await isVisibleCreator(tx, body.creatorId)) || (await lockedForWorkspace(tx, body.creatorId, now()))) throw new AppError("NOT_FOUND", "Creator not found");
       const settings = await getEnrichmentSettings(tx);
       if (t.lastScrapedAt && now().getTime() - t.lastScrapedAt.getTime() < settings.refreshMinAgeHours * 3_600_000) {
         return { answer: { status: "up_to_date", creatorId: body.creatorId, updatedAt: t.lastScrapedAt.toISOString() } };

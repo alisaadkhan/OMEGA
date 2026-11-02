@@ -1,0 +1,96 @@
+scope,country,source,platform,profiles_or_creators
+"creator (resolved, one per person)",(none),(none),all,921
+"creator (resolved, one per person)",AE,creator_stated,all,4
+"creator (resolved, one per person)",AE,platform_declared,all,20
+"creator (resolved, one per person)",AM,platform_declared,all,1
+"creator (resolved, one per person)",AR,platform_declared,all,1
+"creator (resolved, one per person)",AU,creator_stated,all,1
+"creator (resolved, one per person)",AU,platform_declared,all,8
+"creator (resolved, one per person)",BD,platform_declared,all,5
+"creator (resolved, one per person)",BH,platform_declared,all,1
+"creator (resolved, one per person)",BR,platform_declared,all,1
+"creator (resolved, one per person)",CA,creator_stated,all,5
+"creator (resolved, one per person)",CA,platform_declared,all,13
+"creator (resolved, one per person)",CN,creator_stated,all,2
+"creator (resolved, one per person)",DE,platform_declared,all,6
+"creator (resolved, one per person)",EG,platform_declared,all,1
+"creator (resolved, one per person)",FR,platform_declared,all,2
+"creator (resolved, one per person)",GB,creator_stated,all,3
+"creator (resolved, one per person)",GB,platform_declared,all,32
+"creator (resolved, one per person)",HU,platform_declared,all,1
+"creator (resolved, one per person)",ID,creator_stated,all,1
+"creator (resolved, one per person)",ID,platform_declared,all,1
+"creator (resolved, one per person)",IE,platform_declared,all,1
+"creator (resolved, one per person)",IN,creator_stated,all,2
+"creator (resolved, one per person)",IN,platform_declared,all,78
+"creator (resolved, one per person)",IQ,platform_declared,all,1
+"creator (resolved, one per person)",IT,platform_declared,all,1
+"creator (resolved, one per person)",KR,platform_declared,all,1
+"creator (resolved, one per person)",LU,platform_declared,all,1
+"creator (resolved, one per person)",NG,platform_declared,all,1
+"creator (resolved, one per person)",NL,platform_declared,all,4
+"creator (resolved, one per person)",NO,platform_declared,all,1
+"creator (resolved, one per person)",NP,creator_stated,all,1
+"creator (resolved, one per person)",NP,platform_declared,all,2
+"creator (resolved, one per person)",NZ,platform_declared,all,1
+"creator (resolved, one per person)",OM,creator_stated,all,1
+"creator (resolved, one per person)",OM,platform_declared,all,2
+"creator (resolved, one per person)",PH,creator_stated,all,1
+"creator (resolved, one per person)",PK,creator_stated,all,113
+"creator (resolved, one per person)",PK,platform_declared,all,1182
+"creator (resolved, one per person)",PT,platform_declared,all,1
+"creator (resolved, one per person)",QA,platform_declared,all,1
+"creator (resolved, one per person)",SA,creator_stated,all,1
+"creator (resolved, one per person)",SA,platform_declared,all,6
+"creator (resolved, one per person)",TR,creator_stated,all,1
+"creator (resolved, one per person)",TR,platform_declared,all,3
+"creator (resolved, one per person)",US,creator_stated,all,2
+"creator (resolved, one per person)",US,platform_declared,all,81
+profile (unknown),(none),(none),instagram,81
+profile (unknown),(none),(none),tiktok,33
+profile (conflicting),(none),(none),youtube,14
+profile (unknown),(none),(none),youtube,785
+profile (foreign),AE,creator_stated,youtube,5
+profile (foreign),AE,platform_declared,youtube,19
+profile (foreign),AM,platform_declared,youtube,1
+profile (foreign),AR,platform_declared,youtube,1
+profile (foreign),AU,creator_stated,youtube,1
+profile (foreign),AU,platform_declared,youtube,8
+profile (foreign),BD,platform_declared,youtube,5
+profile (foreign),BH,platform_declared,youtube,1
+profile (foreign),BR,platform_declared,youtube,1
+profile (foreign),CA,creator_stated,youtube,5
+profile (foreign),CA,platform_declared,youtube,13
+profile (foreign),DE,platform_declared,youtube,5
+profile (foreign),EG,platform_declared,youtube,1
+profile (foreign),FR,platform_declared,youtube,2
+profile (foreign),GB,creator_stated,youtube,3
+profile (foreign),GB,platform_declared,youtube,31
+profile (foreign),HU,platform_declared,youtube,1
+profile (foreign),ID,creator_stated,youtube,1
+profile (foreign),ID,platform_declared,youtube,1
+profile (foreign),IE,platform_declared,youtube,1
+profile (foreign),IN,creator_stated,youtube,2
+profile (foreign),IN,platform_declared,youtube,78
+profile (foreign),IQ,platform_declared,youtube,1
+profile (foreign),IT,platform_declared,youtube,1
+profile (foreign),KR,platform_declared,youtube,1
+profile (foreign),LU,platform_declared,youtube,1
+profile (foreign),NG,platform_declared,youtube,1
+profile (foreign),NL,platform_declared,youtube,4
+profile (foreign),NO,platform_declared,youtube,1
+profile (foreign),NP,platform_declared,youtube,2
+profile (foreign),NZ,platform_declared,youtube,1
+profile (foreign),OM,creator_stated,youtube,1
+profile (foreign),OM,platform_declared,youtube,1
+profile (foreign),PH,creator_stated,youtube,1
+profile (pakistan),PK,creator_stated,instagram,27
+profile (pakistan),PK,creator_stated,youtube,114
+profile (pakistan),PK,platform_declared,youtube,1169
+profile (foreign),PT,platform_declared,youtube,1
+profile (foreign),QA,platform_declared,youtube,1
+profile (foreign),SA,platform_declared,youtube,6
+profile (foreign),TR,creator_stated,youtube,2
+profile (foreign),TR,platform_declared,youtube,2
+profile (foreign),US,creator_stated,youtube,2
+profile (foreign),US,platform_declared,youtube,81

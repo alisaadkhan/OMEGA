@@ -1,5 +1,6 @@
-import { motion, AnimatePresence } from "motion/react";
-import { useState, type ReactNode } from "react";
+import { AnimatePresence, MotionConfig, motion } from "motion/react";
+import { useId, useState, type ReactNode } from "react";
+import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { Logo } from "../landing/Logo";
 
 export function AuthShell({
@@ -15,116 +16,51 @@ export function AuthShell({
   footer?: ReactNode;
   formKey?: string;
 }) {
+  // MUSHIN design system (2026-10-27): one soft cyan glow on the surface colour, a white card with the mark, the
+  // audience chip and a centred heading. No looping background animation; motion honours "reduce motion".
   return (
-    <div className="relative min-h-screen overflow-hidden bg-white">
-      {/* Animated aurora orbs */}
-      <motion.div
-        aria-hidden
-        className="pointer-events-none absolute -top-40 left-1/2 h-[520px] w-[820px] -translate-x-1/2 rounded-full"
-        style={{
-          background:
-            "radial-gradient(closest-side, rgba(99,102,241,0.16), rgba(16,185,129,0.06), transparent 70%)",
-        }}
-        animate={{ scale: [1, 1.08, 1], rotate: [0, 8, 0] }}
-        transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <motion.div
-        aria-hidden
-        className="pointer-events-none absolute -right-32 bottom-10 h-[420px] w-[420px] rounded-full"
-        style={{ background: "radial-gradient(closest-side, rgba(99,102,241,0.10), transparent 70%)" }}
-        animate={{ x: [0, 24, -10, 0], y: [0, -18, 12, 0] }}
-        transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <motion.div
-        aria-hidden
-        className="pointer-events-none absolute -left-32 top-32 h-[420px] w-[420px] rounded-full"
-        style={{ background: "radial-gradient(closest-side, rgba(16,185,129,0.10), transparent 70%)" }}
-        animate={{ x: [0, -22, 14, 0], y: [0, 16, -12, 0] }}
-        transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
-      />
+    <MotionConfig reducedMotion="user">
+      <div className="relative min-h-screen overflow-hidden bg-[#f7f9fb]">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -top-48 left-1/2 h-[560px] w-[900px] -translate-x-1/2 rounded-full"
+          style={{ background: "radial-gradient(closest-side, rgba(87,223,254,0.28), rgba(87,223,254,0.08) 60%, transparent 75%)" }}
+        />
 
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-[0.35]"
-        style={{
-          backgroundImage:
-            "linear-gradient(to right, rgb(226 232 240 / 0.6) 1px, transparent 1px), linear-gradient(to bottom, rgb(226 232 240 / 0.6) 1px, transparent 1px)",
-          backgroundSize: "56px 56px",
-          maskImage: "radial-gradient(ellipse at center top, black 30%, transparent 75%)",
-        }}
-      />
-
-      <div className="relative mx-auto flex min-h-screen max-w-md flex-col px-6 py-10">
-        <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-          className="flex justify-center"
-        >
-          <Logo />
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 18, scale: 0.97 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1], delay: 0.05 }}
-          className="relative mt-12 overflow-hidden rounded-2xl border border-slate-200 bg-white/90 p-8 shadow-[0_30px_80px_-30px_rgba(15,23,42,0.25)] backdrop-blur"
-        >
-          {/* Sweeping highlight on mount */}
+        <div className="relative mx-auto flex min-h-screen w-full max-w-[480px] flex-col justify-center px-4 py-10 sm:px-6">
           <motion.div
-            aria-hidden
-            initial={{ x: "-120%" }}
-            animate={{ x: "120%" }}
-            transition={{ duration: 1.4, ease: "easeInOut", delay: 0.2 }}
-            className="pointer-events-none absolute inset-y-0 left-0 w-1/2"
-            style={{
-              background:
-                "linear-gradient(90deg, transparent, rgba(99,102,241,0.10), transparent)",
-            }}
-          />
-
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={formKey ?? title}
-              initial={{ opacity: 0, x: 14 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -14 }}
-              transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-            >
-              <motion.h1
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.35, delay: 0.15 }}
-                className="tracking-tight text-slate-900"
-                style={{ fontSize: "1.5rem", fontWeight: 600, letterSpacing: "-0.02em" }}
-              >
-                {title}
-              </motion.h1>
-              <motion.p
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.35, delay: 0.2 }}
-                className="mt-1.5 text-sm text-slate-600"
-              >
-                {subtitle}
-              </motion.p>
-              <div className="mt-6">{children}</div>
-            </motion.div>
-          </AnimatePresence>
-        </motion.div>
-
-        {footer && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.4, delay: 0.4 }}
-            className="mt-6 text-center text-sm text-slate-600"
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+            className="rounded-3xl border border-slate-200/70 bg-white px-6 py-9 shadow-[0_24px_60px_-28px_rgba(15,23,42,0.22)] sm:px-10"
           >
-            {footer}
+            <div className="flex flex-col items-center text-center">
+              <Logo />
+              <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-600">
+                <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-indigo-600" />
+                For brands &amp; agencies
+              </span>
+            </div>
+
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={formKey ?? title}
+                initial={{ opacity: 0, x: 12 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -12 }}
+                transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <h1 className="mt-7 text-center text-[26px] font-semibold leading-8 tracking-[-0.025em] text-slate-900">{title}</h1>
+                <p className="mt-2 text-center text-sm text-slate-600">{subtitle}</p>
+                <div className="mt-8">{children}</div>
+              </motion.div>
+            </AnimatePresence>
+
+            {footer && <div className="mt-7 text-center text-sm text-slate-600">{footer}</div>}
           </motion.div>
-        )}
+        </div>
       </div>
-    </div>
+    </MotionConfig>
   );
 }
 
@@ -141,6 +77,9 @@ export function StaggerItem({ index, children }: { index: number; children: Reac
   );
 }
 
+const AUTOCOMPLETE: Record<string, string> = { email: "email", password: "current-password" };
+const ICONS: Record<string, typeof Mail> = { email: Mail, password: Lock };
+
 export function FormField({
   label,
   type = "text",
@@ -148,6 +87,9 @@ export function FormField({
   onChange,
   placeholder,
   autoFocus,
+  autoComplete,
+  icon,
+  aside,
 }: {
   label: string;
   type?: string;
@@ -155,33 +97,50 @@ export function FormField({
   onChange: (v: string) => void;
   placeholder?: string;
   autoFocus?: boolean;
+  /** Defaults by type: email, current-password. Pass "new-password" on sign-up and reset. */
+  autoComplete?: string;
+  /** Leading icon; email and password fields get one by default. */
+  icon?: typeof Mail;
+  /** Shown at the right of the label, e.g. "Forgot password?" (outside the label, so it never names the input). */
+  aside?: ReactNode;
 }) {
-  const [focused, setFocused] = useState(false);
+  const id = useId();
+  const [visible, setVisible] = useState(false);
+  const Icon = icon ?? ICONS[type];
+  const isPassword = type === "password";
   return (
-    <label className="block">
-      <span className="text-xs text-slate-700" style={{ fontWeight: 500 }}>
-        {label}
-      </span>
-      <motion.div
-        animate={{
-          boxShadow: focused
-            ? "0 0 0 4px rgba(99,102,241,0.16), 0 0 24px -4px rgba(99,102,241,0.25)"
-            : "0 0 0 0 rgba(99,102,241,0)",
-        }}
-        transition={{ duration: 0.2 }}
-        className="mt-1.5 rounded-md"
-      >
+    <div>
+      <div className="flex items-baseline justify-between gap-3">
+        <label htmlFor={id} className="text-[13px] font-medium text-slate-900">
+          {label}
+        </label>
+        {aside}
+      </div>
+      <div className="relative mt-2">
+        {Icon && <Icon aria-hidden className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />}
         <input
-          type={type}
+          id={id}
+          type={isPassword && visible ? "text" : type}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
           placeholder={placeholder}
           autoFocus={autoFocus}
-          className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-indigo-300 focus:outline-none"
+          autoComplete={autoComplete ?? AUTOCOMPLETE[type] ?? "off"}
+          className={`h-12 w-full rounded-xl border border-transparent bg-slate-100 text-sm text-slate-900 placeholder:text-slate-500 transition-colors focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/15 ${Icon ? "pl-10" : "pl-3.5"} ${isPassword ? "pr-11" : "pr-3.5"}`}
         />
-      </motion.div>
-    </label>
+        {isPassword && (
+          <button
+            type="button"
+            onClick={() => setVisible((v) => !v)}
+            aria-label={visible ? "Hide characters" : "Show characters"}
+            aria-pressed={visible}
+            aria-controls={id}
+            className="absolute right-1.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-200/60 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+          >
+            {visible ? <EyeOff aria-hidden className="h-4 w-4" /> : <Eye aria-hidden className="h-4 w-4" />}
+          </button>
+        )}
+      </div>
+    </div>
   );
 }

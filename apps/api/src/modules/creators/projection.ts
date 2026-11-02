@@ -19,7 +19,7 @@ export function documentAt(r: IndexRow, now: Date): CreatorDocument {
   // Eligibility (policy elig-1) is decided here, before ranking; the counts are the stored ones (YouTube 0 = hidden = unknown).
   const eligibility = creatorEligibility(
     r,
-    r.profiles.map((p) => ({ platform: p.platform, canonicalUrl: p.canonicalUrl, followers: p.followers, followersUpdatedAt: p.followersUpdatedAt, lastPostAt: p.lastPostAt })),
+    r.profiles.map((p) => ({ platform: p.platform, canonicalUrl: p.canonicalUrl, followers: p.followers, followersUpdatedAt: p.followersUpdatedAt, lastPostAt: p.lastPostAt, availability: p.availability ?? null, country: p.country ?? null })),
     now,
   );
   const primary = r.profiles.find((p) => p.platform === r.primaryPlatform) ?? r.profiles[0];

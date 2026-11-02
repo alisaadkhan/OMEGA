@@ -52,7 +52,7 @@ for (const f of ["brain1-rater-A.csv", "brain1-rater-B.csv", "brain1-key.csv", "
 // Brain 2 (on its own truncatable test database, never the corpus)
 const replayDb = assertTruncatableTestDatabaseUrl(process.env["FREEZE_REPLAY_TEST_DATABASE_URL"] ?? "postgres://postgres@localhost:54330/mushin_test_claude");
 const label = `freeze-b2-${stamp}`;
-const blank = { SERPER_API_KEY: "", APIFY_TOKEN: "", GROQ_API_KEY: "", OLLAMA_API_KEY: "", YOUTUBE_API_KEY: "", LIVE_REPLAY_ALLOW_LIVE: "", LIVE_REPLAY_LIVE_LLM: "", LIVE_REPLAY_EXTRACT_BUDGET_USD: "0" };
+const blank = { SERPER_API_KEY: "", APIFY_TOKEN: "", GROQ_API_KEY: "", GEMINI_API_KEY: "", OLLAMA_API_KEY: "", YOUTUBE_API_KEY: "", LIVE_REPLAY_ALLOW_LIVE: "", LIVE_REPLAY_LIVE_LLM: "", LIVE_REPLAY_EXTRACT_BUDGET_USD: "0" };
 node([join(repo, "node_modules", "vitest", "vitest.mjs"), "run", "apps/api/src/modules/discovery/live-replay.live.int.test.ts"], {
   ...blank,
   LIVE_DISCOVERY_REPLAY: "1",

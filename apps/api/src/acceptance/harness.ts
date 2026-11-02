@@ -75,6 +75,8 @@ export async function synthetic(s: Synthetic, o: { index?: boolean } = {}): Prom
     primaryPlatform: platform,
     city: s.city === undefined ? "Lahore" : s.city,
     country: "PK",
+    // Synthetic creators have confirmed Pakistan to MUSHIN (elig-2); country cases are built separately.
+    confirmedCountry: "PK",
     niches: s.niches ?? [],
     tags: [],
     ...(s.isMinor ? { isMinor: true } : {}),
@@ -159,8 +161,8 @@ export async function buildApi(o: { fixtures?: Partial<Fixtures>; buckets?: Rate
   const creators = createCreatorsService({ db, index: new UnavailableSearchIndex(), nativeSearch: createPostgresCatalogSearch(db), llm, billing, encryptionKey: KEY, logger, ...(o.now ? { now: o.now } : {}), ...(o.searchProfile ? { searchProfile: o.searchProfile } : {}) });
   const discovery = createDiscoveryService({ db, billing, ...(o.now ? { now: o.now } : {}) });
   const web = o.fixtures?.web ?? webFor(() => []);
-  const scraper = o.fixtures?.scraper ?? scraperFor(() => "Food vlogger in Lahore");
-  const pipeline = createEnrichmentPipeline({ db, scraper, storage: new MemoryStorage(), llm, encryptionKey: KEY, logger, fetchImage: async () => new Response("", { status: 404 }), ...(o.searchProfile ? { attributePolicy: o.searchProfile } : {}) });
+  const scraper = o.fixtures?.scraper ?? scraperFor(() => "Food vlogger based in Lahore, Pakistan");
+  const pipeline = createEnrichmentPipeline({ db, scraper, storage: new MemoryStorage(), llm, encryptionKey: KEY, logger, fetchImage: async () => new Response("", { status: 404 }), ...(o.searchProfile === "v2" ? { attributePolicy: "evidence" as const } : {}) });
   const live = createLiveRunner({ db, billing, pipeline, scraper, search: createCachedSearch({ db, web }), llm, logger, ...(o.now ? { now: o.now } : {}), ...(o.searchProfile ? { searchProfile: o.searchProfile } : {}) });
   const profileRunner = createDiscoveryRunner({ db, billing, pipeline, logger });
   const iss = await createTestIssuer();

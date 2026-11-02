@@ -21,7 +21,7 @@ import { isMockPayments, parsePaddleEvent, type PaymentEvent, type Payments, typ
 import type { Access, AccessCache } from "./access-cache";
 import { createCreditEngine, type SpendRequest } from "./engine";
 import * as repo from "./repository";
-import { addMonths, classifyChange, daysLeft, decodeCursor, effectiveStatus, encodeCursor, lostAccessFor, spendScope } from "./rules";
+import { addMonths, classifyChange, daysLeft, decodeCursor, effectiveStatus, encodeCursor, karachiMonth, lostAccessFor, spendScope, TESTING_ACTIONS } from "./rules";
 
 /** `capabilities`: the server-wide switches (see capabilitiesSchema); omitted means everything gated stays off. */
 export type BillingDeps = { db: Db; payments: Payments; cache: AccessCache; logger: Logger; now?: () => Date; capabilities?: Capabilities };
@@ -93,6 +93,7 @@ export function createBillingService(deps: BillingDeps) {
       const sub = await repo.getSubscription(tx, ctx.workspaceId);
       const b = await engine.balance(tx, ctx.workspaceId);
       const plan = isPaying(sub) && sub?.planId ? await repo.getPlan(tx, sub.planId) : null;
+      const enrolled = (await repo.testingAllowanceOf(tx, ctx.workspaceId)).since !== null;
       return {
         plan: plan ? { id: plan.id, name: plan.name, monthlyCredits: plan.monthlyCredits } : null,
         interval: plan ? (sub?.billingInterval ?? null) : null,
@@ -106,7 +107,11 @@ export function createBillingService(deps: BillingDeps) {
         scheduledChange: sub?.scheduledPlanId && sub.scheduledInterval ? { planId: sub.scheduledPlanId, interval: sub.scheduledInterval } : null,
         balance: { available: b.available, reserved: b.reserved, base: b.base, meter: b.meter },
         canPurchase: BILLING_ROLES.has(ctx.role),
-        lostAccess: lostAccessFor(b.status, b.topupRemaining),
+        // Testing credits still pay for catalogue search and contact reveal (0061), so those are not lost.
+        lostAccess: lostAccessFor(b.status, b.topupRemaining).filter((k) => !(enrolled && (TESTING_ACTIONS as readonly string[]).includes(k))),
+        testingAllowance: enrolled
+          ? { monthlyCredits: (await repo.getSettings(tx)).testingMonthlyCredits, remaining: b.testingRemaining, renewsAt: karachiMonth(now()).end.toISOString(), actions: [...TESTING_ACTIONS] }
+          : null,
       };
     });
   }
@@ -647,6 +652,11 @@ export function createBillingService(deps: BillingDeps) {
         if (work) await deps.payments.changePlan({ subscription: work.ref, target: work.target, when: "next_period" });
         return;
       }
+      case "testing_allowance":
+        // Monthly testing credits (0061): granted once per Karachi month (unique ledger reference), retried safely.
+        await deps.db.withWorkspace(workspaceId, (tx) => engine.grantTesting(tx, workspaceId));
+        await deps.cache.invalidate(workspaceId);
+        return;
       case "comp_period_end":
         await deps.db.withWorkspace(workspaceId, async (tx) => {
           const sub = await repo.getSubscription(tx, workspaceId, { forUpdate: true });
@@ -773,6 +783,8 @@ export function createBillingService(deps: BillingDeps) {
   return {
     engine,
     startTrial: engine.startTrial,
+    /** Provisioning hook: the new account's first workspace receives this month's testing credits (0061). */
+    startTestingAllowance: engine.grantTesting,
     summary,
     plans,
     publicPlans,

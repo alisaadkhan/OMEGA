@@ -9,6 +9,8 @@ export const ENCRYPTED_COLUMNS = [
   { table: "gcp.creator_contacts", column: "value_encrypted" },
   { table: "gcp.removal_requests", column: "requester_email_encrypted" },
   { table: "staff.staff_users", column: "totp_secret_encrypted" },
+  // Addresses a workspace typed in or imported for a creator (0056, 0058).
+  { table: "wp.workspace_contacts", column: "value_encrypted" },
 ] as const;
 
 export type ColumnReport = { table: string; column: string; rows: number; byKey: Record<string, number>; undecryptable: number; reencrypted: number };

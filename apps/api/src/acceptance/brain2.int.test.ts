@@ -131,7 +131,7 @@ describe("Brain 2 pipeline (B2)", () => {
       if (calls === 1) throw new ProviderError(true, "provider", "HTTP 503 from search provider");
       return LAHORE(8).map((h) => ({ title: h, link: `https://www.instagram.com/${h}/`, snippet: `Food vlogger ${q.query}` }));
     });
-    const api = await buildApi({ fixtures: { web, scraper: scraperFor(() => "Food vlogger in Lahore") } });
+    const api = await buildApi({ fixtures: { web, scraper: scraperFor(() => "Food vlogger based in Lahore, Pakistan") } });
     const c = await customer(api);
     const { jobId } = await api.startLive(c.ctx, brief.text, brief.filters, 5);
     const first = await api.live.run(jobId, c.ctx.workspaceId).then(() => "completed", (e: Error) => `threw: ${e.message.slice(0, 60)}`);
@@ -158,6 +158,25 @@ describe("Brain 2 pipeline (B2)", () => {
     expect(await api.balance(c.ctx)).toEqual(before);
   });
 
+  it("B2-18 Pakistan-only (elig-2): a profile based abroad, with no stated country or with conflicting evidence is saved but never delivered or charged", async () => {
+    const bios: Record<string, string> = {
+      lhr_food_1: "Food vlogger based in Dubai, UAE",
+      lhr_food_2: "Food vlogger in Lahore",
+      lhr_food_3: "Based in Pakistan, also based in the UK",
+    };
+    const api = await buildApi({ fixtures: { web: webFor(() => LAHORE(8)), scraper: scraperFor((h) => bios[h] ?? "Food vlogger based in Lahore, Pakistan") } });
+    const c = await customer(api);
+    const { jobId } = await api.startLive(c.ctx, brief.text, brief.filters);
+    const { job, results } = await runToEnd(api, c.ctx, jobId);
+    const handles = results.map((r) => r.handle).sort();
+    evidence("B2-18", { delivered: handles, charged: job.live?.creditsCharged });
+    for (const excluded of Object.keys(bios)) expect(handles).not.toContain(excluded);
+    expect(handles.length).toBeGreaterThan(0);
+    // Not delivered is not deleted: the excluded profiles were saved with their country decision.
+    const saved = await owner<{ handle: string; country_status: string }>(`select handle, country_status from gcp.creator_profiles where handle in ('lhr_food_1', 'lhr_food_2', 'lhr_food_3') order by handle`);
+    expect(saved).toEqual([{ handle: "lhr_food_1", country_status: "foreign" }, { handle: "lhr_food_2", country_status: "unknown" }, { handle: "lhr_food_3", country_status: "conflicting" }]);
+  });
+
   it("B2-09 when every candidate is off-topic, nothing is delivered and the run costs nothing", async () => {
     const web = new FixtureWebSearch(() => LAHORE(10, "lhr_cars").map((h) => ({ title: `${h} | Car repairs`, link: `https://www.instagram.com/${h}/`, snippet: "Car mechanic, engine repair, Lahore" })));
     const api = await buildApi({ fixtures: { web, scraper: scraperFor(() => "Car mechanic and engine repair videos") } });
@@ -174,8 +193,8 @@ describe("Brain 2 pipeline (B2)", () => {
   });
 
   it("B2-10/11/12 private, possible-minor and under-10k profiles are never delivered or charged; adults over 10k are", async () => {
-    const bios: Record<string, string | null> = { lhr_food_1: null, lhr_food_2: "16 years old food lover from Lahore", lhr_food_3: "Food vlogger in Lahore" };
-    const api = await buildApi({ fixtures: { web: webFor(() => LAHORE(8)), scraper: scraperFor((h) => (h in bios ? (bios[h] as string | null) : "Food vlogger in Lahore"), (h) => (h === "lhr_food_3" ? 5_000 : 50_000)) } });
+    const bios: Record<string, string | null> = { lhr_food_1: null, lhr_food_2: "16 years old Pakistani food blogger from Lahore", lhr_food_3: "Food vlogger based in Lahore, Pakistan" };
+    const api = await buildApi({ fixtures: { web: webFor(() => LAHORE(8)), scraper: scraperFor((h) => (h in bios ? (bios[h] as string | null) : "Food vlogger based in Lahore, Pakistan"), (h) => (h === "lhr_food_3" ? 5_000 : 50_000)) } });
     const c = await customer(api);
     const { jobId } = await api.startLive(c.ctx, brief.text, brief.filters);
     const { job, results } = await runToEnd(api, c.ctx, jobId);
@@ -193,7 +212,7 @@ describe("Brain 2 pipeline (B2)", () => {
   });
 
   it("B2-13 a partial result (fewer deliverable creators than the size) is charged the base fee plus delivered creators only", async () => {
-    const api = await buildApi({ fixtures: { web: webFor(() => LAHORE(8)), scraper: scraperFor((h) => (["lhr_food_1", "lhr_food_2", "lhr_food_3"].includes(h) ? "Food vlogger in Lahore" : null)) } });
+    const api = await buildApi({ fixtures: { web: webFor(() => LAHORE(8)), scraper: scraperFor((h) => (["lhr_food_1", "lhr_food_2", "lhr_food_3"].includes(h) ? "Food vlogger based in Lahore, Pakistan" : null)) } });
     const c = await customer(api);
     const before = await api.balance(c.ctx);
     const { jobId } = await api.startLive(c.ctx, brief.text, brief.filters, 10);
@@ -227,7 +246,7 @@ describe("Brain 2 pipeline (B2)", () => {
       instagram: async (req: ScrapeRequest) => {
         running.fetched++;
         if (running.fetched === 1 && running.api && running.ctx && running.jobId) await running.api.discovery.cancel(running.ctx, running.jobId);
-        return { provider: "apify", raw: igProfile(req.handle, "Food vlogger in Lahore"), costUsd: 0.0026 };
+        return { provider: "apify", raw: igProfile(req.handle, "Food vlogger based in Lahore, Pakistan"), costUsd: 0.0026 };
       },
     });
     const api = await buildApi({ fixtures: { web: webFor(() => LAHORE(8)), scraper } });
@@ -261,7 +280,7 @@ describe("Brain 2 pipeline (B2)", () => {
   });
 
   it("B2-17 contacts are never invented: only an address present in the source bio is stored, with its source", async () => {
-    const api = await buildApi({ fixtures: { web: webFor(() => LAHORE(8)), scraper: scraperFor((h) => (h === "lhr_food_1" ? "Food vlogger in Lahore. Collab: lhrfood1@lhrfoodmail.pk" : "Food vlogger in Lahore")) } });
+    const api = await buildApi({ fixtures: { web: webFor(() => LAHORE(8)), scraper: scraperFor((h) => (h === "lhr_food_1" ? "Food vlogger based in Lahore, Pakistan. Collab: lhrfood1@lhrfoodmail.pk" : "Food vlogger based in Lahore, Pakistan")) } });
     const c = await customer(api);
     const { jobId } = await api.startLive(c.ctx, brief.text, brief.filters);
     const { results } = await runToEnd(api, c.ctx, jobId);
@@ -286,7 +305,7 @@ describe("Brain 2 pipeline (B2)", () => {
 
 describe("delivery persistence (P)", () => {
   it("P-01 every delivered creator has a committed row matching the delivered result (independent connection)", async () => {
-    const api = await buildApi({ fixtures: { web: webFor(() => LAHORE(8)), scraper: scraperFor(() => "Food vlogger in Lahore", (h) => 40_000 + Number(h.split("_").at(-1)) * 1_000) } });
+    const api = await buildApi({ fixtures: { web: webFor(() => LAHORE(8)), scraper: scraperFor(() => "Food vlogger based in Lahore, Pakistan", (h) => 40_000 + Number(h.split("_").at(-1)) * 1_000) } });
     const c = await customer(api);
     const { jobId } = await api.startLive(c.ctx, brief.text, brief.filters);
     const { results } = await runToEnd(api, c.ctx, jobId);
@@ -332,7 +351,7 @@ describe("delivery persistence (P)", () => {
   it("P-03 a creator MUSHIN already knows is reused (same id, no new row) and delivered free", async () => {
     const api = await buildApi({ fixtures: { web: webFor(() => LAHORE(8)) } });
     const c = await customer(api);
-    const knownId = await knownThroughPipeline(api, c.workspaceId, "lhr_food_1", "Food vlogger in Lahore", 50_000);
+    const knownId = await knownThroughPipeline(api, c.workspaceId, "lhr_food_1", "Food vlogger based in Lahore, Pakistan", 50_000);
     const { jobId } = await api.startLive(c.ctx, brief.text, brief.filters);
     const { job, results } = await runToEnd(api, c.ctx, jobId);
     const rows = await committed(["lhr_food_1"]);
@@ -359,7 +378,7 @@ describe("delivery persistence (P)", () => {
   });
 
   it("P-05 two different people with the same display name stay two creators", async () => {
-    const api = await buildApi({ fixtures: { web: webFor(() => LAHORE(8)), scraper: scraperFor(() => "Food vlogger in Lahore") } });
+    const api = await buildApi({ fixtures: { web: webFor(() => LAHORE(8)), scraper: scraperFor(() => "Food vlogger based in Lahore, Pakistan") } });
     const c = await customer(api);
     const { jobId } = await api.startLive(c.ctx, brief.text, brief.filters);
     await runToEnd(api, c.ctx, jobId);
@@ -384,7 +403,7 @@ describe("delivery persistence (P)", () => {
   });
 
   it("P-07 rediscovering a known creator keeps better-known data (contacts, niches, city) and does not overwrite it with the new fetch", async () => {
-    const api = await buildApi({ fixtures: { web: webFor(() => LAHORE(8)), scraper: scraperFor(() => "Food vlogger in Lahore", (h) => (h === "lhr_food_1" ? 77_000 : 50_000)) } });
+    const api = await buildApi({ fixtures: { web: webFor(() => LAHORE(8)), scraper: scraperFor(() => "Food vlogger based in Lahore, Pakistan", (h) => (h === "lhr_food_1" ? 77_000 : 50_000)) } });
     const c = await customer(api);
     const id = await knownThroughPipeline(api, c.workspaceId, "lhr_food_1", "Food vlogger in Lahore. Collab: rich@lhrfoodmail.pk", 60_000);
     // Better-known fields set later (as an assessment or staff edit would), which a live run must not erase.

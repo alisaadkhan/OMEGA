@@ -12,7 +12,7 @@ describe("creator attribute evidence", () => {
       row({}),
     ]);
     expect(groups.map((g) => g.attribute)).toEqual(["city", "country", "niche"]);
-    expect(groups[1]?.rows.map((r) => r.display)).toEqual(["Pakistan", "US"]);
+    expect(groups[1]?.rows.map((r) => r.display)).toEqual(["Pakistan", "United States"]);
   });
 
   it("explains why a field is unknown", () => {
@@ -23,5 +23,15 @@ describe("creator attribute evidence", () => {
 
   it("shows nothing when there is no evidence", () => {
     expect(groupEvidence([])).toEqual([]);
+  });
+});
+
+describe("country with its source", () => {
+  it("names any country and says where it comes from, and stays empty when unknown", async () => {
+    const { countryWithSource } = await import("./evidence-mapping");
+    expect(countryWithSource("CA", "creator_stated")).toBe("Canada · stated in the creator's bio");
+    expect(countryWithSource("PK", "platform_declared")).toBe("Pakistan · declared on the platform");
+    expect(countryWithSource("GB", null)).toBe("United Kingdom");
+    expect(countryWithSource(null, null)).toBeNull();
   });
 });

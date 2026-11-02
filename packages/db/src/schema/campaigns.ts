@@ -66,6 +66,8 @@ export const outreachEmails = wp.table("outreach_emails", {
   campaignId: uuid("campaign_id").notNull(),
   creatorId: uuid("creator_id").notNull(),
   contactId: uuid("contact_id").notNull(),
+  /** Whether contact_id is a revealed creator contact or a workspace-provided address (0056). */
+  contactSource: text("contact_source", { enum: ["creator_contact", "workspace_contact"] }).notNull().default("creator_contact"),
   requestedBy: uuid("requested_by").notNull(),
   idempotencyKey: text("idempotency_key").notNull(),
   recipientHash: text("recipient_hash").notNull(),

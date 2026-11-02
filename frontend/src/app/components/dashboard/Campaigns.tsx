@@ -44,7 +44,7 @@ export function CampaignForm({ initial, submitLabel, busy, onSubmit, onCancel }:
   const label = "block text-xs text-slate-600";
   return (
     <form
-      className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-2"
+      className="grid gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 sm:grid-cols-2"
       onSubmit={(e) => {
         e.preventDefault();
         if (!v.name.trim() || datesBad) return;
@@ -116,28 +116,42 @@ export function CampaignForm({ initial, submitLabel, busy, onSubmit, onCancel }:
 
 function CampaignCard({ c, onOpen }: { c: CampaignSummary; onOpen: () => void }) {
   const open = c.creatorCount - c.declinedCount;
+  // MUSHIN design (2026-10-27): client label, name and status; a figures bar (budget, fees agreed, creators); the
+  // pipeline bar along the bottom. Only the campaign's own records are shown (no ROAS: MUSHIN does not measure sales).
   return (
-    <div role="button" tabIndex={0} onClick={onOpen} onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onOpen()} className="cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <div className="truncate text-slate-900" style={{ fontSize: 15, fontWeight: 600 }}>{c.name}</div>
-          <div className="mt-0.5 truncate text-xs text-slate-500">{c.client || "No client"}{c.platform ? ` · ${c.platform}` : ""}</div>
+    <div role="button" tabIndex={0} onClick={onOpen} onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onOpen()} className="flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white transition-shadow hover:shadow-[0_12px_32px_-16px_rgba(15,23,42,0.25)] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
+      <div className="flex-1 p-6">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <div className="truncate text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500">{c.client || "No client"}{c.platform ? ` · ${c.platform}` : ""}</div>
+            <div className="mt-1 truncate text-[18px] font-semibold tracking-[-0.015em] text-slate-900">{c.name}</div>
+          </div>
+          <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${STATUS_TONE[c.status]}`}>{STATUS_LABEL[c.status]}</span>
         </div>
-        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] ${STATUS_TONE[c.status]}`} style={{ fontWeight: 600 }}>{STATUS_LABEL[c.status]}</span>
+        <dl className="mt-4 grid grid-cols-3 gap-2 rounded-xl bg-slate-50 px-4 py-3 text-center">
+          <div>
+            <dt className="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-500">Budget</dt>
+            <dd className="mt-0.5 truncate text-sm font-semibold tabular-nums text-slate-900">{c.budgetMinor === null ? "—" : rupees(c.budgetMinor)}</dd>
+          </div>
+          <div>
+            <dt className="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-500">Agreed</dt>
+            <dd className="mt-0.5 truncate text-sm font-semibold tabular-nums text-indigo-700" title="Fees marked agreed">{rupees(c.agreedFeesMinor)}</dd>
+          </div>
+          <div>
+            <dt className="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-500">Creators</dt>
+            <dd className="mt-0.5 inline-flex items-center gap-1 text-sm font-semibold tabular-nums text-slate-900"><Users aria-hidden className="h-3.5 w-3.5 text-slate-500" /> {c.creatorCount}</dd>
+          </div>
+        </dl>
+        <div className="mt-4 flex items-center justify-between gap-2 text-xs">
+          <span className="font-medium text-slate-800">{c.creatorCount === 0 ? "No creators added yet" : `${c.stageCounts.confirmed} of ${open} confirmed${c.declinedCount ? ` · ${c.declinedCount} declined` : ""}`}</span>
+          <span className="text-slate-500">Updated {relative(c.updatedAt)}</span>
+        </div>
+        <div className="mt-1 inline-flex items-center gap-1 text-[11px] text-slate-500"><CalendarDays aria-hidden className="h-3 w-3" /> {c.startDate ?? "No start"} → {c.endDate ?? "No end"}</div>
       </div>
-      <div className="mt-3 flex h-1.5 overflow-hidden rounded-full bg-slate-100" aria-label={`${c.stageCounts.confirmed} of ${open} open creators confirmed`}>
+      <div className="flex h-1.5 bg-slate-100" aria-label={`${c.stageCounts.confirmed} of ${open} open creators confirmed`}>
         {(["identified", "contacted", "negotiating", "confirmed"] as const).map((s, i) => (
-          <div key={s} style={{ width: open ? `${(c.stageCounts[s] / open) * 100}%` : 0 }} className={["bg-slate-300", "bg-sky-300", "bg-amber-300", "bg-emerald-400"][i]} />
+          <div key={s} style={{ width: open ? `${(c.stageCounts[s] / open) * 100}%` : 0 }} className={["bg-slate-300", "bg-sky-300", "bg-amber-300", "bg-indigo-500"][i]} />
         ))}
-      </div>
-      <div className="mt-2 text-[11px] text-slate-500">{c.creatorCount === 0 ? "No creators added yet" : `${c.stageCounts.confirmed} of ${open} confirmed${c.declinedCount ? ` · ${c.declinedCount} declined` : ""}`}</div>
-      <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
-        <span className="inline-flex items-center gap-1"><Users className="h-3.5 w-3.5" /> {c.creatorCount}</span>
-        <span title="Fees marked agreed / budget">{rupees(c.agreedFeesMinor)} agreed{c.budgetMinor !== null ? ` of ${rupees(c.budgetMinor)}` : ""}</span>
-      </div>
-      <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500">
-        <span className="inline-flex items-center gap-1"><CalendarDays className="h-3 w-3" /> {c.startDate ?? "No start"} → {c.endDate ?? "No end"}</span>
-        <span>Updated {relative(c.updatedAt)}</span>
       </div>
     </div>
   );
@@ -150,14 +164,14 @@ function CampaignIndex({ onOpen }: { onOpen: (id: string) => void }) {
   const [creating, setCreating] = useState(false);
   return (
     <div className="space-y-5">
-      <div className="flex items-end justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-slate-900" style={{ fontSize: 26, fontWeight: 700 }}>Campaigns</h1>
+          <h1 className="text-[32px] font-semibold leading-10 tracking-[-0.025em] text-slate-900">Campaigns</h1>
           <p className="mt-1 text-sm text-slate-500">Track creators from first contact to confirmed, with fees and an outreach log.</p>
         </div>
         <div className="flex items-center gap-2">
           <ExportButton kind="campaigns" />
-          <button onClick={() => setCreating(true)} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-sm text-white hover:bg-slate-800" style={{ fontWeight: 600 }}>
+          <button onClick={() => setCreating(true)} className="inline-flex h-10 items-center gap-1.5 whitespace-nowrap rounded-xl bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800">
             <Plus className="h-4 w-4" /> New campaign
           </button>
         </div>
@@ -177,7 +191,7 @@ function CampaignIndex({ onOpen }: { onOpen: (id: string) => void }) {
       ) : campaigns.data.campaigns.length === 0 ? (
         !creating && <EmptyState icon={<Megaphone className="h-5 w-5" />} title="No campaigns yet" body="Create a campaign, then add creators from Search, a list or a creator's profile." action={<button onClick={() => setCreating(true)} className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs text-white" style={{ fontWeight: 600 }}>New campaign</button>} />
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {campaigns.data.campaigns.map((c) => <CampaignCard key={c.id} c={c} onOpen={() => onOpen(c.id)} />)}
         </div>
       )}

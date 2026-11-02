@@ -1,4 +1,4 @@
-# MUSHIN CI (prepared 2026-10-16; not yet run: the repository has no GitHub remote). Mirrors the local gate:
+# MUSHIN CI (prepared 2026-10-16; a GitHub remote now exists, but no hosted run has been verified). Mirrors the local gate:
 # lint, typecheck, boundaries, every unit and integration test against disposable PostgreSQL 17 and Meilisearch,
 # the frontend build and the bundle secret scan. No provider key is configured, so nothing can spend money.
 name: ci
@@ -49,7 +49,9 @@ jobs:
       - name: Install (workspaces)
         run: npm ci
       - name: Committed-source secret scan (audit SEC-01)
-        run: node --import tsx -e "import('./scripts/package-source.ts').then(({ committedFiles, scanSourceFile }) => { const f = committedFiles(process.cwd()).flatMap((x) => scanSourceFile(x.path, x.text)); for (const x of f) console.error(x.kind + ' in ' + x.file); process.exit(f.length ? 1 : 0); })"
+        # Block scalar: the script's ": " is not valid in a plain YAML value (GitHub rejected the whole workflow).
+        run: |
+          node --import tsx -e "import('./scripts/package-source.ts').then(({ committedFiles, scanSourceFile }) => { const f = committedFiles(process.cwd()).flatMap((x) => scanSourceFile(x.path, x.text)); for (const x of f) console.error(x.kind + ' in ' + x.file); process.exit(f.length ? 1 : 0); })"
       - name: Install (frontend)
         run: npm ci --prefix frontend
       - name: Lint, typecheck, boundaries, unit and integration tests

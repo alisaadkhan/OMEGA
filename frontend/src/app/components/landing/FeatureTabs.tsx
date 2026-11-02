@@ -74,7 +74,7 @@ export function FeatureTabs() {
         <div className="mx-auto max-w-3xl text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-600 shadow-sm">
             <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
-            The Mushin platform
+            The MUSHIN platform
           </div>
           <h2
             className="mt-5 tracking-tight text-slate-900"
@@ -170,7 +170,7 @@ export function FeatureTabs() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -8, scale: 0.99 }}
                 transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-                className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_30px_80px_-30px_rgba(15,23,42,0.3)]"
+                className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_30px_80px_-30px_rgba(15,23,42,0.3)]"
               >
                 <div className="flex h-9 items-center gap-2 border-b border-slate-100 bg-slate-50/60 px-4">
                   <span className="h-2.5 w-2.5 rounded-full bg-slate-200" />

@@ -92,7 +92,7 @@ function leftoverDoc(id: string) {
     updated_epoch: 1,
     eligible: false,
     eligible_until: null,
-    eligibility_version: "elig-1",
+    eligibility_version: "elig-2",
     eligibility_reasons: ["below_follower_minimum"],
     eligibility_flags: [],
     qualifying_platforms: [],

@@ -1,0 +1,764 @@
+{
+  "database": "mushin_catalog_v3",
+  "at": "2026-10-29T15:07:03.306Z",
+  "activePolicy": "elig-2 (unchanged)",
+  "writes": "none",
+  "profiles": 2520,
+  "creators": 2520,
+  "activeEligibleProfiles": 387,
+  "scenarios": [
+    {
+      "id": "elig-2",
+      "kind": "policy",
+      "label": "Active rule: 10K on the own profile, 90-day activity, Pakistani country (YouTube counts at most 30 days old)"
+    },
+    {
+      "id": "cand-tt20k",
+      "kind": "policy",
+      "label": "TikTok floor 20K (others unchanged)"
+    },
+    {
+      "id": "cand-tt25k",
+      "kind": "policy",
+      "label": "TikTok floor 25K (others unchanged)"
+    },
+    {
+      "id": "cand-all50k",
+      "kind": "policy",
+      "label": "50K on every platform (comparison only; the research does not support it)"
+    },
+    {
+      "id": "cand-yt45",
+      "kind": "policy",
+      "label": "YouTube latest upload within 45 days (research), others 90"
+    },
+    {
+      "id": "cand-30d",
+      "kind": "policy",
+      "label": "Latest post within 30 days on every platform"
+    },
+    {
+      "id": "cand-strict-activity",
+      "kind": "policy",
+      "label": "Activity must be shown: no stored post date = unknown (90 days)"
+    },
+    {
+      "id": "cand-engagement",
+      "kind": "policy",
+      "label": "Engagement sanity: review under 1.5% (10K-500K), flag under 1%"
+    },
+    {
+      "id": "shadow-research-posts",
+      "kind": "shadow",
+      "label": "Research per-post rules (TikTok 4 videos/30 days, median engagement 3.5% of last 10, median views/followers 15%; Instagram 2 posts/30 days; YouTube 1 long-form/45 days)"
+    }
+  ],
+  "outcomes": [
+    {
+      "scenario": "elig-2",
+      "kind": "policy",
+      "platform": "youtube",
+      "profiles": 2379,
+      "eligible": 371,
+      "eligiblePct": 15.6,
+      "ineligible": 1926,
+      "ineligiblePct": 81,
+      "review": 11,
+      "reviewPct": 0.5,
+      "unknown": 71,
+      "unknownPct": 3
+    },
+    {
+      "scenario": "elig-2",
+      "kind": "policy",
+      "platform": "instagram",
+      "profiles": 108,
+      "eligible": 16,
+      "eligiblePct": 14.8,
+      "ineligible": 38,
+      "ineligiblePct": 35.2,
+      "review": 0,
+      "reviewPct": 0,
+      "unknown": 54,
+      "unknownPct": 50
+    },
+    {
+      "scenario": "elig-2",
+      "kind": "policy",
+      "platform": "tiktok",
+      "profiles": 33,
+      "eligible": 0,
+      "eligiblePct": 0,
+      "ineligible": 19,
+      "ineligiblePct": 57.6,
+      "review": 0,
+      "reviewPct": 0,
+      "unknown": 14,
+      "unknownPct": 42.4
+    },
+    {
+      "scenario": "cand-tt20k",
+      "kind": "policy",
+      "platform": "youtube",
+      "profiles": 2379,
+      "eligible": 371,
+      "eligiblePct": 15.6,
+      "ineligible": 1926,
+      "ineligiblePct": 81,
+      "review": 11,
+      "reviewPct": 0.5,
+      "unknown": 71,
+      "unknownPct": 3
+    },
+    {
+      "scenario": "cand-tt20k",
+      "kind": "policy",
+      "platform": "instagram",
+      "profiles": 108,
+      "eligible": 16,
+      "eligiblePct": 14.8,
+      "ineligible": 38,
+      "ineligiblePct": 35.2,
+      "review": 0,
+      "reviewPct": 0,
+      "unknown": 54,
+      "unknownPct": 50
+    },
+    {
+      "scenario": "cand-tt20k",
+      "kind": "policy",
+      "platform": "tiktok",
+      "profiles": 33,
+      "eligible": 0,
+      "eligiblePct": 0,
+      "ineligible": 21,
+      "ineligiblePct": 63.6,
+      "review": 0,
+      "reviewPct": 0,
+      "unknown": 12,
+      "unknownPct": 36.4
+    },
+    {
+      "scenario": "cand-tt25k",
+      "kind": "policy",
+      "platform": "youtube",
+      "profiles": 2379,
+      "eligible": 371,
+      "eligiblePct": 15.6,
+      "ineligible": 1926,
+      "ineligiblePct": 81,
+      "review": 11,
+      "reviewPct": 0.5,
+      "unknown": 71,
+      "unknownPct": 3
+    },
+    {
+      "scenario": "cand-tt25k",
+      "kind": "policy",
+      "platform": "instagram",
+      "profiles": 108,
+      "eligible": 16,
+      "eligiblePct": 14.8,
+      "ineligible": 38,
+      "ineligiblePct": 35.2,
+      "review": 0,
+      "reviewPct": 0,
+      "unknown": 54,
+      "unknownPct": 50
+    },
+    {
+      "scenario": "cand-tt25k",
+      "kind": "policy",
+      "platform": "tiktok",
+      "profiles": 33,
+      "eligible": 0,
+      "eligiblePct": 0,
+      "ineligible": 21,
+      "ineligiblePct": 63.6,
+      "review": 0,
+      "reviewPct": 0,
+      "unknown": 12,
+      "unknownPct": 36.4
+    },
+    {
+      "scenario": "cand-all50k",
+      "kind": "policy",
+      "platform": "youtube",
+      "profiles": 2379,
+      "eligible": 226,
+      "eligiblePct": 9.5,
+      "ineligible": 2099,
+      "ineligiblePct": 88.2,
+      "review": 9,
+      "reviewPct": 0.4,
+      "unknown": 45,
+      "unknownPct": 1.9
+    },
+    {
+      "scenario": "cand-all50k",
+      "kind": "policy",
+      "platform": "instagram",
+      "profiles": 108,
+      "eligible": 6,
+      "eligiblePct": 5.6,
+      "ineligible": 62,
+      "ineligiblePct": 57.4,
+      "review": 0,
+      "reviewPct": 0,
+      "unknown": 40,
+      "unknownPct": 37
+    },
+    {
+      "scenario": "cand-all50k",
+      "kind": "policy",
+      "platform": "tiktok",
+      "profiles": 33,
+      "eligible": 0,
+      "eligiblePct": 0,
+      "ineligible": 24,
+      "ineligiblePct": 72.7,
+      "review": 0,
+      "reviewPct": 0,
+      "unknown": 9,
+      "unknownPct": 27.3
+    },
+    {
+      "scenario": "cand-yt45",
+      "kind": "policy",
+      "platform": "youtube",
+      "profiles": 2379,
+      "eligible": 347,
+      "eligiblePct": 14.6,
+      "ineligible": 1953,
+      "ineligiblePct": 82.1,
+      "review": 10,
+      "reviewPct": 0.4,
+      "unknown": 69,
+      "unknownPct": 2.9
+    },
+    {
+      "scenario": "cand-yt45",
+      "kind": "policy",
+      "platform": "instagram",
+      "profiles": 108,
+      "eligible": 16,
+      "eligiblePct": 14.8,
+      "ineligible": 38,
+      "ineligiblePct": 35.2,
+      "review": 0,
+      "reviewPct": 0,
+      "unknown": 54,
+      "unknownPct": 50
+    },
+    {
+      "scenario": "cand-yt45",
+      "kind": "policy",
+      "platform": "tiktok",
+      "profiles": 33,
+      "eligible": 0,
+      "eligiblePct": 0,
+      "ineligible": 19,
+      "ineligiblePct": 57.6,
+      "review": 0,
+      "reviewPct": 0,
+      "unknown": 14,
+      "unknownPct": 42.4
+    },
+    {
+      "scenario": "cand-30d",
+      "kind": "policy",
+      "platform": "youtube",
+      "profiles": 2379,
+      "eligible": 336,
+      "eligiblePct": 14.1,
+      "ineligible": 1970,
+      "ineligiblePct": 82.8,
+      "review": 10,
+      "reviewPct": 0.4,
+      "unknown": 63,
+      "unknownPct": 2.6
+    },
+    {
+      "scenario": "cand-30d",
+      "kind": "policy",
+      "platform": "instagram",
+      "profiles": 108,
+      "eligible": 16,
+      "eligiblePct": 14.8,
+      "ineligible": 38,
+      "ineligiblePct": 35.2,
+      "review": 0,
+      "reviewPct": 0,
+      "unknown": 54,
+      "unknownPct": 50
+    },
+    {
+      "scenario": "cand-30d",
+      "kind": "policy",
+      "platform": "tiktok",
+      "profiles": 33,
+      "eligible": 0,
+      "eligiblePct": 0,
+      "ineligible": 19,
+      "ineligiblePct": 57.6,
+      "review": 0,
+      "reviewPct": 0,
+      "unknown": 14,
+      "unknownPct": 42.4
+    },
+    {
+      "scenario": "cand-strict-activity",
+      "kind": "policy",
+      "platform": "youtube",
+      "profiles": 2379,
+      "eligible": 371,
+      "eligiblePct": 15.6,
+      "ineligible": 1926,
+      "ineligiblePct": 81,
+      "review": 11,
+      "reviewPct": 0.5,
+      "unknown": 71,
+      "unknownPct": 3
+    },
+    {
+      "scenario": "cand-strict-activity",
+      "kind": "policy",
+      "platform": "instagram",
+      "profiles": 108,
+      "eligible": 3,
+      "eligiblePct": 2.8,
+      "ineligible": 38,
+      "ineligiblePct": 35.2,
+      "review": 0,
+      "reviewPct": 0,
+      "unknown": 67,
+      "unknownPct": 62
+    },
+    {
+      "scenario": "cand-strict-activity",
+      "kind": "policy",
+      "platform": "tiktok",
+      "profiles": 33,
+      "eligible": 0,
+      "eligiblePct": 0,
+      "ineligible": 19,
+      "ineligiblePct": 57.6,
+      "review": 0,
+      "reviewPct": 0,
+      "unknown": 14,
+      "unknownPct": 42.4
+    },
+    {
+      "scenario": "cand-engagement",
+      "kind": "policy",
+      "platform": "youtube",
+      "profiles": 2379,
+      "eligible": 320,
+      "eligiblePct": 13.5,
+      "ineligible": 1926,
+      "ineligiblePct": 81,
+      "review": 71,
+      "reviewPct": 3,
+      "unknown": 62,
+      "unknownPct": 2.6
+    },
+    {
+      "scenario": "cand-engagement",
+      "kind": "policy",
+      "platform": "instagram",
+      "profiles": 108,
+      "eligible": 10,
+      "eligiblePct": 9.3,
+      "ineligible": 38,
+      "ineligiblePct": 35.2,
+      "review": 29,
+      "reviewPct": 26.9,
+      "unknown": 31,
+      "unknownPct": 28.7
+    },
+    {
+      "scenario": "cand-engagement",
+      "kind": "policy",
+      "platform": "tiktok",
+      "profiles": 33,
+      "eligible": 0,
+      "eligiblePct": 0,
+      "ineligible": 19,
+      "ineligiblePct": 57.6,
+      "review": 0,
+      "reviewPct": 0,
+      "unknown": 14,
+      "unknownPct": 42.4
+    },
+    {
+      "scenario": "shadow-research-posts",
+      "kind": "shadow",
+      "platform": "youtube",
+      "profiles": 2379,
+      "eligible": 0,
+      "eligiblePct": 0,
+      "ineligible": 1926,
+      "ineligiblePct": 81,
+      "review": 11,
+      "reviewPct": 0.5,
+      "unknown": 442,
+      "unknownPct": 18.6
+    },
+    {
+      "scenario": "shadow-research-posts",
+      "kind": "shadow",
+      "platform": "instagram",
+      "profiles": 108,
+      "eligible": 0,
+      "eligiblePct": 0,
+      "ineligible": 38,
+      "ineligiblePct": 35.2,
+      "review": 0,
+      "reviewPct": 0,
+      "unknown": 70,
+      "unknownPct": 64.8
+    },
+    {
+      "scenario": "shadow-research-posts",
+      "kind": "shadow",
+      "platform": "tiktok",
+      "profiles": 33,
+      "eligible": 0,
+      "eligiblePct": 0,
+      "ineligible": 19,
+      "ineligiblePct": 57.6,
+      "review": 0,
+      "reviewPct": 0,
+      "unknown": 14,
+      "unknownPct": 42.4
+    }
+  ],
+  "activeReasons": [
+    {
+      "platform": "youtube",
+      "reason": "below_follower_minimum",
+      "profiles": 1727
+    },
+    {
+      "platform": "youtube",
+      "reason": "country_unknown",
+      "profiles": 785
+    },
+    {
+      "platform": "youtube",
+      "reason": "inactive",
+      "profiles": 722
+    },
+    {
+      "platform": "youtube",
+      "reason": "country_not_pakistan",
+      "profiles": 297
+    },
+    {
+      "platform": "youtube",
+      "reason": "minor_protected",
+      "profiles": 19
+    },
+    {
+      "platform": "youtube",
+      "reason": "followers_unknown",
+      "profiles": 17
+    },
+    {
+      "platform": "youtube",
+      "reason": "country_conflicting",
+      "profiles": 14
+    },
+    {
+      "platform": "instagram",
+      "reason": "country_unknown",
+      "profiles": 81
+    },
+    {
+      "platform": "instagram",
+      "reason": "below_follower_minimum",
+      "profiles": 37
+    },
+    {
+      "platform": "instagram",
+      "reason": "inactive",
+      "profiles": 1
+    },
+    {
+      "platform": "tiktok",
+      "reason": "country_unknown",
+      "profiles": 33
+    },
+    {
+      "platform": "tiktok",
+      "reason": "below_follower_minimum",
+      "profiles": 19
+    }
+  ],
+  "availability": [
+    {
+      "platform": "youtube",
+      "profiles": 2379,
+      "followerCount": 2362,
+      "latestPostDate": 2376,
+      "engagementRate": 2301,
+      "engagementRateAt0or100": 23,
+      "averageViews": 2300,
+      "countryDecided": 1594,
+      "perPostTimestamps": 0,
+      "perPostEngagement": 0,
+      "perPostViews": 0,
+      "longFormVsShortsFlag": 0,
+      "instagramPostType": 0
+    },
+    {
+      "platform": "instagram",
+      "profiles": 108,
+      "followerCount": 108,
+      "latestPostDate": 8,
+      "engagementRate": 108,
+      "engagementRateAt0or100": 6,
+      "averageViews": 8,
+      "countryDecided": 27,
+      "perPostTimestamps": 0,
+      "perPostEngagement": 0,
+      "perPostViews": 0,
+      "longFormVsShortsFlag": 0,
+      "instagramPostType": 0
+    },
+    {
+      "platform": "tiktok",
+      "profiles": 33,
+      "followerCount": 33,
+      "latestPostDate": 15,
+      "engagementRate": 33,
+      "engagementRateAt0or100": 0,
+      "averageViews": 15,
+      "countryDecided": 0,
+      "perPostTimestamps": 0,
+      "perPostEngagement": 0,
+      "perPostViews": 0,
+      "longFormVsShortsFlag": 0,
+      "instagramPostType": 0
+    }
+  ],
+  "followerBands": [
+    {
+      "platform": "youtube",
+      "band": "<10K",
+      "profilesPassingEverythingElse": 534
+    },
+    {
+      "platform": "youtube",
+      "band": "10K-20K",
+      "profilesPassingEverythingElse": 62
+    },
+    {
+      "platform": "youtube",
+      "band": "20K-25K",
+      "profilesPassingEverythingElse": 20
+    },
+    {
+      "platform": "youtube",
+      "band": "25K-50K",
+      "profilesPassingEverythingElse": 63
+    },
+    {
+      "platform": "youtube",
+      "band": "50K-100K",
+      "profilesPassingEverythingElse": 71
+    },
+    {
+      "platform": "youtube",
+      "band": "100K-500K",
+      "profilesPassingEverythingElse": 108
+    },
+    {
+      "platform": "youtube",
+      "band": "500K+",
+      "profilesPassingEverythingElse": 47
+    },
+    {
+      "platform": "instagram",
+      "band": "<10K",
+      "profilesPassingEverythingElse": 10
+    },
+    {
+      "platform": "instagram",
+      "band": "10K-20K",
+      "profilesPassingEverythingElse": 4
+    },
+    {
+      "platform": "instagram",
+      "band": "20K-25K",
+      "profilesPassingEverythingElse": 1
+    },
+    {
+      "platform": "instagram",
+      "band": "25K-50K",
+      "profilesPassingEverythingElse": 5
+    },
+    {
+      "platform": "instagram",
+      "band": "50K-100K",
+      "profilesPassingEverythingElse": 2
+    },
+    {
+      "platform": "instagram",
+      "band": "100K-500K",
+      "profilesPassingEverythingElse": 4
+    },
+    {
+      "platform": "instagram",
+      "band": "500K+",
+      "profilesPassingEverythingElse": 0
+    },
+    {
+      "platform": "tiktok",
+      "band": "<10K",
+      "profilesPassingEverythingElse": 0
+    },
+    {
+      "platform": "tiktok",
+      "band": "10K-20K",
+      "profilesPassingEverythingElse": 0
+    },
+    {
+      "platform": "tiktok",
+      "band": "20K-25K",
+      "profilesPassingEverythingElse": 0
+    },
+    {
+      "platform": "tiktok",
+      "band": "25K-50K",
+      "profilesPassingEverythingElse": 0
+    },
+    {
+      "platform": "tiktok",
+      "band": "50K-100K",
+      "profilesPassingEverythingElse": 0
+    },
+    {
+      "platform": "tiktok",
+      "band": "100K-500K",
+      "profilesPassingEverythingElse": 0
+    },
+    {
+      "platform": "tiktok",
+      "band": "500K+",
+      "profilesPassingEverythingElse": 0
+    }
+  ],
+  "activityWindows": [
+    {
+      "platform": "youtube",
+      "profilesPassingEverythingElse": 408,
+      "within30d": 336,
+      "within45d": 347,
+      "within60d": 355,
+      "within90d": 371,
+      "noPostDate": 0
+    },
+    {
+      "platform": "instagram",
+      "profilesPassingEverythingElse": 17,
+      "within30d": 3,
+      "within45d": 3,
+      "within60d": 3,
+      "within90d": 3,
+      "noPostDate": 13
+    },
+    {
+      "platform": "tiktok",
+      "profilesPassingEverythingElse": 0,
+      "within30d": 0,
+      "within45d": 0,
+      "within60d": 0,
+      "within90d": 0,
+      "noPostDate": 0
+    }
+  ],
+  "tiktokProxies": {
+    "profiles": 33,
+    "aggregateEngagementAvailable": 33,
+    "aggregateEngagementAtLeast3_5": 29,
+    "averageViewsAvailable": 15,
+    "averageViewsToFollowersAtLeast15pct": 15,
+    "averageViewsToFollowersAtLeast20pct": 15,
+    "postingFrequencyAvailable": 0
+  },
+  "reviewCases": [
+    {
+      "platform": "instagram",
+      "kind": "possible_false_negative",
+      "detail": "passes everything except an unknown country",
+      "profiles": 54
+    },
+    {
+      "platform": "instagram",
+      "kind": "possible_false_positive",
+      "detail": "eligible with engagement under 1%",
+      "profiles": 6
+    },
+    {
+      "platform": "instagram",
+      "kind": "possible_false_positive",
+      "detail": "eligible without a stored post date (activity unverified)",
+      "profiles": 13
+    },
+    {
+      "platform": "tiktok",
+      "kind": "possible_false_negative",
+      "detail": "passes everything except an unknown country",
+      "profiles": 14
+    },
+    {
+      "platform": "youtube",
+      "kind": "possible_false_negative",
+      "detail": "last post 91-120 days ago, passes everything else",
+      "profiles": 4
+    },
+    {
+      "platform": "youtube",
+      "kind": "needs_review",
+      "detail": "conflicting country evidence",
+      "profiles": 14
+    },
+    {
+      "platform": "youtube",
+      "kind": "possible_false_positive",
+      "detail": "eligible with engagement under 1%",
+      "profiles": 24
+    },
+    {
+      "platform": "youtube",
+      "kind": "low_confidence_eligible",
+      "detail": "Pakistan only from the platform-declared country (low confidence)",
+      "profiles": 345
+    },
+    {
+      "platform": "youtube",
+      "kind": "possible_false_positive",
+      "detail": "eligible YouTube channel with no upload in 45 days",
+      "profiles": 24
+    },
+    {
+      "platform": "youtube",
+      "kind": "possible_false_negative",
+      "detail": "passes everything except an unknown country",
+      "profiles": 61
+    },
+    {
+      "platform": "youtube",
+      "kind": "possible_false_negative",
+      "detail": "9,000-9,999 followers, passes everything else",
+      "profiles": 11
+    },
+    {
+      "platform": "instagram",
+      "kind": "possible_false_negative",
+      "detail": "last post 91-120 days ago, passes everything else",
+      "profiles": 1
+    }
+  ]
+}

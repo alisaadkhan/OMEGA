@@ -14,7 +14,9 @@ export function bucketsFromConfig(c: { windowMs: number; maxRequests: number }):
   return {
     ip: { limit: c.maxRequests, windowSeconds },
     user: { limit: c.maxRequests, windowSeconds },
-    auth: { limit: 10, windowSeconds: 60 },
+    // Staff sign-in, code and refresh routes: 5 per minute per IP (pre-deploy check 2026-10-28; was 10), on top of the
+    // per-account 15-minute lockout. Customer sign-in, sign-up and reset are Supabase Auth's limits (dashboard).
+    auth: { limit: 5, windowSeconds: 60 },
     // AI calls are free to users but cost MUSHIN money (spec §4.1).
     ai: { limit: 20, windowSeconds: 60 },
     // Each job spends real money on Apify (spec §3.3): 20 starts per hour per user.

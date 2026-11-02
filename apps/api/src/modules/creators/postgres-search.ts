@@ -67,7 +67,9 @@ export function createPostgresCatalogSearch(db: Db): CatalogSearch {
     const rankQuery = sql.join([groups ? sql.join(groups.map((g) => sql`(${anyForm(g)})`), sql` || `) : tsq, ...boost], sql` || `);
 
     const f = query.filters;
-    if (f.platform) conditions.push(sql`d.platforms @> array[${f.platform}]::text[]`);
+    // A platform filter matches only platforms where the creator itself qualifies (elig-1 is per profile: a 50,000-subscriber
+    // YouTube channel does not make a 2,000-follower Instagram profile eligible for an Instagram search).
+    if (f.platform) conditions.push(sql`d.qualifying_platforms @> array[${f.platform}]::text[]`);
     if (f.creatorCountry) conditions.push(sql`d.country = ${f.creatorCountry}`);
     if (f.creatorCity) conditions.push(sql`lower(d.city) in (${sql.join(cityForms(f.creatorCity).map((form) => sql`${form}`), sql`, `)})`);
     if (f.followersMin !== undefined) conditions.push(sql`d.followers >= ${f.followersMin}`);

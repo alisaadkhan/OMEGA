@@ -30,7 +30,7 @@ export function SupportAccessSettings({ canManage }: { canManage: boolean }) {
     onError: (err) => toast.error("That didn't work", err instanceof Error ? err.message : undefined),
   });
   return (
-    <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600 shadow-sm">
+    <section className="space-y-3 rounded-2xl border border-slate-200/80 bg-white p-5 text-sm text-slate-600">
       <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Support access</div>
       <p>MUSHIN support can look at this workspace only if you agree: read-only, for the time you choose (up to 60 minutes). They cannot change, buy, export or send anything, and they never see your credit balance, revealed contacts or notes. You can end access at any time.</p>
       {!canManage ? <p className="text-xs text-slate-500">Only the workspace owner or an admin can answer support access requests.</p> : q.isPending ? <LoadingBlock lines={2} /> : q.isError ? <ErrorState body={q.error instanceof Error ? q.error.message : undefined} onRetry={() => void q.refetch()} /> : q.data.requests.length === 0 ? <p className="text-xs text-slate-500">No requests from support.</p> : (

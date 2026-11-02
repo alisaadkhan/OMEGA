@@ -74,8 +74,21 @@ export function createOpsModule(o: { db: Db; requireStaff: (action: StaffAction)
             (select c2.error_code from platform.provider_calls c2 where c2.provider = c.provider and c2.status = 'error' and c2.created_at >= ${since.toISOString()}::timestamptz order by c2.created_at desc limit 1) last_error
           from platform.provider_calls c where created_at >= ${since.toISOString()}::timestamptz group by provider order by provider`),
       );
+      const status = await o.db.withSystem((tx) =>
+        tx.execute<{ provider: string; configured: boolean; detail: Record<string, string | number | boolean>; quota_used: string | null; quota_limit: string | null; quota_unit: "usd" | "searches" | null; quota_source: string | null; check_error: string | null; checked_at: string }>(
+          sql`select provider, configured, detail, quota_used, quota_limit, quota_unit, quota_source, check_error, checked_at from platform.provider_status order by provider`,
+        ),
+      );
       return sendOk(reply, providerUsageSchema, {
         since: since.toISOString(),
+        status: status.map((r) => ({
+          provider: r.provider,
+          configured: r.configured,
+          detail: r.detail,
+          quota: r.quota_used !== null && r.quota_limit !== null && r.quota_unit ? { used: Number(r.quota_used), limit: Number(r.quota_limit), unit: r.quota_unit, source: r.quota_source ?? "" } : null,
+          checkError: r.check_error,
+          checkedAt: new Date(r.checked_at).toISOString(),
+        })),
         providers: rows.map((r) => ({
           provider: r.provider,
           calls: Number(r.calls),

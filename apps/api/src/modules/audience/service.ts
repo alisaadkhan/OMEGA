@@ -3,6 +3,7 @@ import type { AudienceState } from "@mushin/contracts";
 import { AppError, type TenantContext } from "@mushin/core";
 import { writeOutbox, type Db, type TenantTx } from "@mushin/db";
 import type { BillingService } from "../billing/index";
+import { lockedForWorkspace } from "../creators/index";
 import * as repo from "./repository";
 
 export type AudienceDeps = {
@@ -33,6 +34,9 @@ export function createAudienceService(deps: AudienceDeps) {
   async function stateIn(tx: TenantTx, ctx: TenantContext, creatorId: string, included: boolean): Promise<AudienceState> {
     const t = await repo.target(tx, creatorId);
     if (!t || !t.active) throw new AppError("NOT_FOUND", "Creator not found");
+    // Pakistan-only lock (BUG-32, BUG-35): an id from a workspace that does not hold the creator is answered like an
+    // unknown id, before anything is quoted, reserved or queued.
+    if (await lockedForWorkspace(tx, creatorId, now())) throw new AppError("NOT_FOUND", "Creator not found");
     const availability = t.minorProtected
       ? ("creator_protected" as const)
       : !t.youtubeHandle

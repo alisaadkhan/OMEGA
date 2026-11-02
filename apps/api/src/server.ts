@@ -1,7 +1,7 @@
 import { createHmac } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { createLogger, loadApiConfig } from "@mushin/core";
-import { createDatabase, createDbProviderCallSink, providerPaused, providerSpendSince, recordAlertEvent, UNVERIFIED_TLS_WARNING, workerHeartbeatAgeSeconds } from "@mushin/db";
+import { createDatabase, createDbProviderCallSink, llmSpendSince, providerPaused, recordAlertEvent, UNVERIFIED_TLS_WARNING, workerHeartbeatAgeSeconds } from "@mushin/db";
 import { createLlm, createPayments, createSearchIndex, MockEmailProvider, pausableLlm, ResendEmailProvider } from "@mushin/integrations";
 import { buildApp } from "./app";
 import { createSupabaseEmailVerification, createSupabaseIdentityDeletion } from "./auth/auth-admin";
@@ -20,12 +20,14 @@ import { createAnalyticsModule, createAnalyticsService } from "./modules/analyti
 import { createCampaignsModule, createCampaignsService } from "./modules/campaigns";
 import { createIdentityModule } from "./modules/identity";
 import { createExportsModule } from "./modules/exports";
+import { createImportsModule, createImportsService } from "./modules/imports";
 import { createListsModule, createListsService } from "./modules/lists";
 import { createOutreachModule } from "./modules/outreach";
 import { createPlatformModule } from "./modules/platform";
 import { createStaffModule, createStaffTokens, recordStaffAudit } from "./modules/staff";
 import { createAlertNotifier, createLogSender, createStaffActions, createStaffOpsModule, createWebhookSender } from "./modules/staffops";
 import { createTrialService, createTrialsModule } from "./modules/trials";
+import { createInsightsModule } from "./modules/insights";
 import { MemoryRateLimiter } from "./rate-limit/memory";
 import { ipRateLimitHook } from "./rate-limit/plugin";
 import { PostgresRateLimiter } from "./rate-limit/postgres";
@@ -75,6 +77,7 @@ const outreach = createOutreachModule({
   billing,
   provider: emailProvider,
   from: config.outreachEmail.mode === "off" ? "" : config.outreachEmail.from,
+  postalAddress: config.outreachEmail.mode === "off" ? null : config.outreachEmail.postalAddress,
   encryptionKey: config.dataEncryptionKey,
   unsubscribeKey: createHmac("sha256", config.dataEncryptionKey).update("mushin:outreach-unsubscribe").digest(),
   appUrl: config.appUrl,
@@ -85,8 +88,8 @@ const searchIndex = createSearchIndex(config.search, logger);
 const nativeSearch = createPostgresCatalogSearch(db);
 const searchCheck = searchReadiness(config.catalogSearchBackend, config.search ? () => searchIndex.ping() : null);
 if (searchCheck) readiness.push(searchCheck);
-// Every hosted-LLM call is checked against the monthly LLM budget (recorded Groq + Ollama spend).
-const llmSpentSince = async (since: Date) => (await providerSpendSince(db, "groq", since)) + (await providerSpendSince(db, "ollama", since));
+// Every hosted-LLM call is checked against the monthly LLM budget (recorded Gemini + Ollama spend, plus earlier Groq).
+const llmSpentSince = (since: Date) => llmSpendSince(db, since);
 const llm = pausableLlm(createLlm(config.llm, { sink: createDbProviderCallSink(db), logger, budget: { budgetUsd: config.llmMonthlyBudgetUsd, spentSince: llmSpentSince } }), () => providerPaused(db, "llm"));
 const creators = createCreatorsService({
   searchProfile: config.searchProfile,
@@ -103,6 +106,7 @@ const creators = createCreatorsService({
 const identity = createIdentityModule({
   db,
   autoTrial: config.trialActivation === "automatic" ? billing.startTrial : null,
+  testingAllowance: billing.startTestingAllowance,
   appUrl: config.appUrl,
   verifyEmail: config.authAdmin ? createSupabaseEmailVerification(config.authAdmin) : null,
   deleteIdentity: config.authAdmin ? createSupabaseIdentityDeletion(config.authAdmin) : null,
@@ -149,6 +153,7 @@ const app = await buildApp({
     createCreatorsModule({ service: creators, limiter, removals, requireStaff: staff.requireStaff }),
     createDiscoveryModule({ service: createDiscoveryService({ db, billing, sourcePolicy: config.sourcePolicy, workerAvailable }), limiter }),
     createListsModule({ service: createListsService({ db, sourcePolicy: config.sourcePolicy }) }),
+    createImportsModule({ service: createImportsService({ db, encryptionKey: config.dataEncryptionKey }) }),
     createCampaignsModule({ service: createCampaignsService({ db, planLimits: billing.getAccess, sourcePolicy: config.sourcePolicy }) }),
     outreach.module,
     createExportsModule({ db, billing, enabled: capabilities.export }),
@@ -157,6 +162,7 @@ const app = await buildApp({
     createSupportModule({ service: createSupportService({ db }) }),
     createTrialsModule({ service: createTrialService({ db, startTrial: billing.startTrial, onTrialStarted: (id) => accessCache.invalidate(id) }), limiter, requireStaff: staff.requireStaff }),
     createOpsModule({ db, requireStaff: staff.requireStaff }),
+    createInsightsModule({ db, requireStaff: staff.requireStaff }),
     createStaffOpsModule({ db, billing, requireStaff: staff.requireStaff, createStaffAccount: staff.createStaffAccount, alerts: { notifier: alertNotifier, channel: config.alertWebhookUrl ? "webhook" : "log" } }),
     createAudienceModule({ service: createAudienceService({ db, billing, sources: config.audienceSources }), limiter }),
   ],

@@ -16,6 +16,8 @@ export function fixtureCreator(over: Partial<Omit<NewCreator, "profiles">> & { p
     primaryPlatform: "instagram",
     city: "Lahore",
     country: "PK",
+    // Fixture creators have confirmed Pakistan to MUSHIN (elig-2 needs a Pakistani profile); country tests override it.
+    confirmedCountry: "PK",
     niches: ["Bridal"],
     tags: [],
     ...rest,

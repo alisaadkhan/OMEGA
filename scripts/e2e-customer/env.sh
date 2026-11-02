@@ -12,9 +12,18 @@ export APIFY_TOKEN=
 export SERPER_API_KEY=
 export GROQ_API_KEY=
 export OLLAMA_API_KEY=
+export GEMINI_API_KEY=
+# No YouTube Data API calls in any test run (owner decision 2026-10-26; the policy decision is pending).
+export YOUTUBE_API_CALLS=off
+export YOUTUBE_API_KEY=
+# PostgreSQL is the production default backend; E2E_SEARCH_BACKEND=meilisearch runs the journey against Meilisearch.
+export CATALOG_SEARCH_BACKEND=${E2E_SEARCH_BACKEND:-postgres}
 export AUDIENCE_SOURCES=
 # Own Meilisearch index prefix so mushin_local's dev_ index is untouched.
 export MEILISEARCH_INDEX_PREFIX=e2e_
+# With the PostgreSQL backend the run needs no Meilisearch: blanking the host (blank = unset) keeps the worker from
+# syncing an index that may not be running (owner 2026-10-27: Meilisearch is stopped and is not restarted for tests).
+if [ "$CATALOG_SEARCH_BACKEND" = "postgres" ] && [ -z "${E2E_KEEP_MEILI:-}" ]; then export MEILISEARCH_HOST=; fi
 # Automation issues requests far faster than a person; production limits are unchanged (finding recorded).
 export RATE_LIMIT_MAX_REQUESTS=2000
 # Outreach email in test mode: a mock provider records sends; nothing is delivered (never allowed in production).

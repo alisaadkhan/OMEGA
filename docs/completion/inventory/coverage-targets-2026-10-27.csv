@@ -1,0 +1,70 @@
+label,platform,stored_main,eligible,target,deficit,measured_yield,profiles_to_fetch_estimate,main_blocker
+Bridal,youtube,13,5,20,15,0.156,97,"too few stored profiles reach 10,000 followers"
+Bridal,instagram,13,2,20,18,0.148,122,"too few stored profiles reach 10,000 followers"
+Bridal,tiktok,0,0,10,10,0.000,n/a (no TikTok profile has Pakistani country evidence yet),country: TikTok bios rarely state it and the Actor returns none; needs creator confirmation
+Fashion,youtube,28,5,20,15,0.156,97,"too few stored profiles reach 10,000 followers"
+Fashion,instagram,5,0,20,20,0.148,135,"too few stored profiles reach 10,000 followers"
+Fashion,tiktok,1,0,10,10,0.000,n/a (no TikTok profile has Pakistani country evidence yet),country: TikTok bios rarely state it and the Actor returns none; needs creator confirmation
+Beauty,youtube,81,14,20,6,0.156,39,country evidence missing (unknown) on stored profiles
+Beauty,instagram,5,1,20,19,0.148,129,"too few stored profiles reach 10,000 followers"
+Beauty,tiktok,1,0,10,10,0.000,n/a (no TikTok profile has Pakistani country evidence yet),country: TikTok bios rarely state it and the Actor returns none; needs creator confirmation
+Tech,youtube,96,19,20,1,0.156,7,country evidence missing (unknown) on stored profiles
+Tech,instagram,0,0,20,20,0.148,135,no stored creators in this niche
+Tech,tiktok,0,0,10,10,0.000,n/a (no TikTok profile has Pakistani country evidence yet),country: TikTok bios rarely state it and the Actor returns none; needs creator confirmation
+Food,youtube,244,45,20,0,0.156,0,none
+Food,instagram,18,6,20,14,0.148,95,"too few stored profiles reach 10,000 followers"
+Food,tiktok,9,0,10,10,0.000,n/a (no TikTok profile has Pakistani country evidence yet),country: TikTok bios rarely state it and the Actor returns none; needs creator confirmation
+Travel,youtube,99,14,20,6,0.156,39,country evidence missing (unknown) on stored profiles
+Travel,instagram,8,1,20,19,0.148,129,"too few stored profiles reach 10,000 followers"
+Travel,tiktok,0,0,10,10,0.000,n/a (no TikTok profile has Pakistani country evidence yet),country: TikTok bios rarely state it and the Actor returns none; needs creator confirmation
+Comedy,youtube,53,12,20,8,0.156,52,"too few stored profiles reach 10,000 followers"
+Comedy,instagram,0,0,20,20,0.148,135,no stored creators in this niche
+Comedy,tiktok,2,0,10,10,0.000,n/a (no TikTok profile has Pakistani country evidence yet),country: TikTok bios rarely state it and the Actor returns none; needs creator confirmation
+Finance,youtube,32,9,20,11,0.156,71,"too few stored profiles reach 10,000 followers"
+Finance,instagram,3,0,20,20,0.148,135,"too few stored profiles reach 10,000 followers"
+Finance,tiktok,0,0,10,10,0.000,n/a (no TikTok profile has Pakistani country evidence yet),country: TikTok bios rarely state it and the Actor returns none; needs creator confirmation
+Wellness,youtube,30,2,20,18,0.156,116,"too few stored profiles reach 10,000 followers"
+Wellness,instagram,5,0,20,20,0.148,135,"too few stored profiles reach 10,000 followers"
+Wellness,tiktok,0,0,10,10,0.000,n/a (no TikTok profile has Pakistani country evidence yet),country: TikTok bios rarely state it and the Actor returns none; needs creator confirmation
+Lifestyle,youtube,38,5,20,15,0.156,97,"too few stored profiles reach 10,000 followers"
+Lifestyle,instagram,4,1,20,19,0.148,129,"too few stored profiles reach 10,000 followers"
+Lifestyle,tiktok,0,0,10,10,0.000,n/a (no TikTok profile has Pakistani country evidence yet),country: TikTok bios rarely state it and the Actor returns none; needs creator confirmation
+Education & How-to,youtube,98,15,20,5,0.156,33,country evidence missing (unknown) on stored profiles
+Education & How-to,instagram,0,0,20,20,0.148,135,no stored creators in this niche
+Education & How-to,tiktok,0,0,10,10,0.000,n/a (no TikTok profile has Pakistani country evidence yet),country: TikTok bios rarely state it and the Actor returns none; needs creator confirmation
+Gaming,youtube,75,13,20,7,0.156,45,country evidence missing (unknown) on stored profiles
+Gaming,instagram,0,0,20,20,0.148,135,no stored creators in this niche
+Gaming,tiktok,0,0,10,10,0.000,n/a (no TikTok profile has Pakistani country evidence yet),country: TikTok bios rarely state it and the Actor returns none; needs creator confirmation
+History,youtube,35,7,20,13,0.156,84,"too few stored profiles reach 10,000 followers"
+History,instagram,0,0,20,20,0.148,135,no stored creators in this niche
+History,tiktok,0,0,10,10,0.000,n/a (no TikTok profile has Pakistani country evidence yet),country: TikTok bios rarely state it and the Actor returns none; needs creator confirmation
+Literature,youtube,20,4,20,16,0.156,103,"too few stored profiles reach 10,000 followers"
+Literature,instagram,1,0,20,20,0.148,135,"too few stored profiles reach 10,000 followers"
+Literature,tiktok,0,0,10,10,0.000,n/a (no TikTok profile has Pakistani country evidence yet),country: TikTok bios rarely state it and the Actor returns none; needs creator confirmation
+Agriculture,youtube,9,6,20,14,0.156,90,"too few stored profiles reach 10,000 followers"
+Agriculture,instagram,0,0,20,20,0.148,135,no stored creators in this niche
+Agriculture,tiktok,0,0,10,10,0.000,n/a (no TikTok profile has Pakistani country evidence yet),country: TikTok bios rarely state it and the Actor returns none; needs creator confirmation
+Business & Ecommerce,youtube,95,21,20,0,0.156,0,none
+Business & Ecommerce,instagram,1,0,20,20,0.148,135,"too few stored profiles reach 10,000 followers"
+Business & Ecommerce,tiktok,2,0,10,10,0.000,n/a (no TikTok profile has Pakistani country evidence yet),country: TikTok bios rarely state it and the Actor returns none; needs creator confirmation
+Automotive,youtube,21,5,20,15,0.156,97,"too few stored profiles reach 10,000 followers"
+Automotive,instagram,0,0,20,20,0.148,135,no stored creators in this niche
+Automotive,tiktok,0,0,10,10,0.000,n/a (no TikTok profile has Pakistani country evidence yet),country: TikTok bios rarely state it and the Actor returns none; needs creator confirmation
+Religion,youtube,11,2,20,18,0.156,116,"too few stored profiles reach 10,000 followers"
+Religion,instagram,0,0,20,20,0.148,135,no stored creators in this niche
+Religion,tiktok,0,0,10,10,0.000,n/a (no TikTok profile has Pakistani country evidence yet),country: TikTok bios rarely state it and the Actor returns none; needs creator confirmation
+Music,youtube,5,0,20,20,0.156,129,"too few stored profiles reach 10,000 followers"
+Music,instagram,0,0,20,20,0.148,135,no stored creators in this niche
+Music,tiktok,1,0,10,10,0.000,n/a (no TikTok profile has Pakistani country evidence yet),country: TikTok bios rarely state it and the Actor returns none; needs creator confirmation
+News & Commentary,youtube,16,5,20,15,0.156,97,"too few stored profiles reach 10,000 followers"
+News & Commentary,instagram,0,0,20,20,0.148,135,no stored creators in this niche
+News & Commentary,tiktok,0,0,10,10,0.000,n/a (no TikTok profile has Pakistani country evidence yet),country: TikTok bios rarely state it and the Actor returns none; needs creator confirmation
+Sports,youtube,16,2,20,18,0.156,116,"too few stored profiles reach 10,000 followers"
+Sports,instagram,0,0,20,20,0.148,135,no stored creators in this niche
+Sports,tiktok,0,0,10,10,0.000,n/a (no TikTok profile has Pakistani country evidence yet),country: TikTok bios rarely state it and the Actor returns none; needs creator confirmation
+Entertainment,youtube,33,7,20,13,0.156,84,"too few stored profiles reach 10,000 followers"
+Entertainment,instagram,0,0,20,20,0.148,135,no stored creators in this niche
+Entertainment,tiktok,0,0,10,10,0.000,n/a (no TikTok profile has Pakistani country evidence yet),country: TikTok bios rarely state it and the Actor returns none; needs creator confirmation
+Real Estate,youtube,7,4,20,16,0.156,103,"too few stored profiles reach 10,000 followers"
+Real Estate,instagram,0,0,20,20,0.148,135,no stored creators in this niche
+Real Estate,tiktok,0,0,10,10,0.000,n/a (no TikTok profile has Pakistani country evidence yet),country: TikTok bios rarely state it and the Actor returns none; needs creator confirmation

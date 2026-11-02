@@ -10,7 +10,10 @@ import {
   meterAlert,
   meterState,
   allowancePeriodStart,
+  karachiMonth,
   spendScope,
+  TESTING_ACTIONS,
+  testingGrantRef,
   type Allocation,
 } from "./rules";
 
@@ -26,6 +29,8 @@ export type GrantRequest = {
   sourceRef: string;
   paymentId?: string | null;
   note?: string | null;
+  /** Testing grants only: the Asia/Karachi month the lot belongs to (unique per workspace, 0062). */
+  period?: string | null;
 };
 export type Balance = {
   status: SubscriptionStatus | null;
@@ -34,6 +39,8 @@ export type Balance = {
   base: number;
   meter: MeterState;
   topupRemaining: number;
+  /** Unexpired monthly testing credits (0061), included in `available`. */
+  testingRemaining: number;
 };
 
 const FALLBACK_BASE = 1000;
@@ -59,9 +66,11 @@ export function createCreditEngine(o: { now?: () => Date } = {}) {
     const scope = spendScope(status);
     const reserved = await repo.sumHeld(tx, workspaceId);
     const topupRemaining = await repo.sumRemaining(tx, workspaceId, t, ["topup"]);
-    const spendable = scope === "all" ? await repo.sumRemaining(tx, workspaceId, t, "all") : scope === "topup_only" ? topupRemaining : 0;
+    const testingRemaining = await repo.sumRemaining(tx, workspaceId, t, ["testing"]);
+    // Testing credits stay spendable without a plan (0061); with a plan they are part of "all".
+    const spendable = scope === "all" ? await repo.sumRemaining(tx, workspaceId, t, "all") : (scope === "topup_only" ? topupRemaining : 0) + testingRemaining;
     const available = Math.max(0, spendable - reserved);
-    const base = await baseFor(tx, sub, status, settings);
+    const base = scope !== "all" && testingRemaining > 0 ? settings.testingMonthlyCredits : await baseFor(tx, sub, status, settings);
     return {
       status,
       available,
@@ -69,6 +78,7 @@ export function createCreditEngine(o: { now?: () => Date } = {}) {
       base,
       meter: meterState(available, base, { amberPct: settings.meterAmberPct, redPct: settings.meterRedPct }),
       topupRemaining,
+      testingRemaining,
     };
   }
 
@@ -94,15 +104,38 @@ export function createCreditEngine(o: { now?: () => Date } = {}) {
       });
     }
     const before = await balance(tx, workspaceId);
-    const scope = spendScope(before.status);
-    if (scope === "none" || (scope === "topup_only" && before.topupRemaining === 0)) {
-      throw new AppError("ENTITLEMENT_REQUIRED", "Choose a plan to use credit actions.", {
+    const planScope = spendScope(before.status);
+    // Which lots may pay: a plan pays from all lots; without one, top-ups pay as before, and the monthly testing
+    // allowance pays only for actions with no provider spend (0061). One reservation never mixes the two.
+    let scope: "all" | "topup_only" | "testing_only";
+    let available: number;
+    const testingFree = Math.max(0, before.testingRemaining - (await repo.sumHeld(tx, workspaceId, "testing_only")));
+    const testingAction = (TESTING_ACTIONS as readonly string[]).includes(h.action);
+    if (planScope === "all") {
+      scope = "all";
+      available = before.available;
+    } else if (planScope === "topup_only" && before.topupRemaining > 0 && (!testingAction || testingFree < h.amount)) {
+      scope = "topup_only";
+      available = Math.max(0, before.topupRemaining - (await repo.sumHeld(tx, workspaceId, "topup_only")));
+    } else if (testingAction && (before.testingRemaining > 0 || (await repo.testingAllowanceOf(tx, workspaceId)).since)) {
+      // An enrolled workspace that used this month's testing credits is told so (BUG-26), not asked to choose a plan.
+      scope = "testing_only";
+      available = testingFree;
+      if (available < h.amount) {
+        throw new AppError("INSUFFICIENT_CREDITS", `This month's testing credits are used up. They renew on ${karachiMonth(now()).end.toISOString().slice(0, 10)} (00:00 Pakistan time), or choose a plan.`, {
+          required: h.amount,
+          available,
+          renewsAt: karachiMonth(now()).end.toISOString(),
+        });
+      }
+    } else {
+      throw new AppError("ENTITLEMENT_REQUIRED", before.testingRemaining > 0 ? "Testing credits pay for searches and contact reveals only. Choose a plan for this action." : "Choose a plan to use credit actions.", {
         reason: "no_active_plan",
         lostAccess: lostAccessFor(before.status, before.topupRemaining),
       });
     }
-    if (before.available < h.amount) {
-      throw new AppError("INSUFFICIENT_CREDITS", "You don't have enough credits for this action.", { required: h.amount, available: before.available });
+    if (available < h.amount) {
+      throw new AppError("INSUFFICIENT_CREDITS", "You don't have enough credits for this action.", { required: h.amount, available });
     }
     const settings = await repo.getSettings(tx);
     const t = now();
@@ -220,7 +253,7 @@ export function createCreditEngine(o: { now?: () => Date } = {}) {
   async function grantLocked(tx: TenantTx, workspaceId: string, g: GrantRequest): Promise<string | null> {
     if (!Number.isInteger(g.amount) || g.amount <= 0) throw new Error("grant amount must be a positive integer");
     if (await repo.hasGrant(tx, workspaceId, g.sourceRef)) return null;
-    const lotId = await repo.insertLot(tx, { workspaceId, source: g.source, amount: g.amount, expiresAt: g.expiresAt, paymentId: g.paymentId ?? null });
+    const lotId = await repo.insertLot(tx, { workspaceId, source: g.source, amount: g.amount, expiresAt: g.expiresAt, paymentId: g.paymentId ?? null, period: g.period ?? null });
     await repo.insertLedger(tx, [{ workspaceId, amount: g.amount, kind: "grant", lotId, sourceRef: g.sourceRef, note: g.note ?? null }]);
     if (g.expiresAt) await repo.scheduleJob(tx, workspaceId, "expire_lots", g.expiresAt);
     await repo.scheduleJob(tx, workspaceId, "reconcile", new Date(now().getTime() + 86_400_000));
@@ -279,6 +312,31 @@ export function createCreditEngine(o: { now?: () => Date } = {}) {
         expiresAt: trialEndsAt,
         sourceRef: `trial:${workspaceId}`,
         note: "Free trial credits",
+      });
+    }),
+    /**
+     * The monthly testing allowance for the current Karachi month (0061): granted once (the ledger's unique source_ref),
+     * expiring at the start of next month. Returns the grant's lot id, or null when already granted, turned off, or the
+     * workspace is not enrolled. Schedules the next month's grant either way.
+     */
+    grantTesting: locked(async (tx, workspaceId) => {
+      const t = now();
+      const month = karachiMonth(t);
+      const enrolled = await repo.testingAllowanceOf(tx, workspaceId);
+      if (!enrolled.since || !enrolled.active) {
+        await repo.setNextDue(tx, workspaceId, "testing_allowance", null);
+        return null;
+      }
+      const settings = await repo.getSettings(tx);
+      await repo.setNextDue(tx, workspaceId, "testing_allowance", month.end);
+      if (settings.testingMonthlyCredits <= 0) return null;
+      return grantLocked(tx, workspaceId, {
+        source: "testing",
+        amount: settings.testingMonthlyCredits,
+        expiresAt: month.end,
+        sourceRef: testingGrantRef(workspaceId, month.key),
+        period: month.key,
+        note: `Monthly testing credits (${month.key}, Asia/Karachi)`,
       });
     }),
     expireLots: locked(expireLocked),

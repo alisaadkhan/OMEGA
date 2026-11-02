@@ -85,18 +85,28 @@ export function searchErrorMessage(err: unknown): string {
   return err instanceof ApiError ? err.message : "Something went wrong while searching. Please try again.";
 }
 
+/**
+ * City filtering is switched off for now (owner decision 2026-10-26): no search sends a city condition, whether typed,
+ * suggested by the AI or saved earlier. City data stays stored; set this to true to offer the filter again.
+ */
+export const CITY_FILTER_ENABLED = false;
+
 export function toFilters(s: UiFilters): SearchFilters {
   const band = s.followerBand ? BANDS[s.followerBand] : undefined;
   const engagementMin = PERCENT(s.minEng);
   const minAuthenticity = PERCENT(s.minScore);
   // A preset the user picked replaces the matching exact value from the AI, so the two can never form an impossible range.
   let extra = s.extra;
+  if (!CITY_FILTER_ENABLED && extra.creatorCity !== undefined) {
+    const { creatorCity: _city, ...rest } = extra;
+    extra = rest;
+  }
   if (band) extra = withoutExtra(extra, "followers");
   if (engagementMin !== undefined) extra = withoutExtra(extra, "engagementMin");
   return {
     ...extra,
     ...(s.platform !== "all" ? { platform: s.platform } : {}),
-    ...(s.city ? { creatorCity: s.city } : {}),
+    ...(CITY_FILTER_ENABLED && s.city ? { creatorCity: s.city } : {}),
     niches: s.niche ? [s.niche] : (extra.niches ?? []),
     ...(band ? band : {}),
     ...(engagementMin !== undefined ? { engagementMin } : {}),
@@ -116,7 +126,7 @@ export type ChipState = Pick<UiFilters, "platform" | "city" | "niche" | "followe
 export function applySuggestion(current: ChipState, suggested: ChipState): ChipState {
   return {
     platform: suggested.platform === "all" ? current.platform : suggested.platform,
-    city: suggested.city ?? current.city,
+    city: CITY_FILTER_ENABLED ? (suggested.city ?? current.city) : null,
     niche: suggested.niche ?? current.niche,
     followerBand: suggested.followerBand ?? current.followerBand,
     minEng: suggested.minEng ?? current.minEng,
@@ -144,7 +154,7 @@ export function fromChips(chips: InterpretResponse["chips"]): ChipState {
   if (chips.engagementMax !== undefined) extra.engagementMax = chips.engagementMax;
   return {
     platform: chips.platform ?? "all",
-    city: chips.creatorCity ?? null,
+    city: CITY_FILTER_ENABLED ? (chips.creatorCity ?? null) : null,
     niche: chips.niches.length === 1 ? (chips.niches[0] ?? null) : null,
     followerBand: band ?? null,
     minEng,

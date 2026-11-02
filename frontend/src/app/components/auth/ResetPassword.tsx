@@ -61,14 +61,14 @@ export function ResetPassword({ onDone, goForgot }: Props) {
     <AuthShell formKey="reset" title="Set a new password" subtitle="Choose a new password for your MUSHIN account." footer={back}>
       <form onSubmit={submit} className="space-y-4">
         <StaggerItem index={0}>
-          <FormField label="New password" type="password" value={password} onChange={setPassword} autoFocus />
+          <FormField label="New password" type="password" value={password} onChange={setPassword} autoFocus autoComplete="new-password" />
         </StaggerItem>
         <StaggerItem index={1}>
-          <FormField label="Repeat the new password" type="password" value={confirm} onChange={setConfirm} />
+          <FormField label="Repeat the new password" type="password" value={confirm} onChange={setConfirm} autoComplete="new-password" />
         </StaggerItem>
         {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
         <StaggerItem index={2}>
-          <Button type="submit" disabled={submitting} className="group h-11 w-full rounded-md bg-slate-900 text-white shadow-sm hover:bg-slate-800">
+          <Button type="submit" disabled={submitting} className="group h-12 w-full rounded-full bg-slate-950 text-white shadow-sm hover:bg-slate-800">
             Save new password
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>

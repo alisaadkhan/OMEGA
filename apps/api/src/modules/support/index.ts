@@ -68,7 +68,7 @@ export function createSupportService(deps: { db: Db }) {
       return deps.db.withTenant(tenant(ctx), async (tx) => {
         // One creation at a time per workspace, so simultaneous requests cannot all pass the limit (released at commit).
         await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`support-tickets:${ctx.workspaceId}`}, 0))`);
-        const [open] = await tx.select({ n: sql<number>`count(*)::int` }).from(supportTickets).where(and(eq(supportTickets.workspaceId, ctx.workspaceId), sql`${supportTickets.status} in ('open', 'waiting_on_customer')`));
+        const [open] = await tx.select({ n: sql<number>`count(*)::int` }).from(supportTickets).where(and(eq(supportTickets.workspaceId, ctx.workspaceId), sql`${supportTickets.status} in ('open', 'in_progress', 'waiting_on_customer')`));
         if ((open?.n ?? 0) >= MAX_OPEN_TICKETS) throw new AppError("CONFLICT", `Your workspace has ${MAX_OPEN_TICKETS} open requests. Close one, or reply on an existing request.`);
         const [t] = await tx.insert(supportTickets).values({ workspaceId: ctx.workspaceId, createdBy: ctx.userId, subject: body.subject, category: body.category }).returning({ id: supportTickets.id });
         if (!t) throw new Error("ticket insert returned no row");
@@ -83,7 +83,8 @@ export function createSupportService(deps: { db: Db }) {
         if (!t) throw new AppError("NOT_FOUND", "Support request not found");
         if (t.status === "closed") throw new AppError("CONFLICT", "This request is closed. Reopen it to reply.");
         await tx.insert(supportMessages).values({ ticketId: id, workspaceId: ctx.workspaceId, authorKind: "customer", authorUserId: ctx.userId, body: text });
-        await tx.update(supportTickets).set({ status: "open", lastMessageAt: sql`now()` }).where(and(eq(supportTickets.workspaceId, ctx.workspaceId), eq(supportTickets.id, id)));
+        // A reply reopens a waiting, resolved or closed request; one staff already work on stays in progress (0064).
+        await tx.update(supportTickets).set({ status: sql`case when ${supportTickets.status} = 'in_progress' then 'in_progress' else 'open' end`, lastMessageAt: sql`now()` }).where(and(eq(supportTickets.workspaceId, ctx.workspaceId), eq(supportTickets.id, id)));
         return detailIn(tx, ctx, id);
       });
     },

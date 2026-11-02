@@ -1,5 +1,6 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { encryptSecret, sha256Hex } from "@mushin/core";
+import { refreshProfileCountries } from "./enrichment/repository";
 import {
   audienceViews,
   contactReveals,
@@ -20,7 +21,7 @@ import {
 } from "@mushin/db";
 import type { CreatorDocument } from "@mushin/integrations";
 import type { MatchFields } from "./match-reasons";
-import { creatorEligibility, ELIGIBILITY_VERSION, type CreatorEligibility, type EligibilityProfile } from "./eligibility";
+import { creatorEligibility, ELIGIBILITY_VERSION, type CreatorEligibility, type EligibilityProfile, countryLocked } from "./eligibility";
 import { isMinorProtected, maskContact, type FitWeights, type FreshnessThresholds, type LabelThresholds, type SummarySource } from "./rules";
 
 type Tx = TenantTx | SystemTx;
@@ -126,6 +127,10 @@ export type CreatorRow = Pick<
   | "city"
   | "country"
   | "niches"
+  | "nicheMain"
+  | "nicheStatus"
+  | "nicheConfidence"
+  | "countrySource"
   | "tags"
   | "verified"
   | "authenticityScore"
@@ -153,6 +158,10 @@ export async function getCreator(tx: Tx, id: string): Promise<CreatorRow | null>
       city: creators.city,
       country: creators.country,
       niches: creators.niches,
+      nicheMain: creators.nicheMain,
+      nicheStatus: creators.nicheStatus,
+      nicheConfidence: creators.nicheConfidence,
+      countrySource: creators.countrySource,
       tags: creators.tags,
       verified: creators.verified,
       authenticityScore: creators.authenticityScore,
@@ -357,7 +366,7 @@ export type IndexRow = {
   verified: boolean;
   authenticityScore: number | null;
   hasContact: boolean;
-  profiles: { platform: Platform; handle: string; canonicalUrl: string; followers: number | null; engagementRate: number | null; bio: string | null; followersUpdatedAt: string | null; lastPostAt: string | null }[];
+  profiles: { platform: Platform; handle: string; canonicalUrl: string; followers: number | null; engagementRate: number | null; bio: string | null; followersUpdatedAt: string | null; lastPostAt: string | null; availability?: EligibilityProfile["availability"]; country?: EligibilityProfile["country"] }[];
   audience: AudienceRow | null;
   updatedEpoch: number;
 };
@@ -381,7 +390,7 @@ export async function indexRows(tx: SystemTx, ids: string[]): Promise<IndexRow[]
       coalesce((
         select jsonb_agg(jsonb_build_object('platform', p.platform, 'handle', p.handle, 'canonicalUrl', p.canonical_url, 'lastPostAt', p.last_post_at,
           'followers', case when p.platform = 'youtube' and p.followers = 0 then null else p.followers end,
-          'engagementRate', p.engagement_rate, 'bio', p.bio, 'followersUpdatedAt', p.followers_updated_at) order by p.followers desc)
+          'engagementRate', p.engagement_rate, 'bio', p.bio, 'followersUpdatedAt', p.followers_updated_at, 'availability', p.availability, 'country', jsonb_build_object('code', p.country, 'status', p.country_status, 'checkedAt', p.country_checked_at)) order by p.followers desc)
         from gcp.creator_profiles p where p.creator_id = c.id), '[]'::jsonb) as profiles,
       (select s.audience from gcp.enrichment_snapshots s where s.creator_id = c.id and s.audience is not null order by s.created_at desc limit 1) as audience,
       ${UPDATED_EPOCH} as "updatedEpoch"
@@ -485,6 +494,10 @@ export type NewCreator = {
   avatarUrl?: string | null;
   city?: string | null;
   country?: string | null;
+  /** A country the creator confirmed to MUSHIN (applies to all their profiles); test fixtures use "PK". */
+  confirmedCountry?: string | null;
+  /** The country the platform declares (YouTube channel country), used for the YouTube profile. */
+  platformCountry?: string | null;
   niches: string[];
   tags: string[];
   nameVariants?: string[];
@@ -511,7 +524,10 @@ export async function insertCreator(tx: SystemTx, c: NewCreator, encryptionKey: 
       primaryPlatform: c.primaryPlatform,
       avatarUrl: c.avatarUrl ?? null,
       city: c.city ?? null,
-      country: c.country ?? null,
+      country: c.country ?? c.confirmedCountry ?? null,
+      confirmedCountry: c.confirmedCountry ?? null,
+      platformCountry: c.platformCountry ?? null,
+      ...(c.confirmedCountry ? { countrySource: "creator_confirmed" as const } : {}),
       niches: c.niches,
       tags: c.tags,
       nameVariants: c.nameVariants ?? [],
@@ -544,6 +560,8 @@ export async function insertCreator(tx: SystemTx, c: NewCreator, encryptionKey: 
       lastScrapedAt: at,
     });
   }
+  // Each profile's own country from what was just stored (0060): never left unknown when evidence exists.
+  await refreshProfileCountries(tx, row.id, { source: "enrichment" });
   for (const k of c.contacts ?? []) {
     await tx.insert(creatorContacts).values({
       creatorId: row.id,
@@ -570,6 +588,27 @@ export async function insertCreator(tx: SystemTx, c: NewCreator, encryptionKey: 
   return row.id;
 }
 
+/**
+ * Whether the current workspace already holds this creator (row-level security scopes every table to it): on a list or
+ * campaign, revealed, imported, or delivered by its Live Discovery. A creator who no longer meets the catalogue rules
+ * stays visible there, labelled, so saved work is never broken; nobody else can open or look it up (elig-2).
+ */
+export async function workspaceHasCreator(tx: TenantTx, creatorId: string): Promise<boolean> {
+  const [row] = await tx.execute<{ held: boolean }>(sql`
+    select exists (select 1 from wp.list_members where creator_id = ${creatorId})
+        or exists (select 1 from wp.campaign_creators where creator_id = ${creatorId})
+        or exists (select 1 from wp.contact_reveals where creator_id = ${creatorId})
+        or exists (select 1 from wp.discovery_results where creator_id = ${creatorId})
+        or exists (select 1 from wp.creator_import_rows where creator_id = ${creatorId}) as held`);
+  return row?.held === true;
+}
+
+/** True when the creator is locked by the Pakistan-only rule and this workspace does not already hold it (BUG-32). */
+export async function lockedForWorkspace(tx: TenantTx, creatorId: string, now: Date): Promise<boolean> {
+  const e = (await eligibilityOf(tx, [creatorId], now)).get(creatorId);
+  return e !== undefined && countryLocked(e) && !(await workspaceHasCreator(tx, creatorId));
+}
+
 /** Eligibility (elig-1) of each creator from its stored record and profiles, as of `now`. */
 export async function eligibilityOf(tx: Tx, ids: string[], now: Date): Promise<Map<string, CreatorEligibility>> {
   if (ids.length === 0) return new Map();
@@ -577,7 +616,7 @@ export async function eligibilityOf(tx: Tx, ids: string[], now: Date): Promise<M
     select c.id, c.status, c.is_minor as "isMinor", c.minor_override_by_staff_id as "minorOverrideByStaffId",
       coalesce((select jsonb_agg(jsonb_build_object('platform', p.platform, 'canonicalUrl', p.canonical_url,
         'followers', case when p.platform = 'youtube' and p.followers = 0 then null else p.followers end,
-        'followersUpdatedAt', p.followers_updated_at, 'lastPostAt', p.last_post_at))
+        'followersUpdatedAt', p.followers_updated_at, 'lastPostAt', p.last_post_at, 'availability', p.availability, 'country', jsonb_build_object('code', p.country, 'status', p.country_status, 'checkedAt', p.country_checked_at)))
         from gcp.creator_profiles p where p.creator_id = c.id), '[]'::jsonb) as profiles
     from gcp.creators c where c.id in ${ids}`);
   return new Map(rows.map((r) => [r.id, creatorEligibility(r, r.profiles, now)]));

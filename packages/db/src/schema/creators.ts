@@ -25,6 +25,18 @@ export const creators = gcp.table("creators", {
   city: text("city"),
   country: char("country", { length: 2 }),
   niches: text("niches").array().notNull().default([]),
+  /** Niche classification (0054): `niches` stays the searched labels; these say how they were reached. */
+  nicheMain: text("niche_main"),
+  nicheStatus: text("niche_status", { enum: ["classified", "variety", "unknown"] }),
+  nicheConfidence: text("niche_confidence", { enum: ["high", "medium", "low"] }),
+  nicheAssessedAt: ts("niche_assessed_at"),
+  /** Country by source (0054); `country` is the resolved value: confirmed, else stated, else platform-declared. */
+  platformCountry: char("platform_country", { length: 2 }),
+  statedCountry: char("stated_country", { length: 2 }),
+  confirmedCountry: char("confirmed_country", { length: 2 }),
+  countrySource: text("country_source", { enum: ["creator_confirmed", "creator_stated", "platform_declared"] }),
+  countryConfidence: text("country_confidence", { enum: ["high", "medium", "low"] }),
+  countryCheckedAt: ts("country_checked_at"),
   tags: text("tags").array().notNull().default([]),
   nameVariants: text("name_variants").array().notNull().default([]),
   verified: boolean("verified").notNull().default(false),
@@ -69,6 +81,17 @@ export const creatorProfiles = gcp.table("creator_profiles", {
   lastScrapedAt: ts("last_scraped_at"),
   /** Latest public post seen (eligibility activity evidence); null when not known. */
   lastPostAt: ts("last_post_at"),
+  /** Availability as the providers last showed it (0057); see the migration for each state. */
+  availability: text("availability", { enum: ["available", "temporarily_unavailable", "missing_unconfirmed", "not_found", "private"] }).notNull().default("available"),
+  availabilityCheckedAt: ts("availability_checked_at"),
+  missingSince: ts("missing_since"),
+  /** This profile's own country (0060; Pakistan-only catalogue). Absent or not Pakistani = not shown to customers. */
+  country: text("country"),
+  countrySource: text("country_source", { enum: ["creator_confirmed", "creator_stated", "platform_declared"] }),
+  countryStatus: text("country_status", { enum: ["pakistan", "foreign", "unknown", "conflicting"] }).notNull().default("unknown"),
+  countryReason: text("country_reason"),
+  countryConfidence: text("country_confidence", { enum: ["high", "medium", "low"] }),
+  countryCheckedAt: ts("country_checked_at"),
   createdAt: ts("created_at").notNull().defaultNow(),
   updatedAt: ts("updated_at").notNull().defaultNow(),
 });
@@ -267,9 +290,23 @@ export const creatorAttributeEvidence = gcp.table("creator_attribute_evidence", 
   creatorId: uuid("creator_id").notNull(),
   attribute: text("attribute", { enum: ["city", "country", "niche", "language"] }).notNull(),
   value: text("value").notNull(),
-  source: text("source", { enum: ["profile_text", "post_text", "platform_registration", "ai_assessment"] }).notNull(),
+  source: text("source", { enum: ["profile_text", "post_text", "platform_registration", "ai_assessment", "display_name", "account_category"] }).notNull(),
   status: text("status", { enum: ["supported", "weak", "conflicting"] }).notNull(),
   evidence: text("evidence").notNull(),
   payloadId: uuid("payload_id"),
   observedAt: ts("observed_at").notNull().defaultNow(),
+});
+
+/** Every creator lifecycle transition with its reason, source and action (0057). Append-only for the app roles. */
+export const creatorLifecycleEvents = gcp.table("creator_lifecycle_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  creatorId: uuid("creator_id").notNull(),
+  profileId: uuid("profile_id"),
+  kind: text("kind", { enum: ["availability", "retention", "location", "removal", "eligibility"] }).notNull(),
+  fromState: text("from_state"),
+  toState: text("to_state").notNull(),
+  reason: text("reason").notNull(),
+  source: text("source", { enum: ["enrichment", "refresh_job", "lifecycle_sweep", "retention_job", "staff", "backfill"] }).notNull(),
+  action: text("action").notNull(),
+  createdAt: ts("created_at").notNull().defaultNow(),
 });

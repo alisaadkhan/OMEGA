@@ -22,7 +22,7 @@ const localNow = () => {
   return d.toISOString().slice(0, 16);
 };
 
-export function OutreachPanel({ campaignId, member, onClose }: { campaignId: string; member: CampaignCreator; onClose: () => void }) {
+export function OutreachPanel({ campaignId, campaign, member, onClose }: { campaignId: string; campaign: { name: string; client: string }; member: CampaignCreator; onClose: () => void }) {
   const log = useOutreachLog(campaignId, member.creator.id);
   const add = useLogOutreach();
   const toast = useToast();
@@ -35,7 +35,7 @@ export function OutreachPanel({ campaignId, member, onClose }: { campaignId: str
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const fill = (s: string) => s.replaceAll("{name}", member.creator.displayName).replaceAll("{campaign}", "our campaign").replaceAll("{brand}", "our brand").replaceAll("{sender}", "");
+  const fill = (s: string) => s.replaceAll("{name}", member.creator.displayName).replaceAll("{campaign}", campaign.name).replaceAll("{brand}", campaign.client.trim() || "our brand").replaceAll("{sender}", "");
 
   async function copy() {
     if (!template) return;

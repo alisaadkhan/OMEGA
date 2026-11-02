@@ -134,7 +134,7 @@ export async function sumRemaining(tx: TenantTx, workspaceId: string, now: Date,
   return rows[0]?.total ?? 0;
 }
 
-export async function lotsValidAt(tx: TenantTx, workspaceId: string, at: Date, scope: "all" | "topup_only"): Promise<LotForSpend[]> {
+export async function lotsValidAt(tx: TenantTx, workspaceId: string, at: Date, scope: "all" | "topup_only" | "testing_only"): Promise<LotForSpend[]> {
   return tx
     .select({ id: creditLots.id, remaining: creditLots.remaining, expiresAt: creditLots.expiresAt })
     .from(creditLots)
@@ -143,14 +143,21 @@ export async function lotsValidAt(tx: TenantTx, workspaceId: string, at: Date, s
         eq(creditLots.workspaceId, workspaceId),
         gt(creditLots.remaining, 0),
         or(isNull(creditLots.expiresAt), gt(creditLots.expiresAt, at)),
-        scope === "topup_only" ? eq(creditLots.source, "topup") : undefined,
+        scope === "topup_only" ? eq(creditLots.source, "topup") : scope === "testing_only" ? eq(creditLots.source, "testing") : undefined,
       ),
     );
 }
 
+/** Whether this workspace receives the monthly testing allowance (0061), and is still active. */
+export async function testingAllowanceOf(tx: AnyTx, workspaceId: string): Promise<{ since: Date | null; active: boolean }> {
+  const rows = await tx.execute<{ since: string | null; status: string }>(sql`select testing_allowance_since since, status from wp.workspaces where id = ${workspaceId}`);
+  const r = rows[0];
+  return { since: r?.since ? new Date(r.since) : null, active: r?.status === "active" };
+}
+
 export async function insertLot(
   tx: TenantTx,
-  l: { workspaceId: string; source: LotSource; amount: number; expiresAt: Date | null; paymentId: string | null },
+  l: { workspaceId: string; source: LotSource; amount: number; expiresAt: Date | null; paymentId: string | null; period?: string | null },
 ): Promise<string> {
   const rows = await tx.insert(creditLots).values({ ...l, remaining: l.amount }).returning({ id: creditLots.id });
   const id = rows[0]?.id;
@@ -210,11 +217,11 @@ export async function lotLedgerMismatches(tx: TenantTx, workspaceId: string): Pr
 }
 
 // ── reservations ────────────────────────────────────────────────────────────
-export async function sumHeld(tx: TenantTx, workspaceId: string): Promise<number> {
+export async function sumHeld(tx: TenantTx, workspaceId: string, scope?: "all" | "topup_only" | "testing_only"): Promise<number> {
   const rows = await tx
     .select({ total: sql<number>`coalesce(sum(${creditReservations.amount}), 0)::int` })
     .from(creditReservations)
-    .where(and(eq(creditReservations.workspaceId, workspaceId), eq(creditReservations.status, "held")));
+    .where(and(eq(creditReservations.workspaceId, workspaceId), eq(creditReservations.status, "held"), scope ? eq(creditReservations.spendScope, scope) : undefined));
   return rows[0]?.total ?? 0;
 }
 

@@ -9,11 +9,12 @@ const ig = (over: Partial<EligibilityProfile> = {}): EligibilityProfile => ({
   followers: 25_000,
   followersUpdatedAt: daysAgo(3),
   lastPostAt: daysAgo(5),
+  country: { code: "PK", status: "pakistan", checkedAt: daysAgo(3) },
   ...over,
 });
 const active = { status: "active", isMinor: false, minorOverrideByStaffId: null };
 
-describe("creator eligibility elig-1 (10,000 follower minimum)", () => {
+describe("creator eligibility (10,000 follower minimum)", () => {
   it("is exact at the threshold: 9,999 fails, 10,000 and 10,001 pass", () => {
     expect(profileEligibility(ig({ followers: 9_999 }), now)).toMatchObject({ qualifies: false, reasons: ["below_follower_minimum"] });
     expect(profileEligibility(ig({ followers: 10_000 }), now).qualifies).toBe(true);
@@ -73,8 +74,9 @@ describe("creator eligibility elig-1 (10,000 follower minimum)", () => {
     expect(e.eligibleUntil?.toISOString()).toBe(daysAgo(80 - 90));
     const unknownActivity = creatorEligibility(active, [ig({ followersUpdatedAt: daysAgo(10), lastPostAt: null })], now);
     expect(unknownActivity.eligibleUntil?.toISOString()).toBe(daysAgo(10 - 90));
-    const two = creatorEligibility(active, [ig({ followersUpdatedAt: daysAgo(60), lastPostAt: null }), ig({ platform: "youtube", canonicalUrl: "https://youtube.com/@sana", followersUpdatedAt: daysAgo(5), lastPostAt: null })], now);
-    expect(two.eligibleUntil?.toISOString()).toBe(daysAgo(5 - 90));
+    // The YouTube count holds 30 days (YouTube API policy, YT-RET-01), the Instagram one 90: 80 days old leaves it 10.
+    const two = creatorEligibility(active, [ig({ followersUpdatedAt: daysAgo(80), lastPostAt: null }), ig({ platform: "youtube", canonicalUrl: "https://youtube.com/@sana", followersUpdatedAt: daysAgo(5), lastPostAt: null })], now);
+    expect(two.eligibleUntil?.toISOString()).toBe(daysAgo(5 - 30));
     expect(creatorEligibility(active, [ig({ followers: 1 })], now).eligibleUntil).toBeNull();
   });
 
@@ -82,5 +84,57 @@ describe("creator eligibility elig-1 (10,000 follower minimum)", () => {
     const e = creatorEligibility(active, [ig({ followers: 500 }), ig({ platform: "youtube", canonicalUrl: "https://youtube.com/@x", followers: null })], now);
     expect(e).toMatchObject({ eligible: false, qualifyingPlatforms: [] });
     expect(e.reasons.sort()).toEqual(["below_follower_minimum", "followers_unknown"]);
+  });
+});
+
+describe("creator eligibility elig-2 (Pakistan-only catalogue, 2026-10-27)", () => {
+  it("qualifies only a profile whose own country resolves to Pakistan", () => {
+    expect(ELIGIBILITY_VERSION).toBe("elig-2");
+    expect(profileEligibility(ig(), now).qualifies).toBe(true);
+    expect(profileEligibility(ig({ country: { code: "GB", status: "foreign", checkedAt: daysAgo(3) } }), now).reasons).toEqual(["country_not_pakistan"]);
+    expect(profileEligibility(ig({ country: { code: null, status: "unknown", checkedAt: null } }), now).reasons).toEqual(["country_unknown"]);
+    expect(profileEligibility(ig({ country: { code: null, status: "conflicting", checkedAt: daysAgo(3) } }), now).reasons).toEqual(["country_conflicting"]);
+  });
+
+  it("never qualifies a profile whose country was not provided (no assumption)", () => {
+    expect(profileEligibility(ig({ country: undefined }), now).reasons).toEqual(["country_unknown"]);
+    expect(profileEligibility(ig({ country: null }), now).reasons).toEqual(["country_unknown"]);
+  });
+
+  it("treats Pakistani evidence older than a year as stale, and dates eligibility by it", () => {
+    expect(profileEligibility(ig({ country: { code: "PK", status: "pakistan", checkedAt: daysAgo(366) } }), now).reasons).toEqual(["country_stale"]);
+    const e = profileEligibility(ig({ followersUpdatedAt: daysAgo(1), lastPostAt: daysAgo(1), country: { code: "PK", status: "pakistan", checkedAt: daysAgo(360) } }), now);
+    expect(e.qualifiesUntil?.toISOString()).toBe(new Date(new Date(daysAgo(360)).getTime() + 365 * 86_400_000).toISOString());
+  });
+
+  it("YT-RET-01 a YouTube count older than 30 days is stale even if the retention job has not cleared it; other platforms keep 90", () => {
+    const yt = (days: number) => ig({ platform: "youtube", canonicalUrl: "https://youtube.com/@sana", followersUpdatedAt: daysAgo(days), lastPostAt: daysAgo(1) });
+    expect(profileEligibility(yt(31), now).reasons).toEqual(["followers_stale"]);
+    const fresh = profileEligibility(yt(29), now);
+    expect(fresh.qualifies).toBe(true);
+    expect(fresh.qualifiesUntil?.toISOString()).toBe(new Date(new Date(daysAgo(29)).getTime() + 30 * 86_400_000).toISOString());
+    expect(profileEligibility(ig({ followersUpdatedAt: daysAgo(60), lastPostAt: daysAgo(1) }), now).qualifies).toBe(true);
+  });
+
+  it("CTY-FRESH-01 a Pakistani country with no check time is stale, never fresh forever", () => {
+    const p = profileEligibility(ig({ country: { code: "PK", status: "pakistan", checkedAt: null } }), now);
+    expect(p).toMatchObject({ qualifies: false, reasons: ["country_stale"], qualifiesUntil: null });
+  });
+
+  it("judges each platform profile on its own: a Pakistani YouTube channel never qualifies a foreign or unknown Instagram profile", () => {
+    const yt = ig({ platform: "youtube", canonicalUrl: "https://youtube.com/@sana", country: { code: "PK", status: "pakistan", checkedAt: daysAgo(3) } });
+    const foreignIg = ig({ country: { code: "AE", status: "foreign", checkedAt: daysAgo(3) } });
+    const e = creatorEligibility(active, [yt, foreignIg], now);
+    expect(e.eligible).toBe(true);
+    expect(e.qualifyingPlatforms).toEqual(["youtube"]);
+    expect(e.profiles.find((p) => p.platform === "instagram")).toMatchObject({ qualifies: false, reasons: ["country_not_pakistan"] });
+    const reverse = creatorEligibility(active, [ig(), ig({ platform: "youtube", canonicalUrl: "https://youtube.com/@sana", country: { code: "GB", status: "foreign", checkedAt: daysAgo(3) } })], now);
+    expect(reverse.qualifyingPlatforms).toEqual(["instagram"]);
+  });
+
+  it("lists the country reason with the others when nothing qualifies", () => {
+    const e = creatorEligibility(active, [ig({ followers: 5_000, country: { code: "IN", status: "foreign", checkedAt: daysAgo(3) } })], now);
+    expect(e.eligible).toBe(false);
+    expect(e.reasons).toEqual(expect.arrayContaining(["below_follower_minimum", "country_not_pakistan"]));
   });
 });

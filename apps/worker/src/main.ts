@@ -1,9 +1,9 @@
 import { createLogger, loadWorkerConfig } from "@mushin/core";
-import { createDatabase, createDbProviderCallSink, createDbProviderRunStore, createDbReservationLedger, providerPaused, providerSpendSince, UNVERIFIED_TLS_WARNING } from "@mushin/db";
+import { createDatabase, createDbProviderCallSink, createDbProviderRunStore, createDbReservationLedger, llmSpendSince, providerPaused, recordWorkerHeartbeat, UNVERIFIED_TLS_WARNING } from "@mushin/db";
 import { createApifyClient, createSharedSpendGuard, reconcileApifyRuns, createYouTubeAudienceSource, createLlm, pausableGuard, pausableLlm, createObjectStorage, createPayments, createProfileScraper, createSearchIndex, createSerperSearch, createYouTubeSearch } from "@mushin/integrations";
 import { createAudienceRunner } from "../../api/src/modules/audience/index";
 import { createBillingService, noAccessCache } from "../../api/src/modules/billing/index";
-import { createContactChecker, createCreatorIndexer, createEnrichmentPipeline, createEraser, createSummaryWriter, getEnrichmentSettings, expireYoutubeApiData, systemMailResolver } from "../../api/src/modules/creators/index";
+import { createContactChecker, createCreatorIndexer, createEnrichmentPipeline, createEraser, createSummaryWriter, getEnrichmentSettings, expireYoutubeApiData, lifecycleSweep, systemMailResolver } from "../../api/src/modules/creators/index";
 import { createCachedSearch, createDiscoveryRunner, createLiveRunner } from "../../api/src/modules/discovery/index";
 import { audienceHandlers } from "./audience-handlers";
 import { billingHandlers, notifyHandlers } from "./billing-handlers";
@@ -11,6 +11,7 @@ import { creatorHandlers } from "./creator-handlers";
 import { discoveryHandlers } from "./discovery-handlers";
 import { contactCheckHandlers, erasureHandlers } from "./erasure-handlers";
 import { startBoss } from "./boss";
+import { checkProviderStatus } from "./provider-status";
 import { defaultHandlers } from "./handlers";
 import { startWorker } from "./worker";
 
@@ -26,8 +27,8 @@ const cache = noAccessCache;
 const billing = createBillingService({ db, payments, cache, logger });
 const searchIndex = config.search ? createSearchIndex(config.search, logger) : null;
 const indexer = createCreatorIndexer({ db, index: searchIndex, logger, sourcePolicy: config.sourcePolicy });
-// Every hosted-LLM call is checked against the monthly LLM budget (recorded Groq + Ollama spend).
-const llmSpentSince = async (since: Date) => (await providerSpendSince(db, "groq", since)) + (await providerSpendSince(db, "ollama", since));
+// Every hosted-LLM call is checked against the monthly LLM budget (recorded Gemini + Ollama spend, plus earlier Groq).
+const llmSpentSince = (since: Date) => llmSpendSince(db, since);
 // Operations can pause a provider family from the staff console (platform.provider_controls); paused means refused.
 const llm = pausableLlm(createLlm(config.llm, { sink: createDbProviderCallSink(db), logger, budget: { budgetUsd: config.llmMonthlyBudgetUsd, spentSince: llmSpentSince } }), () => providerPaused(db, "llm"));
 const summaries = createSummaryWriter({ db, llm, logger });
@@ -54,8 +55,8 @@ const reconcileProviderRuns = async () => {
   if (tally.settled + tally.aborted + tally.unknown > 0) logger.warn(tally, "reconciled Apify runs left open by an earlier failure");
 };
 if (!config.scraping.apifyToken) logger.warn("APIFY_TOKEN not set: Instagram and TikTok jobs will fail and refund");
-if (!config.scraping.youtubeApiKey) logger.warn("YOUTUBE_API_KEY not set: YouTube jobs will fail and refund");
-const pipeline = createEnrichmentPipeline({ db, scraper, storage: createObjectStorage(config.storage, logger), llm, encryptionKey: config.dataEncryptionKey, logger, attributePolicy: config.searchProfile });
+if (!config.scraping.youtubeApiKey) logger.warn("YouTube API calls are off (YOUTUBE_API_CALLS) or YOUTUBE_API_KEY is not set: YouTube jobs fail as not configured and are refunded");
+const pipeline = createEnrichmentPipeline({ db, scraper, storage: createObjectStorage(config.storage, logger), llm, encryptionKey: config.dataEncryptionKey, logger, attributePolicy: config.enrichment.attributePolicy, youtube: { contentEvidence: config.enrichment.youtubeContentEvidence, descriptionContacts: config.enrichment.youtubeDescriptionContacts }, semanticNiche: config.enrichment.semanticNiche });
 const runner = createDiscoveryRunner({ db, billing, pipeline, logger });
 const web = createSerperSearch({
   apiKey: config.scraping.serperApiKey,
@@ -89,8 +90,11 @@ const worker = await startWorker({
   db,
   boss,
   logger,
-  handlers: { ...defaultHandlers(db, { reconcileProviderRuns }), ...billingHandlers(billing), ...notifyHandlers(), ...creatorHandlers({ indexer, summaries, expireYoutube: () => expireYoutubeApiData(db, pipeline.storage ? { storage: pipeline.storage } : {}) }), ...discoveryHandlers({ runner, liveRunner, searchCache, pipeline }), ...erasureHandlers({ eraser }), ...contactCheckHandlers({ checker: contactChecker }), ...audienceHandlers({ runner: audienceRunner }) },
+  handlers: { ...defaultHandlers(db, { reconcileProviderRuns, checkProviders: () => checkProviderStatus({ db, config }) }), ...billingHandlers(billing), ...notifyHandlers(), ...creatorHandlers({ indexer, summaries, expireYoutube: () => expireYoutubeApiData(db, pipeline.storage ? { storage: pipeline.storage } : {}), sweep: () => lifecycleSweep({ db, apply: true, reproject: (ids) => indexer.sync(ids) }) }), ...discoveryHandlers({ runner, liveRunner, searchCache, pipeline }), ...erasureHandlers({ eraser }), ...contactCheckHandlers({ checker: contactChecker }), ...audienceHandlers({ runner: audienceRunner }) },
 });
+// Report alive as soon as the queues run: waiting for the first minute cron left Live Discovery refused ("not running")
+// for up to two minutes after every start or deploy (found by the break-it browser run, 2026-10-26).
+await db.withSystem((tx) => recordWorkerHeartbeat(tx));
 logger.info("worker started");
 
 const shutdown = async (signal: string) => {

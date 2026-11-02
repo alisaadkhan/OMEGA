@@ -1,4 +1,4 @@
-import { and, eq, gte, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, sql } from "drizzle-orm";
 import type { ProviderCallSink } from "@mushin/core";
 import type { Db } from "./database";
 import { providerCalls, providerControls } from "./schema";
@@ -24,6 +24,23 @@ export async function providerSpendSince(db: Db, provider: string, since: Date):
       .select({ total: sql<string>`coalesce(sum(${providerCalls.costUsd}), 0)` })
       .from(providerCalls)
       .where(and(eq(providerCalls.provider, provider), gte(providerCalls.createdAt, since))),
+  );
+  return Number(rows[0]?.total ?? 0);
+}
+
+/**
+ * Hosted-LLM providers counted against the monthly LLM budget. Gemini is the main provider and Ollama the fallback;
+ * Groq (replaced 2026-10-26) stays in the sum so its spend earlier in the month still counts.
+ */
+export const LLM_BUDGET_PROVIDERS = ["gemini", "ollama", "groq"] as const;
+
+/** Recorded hosted-LLM spend since a moment, across LLM_BUDGET_PROVIDERS (each provider stays distinguishable in the rows). */
+export async function llmSpendSince(db: Db, since: Date): Promise<number> {
+  const rows = await db.withSystem((tx) =>
+    tx
+      .select({ total: sql<string>`coalesce(sum(${providerCalls.costUsd}), 0)` })
+      .from(providerCalls)
+      .where(and(inArray(providerCalls.provider, [...LLM_BUDGET_PROVIDERS]), gte(providerCalls.createdAt, since))),
   );
   return Number(rows[0]?.total ?? 0);
 }

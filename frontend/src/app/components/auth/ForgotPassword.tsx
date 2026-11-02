@@ -30,7 +30,7 @@ export function ForgotPassword({ goLogin }: Props) {
       title={sent ? "Check your inbox" : "Reset your password"}
       subtitle={
         sent
-          ? `We've sent a recovery link to ${email}. Follow it to set a new password.`
+          ? `If ${email} has a MUSHIN account, we've sent it a recovery link. Follow it to set a new password. Nothing arrived? Check the address, or create an account.`
           : "Enter the email tied to your account and we'll send you a recovery link."
       }
       footer={
@@ -72,7 +72,7 @@ export function ForgotPassword({ goLogin }: Props) {
               <motion.div whileTap={{ scale: 0.98 }}>
                 <Button
                   type="submit"
-                  className="group h-11 w-full rounded-md bg-slate-900 text-white shadow-sm transition-all hover:-translate-y-px hover:bg-slate-800 hover:shadow-md"
+                  className="group h-12 w-full rounded-full bg-slate-950 text-white shadow-sm transition-all hover:-translate-y-px hover:bg-slate-800 hover:shadow-md"
                 >
                   Send reset link
                   <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-0.5" />

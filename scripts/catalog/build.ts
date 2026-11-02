@@ -20,7 +20,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { searchFiltersSchema, type LiveRunSize } from "@mushin/contracts";
 import { createLogger, loadWorkerConfig, type TenantContext } from "@mushin/core";
-import { createDatabase, createDbProviderCallSink, createDbProviderRunStore, createDbReservationLedger, providerSpendSince } from "@mushin/db";
+import { createDatabase, createDbProviderCallSink, createDbProviderRunStore, createDbReservationLedger, llmSpendSince } from "@mushin/db";
 import { createLlm, createPayments, createProfileScraper, createSerperSearch, createSharedSpendGuard, createYouTubeSearch, ProviderError, type Llm, type ObjectStorage, type ProfileScraper, type WebSearch } from "@mushin/integrations";
 import postgres from "postgres";
 import { BudgetExhausted, createBudgetGate } from "./budget";
@@ -85,7 +85,7 @@ const sink = createDbProviderCallSink(db);
 const ledger = createDbReservationLedger(db);
 const payments = createPayments(config.payments, { sink, logger });
 const billing = createBillingService({ db, payments, cache: noAccessCache, logger });
-const llmRaw = createLlm(config.llm, { sink, logger, budget: { budgetUsd: Math.min(config.llmMonthlyBudgetUsd, capUsd), spentSince: async (since) => (await providerSpendSince(db, "groq", since)) + (await providerSpendSince(db, "ollama", since)) } });
+const llmRaw = createLlm(config.llm, { sink, logger, budget: { budgetUsd: Math.min(config.llmMonthlyBudgetUsd, capUsd), spentSince: (since) => llmSpendSince(db, since) } });
 const enrichment = await db.withSystem((tx) => getEnrichmentSettings(tx));
 const scraperRaw = createProfileScraper({
   apify: config.scraping.apifyToken ? { token: config.scraping.apifyToken, instagramActor: config.scraping.instagramActor, ...(config.scraping.instagramBuild ? { instagramBuild: config.scraping.instagramBuild } : {}), tiktokActor: config.scraping.tiktokActor, ...(config.scraping.tiktokBuild ? { tiktokBuild: config.scraping.tiktokBuild } : {}) } : null,
@@ -123,7 +123,7 @@ const scraper: ProfileScraper = {
   ...(scraperRaw.resolveInstagramPostOwners ? { resolveInstagramPostOwners: (req: Parameters<NonNullable<ProfileScraper["resolveInstagramPostOwners"]>>[0]) => apifyGated(req.urls.length * COST.apifyPerProfile, () => (scraperRaw.resolveInstagramPostOwners as NonNullable<ProfileScraper["resolveInstagramPostOwners"]>)(req)) } : {}),
 };
 const web: WebSearch = { search: (q) => gated(COST.search, () => webRaw.search(q)) };
-const pipeline = createEnrichmentPipeline({ db, scraper, storage: fileStorage(join(repo, ".catalog-storage", dbName)), llm, encryptionKey: config.dataEncryptionKey, logger, attributePolicy: config.searchProfile });
+const pipeline = createEnrichmentPipeline({ db, scraper, storage: fileStorage(join(repo, ".catalog-storage", dbName)), llm, encryptionKey: config.dataEncryptionKey, logger, attributePolicy: config.enrichment.attributePolicy, youtube: { contentEvidence: config.enrichment.youtubeContentEvidence, descriptionContacts: config.enrichment.youtubeDescriptionContacts }, semanticNiche: config.enrichment.semanticNiche });
 const search = createCachedSearch({ db, web, ...(config.scraping.youtubeApiKey ? { youtube: createYouTubeSearch({ apiKey: config.scraping.youtubeApiKey, sink, logger }) } : {}) });
 const discovery = createDiscoveryService({ db, billing });
 const profileRunner = createDiscoveryRunner({ db, billing, pipeline, logger });

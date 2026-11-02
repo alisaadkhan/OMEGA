@@ -113,7 +113,7 @@ const menu = async (p, item) => {
   await p.getByRole("heading", { name: item === "Support" ? "Support" : item, exact: true }).first().waitFor({ timeout: 15000 });
 };
 async function search(p, text) {
-  if (!(await p.getByPlaceholder(/Find Pakistani creators/).isVisible().catch(() => false))) await nav(p, "Search");
+  if (!(await p.getByPlaceholder(/Find Pakistani creators/).isVisible().catch(() => false))) await nav(p, "Search & Discovery");
   await p.waitForFunction(() => { const b = [...document.querySelectorAll("button")].find((x) => /Search Existing Creators/.test(x.textContent ?? "")); return !!b && !b.disabled; }, null, { timeout: 15000 });
   const input = p.getByPlaceholder(/Find Pakistani creators/);
   await input.fill(text);
@@ -221,11 +221,11 @@ if (phase === "main") {
   p = await pageAs("owner");
   await p.goto("http://localhost:5173/#/dashboard");
   await p.getByRole("heading", { name: /Welcome back, Olivia/ }).waitFor({ timeout: 30000 });
-  await p.getByRole("region", { name: "Lists" }).getByText("No lists yet").waitFor({ timeout: 20000 });
+  await p.getByRole("region", { name: "Shortlistings" }).getByText("No lists yet").waitFor({ timeout: 20000 });
   await p.waitForTimeout(1500);
   await shot(p, "01-dashboard");
   let t = await mainText(p);
-  check("dashboard", "first visit: real trial balance and honest empty cards", (await api("owner", "GET", "/v1/billing/summary")).json.balance.available === Number(sql(`select trial_credits from platform.billing_settings`)) && /No lists yet/.test(t) && /No campaigns yet/.test(t) && !/\bSample\b|Illustrative/.test(t));
+  check("dashboard", "first visit: real trial balance and honest empty cards", (await api("owner", "GET", "/v1/billing/summary")).json.balance.available === Number(sql(`select trial_credits + testing_monthly_credits from platform.billing_settings`)) /* trial + this month's testing credits (0061) */ && /No lists yet/.test(t) && /No campaigns yet/.test(t) && !/\bSample\b|Illustrative/.test(t));
   // F-7/F-8: badges follow the server (meter and status), never fixed text; a trial is never shown as "Inactive".
   const billSum = (await api("owner", "GET", "/v1/billing/summary")).json;
   const creditBadgeText = (await p.getByTestId("credit-badge").innerText().catch(() => "")).trim();
@@ -256,7 +256,7 @@ if (phase === "main") {
   await shot(p, "02-settings");
 
   // ── 3. Brain 1 catalog search (Meilisearch backend, LLM unavailable) ──
-  await nav(p, "Search");
+  await nav(p, "Search & Discovery");
   await p.waitForFunction(() => { const b = [...document.querySelectorAll("button")].find((x) => /Search Existing Creators/.test(x.textContent ?? "")); return !!b && !b.disabled; }, null, { timeout: 15000 });
   const spendsBefore = searchSpends(ws);
   // Opening the page searches nothing (it would be a paid search the user did not ask for).
@@ -297,9 +297,9 @@ if (phase === "main") {
   await p.getByRole("button", { name: "All platforms", exact: true }).first().click().catch(() => {});
   const spendsBeforeEmpty = searchSpends(ws);
   t = await search(p, "zzqx nothing matches this");
-  check("search", "empty result is explained and offers live discovery", /No creators match/.test(t) && /Find new creators/i.test(t));
-  // Mandate v3 §10.3: until the owner decides D-05, a search that finds nothing is charged like any other.
-  check("pricing", "a zero-result search is charged once under the current server rule (owner decision D-05 pending)", searchSpends(ws) === spendsBeforeEmpty + 1, `spends ${spendsBeforeEmpty}→${searchSpends(ws)}`);
+  check("search", "empty result is explained, says it was free and offers live discovery", /No creators match/.test(t) && /this search cost nothing/.test(t) && /Find new creators/i.test(t));
+  // Owner decision D-05 (2026-10-28): a search that finds no eligible creator costs nothing.
+  check("pricing", "a zero-result search is free: no ledger spend", searchSpends(ws) === spendsBeforeEmpty, `spends ${spendsBeforeEmpty}→${searchSpends(ws)}`);
   check("search", "malformed input is rejected by the API", (await apiSearch("owner", "x".repeat(400))).status === 400);
   const panel = await openProfile(p, FX.main);
   const rw = (await apiSearch("owner", FX.main)).json.results[0];
@@ -322,7 +322,7 @@ if (phase === "main") {
   await closeAll(p);
   let list = (await api("owner", "GET", "/v1/lists")).json.lists.find((l) => l.name === "Food shortlist");
   check("lists", "two creators saved from profiles", list?.count === 2);
-  await nav(p, "Lists");
+  await nav(p, "Shortlistings");
   await p.getByRole("button", { name: /Food shortlist/ }).first().click();
   await p.getByText(`@${FX.main}`).first().waitFor();
   await p.getByRole("button", { name: "Add note" }).first().click();
@@ -338,7 +338,7 @@ if (phase === "main") {
   const temp = (await api("owner", "POST", "/v1/lists", { name: "Temporary list" })).json;
   // The sidebar item leaves an open list for the index (design gap G-17, fixed).
   let backToIndex = true;
-  await nav(p, "Lists").catch(() => { backToIndex = false; });
+  await nav(p, "Shortlistings").catch(() => { backToIndex = false; });
   check("lists", "choosing Lists in the sidebar while a list is open returns to all lists", backToIndex);
   if (!backToIndex) await p.getByRole("button", { name: "All lists" }).click();
   await p.getByRole("button", { name: /Temporary list/ }).first().click();
@@ -364,7 +364,7 @@ if (phase === "main") {
   await p.getByRole("heading", { name: "Eid food push" }).waitFor();
   const k = (await api("owner", "GET", "/v1/campaigns")).json.campaigns.find((c) => c.name === "Eid food push");
   // Add both list members from the list page bulk bar.
-  await nav(p, "Lists");
+  await nav(p, "Shortlistings");
   await p.getByRole("button", { name: /Food shortlist/ }).first().click();
   await p.getByLabel("Select all").check();
   await p.getByRole("button", { name: /Add 2 to a campaign/ }).click();
@@ -417,6 +417,9 @@ if (phase === "main") {
   await gate.waitFor({ state: "detached", timeout: 15000 });
   const legalRecorded = sql(`select legal_version is not null from wp.users where id = '${ids.outsider.sub}'`) === "t";
   check("legal", "a person who has not accepted the Terms is asked first (button disabled until ticked), then recorded", gateBlocked && legalRecorded, `disabled before ticking: ${gateBlocked}; recorded: ${legalRecorded}`);
+  // The outsider has already used this month's testing credits (0061), so the scenario is the 200-credit trial alone; the
+  // adjustment is a ledger row like any other, so lots and ledger still reconcile.
+  sql(`with t as (update wp.credit_lots l set remaining = 0 from wp.workspace_members m join wp.users u on u.id = m.user_id where u.id = '${ids.outsider.sub}' and m.role = 'owner' and l.workspace_id = m.workspace_id and l.source = 'testing' and l.remaining > 0 returning l.id, l.workspace_id, l.amount) insert into wp.credit_ledger (workspace_id, amount, kind, lot_id, note) select workspace_id, -amount, 'adjust', id, 'e2e: testing credits already used' from t`);
   await search(outsiderPage, "Lahore food vlogger"); // 200 trial credits - 50 = 150 left
   await outsiderPage.getByRole("button", { name: /Find New Creators/ }).first().click();
   await outsiderPage.getByRole("button", { name: "Up to 15", exact: true }).click();
@@ -488,7 +491,7 @@ if (phase === "main") {
   // Inner sections have no URLs of their own: return to the dashboard through the sidebar.
   await p.getByRole("button", { name: "Dashboard", exact: true }).first().click();
   await p.getByRole("heading", { name: /Welcome back/ }).waitFor({ timeout: 30000 });
-  await p.getByRole("region", { name: "Lists" }).getByText("Food shortlist").waitFor({ timeout: 15000 });
+  await p.getByRole("region", { name: "Shortlistings" }).getByText("Food shortlist").waitFor({ timeout: 15000 });
   t = await mainText(p);
   // The API counts days in Pakistan time (Asia/Karachi), so the range is computed there too.
   const pkDate = (ms) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(new Date(ms));
@@ -621,7 +624,8 @@ if (phase === "main") {
   check("privacy", "a person deletes their own account in Settings; it stays deleted and their sole workspace is erased",
     gone.status === 403 && gone.json?.error?.details?.reason === "account_deleted" && sql(`select status from wp.users where id = '${ids.invitee.sub}'`) === "deleted" && sql(`select count(*) from wp.workspaces where owner_user_id = '${ids.invitee.sub}' and status = 'active'`) === "0",
     `${gone.status}`);
-  await inv.getByRole("button", { name: "Sign out" }).click();
+  // The deletion result has its own Sign out; the sidebar has another (design 2026-10-27).
+  await inv.getByRole("status").filter({ hasText: "What was kept, and why:" }).getByRole("button", { name: "Sign out" }).click();
   await inv.waitForTimeout(1500);
   const sessionLeft = await inv.evaluate((k) => localStorage.getItem(k), `sb-${ref}-auth-token`);
   check("privacy", "after deleting the account the person is signed out (session cleared, not on the dashboard)", sessionLeft === null && !inv.url().includes("#/dashboard"), inv.url());
@@ -691,7 +695,7 @@ if (phase === "main") {
 
   // Starter: no data export and no outreach email, refused by the API and explained in the UI.
   const exportDenied = (await api("owner", "POST", "/v1/exports", { kind: "lists" }, { "idempotency-key": `e2e-x1-${label}` })).json;
-  await nav(pl, "Lists");
+  await nav(pl, "Shortlistings");
   await pl.getByRole("button", { name: "Export CSV" }).click();
   await pl.getByText(/Data export is included in the Scale plan/).first().waitFor({ timeout: 15000 });
   check("plans", "Starter: data export is refused by the API and the UI says it is a Scale feature", exportDenied?.error?.details?.reason === "plan_feature");
@@ -713,7 +717,7 @@ if (phase === "main") {
   check("plans", "Scale: unlimited campaigns (a restore that was refused on Starter now works)", (await api("owner", "PATCH", `/v1/campaigns/${sql(`select id from wp.campaigns where workspace_id = '${ws}' and name = 'Starter slot 0'`)}`, { status: "paused" })).status === 200);
   await pl.reload();
   await pl.getByRole("heading", { name: /Welcome back, Olivia/ }).waitFor({ timeout: 30000 });
-  await nav(pl, "Lists");
+  await nav(pl, "Shortlistings");
   const [csvDownload] = await Promise.all([pl.waitForEvent("download", { timeout: 20000 }), pl.getByRole("button", { name: "Export CSV" }).click()]);
   const csvText = readFileSync(await csvDownload.path(), "utf8");
   check("plans", "Scale: the lists export downloads as CSV with the workspace's list and no contact values", /^"List","List description"/.test(csvText) && csvText.includes("Food shortlist") && !/@[a-z0-9-]+\.[a-z]{2,}/i.test(csvText), csvDownload.suggestedFilename());
@@ -734,7 +738,7 @@ if (phase === "main") {
   const p = await pageAs("owner");
   await p.goto("http://localhost:5173/#/dashboard");
   await p.getByRole("heading", { name: /Welcome back, Olivia/ }).waitFor({ timeout: 30000 });
-  await nav(p, "Lists");
+  await nav(p, "Shortlistings");
   await p.getByRole("button", { name: /Food shortlist/ }).first().click();
   await p.getByText("Shortlisted for Eid").waitFor({ timeout: 15000 });
   check("restart", "list, members and note persist after API/worker restart", true);
@@ -749,7 +753,7 @@ if (phase === "main") {
   await p.getByRole("heading", { name: /Welcome back/ }).waitFor({ timeout: 15000 });
   await p.waitForTimeout(400);
   check("a11y", "Dashboard: no serious or critical WCAG 2.2 A/AA issues (desktop)", (await axeFindings(p)).length === 0, (await axeFindings(p)).join(" | "));
-  for (const name of ["Search", "Lists", "Campaigns", "Credits & billing"]) {
+  for (const name of ["Search & Discovery", "Shortlistings", "Campaigns", "Credits & billing"]) {
     await nav(p, name);
     await p.waitForTimeout(400);
     const found = await axeFindings(p);
@@ -804,7 +808,7 @@ if (phase === "main") {
   await m.goto("http://localhost:5173/#/dashboard");
   await m.getByRole("heading", { name: /Welcome back, Olivia/ }).waitFor({ timeout: 30000 });
   check("phone", "dashboard fits a 390 px screen", (await widthOffenders(m)).length === 0, (await widthOffenders(m)).join(" | "));
-  for (const name of ["Search", "Lists", "Campaigns", "Billing"]) {
+  for (const name of ["Search & Discovery", "Shortlistings", "Campaigns", "Billing"]) {
     let reached = true;
     try {
       await nav(m, name === "Billing" ? "Credits & billing" : name);
@@ -815,7 +819,7 @@ if (phase === "main") {
     }
     if (!reached) continue;
     await m.waitForTimeout(400);
-    if (name === "Search") await search(m, "food");
+    if (name === "Search & Discovery") await search(m, "food");
     await shot(m, `phone-${name}`);
     check("phone", `${name} fits a 390 px screen`, (await widthOffenders(m)).length === 0, (await widthOffenders(m)).join(" | "));
     const found = await axeFindings(m);
