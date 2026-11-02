@@ -93,7 +93,7 @@ export async function synthetic(s: Synthetic, o: { index?: boolean } = {}): Prom
 
 // ── App ──────────────────────────────────────────────────────────────────────────────────────────────────────────
 const big = { limit: 100_000, windowSeconds: 60 };
-export const generousBuckets: RateLimitBuckets = { ip: big, user: big, auth: big, ai: big, jobs: { limit: 100_000, windowSeconds: 3600 }, workspaceJobs: { limit: 100_000, windowSeconds: 3600 }, callback: big };
+export const generousBuckets: RateLimitBuckets = { ip: big, user: big, auth: big, ai: big, lookup: big, jobs: { limit: 100_000, windowSeconds: 3600 }, workspaceJobs: { limit: 100_000, windowSeconds: 3600 }, callback: big };
 
 /** A fixture creator profile in Apify's Instagram shape, with recent dated posts (eligibility needs activity). */
 export function igProfile(username: string, bio: string, followers = 50_000): Record<string, unknown>[] {

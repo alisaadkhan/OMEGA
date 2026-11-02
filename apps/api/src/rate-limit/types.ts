@@ -1,7 +1,7 @@
 import { AppError } from "@mushin/core";
 
 export type Bucket = { limit: number; windowSeconds: number };
-export type RateLimitBuckets = { ip: Bucket; user: Bucket; auth: Bucket; ai: Bucket; jobs: Bucket; workspaceJobs: Bucket; callback: Bucket };
+export type RateLimitBuckets = { ip: Bucket; user: Bucket; auth: Bucket; ai: Bucket; lookup: Bucket; jobs: Bucket; workspaceJobs: Bucket; callback: Bucket };
 export type BucketName = keyof RateLimitBuckets;
 export type LimitResult = { allowed: boolean; retryAfterSeconds: number };
 
@@ -19,6 +19,9 @@ export function bucketsFromConfig(c: { windowMs: number; maxRequests: number }):
     auth: { limit: 5, windowSeconds: 60 },
     // AI calls are free to users but cost MUSHIN money (spec §4.1).
     ai: { limit: 20, windowSeconds: 60 },
+    // The free creator lookup (name or link → up to 8 cards) per user: enough for typing, too few to page the catalogue
+    // out without paying for searches (security hardening 2026-11-03).
+    lookup: { limit: 30, windowSeconds: 60 },
     // Each job spends real money on Apify (spec §3.3): 20 starts per hour per user.
     jobs: { limit: 20, windowSeconds: 3600 },
     // The same paid starts counted for the whole workspace, so many members cannot multiply the spend (RATE-002).

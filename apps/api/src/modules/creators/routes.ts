@@ -56,7 +56,10 @@ export function registerCreatorRoutes(
 
   app.get("/v1/creators/lookup", read, async (req, reply) => {
     const q = parseInput(lookupQuerySchema, req.query);
-    return sendOk(reply, lookupResponseSchema, await service.lookup(tenantOf(req), q.q));
+    const ctx = tenantOf(req);
+    const r = await limiter.limit("lookup", ctx.userId);
+    if (!r.allowed) throw rateLimitError(r.retryAfterSeconds);
+    return sendOk(reply, lookupResponseSchema, await service.lookup(ctx, q.q));
   });
 
   app.get("/v1/search/saved", read, async (req, reply) => sendOk(reply, savedSearchListSchema, await service.listSaved(tenantOf(req))));

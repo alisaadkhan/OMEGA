@@ -27,13 +27,13 @@ beforeEach(async () => {
   await index.remove([...(await index.listIds()).keys()]);
 });
 
-async function setup(o: { index?: SearchIndex; aiLimit?: number } = {}) {
+async function setup(o: { index?: SearchIndex; aiLimit?: number; lookupLimit?: number } = {}) {
   const payments = new MockPayments({ webhookSecret: "h".repeat(40), publicApiUrl: "http://api.test", deliver: async () => {} });
   const billing = createBillingService({ db, payments, cache: new MemoryAccessCache(), logger });
   const identity = createIdentityModule({ db, autoTrial: billing.startTrial });
   const platform = createPlatformModule({ db, ttlHours: 24 });
   const big = { limit: 1000, windowSeconds: 60 };
-  const limiter = new MemoryRateLimiter({ ip: big, user: big, auth: big, ai: { limit: o.aiLimit ?? 1000, windowSeconds: 60 }, jobs: big, workspaceJobs: big, callback: big });
+  const limiter = new MemoryRateLimiter({ ip: big, user: big, auth: big, ai: { limit: o.aiLimit ?? 1000, windowSeconds: 60 }, lookup: { limit: o.lookupLimit ?? 1000, windowSeconds: 60 }, jobs: big, workspaceJobs: big, callback: big });
   const llm = new MockLlm(() => ({ niches: ["Bridal"], creatorCity: "Lahore" }));
   const service = createCreatorsService({ db, index: o.index ?? index, llm, billing, encryptionKey: TEST_KEY, logger });
   const iss = await createTestIssuer();
@@ -71,6 +71,15 @@ describe("creators API", () => {
     const replay = await app.inject({ method: "POST", url: `/v1/creators/${id}/reveal`, headers: key, payload: { confirmedCost: 5 } });
     expect(first.json()).toEqual({ contacts: [expect.objectContaining({ value: "sana@example.com" })], charged: true });
     expect(replay.json()).toEqual(first.json());
+  });
+
+  // Security hardening 2026-11-03: the free lookup cannot be used to page the catalogue out unpaid.
+  it("rate-limits the free creator lookup per user", async () => {
+    const { app, auth } = await setup({ lookupLimit: 2 });
+    for (let i = 0; i < 2; i++) expect((await app.inject({ method: "GET", url: `/v1/creators/lookup?q=sana${i}`, headers: auth })).statusCode).toBe(200);
+    const limited = await app.inject({ method: "GET", url: "/v1/creators/lookup?q=sana", headers: auth });
+    expect(limited.statusCode).toBe(429);
+    expect(limited.headers["retry-after"]).toBeDefined();
   });
 
   it("validates filters, rate-limits interpretation and reports search outages as 503", async () => {

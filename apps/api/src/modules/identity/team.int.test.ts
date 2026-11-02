@@ -45,7 +45,7 @@ async function setup(o: { verify?: VerifyEmail | null } = {}) {
   const big = { limit: 1000, windowSeconds: 60 };
   const iss = await createTestIssuer();
   const app = await buildTestApp({
-    guards: { customer: createCustomerGuard({ verify: createCustomerTokenVerifier(iss), resolveTenant: identity.resolveTenant, limiter: new MemoryRateLimiter({ ip: big, user: big, auth: big, ai: big, jobs: big, workspaceJobs: big, callback: big }) }), idempotent: platform.requireIdempotencyKey },
+    guards: { customer: createCustomerGuard({ verify: createCustomerTokenVerifier(iss), resolveTenant: identity.resolveTenant, limiter: new MemoryRateLimiter({ ip: big, user: big, auth: big, ai: big, lookup: big, jobs: big, workspaceJobs: big, callback: big }) }), idempotent: platform.requireIdempotencyKey },
     modules: [platform.module, identity.module],
   });
   const call = (method: "GET" | "POST" | "PATCH" | "DELETE", url: string, headers: H, payload?: object) => app.inject(payload === undefined ? { method, url, headers } : { method, url, headers, payload });
