@@ -46,4 +46,12 @@ describe("creator index projection", () => {
     const loneHighSurrogateEscape = new RegExp(`${String.fromCharCode(92)}u[dD][89abAB][0-9a-fA-F]{2}`);
     expect(loneHighSurrogateEscape.test(json)).toBe(false);
   });
+
+  // Security hardening 2026-11-03: an email or phone number in a bio cannot be searched for or read from match reasons.
+  it("keeps emails and phone numbers out of the searchable bio", () => {
+    const bio = "Bridal looks, Lahore. Bookings: sana@example.com / 0300-1234567";
+    const doc = toDocument({ ...row, profiles: row.profiles.map((p) => ({ ...p, bio })) });
+    expect(doc.bio).toContain("Bridal looks, Lahore.");
+    expect(doc.bio).not.toMatch(/example\.com|1234567/);
+  });
 });
