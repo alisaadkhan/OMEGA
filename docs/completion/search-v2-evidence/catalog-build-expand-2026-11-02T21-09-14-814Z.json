@@ -1,0 +1,786 @@
+{
+ "mode": "expand",
+ "db": "mushin_catalog_v4",
+ "capUsd": 7,
+ "started": "2026-11-02T21:09:14.814Z",
+ "finished": "2026-11-02T21:52:41.643Z",
+ "spendByProvider": [
+  {
+   "provider": "apify",
+   "calls": 95,
+   "usd": "0.247000"
+  },
+  {
+   "provider": "gemini",
+   "calls": 72,
+   "usd": "0.000000"
+  },
+  {
+   "provider": "ollama",
+   "calls": 269,
+   "usd": "0.071287"
+  }
+ ],
+ "jobs": [
+  {
+   "i": 0,
+   "handle": "mahirahkhan",
+   "refs": 8,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 1,
+   "handle": "naimalkhawarkhan",
+   "refs": 8,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 2,
+   "handle": "sarahkhanofficial",
+   "refs": 7,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 3,
+   "handle": "zaranoorabbas.official",
+   "refs": 7,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 4,
+   "handle": "iiqraaziz",
+   "refs": 7,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 5,
+   "handle": "ticketwalapk",
+   "refs": 6,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 6,
+   "handle": "alishbahannjum",
+   "refs": 6,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 7,
+   "handle": "kanwal.135",
+   "refs": 6,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 8,
+   "handle": "hirrakhann",
+   "refs": 6,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 9,
+   "handle": "shahveerjay",
+   "refs": 6,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 10,
+   "handle": "annualculinaryawards",
+   "refs": 5,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 11,
+   "handle": "kainataslam.ka",
+   "refs": 5,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 12,
+   "handle": "ayeshabeigs",
+   "refs": 5,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 13,
+   "handle": "hudabeauty",
+   "refs": 5,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 14,
+   "handle": "swissmisspk",
+   "refs": 5,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 15,
+   "handle": "haniaheheofficial",
+   "refs": 5,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 16,
+   "handle": "laamofficial",
+   "refs": 5,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 17,
+   "handle": "humtvpakistanofficial",
+   "refs": 5,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 18,
+   "handle": "ameergilani",
+   "refs": 5,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 19,
+   "handle": "danishtaimoor16",
+   "refs": 5,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 20,
+   "handle": "zubab.rana",
+   "refs": 5,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 21,
+   "handle": "seharkhan_official",
+   "refs": 5,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 22,
+   "handle": "fatimafaisal_",
+   "refs": 5,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 23,
+   "handle": "samarjafri_",
+   "refs": 5,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 24,
+   "handle": "bashaistanbulpk",
+   "refs": 4,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 25,
+   "handle": "aenaakhan",
+   "refs": 4,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 26,
+   "handle": "nyxcosmetics",
+   "refs": 4,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 27,
+   "handle": "pinktoberpakistan",
+   "refs": 4,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 28,
+   "handle": "divamagazinepakistan",
+   "refs": 4,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 29,
+   "handle": "fatima.fitco",
+   "refs": 4,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 30,
+   "handle": "dolmenmall",
+   "refs": 4,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 31,
+   "handle": "ethncofficialpk",
+   "refs": 4,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 32,
+   "handle": "laamfashionweek",
+   "refs": 4,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 33,
+   "handle": "maccosmetics",
+   "refs": 4,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 34,
+   "handle": "ranahamzasaif",
+   "refs": 4,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 35,
+   "handle": "muneeb_butt",
+   "refs": 4,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 36,
+   "handle": "momal15",
+   "refs": 4,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 37,
+   "handle": "neelammuneerkhan",
+   "refs": 4,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 38,
+   "handle": "sabooraly",
+   "refs": 4,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 39,
+   "handle": "amarkhanlove",
+   "refs": 4,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 40,
+   "handle": "ahadrazamir",
+   "refs": 4,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 41,
+   "handle": "hareemfarooq",
+   "refs": 4,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 42,
+   "handle": "saharblues",
+   "refs": 4,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 43,
+   "handle": "iqrakanwal.official",
+   "refs": 4,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 44,
+   "handle": "durefishans",
+   "refs": 4,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 45,
+   "handle": "mustafafahad26",
+   "refs": 4,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 46,
+   "handle": "bilalabbas_khan",
+   "refs": 4,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 47,
+   "handle": "atifaslam",
+   "refs": 4,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 48,
+   "handle": "elitepr_agency",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 49,
+   "handle": "thewafflebarpk",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 50,
+   "handle": "khaadi",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 51,
+   "handle": "burgeroclock",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 52,
+   "handle": "anua_global",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 53,
+   "handle": "pakistaninfluencerawards",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 54,
+   "handle": "talha_ahmed222",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 55,
+   "handle": "arydigital.tv",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 56,
+   "handle": "oppopakistan",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 57,
+   "handle": "myjenpharm",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 58,
+   "handle": "maybelline_pk",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 59,
+   "handle": "halema_mustafa",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 60,
+   "handle": "corekarachi",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 61,
+   "handle": "legendsfit.pk",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 62,
+   "handle": "outfitters_pk",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 63,
+   "handle": "knorrnoodles",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 64,
+   "handle": "hanifjewellers",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 65,
+   "handle": "toofaced",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 66,
+   "handle": "howdyislamabad",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 67,
+   "handle": "taptapsendpk",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 68,
+   "handle": "thetownhousehotelpk",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 69,
+   "handle": "ameema_saleem",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 70,
+   "handle": "sadafkanwal",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 71,
+   "handle": "pubgm.pk.official",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 72,
+   "handle": "jung_sanam",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 73,
+   "handle": "iseharhayat",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 74,
+   "handle": "fatimaeffendikanwar",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 75,
+   "handle": "mehwishhayatofficial",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 76,
+   "handle": "itsnidayasir.official",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 77,
+   "handle": "iamshaistalodhi",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 78,
+   "handle": "syrayousuf",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 79,
+   "handle": "merium.pervaiz",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 80,
+   "handle": "yashmagillofficial",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 81,
+   "handle": "mkwears_pk",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 82,
+   "handle": "hajra_yamin",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 83,
+   "handle": "ninakashif",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 84,
+   "handle": "saba_maaz123",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 85,
+   "handle": "yusra._.shaz",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 86,
+   "handle": "mominamunir",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 87,
+   "handle": "munibnawaz",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 88,
+   "handle": "shujaasad",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 89,
+   "handle": "sheheryarmunawar",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 90,
+   "handle": "noorzafarkhan",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 91,
+   "handle": "nehaalnaseem",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 92,
+   "handle": "laibakhurramm_",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 93,
+   "handle": "sapphirepakistan",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 94,
+   "handle": "jannatmirza_",
+   "refs": 3,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  }
+ ]
+}
