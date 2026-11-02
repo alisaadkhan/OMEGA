@@ -83,6 +83,8 @@ export const approvals = staffSchema.table("approvals", {
   payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
   reason: text("reason").notNull(),
   requiresSuperAdmin: boolean("requires_super_admin").notNull(),
+  // A Super Admin approving their own credit grant (0071); every other decision is by a second person.
+  selfApproved: boolean("self_approved").notNull().default(false),
   requestedBy: uuid("requested_by").notNull(),
   decidedBy: uuid("decided_by"),
   decisionNote: text("decision_note"),

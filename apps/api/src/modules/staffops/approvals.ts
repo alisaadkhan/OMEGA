@@ -125,12 +125,15 @@ export function createApprovals(deps: { db: Db; billing: Pick<BillingService, "e
           await tx.update(approvals).set({ status: "expired" }).where(eq(approvals.id, id));
           return { expired: true as const };
         }
-        if (row.requestedBy === p.staffId) throw new AppError("FORBIDDEN", "You cannot decide your own request; another staff member must.", { reason: "self_approval" });
+        // The owner (Super Admin) may decide their own credit grant or refund in one step (owner directive 2026-11-03,
+        // 0071); every other request still needs a second person.
+        const selfApproved = row.requestedBy === p.staffId;
+        if (selfApproved && !(row.actionType === "credits.grant" && p.role === "super_admin")) throw new AppError("FORBIDDEN", "You cannot decide your own request; another staff member must.", { reason: "self_approval" });
         if (row.requiresSuperAdmin && p.role !== "super_admin") throw new AppError("FORBIDDEN", "This request needs a Super Admin's approval.", { reason: "super_admin_cosign" });
         if (row.targetType === "staff" && row.targetId === p.staffId) throw new AppError("FORBIDDEN", "Nobody can approve a change to their own access.", { reason: "self_target" });
         const status = decision === "approve" ? ("approved" as const) : ("rejected" as const);
-        const [updated] = await tx.update(approvals).set({ status, decidedBy: p.staffId, decidedAt: now(), decisionNote: note || null }).where(eq(approvals.id, id)).returning();
-        await recordStaffAudit(tx, { staffId: p.staffId, action: `approvals.${status}`, metadata: { approvalId: id, type: row.actionType, targetType: row.targetType, targetId: row.targetId }, ip: meta.ip, requestId: meta.requestId });
+        const [updated] = await tx.update(approvals).set({ status, decidedBy: p.staffId, decidedAt: now(), decisionNote: note || null, selfApproved }).where(eq(approvals.id, id)).returning();
+        await recordStaffAudit(tx, { staffId: p.staffId, action: `approvals.${status}`, metadata: { approvalId: id, type: row.actionType, targetType: row.targetType, targetId: row.targetId, ...(selfApproved ? { selfApproved: true } : {}) }, ip: meta.ip, requestId: meta.requestId });
         return { expired: false as const, row: updated as Row };
       });
       if (decided.expired) throw new AppError("CONFLICT", "This request expired. Ask for it again.", { reason: "expired" });
