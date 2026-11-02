@@ -60,12 +60,14 @@ describe("Pakistan-only catalogue (CTY)", () => {
     expect(Object.fromEntries(reasons.map((r) => [r.creator_id, r.eligibility_reasons]))).toEqual({ [abroad]: ["country_not_pakistan"], [unknown]: ["country_unknown"], [conflict]: ["country_conflicting"] });
   });
 
-  it("CTY-I02 a city, flag or hashtag never makes a profile Pakistani", async () => {
-    for (const [name, bio] of [["City Only", "Karachi food vlogger"], ["Flag Only", "Food vlogger 🇵🇰"], ["Hashtag Only", "Food vlogs #pakistan #lahorefood"]] as const) {
-      const id = await bioCreator(name, bio);
-      expect((await profileCountry(id))[0]?.country_status).toBe("unknown");
-    }
+  it("CTY-I02 hashtags never make a profile Pakistani; a city or flag in the bio header does (owner 2026-11-03)", async () => {
+    const tagged = await bioCreator("Hashtag Only", "Food vlogs #pakistan #lahorefood");
+    expect((await profileCountry(tagged))[0]?.country_status).toBe("unknown");
     expect(await search(await customer(), "food")).toEqual([]);
+    for (const [name, bio] of [["City Header", "Karachi food vlogger"], ["Flag Header", "Food vlogger 🇵🇰"]] as const) {
+      const id = await bioCreator(name, bio);
+      expect((await profileCountry(id))[0]?.country_status).toBe("pakistan");
+    }
   });
 
   it("CTY-I03 filters and text cannot bring an excluded profile back (country, platform, niche, follower range, its own name)", async () => {

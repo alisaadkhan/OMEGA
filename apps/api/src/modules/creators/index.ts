@@ -23,7 +23,7 @@ export function createCreatorsModule(o: { service: CreatorsService; limiter: Rat
 }
 export { createEnrichmentPipeline } from "./enrichment/pipeline";
 export type { EnrichHooks, EnrichJob, EnrichmentPipeline, EnrichResult, SavedResult } from "./enrichment/pipeline";
-export { findProfileByUrl, getEnrichmentSettings, placeAttributes, profileTarget, refreshProfileCountries, replaceAttributeEvidence } from "./enrichment/repository";
+export { findProfileByUrl, getEnrichmentSettings, placeAttributes, profileTarget, refreshProfileCountries, bulkRefreshProfileCountries, replaceAttributeEvidence } from "./enrichment/repository";
 export { deriveAttributes } from "./enrichment/attribute-evidence";
 export { profileCountry, type ProfileCountry } from "./enrichment/country-evidence";
 export { backfillAttributes, restoreBeforeImages } from "./enrichment/backfill";
@@ -60,3 +60,4 @@ export { profileMetrics } from "./enrichment/signals";
 
 export { lifecycleSweep, locationState, nextAvailability, permittedActions, recordAvailability } from "./lifecycle";
 export type { Availability, LocationState, PermittedActions, SweepReport } from "./lifecycle";
+export { contentPerformance, evaluateV3, ELIG3_RULES, ELIGIBILITY_V3, type ContentPerformance, type V3Input, type V3Result, type V3Status } from "./eligibility-v3";

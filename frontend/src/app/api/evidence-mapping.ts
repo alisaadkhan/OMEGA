@@ -39,6 +39,8 @@ const COUNTRY_SOURCE: Record<NonNullable<CreatorProfile["countrySource"]>, strin
   creator_confirmed: "confirmed by the creator",
   creator_stated: "stated in the creator's bio",
   platform_declared: "declared on the platform",
+  public_record: "from a public record",
+  linked_profile: "from the creator's linked profile",
 };
 
 /** The shown country with where it comes from ("Canada · stated in the creator's bio"); null when unknown. */

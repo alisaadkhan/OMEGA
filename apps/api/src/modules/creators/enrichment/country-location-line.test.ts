@@ -9,9 +9,10 @@ describe("country rule: bio location line (owner 2026-11-02)", () => {
     expect(status("Lahore, Pakistan")).toBe("pakistan");
     expect(status("📍Islamabad, Pakistan")).toBe("pakistan");
   });
-  it("LOC-02 a topic mid-sentence, a flag alone or a city that is not in the named country is not a location", () => {
+  it("LOC-02 a topic mid-sentence or a city that is not in the named country is not a location", () => {
     expect(status("Food tours of Lahore Pakistan every week")).toBe("unknown");
-    expect(status("🇵🇰")).toBe("unknown");
+    // Owner 2026-11-03: a Pakistan flag in the bio header counts (low confidence).
+    expect(status("🇵🇰")).toBe("pakistan");
     expect(status("Karachi, India")).toBe("unknown");
   });
   it("LOC-03 the stated location is creator-stated at medium confidence, never verified", () => {

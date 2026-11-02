@@ -18,7 +18,7 @@ import { parseArgs } from "node:util";
 import { createLogger } from "@mushin/core";
 import { createDatabase } from "@mushin/db";
 import { sql } from "drizzle-orm";
-import { createCreatorIndexer, profileCountry, refreshProfileCountries } from "../../apps/api/src/modules/creators/index";
+import { bulkRefreshProfileCountries, createCreatorIndexer } from "../../apps/api/src/modules/creators/index";
 
 const { values } = parseArgs({ options: { db: { type: "string" }, apply: { type: "boolean", default: false }, live: { type: "boolean", default: false } } });
 const liveUrl = values.live ? process.env["DIRECT_URL"] : undefined;
@@ -42,8 +42,10 @@ const ids = await db.withSystem((tx) => tx.execute<{ id: string }>(sql`select id
 let changed = 0;
 const transitions: Record<string, number> = {};
 if (values.apply) {
-  for (const { id } of ids) {
-    const out = await db.withSystem((tx) => refreshProfileCountries(tx, id, { source: "backfill" }));
+  // Batches of 500 creators per transaction (one read, one update, one event insert each): seconds, not an hour.
+  const all = [...ids].map((r) => r.id);
+  for (let i = 0; i < all.length; i += 500) {
+    const out = await db.withSystem((tx) => bulkRefreshProfileCountries(tx, all.slice(i, i + 500), { source: "backfill" }));
     for (const c of out) {
       changed++;
       const k = `${c.platform}: ${c.from} -> ${c.to.status}`;
@@ -51,17 +53,22 @@ if (values.apply) {
     }
   }
 } else {
-  const rows = await db.withSystem((tx) =>
-    tx.execute<{ platform: string; bio: string | null; country: string | null; country_status: string; platform_country: string | null; confirmed_country: string | null }>(sql`
-      select p.platform, p.bio, p.country, p.country_status, c.platform_country, c.confirmed_country
-      from gcp.creator_profiles p join gcp.creators c on c.id = p.creator_id where c.status = 'active'`),
-  );
-  for (const r of rows) {
-    const next = profileCountry({ bio: r.bio, platformCountry: r.platform === "youtube" ? r.platform_country : null, confirmed: r.confirmed_country });
-    if (next.status === r.country_status && next.country === r.country) continue;
-    changed++;
-    const k = `${r.platform}: ${r.country_status} -> ${next.status}`;
-    transitions[k] = (transitions[k] ?? 0) + 1;
+  // Dry run: the same bulk decisions inside transactions that are always rolled back, so nothing is written.
+  const all = [...ids].map((r) => r.id);
+  class Rollback extends Error {}
+  for (let i = 0; i < all.length; i += 500) {
+    await db
+      .withSystem(async (tx) => {
+        for (const c of await bulkRefreshProfileCountries(tx, all.slice(i, i + 500), { source: "backfill" })) {
+          changed++;
+          const k = `${c.platform}: ${c.from} -> ${c.to.status}`;
+          transitions[k] = (transitions[k] ?? 0) + 1;
+        }
+        throw new Rollback();
+      })
+      .catch((e: unknown) => {
+        if (!(e instanceof Rollback)) throw e;
+      });
   }
 }
 const projection = values.apply ? await createCreatorIndexer({ db, index: null, logger, sourcePolicy }).reconcile() : null;

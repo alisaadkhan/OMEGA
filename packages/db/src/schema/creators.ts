@@ -34,7 +34,11 @@ export const creators = gcp.table("creators", {
   platformCountry: char("platform_country", { length: 2 }),
   statedCountry: char("stated_country", { length: 2 }),
   confirmedCountry: char("confirmed_country", { length: 2 }),
-  countrySource: text("country_source", { enum: ["creator_confirmed", "creator_stated", "platform_declared"] }),
+  /** Country from a public record (0067): curated seed manifest or staff, with its source URL. */
+  publicCountry: char("public_country", { length: 2 }),
+  publicCountrySource: text("public_country_source"),
+  publicCountryAt: ts("public_country_at"),
+  countrySource: text("country_source", { enum: ["creator_confirmed", "creator_stated", "platform_declared", "public_record", "linked_profile"] }),
   countryConfidence: text("country_confidence", { enum: ["high", "medium", "low"] }),
   countryCheckedAt: ts("country_checked_at"),
   tags: text("tags").array().notNull().default([]),
@@ -87,7 +91,7 @@ export const creatorProfiles = gcp.table("creator_profiles", {
   missingSince: ts("missing_since"),
   /** This profile's own country (0060; Pakistan-only catalogue). Absent or not Pakistani = not shown to customers. */
   country: text("country"),
-  countrySource: text("country_source", { enum: ["creator_confirmed", "creator_stated", "platform_declared"] }),
+  countrySource: text("country_source", { enum: ["creator_confirmed", "creator_stated", "platform_declared", "public_record", "linked_profile"] }),
   countryStatus: text("country_status", { enum: ["pakistan", "foreign", "unknown", "conflicting"] }).notNull().default("unknown"),
   countryReason: text("country_reason"),
   countryConfidence: text("country_confidence", { enum: ["high", "medium", "low"] }),

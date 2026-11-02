@@ -18,7 +18,7 @@ import { quote } from "./quote";
  * The resolved country (shown and searched) is confirmed, else stated, else platform-declared.
  */
 export type CountryConfidence = "high" | "medium" | "low";
-export type CountrySource = "creator_confirmed" | "creator_stated" | "platform_declared";
+export type CountrySource = "creator_confirmed" | "creator_stated" | "platform_declared" | "public_record" | "linked_profile";
 export type CountryObservation = { value: string; source: "profile_text" | "platform_registration"; status: "supported" | "weak" | "conflicting"; evidence: string };
 export type CountryDecision = {
   platform: string | null;
@@ -79,8 +79,95 @@ const codesIn = (re: RegExp, text: string, pick: (m: RegExpExecArray) => string 
   return out;
 };
 
+/** Extra profile evidence beyond the bio: the profile's own links, and the place names of its recent posts' geotags. */
+export type CountryExtras = { urls?: readonly string[]; postLocations?: readonly string[] };
+
+const PK_PHONE = /(?:\+92|0092)[\s-]?3\d{2}[\s-]?\d{3}[\s-]?\d{4}|(?<!\d)03\d{2}[\s-]?\d{7}(?!\d)/u;
+const PK_DOMAIN = /\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.pk\b/iu;
+const PKR = /\bPKR\s?\d|\b\d[\d,]*\s?PKR\b/iu;
+const PINS = /[📍📌]/u;
+const flagCodes = (text: string): string[] =>
+  [...text.matchAll(/([\u{1F1E6}-\u{1F1FF}])([\u{1F1E6}-\u{1F1FF}])/gu)].map((m) => String.fromCharCode(((m[1] as string).codePointAt(0) ?? 0x1f1e6) - 0x1f1e6 + 65, ((m[2] as string).codePointAt(0) ?? 0x1f1e6) - 0x1f1e6 + 65));
+/** Hashtags, @mentions and underscore usernames are topics or other accounts, never a statement about the creator. */
+const clean = (bio: string) => bio.replace(/#\S+/gu, " ").replace(/@\S+/gu, " ").replace(/\S*_\S*/gu, " ");
+/** A bio "header" segment: a short line or a part between separators (|, •, /, ·, comma). Long sentences are not headers. */
+const segments = (bio: string) =>
+  clean(bio)
+    .split(/\n|\||•|·|\/|,/u)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0 && s.split(/\s+/u).length <= 6);
+/** Short lines that name no other country: where "Pakistan"/🇵🇰 reads as a header rather than a topic list. */
+const headerLines = (bio: string) =>
+  clean(bio)
+    .split(/\n/u)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0 && s.split(/\s+/u).length <= 8);
+const pkCityIn = (text: string): string | null => {
+  const norm = normalizeTerms(text);
+  for (const word of norm.match(new RegExp(`\\b(?:${CITY_ALT})\\b`, "gu")) ?? []) {
+    const cc = cityCountry(word);
+    if (cc && cc.countries.length === 1 && cc.countries[0] === "PK") return cc.city;
+  }
+  return null;
+};
+/** A Pakistani city that OPENS the segment ("Karachi | Food Blogger", "Lahore food vlogger", "📍 Karachi"); after "in",
+ * "from", "best … in" it is a topic or an origin, not where the creator is. */
+const leadingPkCity = (segment: string): string | null => {
+  const norm = normalizeTerms(segment.replace(PINS, " ")).trim();
+  const m = new RegExp(`^(${CITY_ALT})(?=\\s|$)`, "u").exec(norm);
+  const cc = m ? cityCountry(m[1] ?? "") : null;
+  return cc && cc.countries.length === 1 && cc.countries[0] === "PK" ? cc.city : null;
+};
+
+/**
+ * Pakistan signals a storefront-style bio gives without a residence verb, strongest first: a +92/03xx phone number, a .pk
+ * domain or email, a Pakistani city or "Pakistan"/🇵🇰 in a short header segment, PKR prices, or two or more recent posts
+ * geotagged in Pakistan. A pinned foreign place, or a foreign flag/country in a header, is a stated life abroad and wins.
+ */
+export function storefrontSignals(bio: string, extras: CountryExtras = {}): { pakistan: { confidence: CountryConfidence; evidence: string } | null; foreign: { code: string; evidence: string } | null } {
+  // A line with flags of two or more countries ("🇵🇰/🇸🇦/🇵🇸") or about a tour or trip says nothing about where the
+  // creator lives: such lines are left out, and the rest of the bio still counts.
+  bio = bio
+    .split(/\n/u)
+    .filter((l) => new Set(flagCodes(l)).size < 2 && !/\b(?:tour|tours|trip|visiting|travelling|traveling)\b/iu.test(l))
+    .join("\n");
+  const segs = segments(bio);
+  for (const s of segs) {
+    const flags = flagCodes(s).filter((c) => c !== "PK");
+    const named = [...normalizeTerms(s).matchAll(NAMED)].map((m) => NAMES.get(m[1] ?? "")).filter((c): c is string => Boolean(c) && c !== "PK");
+    const pinned = PINS.test(s);
+    const foreign = flags[0] ?? named[0];
+    if (foreign && (pinned || flags.length > 0) && !pkCityIn(s) && !/pakistan|🇵🇰/iu.test(s)) {
+      return { pakistan: null, foreign: { code: foreign, evidence: `Stated as where the creator is: "${s.slice(0, 80)}"` } };
+    }
+  }
+  const phone = bio.match(PK_PHONE);
+  if (phone) return { foreign: null, pakistan: { confidence: "medium", evidence: `A Pakistani phone number in the bio (${phone[0].slice(0, 6)}…)` } };
+  const domain = [bio, ...(extras.urls ?? [])].map((t) => t.match(PK_DOMAIN)?.[0]).find(Boolean);
+  if (domain) return { foreign: null, pakistan: { confidence: "medium", evidence: `A Pakistani (.pk) address on the profile: ${domain}` } };
+  // A line that also names another country ("Karachi, India") is not a Pakistani header: no city from it counts.
+  const namesOther = (text: string) => [...normalizeTerms(text).matchAll(NAMED)].some((m) => { const c = NAMES.get(m[1] ?? ""); return Boolean(c) && c !== "PK"; });
+  const otherLines = clean(bio).split(/\n/u).filter(namesOther);
+  for (const s of segs.filter((x) => !otherLines.some((l) => l.includes(x)))) {
+    const city = leadingPkCity(s);
+    if (city) return { foreign: null, pakistan: { confidence: "medium", evidence: `A Pakistani city in the bio header: "${s.slice(0, 80)}" (city: ${city})` } };
+  }
+  for (const line of headerLines(bio)) {
+    const others = [...normalizeTerms(line).matchAll(NAMED)].map((m) => NAMES.get(m[1] ?? "")).filter((c) => c && c !== "PK");
+    // "of/in/to/about/visiting … Pakistan" is a topic or a trip; "PR across Pakistan" or "Lahore, Pakistan 🇵🇰" is not.
+    const topic = /\b(?:from|born|of|in|to|about|visit|visiting|exploring|explore|tour|tours|trip)\s+(?:\S+\s+){0,2}?pakistan\b/iu.test(line);
+    if (others.length === 0 && !topic && /\bpakistan\b|🇵🇰|\bpk\b/iu.test(line)) {
+      return { foreign: null, pakistan: { confidence: "low", evidence: `Pakistan named in the bio header: "${line.slice(0, 80)}"` } };
+    }
+  }
+  if (PKR.test(bio)) return { foreign: null, pakistan: { confidence: "low", evidence: "Prices quoted in PKR in the bio" } };
+  const tagged = (extras.postLocations ?? []).filter((l) => /pakistan/iu.test(l) || pkCityIn(l) !== null);
+  if (tagged.length >= 2) return { foreign: null, pakistan: { confidence: "medium", evidence: `${tagged.length} recent posts geotagged in Pakistan (e.g. ${tagged[0]?.slice(0, 40)})` } };
+  return { pakistan: null, foreign: null };
+}
+
 /** `bio` is the creator's own profile text with hashtags removed; the display name is deliberately not read. */
-export function deriveCountry(bio: string, platformCountry: string | null | undefined): CountryDecision {
+export function deriveCountry(bio: string, platformCountry: string | null | undefined, extras: CountryExtras = {}): CountryDecision {
   const text = normalizeTerms(bio.replace(/[📍📌]/gu, " located in "));
   const observations: CountryObservation[] = [];
   const nameCode = (m: RegExpExecArray) => NAMES.get(m[1] ?? "");
@@ -134,8 +221,23 @@ export function deriveCountry(bio: string, platformCountry: string | null | unde
     statedConfidence = "medium";
     observations.push({ value: stated as string, source: "profile_text", status: "supported", evidence: `Stated by the creator: "${origin[0]?.match}"` });
   }
+  // Storefront signals (owner 2026-11-03; research "Reliable Pakistan Connection Signals"): used only when the bio makes no
+  // explicit residence or origin statement. A pinned foreign place ("📍 Bangkok 🇹🇭", "📍 Dubai") is a stated residence abroad.
+  if (rs.length === 0 && os.length === 0) {
+    const sig = storefrontSignals(bio, extras);
+    if (sig.foreign) {
+      // A pin or flag is weaker than "based in …": low confidence, so a public record can still apply (a travel pin).
+      stated = sig.foreign.code;
+      statedConfidence = "low";
+      observations.push({ value: sig.foreign.code, source: "profile_text", status: "supported", evidence: sig.foreign.evidence });
+    } else if (sig.pakistan) {
+      stated = "PK";
+      statedConfidence = sig.pakistan.confidence;
+      observations.push({ value: "PK", source: "profile_text", status: "supported", evidence: sig.pakistan.evidence });
+    }
+  }
   // A country named without a statement about the creator (a topic, a destination) is recorded, never stored.
-  const seen = new Set([...rs, ...os]);
+  const seen = new Set([...rs, ...os, ...(stated ? [stated] : [])]);
   for (const m of text.matchAll(NAMED)) {
     const code = NAMES.get(m[1] ?? "");
     if (!code || seen.has(code)) continue;
@@ -183,10 +285,28 @@ export type ProfileCountry = { country: string | null; source: CountrySource | n
  * residence statement; never a language, hashtag, flag, name or topic. `reason` keeps the evidence (the quoted statement
  * and, for a city, which city and country) so staff can audit it.
  */
-export function profileCountry(p: { bio: string | null; platformCountry: string | null; confirmed: string | null }): ProfileCountry {
+export function profileCountry(p: {
+  bio: string | null;
+  platformCountry: string | null;
+  confirmed: string | null;
+  extras?: CountryExtras;
+  /** Country from a public record (0067) with where it came from. */
+  publicRecord?: { country: string; source: string | null } | null;
+  /** A Pakistani decision on another profile of the same creator (cross-platform identity). */
+  linkedPakistani?: { platform: string; reason: string } | null;
+}): ProfileCountry {
   const status = (code: string): ProfileCountryStatus => (code === "PK" ? "pakistan" : "foreign");
   if (p.confirmed) return { country: p.confirmed, source: "creator_confirmed", status: status(p.confirmed), confidence: "high", reason: "Confirmed by the creator" };
-  const d = deriveCountry(p.bio ?? "", p.platformCountry);
+  const d = deriveCountry(p.bio ?? "", p.platformCountry, p.extras);
+  // A life abroad stated on THIS profile wins over a public record or a linked profile (diaspora safeguard).
+  // Only an explicit statement ("based in London", not a 📍 pin or flag) blocks a public record or a linked profile.
+  const statedAbroad = d.stated !== null && d.stated !== "PK" && d.statedConfidence !== "low";
+  if (!statedAbroad && p.publicRecord) {
+    return { country: p.publicRecord.country, source: "public_record", status: status(p.publicRecord.country), confidence: "high", reason: `Public record${p.publicRecord.source ? `: ${p.publicRecord.source}` : ""}`.slice(0, 300) };
+  }
+  if (!statedAbroad && p.linkedPakistani && d.stated === null && d.platform === null) {
+    return { country: "PK", source: "linked_profile", status: "pakistan", confidence: "medium", reason: `Same creator's ${p.linkedPakistani.platform} profile: ${p.linkedPakistani.reason}`.slice(0, 300) };
+  }
   const conflict = d.observations.find((o) => o.status === "conflicting");
   if (conflict) return { country: null, source: null, status: "conflicting", confidence: null, reason: conflict.evidence.slice(0, 300) };
   const r = resolveCountry({ confirmed: null, stated: d.stated, statedConfidence: d.statedConfidence, platform: d.platform });

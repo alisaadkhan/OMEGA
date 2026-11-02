@@ -12,8 +12,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { sql } from "drizzle-orm";
 import { createDatabase } from "@mushin/db";
-import { contentPerformance, evaluateV3, type ContentPerformance, type V3Status } from "../../apps/api/src/modules/creators/eligibility-v3";
-import { standardize } from "../../apps/api/src/modules/creators/index";
+import { contentPerformance, evaluateV3, standardize, type ContentPerformance, type V3Status } from "../../apps/api/src/modules/creators/index";
 
 const { values } = parseArgs({ options: { db: { type: "string" } } });
 const dbName = values.db ?? "";

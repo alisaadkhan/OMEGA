@@ -1,47 +1,49 @@
 {
  "db": "mushin_catalog_v4",
  "mode": "apply",
- "at": "2026-11-02T17:44:13.574Z",
- "creators": 2706,
- "changed": 9,
+ "at": "2026-11-02T20:55:07.648Z",
+ "creators": 2747,
+ "changed": 4,
  "transitions": {
-  "instagram: unknown -> pakistan": 8,
-  "youtube: unknown -> pakistan": 1
+  "instagram: unknown -> pakistan": 2,
+  "youtube: foreign -> pakistan": 2
  },
  "before": {
   "instagram": {
-   "unknown": 233,
-   "pakistan": 56,
-   "foreign": 5
-  },
-  "tiktok": {
-   "unknown": 33
+   "foreign": 8,
+   "unknown": 132,
+   "pakistan": 195
   },
   "youtube": {
-   "pakistan": 1283,
-   "foreign": 297,
-   "unknown": 785,
-   "conflicting": 14
+   "pakistan": 1369,
+   "foreign": 290,
+   "unknown": 698,
+   "conflicting": 22
+  },
+  "tiktok": {
+   "unknown": 27,
+   "pakistan": 6
   }
  },
  "after": {
   "instagram": {
-   "unknown": 225,
-   "pakistan": 64,
-   "foreign": 5
-  },
-  "tiktok": {
-   "unknown": 33
+   "foreign": 8,
+   "unknown": 130,
+   "pakistan": 197
   },
   "youtube": {
-   "pakistan": 1284,
-   "foreign": 297,
-   "unknown": 784,
-   "conflicting": 14
+   "pakistan": 1371,
+   "foreign": 288,
+   "unknown": 698,
+   "conflicting": 22
+  },
+  "tiktok": {
+   "unknown": 27,
+   "pakistan": 6
   }
  },
  "projection": {
-  "upserted": 11,
+  "upserted": 4,
   "removed": 0
  }
 }
