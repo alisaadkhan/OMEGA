@@ -1,0 +1,106 @@
+{
+ "mode": "expand",
+ "db": "mushin_catalog_v4",
+ "capUsd": 7,
+ "started": "2026-11-02T21:03:39.212Z",
+ "finished": "2026-11-02T21:08:57.393Z",
+ "spendByProvider": [
+  {
+   "provider": "apify",
+   "calls": 10,
+   "usd": "0.026000"
+  },
+  {
+   "provider": "gemini",
+   "calls": 8,
+   "usd": "0.000000"
+  },
+  {
+   "provider": "ollama",
+   "calls": 28,
+   "usd": "0.007039"
+  }
+ ],
+ "jobs": [
+  {
+   "i": 0,
+   "handle": "mawrellous",
+   "refs": 10,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 1,
+   "handle": "sabaqamarzaman",
+   "refs": 9,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 2,
+   "handle": "nabila_salon",
+   "refs": 9,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 3,
+   "handle": "sajalaly",
+   "refs": 9,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 4,
+   "handle": "sanajaved.official",
+   "refs": 9,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 5,
+   "handle": "aroob_jatoi",
+   "refs": 8,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 6,
+   "handle": "kinzahashmi",
+   "refs": 8,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 7,
+   "handle": "rabeecakhan",
+   "refs": 8,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 8,
+   "handle": "rabiafaisal__",
+   "refs": 8,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 9,
+   "handle": "official_mayaali",
+   "refs": 8,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  }
+ ]
+}

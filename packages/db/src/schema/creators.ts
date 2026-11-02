@@ -105,6 +105,8 @@ export const creatorProfiles = gcp.table("creator_profiles", {
   performanceFrom: ts("performance_from"),
   performanceTo: ts("performance_to"),
   performanceAt: ts("performance_at"),
+  /** Geotag place names of the latest fetched posts (0068). */
+  postLocations: text("post_locations").array(),
   createdAt: ts("created_at").notNull().defaultNow(),
   updatedAt: ts("updated_at").notNull().defaultNow(),
 });

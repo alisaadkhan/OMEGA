@@ -6,6 +6,9 @@
  *   discover  Live Discovery runs over a general niche × city grid (not shaped by the frozen evaluation queries);
  *   seed      adds the handles of a researched seed manifest (docs/completion/seed/*.json) through the add-by-link
  *             path: one fetch each, saved with evidence; Pakistani status comes from the country rule, never the list;
+ *   expand    Wave expansion at no search cost: Instagram handles that Pakistani creators in the catalogue list as related
+ *             profiles or @mention, ranked by how many of them point there (--min-refs, default 2), fetched through the
+ *             add-by-link path; already-known or already-tried handles are skipped, so a run resumes where it stopped;
  *   reassess  completes AI assessments left pending (provider rate limits) from the archived payload, as the worker's
  *             creator.assessment_requested handler does: score, audience and the minor check; no new fetch.
  * Every job runs in an internal "MUSHIN catalogue build" workspace with granted credits; provider spend is read from
@@ -28,15 +31,15 @@ import postgres from "postgres";
 import { BudgetExhausted, createBudgetGate } from "./budget";
 import { sql } from "drizzle-orm";
 import { createBillingService, noAccessCache } from "../../apps/api/src/modules/billing/index";
-import { createCreatorIndexer, createEnrichmentPipeline, getEnrichmentSettings } from "../../apps/api/src/modules/creators/index";
+import { createCreatorIndexer, createEnrichmentPipeline, getEnrichmentSettings, standardize } from "../../apps/api/src/modules/creators/index";
 import { createCachedSearch, createDiscoveryRunner, createDiscoveryService, createLiveRunner } from "../../apps/api/src/modules/discovery/index";
 
 const { positionals, values } = parseArgs({
   allowPositionals: true,
-  options: { manifest: { type: "string" }, db: { type: "string" }, cap: { type: "string", default: "20" }, platform: { type: "string" }, limit: { type: "string" }, niches: { type: "string" }, cities: { type: "string" }, size: { type: "string", default: "10" }, label: { type: "string", default: "main" } },
+  options: { "min-refs": { type: "string", default: "2" }, manifest: { type: "string" }, db: { type: "string" }, cap: { type: "string", default: "20" }, platform: { type: "string" }, limit: { type: "string" }, niches: { type: "string" }, cities: { type: "string" }, size: { type: "string", default: "10" }, label: { type: "string", default: "main" } },
 });
 const mode = positionals[0];
-if (mode !== "refresh" && mode !== "discover" && mode !== "reassess" && mode !== "seed") throw new Error("usage: build.ts <refresh|discover|reassess|seed> --db <catalogue db> --cap <usd> [--manifest <seed.json>]");
+if (mode !== "refresh" && mode !== "discover" && mode !== "reassess" && mode !== "seed" && mode !== "expand") throw new Error("usage: build.ts <refresh|discover|reassess|seed|expand> --db <catalogue db> --cap <usd> [--manifest <seed.json>] [--limit n] [--min-refs n]");
 const dbName = values.db ?? "";
 if (!/^mushin_catalog_[a-z0-9_]+$/.test(dbName)) throw new Error("--db must name a local catalogue database (mushin_catalog_*); the frozen corpus is never a target");
 const capUsd = Number(values.cap);
@@ -207,6 +210,48 @@ if (mode === "reassess") {
       report.push({ i, handle: c.handle, status: "refused", error: err instanceof Error ? err.message.slice(0, 120) : String(err) });
     }
     logger.info(report.at(-1), "seed");
+  }
+} else if (mode === "expand") {
+  const minRefs = Number(values["min-refs"] ?? 2);
+  const limit = Number(values.limit ?? 200);
+  const sources = await db.withSystem((tx) => tx.execute<{ handle: string; storage_key: string }>(sql`
+    select p.handle, (select r.storage_key from platform.raw_payloads r where r.creator_id = p.creator_id and r.platform = p.platform and r.provider = 'apify' order by r.fetched_at desc limit 1) storage_key
+    from gcp.creator_profiles p join gcp.creators c on c.id = p.creator_id
+    where p.platform = 'instagram' and p.country_status = 'pakistan' and c.status = 'active'`));
+  const known = new Set([...(await db.withSystem((tx) => tx.execute<{ h: string }>(sql`select lower(handle) h from gcp.creator_profiles where platform = 'instagram'`)))].map((r) => r.h));
+  const triedFile = join(repo, ".catalog-storage", dbName, "expand-tried.json");
+  const tried = new Set<string>(existsSync(triedFile) ? (JSON.parse(readFileSync(triedFile, "utf8")) as string[]) : []);
+  const refs = new Map<string, Set<string>>();
+  for (const src of sources) {
+    if (!src.storage_key) continue;
+    const file = join(repo, ".catalog-storage", dbName, "raw-payloads", src.storage_key);
+    if (!existsSync(file)) continue;
+    const std = standardize("instagram", src.handle, JSON.parse(readFileSync(file, "utf8")), { maxPosts: 30 });
+    if (std.kind !== "ok") continue;
+    for (const h of [...(std.profile.related ?? []), ...std.profile.recentPosts.flatMap((x) => x.mentions ?? [])]) {
+      if (known.has(h) || tried.has(h) || h === src.handle.toLowerCase()) continue;
+      refs.set(h, (refs.get(h) ?? new Set()).add(src.handle));
+    }
+  }
+  const queue = [...refs.entries()].filter(([, by]) => by.size >= minRefs).sort((a, b) => b[1].size - a[1].size).slice(0, limit);
+  logger.info({ sources: sources.length, candidates: refs.size, atLeast2: [...refs.values()].filter((b) => b.size >= 2).length, atLeast3: [...refs.values()].filter((b) => b.size >= 3).length, queued: queue.length, minRefs }, "expand start");
+  for (const [i, [h, by]] of queue.entries()) {
+    if ((await spentUsd()) >= capUsd - JOB_HEADROOM_USD) {
+      logger.warn({ spent: await spentUsd(), capUsd }, "spend cap reached: stopping");
+      break;
+    }
+    tried.add(h);
+    writeFileSync(triedFile, JSON.stringify([...tried]));
+    try {
+      const out = await discovery.start(ctx, { kind: "add_by_url", url: `https://www.instagram.com/${h}/`, confirmedCost: 50 });
+      const jobId = out.body.status === "started" ? out.body.job.id : null;
+      if (jobId) await profileRunner.run(jobId, ctx.workspaceId).catch((e: Error) => logger.warn({ err: e.message, handle: h }, "expand attempt failed"));
+      const job = jobId ? await discovery.get(ctx, jobId) : null;
+      report.push({ i, handle: h, refs: by.size, status: job?.status ?? out.body.status, outcome: job?.outcome ?? null, error: job?.error?.code ?? null });
+    } catch (err) {
+      report.push({ i, handle: h, refs: by.size, status: "refused", error: err instanceof Error ? err.message.slice(0, 120) : String(err) });
+    }
+    logger.info(report.at(-1), "expand");
   }
 } else if (mode === "refresh") {
   const platform = values.platform ?? "youtube";
