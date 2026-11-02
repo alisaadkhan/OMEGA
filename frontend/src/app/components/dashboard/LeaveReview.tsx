@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Star } from "lucide-react";
 import { useLeaveReview } from "../../api/feedback";
 import { useToast } from "../../lib/toast";
@@ -7,8 +7,20 @@ import { useToast } from "../../lib/toast";
  * "Leave a review" at the bottom of the customer app (plan Phase 12): a rating and an optional comment for the MUSHIN
  * team. It goes to the staff Reviews page; nobody is emailed and it is never published.
  */
+/** Dispatched on window by the sidebar's "Leave a review" to open this form from anywhere in the app. */
+export const OPEN_REVIEW_EVENT = "mushin:open-review";
+
 export function LeaveReview({ page }: { page: string }) {
   const [open, setOpen] = useState(false);
+  const anchor = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const show = () => {
+      setOpen(true);
+      requestAnimationFrame(() => anchor.current?.scrollIntoView({ behavior: "smooth", block: "center" }));
+    };
+    window.addEventListener(OPEN_REVIEW_EVENT, show);
+    return () => window.removeEventListener(OPEN_REVIEW_EVENT, show);
+  }, []);
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
   const send = useLeaveReview();
@@ -40,7 +52,7 @@ export function LeaveReview({ page }: { page: string }) {
     );
 
   return (
-    <section aria-label="Leave a review" className="mx-auto mt-10 max-w-md rounded-xl border border-slate-200 bg-white p-4">
+    <section ref={anchor} aria-label="Leave a review" className="mx-auto mt-10 max-w-md scroll-mt-24 rounded-xl border border-slate-200 bg-white p-4">
       <h2 className="text-sm text-slate-900" style={{ fontWeight: 600 }}>How is MUSHIN working for you?</h2>
       <div role="radiogroup" aria-label="Rating" className="mt-3 flex gap-1">
         {[1, 2, 3, 4, 5].map((n) => (

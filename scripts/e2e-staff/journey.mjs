@@ -122,6 +122,10 @@ check("eligibility", "the Overview coverage card shows the API's counts to Super
   `${coverage.eligible}/${coverage.total} | ${(coverageCards.support ?? "").slice(0, 160)}`);
 const blocked = await Promise.all(["/admin/v1/staff", "/admin/v1/audit", "/admin/v1/ops/provider-controls"].map(async (path) => (await fetch(`${API}${path}`, { headers: { authorization: `Bearer ${supportToken}` } })).status));
 check("roles", "Support is refused staff management, the audit log and provider controls (API 403)", blocked.every((s) => s === 403), blocked.join(","));
+// Catalogue review (owner directive 2026-11-03): Support sees the queue but cannot decide a country or a minor flag.
+const reviewRead = await fetch(`${API}/admin/v1/catalogue/review?kind=country`, { headers: { authorization: `Bearer ${supportToken}` } });
+const reviewDecide = await fetch(`${API}/admin/v1/catalogue/creators/00000000-0000-4000-8000-000000000000/country`, { method: "POST", headers: { authorization: `Bearer ${supportToken}`, "content-type": "application/json" }, body: JSON.stringify({ country: "PK", evidence: "Staff E2E: should be refused" }) });
+check("roles", "Support can read the catalogue review queue but not decide a country (API 200 / 403)", reviewRead.status === 200 && reviewDecide.status === 403, `${reviewRead.status}/${reviewDecide.status}`);
 const adminToken = await apiToken("admin");
 const keyless = await fetch(`${API}/admin/v1/staff`, { headers: { authorization: `Bearer ${adminToken}` } });
 check("security", "an Admin session without a security-key confirmation is refused admin reads (API 403 hardware_key_required)", keyless.status === 403 && (await keyless.json()).error?.details?.reason === "hardware_key_required");

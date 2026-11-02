@@ -151,7 +151,7 @@ check("SETUP-1", "campaign with the fixture creator exists", Boolean(campaignId)
   const p = await pageAs("owner");
   await p.goto("http://localhost:5173/#/dashboard");
   await nav(p, "Search & Discovery");
-  await p.getByRole("button", { name: "Leave a review" }).click({ timeout: 15000 });
+  await p.getByRole("navigation", { name: "Main" }).getByRole("button", { name: "Leave a review" }).click({ timeout: 15000 });
   await p.getByRole("radio", { name: "4 out of 5" }).click();
   await p.getByLabel("Anything to add? (optional)").fill("Breakit review");
   await p.getByRole("button", { name: "Send review" }).click();
