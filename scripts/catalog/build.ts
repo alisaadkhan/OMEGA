@@ -118,7 +118,7 @@ async function apifyRoomFor(estimateUsd: number): Promise<void> {
   const j = r?.ok ? ((await r.json()) as { data?: { current?: { monthlyUsageUsd?: number }; limits?: { maxMonthlyUsageUsd?: number } } }) : null;
   const used = j?.data?.current?.monthlyUsageUsd;
   const max = j?.data?.limits?.maxMonthlyUsageUsd;
-  if (used === undefined || max === undefined) throw new ProviderError(false, "spend_cap", "Apify account usage could not be read: paid scrape refused");
+  if (used === undefined || max === undefined) throw new ProviderError(false, "spend_cap", `Apify account usage could not be read (${r ? `HTTP ${r.status}` : "no response"}): paid scrape refused`);
   if (used + estimateUsd + APIFY_MARGIN_USD > max) throw new ProviderError(false, "spend_cap", `Apify account monthly limit: ${used.toFixed(2)} of ${max} used`);
 }
 const apifyGated = <T>(estimateUsd: number, call: () => Promise<T>): Promise<T> => apifyRoomFor(estimateUsd).then(() => gated(estimateUsd, call));
