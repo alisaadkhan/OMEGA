@@ -1,0 +1,194 @@
+{
+ "mode": "expand",
+ "db": "mushin_catalog_v4",
+ "capUsd": 7,
+ "started": "2026-11-03T04:19:07.877Z",
+ "finished": "2026-11-03T04:28:30.816Z",
+ "spendByProvider": [
+  {
+   "provider": "apify",
+   "calls": 10,
+   "usd": "0.026000"
+  },
+  {
+   "provider": "gemini",
+   "calls": 8,
+   "usd": "0.000000"
+  },
+  {
+   "provider": "ollama",
+   "calls": 31,
+   "usd": "0.003576"
+  }
+ ],
+ "jobs": [
+  {
+   "i": 0,
+   "handle": "anmol_baloxh",
+   "refs": 12,
+   "status": "failed",
+   "outcome": null,
+   "error": "PROVIDER_UNAVAILABLE"
+  },
+  {
+   "i": 1,
+   "handle": "komallmeer",
+   "refs": 11,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 2,
+   "handle": "iceberg.pk",
+   "refs": 10,
+   "status": "failed",
+   "outcome": null,
+   "error": "PROVIDER_UNAVAILABLE"
+  },
+  {
+   "i": 3,
+   "handle": "ihibaqadir",
+   "refs": 10,
+   "status": "failed",
+   "outcome": null,
+   "error": "PROVIDER_UNAVAILABLE"
+  },
+  {
+   "i": 4,
+   "handle": "shahzadsheikh37",
+   "refs": 9,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 5,
+   "handle": "saeedhumayun",
+   "refs": 9,
+   "status": "failed",
+   "outcome": null,
+   "error": "PROVIDER_UNAVAILABLE"
+  },
+  {
+   "i": 6,
+   "handle": "alvighafood",
+   "refs": 9,
+   "status": "failed",
+   "outcome": null,
+   "error": "PROVIDER_UNAVAILABLE"
+  },
+  {
+   "i": 7,
+   "handle": "azekah.daniel",
+   "refs": 8,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 8,
+   "handle": "hamzasohail_96",
+   "refs": 8,
+   "status": "failed",
+   "outcome": null,
+   "error": "PROVIDER_UNAVAILABLE"
+  },
+  {
+   "i": 9,
+   "handle": "znejaz",
+   "refs": 8,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 10,
+   "handle": "sugarlatte.pk",
+   "refs": 8,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 11,
+   "handle": "mingspatio.pk",
+   "refs": 7,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 12,
+   "handle": "callistabeautypk",
+   "refs": 7,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 13,
+   "handle": "therollingguys.pk",
+   "refs": 7,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 14,
+   "handle": "inawalsaeed",
+   "refs": 7,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 15,
+   "handle": "momina.iqbal",
+   "refs": 7,
+   "status": "failed",
+   "outcome": null,
+   "error": "PROVIDER_UNAVAILABLE"
+  },
+  {
+   "i": 16,
+   "handle": "babarazam",
+   "refs": 7,
+   "status": "failed",
+   "outcome": null,
+   "error": "PROVIDER_UNAVAILABLE"
+  },
+  {
+   "i": 17,
+   "handle": "adnansid1",
+   "refs": 7,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 18,
+   "handle": "getfitpakistan",
+   "refs": 7,
+   "status": "failed",
+   "outcome": null,
+   "error": "PROVIDER_UNAVAILABLE"
+  },
+  {
+   "i": 19,
+   "handle": "tauseefahmed.official",
+   "refs": 7,
+   "status": "failed",
+   "outcome": null,
+   "error": "PROVIDER_UNAVAILABLE"
+  },
+  {
+   "i": 20,
+   "handle": "rehmateshereen",
+   "refs": 7,
+   "status": "failed",
+   "outcome": null,
+   "error": "PROVIDER_UNAVAILABLE"
+  }
+ ]
+}

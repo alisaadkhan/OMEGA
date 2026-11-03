@@ -1,0 +1,34 @@
+{
+ "mode": "expand",
+ "db": "mushin_catalog_v4",
+ "capUsd": 7,
+ "started": "2026-11-03T04:03:42.215Z",
+ "finished": "2026-11-03T04:04:17.178Z",
+ "spendByProvider": [],
+ "jobs": [
+  {
+   "i": 0,
+   "handle": "anmol_baloxh",
+   "refs": 12,
+   "status": "failed",
+   "outcome": null,
+   "error": "PROVIDER_UNAVAILABLE"
+  },
+  {
+   "i": 1,
+   "handle": "komallmeer",
+   "refs": 11,
+   "status": "failed",
+   "outcome": null,
+   "error": "PROVIDER_UNAVAILABLE"
+  },
+  {
+   "i": 2,
+   "handle": "iceberg.pk",
+   "refs": 10,
+   "status": "failed",
+   "outcome": null,
+   "error": "PROVIDER_UNAVAILABLE"
+  }
+ ]
+}

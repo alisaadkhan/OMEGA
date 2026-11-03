@@ -1,0 +1,210 @@
+{
+ "mode": "expand",
+ "db": "mushin_catalog_v4",
+ "capUsd": 7,
+ "started": "2026-11-03T07:19:32.688Z",
+ "finished": "2026-11-03T07:36:15.047Z",
+ "spendByProvider": [
+  {
+   "provider": "apify",
+   "calls": 12,
+   "usd": "0.023400"
+  },
+  {
+   "provider": "gemini",
+   "calls": 8,
+   "usd": "0.000000"
+  },
+  {
+   "provider": "ollama",
+   "calls": 20,
+   "usd": "0.003357"
+  }
+ ],
+ "jobs": [
+  {
+   "i": 0,
+   "handle": "iceberg.pk",
+   "refs": 12,
+   "status": "running",
+   "outcome": null,
+   "error": null
+  },
+  {
+   "i": 1,
+   "handle": "anmol_baloxh",
+   "refs": 12,
+   "status": "failed",
+   "outcome": null,
+   "error": "PROVIDER_UNAVAILABLE"
+  },
+  {
+   "i": 2,
+   "handle": "ihibaqadir",
+   "refs": 10,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 3,
+   "handle": "saeedhumayun",
+   "refs": 9,
+   "status": "running",
+   "outcome": null,
+   "error": null
+  },
+  {
+   "i": 4,
+   "handle": "alvighafood",
+   "refs": 9,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 5,
+   "handle": "hamzasohail_96",
+   "refs": 8,
+   "status": "failed",
+   "outcome": null,
+   "error": "PROVIDER_UNAVAILABLE"
+  },
+  {
+   "i": 6,
+   "handle": "momina.iqbal",
+   "refs": 7,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 7,
+   "handle": "babarazam",
+   "refs": 7,
+   "status": "failed",
+   "outcome": null,
+   "error": "PROVIDER_UNAVAILABLE"
+  },
+  {
+   "i": 8,
+   "handle": "pieguyspizzas",
+   "refs": 7,
+   "status": "failed",
+   "outcome": null,
+   "error": "PROVIDER_UNAVAILABLE"
+  },
+  {
+   "i": 9,
+   "handle": "getfitpakistan",
+   "refs": 7,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 10,
+   "handle": "springscafepk",
+   "refs": 7,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 11,
+   "handle": "8ozpakistan",
+   "refs": 7,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 12,
+   "handle": "tauseefahmed.official",
+   "refs": 7,
+   "status": "failed",
+   "outcome": null,
+   "error": "PROVIDER_UNAVAILABLE"
+  },
+  {
+   "i": 13,
+   "handle": "bombayrasoipk",
+   "refs": 7,
+   "status": "failed",
+   "outcome": null,
+   "error": "PROVIDER_UNAVAILABLE"
+  },
+  {
+   "i": 14,
+   "handle": "rehmateshereen",
+   "refs": 7,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 15,
+   "handle": "zhouhotpot",
+   "refs": 7,
+   "status": "failed",
+   "outcome": null,
+   "error": "PROVIDER_UNAVAILABLE"
+  },
+  {
+   "i": 16,
+   "handle": "al_adeeb.pk",
+   "refs": 6,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 17,
+   "handle": "khaogallipk",
+   "refs": 6,
+   "status": "running",
+   "outcome": null,
+   "error": null
+  },
+  {
+   "i": 18,
+   "handle": "thesilo.pk",
+   "refs": 6,
+   "status": "failed",
+   "outcome": null,
+   "error": "PROVIDER_UNAVAILABLE"
+  },
+  {
+   "i": 19,
+   "handle": "salman_ary",
+   "refs": 6,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 20,
+   "handle": "jerjeesseja",
+   "refs": 6,
+   "status": "failed",
+   "outcome": null,
+   "error": "PROVIDER_UNAVAILABLE"
+  },
+  {
+   "i": 21,
+   "handle": "raoalikhan",
+   "refs": 6,
+   "status": "failed",
+   "outcome": null,
+   "error": "PROVIDER_UNAVAILABLE"
+  },
+  {
+   "i": 22,
+   "handle": "sanammody",
+   "refs": 6,
+   "status": "failed",
+   "outcome": null,
+   "error": "PROVIDER_UNAVAILABLE"
+  }
+ ]
+}

@@ -132,3 +132,14 @@ git push github feat/internal-completion-and-search-acceptance
 finally GitHub. Not pushed yet: the copy change, the build fixes and the public-record manifests (commits after
 `c7eeac3`). The next expansion batch (250 candidates, ≈ USD 1), loading the new local creators to live, and the push
 resume as soon as the connection returns.
+
+## Second live sync (3 November, later)
+
+- Loaded from `mushin_catalog_v4`: **295 new creators** (live 2,835 → 3,130), 367 links, 1,325 evidence rows; 263 photos
+  uploaded and linked.
+- Public records now cover **41** Pakistani public figures (Wikipedia, checked against display names; "British
+  Pakistani" and redirects to a TV series were left out).
+- Live search: **Instagram 288, TikTok 24, YouTube 382** (was 169 / 5 / 382 this morning); 0 organisations, 0 emails,
+  0 phone numbers in the index. Spend cumulative ≈ USD 4.9 of the 7.00 cap.
+- The machine restarted several times and the network dropped repeatedly; the expansion run now pauses and backs off
+  on outages, and every interrupted step was re-run from its idempotent start.
