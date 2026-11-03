@@ -287,6 +287,7 @@ export function CreatorProfilePanel({ creator, onClose, onCompare, onGoToCampaig
                     <div className="flex items-center justify-between gap-3 rounded-xl bg-slate-50/80 p-2.5">
                       <div className="min-w-0">
                         <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Contact routes</div>
+                        {!p.minorProtected && <div className="text-[11px] font-medium text-slate-600">{CONTACT_AVAILABILITY_TEXT[p.contactAvailability].label}</div>}
                         {p.minorProtected ? (
                           <div className="text-xs text-slate-900">Hidden: this creator may be under 18</div>
                         ) : (
