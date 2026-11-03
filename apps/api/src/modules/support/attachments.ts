@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { inflateSync } from "node:zlib";
 import { sql } from "drizzle-orm";
 import { AppError, type TenantContext } from "@mushin/core";
 import type { Db } from "@mushin/db";
 import type { ObjectStorage } from "@mushin/integrations";
+import { pdfScan } from "./pdf-scan";
 
 /**
  * Support ticket attachments (owner decision 2026-11-03, master directive Part 8 decision 2; migration 0076).
@@ -34,71 +34,11 @@ export function sniffType(b: Uint8Array): AttachmentType | null {
 /** Malware-scan hook: a real scanner (e.g. ClamAV) can replace this; the built-in one refuses active content in PDFs. */
 export type AttachmentScanner = (bytes: Uint8Array, type: AttachmentType) => Promise<{ clean: boolean; detail: string }>;
 const ACTIVE_PDF = /\/(JavaScript|JS|Launch|EmbeddedFile|OpenAction|AA|RichMedia|XFA|SubmitForm|ImportData|GoToR|GoToE)(?![A-Za-z0-9])/;
-const MAX_INFLATED = 25 * 1024 * 1024;
-const unescapeNames = (s: string) => s.replace(/#([0-9A-Fa-f]{2})/g, (_, h: string) => String.fromCharCode(parseInt(h, 16)));
-
-/** Image codecs: their data is pixels, never PDF objects, so they are allowed on image streams (not object streams). */
-const IMAGE_FILTERS = new Set(["DCTDecode", "JPXDecode", "CCITTFaxDecode", "JBIG2Decode"]);
-
-/** The dictionary that ends right before `at` (the "stream" keyword): walks back over nested << >> with no fixed window. */
-function dictBefore(text: string, at: number): string | null {
-  const close = text.lastIndexOf(">>", at);
-  if (close === -1 || text.slice(close + 2, at).trim() !== "") return null;
-  let depth = 0;
-  for (let i = close; i >= 1; i--) {
-    if (text[i] === ">" && text[i - 1] === ">") { depth++; i--; }
-    else if (text[i] === "<" && text[i - 1] === "<") { depth--; i--; if (depth === 0) return text.slice(i, close + 2); }
-  }
-  return null;
-}
-
-/**
- * The PDF's text as a reader would see its names, or null when the file cannot be checked (then refused, not trusted).
- * #xx name escapes (/J#61vaScript) are decoded; each stream's own dictionary is found and its /Filter (a name or an
- * array) read: Flate streams are inflated and scanned (object streams can hide dictionaries), image codecs are allowed
- * on non-object streams, and any other filter, a missing dictionary or an encrypted file means it cannot be checked.
- */
-export function pdfScanText(bytes: Uint8Array): string | null {
-  const raw = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const text = raw.toString("latin1");
-  if (/\/Encrypt(?![A-Za-z0-9])/.test(unescapeNames(text))) return null;
-  const parts = [text];
-  let total = 0;
-  for (let at = text.indexOf("stream"); at !== -1; at = text.indexOf("stream", at + 6)) {
-    if (at >= 3 && text.slice(at - 3, at) === "end") continue;
-    let start = at + 6;
-    if (raw[start] === 0x0d) start++;
-    if (raw[start] === 0x0a) start++;
-    const end = text.indexOf("endstream", start);
-    if (end === -1) return null;
-    const rawDict = dictBefore(text, at);
-    if (rawDict === null) return null;
-    const dict = unescapeNames(rawDict);
-    const filterValue = /\/Filter\s*(\[[^\]]*\]|\/[A-Za-z0-9]+)/.exec(dict)?.[1] ?? "";
-    const filters = [...filterValue.matchAll(/\/([A-Za-z0-9]+)/g)].map((m) => m[1] as string);
-    const objectStream = /\/Type\s*\/(ObjStm|XRef)(?![A-Za-z0-9])/.test(dict);
-    if (filters.length === 1 && filters[0] === "FlateDecode") {
-      try {
-        const out = inflateSync(raw.subarray(start, end), { maxOutputLength: MAX_INFLATED });
-        total += out.length;
-        if (total > MAX_INFLATED) return null;
-        parts.push(out.toString("latin1"));
-      } catch {
-        return null;
-      }
-    } else if (filters.length > 0 && !(filters.length === 1 && IMAGE_FILTERS.has(filters[0] as string) && !objectStream)) {
-      return null;
-    }
-    at = end;
-  }
-  return unescapeNames(parts.join("\n"));
-}
-
 export const basicScanner: AttachmentScanner = async (bytes, type) => {
   if (type !== "application/pdf") return { clean: true, detail: "Signature checked" };
-  const text = pdfScanText(bytes);
-  if (text === null) return { clean: false, detail: "PDF with content that could not be checked is not accepted" };
-  const active = ACTIVE_PDF.exec(text);
+  const scan = pdfScan(bytes);
+  if (!scan.ok) return { clean: false, detail: `PDF with content that could not be checked is not accepted (${scan.reason.slice(0, 120)})` };
+  const active = ACTIVE_PDF.exec(scan.text);
   return active ? { clean: false, detail: `PDF with active content (${active[1]}) is not accepted` } : { clean: true, detail: "Signature checked; no active PDF content" };
 };
 
