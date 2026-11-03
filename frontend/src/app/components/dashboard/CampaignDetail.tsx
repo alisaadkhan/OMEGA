@@ -31,7 +31,7 @@ export function CampaignDetail({ id, onBack, onOpenCreator, onGoToSearch }: { id
   const declined = c.creators.filter((x) => x.outcome === "declined");
 
   async function onDelete() {
-    if (!(await confirm({ title: `Delete ${c.name}?`, body: "The campaign, its pipeline and its outreach log are deleted for everyone in your workspace. Creators stay in MUSHIN.", confirmLabel: "Delete campaign", cancelLabel: "Keep", destructive: true }))) return;
+    if (!(await confirm({ title: `Delete ${c.name}?`, body: "The campaign, its pipeline and its outreach log are deleted for everyone in your team. Creators stay in MUSHIN.", confirmLabel: "Delete campaign", cancelLabel: "Keep", destructive: true }))) return;
     del.mutate(id, { onSuccess: () => { toast.success(`Deleted ${c.name}`); onBack(); }, onError: (err) => toast.error("Couldn't delete the campaign", err instanceof Error ? err.message : undefined) });
   }
 

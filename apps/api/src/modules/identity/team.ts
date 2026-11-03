@@ -20,10 +20,10 @@ export function createTeamService(deps: { db: Db; appUrl: string; verifyEmail: V
   const now = deps.now ?? (() => new Date());
   const tenant = (ctx: TenantContext) => ({ userId: ctx.userId, workspaceId: ctx.workspaceId });
   const managers = (ctx: TenantContext) => {
-    if (ctx.role !== "owner" && ctx.role !== "admin") throw new AppError("FORBIDDEN", "Only the workspace owner or an admin can manage the team.");
+    if (ctx.role !== "owner" && ctx.role !== "admin") throw new AppError("FORBIDDEN", "Only the team owner or an admin can manage the team.");
   };
   const ownerOnly = (ctx: TenantContext, what: string) => {
-    if (ctx.role !== "owner") throw new AppError("FORBIDDEN", `Only the workspace owner can ${what}.`);
+    if (ctx.role !== "owner") throw new AppError("FORBIDDEN", `Only the team owner can ${what}.`);
   };
   const toApi = (r: typeof workspaceInvitations.$inferSelect & { inviterName: string | null }): Invitation => ({
     id: r.id,
@@ -47,13 +47,13 @@ export function createTeamService(deps: { db: Db; appUrl: string; verifyEmail: V
     /** Creates an invitation and returns its link once. Owners may invite admins; admins invite members only. */
     async invite(ctx: TenantContext, email: string, role: "admin" | "member"): Promise<Invitation & { acceptUrl: string }> {
       managers(ctx);
-      if (role === "admin" && ctx.role !== "owner") throw new AppError("FORBIDDEN", "Only the workspace owner can invite admins.");
+      if (role === "admin" && ctx.role !== "owner") throw new AppError("FORBIDDEN", "Only the team owner can invite admins.");
       const token = randomBytes(32).toString("base64url");
       return deps.db.withTenant(tenant(ctx), async (tx) => {
         const people = await tx.execute<{ email: string }>(sql`select email from platform.workspace_people()`);
-        if (people.some((p) => p.email.toLowerCase() === email)) throw new AppError("CONFLICT", "This person is already in the workspace.");
+        if (people.some((p) => p.email.toLowerCase() === email)) throw new AppError("CONFLICT", "This person is already in the team.");
         const [pending] = await tx.select({ n: sql<number>`count(*)::int` }).from(workspaceInvitations).where(eq(workspaceInvitations.status, "pending"));
-        if ((pending?.n ?? 0) >= MAX_PENDING) throw new AppError("CONFLICT", `A workspace can have up to ${MAX_PENDING} open invitations.`);
+        if ((pending?.n ?? 0) >= MAX_PENDING) throw new AppError("CONFLICT", `A team can have up to ${MAX_PENDING} open invitations.`);
         // An expired pending invitation for this address is replaced; a live one is refused (revoke it first).
         await tx.update(workspaceInvitations).set({ status: "revoked" }).where(and(eq(workspaceInvitations.email, email), eq(workspaceInvitations.status, "pending"), sql`${workspaceInvitations.expiresAt} <= ${now().toISOString()}::timestamptz`));
         const [row] = await tx
@@ -115,8 +115,8 @@ export function createTeamService(deps: { db: Db; appUrl: string; verifyEmail: V
         if (!target) throw new AppError("NOT_FOUND", "Member not found");
         const self = userId === ctx.userId;
         if (target.role === "owner") throw new AppError("CONFLICT", self ? "Transfer ownership before leaving the workspace." : "The owner cannot be removed.");
-        if (!self && ctx.role === "member") throw new AppError("FORBIDDEN", "Only the workspace owner or an admin can remove people.");
-        if (!self && ctx.role === "admin" && target.role !== "member") throw new AppError("FORBIDDEN", "Only the workspace owner can remove an admin.");
+        if (!self && ctx.role === "member") throw new AppError("FORBIDDEN", "Only the team owner or an admin can remove people.");
+        if (!self && ctx.role === "admin" && target.role !== "member") throw new AppError("FORBIDDEN", "Only the team owner can remove an admin.");
         await tx.delete(workspaceMembers).where(and(eq(workspaceMembers.workspaceId, ctx.workspaceId), eq(workspaceMembers.userId, userId)));
       });
     },
@@ -124,7 +124,7 @@ export function createTeamService(deps: { db: Db; appUrl: string; verifyEmail: V
     /** Owner hands the workspace to another member, who becomes owner; the previous owner becomes an admin. */
     async transfer(ctx: TenantContext, userId: string): Promise<void> {
       ownerOnly(ctx, "transfer ownership");
-      if (userId === ctx.userId) throw new AppError("CONFLICT", "You already own this workspace.");
+      if (userId === ctx.userId) throw new AppError("CONFLICT", "You already own this team.");
       await deps.db.withTenant(tenant(ctx), async (tx) => {
         // Active members of this workspace (other users' rows are not readable directly under row-level security).
         const [target] = await tx.execute<{ id: string }>(sql`select id from platform.workspace_people() where id = ${userId}`);

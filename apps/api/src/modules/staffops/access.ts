@@ -23,7 +23,7 @@ export function createSupportAccess(deps: { db: Db; now?: () => Date }) {
     return { id: r.id, workspaceId: r.workspaceId, staffName: r.staffName, purpose: r.purpose, status: r.status, createdAt: r.createdAt.toISOString(), decidedAt: r.decidedAt?.toISOString() ?? null, expiresAt: r.expiresAt?.toISOString() ?? null, endedAt: r.endedAt?.toISOString() ?? null };
   };
   const ownerOrAdmin = (ctx: TenantContext) => {
-    if (ctx.role !== "owner" && ctx.role !== "admin") throw new AppError("FORBIDDEN", "Only the workspace owner or an admin can manage support access.");
+    if (ctx.role !== "owner" && ctx.role !== "admin") throw new AppError("FORBIDDEN", "Only the team owner or an admin can manage support access.");
   };
 
   return {

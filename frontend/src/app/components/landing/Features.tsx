@@ -29,8 +29,8 @@ const features = [
   },
   {
     icon: Users,
-    title: "Workspace roles",
-    desc: "Owner, admin and member roles decide who can buy credits, see the ledger and manage the workspace.",
+    title: "Team roles",
+    desc: "Owner, admin and member roles decide who can buy credits, see the ledger and manage the team.",
   },
 ];
 

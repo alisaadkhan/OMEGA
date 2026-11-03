@@ -43,8 +43,8 @@ export function createPrivacyService(deps: {
         (select count(*)::int from wp.discovery_jobs where workspace_id = ${ctx.workspaceId} and status in ('queued', 'running')) jobs,
         (select count(*)::int from wp.credit_reservations where workspace_id = ${ctx.workspaceId} and status = 'held') held`),
     );
-    if (r?.sub === "active" || r?.sub === "past_due") throw new AppError("CONFLICT", "Cancel the paid subscription first (Billing). The workspace can be deleted once it has ended.", { reason: "subscription_active" });
-    if ((r?.jobs ?? 0) > 0 || (r?.held ?? 0) > 0) throw new AppError("CONFLICT", "A run is still in progress. Wait for it to finish, then delete the workspace.", { reason: "work_in_progress" });
+    if (r?.sub === "active" || r?.sub === "past_due") throw new AppError("CONFLICT", "Cancel the paid subscription first (Billing). The team can be deleted once it has ended.", { reason: "subscription_active" });
+    if ((r?.jobs ?? 0) > 0 || (r?.held ?? 0) > 0) throw new AppError("CONFLICT", "A run is still in progress. Wait for it to finish, then delete the team.", { reason: "work_in_progress" });
   }
 
   async function erase(workspaceId: string) {
@@ -55,10 +55,10 @@ export function createPrivacyService(deps: {
 
   return {
     async exportWorkspace(ctx: TenantContext) {
-      if (ctx.role !== "owner" && ctx.role !== "admin") throw new AppError("FORBIDDEN", "Only the workspace owner or an admin can export the workspace.");
+      if (ctx.role !== "owner" && ctx.role !== "admin") throw new AppError("FORBIDDEN", "Only the team owner or an admin can export the team.");
       return deps.db.withTenant(tenant(ctx), async (tx) => {
         const [w] = await tx.execute<{ id: string; name: string; created_at: string }>(sql`select id, name, created_at from wp.workspaces where id = ${ctx.workspaceId}`);
-        if (!w) throw new AppError("NOT_FOUND", "Workspace not found");
+        if (!w) throw new AppError("NOT_FOUND", "Team not found");
         const tables: Record<string, Record<string, unknown>[]> = {};
         const truncated: string[] = [];
         tables["members"] = [...(await tx.execute<Record<string, unknown>>(sql`select id, display_name, email, role, joined_at from platform.workspace_people()`))];
@@ -85,9 +85,9 @@ export function createPrivacyService(deps: {
 
     /** Owner only, with the workspace name typed to confirm. */
     async deleteWorkspace(ctx: TenantContext, confirmName: string) {
-      if (ctx.role !== "owner") throw new AppError("FORBIDDEN", "Only the workspace owner can delete the workspace.");
+      if (ctx.role !== "owner") throw new AppError("FORBIDDEN", "Only the team owner can delete the team.");
       const [w] = await deps.db.withTenant(tenant(ctx), (tx) => tx.execute<{ name: string }>(sql`select name from wp.workspaces where id = ${ctx.workspaceId}`));
-      if (!w || w.name !== confirmName.trim()) throw new AppError("VALIDATION_FAILED", "Type the workspace name exactly to confirm.", { field: "confirmName" });
+      if (!w || w.name !== confirmName.trim()) throw new AppError("VALIDATION_FAILED", "Type the team name exactly to confirm.", { field: "confirmName" });
       await assertDeletable(ctx);
       await erase(ctx.workspaceId);
       return { deleted: true as const, retained: RETAINED };

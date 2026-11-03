@@ -111,7 +111,7 @@ export function SendEmailSection({ campaignId, creatorId, creatorName }: { campa
         {recipient === OTHER && (
           <label className="block text-[11px] text-slate-600">Email address you have for {creatorName}
             <input type="email" value={manualEmail} maxLength={254} onChange={(e) => setManualEmail(e.target.value)} className={field} placeholder="name@example.com" />
-            <span className="mt-0.5 block text-[10px] text-slate-500">Kept for your workspace only, as entered by your team and unverified. It does not change the creator's profile.</span>
+            <span className="mt-0.5 block text-[10px] text-slate-500">Kept for your team only, as entered by your team and unverified. It does not change the creator's profile.</span>
           </label>
         )}
         <label className="block text-[11px] text-slate-600">Subject

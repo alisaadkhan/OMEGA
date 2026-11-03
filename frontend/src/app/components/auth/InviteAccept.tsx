@@ -72,7 +72,7 @@ export function InviteAccept({ token, goLogin, goSignup, onJoined }: { token: st
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
       <main className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h1 className="text-slate-900" style={{ fontSize: 20, fontWeight: 700 }}>Workspace invitation</h1>
+        <h1 className="text-slate-900" style={{ fontSize: 20, fontWeight: 700 }}>Team invitation</h1>
         {status === "loading" ? <LoadingBlock lines={2} /> : status !== "signedIn" ? (
           <div className="mt-3 space-y-3 text-sm text-slate-600">
             <p>Sign in, or create an account, with the email address the invitation was sent to. You will come back here to accept it.</p>

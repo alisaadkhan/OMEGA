@@ -1,0 +1,559 @@
+{
+ "wave": "linked",
+ "prepared": "2026-11-03",
+ "method": "Instagram and TikTok accounts that Pakistani creators in the catalogue link to as their own (profile links). Each is fetched; its country is decided by the MUSHIN rule, and a linked profile of a Pakistani creator may carry that creator's country (linked_profile) unless its own bio states a life abroad.",
+ "candidates": [
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/aamirzia52",
+   "handle": "aamirzia52",
+   "linkedFrom": "Aamir ki dunya\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/adabrung",
+   "handle": "adabrung",
+   "linkedFrom": "Adab Rung\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/adilaakashif",
+   "handle": "adilaakashif",
+   "linkedFrom": "Life with Tanoo\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/ahsan.ashfaq555",
+   "handle": "ahsan.ashfaq555",
+   "linkedFrom": "Ahsen Ashfaq\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/ali.tahir.300",
+   "handle": "ali.tahir.300",
+   "linkedFrom": "Ali Tahir\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/areeba.s_official",
+   "handle": "areeba.s_official",
+   "linkedFrom": "AREEBA SULEMAN\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/arjumandvillagelife",
+   "handle": "arjumandvillagelife",
+   "linkedFrom": "Arjumand Village Life\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/balochistanpulseofficial",
+   "handle": "balochistanpulseofficial",
+   "linkedFrom": "Balochistan pulse\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/bhatti.vlogs",
+   "handle": "bhatti.vlogs",
+   "linkedFrom": "Bhatti Vlogs\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/blogby_nayab",
+   "handle": "blogby_nayab",
+   "linkedFrom": "Nayab Sharoz\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/byusaf32",
+   "handle": "byusaf32",
+   "linkedFrom": "Rabia Bilal vlogs\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/ctv_digital",
+   "handle": "ctv_digital",
+   "linkedFrom": "Capital TV\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/dailymumtazofficial",
+   "handle": "dailymumtazofficial",
+   "linkedFrom": "Daily Mumtaz\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/drkabir.mul...",
+   "handle": "drkabir.mul...",
+   "linkedFrom": "Dr. M Kabir Cosmetologist & Aesthetic Physician\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/essamalik_90",
+   "handle": "essamalik_90",
+   "linkedFrom": "Essa Malik vlog 90\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/faiq._ali",
+   "handle": "faiq._ali",
+   "linkedFrom": "Faiq Aly vlogs\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/faisal1306",
+   "handle": "faisal1306",
+   "linkedFrom": "Faisal Bilal\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/farhan_ranjha312",
+   "handle": "farhan_ranjha312",
+   "linkedFrom": "My Tech My Rules\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/food_with_laiba",
+   "handle": "food_with_laiba",
+   "linkedFrom": "laiba sheikh\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/gamerz_computing",
+   "handle": "gamerz_computing",
+   "linkedFrom": "GamerZ Computing\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/gtvnewspk",
+   "handle": "gtvnewspk",
+   "linkedFrom": "G Utha Pakistan\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/hashirakaprince",
+   "handle": "hashirakaprince",
+   "linkedFrom": "Hashir Aka Prince\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/invites",
+   "handle": "invites",
+   "linkedFrom": "image view Technology\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/iqra_nasir_00",
+   "handle": "iqra_nasir_00",
+   "linkedFrom": "Blog by I&F\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/kashees_official",
+   "handle": "kashees_official",
+   "linkedFrom": "Kashees Beauty Parlor\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/ken_",
+   "handle": "ken_",
+   "linkedFrom": "Adnan Zafar Ken Doll\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/leadusconsultant",
+   "handle": "leadusconsultant",
+   "linkedFrom": "Leadus Consultants\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/m0hamadarslan",
+   "handle": "m0hamadarslan",
+   "linkedFrom": "test\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/maahashahid",
+   "handle": "maahashahid",
+   "linkedFrom": "Maahashahid\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/mairashabbir55",
+   "handle": "mairashabbir55",
+   "linkedFrom": "Maira Shabbir\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/mak_s_photography_official",
+   "handle": "mak_s_photography_official",
+   "linkedFrom": "DesiVibe\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/makhanramjaipal",
+   "handle": "makhanramjaipal",
+   "linkedFrom": "Makhan Ram jaipal Vlogs\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/mmsmumtaz1",
+   "handle": "mmsmumtaz1",
+   "linkedFrom": "MMS MUMTAZ TECH\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/noushadali._",
+   "handle": "noushadali._",
+   "linkedFrom": "Noushad Ali\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/nutri_foodpill",
+   "handle": "nutri_foodpill",
+   "linkedFrom": "SH V-logs\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/parlourglowshine",
+   "handle": "parlourglowshine",
+   "linkedFrom": "Glow & Shine parlour.\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/qadi_rbaloch",
+   "handle": "qadi_rbaloch",
+   "linkedFrom": "Technology Tech\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/rezz.aly",
+   "handle": "rezz.aly",
+   "linkedFrom": "Rezz Aly\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/rimshablooger",
+   "handle": "rimshablooger",
+   "linkedFrom": "Rimsha Blogger\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/saeed_mirani101",
+   "handle": "saeed_mirani101",
+   "linkedFrom": "MSM Vlogs\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/sajidbaloch57",
+   "handle": "sajidbaloch57",
+   "linkedFrom": "KOHISTANI VLOGGER\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/sarfrazfoodie",
+   "handle": "sarfrazfoodie",
+   "linkedFrom": "Sarfraz Foodie street Food\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/seemibeautysalon",
+   "handle": "seemibeautysalon",
+   "linkedFrom": "Seemi Khan official\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/shamoonras",
+   "handle": "shamoonras",
+   "linkedFrom": "Shamoon Rasool\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/shanzae.zia",
+   "handle": "shanzae.zia",
+   "linkedFrom": "Shanzae Zia\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/sites_and_sounds",
+   "handle": "sites_and_sounds",
+   "linkedFrom": "Sites and Sounds\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/skin__aesthetics___",
+   "handle": "skin__aesthetics___",
+   "linkedFrom": "Dr. Seemab Safdar\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/streetsnspices",
+   "handle": "streetsnspices",
+   "linkedFrom": "Streets & Spices\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/suchtvnews",
+   "handle": "suchtvnews",
+   "linkedFrom": "SUCH News Pakistan\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/suzuki_lj80_1k",
+   "handle": "suzuki_lj80_1k",
+   "linkedFrom": "Hussain's LJ80\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/taabi_here",
+   "handle": "taabi_here",
+   "linkedFrom": "Taabi here\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/tastebykamal",
+   "handle": "tastebykamal",
+   "linkedFrom": "Taste By Kamal\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/travels_of_khyber",
+   "handle": "travels_of_khyber",
+   "linkedFrom": "Travels of Khyber\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/waqarbaloch__",
+   "handle": "waqarbaloch__",
+   "linkedFrom": "Waqar World\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/weapon.x10",
+   "handle": "weapon.x10",
+   "linkedFrom": "WEAPON X\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/zafarsecurities",
+   "handle": "zafarsecurities",
+   "linkedFrom": "Zafar Securities Pvt Ltd\r"
+  },
+  {
+   "platform": "instagram",
+   "url": "https://instagram.com/zainalamgir_07",
+   "handle": "zainalamgir_07",
+   "linkedFrom": "ZAYN ALAMGIR\r"
+  },
+  {
+   "platform": "tiktok",
+   "url": "https://tiktok.com/@abdulbasitworld",
+   "handle": "abdulbasitworld",
+   "linkedFrom": "Muhammad Basit Khan | Travel & Lifestyle\r"
+  },
+  {
+   "platform": "tiktok",
+   "url": "https://tiktok.com/@aftab.food.vlogge",
+   "handle": "aftab.food.vlogge",
+   "linkedFrom": "Aftab Food vlogger\r"
+  },
+  {
+   "platform": "tiktok",
+   "url": "https://tiktok.com/@alitahir0300",
+   "handle": "alitahir0300",
+   "linkedFrom": "Ali Tahir\r"
+  },
+  {
+   "platform": "tiktok",
+   "url": "https://tiktok.com/@amerraza7867",
+   "handle": "amerraza7867",
+   "linkedFrom": "Lahore City food\r"
+  },
+  {
+   "platform": "tiktok",
+   "url": "https://tiktok.com/@arjumandvillagelife",
+   "handle": "arjumandvillagelife",
+   "linkedFrom": "Arjumand Village Life\r"
+  },
+  {
+   "platform": "tiktok",
+   "url": "https://tiktok.com/@arjuvillagelife",
+   "handle": "arjuvillagelife",
+   "linkedFrom": "Arjumand Village Life\r"
+  },
+  {
+   "platform": "tiktok",
+   "url": "https://tiktok.com/@bhatti.vlogs.b",
+   "handle": "bhatti.vlogs.b",
+   "linkedFrom": "Bhatti Vlogs\r"
+  },
+  {
+   "platform": "tiktok",
+   "url": "https://tiktok.com/@britishaccent11",
+   "handle": "britishaccent11",
+   "linkedFrom": "British Accent\r"
+  },
+  {
+   "platform": "tiktok",
+   "url": "https://tiktok.com/@dailymumtaz",
+   "handle": "dailymumtaz",
+   "linkedFrom": "Daily Mumtaz\r"
+  },
+  {
+   "platform": "tiktok",
+   "url": "https://tiktok.com/@faizkhalil80",
+   "handle": "faizkhalil80",
+   "linkedFrom": "Travels of Khyber\r"
+  },
+  {
+   "platform": "tiktok",
+   "url": "https://tiktok.com/@gamerz_computing",
+   "handle": "gamerz_computing",
+   "linkedFrom": "GamerZ Computing\r"
+  },
+  {
+   "platform": "tiktok",
+   "url": "https://tiktok.com/@ghanaaliraza",
+   "handle": "ghanaaliraza",
+   "linkedFrom": "Ghana Ali Umair\r"
+  },
+  {
+   "platform": "tiktok",
+   "url": "https://tiktok.com/@gtvdigital",
+   "handle": "gtvdigital",
+   "linkedFrom": "G Utha Pakistan\r"
+  },
+  {
+   "platform": "tiktok",
+   "url": "https://tiktok.com/@hadiacookss",
+   "handle": "hadiacookss",
+   "linkedFrom": "Hadia 🕊️\r"
+  },
+  {
+   "platform": "tiktok",
+   "url": "https://tiktok.com/@ifrah.babar0",
+   "handle": "ifrah.babar0",
+   "linkedFrom": "Ifrah Babar\r"
+  },
+  {
+   "platform": "tiktok",
+   "url": "https://tiktok.com/@its_mrraza",
+   "handle": "its_mrraza",
+   "linkedFrom": "Mr Raza | Tech Influencer\r"
+  },
+  {
+   "platform": "tiktok",
+   "url": "https://tiktok.com/@itshiraaofficial",
+   "handle": "itshiraaofficial",
+   "linkedFrom": "Hira Ahmad\r"
+  },
+  {
+   "platform": "tiktok",
+   "url": "https://tiktok.com/@kainataslam.ka",
+   "handle": "kainataslam.ka",
+   "linkedFrom": "Kainat Aslam\r"
+  },
+  {
+   "platform": "tiktok",
+   "url": "https://tiktok.com/@kashees.official",
+   "handle": "kashees.official",
+   "linkedFrom": "Kashees Beauty Parlor\r"
+  },
+  {
+   "platform": "tiktok",
+   "url": "https://tiktok.com/@maham_aijaz10",
+   "handle": "maham_aijaz10",
+   "linkedFrom": "Maham. A 👸The Content Creator ⭐️\r"
+  },
+  {
+   "platform": "tiktok",
+   "url": "https://tiktok.com/@marryammughal09",
+   "handle": "marryammughal09",
+   "linkedFrom": "Marryam Mughal\r"
+  },
+  {
+   "platform": "tiktok",
+   "url": "https://tiktok.com/@munir.alive",
+   "handle": "munir.alive",
+   "linkedFrom": "MunirAlive | Lahore Food Blogger\r"
+  },
+  {
+   "platform": "tiktok",
+   "url": "https://tiktok.com/@neelammuneerkhan19",
+   "handle": "neelammuneerkhan19",
+   "linkedFrom": "Neelam Muneer Khan\r"
+  },
+  {
+   "platform": "tiktok",
+   "url": "https://tiktok.com/@rabiafaisal131",
+   "handle": "rabiafaisal131",
+   "linkedFrom": "Rabia Faisal\r"
+  },
+  {
+   "platform": "tiktok",
+   "url": "https://tiktok.com/@rubi_mobiles",
+   "handle": "rubi_mobiles",
+   "linkedFrom": "Rubi mObiles Tech Updates\r"
+  },
+  {
+   "platform": "tiktok",
+   "url": "https://tiktok.com/@sarfrazfoodie",
+   "handle": "sarfrazfoodie",
+   "linkedFrom": "Sarfraz Foodie street Food\r"
+  },
+  {
+   "platform": "tiktok",
+   "url": "https://tiktok.com/@seemikhan0300",
+   "handle": "seemikhan0300",
+   "linkedFrom": "Seemi Khan official\r"
+  },
+  {
+   "platform": "tiktok",
+   "url": "https://tiktok.com/@sidraiqbalofficial",
+   "handle": "sidraiqbalofficial",
+   "linkedFrom": "Sidra Iqbal\r"
+  },
+  {
+   "platform": "tiktok",
+   "url": "https://tiktok.com/@suchtvnews",
+   "handle": "suchtvnews",
+   "linkedFrom": "SUCH News Pakistan\r"
+  },
+  {
+   "platform": "tiktok",
+   "url": "https://tiktok.com/@swiss.miss85",
+   "handle": "swiss.miss85",
+   "linkedFrom": "swissmisspk\r"
+  },
+  {
+   "platform": "tiktok",
+   "url": "https://tiktok.com/@tastebykamal",
+   "handle": "tastebykamal",
+   "linkedFrom": "Taste By Kamal\r"
+  },
+  {
+   "platform": "tiktok",
+   "url": "https://tiktok.com/@ticketwalapk",
+   "handle": "ticketwalapk",
+   "linkedFrom": "Ticket Wala Entertainment\r"
+  },
+  {
+   "platform": "tiktok",
+   "url": "https://tiktok.com/@user842540003",
+   "handle": "user842540003",
+   "linkedFrom": "GILGIT BALTISTAN LOCAL VIBES\r"
+  },
+  {
+   "platform": "tiktok",
+   "url": "https://tiktok.com/@zaidchoudhry",
+   "handle": "zaidchoudhry",
+   "linkedFrom": "WEAPON X\r"
+  },
+  {
+   "platform": "tiktok",
+   "url": "https://tiktok.com/@zaraa_princess1",
+   "handle": "zaraa_princess1",
+   "linkedFrom": "👸🏻r.zahra"
+  }
+ ]
+}

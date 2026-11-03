@@ -40,7 +40,7 @@ export function createIdentityService(db: Db, autoTrial: StartTrial | null, test
     // A workspace was asked for and this person is not (or no longer) a member: refuse, never switch silently to
     // another workspace (audit SEC-04). The client drops its stale selection and asks again without one.
     if (requested !== undefined) {
-      throw new AppError("FORBIDDEN", "You don't have access to that workspace (any more). Choose another workspace.", { reason: "workspace_access_denied", workspaceId: requested });
+      throw new AppError("FORBIDDEN", "You don't have access to that team (any more). Choose another team.", { reason: "workspace_access_denied", workspaceId: requested });
     }
 
     const workspaceId = randomUUID();

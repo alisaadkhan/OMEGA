@@ -29,7 +29,7 @@ export async function composeContext(tx: TenantTx, ctx: TenantContext, campaignI
   if (!member) throw new AppError("NOT_FOUND", "This creator is not in the campaign");
   const [w] = await tx.execute<{ name: string }>(sql`select name from wp.workspaces where id = ${ctx.workspaceId}`);
   const [u] = await tx.execute<{ email: string; name: string | null }>(sql`select email, display_name name from wp.users where id = ${ctx.userId}`);
-  if (!w || !u) throw new AppError("NOT_FOUND", "Workspace not found");
+  if (!w || !u) throw new AppError("NOT_FOUND", "Team not found");
   return { workspaceName: w.name, senderName: u.name?.trim() || u.email.split("@")[0] || "The team", senderEmail: u.email, campaign: c, creatorName: member.name };
 }
 

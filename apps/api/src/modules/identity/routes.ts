@@ -41,7 +41,7 @@ export function registerIdentityRoutes(app: FastifyInstance, guards: Guards, ser
   // Settings › Workspace: renaming is for owners and admins.
   app.patch("/v1/workspace", { preHandler: guards.customer }, async (req, reply) => {
     const ctx = tenantOf(req);
-    if (ctx.role !== "owner" && ctx.role !== "admin") throw new AppError("FORBIDDEN", "Only the workspace owner or an admin can rename the workspace.");
+    if (ctx.role !== "owner" && ctx.role !== "admin") throw new AppError("FORBIDDEN", "Only the team owner or an admin can rename the team.");
     const { name } = parseInput(updateWorkspaceSchema, req.body);
     await db.withTenant(tenant(ctx), (tx) => tx.execute(sql`update wp.workspaces set name = ${name} where id = ${ctx.workspaceId}`));
     return sendOk(reply, meResponseSchema, await me(ctx));

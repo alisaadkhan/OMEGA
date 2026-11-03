@@ -3,7 +3,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "..
 const faqs = [
   {
     q: "What does MUSHIN actually do?",
-    a: "MUSHIN helps brands and agencies in Pakistan find creators on Instagram, TikTok, and YouTube, see how well each one fits a brief (the MUSHIN IQ score), review suspicious-activity signals, and keep lists, campaigns and an outreach log in one workspace.",
+    a: "MUSHIN helps brands and agencies in Pakistan find creators on Instagram, TikTok, and YouTube, see how well each one fits a brief (the MUSHIN IQ score), review suspicious-activity signals, and keep lists, campaigns and an outreach log in one place.",
   },
   {
     q: "How is the MUSHIN IQ score calculated?",
@@ -18,8 +18,8 @@ const faqs = [
     a: "MUSHIN looks at public engagement and follower patterns and flags what looks unusual, with the evidence behind each signal. These are signals to investigate before you commit budget, not verdicts.",
   },
   {
-    q: "Can multiple teammates collaborate in one workspace?",
-    a: "Yes. Invite teammates as owner, admin or member; lists, campaigns and the activity feed are shared across the workspace.",
+    q: "Can multiple teammates collaborate in one account?",
+    a: "Yes. Invite teammates as owner, admin or member; lists, campaigns and the activity feed are shared across the team.",
   },
   {
     q: "How is MUSHIN priced?",
@@ -27,7 +27,7 @@ const faqs = [
   },
   {
     q: "How does MUSHIN handle security and data?",
-    a: "MUSHIN uses role-based access within each workspace, keeps workspaces separate from each other, and lets you export your workspace or delete it at any time. Creator profiles are built from public information and labeled by freshness and confidence; estimates are never presented as verified facts.",
+    a: "MUSHIN uses role-based access within each team, keeps teams separate from each other, and lets you export your team's data or delete it at any time. Creator profiles are built from public information and labeled by freshness and confidence; estimates are never presented as verified facts.",
   },
 ];
 

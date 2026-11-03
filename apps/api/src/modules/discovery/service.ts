@@ -38,7 +38,7 @@ const mayBeDuplicate = (err: unknown) => isOneOpenViolation(err) || (err instanc
 
 /** Audit BIL-06: one live run per workspace at a time; a second brief waits until the first finishes or is cancelled. */
 const liveRunInProgress = (jobId: string) =>
-  new AppError("CONFLICT", "A Live Discovery run is already in progress in this workspace. Wait for it to finish or cancel it, then start the next one.", {
+  new AppError("CONFLICT", "A Live Discovery run is already in progress in this team. Wait for it to finish or cancel it, then start the next one.", {
     reason: "live_run_in_progress",
     jobId,
   });

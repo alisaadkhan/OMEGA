@@ -50,7 +50,7 @@ const tabs: TabDef[] = [
     id: "manage",
     label: "Campaigns",
     icon: Workflow,
-    headline: "Keep creators, conversations, and campaigns tidy in one workspace.",
+    headline: "Keep creators, conversations, and campaigns tidy in one place.",
     body: "Lists, campaign stages, agreed fees and a shared activity feed keep the whole team on the same page.",
     explore: "Explore Campaigns",
   },

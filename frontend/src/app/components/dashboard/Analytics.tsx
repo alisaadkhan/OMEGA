@@ -75,7 +75,7 @@ export function Analytics() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-[32px] font-semibold leading-10 tracking-[-0.025em] text-slate-900">Analytics</h1>
-          <p className="mt-1 text-sm text-slate-500">Counts from your workspace's own records. Nothing here is estimated.</p>
+          <p className="mt-1 text-sm text-slate-500">Counts from your team's own records. Nothing here is estimated.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs" role="group" aria-label="Period">
           {PRESETS.map((d) => (
