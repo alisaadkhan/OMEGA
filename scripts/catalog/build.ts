@@ -36,7 +36,7 @@ import { createCachedSearch, createDiscoveryRunner, createDiscoveryService, crea
 
 const { positionals, values } = parseArgs({
   allowPositionals: true,
-  options: { "min-refs": { type: "string", default: "2" }, manifest: { type: "string" }, db: { type: "string" }, cap: { type: "string", default: "20" }, platform: { type: "string" }, limit: { type: "string" }, niches: { type: "string" }, cities: { type: "string" }, size: { type: "string", default: "10" }, label: { type: "string", default: "main" } },
+  options: { "missing-avatars": { type: "boolean", default: false }, "min-refs": { type: "string", default: "2" }, manifest: { type: "string" }, db: { type: "string" }, cap: { type: "string", default: "20" }, platform: { type: "string" }, limit: { type: "string" }, niches: { type: "string" }, cities: { type: "string" }, size: { type: "string", default: "10" }, label: { type: "string", default: "main" } },
 });
 const mode = positionals[0];
 if (mode !== "refresh" && mode !== "discover" && mode !== "reassess" && mode !== "seed" && mode !== "expand") throw new Error("usage: build.ts <refresh|discover|reassess|seed|expand> --db <catalogue db> --cap <usd> [--manifest <seed.json>] [--limit n] [--min-refs n]");
@@ -272,7 +272,9 @@ if (mode === "reassess") {
 } else if (mode === "refresh") {
   const platform = values.platform ?? "youtube";
   const limit = Number(values.limit ?? 1000);
-  const rows = await db.withSystem((tx) => tx.execute<{ id: string }>(sql`select p.creator_id as id from gcp.creator_profiles p join gcp.creators c on c.id = p.creator_id where c.status = 'active' and p.platform = ${platform} order by p.followers desc nulls last limit ${limit}`));
+  // --missing-avatars: only searchable creators without a stored profile photo (owner rule: every profile keeps its image).
+  const onlyMissing = values["missing-avatars"] ? sql`and p.platform = c.primary_platform and c.avatar_url is null and exists (select 1 from gcp.creator_search_documents d where d.creator_id = c.id and d.eligible)` : sql``;
+  const rows = await db.withSystem((tx) => tx.execute<{ id: string }>(sql`select p.creator_id as id from gcp.creator_profiles p join gcp.creators c on c.id = p.creator_id where c.status = 'active' and p.platform = ${platform} ${onlyMissing} order by p.followers desc nulls last limit ${limit}`));
   logger.info({ creators: rows.length, platform }, "refresh start");
   for (const [i, r] of rows.entries()) {
     if ((await spentUsd()) >= capUsd - JOB_HEADROOM_USD) {
