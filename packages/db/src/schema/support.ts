@@ -16,6 +16,7 @@ export const supportTickets = wp.table("support_tickets", {
   firstResponseAt: ts("first_response_at"),
   resolvedAt: ts("resolved_at"),
   reopenedCount: integer("reopened_count").notNull().default(0),
+  priority: text("priority", { enum: ["low", "normal", "high", "urgent"] }).notNull().default("normal"),
   lastReopenedAt: ts("last_reopened_at"),
   createdAt: ts("created_at").notNull().defaultNow(),
   updatedAt: ts("updated_at").notNull().defaultNow(),
