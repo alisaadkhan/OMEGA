@@ -61,6 +61,9 @@ const PLATFORM_URL: Record<Creator["platform"], (h: string) => string> = {
  * search. The summary stays in view; "Full profile" opens everything else (evidence, authenticity, every platform,
  * audience, contacts, Update info). Shortlist and campaign open their side panels from here.
  */
+/** A link without its scheme and "www." for display. */
+const shortUrl = (url: string) => url.split("://").pop()?.split("www.").join("") ?? url;
+
 /** Why a metric is missing, never a generic "Unavailable" (owner master directive 2026-11-03, Part 7). */
 function missingNote(note: "policy_restricted" | "not_collected" | "insufficient_posts" | null, platform: string): string {
   if (note === "policy_restricted" || platform === "youtube") return "Policy restricted for YouTube";
@@ -254,11 +257,31 @@ export function CreatorProfilePanel({ creator, onClose, onCompare, onGoToCampaig
 
                     <div className="flex items-center justify-between gap-3 rounded-xl bg-slate-50/80 p-2.5">
                       <div className="min-w-0">
-                        <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Direct contact</div>
-                        <div className="truncate text-xs text-slate-900">
-                          {p.minorProtected ? "Hidden: this creator may be under 18" : p.contacts.length > 0 ? p.contacts.map((c) => c.value ?? c.masked).join(" · ") : CONTACT_AVAILABILITY_TEXT[p.contactAvailability].label}
-                        </div>
-                        {p.contacts.length > 0 && !p.minorProtected && <div className="text-[10px] text-slate-500">{CONTACT_AVAILABILITY_TEXT[p.contactAvailability].label}</div>}
+                        <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Contact routes</div>
+                        {p.minorProtected ? (
+                          <div className="text-xs text-slate-900">Hidden: this creator may be under 18</div>
+                        ) : (
+                          <ul className="space-y-0.5 text-xs text-slate-900">
+                            <li>
+                              Email: {p.contacts.some((c) => c.kind === "email") ? p.contacts.filter((c) => c.kind === "email").map((c) => c.value ?? c.masked).join(" · ") : "Not publicly listed"}
+                            </li>
+                            <li>
+                              Phone: {p.contacts.some((c) => c.kind === "phone") ? p.contacts.filter((c) => c.kind === "phone").map((c) => c.value ?? c.masked).join(" · ") : "Not publicly listed"}
+                            </li>
+                            {(p.contactRoutes?.routes ?? []).map((r) =>
+                              r.kind === "business_contact" ? (
+                                <li key={`b-${r.handle}`}>Business contact: @{r.handle} <span className="text-slate-500">(bio mention, unverified)</span></li>
+                              ) : r.kind === "social_contact" ? (
+                                <li key={`s-${r.handle}`}>Other enquiries: @{r.handle} <span className="text-slate-500">(bio mention)</span></li>
+                              ) : r.kind === "external_link" ? (
+                                <li key={r.url} className="truncate">Contact link: <a href={r.url} target="_blank" rel="noreferrer noopener" className="text-cyan-700 hover:underline">{shortUrl(r.url)}</a></li>
+                              ) : (
+                                <li key={r.url} className="truncate">Linked profile: <a href={r.url} target="_blank" rel="noreferrer noopener" className="text-cyan-700 hover:underline">{r.platform} {shortUrl(r.url)}</a></li>
+                              ),
+                            )}
+                            {p.contacts.length === 0 && (p.contactRoutes?.routes.length ?? 0) === 0 && <li className="text-slate-500">No public contact information found</li>}
+                          </ul>
+                        )}
                       </div>
                       {!p.revealed && p.hasContacts && !p.minorProtected ? (
                         <button onClick={() => void onReveal()} disabled={reveal.isPending} className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#0A0F24] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:opacity-50">

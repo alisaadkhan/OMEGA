@@ -22,6 +22,7 @@ import * as repo from "./repository";
 import { cleanInterpretation, contactAvailability, fenced, freshnessOf, isContactable, isMinorProtected, maskBioContacts, meiliFilter, normalizeProfileUrl, refreshActionFor, sourceHash } from "./rules";
 import { toCards } from "./ranking";
 import { suppressedUrls } from "./suppressions";
+import { contactRoutes } from "./contact-routes";
 import { assertCanPayCatalogSearch, chargeCatalogSearch } from "./search-charge";
 import { decodeCursor, encodeCursor } from "./cursor";
 import { understandQuery } from "./understand";
@@ -384,6 +385,8 @@ export function createCreatorsService(deps: CreatorsDeps) {
         refreshCost: refreshCost[refreshActionFor(c.primaryPlatform)],
         // Links can lead to a possible minor as directly as a contact can (SRS §5.5).
         linkedAccounts: links,
+        // Minor protection hides routes like links; bios are the creator's own public text.
+        contactRoutes: isMinorProtected(c) ? null : contactRoutes({ bios: profiles.map((x) => x.bio ?? ""), links, contactKinds: contacts.map((k) => k.kind), ownHandles: profiles.map((x) => x.handle) }),
         lastScrapedAt: iso(primary?.lastScrapedAt ?? null),
         minorProtected: isMinorProtected(c),
         // Something worth revealing: not only addresses shown not to work.

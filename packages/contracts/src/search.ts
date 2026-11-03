@@ -263,6 +263,22 @@ export const creatorProfileSchema = z.object({
   revealCost: z.number().int(),
   refreshCost: z.number().int(),
   linkedAccounts: z.array(z.object({ platform: z.enum(["instagram", "tiktok", "youtube", "website"]), url: z.string() })),
+  /** Structured contact routes from the creator's public bio and links (owner master directive 2026-11-03, Part 7.6). */
+  contactRoutes: z
+    .object({
+      email: z.enum(["listed", "not_listed"]),
+      phone: z.enum(["listed", "not_listed"]),
+      routes: z.array(
+        z.discriminatedUnion("kind", [
+          z.object({ kind: z.literal("business_contact"), handle: z.string(), cue: z.string() }),
+          z.object({ kind: z.literal("social_contact"), handle: z.string(), cue: z.string() }),
+          z.object({ kind: z.literal("external_link"), url: z.string() }),
+          z.object({ kind: z.literal("linked_profile"), platform: z.string(), url: z.string() }),
+        ]),
+      ),
+    })
+    .nullable()
+    .default(null),
   lastScrapedAt: iso.nullable(),
   minorProtected: z.boolean(),
   hasContacts: z.boolean(),
