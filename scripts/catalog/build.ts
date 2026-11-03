@@ -234,24 +234,37 @@ if (mode === "reassess") {
     }
   }
   const queue = [...refs.entries()].filter(([, by]) => by.size >= minRefs).sort((a, b) => b[1].size - a[1].size).slice(0, limit);
+  let providerFailures = 0;
   logger.info({ sources: sources.length, candidates: refs.size, atLeast2: [...refs.values()].filter((b) => b.size >= 2).length, atLeast3: [...refs.values()].filter((b) => b.size >= 3).length, queued: queue.length, minRefs }, "expand start");
   for (const [i, [h, by]] of queue.entries()) {
     if ((await spentUsd()) >= capUsd - JOB_HEADROOM_USD) {
       logger.warn({ spent: await spentUsd(), capUsd }, "spend cap reached: stopping");
       break;
     }
-    tried.add(h);
-    writeFileSync(triedFile, JSON.stringify([...tried]));
+    let providerDown = false;
     try {
       const out = await discovery.start(ctx, { kind: "add_by_url", url: `https://www.instagram.com/${h}/`, confirmedCost: 50 });
       const jobId = out.body.status === "started" ? out.body.job.id : null;
       if (jobId) await profileRunner.run(jobId, ctx.workspaceId).catch((e: Error) => logger.warn({ err: e.message, handle: h }, "expand attempt failed"));
       const job = jobId ? await discovery.get(ctx, jobId) : null;
+      providerDown = job?.error?.code === "PROVIDER_UNAVAILABLE";
       report.push({ i, handle: h, refs: by.size, status: job?.status ?? out.body.status, outcome: job?.outcome ?? null, error: job?.error?.code ?? null });
     } catch (err) {
       report.push({ i, handle: h, refs: by.size, status: "refused", error: err instanceof Error ? err.message.slice(0, 120) : String(err) });
     }
     logger.info(report.at(-1), "expand");
+    // Only a definite answer (saved, not found, private, below minimum...) marks a handle tried; a provider outage leaves
+    // it queued, and three outages in a row stop the run rather than burn through the queue.
+    if (providerDown) {
+      if (++providerFailures >= 3) {
+        logger.warn({ handle: h }, "provider unavailable three times in a row: stopping");
+        break;
+      }
+      continue;
+    }
+    providerFailures = 0;
+    tried.add(h);
+    writeFileSync(triedFile, JSON.stringify([...tried]));
   }
 } else if (mode === "refresh") {
   const platform = values.platform ?? "youtube";
