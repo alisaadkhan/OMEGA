@@ -67,6 +67,22 @@ const PLATFORM_URL: Record<Creator["platform"], (h: string) => string> = {
 const shortUrl = (url: string) => url.split("://").pop()?.split("www.").join("") ?? url;
 
 /** Why a metric is missing, never a generic "Unavailable" (owner master directive 2026-11-03, Part 7). */
+/** elig-3 quality badge (owner decision 2026-11-03): wording fixed by the owner; a badge only, never a filter. */
+const BADGE = {
+  meets_standard: { label: "Meets High-Performance Standard", tone: "bg-emerald-50 text-emerald-800", hint: "Typical views and engagement of recent posts meet MUSHIN's high-performance benchmark for this platform." },
+  below_benchmark: { label: "Below View/ER Benchmark", tone: "bg-slate-100 text-slate-700", hint: "Typical views or engagement of recent posts are below MUSHIN's high-performance benchmark. The creator still meets the minimum to be shown." },
+  incomplete: { label: "Performance Assessment Incomplete", tone: "bg-slate-50 text-slate-600 ring-1 ring-slate-200", hint: "Not enough recent posts, fresh counts or permitted data to judge performance yet." },
+} as const;
+
+/** The five location outcomes (master directive Part 4), each said plainly. */
+const LOCATION_TEXT: Record<"PAKISTAN_CONFIRMED" | "NON_PAKISTANI_CONFIRMED" | "PAKISTANI_DIASPORA" | "UNKNOWN" | "CONFLICTING_EVIDENCE", (shown: string | null) => string> = {
+  PAKISTAN_CONFIRMED: (s) => `Location: ${s ?? "Pakistan"} (confirmed)`,
+  NON_PAKISTANI_CONFIRMED: (s) => `Based outside Pakistan${s ? `: ${s}` : ""}`,
+  PAKISTANI_DIASPORA: (s) => `Pakistani creator based abroad${s ? `: ${s}` : ""}`,
+  UNKNOWN: () => "Location not confirmed yet: no public evidence found.",
+  CONFLICTING_EVIDENCE: () => "Location unclear: public sources disagree.",
+};
+
 function missingNote(note: "policy_restricted" | "not_collected" | "insufficient_posts" | null, platform: string): string {
   if (note === "policy_restricted" || platform === "youtube") return "Policy restricted for YouTube";
   if (note === "not_collected") return "Not collected yet";
@@ -257,8 +273,14 @@ export function CreatorProfilePanel({ creator, onClose, onCompare, onGoToCampaig
                       <Stat label="Typical views" value={primary?.typicalViews != null ? formatCount(primary.typicalViews) : "—"} note={primary?.typicalViews != null ? `Median of ${primary.typicalViewsSample ?? "recent"} recent ${primary.typicalViewsFormat === "reel" ? "Reels" : "videos"}` : missingNote(primary?.metricsNote ?? null, creator.platform)} />
                     </div>
 
+                    {primary && (
+                      <p data-testid="performance-badge" className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${BADGE[primary.performanceBadge].tone}`} title={BADGE[primary.performanceBadge].hint}>
+                        {BADGE[primary.performanceBadge].label}
+                      </p>
+                    )}
+
                     <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-[11px] text-slate-600">
-                      <span>{location ? `Location: ${location}` : "Location not confirmed yet: no public evidence found."}</span>
+                      <span>{LOCATION_TEXT[primary?.location ?? "UNKNOWN"](location)}</span>
                       <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wider text-slate-500">Evidence</span>
                     </div>
 
