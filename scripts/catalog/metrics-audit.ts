@@ -55,14 +55,21 @@ for (const r of rows) {
     continue;
   }
   const posts = std.profile.recentPosts.slice(0, 12);
-  lines.push("| # | posted | type | pinned | views | likes | comments | ER % (per follower) |", "|---|---|---|---|---|---|---|---|");
+  // The product's definition: per follower on Instagram, per view on TikTok and YouTube (signals.ts engagementRaw).
+  const perView = r.platform !== "instagram";
+  const erOf = (p: (typeof posts)[number]): number | null => {
+    if (p.likes === null || p.likes < 0) return null;
+    const base = perView ? p.views : r.followers;
+    return base ? (((p.likes ?? 0) + (p.comments ?? 0)) / base) * 100 : null;
+  };
+  lines.push(`| # | posted | type | pinned | views | likes | comments | ER % (per ${perView ? "view" : "follower"}) |`, "|---|---|---|---|---|---|---|---|");
   for (const [i, p] of posts.entries()) {
-    const er = r.followers && p.likes !== null && p.likes >= 0 ? (((p.likes ?? 0) + (p.comments ?? 0)) / r.followers) * 100 : null;
+    const er = erOf(p);
     lines.push(`| ${i + 1} | ${p.postedAt.toISOString().slice(0, 10)} | ${p.format ?? (p.isVideo ? "video" : "post")} | ${p.isPinned ? "yes" : "no"} | ${n(p.views)} | ${n(p.likes)} | ${n(p.comments)} | ${er === null ? "—" : er.toFixed(2)} |`);
   }
   const usable = posts.filter((p) => !p.isPinned);
   const viewSample = usable.filter((p) => p.isVideo && p.views !== null && (r.platform !== "instagram" || p.format !== "post")).slice(0, 10).map((p) => p.views as number);
-  const erSample = usable.filter((p) => p.likes !== null && (p.likes as number) >= 0).slice(0, 10).map((p) => (((p.likes as number) + (p.comments ?? 0)) / (r.followers || 1)) * 100);
+  const erSample = usable.map(erOf).filter((x): x is number => x !== null).slice(0, 10);
   lines.push("", `Views over ${viewSample.length} non-pinned comparable videos: mean ${n(mean(viewSample))} · **median ${n(median(viewSample))}**`, `ER over ${erSample.length} non-pinned posts with visible likes: mean ${n(mean(erSample), 2)}% · **median ${n(median(erSample), 2)}%**`, "");
 }
 const missing = handles.filter((h) => !rows.some((r) => r.handle.toLowerCase() === h));
