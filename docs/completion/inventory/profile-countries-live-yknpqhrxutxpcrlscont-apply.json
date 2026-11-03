@@ -1,14 +1,14 @@
 {
  "db": "live-yknpqhrxutxpcrlscont",
  "mode": "apply",
- "at": "2026-11-03T12:17:55.083Z",
- "creators": 3130,
+ "at": "2026-11-03T12:57:33.392Z",
+ "creators": 3199,
  "changed": 0,
  "transitions": {},
  "before": {
   "instagram": {
-   "pakistan": 467,
-   "unknown": 221,
+   "pakistan": 506,
+   "unknown": 250,
    "foreign": 16
   },
   "youtube": {
@@ -18,14 +18,14 @@
    "conflicting": 22
   },
   "tiktok": {
-   "pakistan": 37,
+   "pakistan": 38,
    "unknown": 27
   }
  },
  "after": {
   "instagram": {
-   "pakistan": 467,
-   "unknown": 221,
+   "pakistan": 506,
+   "unknown": 250,
    "foreign": 16
   },
   "youtube": {
@@ -35,7 +35,7 @@
    "conflicting": 22
   },
   "tiktok": {
-   "pakistan": 37,
+   "pakistan": 38,
    "unknown": 27
   }
  },

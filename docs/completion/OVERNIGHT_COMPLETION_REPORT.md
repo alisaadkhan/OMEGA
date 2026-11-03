@@ -143,3 +143,15 @@ resume as soon as the connection returns.
   0 phone numbers in the index. Spend cumulative ≈ USD 4.9 of the 7.00 cap.
 - The machine restarted several times and the network dropped repeatedly; the expansion run now pauses and backs off
   on outages, and every interrupted step was re-run from its idempotent start.
+
+## Third live sync (3 November, evening)
+
+- Migration **0073 ticket priority** applied live (schema snapshot first). Staff set low / normal / high / urgent; the
+  queue lists urgent first; customers never see it.
+- Owner-named creators: Jannat Mirza (TikTok 25.6M, Instagram 6.3M) added and searchable. instagram.com/mooroo and
+  /masoomana turned out to be other people's small accounts: no Pakistan record kept, listed as unresolved.
+- Photos: searchable creators without a photo fell from 34 to 9 (Instagram) and 5 to 1 (TikTok) after a re-fetch
+  (`build.ts refresh --missing-avatars`); 97 more photos linked live.
+- elig-3 dry run on today's catalogue: Instagram 29, TikTok 8, YouTube 0 eligible (elig-2: 342 / 25 / 382). elig-2 stays.
+- Live: **3,199 creators; searchable Instagram 297, TikTok 25, YouTube 382**; 0 organisations, 0 emails, 0 phone numbers
+  in the index. The expansion keeps running inside the USD 7 cap; its additions go live in the next sync.
