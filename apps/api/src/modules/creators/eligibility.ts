@@ -43,7 +43,7 @@ export const DEFAULT_ELIGIBILITY: EligibilitySettings = { minFollowers: MIN_FOLL
 export type ProfileReason =
   | "invalid_profile_url" | "followers_unknown" | "followers_stale" | "below_follower_minimum" | "inactive" | "profile_not_found" | "profile_private"
   | "country_not_pakistan" | "country_unknown" | "country_conflicting" | "country_stale";
-export type CreatorReason = "creator_not_active" | "minor_protected" | "no_profile";
+export type CreatorReason = "creator_not_active" | "minor_protected" | "organisation_account" | "no_profile";
 export type EligibilityFlag = "activity_unverified" | "availability_unconfirmed";
 
 export type EligibilityProfile = {
@@ -61,7 +61,8 @@ export type EligibilityProfile = {
   /** The profile's own resolved country (0060). Absent = unknown: a profile never qualifies by assumption. */
   country?: { code: string | null; status: "pakistan" | "foreign" | "unknown" | "conflicting" | null; checkedAt: Date | string | null } | null;
 };
-export type EligibilityCreator = { status: string; isMinor: boolean; minorOverrideByStaffId: string | null };
+/** organisation: the account's platform category names an organisation and no staff member overrode it (0072). */
+export type EligibilityCreator = { status: string; isMinor: boolean; minorOverrideByStaffId: string | null; organisation?: boolean };
 
 export type ProfileEligibility = {
   platform: CreatorPlatform;
@@ -123,6 +124,7 @@ export function creatorEligibility(c: EligibilityCreator, profiles: EligibilityP
   const creatorReasons: CreatorReason[] = [];
   if (c.status !== "active") creatorReasons.push("creator_not_active");
   if (isMinorProtected(c)) creatorReasons.push("minor_protected");
+  if (c.organisation === true) creatorReasons.push("organisation_account");
   if (profiles.length === 0) creatorReasons.push("no_profile");
   const evaluated = profiles.map((p) => profileEligibility(p, now, s));
   const qualifying = evaluated.filter((p) => p.qualifies);

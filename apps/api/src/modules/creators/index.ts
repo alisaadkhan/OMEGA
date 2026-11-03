@@ -30,7 +30,7 @@ export { backfillAttributes, restoreBeforeImages } from "./enrichment/backfill";
 export type { BackfillReport, BeforeImage } from "./enrichment/backfill";
 export type { AttributeDecision, EvidenceRow } from "./enrichment/attribute-evidence";
 export type { Assessment } from "./enrichment/assessment";
-export { maskContact, normalizeProfileUrl, refreshActionFor } from "./rules";
+export { maskContact, normalizeProfileUrl, organisationCategory, refreshActionFor } from "./rules";
 export { countryCode } from "./enrichment/country-evidence";
 export { conceptsOf, NICHE_TAXONOMY } from "./terminology";
 export type { CreatorPlatform } from "./rules";

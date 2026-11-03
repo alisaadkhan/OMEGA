@@ -35,7 +35,7 @@ const hasProfileCountry = async () =>
 const profileCountry = await hasProfileCountry();
 const creators = await db.withSystem((tx) =>
   tx.execute<Row>(sql`
-    select c.id, c.status, c.is_minor, c.minor_override_by_staff_id, c.display_name, c.country, c.country_source, c.country_checked_at,
+    select c.id, c.status, c.is_minor, c.minor_override_by_staff_id, (c.organisation_category is not null and c.organisation_override_by_staff_id is null) as organisation, c.display_name, c.country, c.country_source, c.country_checked_at,
       c.niche_main, c.niche_status, c.niche_confidence, c.niches, c.confirmed_country,
       (select jsonb_agg(e) from (select attribute, value, source, status from gcp.creator_attribute_evidence e where e.creator_id = c.id and e.attribute in ('niche', 'country')) e) evidence
     from gcp.creators c`),
@@ -65,7 +65,7 @@ type Verdict = { platform: string; creatorId: string; qualifies: boolean; reason
 const verdicts: Verdict[] = [];
 for (const c of creators) {
   const ps = byCreator.get(c["id"] as string) ?? [];
-  const e = creatorEligibility({ status: c["status"] as string, isMinor: c["is_minor"] as boolean, minorOverrideByStaffId: (c["minor_override_by_staff_id"] as string | null) ?? null }, ps.map(toEligibility), now);
+  const e = creatorEligibility({ status: c["status"] as string, isMinor: c["is_minor"] as boolean, minorOverrideByStaffId: (c["minor_override_by_staff_id"] as string | null) ?? null, organisation: c["organisation"] === true }, ps.map(toEligibility), now);
   e.profiles.forEach((pe, i) => {
     const creatorBlocked = c["status"] !== "active" || (e.reasons as string[]).some((r) => r === "minor_protected");
     verdicts.push({

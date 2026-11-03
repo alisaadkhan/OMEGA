@@ -145,7 +145,7 @@ export type CreatorRow = Pick<
   | "status"
   | "mergedIntoId"
   | "assessmentStatus"
->;
+> & { /** 0072: an organisation account not overridden by staff (excluded from search). */ organisation: boolean };
 
 export async function getCreator(tx: Tx, id: string): Promise<CreatorRow | null> {
   const rows = await tx
@@ -173,6 +173,7 @@ export async function getCreator(tx: Tx, id: string): Promise<CreatorRow | null>
       aiSummaryFailedAt: creators.aiSummaryFailedAt,
       isMinor: creators.isMinor,
       minorOverrideByStaffId: creators.minorOverrideByStaffId,
+      organisation: sql<boolean>`(${creators.organisationCategory} is not null and ${creators.organisationOverrideByStaffId} is null)`,
       status: creators.status,
       mergedIntoId: creators.mergedIntoId,
       assessmentStatus: creators.assessmentStatus,
@@ -355,6 +356,7 @@ export type IndexRow = {
   status: string;
   isMinor: boolean;
   minorOverrideByStaffId: string | null;
+  organisation: boolean;
   displayName: string;
   nameVariants: string[];
   primaryHandle: string;
@@ -381,7 +383,7 @@ const UPDATED_EPOCH = sql`extract(epoch from greatest(
 export async function indexRows(tx: SystemTx, ids: string[]): Promise<IndexRow[]> {
   if (ids.length === 0) return [];
   return tx.execute<IndexRow>(sql`
-    select c.id, c.status, c.is_minor as "isMinor", c.minor_override_by_staff_id as "minorOverrideByStaffId",
+    select c.id, c.status, c.is_minor as "isMinor", c.minor_override_by_staff_id as "minorOverrideByStaffId", (c.organisation_category is not null and c.organisation_override_by_staff_id is null) as organisation,
       c.display_name as "displayName", c.name_variants as "nameVariants", c.primary_handle as "primaryHandle",
       c.primary_platform as "primaryPlatform", c.city, c.country, c.niches, c.tags, c.verified,
       c.authenticity_score as "authenticityScore",
@@ -612,8 +614,8 @@ export async function lockedForWorkspace(tx: TenantTx, creatorId: string, now: D
 /** Eligibility (elig-1) of each creator from its stored record and profiles, as of `now`. */
 export async function eligibilityOf(tx: Tx, ids: string[], now: Date): Promise<Map<string, CreatorEligibility>> {
   if (ids.length === 0) return new Map();
-  const rows = await tx.execute<{ id: string; status: string; isMinor: boolean; minorOverrideByStaffId: string | null; profiles: EligibilityProfile[] }>(sql`
-    select c.id, c.status, c.is_minor as "isMinor", c.minor_override_by_staff_id as "minorOverrideByStaffId",
+  const rows = await tx.execute<{ id: string; status: string; isMinor: boolean; minorOverrideByStaffId: string | null; organisation: boolean; profiles: EligibilityProfile[] }>(sql`
+    select c.id, c.status, c.is_minor as "isMinor", c.minor_override_by_staff_id as "minorOverrideByStaffId", (c.organisation_category is not null and c.organisation_override_by_staff_id is null) as organisation,
       coalesce((select jsonb_agg(jsonb_build_object('platform', p.platform, 'canonicalUrl', p.canonical_url,
         'followers', case when p.platform = 'youtube' and p.followers = 0 then null else p.followers end,
         'followersUpdatedAt', p.followers_updated_at, 'lastPostAt', p.last_post_at, 'availability', p.availability, 'country', jsonb_build_object('code', p.country, 'status', p.country_status, 'checkedAt', p.country_checked_at)))

@@ -38,7 +38,7 @@ import { createSupportAccess } from "./access";
 import { createStaffActions } from "./actions";
 import type { AlertNotifier } from "./alert-notifier";
 import { createApprovals } from "./approvals";
-import { clearMinorSchema, createCatalogueReview, reviewListSchema, reviewQuerySchema, setCountrySchema } from "./catalogue-review";
+import { clearMinorSchema, clearOrganisationSchema, createCatalogueReview, reviewListSchema, reviewQuerySchema, setCountrySchema } from "./catalogue-review";
 
 const idParams = z.object({ id: z.uuid() });
 const meta = (req: FastifyRequest) => ({ ip: req.ip ?? null, requestId: req.id });
@@ -147,6 +147,10 @@ export function createStaffOpsModule(o: {
       const { id } = parseInput(idParams, req.params);
       const out = await review.setCountry(staffOf(req), id, parseInput(setCountrySchema, req.body), meta(req));
       return sendOk(reply, z.object({ changed: z.array(z.object({ platform: z.string(), from: z.string(), to: z.string() })) }), out);
+    });
+    app.post("/admin/v1/catalogue/creators/:id/organisation-override", { preHandler: r("catalogue.review.decide") }, async (req, reply) => {
+      const { id } = parseInput(idParams, req.params);
+      return sendOk(reply, z.object({ cleared: z.literal(true) }), await review.clearOrganisation(staffOf(req), id, parseInput(clearOrganisationSchema, req.body), meta(req)));
     });
     app.post("/admin/v1/catalogue/creators/:id/minor-override", { preHandler: r("catalogue.review.decide") }, async (req, reply) => {
       const { id } = parseInput(idParams, req.params);

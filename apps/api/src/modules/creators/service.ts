@@ -438,7 +438,7 @@ export type CreatorsService = ReturnType<typeof createCreatorsService>;
 
 /** The profile view of eligibility (elig-1): the creator verdict and each profile's own (no counts beyond what the profile shows). */
 function profileEligibilityView(
-  c: { status: string; isMinor: boolean; minorOverrideByStaffId: string | null },
+  c: { status: string; isMinor: boolean; minorOverrideByStaffId: string | null; organisation: boolean },
   profiles: { platform: "instagram" | "tiktok" | "youtube"; canonicalUrl: string; followers: number | null; followersUpdatedAt: Date | null; lastPostAt: Date | null; availability?: EligibilityProfile["availability"]; country?: string | null; countryStatus?: "pakistan" | "foreign" | "unknown" | "conflicting"; countryCheckedAt?: Date | null }[],
   now: Date,
 ) {

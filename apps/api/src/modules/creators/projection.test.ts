@@ -7,6 +7,7 @@ const row: IndexRow = {
   status: "active",
   isMinor: false,
   minorOverrideByStaffId: null,
+  organisation: false,
   displayName: "Hidden Subscribers",
   nameVariants: [],
   primaryHandle: "hidden",

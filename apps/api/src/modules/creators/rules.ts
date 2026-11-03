@@ -300,3 +300,30 @@ export function isMinorProtected(c: { isMinor: boolean; minorOverrideByStaffId: 
 export function refreshActionFor(platform: CreatorPlatform): "refresh_data" | "refresh_tiktok" {
   return platform === "tiktok" ? "refresh_tiktok" : "refresh_data";
 }
+
+/**
+ * Instagram business categories that name an organisation, not a person (owner decision 2026-11-03: restaurants, brands,
+ * agencies, magazines and venues are not creators and are hidden from search). Only unambiguous categories are listed;
+ * categories people also pick ("Health/beauty", "Beauty, cosmetic & personal care", "Social Media Agency", "Food & Drink", "Lifestyle Services", "Sports") stay creators. Staff can
+ * override a wrong one in Catalogue review.
+ */
+const ORGANISATION_CATEGORIES = new Set(
+  [
+    "restaurant", "restaurants", "cafe", "café", "coffee shop", "bakery", "dessert shop", "fast food restaurant", "pizza place", "caterer",
+    "hotel", "hotel resort", "hospitality service", "private members club", "event venue", "night club", "bar",
+    "clothing (brand)", "brand", "clothing store", "shopping & retail", "retail company", "e-commerce website", "product/service", "jewelry/watches", "cosmetics store",
+    "beauty salon", "hair salon", "spa", "gym/physical fitness center",
+    "magazine", "media/news company", "news & media website", "tv channel", "broadcasting & media production company", "radio station", "newspaper", "media",
+    "marketing agency", "advertising/marketing", "advertising agency", "public relations agency",
+    "school", "college & university", "education", "university", "hospital", "medical center", "medical & health",
+    "non-governmental organization (ngo)", "nonprofit organization", "government organization", "community organization",
+    "company", "business service", "local business", "real estate", "real estate company", "car dealership", "travel company", "travel agency",
+    "app page", "software company", "internet company", "telecommunication company", "bank", "financial service", "sports team",
+  ],
+);
+
+/** The account's platform category when it names an organisation, otherwise null. */
+export function organisationCategory(category: string | null | undefined): string | null {
+  const c = category?.trim();
+  return c && ORGANISATION_CATEGORIES.has(c.toLowerCase()) ? c.slice(0, 80) : null;
+}

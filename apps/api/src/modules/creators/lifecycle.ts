@@ -139,14 +139,14 @@ export async function lifecycleSweep(o: { db: Db; now?: () => Date; apply: boole
       sql`select count(*)::int n, extract(day from ${now.toISOString()}::timestamptz - min(created_at))::int oldest from gcp.removal_requests where status = 'received'`,
     );
     // Search documents whose stored eligibility no longer matches the policy as of now.
-    const docs = await tx.execute<{ id: string; eligible: boolean; status: string; is_minor: boolean; minor_override_by_staff_id: string | null; profiles: EligibilityProfile[] }>(sql`
-      select c.id, d.eligible, c.status, c.is_minor, c.minor_override_by_staff_id,
+    const docs = await tx.execute<{ id: string; eligible: boolean; status: string; is_minor: boolean; minor_override_by_staff_id: string | null; organisation: boolean; profiles: EligibilityProfile[] }>(sql`
+      select c.id, d.eligible, c.status, c.is_minor, c.minor_override_by_staff_id, (c.organisation_category is not null and c.organisation_override_by_staff_id is null) as organisation,
         coalesce((select jsonb_agg(jsonb_build_object('platform', p.platform, 'canonicalUrl', p.canonical_url,
           'followers', case when p.platform = 'youtube' and p.followers = 0 then null else p.followers end,
           'followersUpdatedAt', p.followers_updated_at, 'lastPostAt', p.last_post_at, 'availability', p.availability, 'country', jsonb_build_object('code', p.country, 'status', p.country_status, 'checkedAt', p.country_checked_at)))
           from gcp.creator_profiles p where p.creator_id = c.id), '[]'::jsonb) profiles
       from gcp.creators c join gcp.creator_search_documents d on d.creator_id = c.id`);
-    const changed = docs.filter((d) => creatorEligibility({ status: d.status, isMinor: d.is_minor, minorOverrideByStaffId: d.minor_override_by_staff_id }, d.profiles, now).eligible !== d.eligible).map((d) => d.id);
+    const changed = docs.filter((d) => creatorEligibility({ status: d.status, isMinor: d.is_minor, minorOverrideByStaffId: d.minor_override_by_staff_id, organisation: d.organisation }, d.profiles, now).eligible !== d.eligible).map((d) => d.id);
     if (o.apply && changed.length > 0 && o.reproject) await o.reproject(changed);
     return {
       dryRun: !o.apply,

@@ -54,6 +54,10 @@ export const creators = gcp.table("creators", {
   isMinor: boolean("is_minor").notNull().default(false),
   minorOverrideByStaffId: uuid("minor_override_by_staff_id"),
   minorOverrideReason: text("minor_override_reason"),
+  // 0072: the platform category when it names an organisation (excluded from search unless staff override it).
+  organisationCategory: text("organisation_category"),
+  organisationOverrideByStaffId: uuid("organisation_override_by_staff_id"),
+  organisationOverrideReason: text("organisation_override_reason"),
   status: text("status", { enum: ["active", "merged", "removal_requested", "erased"] }).notNull().default("active"),
   mergedIntoId: uuid("merged_into_id"),
   lastEnrichedAt: ts("last_enriched_at"),
