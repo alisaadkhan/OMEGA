@@ -33,11 +33,6 @@
    "source": "Named by the owner (directive 2026-11-03) as an established Pakistani creator"
   },
   {
-   "handle": "mooroo",
-   "platform": "instagram",
-   "source": "Named by the owner (directive 2026-11-03) as an established Pakistani creator; https://en.wikipedia.org/wiki/Mooroo"
-  },
-  {
    "handle": "wildlensbyabrar",
    "platform": "instagram",
    "source": "Named by the owner (directive 2026-11-03) as an established Pakistani creator; https://en.wikipedia.org/wiki/Abrar_Hassan"
@@ -53,14 +48,28 @@
    "source": "Named by the owner (directive 2026-11-03) as an established Pakistani creator"
   },
   {
-   "handle": "masoomana",
+   "handle": "dananeerr",
    "platform": "instagram",
    "source": "Named by the owner (directive 2026-11-03) as an established Pakistani creator"
   },
   {
-   "handle": "dananeerr",
+   "handle": "jannatmirza_",
    "platform": "instagram",
-   "source": "Named by the owner (directive 2026-11-03) as an established Pakistani creator"
+   "source": "Named by the owner (directive 2026-11-03) as an established Pakistani creator (Jannat Mirza; her Instagram account)"
+  }
+ ],
+ "unresolved": [
+  {
+   "name": "Mooroo",
+   "note": "instagram.com/mooroo is a 6-follower account, not the creator; the right handle is not known"
+  },
+  {
+   "name": "Masoom Ana",
+   "note": "instagram.com/masoomana is a 15-follower account, not the creator; the right handle is not known"
+  },
+  {
+   "name": "Baba Food RRC",
+   "note": "YouTube only; waits for the YouTube decision"
   }
  ]
 }
