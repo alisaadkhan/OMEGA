@@ -132,7 +132,9 @@ describe("live discovery under v2 (VAR2-L)", () => {
     // Owner rules 2026-10-26: a city never implies the country, and a country in the display name (the fixture's is
     // "Coke Studio Pakistan") is not a statement about the creator; Instagram declares no country, so it stays unknown.
     expect(by["v2_ev_1"]).toMatchObject({ city: "Lahore", country: null });
-    expect(by["v2_ev_2"]).toMatchObject({ city: null, country: null });
+    // Owner directive 2026-11-02 (storefront signals): Pakistani cities given as bio segments are the creator's own
+    // statement of Pakistan; two different cities still leave the city itself undecided.
+    expect(by["v2_ev_2"]).toMatchObject({ city: null, country: "PK" });
     expect(by["v2_ev_3"]?.city).toBeNull();
     expect(rows).toContainEqual({ handle: "v2_ev_1", attribute: "city", value: "Lahore", source: "profile_text", status: "supported" });
     expect(rows.filter((r) => r.handle === "v2_ev_2" && r.attribute === "city").every((r) => r.status === "conflicting")).toBe(true);

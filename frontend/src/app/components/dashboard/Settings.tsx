@@ -18,7 +18,7 @@ export type SettingsTab = "profile" | "workspace" | "security" | "notifications"
 type Tab = SettingsTab;
 const TABS: { id: Tab; label: string }[] = [
   { id: "profile", label: "Profile" },
-  { id: "workspace", label: "Workspace & team" },
+  { id: "workspace", label: "Team" },
   { id: "security", label: "Password & sessions" },
   { id: "notifications", label: "Notifications" },
   { id: "access", label: "Support access" },
@@ -89,8 +89,8 @@ function WorkspaceTab() {
   const [name, setName] = useState<string | null>(null);
   const save = useMutation({
     mutationFn: (n: string) => apiRequest("/v1/workspace", meResponseSchema, { method: "PATCH", body: { name: n } }),
-    onSuccess: () => { setName(null); toast.success("Workspace renamed"); void qc.invalidateQueries({ queryKey: ["me"] }); },
-    onError: (err) => toast.error("Couldn't rename the workspace", err instanceof Error ? err.message : undefined),
+    onSuccess: () => { setName(null); toast.success("Team renamed"); void qc.invalidateQueries({ queryKey: ["me"] }); },
+    onError: (err) => toast.error("Couldn't rename the team", err instanceof Error ? err.message : undefined),
   });
   if (me.isPending) return <LoadingBlock lines={3} />;
   if (me.isError) return <ErrorState body={me.error instanceof Error ? me.error.message : undefined} onRetry={() => void me.refetch()} />;
@@ -99,8 +99,8 @@ function WorkspaceTab() {
   return (
     <div className="space-y-4">
       <form className={`${card} space-y-3`} onSubmit={(e) => { e.preventDefault(); if (value.trim()) save.mutate(value.trim()); }}>
-        <label className="block text-xs text-slate-600" style={{ fontWeight: 600 }}>Workspace name<input value={value} maxLength={80} disabled={!canRename} onChange={(e) => setName(e.target.value)} className={`${field} disabled:bg-slate-50`} /></label>
-        {canRename ? <button type="submit" disabled={save.isPending || name === null || !value.trim()} className={button}>Save name</button> : <p className="text-[11px] text-slate-500">Only the owner or an admin can rename the workspace.</p>}
+        <label className="block text-xs text-slate-600" style={{ fontWeight: 600 }}>Team name<input value={value} maxLength={80} disabled={!canRename} onChange={(e) => setName(e.target.value)} className={`${field} disabled:bg-slate-50`} /></label>
+        {canRename ? <button type="submit" disabled={save.isPending || name === null || !value.trim()} className={button}>Save name</button> : <p className="text-[11px] text-slate-500">Only the owner or an admin can rename the team.</p>}
       </form>
       <WorkspaceSwitcher current={me.data.workspace.id} />
       <TeamSection role={me.data.workspace.role} me={me.data.user.id} />

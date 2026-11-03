@@ -52,7 +52,7 @@ export function ImportCreators({ onClose }: { onClose: () => void }) {
         <h2 className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Import your creator list (CSV)</h2>
         <button type="button" onClick={onClose} className="text-xs text-slate-500 underline">Close</button>
       </div>
-      <p className="mt-1 text-xs text-slate-500">Columns: profile_url (required), platform, niche, country, email. Your notes stay private to your workspace; profiles not in MUSHIN are listed, not fetched.</p>
+      <p className="mt-1 text-xs text-slate-500">Columns: profile_url (required), platform, niche, country, email. Your notes stay private to your team; profiles not in MUSHIN are listed, not fetched.</p>
       {!result ? (
         <form className="mt-3 grid gap-2 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); if (csv && source.trim()) upload.mutate(); }}>
           <label className="text-xs text-slate-600 sm:col-span-2">CSV file

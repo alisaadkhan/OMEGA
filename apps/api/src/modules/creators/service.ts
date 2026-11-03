@@ -421,7 +421,7 @@ export function createCreatorsService(deps: CreatorsDeps) {
 
   /** SRS §6.3 "deletable per workspace": the workspace forgets contacts it revealed (no refund). */
   async function forgetReveal(ctx: TenantContext, creatorId: string): Promise<void> {
-    if (ctx.role !== "owner" && ctx.role !== "admin") throw new AppError("FORBIDDEN", "Only the workspace owner or an admin can remove revealed contacts.");
+    if (ctx.role !== "owner" && ctx.role !== "admin") throw new AppError("FORBIDDEN", "Only the team owner or an admin can remove revealed contacts.");
     await deps.db.withTenant(tenant(ctx), (tx) => tx.delete(contactReveals).where(and(eq(contactReveals.workspaceId, ctx.workspaceId), eq(contactReveals.creatorId, creatorId))));
   }
 

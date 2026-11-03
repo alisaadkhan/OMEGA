@@ -10,7 +10,7 @@ const isDuplicateName = (err: unknown) => {
   for (let e: unknown = err; e instanceof Error; e = e.cause) if (/lists_workspace_name_idx/.test(e.message)) return true;
   return false;
 };
-const duplicateName = () => new AppError("CONFLICT", "A list with this name already exists in your workspace.", { field: "name" });
+const duplicateName = () => new AppError("CONFLICT", "A list with this name already exists in your team.", { field: "name" });
 
 function toSummary(r: repo.SummaryRow): ListSummary {
   return {
@@ -56,7 +56,7 @@ export function createListsService(deps: ListsDeps) {
   async function create(ctx: TenantContext, body: Required<CreateList>): Promise<ListSummary> {
     try {
       return await deps.db.withTenant(tenant(ctx), async (tx) => {
-        if ((await repo.countLists(tx, ctx.workspaceId)) >= repo.MAX_LISTS) throw new AppError("CONFLICT", `A workspace can keep up to ${repo.MAX_LISTS} lists. Delete one first.`);
+        if ((await repo.countLists(tx, ctx.workspaceId)) >= repo.MAX_LISTS) throw new AppError("CONFLICT", `A team can keep up to ${repo.MAX_LISTS} lists. Delete one first.`);
         const row = await repo.insertList(tx, { workspaceId: ctx.workspaceId, name: body.name, description: body.description, createdBy: ctx.userId });
         const [summary] = await repo.summaries(tx, ctx.workspaceId, { listId: row.id });
         if (!summary) throw new Error("created list not readable");

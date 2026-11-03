@@ -38,7 +38,7 @@ function refuseUnapprovedAnnual(settings: repo.SettingsRow, interval: BillingInt
 }
 
 function requireBillingRole(ctx: TenantContext) {
-  if (!BILLING_ROLES.has(ctx.role)) throw new AppError("FORBIDDEN", "Only the workspace owner or an admin can manage billing");
+  if (!BILLING_ROLES.has(ctx.role)) throw new AppError("FORBIDDEN", "Only the team owner or an admin can manage billing");
 }
 
 const minDate = (a: Date, b: Date) => (a.getTime() <= b.getTime() ? a : b);
@@ -707,7 +707,7 @@ export function createBillingService(deps: BillingDeps) {
       const plan = await repo.getPlan(tx, input.planId);
       if (!plan || !plan.active) throw new AppError("NOT_FOUND", "That plan is not available");
       const sub = await repo.getSubscription(tx, input.workspaceId, { forUpdate: true });
-      if (sub && isPaying(sub) && !isComp(sub)) throw new AppError("CONFLICT", "This workspace already pays for a plan through the payment provider; a complimentary plan would double it.");
+      if (sub && isPaying(sub) && !isComp(sub)) throw new AppError("CONFLICT", "This team already pays for a plan through the payment provider; a complimentary plan would double it.");
       const ref = `${COMP_REF_PREFIX}${randomUUID()}`;
       const periodEnd = addMonths(t, input.months);
       const creditEnd = minDate(addMonths(t, 1), periodEnd);

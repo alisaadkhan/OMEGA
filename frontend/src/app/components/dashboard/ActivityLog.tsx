@@ -57,7 +57,7 @@ export function ActivityLog() {
     <div className="space-y-5">
       <div>
         <h1 className="text-[32px] font-semibold leading-10 tracking-[-0.025em] text-slate-900">Activity log</h1>
-        <p className="mt-1 text-sm text-slate-500">Lists, campaigns, outreach, Find New Creators runs and contact reveals in your workspace, newest first.</p>
+        <p className="mt-1 text-sm text-slate-500">Lists, campaigns, outreach, Find New Creators runs and contact reveals in your team, newest first.</p>
         <label className="mt-3 inline-flex items-center gap-2 text-xs text-slate-600">
           Show
           <select value={kind} onChange={(e) => setKind(e.target.value as ActivityEvent["kind"] | "")} className="rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-800">
@@ -71,7 +71,7 @@ export function ActivityLog() {
         <ErrorState body={feed.error instanceof Error ? feed.error.message : undefined} onRetry={() => void feed.refetch()} />
       ) : events.length === 0 ? (
         kind ? (
-          <EmptyState icon={<Activity className="h-5 w-5" />} title="Nothing of this kind yet" body="Choose All activity to see everything your workspace has done." />
+          <EmptyState icon={<Activity className="h-5 w-5" />} title="Nothing of this kind yet" body="Choose All activity to see everything your team has done." />
         ) : (
           <EmptyState icon={<Activity className="h-5 w-5" />} title="No recorded activity yet" body="Activity appears here as your team saves creators, runs campaigns and finds new creators." />
         )

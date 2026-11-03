@@ -61,7 +61,7 @@ export function createExportsService(deps: ExportsDeps) {
   const tenant = (ctx: TenantContext) => ({ userId: ctx.userId, workspaceId: ctx.workspaceId });
 
   async function authorise(ctx: TenantContext) {
-    if (ctx.role !== "owner" && ctx.role !== "admin") throw new AppError("FORBIDDEN", "Only the workspace owner or an admin can export data.");
+    if (ctx.role !== "owner" && ctx.role !== "admin") throw new AppError("FORBIDDEN", "Only the team owner or an admin can export data.");
     if (!deps.enabled) throw new AppError("CONFLICT", "Data export is not available on this MUSHIN deployment.", { reason: "export_unavailable" });
     if (!(await deps.billing.getAccess(ctx)).entitlements.export) {
       throw new AppError("ENTITLEMENT_REQUIRED", "Data export is included in the Scale plan. Upgrade to export your lists and campaigns.", { reason: "plan_feature", key: "export" });
@@ -100,7 +100,7 @@ export function createExportsService(deps: ExportsDeps) {
   }
 
   async function list(ctx: TenantContext): Promise<DataExport[]> {
-    if (ctx.role !== "owner" && ctx.role !== "admin") throw new AppError("FORBIDDEN", "Only the workspace owner or an admin can see exports.");
+    if (ctx.role !== "owner" && ctx.role !== "admin") throw new AppError("FORBIDDEN", "Only the team owner or an admin can see exports.");
     return deps.db.withTenant(tenant(ctx), async (tx) => {
       const rows = await tx.select({ e: dataExports, name }).from(dataExports).where(eq(dataExports.workspaceId, ctx.workspaceId)).orderBy(desc(dataExports.createdAt)).limit(20);
       return rows.map((r) => toApi({ ...r.e, name: r.name }));

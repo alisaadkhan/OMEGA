@@ -104,7 +104,7 @@ export function createCampaignsService(deps: CampaignsDeps) {
   async function create(ctx: TenantContext, body: Required<CreateCampaign>): Promise<CampaignSummary> {
     const limit = (await deps.planLimits(ctx)).entitlements.campaignLimit;
     return deps.db.withTenant(tenant(ctx), async (tx) => {
-      if ((await repo.countCampaigns(tx, ctx.workspaceId)) >= repo.MAX_CAMPAIGNS) throw new AppError("CONFLICT", `A workspace can keep up to ${repo.MAX_CAMPAIGNS} campaigns.`);
+      if ((await repo.countCampaigns(tx, ctx.workspaceId)) >= repo.MAX_CAMPAIGNS) throw new AppError("CONFLICT", `A team can keep up to ${repo.MAX_CAMPAIGNS} campaigns.`);
       await assertBelowLimit(tx, ctx.workspaceId, limit);
       const row = await repo.insertCampaign(tx, { ...body, workspaceId: ctx.workspaceId, createdBy: ctx.userId });
       return summaryOf(tx, ctx, row.id);

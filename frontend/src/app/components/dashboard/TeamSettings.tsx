@@ -59,7 +59,7 @@ export function TeamSection({ role, me }: { role: Role; me: string }) {
                 <button onClick={async () => { if (await confirm({ title: `Make ${m.name} the owner?`, body: "They will control billing, roles and deletion. You become an admin.", confirmLabel: "Transfer ownership", destructive: true })) void run("transfer ownership", () => apiRequest("/v1/workspace/transfer-ownership", none, { method: "POST", body: { userId: m.id } }), "Ownership transferred"); }} className="text-xs text-slate-600 underline-offset-2 hover:underline">Make owner</button>
               )}
               {m.role !== "owner" && (m.id === me || role === "owner" || (role === "admin" && m.role === "member")) && (
-                <button onClick={async () => { if (await confirm({ title: m.id === me ? "Leave this workspace?" : `Remove ${m.name}?`, body: m.id === me ? "You lose access to its lists, campaigns and searches." : "They lose access at once. Their past work stays in the workspace.", confirmLabel: m.id === me ? "Leave" : "Remove", destructive: true })) void run(m.id === me ? "leave" : "remove the member", async () => { await apiRequest(`/v1/workspace/members/${m.id}`, none, { method: "DELETE" }); if (m.id === me) { selectWorkspace(null); window.location.reload(); } }, m.id === me ? "You left the workspace" : "Member removed"); }} className="text-xs text-red-700 underline-offset-2 hover:underline">{m.id === me ? "Leave" : "Remove"}</button>
+                <button onClick={async () => { if (await confirm({ title: m.id === me ? "Leave this team?" : `Remove ${m.name}?`, body: m.id === me ? "You lose access to its lists, campaigns and searches." : "They lose access at once. Their past work stays in the workspace.", confirmLabel: m.id === me ? "Leave" : "Remove", destructive: true })) void run(m.id === me ? "leave" : "remove the member", async () => { await apiRequest(`/v1/workspace/members/${m.id}`, none, { method: "DELETE" }); if (m.id === me) { selectWorkspace(null); window.location.reload(); } }, m.id === me ? "You left the team" : "Member removed"); }} className="text-xs text-red-700 underline-offset-2 hover:underline">{m.id === me ? "Leave" : "Remove"}</button>
               )}
             </li>
           ))}
@@ -103,7 +103,7 @@ export function WorkspaceSwitcher({ current }: { current: string }) {
   if (!q.data || q.data.workspaces.length < 2) return null;
   return (
     <label className="block text-xs text-slate-600" style={{ fontWeight: 600 }}>
-      Current workspace
+      Current team
       <select value={current} onChange={(e) => { selectWorkspace(e.target.value); window.location.reload(); }} className="mt-1 block w-full max-w-md rounded-md border border-slate-200 px-2.5 py-1.5 text-sm">
         {q.data.workspaces.map((w) => <option key={w.id} value={w.id}>{w.name} ({w.role})</option>)}
       </select>
@@ -123,7 +123,7 @@ export function WorkspaceMenuItems({ onPicked }: { onPicked: () => void }) {
   const current = me.data?.workspace.id;
   return (
     <div className="border-t border-slate-100 py-1">
-      <div className="px-4 pb-1 pt-1.5 text-[11px] uppercase tracking-wider text-slate-500" style={{ fontWeight: 600 }}>Workspaces</div>
+      <div className="px-4 pb-1 pt-1.5 text-[11px] uppercase tracking-wider text-slate-500" style={{ fontWeight: 600 }}>Teams</div>
       {list.data.workspaces.map((w) => (
         <button
           key={w.id}
@@ -168,7 +168,7 @@ export function PrivacySection({ role, workspaceName, email, onOpenSupport }: { 
       if (data.truncated.length > 0) toast.error("Export downloaded, but incomplete", `Cut at the row limit: ${data.truncated.join(", ")}. Ask Support for a complete copy.`);
       else toast.success("Export downloaded");
     } catch (err) {
-      toast.error("Couldn't export the workspace", errText(err));
+      toast.error("Couldn't export your team's data", errText(err));
     } finally {
       setBusy(false);
     }
@@ -199,23 +199,23 @@ export function PrivacySection({ role, workspaceName, email, onOpenSupport }: { 
   return (
     <section className={`${card} space-y-4 text-sm text-slate-600`}>
       <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Privacy & data</div>
-      <p>Your lists, campaigns, notes, outreach log and support requests are private to this workspace. Creator profiles are public data that MUSHIN keeps for every customer. Creators who want their own profile removed can use the public removal form linked in the site footer.</p>
+      <p>Your lists, campaigns, notes, outreach log and support requests are private to this team. Creator profiles are public data that MUSHIN keeps for every customer. Creators who want their own profile removed can use the public removal form linked in the site footer.</p>
       <div>
-        <div className="text-slate-900" style={{ fontWeight: 600 }}>Export this workspace</div>
+        <div className="text-slate-900" style={{ fontWeight: 600 }}>Export this team</div>
         <p className="text-xs">A JSON file with your lists, campaigns, outreach log, saved searches, support requests, jobs and credit history. Contact details you revealed are not included (they belong to the creators).</p>
-        {role === "owner" || role === "admin" ? <button onClick={() => void exportData()} disabled={busy} className="mt-2 rounded-md border border-slate-200 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 disabled:opacity-50">Download export</button> : <p className="mt-1 text-xs text-slate-500">Only the owner or an admin can export the workspace.</p>}
+        {role === "owner" || role === "admin" ? <button onClick={() => void exportData()} disabled={busy} className="mt-2 rounded-md border border-slate-200 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 disabled:opacity-50">Download export</button> : <p className="mt-1 text-xs text-slate-500">Only the owner or an admin can export the team.</p>}
       </div>
       {role === "owner" && (
         <form className="space-y-2 rounded-lg border border-red-200 p-3" onSubmit={(e) => { e.preventDefault(); void remove("/v1/workspace/delete", { confirmName }, () => { selectWorkspace(null); }); }}>
-          <div className="text-red-800" style={{ fontWeight: 600 }}>Delete this workspace</div>
+          <div className="text-red-800" style={{ fontWeight: 600 }}>Delete this team</div>
           <p className="text-xs">Erases its lists, campaigns, outreach log, searches, support requests and discovery history, and removes everyone's access. Cancel any paid subscription first. Billing records are kept for accounting. This cannot be undone.</p>
           <label className="block text-xs">Type <span className="font-mono">{workspaceName}</span> to confirm<input value={confirmName} onChange={(e) => setConfirmName(e.target.value)} className="mt-1 block w-full max-w-md rounded-md border border-slate-200 px-2.5 py-1.5 text-sm" /></label>
-          <button type="submit" disabled={busy || confirmName.trim() !== workspaceName} className="rounded-md bg-red-600 px-3 py-1.5 text-xs text-white disabled:opacity-50">Delete workspace</button>
+          <button type="submit" disabled={busy || confirmName.trim() !== workspaceName} className="rounded-md bg-red-600 px-3 py-1.5 text-xs text-white disabled:opacity-50">Delete team</button>
         </form>
       )}
       <form className="space-y-2 rounded-lg border border-red-200 p-3" onSubmit={(e) => { e.preventDefault(); void remove("/v1/me/delete", { confirmEmail }, () => { selectWorkspace(null); setAccountDeleted(true); }); }}>
         <div className="text-red-800" style={{ fontWeight: 600 }}>Delete my account</div>
-        <p className="text-xs">Ends your access to every workspace and erases your profile. Workspaces you own alone are deleted too; if others use a workspace you own, transfer ownership first. Your sign-in login is removed too, so the address can be used again later.</p>
+        <p className="text-xs">Ends your access to every team and erases your profile. Teams you own alone are deleted too; if others use a team you own, transfer ownership first. Your sign-in login is removed too, so the address can be used again later.</p>
         <label className="block text-xs">Type your email <span className="font-mono">{email}</span> to confirm<input value={confirmEmail} onChange={(e) => setConfirmEmail(e.target.value)} className="mt-1 block w-full max-w-md rounded-md border border-slate-200 px-2.5 py-1.5 text-sm" /></label>
         <button type="submit" disabled={busy || confirmEmail.trim().toLowerCase() !== email.toLowerCase()} className="rounded-md bg-red-600 px-3 py-1.5 text-xs text-white disabled:opacity-50">Delete my account</button>
       </form>
