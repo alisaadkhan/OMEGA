@@ -19,6 +19,7 @@ import { inflateSync } from "node:zlib";
  */
 const MAX_DECODED = 25 * 1024 * 1024;
 const MAX_CHAIN = 3;
+const MAX_DECODED_STREAMS = 5_000;
 const IMAGE_CODECS = new Set(["DCTDecode", "JPXDecode", "CCITTFaxDecode", "JBIG2Decode"]);
 const TEXT_FILTERS = new Set(["FlateDecode", "ASCII85Decode", "ASCIIHexDecode"]);
 const DELIMS = "/[]<>(){}%";
@@ -231,6 +232,7 @@ export function pdfScan(bytes: Uint8Array): { ok: true; text: string } | { ok: f
   if (/\/Encrypt(?![A-Za-z0-9])/.test(unescapeNames(text))) return no("encrypted");
   const parts = [text];
   let used = 0;
+  let decoded = 0;
   for (let at = text.indexOf("stream"); at !== -1; at = text.indexOf("stream", at + 6)) {
     if (at >= 3 && text.slice(at - 3, at) === "end") continue;
     let start = at + 6;
@@ -261,13 +263,15 @@ export function pdfScan(bytes: Uint8Array): { ok: true; text: string } | { ok: f
         // Pixels: a reader needs /N and /First to take objects out of a stream, so an image without them holds none.
         // Not decoding them keeps ordinary screenshots and scans inside the size budget.
       } else {
+        if (++decoded > MAX_DECODED_STREAMS) return no("too many compressed streams");
         let data: Buffer | null = raw.subarray(start, end);
         for (const f of filters) {
+          // Every stage of a chain is charged, not only the last one.
           data = decode(f, data, MAX_DECODED - used);
           if (data === null) return no(`a ${f} stream could not be read within the size limit`);
+          used += data.length;
+          if (used > MAX_DECODED) return no("too much compressed content");
         }
-        used += data.length;
-        if (used > MAX_DECODED) return no("too much compressed content");
         parts.push(data.toString("latin1"));
       }
     } else if (!(filters.length === 1 && IMAGE_CODECS.has(filters[0] as string) && isImage && !mayHoldObjects)) {
