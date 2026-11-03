@@ -1,0 +1,298 @@
+{
+ "mode": "refresh",
+ "db": "mushin_catalog_v4",
+ "capUsd": 7,
+ "started": "2026-11-03T12:27:28.908Z",
+ "finished": "2026-11-03T12:40:24.805Z",
+ "spendByProvider": [
+  {
+   "provider": "apify",
+   "calls": 48,
+   "usd": "0.124800"
+  },
+  {
+   "provider": "gemini",
+   "calls": 12,
+   "usd": "0.000000"
+  },
+  {
+   "provider": "ollama",
+   "calls": 114,
+   "usd": "0.033455"
+  }
+ ],
+ "jobs": [
+  {
+   "i": 0,
+   "creatorId": "71d4d91d-de85-4767-929a-161b0bac3fc9",
+   "status": "up_to_date",
+   "outcome": null,
+   "error": null,
+   "ms": 4
+  },
+  {
+   "i": 1,
+   "creatorId": "580ae9b2-b1ff-47a2-981a-70b640a41960",
+   "status": "up_to_date",
+   "outcome": null,
+   "error": null,
+   "ms": 3
+  },
+  {
+   "i": 2,
+   "creatorId": "2cfc7273-74b7-414d-9cee-ccea03746956",
+   "status": "completed",
+   "outcome": "refreshed",
+   "error": null,
+   "ms": 25625
+  },
+  {
+   "i": 3,
+   "creatorId": "672143db-8a19-472e-b056-25490218a9d7",
+   "status": "up_to_date",
+   "outcome": null,
+   "error": null,
+   "ms": 6
+  },
+  {
+   "i": 4,
+   "creatorId": "2e34a8ee-2e90-44f6-ad6f-0ccee6884b70",
+   "status": "completed",
+   "outcome": "refreshed",
+   "error": null,
+   "ms": 26443
+  },
+  {
+   "i": 5,
+   "creatorId": "b24eff7f-8fae-4733-980c-088104a29727",
+   "status": "completed",
+   "outcome": "refreshed",
+   "error": null,
+   "ms": 26219
+  },
+  {
+   "i": 6,
+   "creatorId": "7a54b4b6-a830-46bd-a133-ea303d1e8a04",
+   "status": "completed",
+   "outcome": "refreshed",
+   "error": null,
+   "ms": 14711
+  },
+  {
+   "i": 7,
+   "creatorId": "4d6a3921-a7bb-43a9-afce-3e5b4a72e450",
+   "status": "completed",
+   "outcome": "refreshed",
+   "error": null,
+   "ms": 24275
+  },
+  {
+   "i": 8,
+   "creatorId": "ed6e6892-2999-40ef-81bc-8c0dd8b6be0d",
+   "status": "completed",
+   "outcome": "refreshed",
+   "error": null,
+   "ms": 15311
+  },
+  {
+   "i": 9,
+   "creatorId": "a6faa221-8eae-4733-99e7-4ceb59bea841",
+   "status": "completed",
+   "outcome": "refreshed",
+   "error": null,
+   "ms": 41717
+  },
+  {
+   "i": 10,
+   "creatorId": "4dbb1a9c-94ef-4b20-9478-b45d4b9ced07",
+   "status": "completed",
+   "outcome": "refreshed",
+   "error": null,
+   "ms": 20897
+  },
+  {
+   "i": 11,
+   "creatorId": "b155066f-daca-473e-904b-5957ec315c93",
+   "status": "completed",
+   "outcome": "refreshed",
+   "error": null,
+   "ms": 35216
+  },
+  {
+   "i": 12,
+   "creatorId": "8fa6ed65-abec-4c62-9db0-2f6188614b71",
+   "status": "completed",
+   "outcome": "refreshed",
+   "error": null,
+   "ms": 46528
+  },
+  {
+   "i": 13,
+   "creatorId": "7bac2a9a-d3eb-46cd-99a2-eea337ff4cf0",
+   "status": "completed",
+   "outcome": "refreshed",
+   "error": null,
+   "ms": 31807
+  },
+  {
+   "i": 14,
+   "creatorId": "e832b427-4f6b-47e6-b4c0-6d6783b1abff",
+   "status": "completed",
+   "outcome": "refreshed",
+   "error": null,
+   "ms": 37226
+  },
+  {
+   "i": 15,
+   "creatorId": "a77cac22-e38b-48fb-ab6d-a4a7d1bc97b4",
+   "status": "completed",
+   "outcome": "refreshed",
+   "error": null,
+   "ms": 21199
+  },
+  {
+   "i": 16,
+   "creatorId": "ea2d05d4-4e9e-41a5-8dc3-24009ab28381",
+   "status": "completed",
+   "outcome": "refreshed",
+   "error": null,
+   "ms": 26532
+  },
+  {
+   "i": 17,
+   "creatorId": "f92107a5-50a2-4e73-88d8-cef92cc9728f",
+   "status": "up_to_date",
+   "outcome": null,
+   "error": null,
+   "ms": 2
+  },
+  {
+   "i": 18,
+   "creatorId": "f9476194-fe16-419d-b1bf-48d58e5abb9f",
+   "status": "completed",
+   "outcome": "refreshed",
+   "error": null,
+   "ms": 45019
+  },
+  {
+   "i": 19,
+   "creatorId": "f9d1cf02-50f8-480b-a7af-77d8bda4b13a",
+   "status": "completed",
+   "outcome": "refreshed",
+   "error": null,
+   "ms": 33500
+  },
+  {
+   "i": 20,
+   "creatorId": "a8b3465a-6409-459e-81ae-b188353df2bc",
+   "status": "up_to_date",
+   "outcome": null,
+   "error": null,
+   "ms": 3
+  },
+  {
+   "i": 21,
+   "creatorId": "1dd1e2b5-6cda-487e-9486-17dcd210ff9f",
+   "status": "completed",
+   "outcome": "refreshed",
+   "error": null,
+   "ms": 47130
+  },
+  {
+   "i": 22,
+   "creatorId": "f4097943-932a-4a3f-b784-f83afc0a7162",
+   "status": "completed",
+   "outcome": "refreshed",
+   "error": null,
+   "ms": 28745
+  },
+  {
+   "i": 23,
+   "creatorId": "47277726-abfc-4858-83d2-561bc38f5e9c",
+   "status": "completed",
+   "outcome": "refreshed",
+   "error": null,
+   "ms": 15655
+  },
+  {
+   "i": 24,
+   "creatorId": "53ba313f-eb81-488e-9a55-5ecdbad2f095",
+   "status": "completed",
+   "outcome": "refreshed",
+   "error": null,
+   "ms": 24891
+  },
+  {
+   "i": 25,
+   "creatorId": "ee191dfb-8fff-4177-afd4-a915f877c389",
+   "status": "up_to_date",
+   "outcome": null,
+   "error": null,
+   "ms": 4
+  },
+  {
+   "i": 26,
+   "creatorId": "57007806-d870-4cf2-8802-1bb0b88384c2",
+   "status": "completed",
+   "outcome": "refreshed",
+   "error": null,
+   "ms": 27935
+  },
+  {
+   "i": 27,
+   "creatorId": "0d837c56-0170-459a-ba51-65b678fedb33",
+   "status": "up_to_date",
+   "outcome": null,
+   "error": null,
+   "ms": 3
+  },
+  {
+   "i": 28,
+   "creatorId": "42d1c3df-10f6-409a-a77b-a83fe11a8cd5",
+   "status": "up_to_date",
+   "outcome": null,
+   "error": null,
+   "ms": 2
+  },
+  {
+   "i": 29,
+   "creatorId": "15a4e447-62d1-4a90-abac-f18b2c5477b1",
+   "status": "completed",
+   "outcome": "refreshed",
+   "error": null,
+   "ms": 41661
+  },
+  {
+   "i": 30,
+   "creatorId": "cb2ad380-57d6-44b2-ad99-7735e2013e4b",
+   "status": "completed",
+   "outcome": "refreshed",
+   "error": null,
+   "ms": 25913
+  },
+  {
+   "i": 31,
+   "creatorId": "49a06493-55da-4996-9b26-cf4e19c97ae1",
+   "status": "completed",
+   "outcome": "refreshed",
+   "error": null,
+   "ms": 39065
+  },
+  {
+   "i": 32,
+   "creatorId": "8843817c-f634-4b08-afe3-f565b8b2ddf8",
+   "status": "completed",
+   "outcome": "refreshed",
+   "error": null,
+   "ms": 22422
+  },
+  {
+   "i": 33,
+   "creatorId": "b3207d75-1779-4652-8103-4130594576d7",
+   "status": "completed",
+   "outcome": "refreshed",
+   "error": null,
+   "ms": 30021
+  }
+ ]
+}

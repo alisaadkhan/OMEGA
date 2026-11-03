@@ -1,0 +1,50 @@
+{
+ "mode": "seed",
+ "db": "mushin_catalog_v4",
+ "capUsd": 7,
+ "started": "2026-11-03T12:24:07.502Z",
+ "finished": "2026-11-03T12:26:00.200Z",
+ "spendByProvider": [
+  {
+   "provider": "apify",
+   "calls": 6,
+   "usd": "0.031000"
+  },
+  {
+   "provider": "gemini",
+   "calls": 3,
+   "usd": "0.000000"
+  },
+  {
+   "provider": "ollama",
+   "calls": 12,
+   "usd": "0.002552"
+  }
+ ],
+ "jobs": [
+  {
+   "i": 0,
+   "handle": "jannatmirza",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 90231
+  },
+  {
+   "i": 1,
+   "handle": "mooroo",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 10415
+  },
+  {
+   "i": 2,
+   "handle": "masoomana",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 11373
+  }
+ ]
+}

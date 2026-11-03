@@ -1,15 +1,15 @@
 {
  "db": "live-yknpqhrxutxpcrlscont",
  "mode": "apply",
- "at": "2026-11-03T12:57:33.392Z",
- "creators": 3199,
+ "at": "2026-11-03T17:14:17.739Z",
+ "creators": 3402,
  "changed": 0,
  "transitions": {},
  "before": {
   "instagram": {
-   "pakistan": 506,
-   "unknown": 250,
-   "foreign": 16
+   "pakistan": 624,
+   "unknown": 328,
+   "foreign": 23
   },
   "youtube": {
    "foreign": 285,
@@ -24,9 +24,9 @@
  },
  "after": {
   "instagram": {
-   "pakistan": 506,
-   "unknown": 250,
-   "foreign": 16
+   "pakistan": 624,
+   "unknown": 328,
+   "foreign": 23
   },
   "youtube": {
    "foreign": 285,
