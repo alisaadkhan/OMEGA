@@ -1,4 +1,4 @@
-import type { CreatorIndexer, SummaryWriter, YoutubeRefreshReport } from "../../api/src/modules/creators/index";
+import type { CreatorIndexer, ReassessmentReport, SummaryWriter, YoutubeRefreshReport } from "../../api/src/modules/creators/index";
 import type { HandlerRegistry, JobData } from "./dispatcher";
 
 function creatorIdOf(data: JobData): string {
@@ -7,10 +7,18 @@ function creatorIdOf(data: JobData): string {
   return id;
 }
 
-export function creatorHandlers(o: { indexer: Pick<CreatorIndexer, "sync" | "reconcile">; summaries: Pick<SummaryWriter, "generate">; expireYoutube?: () => Promise<string[]>; refreshYoutube?: (() => Promise<YoutubeRefreshReport>) | null; alert?: (e: { key: string; severity: "warning" | "critical"; message: string }) => Promise<void>; sweep?: () => Promise<unknown> }): HandlerRegistry {
+export function creatorHandlers(o: { indexer: Pick<CreatorIndexer, "sync" | "reconcile">; summaries: Pick<SummaryWriter, "generate">; expireYoutube?: () => Promise<string[]>; reassessStep?: () => Promise<ReassessmentReport>; refreshYoutube?: (() => Promise<YoutubeRefreshReport>) | null; alert?: (e: { key: string; severity: "warning" | "critical"; message: string }) => Promise<void>; sweep?: () => Promise<unknown> }): HandlerRegistry {
   return {
     "creator.changed": async (data) => {
       await o.indexer.sync([creatorIdOf(data)]);
+    },
+    // Phase 5: one batch of the versioned catalogue reassessment (stored answers only; no provider or AI call), then
+    // the touched creators are re-projected. Does nothing once the current rules version has been through everyone.
+    "creator.reassessment_step": async (_data, { logger }) => {
+      if (!o.reassessStep) return;
+      const r = await o.reassessStep();
+      if (r.creatorIds.length) await o.indexer.sync(r.creatorIds);
+      if (r.creatorIds.length || !r.finished) logger.info({ version: r.version, processed: r.processed, changed: r.changed, finished: r.finished }, "catalogue reassessment step");
     },
     "creator.summary_requested": async (data, { logger }) => {
       const creatorId = creatorIdOf(data);

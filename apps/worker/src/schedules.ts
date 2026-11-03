@@ -33,6 +33,8 @@ export const SCHEDULES: Schedule[] = [
   billing("comp_period_end", "55 2 * * *"),
   billing("reconcile", "30 4 * * *"),
   { queue: "rescore-low", key: "search_reconcile", cron: "45 3 * * *", data: data("search_reconcile", "creator.reindex_all", {}) },
+  // Versioned catalogue reassessment (Phase 5): 200 creators every 15 minutes until the current rules version is done.
+  { queue: "rescore-low", key: "reassessment_step", cron: "*/15 * * * *", data: data("reassessment_step", "creator.reassessment_step", {}) },
   { queue: "rescore-low", key: "lifecycle_sweep", cron: "20 4 * * *", data: data("lifecycle_sweep", "creator.lifecycle_sweep", {}) },
   // YouTube refresh at 20 days (owner design), before retention clears what is still unrefreshed at 30. Skipped without API access.
   { queue: "rescore-low", key: "youtube_refresh", cron: "10 3 * * *", data: data("youtube_refresh", "creator.youtube_refresh", {}) },

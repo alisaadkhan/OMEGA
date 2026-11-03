@@ -36,6 +36,7 @@ export { conceptsOf, NICHE_TAXONOMY } from "./terminology";
 export type { CreatorPlatform } from "./rules";
 export { cleanText } from "./enrichment/standardize";
 export { standardize } from "./enrichment/standardize";
+export { REASSESSMENT_VERSION, reassessCreators, reassessNextBatch, type ReassessmentReport } from "./reassessment";
 export type { StandardPost, StandardProfile } from "./enrichment/standardize";
 export { fenced, hasContactOrLink, redactContacts } from "./rules";
 export { rankCards } from "./ranking";

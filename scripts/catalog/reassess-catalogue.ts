@@ -14,9 +14,9 @@ import { parseArgs } from "node:util";
 import { createLogger } from "@mushin/core";
 import { createDatabase } from "@mushin/db";
 import { sql } from "drizzle-orm";
-import { bulkRefreshProfileCountries, classifyAccountType, contentPerformance, createCreatorIndexer, evaluateV3, NON_TARGET_TYPES, standardize, type AccountType } from "../../apps/api/src/modules/creators/index";
+import { bulkRefreshProfileCountries, classifyAccountType, contentPerformance, createCreatorIndexer, evaluateV3, NON_TARGET_TYPES, REASSESSMENT_VERSION, standardize, type AccountType } from "../../apps/api/src/modules/creators/index";
 
-export const REASSESSMENT_VERSION = "reassess-2026-11-04";
+
 const { values } = parseArgs({ options: { db: { type: "string" }, apply: { type: "boolean", default: false }, out: { type: "string" } } });
 const dbName = values.db ?? "";
 if (!/^mushin_catalog_[a-z0-9_]+$/.test(dbName) || /eval/.test(dbName)) throw new Error("--db must name a local operational catalogue (mushin_catalog_*)");

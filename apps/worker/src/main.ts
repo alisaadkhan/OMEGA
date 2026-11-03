@@ -1,9 +1,9 @@
 import { createLogger, loadWorkerConfig } from "@mushin/core";
 import { createDatabase, createDbProviderCallSink, createDbProviderRunStore, createDbReservationLedger, llmSpendSince, providerPaused, recordAlertEvent, recordWorkerHeartbeat, UNVERIFIED_TLS_WARNING } from "@mushin/db";
-import { createApifyClient, createSharedSpendGuard, reconcileApifyRuns, createYouTubeAudienceSource, createLlm, pausableGuard, pausableLlm, createObjectStorage, createPayments, createProfileScraper, createSearchIndex, createSerperSearch, createYouTubeSearch } from "@mushin/integrations";
+import { createApifyClient, createSharedSpendGuard, reconcileApifyRuns, createYouTubeAudienceSource, createLlm, pausableGuard, pausableLlm, createObjectStorage, RAW_PAYLOAD_BUCKET, createPayments, createProfileScraper, createSearchIndex, createSerperSearch, createYouTubeSearch } from "@mushin/integrations";
 import { createAudienceRunner } from "../../api/src/modules/audience/index";
 import { createBillingService, noAccessCache } from "../../api/src/modules/billing/index";
-import { createContactChecker, createCreatorIndexer, createEnrichmentPipeline, createEraser, createSummaryWriter, getEnrichmentSettings, expireYoutubeApiData, lifecycleSweep, refreshDueYoutube, systemMailResolver } from "../../api/src/modules/creators/index";
+import { createContactChecker, createCreatorIndexer, createEnrichmentPipeline, createEraser, createSummaryWriter, getEnrichmentSettings, expireYoutubeApiData, lifecycleSweep, reassessNextBatch, refreshDueYoutube, systemMailResolver } from "../../api/src/modules/creators/index";
 import { createCachedSearch, createDiscoveryRunner, createLiveRunner } from "../../api/src/modules/discovery/index";
 import { createAttachments } from "../../api/src/modules/support/index";
 import { audienceHandlers } from "./audience-handlers";
@@ -93,7 +93,8 @@ const worker = await startWorker({
   logger,
   handlers: { ...defaultHandlers(db, { reconcileProviderRuns, checkProviders: () => checkProviderStatus({ db, config }) }), ...billingHandlers(billing), ...notifyHandlers(), ...creatorHandlers({ indexer, summaries, expireYoutube: () => expireYoutubeApiData(db, pipeline.storage ? { storage: pipeline.storage } : {}),
       refreshYoutube: config.scraping.youtubeApiKey ? () => refreshDueYoutube({ db, refresh: pipeline.refreshKnown, onError: (err, url) => logger.warn({ err, url }, "YouTube refresh failed; retried tomorrow") }) : null,
-      alert: (e) => db.withSystem((tx) => recordAlertEvent(tx, e)), sweep: () => lifecycleSweep({ db, apply: true, reproject: (ids) => indexer.sync(ids) }) }), ...discoveryHandlers({ runner, liveRunner, searchCache, pipeline }), ...erasureHandlers({ eraser }),
+      alert: (e) => db.withSystem((tx) => recordAlertEvent(tx, e)), sweep: () => lifecycleSweep({ db, apply: true, reproject: (ids) => indexer.sync(ids) }),
+      reassessStep: () => reassessNextBatch({ db, readPayload: async (key) => { const b = pipeline.storage ? await pipeline.storage.get(RAW_PAYLOAD_BUCKET, key) : null; return b ? JSON.parse(new TextDecoder().decode(b)) : null; } }) }), ...discoveryHandlers({ runner, liveRunner, searchCache, pipeline }), ...erasureHandlers({ eraser }),
     // Support attachments 90 days after the ticket was resolved or closed, unless on legal hold (0076).
     "system.purge_support_attachments": async (_d, { logger: l }) => {
       l.info({ purged: await createAttachments({ db, storage: pipeline.storage ?? null }).purgeExpired() }, "expired support attachments purged");
