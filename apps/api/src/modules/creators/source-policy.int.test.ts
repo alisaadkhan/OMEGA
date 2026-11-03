@@ -105,4 +105,17 @@ describe("YouTube derived-metrics policy", () => {
     expect(url?.canonical_url).toMatch(/youtube.com/);
     expect(await expireYoutubeApiData(db)).toEqual([]); // idempotent
   });
+
+  it("also clears content performance, post locations, niche source and a channel-read account type, keeping staff decisions (0078)", async () => {
+    const staffKept = await addCreator(db, { displayName: "Staff Tube", primaryPlatform: "youtube", snapshot, profiles: [{ platform: "youtube", handle: "stafftube", followers: 8_000 }] });
+    await ownerQuery(`update gcp.creator_profiles set last_scraped_at = now() - interval '31 days', median_views = 900, median_engagement_rate = 4, performance_views_sample = 6, performance_at = now(), post_locations = '{Lahore}' where creator_id in ('${yt}', '${staffKept}');
+      update gcp.creators set niche_source = 'bio_identified', niche_posts_assessed = 6, account_type = 'BRAND_ACCOUNT', account_type_source = 'rules', account_type_confidence = 'high' where id = '${yt}';
+      update gcp.creators set account_type = 'INDIVIDUAL_CREATOR', account_type_source = 'staff', account_type_confidence = 'high' where id = '${staffKept}';`);
+    await expireYoutubeApiData(db);
+    const [p] = await ownerQuery<Record<string, unknown>>(`select median_views, median_engagement_rate, performance_views_sample, performance_at, post_locations from gcp.creator_profiles where creator_id = '${yt}'`);
+    expect(p).toEqual({ median_views: null, median_engagement_rate: null, performance_views_sample: null, performance_at: null, post_locations: null });
+    const cs = await ownerQuery<{ id: string; niche_source: string | null; niche_posts_assessed: number | null; account_type: string | null; account_type_source: string | null }>(`select id, niche_source, niche_posts_assessed, account_type, account_type_source from gcp.creators`);
+    expect(cs.find((x) => x.id === yt)).toMatchObject({ niche_source: null, niche_posts_assessed: null, account_type: null, account_type_source: null });
+    expect(cs.find((x) => x.id === staffKept)).toMatchObject({ account_type: "INDIVIDUAL_CREATOR", account_type_source: "staff" });
+  });
 });
