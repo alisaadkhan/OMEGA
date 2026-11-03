@@ -254,12 +254,15 @@ if (mode === "reassess") {
     }
     logger.info(report.at(-1), "expand");
     // Only a definite answer (saved, not found, private, below minimum...) marks a handle tried; a provider outage leaves
-    // it queued, and three outages in a row stop the run rather than burn through the queue.
+    // it queued. A flaky connection gets a growing pause (1, 2, 3... up to 5 minutes); eight outages in a row stop the run.
     if (providerDown) {
-      if (++providerFailures >= 3) {
-        logger.warn({ handle: h }, "provider unavailable three times in a row: stopping");
+      if (++providerFailures >= 8) {
+        logger.warn({ handle: h }, "provider unavailable eight times in a row: stopping");
         break;
       }
+      const pauseMs = Math.min(providerFailures * 60_000, 300_000);
+      logger.warn({ handle: h, providerFailures, pauseMs }, "provider unavailable: pausing before the next candidate");
+      await new Promise((r) => setTimeout(r, pauseMs));
       continue;
     }
     providerFailures = 0;
