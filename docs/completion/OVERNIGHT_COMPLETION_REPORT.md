@@ -105,3 +105,30 @@ git push github feat/internal-completion-and-search-acceptance
 5. Live search now: **Instagram 169, TikTok 5, YouTube 382** creators; 0 organisations, 0 emails, 0 phone numbers in the
    index.
 6. Checks before push: unit 657/657, lint clean, typecheck clean, frontend build passes.
+
+## After the push (3 November, continued)
+
+| | Live after the push | Local now (`mushin_catalog_v4`) |
+|---|---|---|
+| Instagram searchable | 169 → 197 (public records) | 239 |
+| TikTok searchable | 5 | 24 |
+| YouTube searchable | 382 | 382 |
+
+- **Public records**: 26 Pakistani public figures added by expansion, each with the English Wikipedia article that
+  calls them Pakistani, checked against the account's display name (`seed/expansion-public-record-2026-11-03.json`);
+  applied locally and live. Accounts without such an article stay hidden; international brands (Huda Beauty, MAC, NYX,
+  Too Faced) stay hidden.
+- **Own linked accounts**: 92 Instagram/TikTok accounts that Pakistani creators link as their own; 71 created, 21 gone or
+  private. A full country pass carried the creators' country to 47 of them (TikTok 9 → 24 searchable). The build now
+  runs that pass after every seed and expand run.
+- **Customer copy**: "workspace" no longer appears to customers (screens, landing page, API messages); it is "team".
+  Staff pages and the legal text are unchanged (a legal wording change needs a new terms version).
+- **Expansion resilience**: a provider outage no longer marks a candidate as tried; three in a row stop the run.
+- Checks: unit 657/657; integration 729 passed (the 4 Meilisearch files run in CI only); customer browser suite
+  108/55/54 with no failures; VAR2-L04 updated to the storefront-city rule.
+- Spend: cumulative USD 4.43 of the 7.00 cap. Apify account: USD 2.11 of its USD 5 monthly limit.
+
+**Blocked (network):** from 08:30 this machine lost its connection to Apify, Vercel, Wikipedia, the live database and
+finally GitHub. Not pushed yet: the copy change, the build fixes and the public-record manifests (commits after
+`c7eeac3`). The next expansion batch (250 candidates, ≈ USD 1), loading the new local creators to live, and the push
+resume as soon as the connection returns.
