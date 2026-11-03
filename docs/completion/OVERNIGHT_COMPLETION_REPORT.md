@@ -167,3 +167,87 @@ resume as soon as the connection returns.
   Loaded live: **3,402 creators; searchable Instagram 346, TikTok 25, YouTube 382**; 0 organisations, 0 emails, 0 phone
   numbers in the index; 201 more photos linked.
 - Browser suites: customer 108 / 55 / 54 passed, 0 failed; staff 34 passed.
+
+# Master directive 2026-11-03: creator intelligence (4 November)
+
+Commits `86501f0` to `HEAD` on `feat/internal-completion-and-search-acceptance`, **not pushed** (see "Waiting for the
+owner"). Migrations 0074–0079 are applied to the local test and catalogue databases only; live is at 0073.
+
+## Implemented
+
+- **Freshness (Part 1)**: under 30 days Current, 30+ Aging, no fetch time Unknown, per platform profile.
+- **Search and profile (Part 2)**: City filter removed from search (cities stay on profiles); Refresh profile beside the
+  IQ score; free "Reassess" (stored data, no niche, never a discovery run, once per creator per 24 h); every missing
+  metric says why (YouTube policy, not collected, too few posts).
+- **Niche (Part 3, 0074)**: bio first (role words such as educator, journalist, developer), else 6–9 recent posts read
+  together, hashtags only as support; source and posts read stored and shown as "Estimated niche · Based on N recent
+  posts". Unknown never matches a niche filter.
+- **Location (Part 4)**: five outcomes per profile (Pakistan confirmed, outside Pakistan, Pakistani abroad, unknown,
+  conflicting) in the API and the profile; "abroad" only from the profile's own words.
+- **Account types (Part 5, 0075)**: individual creator, public figure, company, brand, shop, media, fan page, unknown;
+  rules on platform category, bio and handle with a famous-creator safeguard; non-target types leave search (reviewable
+  staff override); owner-named creators stay creators.
+- **Metrics (Part 7)**: typical views = median of recent comparable non-pinned videos (was the mean); ER = median of
+  recent non-pinned posts (per follower on Instagram, per view on TikTok/YouTube); authenticity labelled "Estimate from
+  public signals"; contact routes (business/other enquiries, links, linked profiles) from masked bios.
+- **Owner decisions (Part 8)**:
+  - Attachments (0076): JPG/PNG/WebP/PDF ≤ 5 MB for customers and staff; private bucket with storage-enforced size and
+    type limits; signed upload and 60-second download links (always a download); real type from magic bytes; PDF scan
+    hook (dictionary tokenizer, Flate/ASCII85/hex decoding, active content refused); 90-day purge after close unless
+    legal hold; files removed when a ticket, team or account is erased; no uploads on a closed request.
+  - Exports (0077): team owner and admins export every list or campaign; any other member only one they created; members
+    see and download only their own exports; every download recorded; contacts never exported.
+  - YouTube: audit in `docs/completion/youtube-audit-2026-11-04.md`; retention (0078) now also clears the columns added
+    after 0063 (843 account types and 1,197 niche sources locally would have outlived 30 days). No API call made.
+  - elig-3 badge: "Meets High-Performance Standard" / "Below View/ER Benchmark" / "Performance Assessment Incomplete" on
+    the profile; elig-2 stays the gate. Mooroo = @mooroosicity.
+- **Continuous reassessment (Phase 5, 0079)**: bump `REASSESSMENT_VERSION` and the worker re-derives account type,
+  performance and country for every active creator, 200 every 15 minutes, resuming from its cursor; stored answers only.
+- **Groq** (gpt-oss-120b) between Gemini and Ollama. No OpenRouter variable exists in `.env`, so none is wired.
+
+## Dry run and database updated (local `mushin_catalog_v4`)
+
+Version `reassess-2026-11-04`, report `docs/completion/inventory/2026-11-04-reassessment-mushin_catalog_v4.json`:
+below follower minimum 1,071 · location unknown 982 · retained, account type unknown 473 · confirmed non-Pakistani 312 ·
+retained individual creators 299 · shops 158 · public figures 63 · brands 28 · fan pages 16 · media 8 · companies 7 ·
+possible minors 5. Searchable after apply: Instagram 312, TikTok 25, YouTube 377 (the drop is non-target accounts).
+elig-3 badges: Instagram 33 meet / 834 below / 111 incomplete; TikTok 9 / 41 / 15; YouTube all incomplete (policy).
+
+## Five records (Part 9)
+
+`docs/completion/inventory/2026-11-04-metrics-audit-five-records.md`, post by post:
+
+| Record | Stored before | Now | Note |
+|---|---|---|---|
+| Instagram @duckybhai | typical views 2.52M (mean) | 1.03M median of 9 Reels; ER 6.34% median of 10 | one viral Reel inflated the mean |
+| Instagram @mooroosicity | 1.07M (mean) | 185K median of 10 Reels; ER 4.94% | mean was 5.8× the typical Reel |
+| Instagram @zaidalit | 3.30M (mean) | 3.15M median; ER 9.58% | consistent creator: mean ≈ median |
+| TikTok @jannatmirza | 1.01M (mean) | 901K median of 6 videos; ER 8.79% per view | matches stored |
+| YouTube @ajffbt | ER 5.44%, authenticity 98 hidden | shown as "not calculated for YouTube under its API rules" | policy, not missing data |
+
+## Search synchronised
+
+Local only: the reassessment apply re-projected search documents (reconcile). Live search is unchanged until the sync.
+
+## Tested
+
+| Suite | Result |
+|---|---|
+| Unit | 674 passed |
+| Integration (local) | 739 passed, 3 expected-fail, 34 skipped; the 4 Meilisearch files run only in CI. The RLS guard caught that attachments lacked forced RLS: fixed in 0076, rerun 30/30 |
+| Typecheck, lint, frontend build | clean |
+| Browser, customer | main 108/0, break-it 55/0, after restart 54/0 (first run caught the missing contact-availability line in the profile; fixed) |
+| Browser, staff (axe on every tab) | 34/0 |
+| PDF scan on real PDFs in the repo | 4/4 accepted; crafted bypasses (escaped names, object streams, hex/ASCII85 chains, indirect filters, predictors) refused |
+
+Verified: the stored ER and typical views of the five records match the post-by-post medians.
+
+## Waiting for the owner
+
+1. **Live sync and push**: apply 0074–0079 to the live database (preflight and schema snapshot first), run the
+   reassessment there (it hides shops, brands, media, companies and fan pages from search), then push. The pushed code
+   needs those migrations, so the two go together.
+2. **PDF scanning**: the built-in scan is strict and passes the real PDFs tried, but a real scanner (e.g. ClamAV) is the
+   lasting answer; the scan hook accepts one without code changes elsewhere.
+3. Still open: Masoom Ana's handle; Atif Aslam's "Travel" niche (from older post evidence); the YouTube decision due
+   12 November; OpenRouter key not present.
