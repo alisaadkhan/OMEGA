@@ -86,10 +86,10 @@ export function searchErrorMessage(err: unknown): string {
 }
 
 /**
- * City filtering is on again (owner directive 2026-11-03, addendum item 6: creator cities are populated). It was off from
- * 2026-10-26; set this to false to stop every search, typed, AI-suggested or saved, from sending a city condition.
+ * No City filter in search (owner master directive 2026-11-03, Part 2; it had been switched on earlier that day). Cities
+ * stay extracted, stored and shown on creator profiles; no search, typed, AI-suggested or saved, sends a city condition.
  */
-export const CITY_FILTER_ENABLED = true;
+export const CITY_FILTER_ENABLED = false;
 
 /** The cities offered as filter chips: the Pakistani cities the catalogue covers (most creators first). */
 export const FILTER_CITIES = ["Karachi", "Lahore", "Islamabad", "Rawalpindi", "Peshawar", "Multan", "Faisalabad", "Quetta"] as const;

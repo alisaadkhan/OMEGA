@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { ExternalLink, Mail, Phone, RefreshCw, ShieldCheck, Sparkles } from "lucide-react";
+import { ExternalLink, Mail, Phone, ShieldCheck, Sparkles } from "lucide-react";
 import type { CreatorProfile } from "@mushin/contracts";
 import { CONTACT_AVAILABILITY_TEXT, contactEvidenceText, formatCount, uiContactState } from "../../api/search-mapping";
 import { relative } from "../../lib/time";
@@ -12,28 +12,18 @@ const PLATFORM_LABEL = { instagram: "Instagram", tiktok: "TikTok", youtube: "You
 /**
  * The full creator profile, shown below the summary in the one creator view: AI summary, where location and niche come
  * from, the authenticity assessment with its evidence, every platform's figures, audience details on request, contacts
- * with their trust labels, and "Update info". Every value is the creator's record; unknowns say so.
+ * with their trust labels. Refresh profile is beside the IQ score in the header. Every value is the creator's record; unknowns say so.
  */
 export function CreatorFullDetails({
   p,
   canForget,
   onForget,
   forgetting,
-  onRefresh,
-  refreshText,
-  refreshDisabled,
-  refreshLocked,
-  refreshing,
 }: {
   p: CreatorProfile;
   canForget: boolean;
   onForget: () => void;
   forgetting: boolean;
-  onRefresh: () => void;
-  refreshText: string;
-  refreshDisabled: boolean;
-  refreshLocked: string | null;
-  refreshing: boolean;
 }) {
   return (
     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.25, ease: "easeOut" }} className="space-y-3 overflow-hidden">
@@ -126,13 +116,6 @@ export function CreatorFullDetails({
         )}
       </Section>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-slate-50 px-3 py-2.5 text-xs text-slate-500">
-        <span>{refreshText}</span>
-        <button onClick={onRefresh} disabled={refreshDisabled} title={refreshLocked ?? undefined} className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 font-medium text-cyan-800 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:opacity-50">
-          <RefreshCw className={`h-3 w-3 ${refreshing ? "animate-spin" : ""}`} /> {refreshing ? "Refreshing…" : `Update info · ${p.refreshCost} credits`}
-        </button>
-        {refreshLocked && <p className="w-full text-right text-xs text-slate-600" data-testid="update-locked">Update info: {refreshLocked}</p>}
-      </div>
     </motion.div>
   );
 }

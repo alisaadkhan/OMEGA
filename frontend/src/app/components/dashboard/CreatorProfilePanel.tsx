@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { BadgeCheck, Bookmark, ChevronDown, Eye, GitCompare, MapPin, Plus, ShieldCheck, Star, TrendingUp, X } from "lucide-react";
+import { BadgeCheck, Bookmark, ChevronDown, Eye, GitCompare, MapPin, Plus, ShieldCheck, Star, TrendingUp, X, RefreshCw } from "lucide-react";
 import { useBillingSummary } from "../../api/billing";
 import { useActiveJobs, useStartJob } from "../../api/discovery";
 import { isOpenJob, jobStatusText } from "../../api/discovery-mapping";
@@ -175,13 +175,28 @@ export function CreatorProfilePanel({ creator, onClose, onCompare, onGoToCampaig
                       </div>
                     </div>
                   </div>
-                  <div className="flex shrink-0 flex-col items-end gap-0.5">
-                    {creator.score > 0 && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-cyan-50 px-2.5 py-1 text-sm font-bold text-cyan-800" title="MUSHIN IQ: how well this creator matches your search. A match score, not an authenticity rating.">
-                        <Star aria-hidden className="h-3.5 w-3.5 fill-[#06B6D4] text-[#06B6D4]" /> IQ {creator.score}
-                      </span>
-                    )}
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    {/* Refresh profile sits beside the IQ score (owner master directive 2026-11-03, Part 2). */}
+                    <div className="flex items-center gap-2">
+                      {creator.score > 0 && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-cyan-50 px-2.5 py-1 text-sm font-bold text-cyan-800" title="MUSHIN IQ: how well this creator matches your search. A match score, not an authenticity rating.">
+                          <Star aria-hidden className="h-3.5 w-3.5 fill-[#06B6D4] text-[#06B6D4]" /> IQ {creator.score}
+                        </span>
+                      )}
+                      {p && (
+                        <button
+                          onClick={() => void onRefresh()}
+                          disabled={refreshing !== null || start.isPending || refreshLocked !== null}
+                          title={refreshLocked ?? `Fetch this creator's latest public data for ${p.refreshCost} credits`}
+                          className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-800 shadow-sm transition-colors hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50 disabled:opacity-50"
+                        >
+                          <RefreshCw aria-hidden className={`h-3 w-3 ${refreshing ? "animate-spin" : ""}`} />
+                          {refreshing ? "Refreshing…" : `Refresh profile · ${p.refreshCost} cr`}
+                        </button>
+                      )}
+                    </div>
                     <span className="text-[10px] text-slate-500">{refreshing ? jobStatusText(refreshing) : `Updated ${p ? relative(p.lastScrapedAt) : "…"}`}</span>
+                    {refreshLocked && <span className="max-w-[220px] text-right text-[10px] text-slate-600" data-testid="update-locked">Refresh: {refreshLocked}</span>}
                   </div>
                 </div>
 
@@ -259,11 +274,6 @@ export function CreatorProfilePanel({ creator, onClose, onCompare, onGoToCampaig
                       canForget={user?.role === "owner" || user?.role === "admin"}
                       onForget={() => void onForget()}
                       forgetting={forget.isPending}
-                      onRefresh={() => void onRefresh()}
-                      refreshText={refreshing ? jobStatusText(refreshing) : `Last updated ${relative(p.lastScrapedAt)}`}
-                      refreshDisabled={refreshing !== null || start.isPending || refreshLocked !== null}
-                      refreshLocked={refreshLocked}
-                      refreshing={refreshing !== null}
                     />
                   )}
                 </AnimatePresence>
