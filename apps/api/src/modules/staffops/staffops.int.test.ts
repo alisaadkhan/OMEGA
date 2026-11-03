@@ -184,6 +184,17 @@ describe("catalogue review", () => {
     expect((await call("POST", `/admin/v1/catalogue/creators/${randomUUID()}/country`, admin.h, body)).statusCode).toBe(404);
   });
 
+  it("restores a person wrongly marked as an organisation (0072), audited", async () => {
+    const { call, signIn } = await setup();
+    const id = await addCreator(db, { displayName: "Marked Organisation" });
+    await ownerQuery(`update gcp.creators set organisation_category = 'Restaurant' where id = '${id}'`);
+    const admin = await signIn("admin");
+    expect(((await call("GET", "/admin/v1/catalogue/review?kind=organisation", admin.h)).json() as { items: { id: string; organisationCategory: string }[] }).items).toEqual([expect.objectContaining({ id, organisationCategory: "Restaurant" })]);
+    expect((await call("POST", `/admin/v1/catalogue/creators/${id}/organisation-override`, admin.h, { reason: "Chef and food creator; the account is personal." })).json()).toEqual({ cleared: true });
+    expect((await call("POST", `/admin/v1/catalogue/creators/${id}/organisation-override`, admin.h, { reason: "Chef and food creator; the account is personal." })).statusCode).toBe(409);
+    expect((await audit("catalogue.organisation_cleared"))[0]).toMatchObject({ staff_id: admin.id, metadata: { creatorId: id } });
+  });
+
   it("clears a possible-minor flag once, with who and why", async () => {
     const { call, signIn } = await setup();
     const id = await addCreator(db, { displayName: "Flagged Minor", isMinor: true });

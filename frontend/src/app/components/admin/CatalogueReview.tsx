@@ -5,7 +5,7 @@ import { ExternalLink } from "lucide-react";
 import { adminRequest } from "../../admin/adminApi";
 import { useToast } from "../../lib/toast";
 
-type Kind = "country" | "minor" | "assessment";
+type Kind = "country" | "minor" | "organisation" | "assessment";
 
 const itemSchema = z.object({
   id: z.string(),
@@ -17,6 +17,7 @@ const itemSchema = z.object({
   publicCountrySource: z.string().nullable(),
   isMinor: z.boolean(),
   minorReason: z.string().nullable(),
+  organisationCategory: z.string().nullable(),
   assessmentStatus: z.string().nullable(),
   profiles: z.array(
     z.object({
@@ -31,12 +32,13 @@ const itemSchema = z.object({
     }),
   ),
 });
-const listSchema = z.object({ items: z.array(itemSchema), total: z.number(), counts: z.object({ country: z.number(), minor: z.number(), assessment: z.number() }) });
+const listSchema = z.object({ items: z.array(itemSchema), total: z.number(), counts: z.object({ country: z.number(), minor: z.number(), organisation: z.number(), assessment: z.number() }) });
 type Item = z.infer<typeof itemSchema>;
 
 const TABS: { id: Kind; label: string; hint: string }[] = [
   { id: "country", label: "Country unknown", hint: "Profiles with 5,000+ followers whose country is unknown or conflicting. Hidden from search until a Pakistani profile is confirmed." },
   { id: "minor", label: "Possible minors", hint: "Creators flagged as possibly under 18. Contacts and outreach stay locked until a staff member clears the flag with a reason." },
+  { id: "organisation", label: "Organisations", hint: "Accounts whose Instagram category names a business, brand, venue or media outlet. Hidden from search; restore a person wrongly marked, with a reason." },
   { id: "assessment", label: "Awaiting assessment", hint: "Creators with 5,000+ followers whose AI assessment is pending or had too little data." },
 ];
 
@@ -119,9 +121,9 @@ function ReviewCard({ item, kind, canDecide }: { item: Item; kind: Kind; canDeci
     onError: (e) => toast.error("Couldn't set the country", e instanceof Error ? e.message : undefined),
   });
   const clearMinor = useMutation({
-    mutationFn: () => adminRequest(`/admin/v1/catalogue/creators/${item.id}/minor-override`, z.object({ cleared: z.literal(true) }), { method: "POST", body: { reason } }),
+    mutationFn: () => adminRequest(`/admin/v1/catalogue/creators/${item.id}/${kind === "organisation" ? "organisation-override" : "minor-override"}`, z.object({ cleared: z.literal(true) }), { method: "POST", body: { reason } }),
     onSuccess: () => {
-      toast.success(`Cleared the minor flag for ${item.displayName}`);
+      toast.success(kind === "organisation" ? `${item.displayName} is back in search` : `Cleared the minor flag for ${item.displayName}`);
       done();
     },
     onError: (e) => toast.error("Couldn't clear the flag", e instanceof Error ? e.message : undefined),
@@ -139,6 +141,7 @@ function ReviewCard({ item, kind, canDecide }: { item: Item; kind: Kind; canDeci
             {item.city && <span className="text-slate-500">{item.city}</span>}
             {item.publicCountry && <span className="rounded bg-slate-100 px-1.5 py-0.5 text-slate-600" title={item.publicCountrySource ?? ""}>Public record: {item.publicCountry}</span>}
             {item.isMinor && <span className="rounded bg-amber-50 px-1.5 py-0.5 text-amber-700 ring-1 ring-amber-200">Possible minor{item.minorReason ? `: ${item.minorReason}` : ""}</span>}
+            {item.organisationCategory && <span className="rounded bg-slate-100 px-1.5 py-0.5 text-slate-700">Organisation: {item.organisationCategory}</span>}
             {kind === "assessment" && <span className="rounded bg-slate-100 px-1.5 py-0.5 text-slate-600">{item.assessmentStatus === "insufficient_data" ? "Too little data" : item.assessmentStatus ?? "Not assessed"}</span>}
           </div>
           <ul className="mt-2 space-y-2">
@@ -155,7 +158,7 @@ function ReviewCard({ item, kind, canDecide }: { item: Item; kind: Kind; canDeci
               </li>
             ))}
           </ul>
-          {canDecide && kind !== "minor" && (
+          {canDecide && (kind === "country" || kind === "assessment") && (
             <form
               className="mt-3 flex flex-wrap items-center gap-2"
               onSubmit={(e) => {
@@ -173,7 +176,7 @@ function ReviewCard({ item, kind, canDecide }: { item: Item; kind: Kind; canDeci
               <span id={`ev-hint-${item.id}`} className="w-full text-[11px] text-slate-500">Never from a name, a face or a language: only from a source you can point to. A country other than PK hides the creator from search.</span>
             </form>
           )}
-          {canDecide && kind === "minor" && (
+          {canDecide && (kind === "minor" || kind === "organisation") && (
             <form
               className="mt-3 flex flex-wrap items-center gap-2"
               onSubmit={(e) => {
@@ -182,9 +185,9 @@ function ReviewCard({ item, kind, canDecide }: { item: Item; kind: Kind; canDeci
               }}
             >
               <label className="sr-only" htmlFor={`mr-${item.id}`}>Reason</label>
-              <input id={`mr-${item.id}`} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Why this creator is an adult (source)" className="min-w-[240px] flex-1 rounded-md border border-slate-200 px-2 py-1.5" />
+              <input id={`mr-${item.id}`} value={reason} onChange={(e) => setReason(e.target.value)} placeholder={kind === "organisation" ? "Why this account is a person (source)" : "Why this creator is an adult (source)"} className="min-w-[240px] flex-1 rounded-md border border-slate-200 px-2 py-1.5" />
               <button type="submit" disabled={!reasonOk || clearMinor.isPending} className="rounded-md bg-slate-900 px-3 py-1.5 text-white hover:bg-slate-800 disabled:opacity-50">
-                {clearMinor.isPending ? "Saving…" : "Clear minor flag"}
+                {clearMinor.isPending ? "Saving…" : kind === "organisation" ? "It's a person" : "Clear minor flag"}
               </button>
             </form>
           )}

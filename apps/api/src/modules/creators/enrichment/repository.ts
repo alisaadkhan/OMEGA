@@ -14,7 +14,7 @@ import {
   type SystemTx,
   type TenantTx,
 } from "@mushin/db";
-import { maskContact, type CreatorPlatform } from "../rules";
+import { maskContact, organisationCategory, type CreatorPlatform } from "../rules";
 import type { Assessment } from "./assessment";
 import type { ContentPerformance } from "../eligibility-v3";
 import type { AttributeDecision } from "./attribute-evidence";
@@ -201,6 +201,8 @@ export async function saveEnrichment(tx: Tx, i: SaveInput): Promise<{ creatorId:
         isMinor: i.minorReason !== null,
         minorReason: i.minorReason,
         minorFlaggedAt: i.minorReason !== null ? new Date() : null,
+        // 0072: an Instagram category naming an organisation keeps the account out of search.
+        organisationCategory: p.platform === "instagram" ? organisationCategory(p.accountCategory) : null,
         lastEnrichedAt: new Date(),
       })
       .returning({ id: creators.id });
@@ -270,6 +272,7 @@ export async function saveEnrichment(tx: Tx, i: SaveInput): Promise<{ creatorId:
         // A pending assessment keeps the last score until the background assessment replaces it.
         ...(status === "pending" ? {} : { authenticityScore: score }),
         assessmentStatus: status === "pending" ? sql`coalesce(${creators.assessmentStatus}, 'pending')` : status,
+        ...(p.platform === "instagram" ? { organisationCategory: organisationCategory(p.accountCategory) } : {}),
         lastEnrichedAt: new Date(),
         ...(i.minorReason !== null
           ? { isMinor: true, minorReason: sql`coalesce(${creators.minorReason}, ${i.minorReason})`, minorFlaggedAt: sql`coalesce(${creators.minorFlaggedAt}, now())` }

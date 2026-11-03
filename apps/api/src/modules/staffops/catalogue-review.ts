@@ -10,7 +10,7 @@ type Meta = { ip: string | null; requestId: string | null };
 /** Profiles below this many followers are not worth a staff review (owner directive 2026-11-03, addendum item 4). */
 export const REVIEW_MIN_FOLLOWERS = 5_000;
 
-export const reviewKindSchema = z.enum(["country", "minor", "assessment"]);
+export const reviewKindSchema = z.enum(["country", "minor", "organisation", "assessment"]);
 export type ReviewKind = z.infer<typeof reviewKindSchema>;
 
 export const reviewQuerySchema = z.object({ kind: reviewKindSchema.default("country"), offset: z.coerce.number().int().min(0).max(100_000).default(0) });
@@ -35,6 +35,7 @@ export const reviewItemSchema = z.object({
   publicCountrySource: z.string().nullable(),
   isMinor: z.boolean(),
   minorReason: z.string().nullable(),
+  organisationCategory: z.string().nullable(),
   assessmentStatus: z.string().nullable(),
   profiles: z.array(profileSchema),
 });
@@ -46,11 +47,13 @@ export const setCountrySchema = z.object({
   evidence: z.string().trim().min(12, "Say where this comes from (a link or a short note)").max(400),
 });
 export const clearMinorSchema = z.object({ reason: z.string().trim().min(12, "Say why this creator is not a minor").max(500) });
+export const clearOrganisationSchema = z.object({ reason: z.string().trim().min(12, "Say why this account is a person, not an organisation").max(500) });
 
 const KIND_WHERE: Record<ReviewKind, ReturnType<typeof sql>> = {
   country: sql`exists (select 1 from gcp.creator_profiles p where p.creator_id = c.id and p.followers >= ${REVIEW_MIN_FOLLOWERS} and p.country_status in ('unknown', 'conflicting'))
     and not exists (select 1 from gcp.creator_profiles p where p.creator_id = c.id and p.country_status = 'pakistan')`,
   minor: sql`c.is_minor and c.minor_override_by_staff_id is null`,
+  organisation: sql`c.organisation_category is not null and c.organisation_override_by_staff_id is null`,
   assessment: sql`(c.assessment_status is null or c.assessment_status in ('pending', 'insufficient_data'))
     and exists (select 1 from gcp.creator_profiles p where p.creator_id = c.id and p.followers >= ${REVIEW_MIN_FOLLOWERS})`,
 };
@@ -69,8 +72,9 @@ export function createCatalogueReview(deps: { db: Db }) {
       select
         (select count(*)::int from gcp.creators c where c.status = 'active' and ${KIND_WHERE.country}) as country,
         (select count(*)::int from gcp.creators c where c.status = 'active' and ${KIND_WHERE.minor}) as minor,
+        (select count(*)::int from gcp.creators c where c.status = 'active' and ${KIND_WHERE.organisation}) as organisation,
         (select count(*)::int from gcp.creators c where c.status = 'active' and ${KIND_WHERE.assessment}) as assessment`);
-    return r ?? { country: 0, minor: 0, assessment: 0 };
+    return r ?? { country: 0, minor: 0, organisation: 0, assessment: 0 };
   }
 
   async function active(tx: SystemTx, id: string): Promise<void> {
@@ -84,7 +88,7 @@ export function createCatalogueReview(deps: { db: Db }) {
         const items = await tx.execute<z.infer<typeof reviewItemSchema>>(sql`
           select c.id, c.display_name as "displayName", c.avatar_url as "avatarUrl", c.city, c.country,
             c.public_country as "publicCountry", c.public_country_source as "publicCountrySource",
-            c.is_minor as "isMinor", c.minor_reason as "minorReason", c.assessment_status as "assessmentStatus",
+            c.is_minor as "isMinor", c.minor_reason as "minorReason", c.organisation_category as "organisationCategory", c.assessment_status as "assessmentStatus",
             coalesce((select jsonb_agg(jsonb_build_object('platform', p.platform, 'handle', p.handle, 'url', p.canonical_url, 'followers', p.followers,
               'countryStatus', p.country_status, 'country', p.country, 'countrySource', p.country_source, 'bio', left(p.bio, 400)) order by p.followers desc nulls last)
               from gcp.creator_profiles p where p.creator_id = c.id), '[]'::jsonb) as profiles
@@ -106,6 +110,20 @@ export function createCatalogueReview(deps: { db: Db }) {
         await writeOutbox(tx, { eventType: "creator.changed", aggregateType: "creator", aggregateId: id, workspaceId: null, payload: { creatorId: id }, requestId: meta.requestId });
         await recordStaffAudit(tx, { staffId: staff.staffId, action: "catalogue.country_set", metadata: { creatorId: id, country: body.country, evidence: body.evidence, changed: changed.length }, ip: meta.ip, requestId: meta.requestId });
         return { changed: changed.map((c) => ({ platform: c.platform, from: c.from, to: c.to.status })) };
+      });
+    },
+
+    /** A person wrongly taken for an organisation by their platform category (0072): back in search, with who and why. */
+    async clearOrganisation(staff: StaffPrincipal, id: string, body: z.infer<typeof clearOrganisationSchema>, meta: Meta) {
+      return deps.db.withSystem(async (tx) => {
+        await active(tx, id);
+        const rows = await tx.execute<{ id: string }>(sql`
+          update gcp.creators set organisation_override_by_staff_id = ${staff.staffId}, organisation_override_reason = ${body.reason}, updated_at = now()
+          where id = ${id} and organisation_category is not null and organisation_override_by_staff_id is null returning id`);
+        if (rows.length === 0) throw new AppError("CONFLICT", "This account is not marked as an organisation.");
+        await writeOutbox(tx, { eventType: "creator.changed", aggregateType: "creator", aggregateId: id, workspaceId: null, payload: { creatorId: id }, requestId: meta.requestId });
+        await recordStaffAudit(tx, { staffId: staff.staffId, action: "catalogue.organisation_cleared", metadata: { creatorId: id, reason: body.reason }, ip: meta.ip, requestId: meta.requestId });
+        return { cleared: true as const };
       });
     },
 
