@@ -90,3 +90,18 @@ npm run search:reindex        # plus a full re-sync so bios are re-masked
 # 3. Push (auto-deploys to Vercel Production)
 git push github feat/internal-completion-and-search-acceptance
 ```
+
+## Live sync done (owner approval 2026-11-03: "push, hide business accounts")
+
+1. Preflight on yknp…: safe after fixing a stale check (testing credit lots are valid from 0061 on). Schema snapshot
+   taken first (`scratchpad/yknp-schema-before-0067.sql`).
+2. Migrations **0067–0072 applied**, including **0072 organisation accounts**: an Instagram category that names an
+   organisation (restaurant, brand, retail, magazine, agency, gym, salon, venue, school, company...) keeps the account
+   out of search; ambiguous categories people also use stay creators; staff restore a person in Catalogue review →
+   Organisations. Locally 24 accounts marked (e.g. khaadi, sapphirepakistan, burgeroclock, divamagazinepakistan).
+3. Catalogue loaded from `mushin_catalog_v4` (idempotent; no contacts or payloads): live 2,503 → **2,835 creators**.
+4. Backfills on live: public record (8 named creators matched), profile countries (146 changed), organisations,
+   engagement (118 unsupported rates cleared to empty), full search re-sync, avatars (355 uploaded and linked).
+5. Live search now: **Instagram 169, TikTok 5, YouTube 382** creators; 0 organisations, 0 emails, 0 phone numbers in the
+   index.
+6. Checks before push: unit 657/657, lint clean, typecheck clean, frontend build passes.

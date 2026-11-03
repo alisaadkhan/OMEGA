@@ -51,7 +51,7 @@ try {
         union all select count(*) = 3, '0061 constraints present' from pg_constraint where conname in ('credit_lots_source_check', 'credit_reservations_spend_scope_check', 'billing_schedule_job_check')
         union all select count(*) = 2, '0061 policies present' from pg_policies where policyname in ('credit_lots_app_insert', 'credit_ledger_app_insert')
         union all select count(*) = 2, 'roles mushin_app and mushin_worker exist' from pg_roles where rolname in ('mushin_app', 'mushin_worker')
-        union all select not exists (select 1 from wp.credit_lots where source not in ('trial', 'monthly', 'topup', 'adjustment')), 'credit lots satisfy the widened rule'
+        union all select not exists (select 1 from wp.credit_lots where source not in ('trial', 'monthly', 'topup', 'adjustment', 'testing')), 'credit lots satisfy the widened rule (testing lots exist from 0061 on)'
         union all select count(*) = 0, 'no transaction open longer than 5 minutes' from pg_stat_activity where datname = current_database() and xact_start < now() - interval '5 minutes' and pid <> pg_backend_pid()`;
       for (const c of checks) { console.log(`${c.ok ? "ok  " : "STOP"} ${c.what}`); if (!c.ok) safe = false; }
     }

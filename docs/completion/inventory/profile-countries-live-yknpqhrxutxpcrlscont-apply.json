@@ -1,30 +1,23 @@
 {
  "db": "live-yknpqhrxutxpcrlscont",
  "mode": "apply",
- "at": "2026-11-02T18:23:27.292Z",
- "creators": 2503,
- "changed": 1610,
+ "at": "2026-11-03T02:02:53.141Z",
+ "creators": 2835,
+ "changed": 146,
  "transitions": {
-  "youtube: unknown -> foreign": 294,
-  "youtube: unknown -> pakistan": 1275,
-  "youtube: unknown -> conflicting": 14,
-  "instagram: unknown -> pakistan": 27
+  "youtube: foreign -> conflicting": 8,
+  "youtube: unknown -> pakistan": 86,
+  "instagram: unknown -> pakistan": 41,
+  "instagram: unknown -> foreign": 2,
+  "tiktok: unknown -> pakistan": 6,
+  "youtube: foreign -> pakistan": 2,
+  "youtube: unknown -> foreign": 1
  },
  "before": {
   "instagram": {
-   "unknown": 108
-  },
-  "youtube": {
-   "unknown": 2362
-  },
-  "tiktok": {
-   "unknown": 33
-  }
- },
- "after": {
-  "instagram": {
-   "unknown": 81,
-   "pakistan": 27
+   "unknown": 212,
+   "pakistan": 221,
+   "foreign": 7
   },
   "youtube": {
    "foreign": 294,
@@ -36,8 +29,25 @@
    "unknown": 33
   }
  },
+ "after": {
+  "instagram": {
+   "pakistan": 262,
+   "unknown": 169,
+   "foreign": 9
+  },
+  "youtube": {
+   "foreign": 285,
+   "unknown": 692,
+   "pakistan": 1363,
+   "conflicting": 22
+  },
+  "tiktok": {
+   "pakistan": 6,
+   "unknown": 27
+  }
+ },
  "projection": {
-  "upserted": 2501,
+  "upserted": 347,
   "removed": 0
  }
 }
