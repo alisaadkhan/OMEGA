@@ -29,10 +29,10 @@ describe("data export", () => {
   it("is refused without the Scale entitlement, for members, and when the server switch is off", async () => {
     const c = await workspace();
     entitled = false;
-    await expect(exportsFor().create(c, "lists")).rejects.toMatchObject({ code: "ENTITLEMENT_REQUIRED", details: { reason: "plan_feature", key: "export" } });
+    await expect(exportsFor().create(c, { kind: "lists" })).rejects.toMatchObject({ code: "ENTITLEMENT_REQUIRED", details: { reason: "plan_feature", key: "export" } });
     entitled = true;
-    await expect(exportsFor().create({ ...c, role: "member" }, "lists")).rejects.toMatchObject({ code: "FORBIDDEN" });
-    await expect(exportsFor(false).create(c, "lists")).rejects.toMatchObject({ details: { reason: "export_unavailable" } });
+    await expect(exportsFor().create({ ...c, role: "member" }, { kind: "lists" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(exportsFor(false).create(c, { kind: "lists" })).rejects.toMatchObject({ details: { reason: "export_unavailable" } });
   });
 
   it("exports campaigns as CSV without contact values, neutralising spreadsheet formulas", async () => {
@@ -40,7 +40,7 @@ describe("data export", () => {
     const creator = await addIndexedCreator(db, { displayName: "Sana Bakes", contacts: [{ kind: "email", value: "sana@example.com", trust: "verified", source: "bio" }] });
     const k = await campaigns.create(c, { ...base, name: "=HYPERLINK(\"http://evil\")", client: "Heritage" });
     await campaigns.addCreators(c, k.id, [creator]);
-    const made = await exportsFor().create(c, "campaigns");
+    const made = await exportsFor().create(c, { kind: "campaigns" });
     expect(made).toMatchObject({ kind: "campaigns", rowCount: 1, available: true, downloads: 0 });
     const file = await exportsFor().download(c, made.id);
     expect(file.filename).toMatch(/^mushin-campaigns-2026-10-16\.csv$/);
@@ -52,7 +52,7 @@ describe("data export", () => {
 
   it("expires after 24 hours; the purge drops the file and keeps the audit row", async () => {
     const c = await workspace();
-    const made = await exportsFor().create(c, "lists");
+    const made = await exportsFor().create(c, { kind: "lists" });
     clock = new Date(clock.getTime() + EXPORT_TTL_MS + 1000);
     await expect(exportsFor().download(c, made.id)).rejects.toMatchObject({ details: { reason: "export_expired" } });
     await ownerQuery(`update wp.data_exports set expires_at = now() - interval '1 minute'`);
@@ -62,12 +62,35 @@ describe("data export", () => {
 
   it("never gives one workspace another's export, and a downgrade stops downloads", async () => {
     const c = await workspace();
-    const made = await exportsFor().create(c, "lists");
+    const made = await exportsFor().create(c, { kind: "lists" });
     const other = await workspace();
     await expect(exportsFor().download(other, made.id)).rejects.toMatchObject({ code: "NOT_FOUND" });
     expect(await exportsFor().list(other)).toEqual([]);
     entitled = false;
     await expect(exportsFor().download(c, made.id)).rejects.toMatchObject({ code: "ENTITLEMENT_REQUIRED" });
+  });
+
+  it("lets a member export only a campaign they created, sees only their own exports, and records every download", async () => {
+    const owner = await workspace();
+    const ws = await ownerQuery<{ id: string }>(`insert into wp.users (id, email, display_name) values (gen_random_uuid(), 'm' || floor(random() * 1e9) || '@example.com', 'Mo') returning id`);
+    const memberId = ws[0]?.id as string;
+    await ownerQuery(`insert into wp.workspace_members (workspace_id, user_id, role) values ('${owner.workspaceId}', '${memberId}', 'member')`);
+    const member: TenantContext = { ...owner, userId: memberId, role: "member" };
+    const theirs = await campaigns.create(member, { ...base, name: "Mo's launch" });
+    const ownersOwn = await campaigns.create(owner, { ...base, name: "Owner plan" });
+
+    await expect(exportsFor().create(member, { kind: "campaigns" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(exportsFor().create(member, { kind: "campaigns", scopeId: ownersOwn.id })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    const made = await exportsFor().create(member, { kind: "campaigns", scopeId: theirs.id });
+    expect(made.scope).toEqual({ id: theirs.id, name: "Mo's launch" });
+    const ownerExport = await exportsFor().create(owner, { kind: "campaigns" });
+
+    expect((await exportsFor().list(member)).map((e) => e.id)).toEqual([made.id]);
+    expect((await exportsFor().list(owner)).map((e) => e.id).sort()).toEqual([made.id, ownerExport.id].sort());
+    await expect(exportsFor().download(member, ownerExport.id)).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect((await exportsFor().download(member, made.id)).filename).toBe("mushin-campaigns-mo-s-launch-2026-10-16.csv");
+    await exportsFor().download(owner, made.id);
+    expect(await ownerQuery(`select user_id from wp.data_export_downloads where export_id = '${made.id}' order by downloaded_at`)).toEqual([{ user_id: memberId }, { user_id: owner.userId }]);
   });
 
   it("quotes every cell", () => {

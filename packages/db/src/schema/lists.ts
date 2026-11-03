@@ -37,6 +37,9 @@ export const dataExports = wp.table("data_exports", {
   content: text("content"),
   byteSize: integer("byte_size").notNull(),
   downloads: integer("downloads").notNull().default(0),
+  /** One list or campaign (0077); null when the whole team's lists or campaigns were exported. */
+  scopeId: uuid("scope_id"),
+  scopeName: text("scope_name"),
   expiresAt: ts("expires_at").notNull(),
   purgedAt: ts("purged_at"),
   createdAt: ts("created_at").notNull().defaultNow(),

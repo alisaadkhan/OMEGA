@@ -16,7 +16,7 @@ export function createExportsModule(deps: ExportsDeps): AppModule {
     name: "exports",
     register(app, guards) {
       app.post("/v1/exports", { preHandler: [guards.customer, guards.idempotent] }, async (req, reply) =>
-        sendOk(reply, dataExportSchema, await service.create(tenantOf(req), parseInput(createExportSchema, req.body).kind), 201),
+        sendOk(reply, dataExportSchema, await service.create(tenantOf(req), parseInput(createExportSchema, req.body)), 201),
       );
       app.get("/v1/exports", { preHandler: guards.customer }, async (req, reply) => sendOk(reply, dataExportListSchema, { exports: await service.list(tenantOf(req)) }));
       app.get("/v1/exports/:id/download", { preHandler: guards.customer }, async (req, reply) => {
