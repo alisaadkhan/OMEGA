@@ -1,21 +1,29 @@
 {
  "db": "live-yknpqhrxutxpcrlscont",
  "mode": "dry-run",
- "at": "2026-11-02T17:03:44.666Z",
- "creators": 2503,
- "changed": 1610,
+ "at": "2026-11-03T02:01:45.984Z",
+ "creators": 2835,
+ "changed": 146,
  "transitions": {
-  "instagram: unknown -> pakistan": 27,
-  "youtube: unknown -> foreign": 294,
-  "youtube: unknown -> pakistan": 1275,
-  "youtube: unknown -> conflicting": 14
+  "youtube: foreign -> conflicting": 8,
+  "youtube: unknown -> pakistan": 86,
+  "instagram: unknown -> pakistan": 41,
+  "instagram: unknown -> foreign": 2,
+  "tiktok: unknown -> pakistan": 6,
+  "youtube: foreign -> pakistan": 2,
+  "youtube: unknown -> foreign": 1
  },
  "before": {
   "instagram": {
-   "unknown": 108
+   "unknown": 212,
+   "pakistan": 221,
+   "foreign": 7
   },
   "youtube": {
-   "unknown": 2362
+   "foreign": 294,
+   "unknown": 779,
+   "pakistan": 1275,
+   "conflicting": 14
   },
   "tiktok": {
    "unknown": 33
