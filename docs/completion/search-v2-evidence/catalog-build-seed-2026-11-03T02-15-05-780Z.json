@@ -1,0 +1,762 @@
+{
+ "mode": "seed",
+ "db": "mushin_catalog_v4",
+ "capUsd": 7,
+ "started": "2026-11-03T02:15:05.780Z",
+ "finished": "2026-11-03T02:54:21.070Z",
+ "spendByProvider": [
+  {
+   "provider": "apify",
+   "calls": 182,
+   "usd": "0.937200"
+  },
+  {
+   "provider": "gemini",
+   "calls": 20,
+   "usd": "0.000000"
+  },
+  {
+   "provider": "ollama",
+   "calls": 403,
+   "usd": "0.102968"
+  }
+ ],
+ "jobs": [
+  {
+   "i": 0,
+   "handle": "aamirzia52",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 83789
+  },
+  {
+   "i": 1,
+   "handle": "adabrung",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 35586
+  },
+  {
+   "i": 2,
+   "handle": "adilaakashif",
+   "status": "failed",
+   "outcome": null,
+   "error": "PRIVATE_ACCOUNT",
+   "ms": 9440
+  },
+  {
+   "i": 3,
+   "handle": "ahsan.ashfaq555",
+   "status": "failed",
+   "outcome": null,
+   "error": "PRIVATE_ACCOUNT",
+   "ms": 3944
+  },
+  {
+   "i": 4,
+   "handle": "ali.tahir.300",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 19354
+  },
+  {
+   "i": 5,
+   "handle": "areeba.s_official",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 40944
+  },
+  {
+   "i": 6,
+   "handle": "arjumandvillagelife",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 24074
+  },
+  {
+   "i": 7,
+   "handle": "balochistanpulseofficial",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 28238
+  },
+  {
+   "i": 8,
+   "handle": "bhatti.vlogs",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 14902
+  },
+  {
+   "i": 9,
+   "handle": "blogby_nayab",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 20391
+  },
+  {
+   "i": 10,
+   "handle": "byusaf32",
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND",
+   "ms": 24249
+  },
+  {
+   "i": 11,
+   "handle": "ctv_digital",
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND",
+   "ms": 9481
+  },
+  {
+   "i": 12,
+   "handle": "dailymumtazofficial",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 37531
+  },
+  {
+   "i": 13,
+   "handle": "drkabir.mul...",
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND",
+   "ms": 19363
+  },
+  {
+   "i": 14,
+   "handle": "essamalik_90",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 14292
+  },
+  {
+   "i": 15,
+   "handle": "faiq._ali",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 16820
+  },
+  {
+   "i": 16,
+   "handle": "faisal1306",
+   "status": "failed",
+   "outcome": null,
+   "error": "PRIVATE_ACCOUNT",
+   "ms": 22907
+  },
+  {
+   "i": 17,
+   "handle": "farhan_ranjha312",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 24426
+  },
+  {
+   "i": 18,
+   "handle": "food_with_laiba",
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND",
+   "ms": 24729
+  },
+  {
+   "i": 19,
+   "handle": "gamerz_computing",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 20490
+  },
+  {
+   "i": 20,
+   "handle": "gtvnewspk",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 17793
+  },
+  {
+   "i": 21,
+   "handle": "hashirakaprince",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 20228
+  },
+  {
+   "i": 22,
+   "handle": "invites",
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND",
+   "ms": 25603
+  },
+  {
+   "i": 23,
+   "handle": "iqra_nasir_00",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 39747
+  },
+  {
+   "i": 24,
+   "handle": "kashees_official",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 32179
+  },
+  {
+   "i": 25,
+   "handle": "ken_",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 36510
+  },
+  {
+   "i": 26,
+   "handle": "leadusconsultant",
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND",
+   "ms": 9378
+  },
+  {
+   "i": 27,
+   "handle": "m0hamadarslan",
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND",
+   "ms": 10745
+  },
+  {
+   "i": 28,
+   "handle": "maahashahid",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 27464
+  },
+  {
+   "i": 29,
+   "handle": "mairashabbir55",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 31098
+  },
+  {
+   "i": 30,
+   "handle": "mak_s_photography_official",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 26801
+  },
+  {
+   "i": 31,
+   "handle": "makhanramjaipal",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 27750
+  },
+  {
+   "i": 32,
+   "handle": "mmsmumtaz1",
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND",
+   "ms": 8715
+  },
+  {
+   "i": 33,
+   "handle": "noushadali._",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 26170
+  },
+  {
+   "i": 34,
+   "handle": "nutri_foodpill",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 17795
+  },
+  {
+   "i": 35,
+   "handle": "parlourglowshine",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 17256
+  },
+  {
+   "i": 36,
+   "handle": "qadi_rbaloch",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 17790
+  },
+  {
+   "i": 37,
+   "handle": "rezz.aly",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 14763
+  },
+  {
+   "i": 38,
+   "handle": "rimshablooger",
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND",
+   "ms": 9228
+  },
+  {
+   "i": 39,
+   "handle": "saeed_mirani101",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 18326
+  },
+  {
+   "i": 40,
+   "handle": "sajidbaloch57",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 27141
+  },
+  {
+   "i": 41,
+   "handle": "sarfrazfoodie",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 28483
+  },
+  {
+   "i": 42,
+   "handle": "seemibeautysalon",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 13248
+  },
+  {
+   "i": 43,
+   "handle": "shamoonras",
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND",
+   "ms": 10374
+  },
+  {
+   "i": 44,
+   "handle": "shanzae.zia",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 32220
+  },
+  {
+   "i": 45,
+   "handle": "sites_and_sounds",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 22384
+  },
+  {
+   "i": 46,
+   "handle": "skin__aesthetics___",
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND",
+   "ms": 10467
+  },
+  {
+   "i": 47,
+   "handle": "streetsnspices",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 18809
+  },
+  {
+   "i": 48,
+   "handle": "suchtvnews",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 21838
+  },
+  {
+   "i": 49,
+   "handle": "suzuki_lj80_1k",
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND",
+   "ms": 27115
+  },
+  {
+   "i": 50,
+   "handle": "taabi_here",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 17195
+  },
+  {
+   "i": 51,
+   "handle": "tastebykamal",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 21972
+  },
+  {
+   "i": 52,
+   "handle": "travels_of_khyber",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 27324
+  },
+  {
+   "i": 53,
+   "handle": "waqarbaloch__",
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND",
+   "ms": 19368
+  },
+  {
+   "i": 54,
+   "handle": "weapon.x10",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 14901
+  },
+  {
+   "i": 55,
+   "handle": "zafarsecurities",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 24010
+  },
+  {
+   "i": 56,
+   "handle": "zainalamgir_07",
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND",
+   "ms": 21474
+  },
+  {
+   "i": 57,
+   "handle": "abdulbasitworld",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 56064
+  },
+  {
+   "i": 58,
+   "handle": "aftab.food.vlogge",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 37048
+  },
+  {
+   "i": 59,
+   "handle": "alitahir0300",
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND",
+   "ms": 22428
+  },
+  {
+   "i": 60,
+   "handle": "amerraza7867",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 38718
+  },
+  {
+   "i": 61,
+   "handle": "arjumandvillagelife",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 17496
+  },
+  {
+   "i": 62,
+   "handle": "arjuvillagelife",
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND",
+   "ms": 28970
+  },
+  {
+   "i": 63,
+   "handle": "bhatti.vlogs.b",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 22303
+  },
+  {
+   "i": 64,
+   "handle": "britishaccent11",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 34140
+  },
+  {
+   "i": 65,
+   "handle": "dailymumtaz",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 42311
+  },
+  {
+   "i": 66,
+   "handle": "faizkhalil80",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 37082
+  },
+  {
+   "i": 67,
+   "handle": "gamerz_computing",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 24796
+  },
+  {
+   "i": 68,
+   "handle": "ghanaaliraza",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 40016
+  },
+  {
+   "i": 69,
+   "handle": "gtvdigital",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 23304
+  },
+  {
+   "i": 70,
+   "handle": "hadiacookss",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 25822
+  },
+  {
+   "i": 71,
+   "handle": "ifrah.babar0",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 32987
+  },
+  {
+   "i": 72,
+   "handle": "its_mrraza",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 17040
+  },
+  {
+   "i": 73,
+   "handle": "itshiraaofficial",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 29144
+  },
+  {
+   "i": 74,
+   "handle": "kainataslam.ka",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 30399
+  },
+  {
+   "i": 75,
+   "handle": "kashees.official",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 24828
+  },
+  {
+   "i": 76,
+   "handle": "maham_aijaz10",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 30707
+  },
+  {
+   "i": 77,
+   "handle": "marryammughal09",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 48991
+  },
+  {
+   "i": 78,
+   "handle": "munir.alive",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 19103
+  },
+  {
+   "i": 79,
+   "handle": "neelammuneerkhan19",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 33137
+  },
+  {
+   "i": 80,
+   "handle": "rabiafaisal131",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 37112
+  },
+  {
+   "i": 81,
+   "handle": "rubi_mobiles",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 37778
+  },
+  {
+   "i": 82,
+   "handle": "sarfrazfoodie",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 34965
+  },
+  {
+   "i": 83,
+   "handle": "seemikhan0300",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 53660
+  },
+  {
+   "i": 84,
+   "handle": "sidraiqbalofficial",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 31112
+  },
+  {
+   "i": 85,
+   "handle": "suchtvnews",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 25228
+  },
+  {
+   "i": 86,
+   "handle": "swiss.miss85",
+   "status": "failed",
+   "outcome": null,
+   "error": "PRIVATE_ACCOUNT",
+   "ms": 7330
+  },
+  {
+   "i": 87,
+   "handle": "tastebykamal",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 25876
+  },
+  {
+   "i": 88,
+   "handle": "ticketwalapk",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 36707
+  },
+  {
+   "i": 89,
+   "handle": "user842540003",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 24922
+  },
+  {
+   "i": 90,
+   "handle": "zaidchoudhry",
+   "status": "completed",
+   "outcome": "created",
+   "error": null,
+   "ms": 30597
+  },
+  {
+   "i": 91,
+   "handle": "zaraa_princess1",
+   "status": "failed",
+   "outcome": null,
+   "error": "PRIVATE_ACCOUNT",
+   "ms": 4161
+  }
+ ]
+}

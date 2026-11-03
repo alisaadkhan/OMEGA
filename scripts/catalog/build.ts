@@ -31,7 +31,7 @@ import postgres from "postgres";
 import { BudgetExhausted, createBudgetGate } from "./budget";
 import { sql } from "drizzle-orm";
 import { createBillingService, noAccessCache } from "../../apps/api/src/modules/billing/index";
-import { createCreatorIndexer, createEnrichmentPipeline, getEnrichmentSettings, standardize } from "../../apps/api/src/modules/creators/index";
+import { bulkRefreshProfileCountries, createCreatorIndexer, createEnrichmentPipeline, getEnrichmentSettings, standardize } from "../../apps/api/src/modules/creators/index";
 import { createCachedSearch, createDiscoveryRunner, createDiscoveryService, createLiveRunner } from "../../apps/api/src/modules/discovery/index";
 
 const { positionals, values } = parseArgs({
@@ -327,6 +327,14 @@ if (mode === "reassess") {
   }
 }
 
+// New profiles can carry a linked creator's country (linked_profile), and a new creator can give its country to profiles
+// already saved: one save sees only itself, so every country is re-decided once after a seed or expand run (≈ 2 s).
+if (mode === "seed" || mode === "expand") {
+  const ids = [...(await db.withSystem((tx) => tx.execute<{ id: string }>(sql`select id from gcp.creators where status = 'active'`)))].map((r) => r.id);
+  let changed = 0;
+  for (let i = 0; i < ids.length; i += 500) changed += (await db.withSystem((tx) => bulkRefreshProfileCountries(tx, ids.slice(i, i + 500), { source: "backfill" }))).length;
+  logger.info({ changed }, "profile countries re-decided across links");
+}
 // Bring the search projection up to date for everything saved (the worker would do this from the outbox).
 await indexer.reconcile();
 const byProvider = await db.withSystem((tx) => tx.execute<{ provider: string; calls: number; usd: string }>(sql`select provider, count(*)::int calls, coalesce(sum(cost_usd),0)::text usd from platform.provider_calls where created_at >= ${started.toISOString()}::timestamptz group by 1 order by 1`));
