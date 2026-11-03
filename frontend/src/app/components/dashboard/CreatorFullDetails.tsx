@@ -82,6 +82,12 @@ export function CreatorFullDetails({
                 <Mini label="Avg comments" value={pr.avgComments != null ? formatCount(pr.avgComments) : "—"} />
                 <Mini label="Typical views" value={pr.typicalViews != null ? formatCount(pr.typicalViews) : "—"} />
               </dl>
+              {/* A dash always says why (master directive Part 2): restricted, not collected, or too few posts. */}
+              {pr.metricsNote && (
+                <p className="mt-1.5 text-[10px] text-slate-500">
+                  {pr.metricsNote === "policy_restricted" ? "Engagement and views: not calculated for YouTube under its API rules." : pr.metricsNote === "not_collected" ? "Engagement and views: not collected yet. Refresh the profile to fetch recent posts." : "Engagement and views: too few recent posts to judge."}
+                </p>
+              )}
             </div>
           ))}
         </div>
