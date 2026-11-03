@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Coins, BarChart3, Activity, Settings, LifeBuoy, LogOut, ChevronDown, Menu } from "lucide-react";
+import { Coins, CreditCard, Activity, Settings, LifeBuoy, LogOut, ChevronDown, ChevronLeft, Menu, Star } from "lucide-react";
 import { AnimatedNumber } from "./AnimatedNumber";
 import { useAuth } from "../../auth/AuthContext";
 import { useBillingSummary } from "../../api/billing";
@@ -9,7 +9,7 @@ import type { DashView } from "./Sidebar";
 import { Logo } from "../landing/Logo";
 import type { Creator } from "./CreatorProfilePanel";
 import { JobTray } from "./JobTray";
-import { Omnibar } from "./Omnibar";
+import { OPEN_REVIEW_EVENT } from "./LeaveReview";
 import { accountInitials, accountLabel } from "../../lib/billing-status";
 import { WorkspaceMenuItems } from "./TeamSettings";
 
@@ -24,12 +24,14 @@ type Props = {
   onOpenNav?: () => void;
 };
 
-const MENU: { id: DashView; label: string; icon: any }[] = [
-  { id: "analytics", label: "Analytics", icon: BarChart3 },
-  { id: "activity", label: "Activity log", icon: Activity },
+/** The account pages live here, not in the sidebar (owner direction 2026-11-03). */
+const MENU: { id: DashView; label: string; icon: typeof Settings }[] = [
   { id: "settings", label: "Settings", icon: Settings },
+  { id: "billing", label: "Credits & billing", icon: CreditCard },
+  { id: "activity", label: "Activity log", icon: Activity },
   { id: "support", label: "Support", icon: LifeBuoy },
 ];
+const PAGE_LABEL: Record<DashView, string> = { overview: "Dashboard", search: "Search & Discovery", lists: "Shortlists", campaigns: "Campaigns", inbox: "Inbox", settings: "Settings", billing: "Credits & billing", activity: "Activity log", support: "Support" };
 
 const METER_STYLES = {
   normal: { box: "border-slate-200 bg-white hover:bg-slate-50", icon: "text-emerald-600", value: "text-slate-900", title: "Credits" },
@@ -60,8 +62,11 @@ export function Topbar({ credits, view, setView, onExit, onOpenCreator, onViewRe
         </button>
         <span className="sm:hidden"><Logo /></span>
       </div>
-      {/* From 1024 px only: beside the 240 px sidebar a tablet top bar has no room (E2E 768 px check). Add by link stays on the Search page. */}
-      <div className="hidden lg:block"><Omnibar onOpen={onOpenCreator} /></div>
+      <div className="hidden min-w-0 items-center gap-2 text-[13px] text-slate-500 md:flex">
+        <span>MUSHIN</span>
+        <span className="text-slate-300">/</span>
+        <span className="truncate font-semibold text-slate-900">{PAGE_LABEL[view]}</span>
+      </div>
 
       <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
         <JobTray onOpenCreator={onOpenCreator} onViewResults={onViewResults} />
@@ -79,7 +84,7 @@ export function Topbar({ credits, view, setView, onExit, onOpenCreator, onViewRe
         </button>
         <NotificationCenter onSeeAll={() => setView("activity")} />
 
-        {/* Profile menu — holds Analytics, Activity, Settings, Support */}
+        {/* Profile menu: Settings, Credits & billing, Activity log, Support, Leave a review, Back to site, Sign out. */}
         <div className="relative pl-1">
           <button
             onClick={() => setOpen((v) => !v)}
@@ -142,6 +147,33 @@ export function Topbar({ credits, view, setView, onExit, onOpenCreator, onViewRe
                         </button>
                       );
                     })}
+                  </div>
+
+                  <div className="border-t border-slate-100 py-1">
+                    <button
+                      onClick={() => {
+                        setOpen(false);
+                        window.dispatchEvent(new Event(OPEN_REVIEW_EVENT));
+                      }}
+                      role="menuitem"
+                      className="flex w-full items-center gap-2.5 px-4 py-2 text-left text-sm text-slate-700 transition-colors hover:bg-slate-50"
+                      style={{ fontWeight: 500 }}
+                    >
+                      <Star className="h-4 w-4 text-slate-500" strokeWidth={1.75} />
+                      Leave a review
+                    </button>
+                    <button
+                      onClick={() => {
+                        setOpen(false);
+                        onExit();
+                      }}
+                      role="menuitem"
+                      className="flex w-full items-center gap-2.5 px-4 py-2 text-left text-sm text-slate-700 transition-colors hover:bg-slate-50"
+                      style={{ fontWeight: 500 }}
+                    >
+                      <ChevronLeft className="h-4 w-4 text-slate-500" strokeWidth={1.75} />
+                      Back to site
+                    </button>
                   </div>
 
                   <WorkspaceMenuItems onPicked={() => setOpen(false)} />

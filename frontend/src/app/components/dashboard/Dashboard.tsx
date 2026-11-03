@@ -17,7 +17,6 @@ import { Campaigns } from "./Campaigns";
 import { Settings, type SettingsTab } from "./Settings";
 import { SupportAccessBanner } from "./SupportAccessSettings";
 import { useAuth } from "../../auth/AuthContext";
-import { Analytics } from "./Analytics";
 import { Inbox } from "./Inbox";
 import { useCredits } from "../../../app/lib/credits";
 import { CreatorProfilePanel, type Creator } from "./CreatorProfilePanel";
@@ -62,13 +61,13 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
   return (
     <div className="flex h-screen bg-slate-50/40">
       <div className="hidden md:flex">
-        <Sidebar view={view} setView={navigate} onExit={onExit} />
+        <Sidebar view={view} setView={navigate} />
       </div>
       {navOpen && (
         <div className="fixed inset-0 z-50 flex md:hidden" role="dialog" aria-modal="true" aria-label="Navigation">
           <div className="absolute inset-0 bg-slate-900/30" onClick={() => setNavOpen(false)} />
           <div className="relative flex h-full shadow-xl">
-            <Sidebar view={view} setView={(v) => { navigate(v); setNavOpen(false); }} onExit={onExit} />
+            <Sidebar view={view} setView={(v) => { navigate(v); setNavOpen(false); }} />
           </div>
         </div>
       )}
@@ -97,7 +96,6 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
               {view === "search" && <SearchModule liveJobId={liveJobId} onGoToCampaigns={() => setView("campaigns")} />}
               {view === "lists" && <Lists key={navKey} onOpenCreator={setOmniCreator} onGoToSearch={() => setView("search")} />}
               {view === "campaigns" && <Campaigns key={navKey} onOpenCreator={setOmniCreator} onGoToSearch={() => setView("search")} />}
-              {view === "analytics" && <Analytics />}
               {view === "inbox" && <Inbox onGoToCampaigns={() => setView("campaigns")} />}
               {view === "settings" && <Settings key={settingsTab} initialTab={settingsTab} onOpenSupport={() => setView("support")} onOpenBilling={() => setView("billing")} />}
               {view === "billing" && <Billing checkoutResult={checkoutResult} />}

@@ -17,7 +17,7 @@ export const COPY = {
   priorityRefresh: "Priority Data Refresh",
   searchPlaceholder: "Search for creators…",
   exampleQuery: "Pakistani fashion creators in Lahore",
-  navItems: ["Search", "Lists", "Campaigns", "Inbox", "Analytics", "Settings"],
+  navItems: ["Dashboard", "Search", "Shortlists", "Campaigns", "Inbox"],
 } as const;
 
 export const METRIC_HELP = {

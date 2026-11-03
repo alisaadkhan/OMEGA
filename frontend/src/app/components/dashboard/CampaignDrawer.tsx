@@ -111,7 +111,7 @@ export function CampaignDrawer({ open, creators, onClose, onGoToCampaigns }: { o
     <AnimatePresence>
       {open && (
         <>
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} onClick={onClose} className="fixed inset-0 z-[60] bg-[#0A0F24]/40 backdrop-blur-sm" />
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} onClick={onClose} className="fixed inset-0 z-[60] bg-[#0b1c30]/40 backdrop-blur-sm" />
           <motion.aside
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
@@ -137,7 +137,7 @@ export function CampaignDrawer({ open, creators, onClose, onGoToCampaigns }: { o
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Search campaigns…" aria-label="Search campaigns" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-400 transition focus:border-cyan-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-cyan-400/30" />
               </div>
-              <button onClick={() => setCreating((v) => !v)} aria-expanded={creating} className="group flex w-full items-center justify-center gap-2 rounded-xl bg-slate-50 py-2.5 text-sm font-medium text-[#0A0F24] transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-400/40">
+              <button onClick={() => setCreating((v) => !v)} aria-expanded={creating} className="group flex w-full items-center justify-center gap-2 rounded-xl bg-slate-50 py-2.5 text-sm font-medium text-[#0b1c30] transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-400/40">
                 <PlusCircle className="h-4 w-4 text-[#06B6D4] transition-transform group-hover:scale-110" /> Create New Campaign
               </button>
               <AnimatePresence initial={false}>
@@ -159,7 +159,7 @@ export function CampaignDrawer({ open, creators, onClose, onGoToCampaigns }: { o
                       {nameError && <p className="text-xs text-rose-600 animate-in fade-in slide-in-from-top-1 duration-200">{nameError}</p>}
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] text-slate-500">Starts as a draft. Add dates and budget later.</span>
-                        <button type="submit" disabled={create.isPending} className="rounded-full bg-[#0A0F24] px-3.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:opacity-50">
+                        <button type="submit" disabled={create.isPending} className="rounded-full bg-[#0b1c30] px-3.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#131b2e] focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:opacity-50">
                           {create.isPending ? "Creating…" : "Create"}
                         </button>
                       </div>
@@ -185,9 +185,9 @@ export function CampaignDrawer({ open, creators, onClose, onGoToCampaigns }: { o
                   const st = STATUS[c.status] ?? { label: c.status, cls: "bg-slate-100 text-slate-600" };
                   const when = c.startDate && c.endDate ? `${fmtDay(c.startDate)} – ${fmtDay(c.endDate)}` : c.startDate ? `From ${fmtDay(c.startDate)}` : "No dates yet";
                   return (
-                    <button key={c.id} type="button" role="checkbox" aria-checked={on} disabled={inIt} onClick={() => toggle(c.id)} className={`flex w-full items-center justify-between gap-3 rounded-xl p-3 text-left transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-default ${on ? "bg-cyan-50/70" : "bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)] ring-1 ring-slate-100 hover:bg-slate-50"}`}>
+                    <button key={c.id} type="button" role="checkbox" aria-checked={on} disabled={inIt} onClick={() => toggle(c.id)} className={`flex w-full items-center justify-between gap-3 rounded-xl p-3 text-left transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-default ${on ? "bg-[#acedff]/25 hover:bg-[#acedff]/35" : "bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)] ring-1 ring-slate-100 hover:bg-slate-50"}`}>
                       <span className="flex min-w-0 items-center gap-3">
-                        <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md transition-colors ${on ? "bg-[#0A0F24] text-white" : "border border-slate-300"}`}>{on && <Check className="h-3.5 w-3.5" strokeWidth={3} />}</span>
+                        <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md transition-colors ${on ? "bg-[#0b1c30] text-white" : "border border-slate-300 bg-slate-100"}`}>{on && <Check className="h-3.5 w-3.5" strokeWidth={3} />}</span>
                         <span className="min-w-0">
                           <span className="flex items-center gap-2">
                             <span className="truncate text-sm font-semibold text-slate-900">{c.name}</span>
@@ -204,7 +204,7 @@ export function CampaignDrawer({ open, creators, onClose, onGoToCampaigns }: { o
             </div>
 
             <div className="space-y-2 border-t border-slate-100 px-6 py-5">
-              <button onClick={() => void submit()} disabled={picked.size === 0 || saving} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#0A0F24] py-3.5 text-sm font-semibold text-white shadow-md transition-all hover:-translate-y-px hover:bg-slate-800 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:translate-y-0 disabled:opacity-50">
+              <button onClick={() => void submit()} disabled={picked.size === 0 || saving} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#0b1c30] py-3.5 text-sm font-semibold text-white shadow-md transition-all hover:-translate-y-px hover:bg-[#131b2e] hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:translate-y-0 disabled:opacity-50">
                 {saving ? "Adding…" : picked.size === 0 ? "Select a campaign" : `Add to ${picked.size} campaign${picked.size === 1 ? "" : "s"}`}
                 <ArrowRight className="h-4 w-4" />
               </button>
