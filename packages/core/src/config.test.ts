@@ -225,8 +225,12 @@ describe("search and LLM settings", () => {
     // The owner may knowingly accept the unpaid tier (2026-11-02); it must be stated, never assumed.
     expect(loadApiConfig({ ...valid, ...gemini, GEMINI_BILLING: "free_accepted" }).llm[0]?.name).toBe("gemini");
     expect(() => loadApiConfig({ ...valid, ...gemini, GEMINI_BILLING: "free" })).toThrow(/GEMINI_BILLING/);
-    // Groq is no longer a provider: a leftover key configures nothing.
-    expect(loadApiConfig({ ...valid, GROQ_API_KEY: "g" }).llm).toEqual([]);
+    // Groq is back (owner added a key 2026-11-03): between Gemini and Ollama, gpt-oss-120b by default.
+    expect(loadApiConfig({ ...valid, ...gemini, GROQ_API_KEY: "g", OLLAMA_API_KEY: "o" }).llm.map((p) => [p.name, p.model, p.baseUrl])).toEqual([
+      ["gemini", "gemini-model-from-config", "https://generativelanguage.googleapis.com/v1beta/openai"],
+      ["groq", "openai/gpt-oss-120b", "https://api.groq.com/openai/v1"],
+      ["ollama", "gpt-oss:20b", "https://ollama.com/v1"],
+    ]);
     expect(loadApiConfig(valid).llm).toEqual([]);
     expect([loadApiConfig(valid).llmMonthlyBudgetUsd, loadApiConfig({ ...valid, LLM_MONTHLY_BUDGET_USD: "12.5" }).llmMonthlyBudgetUsd]).toEqual([5, 12.5]);
     // Production needs an explicit cap; 0 is a cap (every call refused), not "no cap".

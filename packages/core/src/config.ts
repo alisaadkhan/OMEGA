@@ -83,6 +83,13 @@ const sharedObject = z.object({
   OLLAMA_MODEL: z.string().min(1).default("gpt-oss:20b"),
   OLLAMA_PRICE_IN_PER_MTOK: z.coerce.number().min(0).default(0.07),
   OLLAMA_PRICE_OUT_PER_MTOK: z.coerce.number().min(0).default(0.3),
+  // Groq (owner added a key 2026-11-03): OpenAI-compatible, tried after Gemini and before Ollama. Prices are Groq's
+  // published gpt-oss-120b on-demand rates (USD per million tokens, assumed from groq.com/pricing; override if changed).
+  GROQ_API_KEY: z.string().min(1).optional(),
+  GROQ_BASE_URL: z.url().default("https://api.groq.com/openai/v1"),
+  GROQ_MODEL: z.string().min(1).default("openai/gpt-oss-120b"),
+  GROQ_PRICE_IN_PER_MTOK: z.coerce.number().min(0).default(0.15),
+  GROQ_PRICE_OUT_PER_MTOK: z.coerce.number().min(0).default(0.75),
   // Monthly cap on hosted-LLM spend across Gemini and Ollama (USD). Required in production (owner decision 2026-10-14);
   // local and staging use USD 5 when unset. 0 refuses every AI call; no value disables the cap.
   LLM_MONTHLY_BUDGET_USD: z.coerce.number().min(0).optional(),
@@ -94,6 +101,7 @@ const PADDLE_KEYS = ["PADDLE_API_KEY", "PADDLE_CLIENT_TOKEN", "PADDLE_WEBHOOK_SE
 const LLM_KEYS = {
   GEMINI_API_KEY: true, GEMINI_MODEL: true, GEMINI_BASE_URL: true, GEMINI_PRICE_IN_PER_MTOK: true, GEMINI_PRICE_OUT_PER_MTOK: true, GEMINI_BILLING: true,
   OLLAMA_API_KEY: true, OLLAMA_BASE_URL: true, OLLAMA_MODEL: true, OLLAMA_PRICE_IN_PER_MTOK: true, OLLAMA_PRICE_OUT_PER_MTOK: true,
+  GROQ_API_KEY: true, GROQ_BASE_URL: true, GROQ_MODEL: true, GROQ_PRICE_IN_PER_MTOK: true, GROQ_PRICE_OUT_PER_MTOK: true,
 } as const;
 type LlmValues = Pick<SharedValues, keyof typeof LLM_KEYS>;
 
@@ -350,7 +358,7 @@ export type EnrichmentPolicy = { attributePolicy: "evidence" | "legacy"; youtube
 
 export type SearchConfig = { host: string; apiKey: string; indexPrefix: string } | null;
 export type LlmProviderConfig = {
-  name: "gemini" | "ollama";
+  name: "gemini" | "groq" | "ollama";
   baseUrl: string;
   apiKey: string;
   model: string;
@@ -363,7 +371,7 @@ function searchFrom(v: SharedValues, key: string | undefined): SearchConfig {
   return { host: v.MEILISEARCH_HOST.replace(/\/+$/, ""), apiKey: key, indexPrefix: v.MEILISEARCH_INDEX_PREFIX };
 }
 
-/** Gemini first, Ollama Cloud as the fallback when Gemini fails (owner decision 2026-10-26; was Groq, SRS §3.3). */
+/** Gemini first, then Groq (key added 2026-11-03), then Ollama Cloud as the last fallback (owner decision 2026-10-26). */
 function llmFrom(v: LlmValues): LlmProviderConfig[] {
   const out: LlmProviderConfig[] = [];
   // checkShared guarantees the model, prices and paid billing whenever the key is set.
@@ -375,6 +383,16 @@ function llmFrom(v: LlmValues): LlmProviderConfig[] {
       model: v.GEMINI_MODEL,
       priceInPerMTok: v.GEMINI_PRICE_IN_PER_MTOK,
       priceOutPerMTok: v.GEMINI_PRICE_OUT_PER_MTOK,
+    });
+  }
+  if (v.GROQ_API_KEY) {
+    out.push({
+      name: "groq",
+      baseUrl: v.GROQ_BASE_URL.replace(/\/+$/, ""),
+      apiKey: v.GROQ_API_KEY,
+      model: v.GROQ_MODEL,
+      priceInPerMTok: v.GROQ_PRICE_IN_PER_MTOK,
+      priceOutPerMTok: v.GROQ_PRICE_OUT_PER_MTOK,
     });
   }
   if (v.OLLAMA_API_KEY) {
