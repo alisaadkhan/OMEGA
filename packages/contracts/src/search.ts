@@ -235,6 +235,10 @@ export const creatorProfileSchema = z.object({
       engagementSample: z.number().int().nullable().default(null),
       /** Why engagement / typical views are missing, when they are: shown instead of a generic "Unavailable". */
       metricsNote: z.enum(["policy_restricted", "not_collected", "insufficient_posts"]).nullable().default(null),
+      /** Where this profile is based (master directive Part 4): decided from this profile's own evidence. */
+      location: z.enum(["PAKISTAN_CONFIRMED", "NON_PAKISTANI_CONFIRMED", "PAKISTANI_DIASPORA", "UNKNOWN", "CONFLICTING_EVIDENCE"]).default("UNKNOWN"),
+      /** elig-3 quality badge (owner decision 2026-11-03): a badge only, never a reason to hide the creator. */
+      performanceBadge: z.enum(["meets_standard", "below_benchmark", "incomplete"]).default("incomplete"),
       bio: z.string().nullable(),
       freshness: z.object({ followers: freshnessSchema, engagement: freshnessSchema, audience: freshnessSchema }),
       updatedAt: metricTimes,

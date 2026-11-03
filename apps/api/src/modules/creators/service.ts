@@ -23,6 +23,7 @@ import { cleanInterpretation, contactAvailability, fenced, freshnessOf, isContac
 import { toCards } from "./ranking";
 import { suppressedUrls } from "./suppressions";
 import { contactRoutes } from "./contact-routes";
+import { locationOutcome, performanceBadge } from "./profile-states";
 import { assertCanPayCatalogSearch, chargeCatalogSearch } from "./search-charge";
 import { decodeCursor, encodeCursor } from "./cursor";
 import { understandQuery } from "./understand";
@@ -354,6 +355,8 @@ export function createCreatorsService(deps: CreatorsDeps) {
           typicalViewsFormat: restrictsDerived(p.platform, policy) ? null : (p.performanceFormat as "reel" | "video" | null),
           engagementSample: restrictsDerived(p.platform, policy) ? null : p.performanceEngagementSample,
           metricsNote: restrictsDerived(p.platform, policy) ? ("policy_restricted" as const) : p.performanceAt === null && p.engagementRate === null ? ("not_collected" as const) : p.medianViews === null && p.engagementRate === null ? ("insufficient_posts" as const) : null,
+          location: locationOutcome(p.countryStatus, p.bio),
+          performanceBadge: performanceBadge(p, { restricted: restrictsDerived(p.platform, policy), now: t }),
           // Emails and phone numbers in the bio stay hidden until this workspace reveals the contacts.
           bio: revealed ? p.bio : maskBioContacts(p.bio),
           freshness: {
