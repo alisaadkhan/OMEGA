@@ -92,6 +92,9 @@ export const creatorCardSchema = z.object({
   city: z.string().nullable(),
   country: z.string().nullable(),
   niches: z.array(z.string()),
+  /** "post_estimated": the card says "Estimated niche · Based on N recent posts". */
+  nicheSource: z.enum(["bio_identified", "post_estimated"]).nullable().default(null),
+  nichePostsAssessed: z.number().int().nullable().default(null),
   tags: z.array(z.string()),
   verified: z.boolean(),
   followers: z.number().int().nullable(),
@@ -197,7 +200,14 @@ export const creatorProfileSchema = z.object({
   niches: z.array(z.string()),
   /** How the niches were reached (0054): one main niche (plus up to two secondary), variety, or unknown. Null = not yet classified. */
   nicheClassification: z
-    .object({ main: z.string().nullable(), status: z.enum(["classified", "variety", "unknown"]), confidence: z.enum(["high", "medium", "low"]).nullable() })
+    .object({
+      main: z.string().nullable(),
+      status: z.enum(["classified", "variety", "unknown"]),
+      confidence: z.enum(["high", "medium", "low"]).nullable(),
+      /** Bio-identified, or estimated from recent posts read together (owner master directive 2026-11-03, Part 3). */
+      source: z.enum(["bio_identified", "post_estimated"]).nullable().default(null),
+      postsAssessed: z.number().int().nullable().default(null),
+    })
     .nullable()
     .default(null),
   tags: z.array(z.string()),

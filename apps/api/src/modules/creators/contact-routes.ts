@@ -20,7 +20,8 @@ export type ContactRoutes = {
 
 const BUSINESS_CUE = /\b(business(?:\s+(?:queries|inquiries|enquiries|contact))?|collab(?:oration)?s?|pr(?:\s+(?:queries|inquiries))?|bookings?|managed\s+by|management|mgmt|manager|work(?:\s+(?:queries|inquiries))?|sponsorships?|brand\s+deals?|ads?)\b/i;
 const OTHER_CUE = /\b(other\s+(?:queries|inquiries|enquiries)|personal|fan\s+(?:page|account)|dm|queries)\b/i;
-const HANDLE = /@([A-Za-z0-9._]{2,30})/g;
+// A handle starts a word: "@ali" or ": @ali", never the "@domain" of an email address (security review 2026-11-03).
+const HANDLE = /(?:^|[\s:(,|])@([A-Za-z0-9._]{2,30})/g;
 const EXTERNAL_HOSTS = /(linktr\.ee|beacons\.ai|lnk\.bio|bio\.link|taplink|campsite\.bio|carrd\.co|msha\.ke|solo\.to|komi\.io)/i;
 
 /** The bio split into segments at line breaks and separators, so each handle is read with its own cue. */
@@ -36,7 +37,7 @@ export function contactRoutes(o: { bios: string[]; links: { platform: string; ur
     for (const seg of segments(bio)) {
       const handles = [...seg.matchAll(HANDLE)].map((m) => (m[1] as string).replace(/\.$/, ""));
       if (handles.length === 0) continue;
-      const before = seg.slice(0, seg.indexOf("@"));
+      const before = seg.slice(0, seg.search(/(?:^|[\s:(,|])@/));
       const business = BUSINESS_CUE.exec(before);
       const other = business ? null : OTHER_CUE.exec(before);
       if (!business && !other) continue;

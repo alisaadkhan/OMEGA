@@ -31,7 +31,7 @@ export type AttributeDecision = {
   languages: string[];
   evidence: EvidenceRow[];
   /** `clear`: no semantic reading needed. `semanticInput`: the permitted text a semantic reading may use (not stored). */
-  niche: { status: NicheStatus; main: string | null; confidence: NicheConfidence | null; clear: boolean; semanticInput: SemanticInput };
+  niche: { status: NicheStatus; main: string | null; confidence: NicheConfidence | null; clear: boolean; semanticInput: SemanticInput; source?: "bio_identified" | "post_estimated" | null; postsAssessed?: number };
   countries: { platform: string | null; stated: string | null; statedConfidence: CountryConfidence | null };
 };
 export type DeriveOptions = { usePostText?: boolean };
@@ -120,7 +120,7 @@ export function deriveAttributes(p: StandardProfile, a: Assessment | null, o: De
     niches: n.niches,
     languages,
     evidence,
-    niche: { status: n.status, main: n.main, confidence: n.confidence, clear: n.clear ?? false, semanticInput: nicheInput },
+    niche: { status: n.status, main: n.main, confidence: n.confidence, clear: n.clear ?? false, semanticInput: nicheInput, source: n.source ?? null, postsAssessed: n.postsAssessed ?? 0 },
     countries: { platform: c.platform, stated: c.stated, statedConfidence: c.statedConfidence },
   };
 }
@@ -134,7 +134,8 @@ export function withSemanticNiche(d: AttributeDecision, sem: NicheDecision): Att
   return {
     ...d,
     niches: sem.niches,
-    niche: { ...d.niche, status: sem.status, main: sem.main, confidence: sem.confidence, clear: false },
+    // A semantic reading keeps "bio-identified" only when it agrees with the bio's niche; otherwise it is an estimate.
+    niche: { ...d.niche, status: sem.status, main: sem.main, confidence: sem.confidence, clear: false, source: sem.status === "unknown" ? null : d.niche.source === "bio_identified" && sem.main === d.niche.main ? "bio_identified" : "post_estimated" },
     evidence: [...d.evidence.filter((r) => r.attribute !== "niche"), ...sem.observations.map((r) => ({ attribute: "niche" as const, ...r })), ...ruleRows],
   };
 }

@@ -30,6 +30,9 @@ export const creators = gcp.table("creators", {
   nicheStatus: text("niche_status", { enum: ["classified", "variety", "unknown"] }),
   nicheConfidence: text("niche_confidence", { enum: ["high", "medium", "low"] }),
   nicheAssessedAt: ts("niche_assessed_at"),
+  // 0074: bio-identified or post-estimated, and how many posts were read.
+  nicheSource: text("niche_source", { enum: ["bio_identified", "post_estimated"] }),
+  nichePostsAssessed: integer("niche_posts_assessed"),
   /** Country by source (0054); `country` is the resolved value: confirmed, else stated, else platform-declared. */
   platformCountry: char("platform_country", { length: 2 }),
   statedCountry: char("stated_country", { length: 2 }),

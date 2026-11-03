@@ -23,6 +23,8 @@ function row(id: string, displayName: string, primaryHandle: string, strong: boo
     city: null,
     country: null,
     niches: [],
+    nicheSource: null,
+    nichePostsAssessed: null,
     tags: [],
     verified: false,
     authenticityScore: strong ? 95 : 40,

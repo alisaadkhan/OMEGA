@@ -36,4 +36,10 @@ describe("contact routes", () => {
   it("returns no routes for a bio without any", () => {
     expect(contactRoutes({ bios: ["Just vibes"], links: [], contactKinds: [], ownHandles: [] }).routes).toEqual([]);
   });
+
+  // Security review 2026-11-03: an email is a paid contact; its "@domain" is never read as a handle.
+  it("never reads an email address as a handle", () => {
+    const r = contactRoutes({ bios: ["Business: sana.bridal@gmail.com"], links: [], contactKinds: [], ownHandles: [] });
+    expect(r.routes).toEqual([]);
+  });
 });

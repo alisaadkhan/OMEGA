@@ -143,6 +143,8 @@ describe("search mapping", () => {
       city: "Karachi",
       country: "PK",
       niches: ["Lifestyle", "Bridal"],
+      nicheSource: "post_estimated",
+      nichePostsAssessed: 9,
       tags: ["#bridal"],
       verified: true,
       followers: 412_000,

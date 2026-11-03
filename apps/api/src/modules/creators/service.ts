@@ -334,7 +334,7 @@ export function createCreatorsService(deps: CreatorsDeps) {
         country: c.country,
         countrySource: c.countrySource,
         niches: c.niches,
-        nicheClassification: c.nicheStatus ? { main: c.nicheMain, status: c.nicheStatus, confidence: c.nicheConfidence } : null,
+        nicheClassification: c.nicheStatus ? { main: c.nicheMain, status: c.nicheStatus, confidence: c.nicheConfidence, source: c.nicheSource, postsAssessed: c.nichePostsAssessed } : null,
         tags: c.tags,
         verified: c.verified,
         profiles: profiles.map((p) => ({
@@ -386,7 +386,7 @@ export function createCreatorsService(deps: CreatorsDeps) {
         // Links can lead to a possible minor as directly as a contact can (SRS §5.5).
         linkedAccounts: links,
         // Minor protection hides routes like links; bios are the creator's own public text.
-        contactRoutes: isMinorProtected(c) ? null : contactRoutes({ bios: profiles.map((x) => x.bio ?? ""), links, contactKinds: contacts.map((k) => k.kind), ownHandles: profiles.map((x) => x.handle) }),
+        contactRoutes: isMinorProtected(c) ? null : contactRoutes({ bios: profiles.map((x) => maskBioContacts(x.bio ?? "")), links, contactKinds: contacts.map((k) => k.kind), ownHandles: profiles.map((x) => x.handle) }),
         lastScrapedAt: iso(primary?.lastScrapedAt ?? null),
         minorProtected: isMinorProtected(c),
         // Something worth revealing: not only addresses shown not to work.

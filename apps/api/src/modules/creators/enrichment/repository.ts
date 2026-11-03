@@ -347,6 +347,8 @@ function nicheColumns(d: AttributeDecision) {
     nicheMain: d.niche.main,
     nicheStatus: d.niche.status,
     nicheConfidence: d.niche.confidence,
+    nicheSource: d.niche.source ?? null,
+    nichePostsAssessed: d.niche.postsAssessed ?? null,
     nicheAssessedAt: new Date(),
   };
 }

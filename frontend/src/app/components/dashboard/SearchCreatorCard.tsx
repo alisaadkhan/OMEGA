@@ -93,6 +93,7 @@ export function SearchCreatorCard({
               <MapPin aria-hidden className="h-3.5 w-3.5 shrink-0 text-slate-400" />
               <span className="truncate">{place || "Place and niche not known yet"}</span>
             </span>
+            {creator.nicheNote && <span className="mt-1 block text-[11px] font-medium text-slate-500">{creator.nicheNote}</span>}
           </button>
 
           <div className="mt-4">

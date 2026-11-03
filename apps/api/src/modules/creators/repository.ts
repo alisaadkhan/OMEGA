@@ -68,6 +68,8 @@ export type CardRow = {
   city: string | null;
   country: string | null;
   niches: string[];
+  nicheSource: "bio_identified" | "post_estimated" | null;
+  nichePostsAssessed: number | null;
   tags: string[];
   verified: boolean;
   authenticityScore: number | null;
@@ -86,7 +88,7 @@ export async function cardRows(tx: Tx, ids: string[]): Promise<CardRow[]> {
   if (ids.length === 0) return [];
   const rows = await tx.execute<Omit<CardRow, "followersUpdatedAt" | "eligibility"> & { followersUpdatedAt: string | Date | null }>(sql`
     select c.id, c.display_name as "displayName", c.primary_handle as "primaryHandle", c.primary_platform as "primaryPlatform",
-      c.avatar_url as "avatarUrl", c.city, c.country, c.niches, c.tags, c.verified,
+      c.avatar_url as "avatarUrl", c.city, c.country, c.niches, c.niche_source as "nicheSource", c.niche_posts_assessed as "nichePostsAssessed", c.tags, c.verified,
       c.authenticity_score as "authenticityScore", c.fake_follower_pct as "fakeFollowerPct",
       case when p.platform = 'youtube' and p.followers = 0 then null else p.followers end as followers,
       p.engagement_rate as "engagementRate", p.followers_updated_at as "followersUpdatedAt",
@@ -130,6 +132,8 @@ export type CreatorRow = Pick<
   | "nicheMain"
   | "nicheStatus"
   | "nicheConfidence"
+  | "nicheSource"
+  | "nichePostsAssessed"
   | "countrySource"
   | "tags"
   | "verified"
@@ -160,6 +164,8 @@ export async function getCreator(tx: Tx, id: string): Promise<CreatorRow | null>
       niches: creators.niches,
       nicheMain: creators.nicheMain,
       nicheStatus: creators.nicheStatus,
+      nicheSource: creators.nicheSource,
+      nichePostsAssessed: creators.nichePostsAssessed,
       nicheConfidence: creators.nicheConfidence,
       countrySource: creators.countrySource,
       tags: creators.tags,

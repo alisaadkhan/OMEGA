@@ -46,6 +46,8 @@ export function toCards(rows: repo.CardRow[], req: { text: string; filters: Sear
         city: r.city,
         country: r.country,
         niches: r.niches,
+        nicheSource: r.nicheSource,
+        nichePostsAssessed: r.nichePostsAssessed,
         tags: r.tags,
         verified: r.verified,
         followers: r.followers,

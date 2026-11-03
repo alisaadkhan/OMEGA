@@ -29,6 +29,8 @@ export type Creator = {
   platform: "instagram" | "tiktok" | "youtube";
   city: string;
   niche: string;
+  /** "Estimated niche · Based on N recent posts" when the niche was read from posts, not the bio (directive 2026-11-03). */
+  nicheNote?: string | null;
   followers: string;
   followersNum: number | null;
   /** null when unknown or not calculated for the source (e.g. YouTube data under policy review). */
@@ -183,6 +185,11 @@ export function CreatorProfilePanel({ creator, onClose, onCompare, onGoToCampaig
                       <div className="mt-0.5 flex items-center gap-1 text-xs text-slate-500">
                         <MapPin aria-hidden className="h-3 w-3 shrink-0" />
                         <span className="truncate">{[niche, p?.city].filter(Boolean).join(" · ") || "Niche and city not known yet"}</span>
+                        {p?.nicheClassification?.source === "post_estimated" && niche && (
+                          <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
+                            Estimated niche · Based on {p.nicheClassification.postsAssessed ?? "recent"} recent posts
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>

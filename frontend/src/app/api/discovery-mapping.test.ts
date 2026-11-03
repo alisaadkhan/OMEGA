@@ -12,6 +12,8 @@ const cardFor = (id: string): CreatorCard => ({
   city: null,
   country: null,
   niches: [],
+  nicheSource: null,
+  nichePostsAssessed: null,
   tags: [],
   verified: false,
   followers: 1000,

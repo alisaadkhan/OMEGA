@@ -51,7 +51,7 @@ describe("niche classification: bio first", () => {
 
 describe("niche classification: recent posts when the bio is unclear", () => {
   it("finds the main niche and up to two secondary niches", () => {
-    const d = niche({ bio: "Subscribe for more", posts: [...rep(["PSL final analysis", "Cricket highlights reaction"], 8), "Biryani review", "Street food tour", "Karahi night", "Vlog"] });
+    const d = niche({ bio: "Subscribe for more", posts: [...rep(["PSL final analysis", "Cricket highlights reaction"], 6), "Biryani review", "Street food tour", "Karahi night"] });
     expect(d).toMatchObject({ status: "classified", main: "Sports" });
     expect(d.niches).toEqual(["Sports", "Food"]);
   });
@@ -86,10 +86,31 @@ describe("niche classification: the AI's reading", () => {
   });
 
   it("only breaks an exact tie between subjects the posts support", () => {
-    const posts = rep(["PUBG rank push", "Biryani recipe"]);
+    const posts = rep(["PUBG rank push", "Biryani recipe"], 8);
     expect(niche({ posts, ai: ["Food"] })).toMatchObject({ status: "classified", main: "Food", niches: ["Food", "Gaming"], confidence: "low" });
     expect(niche({ posts, ai: ["Lifestyle"] })).toMatchObject({ status: "variety", main: null });
     expect(niche({ posts })).toMatchObject({ status: "variety" });
+  });
+});
+
+// Owner master directive 2026-11-03 (Part 3): bio first, then 6–9 posts read together; hashtags only support.
+describe("niche classification: directive 2026-11-03", () => {
+  it("takes a role from the bio: technology educator, researcher, journalist", () => {
+    expect(niche({ bio: "Tech educator | teaching coding and AI in Urdu", posts: rep(["#pubg weekend", "New laptop setup"], 9) })).toMatchObject({ main: "Tech", source: "bio_identified" });
+    expect(niche({ bio: "PhD researcher at LUMS. Science explained simply" })).toMatchObject({ main: "Education & How-to", source: "bio_identified" });
+    expect(niche({ bio: "Journalist and news anchor, Karachi" })).toMatchObject({ main: "News & Commentary", source: "bio_identified" });
+  });
+
+  it("never calls a creator Gaming from #PUBG on one or two posts", () => {
+    const posts = ["Morning routine #pubg", "Office day #pubg", "Family dinner", "Eid shopping", "Weekend drive", "Rainy day", "Chai time"];
+    expect(niche({ bio: "", posts }).main).not.toBe("Gaming");
+  });
+
+  it("estimates from 6 to 9 posts read together, records how many, and says Unknown below six", () => {
+    const d = niche({ bio: "", posts: rep(["Biryani recipe at home", "Karahi tutorial", "Street food review"], 9) });
+    expect(d).toMatchObject({ main: "Food", source: "post_estimated", postsAssessed: 9 });
+    expect(niche({ bio: "", posts: rep(["Biryani recipe at home"], 12) }).postsAssessed).toBe(9);
+    expect(niche({ bio: "", posts: rep(["Biryani recipe at home"], 5) })).toMatchObject({ status: "unknown", source: null, postsAssessed: 5 });
   });
 });
 

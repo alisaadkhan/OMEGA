@@ -6,8 +6,9 @@ import { quote } from "./quote";
  * appears once. One canonical taxonomy (terminology.ts → platform.niches labels):
  *   1. Bio first: the bio and the platform's own account category. When they clearly name one subject, that is the
  *      main niche and nothing else is needed (no extra AI call).
- *   2. Otherwise (empty, vague or mixed bio), up to 12 recent posts already fetched: a subject in at least 40% of them
- *      (and at least 3) is the main niche; other subjects in at least 25% are secondary (at most two).
+ *   2. Otherwise (empty, vague or mixed bio), 6 to 9 recent posts already fetched, read together: a subject in at least 40%
+ *      of them (and at least 3) is the main niche; other subjects in at least 25% are secondary (at most two). Hashtags
+ *      support a subject the captions already name; they never decide one (owner master directive 2026-11-03).
  *   3. Several subjects and none dominant: "variety". Too little evidence: "unknown". Never a guess.
  * The display name is weak evidence only ("Marketing Mughal" is not a marketing creator). Format words ("how to",
  * "tutorial", "DIY") count for Education & How-to only when a post or bio names no other subject, so a recipe channel's
@@ -27,10 +28,22 @@ export type NicheObservation = {
  * subject, no negation or contrast, not contradicted by recent posts), so no semantic (AI) reading is needed. Every
  * other decision is only the rules' first reading and goes to semantic classification where that is permitted.
  */
-export type NicheDecision = { status: NicheStatus; main: string | null; niches: string[]; confidence: NicheConfidence | null; observations: NicheObservation[]; clear?: boolean };
+export type NicheDecision = {
+  status: NicheStatus;
+  main: string | null;
+  niches: string[];
+  confidence: NicheConfidence | null;
+  observations: NicheObservation[];
+  clear?: boolean;
+  /** Where the niche came from (owner master directive 2026-11-03, Part 3): the bio/category, or recent posts read together. */
+  source?: "bio_identified" | "post_estimated" | null;
+  /** Posts actually read (never claimed when their text was not available). */
+  postsAssessed?: number;
+};
 
-export const MAX_POSTS_FOR_NICHE = 12;
-const MIN_POSTS = 4;
+// Owner master directive 2026-11-03 (Part 3): 6 to 9 recent posts read together when the bio names no niche.
+export const MAX_POSTS_FOR_NICHE = 9;
+const MIN_POSTS = 6;
 // Negation, contrast, satire: the words alone may say the opposite of the meaning ("not a food channel").
 const CONTRAST = /\b(?:not|no|never|don'?t|doesn'?t|isn'?t|instead|but|except|unlike|satire|satirical|parody|spoof|nahi|nahin|nai)\b|نہیں|بلکہ/iu;
 // Above this length a bio that names several subjects equally is not evidence of Variety on its own.
@@ -70,11 +83,29 @@ const ranked = (m: Map<string, number>) => [...m.entries()].sort((a, b) => b[1] 
 
 type PostReading = { kind: "classified"; main: string; secondary: string[]; confidence: NicheConfidence; counts: Map<string, number>; n: number } | { kind: "variety"; labels: string[]; confidence: NicheConfidence; counts: Map<string, number>; n: number } | { kind: "tie"; labels: [string, string]; counts: Map<string, number>; n: number } | { kind: "insufficient"; counts: Map<string, number>; n: number };
 
+/** A post split into its caption (hashtags removed) and its hashtag words. */
+function splitPost(raw: string): { caption: string; tags: string } {
+  const tags = [...raw.matchAll(/#([\p{L}\p{N}_]+)/gu)].map((m) => (m[1] as string).replace(/_/g, " ")).join(" ");
+  return { caption: normalizeTerms(raw.replace(/#[\p{L}\p{N}_]+/gu, " ")), tags: normalizeTerms(tags) };
+}
+
+/**
+ * Hashtags are supporting evidence only (owner master directive 2026-11-03, Part 3): a subject counts for a post from its
+ * hashtags only when the captions themselves name it in at least two posts, so "#PUBG" on one or two videos never makes
+ * a creator Gaming.
+ */
 function readPosts(posts: string[]): PostReading {
-  const texts = posts.map((p) => normalizeTerms(p)).filter(Boolean);
+  const parts = posts.map(splitPost).filter((p) => p.caption || p.tags);
+  const captionLabels = parts.map((p) => new Set(labelsIn(p.caption, { strongOnly: true }).keys()));
+  const captionHits = new Map<string, number>();
+  for (const s of captionLabels) for (const l of s) captionHits.set(l, (captionHits.get(l) ?? 0) + 1);
   const counts = new Map<string, number>();
-  for (const t of texts) for (const label of labelsIn(t, { strongOnly: true }).keys()) counts.set(label, (counts.get(label) ?? 0) + 1);
-  const n = texts.length;
+  for (const [i, p] of parts.entries()) {
+    const labels = new Set(captionLabels[i]);
+    for (const l of labelsIn(p.tags, { strongOnly: true }).keys()) if ((captionHits.get(l) ?? 0) >= 2) labels.add(l);
+    for (const l of labels) counts.set(l, (counts.get(l) ?? 0) + 1);
+  }
+  const n = parts.length;
   if (n < MIN_POSTS || counts.size === 0) return { kind: "insufficient", counts, n };
   const r = ranked(counts);
   const [l1, c1] = r[0] as [string, number];
@@ -99,9 +130,13 @@ export function classifyNiche(o: { displayName: string; bio: string; accountCate
   for (const [l, f] of bioLabels) score.set(l, f.length);
   for (const l of catLabels.keys()) score.set(l, (score.get(l) ?? 0) + 2);
   const bioRank = ranked(score);
+  // A role that teaches a subject ("tech educator", "fitness coach teaching...") is that subject, told as education:
+  // the subject is the main niche and Education & How-to the secondary one (owner master directive 2026-11-03).
+  const educationTie = bioRank.length === 2 && (bioRank[1]?.[0] === EDUCATION || (bioRank[0]?.[0] === EDUCATION && bioRank[0]?.[1] === bioRank[1]?.[1]));
+  if (educationTie && bioRank[0]?.[0] === EDUCATION) [bioRank[0], bioRank[1]] = [bioRank[1] as [string, number], bioRank[0] as [string, number]];
   const [b1, s1] = bioRank[0] ?? [null, 0];
   const s2 = bioRank[1]?.[1] ?? 0;
-  const bioClear = b1 !== null && (bioRank.length === 1 || s1 >= 2 * s2);
+  const bioClear = b1 !== null && (bioRank.length === 1 || s1 >= 2 * s2 || educationTie);
   const bioRow = (label: string, status: NicheObservation["status"]): NicheObservation =>
     catLabels.has(label) && !bioLabels.has(label)
       ? { value: label, source: "account_category", status, evidence: `Account category on the platform: ${o.accountCategory}` }
@@ -118,9 +153,9 @@ export function classifyNiche(o: { displayName: string; bio: string; accountCate
   const ai = (stored: string[]) => {
     for (const n of o.aiNiches) if (!stored.includes(n)) observations.push({ value: n, source: "ai_assessment", status: "weak", evidence: "Chosen by the AI assessment; the creator's bio and recent posts do not support it" });
   };
-  const done = (d: Omit<NicheDecision, "observations">): NicheDecision => {
+  const done = (d: Omit<NicheDecision, "observations">, source: NicheDecision["source"] = null): NicheDecision => {
     ai(d.niches);
-    return { ...d, clear: d.clear ?? false, observations };
+    return { ...d, clear: d.clear ?? false, observations, source: d.status === "unknown" ? null : source, postsAssessed: posts.n };
   };
 
   if (bioClear && b1) {
@@ -128,7 +163,7 @@ export function classifyNiche(o: { displayName: string; bio: string; accountCate
     const contradicted = posts.kind === "classified" && posts.main !== b1 && posts.confidence !== "low" && (posts.counts.get(b1) ?? 0) <= 1;
     if (contradicted && posts.kind === "classified") {
       observations.push(bioRow(b1, "conflicting"), postRow(posts.main), ...posts.secondary.map(postRow));
-      return done({ status: "classified", main: posts.main, niches: [posts.main, ...posts.secondary], confidence: "medium" });
+      return done({ status: "classified", main: posts.main, niches: [posts.main, ...posts.secondary], confidence: "medium" }, "post_estimated");
     }
     const secondary = bioRank.slice(1).filter(([, s]) => s >= 1).slice(0, 2).map(([l]) => l);
     const confirmed = posts.kind !== "insufficient" && (posts.counts.get(b1) ?? 0) >= 2;
@@ -139,26 +174,26 @@ export function classifyNiche(o: { displayName: string; bio: string; accountCate
     const onlyCategory = catLabels.size === 1 && bioLabels.size === 0;
     const shortPlain = o.bio.trim().length <= SHORT_BIO && !CONTRAST.test(o.bio) && bioRank.length === 1;
     const postsAgree = posts.kind === "insufficient" || (posts.counts.get(b1) ?? 0) / Math.max(posts.n, 1) >= 0.25;
-    return done({ status: "classified", main: b1, niches: [b1, ...secondary], confidence, clear: postsAgree && (onlyCategory || shortPlain) });
+    return done({ status: "classified", main: b1, niches: [b1, ...secondary], confidence, clear: postsAgree && (onlyCategory || shortPlain) }, "bio_identified");
   }
 
   if (posts.kind === "classified") {
     observations.push(postRow(posts.main), ...posts.secondary.map(postRow));
-    return done({ status: "classified", main: posts.main, niches: [posts.main, ...posts.secondary], confidence: posts.confidence });
+    return done({ status: "classified", main: posts.main, niches: [posts.main, ...posts.secondary], confidence: posts.confidence }, "post_estimated");
   }
   if (posts.kind === "tie") {
     const pick = o.aiNiches.find((n) => posts.labels.includes(n));
     if (pick) {
       const other = posts.labels.find((l) => l !== pick) as string;
       observations.push({ value: pick, source: "ai_assessment", status: "supported", evidence: `AI broke a tie between ${posts.labels.join(" and ")} (${postNote(pick)} each)` }, postRow(other));
-      return done({ status: "classified", main: pick, niches: [pick, other], confidence: "low" });
+      return done({ status: "classified", main: pick, niches: [pick, other], confidence: "low" }, "post_estimated");
     }
     observations.push(...posts.labels.map(postRow));
-    return done({ status: "variety", main: null, niches: [...posts.labels], confidence: "low" });
+    return done({ status: "variety", main: null, niches: [...posts.labels], confidence: "low" }, "post_estimated");
   }
   if (posts.kind === "variety") {
     observations.push(...posts.labels.map(postRow));
-    return done({ status: "variety", main: null, niches: posts.labels, confidence: posts.confidence });
+    return done({ status: "variety", main: null, niches: posts.labels, confidence: posts.confidence }, "post_estimated");
   }
   // A short bio that lists several subjects equally, with no posts to weigh them ("travel / fashion / food vlogs"). A long
   // description names many things in passing, so without posts it is not enough to call the creator Variety.
@@ -169,7 +204,7 @@ export function classifyNiche(o: { displayName: string; bio: string; accountCate
   if (bioRank.length >= 2) {
     const labels = bioRank.slice(0, 3).map(([l]) => l);
     observations.push(...labels.map((l) => bioRow(l, "supported")));
-    return done({ status: "variety", main: null, niches: labels, confidence: "low" });
+    return done({ status: "variety", main: null, niches: labels, confidence: "low" }, "bio_identified");
   }
   return done({ status: "unknown", main: null, niches: [], confidence: null });
 }
