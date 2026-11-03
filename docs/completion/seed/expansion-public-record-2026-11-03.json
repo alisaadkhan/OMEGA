@@ -1,0 +1,150 @@
+{
+ "note": "Pakistani public figures added by catalogue expansion (related profiles / @mentions of Pakistani creators). Each source is the English Wikipedia article whose lead describes the person as Pakistani, checked 2026-11-03 against the account display name. A bio stating a life abroad still wins.",
+ "checkedAt": "2026-11-03",
+ "candidates": [
+  {
+   "handle": "sarahkhanofficial",
+   "platform": "instagram",
+   "country": "PK",
+   "source": "https://en.wikipedia.org/wiki/Sarah_Khan"
+  },
+  {
+   "handle": "sajalaly",
+   "platform": "instagram",
+   "country": "PK",
+   "source": "https://en.wikipedia.org/wiki/Sajal_Aly"
+  },
+  {
+   "handle": "iiqraaziz",
+   "platform": "instagram",
+   "country": "PK",
+   "source": "https://en.wikipedia.org/wiki/Iqra_Aziz"
+  },
+  {
+   "handle": "atifaslam",
+   "platform": "instagram",
+   "country": "PK",
+   "source": "https://en.wikipedia.org/wiki/Atif_Aslam"
+  },
+  {
+   "handle": "kinzahashmi",
+   "platform": "instagram",
+   "country": "PK",
+   "source": "https://en.wikipedia.org/wiki/Kinza_Hashmi"
+  },
+  {
+   "handle": "sanajaved.official",
+   "platform": "instagram",
+   "country": "PK",
+   "source": "https://en.wikipedia.org/wiki/Sana_Javed"
+  },
+  {
+   "handle": "danishtaimoor16",
+   "platform": "instagram",
+   "country": "PK",
+   "source": "https://en.wikipedia.org/wiki/Danish_Taimoor"
+  },
+  {
+   "handle": "durefishans",
+   "platform": "instagram",
+   "country": "PK",
+   "source": "https://en.wikipedia.org/wiki/Durefishan_Saleem"
+  },
+  {
+   "handle": "official_mayaali",
+   "platform": "instagram",
+   "country": "PK",
+   "source": "https://en.wikipedia.org/wiki/Maya_Ali"
+  },
+  {
+   "handle": "neelammuneerkhan",
+   "platform": "instagram",
+   "country": "PK",
+   "source": "https://en.wikipedia.org/wiki/Neelam_Muneer"
+  },
+  {
+   "handle": "zaranoorabbas.official",
+   "platform": "instagram",
+   "country": "PK",
+   "source": "https://en.wikipedia.org/wiki/Zara_Noor_Abbas"
+  },
+  {
+   "handle": "bilalabbas_khan",
+   "platform": "instagram",
+   "country": "PK",
+   "source": "https://en.wikipedia.org/wiki/Bilal_Abbas_Khan"
+  },
+  {
+   "handle": "sabaqamarzaman",
+   "platform": "instagram",
+   "country": "PK",
+   "source": "https://en.wikipedia.org/wiki/Saba_Qamar"
+  },
+  {
+   "handle": "sabooraly",
+   "platform": "instagram",
+   "country": "PK",
+   "source": "https://en.wikipedia.org/wiki/Saboor_Aly"
+  },
+  {
+   "handle": "ahadrazamir",
+   "platform": "instagram",
+   "country": "PK",
+   "source": "https://en.wikipedia.org/wiki/Ahad_Raza_Mir"
+  },
+  {
+   "handle": "noorzafarkhan",
+   "platform": "instagram",
+   "country": "PK",
+   "source": "https://en.wikipedia.org/wiki/Noor_Zafar_Khan"
+  },
+  {
+   "handle": "amarkhanlove",
+   "platform": "instagram",
+   "country": "PK",
+   "source": "https://en.wikipedia.org/wiki/Amar_Khan"
+  },
+  {
+   "handle": "mahirahkhan",
+   "platform": "instagram",
+   "country": "PK",
+   "source": "https://en.wikipedia.org/wiki/Mahira_Khan"
+  },
+  {
+   "handle": "seharkhan_official",
+   "platform": "instagram",
+   "country": "PK",
+   "source": "https://en.wikipedia.org/wiki/Sehar_Khan"
+  },
+  {
+   "handle": "fatimaeffendikanwar",
+   "platform": "instagram",
+   "country": "PK",
+   "source": "https://en.wikipedia.org/wiki/Fatima_Effendi"
+  },
+  {
+   "handle": "momal15",
+   "platform": "instagram",
+   "country": "PK",
+   "source": "https://en.wikipedia.org/wiki/Momal_Sheikh"
+  },
+  {
+   "handle": "itsnidayasir.official",
+   "platform": "instagram",
+   "country": "PK",
+   "source": "https://en.wikipedia.org/wiki/Nida_Yasir"
+  },
+  {
+   "handle": "samarjafri_",
+   "platform": "instagram",
+   "country": "PK",
+   "source": "https://en.wikipedia.org/wiki/Samar_Jafri"
+  },
+  {
+   "handle": "iamshaistalodhi",
+   "platform": "instagram",
+   "country": "PK",
+   "source": "https://en.wikipedia.org/wiki/Shaista_Lodhi"
+  }
+ ]
+}
