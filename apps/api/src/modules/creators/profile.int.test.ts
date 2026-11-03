@@ -177,6 +177,8 @@ describe("reassess a creator", () => {
     const before = await available(c);
     expect(await creators.reassess(c, id)).toEqual({ status: "queued" });
     expect(await available(c)).toBe(before);
+    // Shared record: a second request within 24 hours (any team) queues nothing.
+    expect(await creators.reassess(await trialCustomer(), id)).toEqual({ status: "recent" });
     const events = await ownerQuery<{ event_type: string }>(`select event_type from platform.outbox where aggregate_id = '${id}' and event_type like 'creator.assessment%' or (aggregate_id = '${id}' and event_type like 'discovery%')`);
     expect(events.map((e) => e.event_type)).toEqual(["creator.assessment_requested"]);
     const abroad = await addCreator(db, { confirmedCountry: null, country: null, profiles: [{ bio: "Food reviews, based in Dubai, UAE" }] });

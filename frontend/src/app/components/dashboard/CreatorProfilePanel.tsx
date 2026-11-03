@@ -202,7 +202,7 @@ export function CreatorProfilePanel({ creator, onClose, onCompare, onGoToCampaig
                         type="button"
                         onClick={() =>
                           reassess.mutate(undefined, {
-                            onSuccess: () => toast.success("Reassessment started", "MUSHIN re-checks this creator from the data it already has. Free; no niche needed."),
+                            onSuccess: (r) => (r.status === "recent" ? toast.info("Reassessed recently", "This creator was re-checked in the last 24 hours. Try again tomorrow.") : toast.success("Reassessment started", "MUSHIN re-checks this creator from the data it already has. Free; no niche needed.")),
                             onError: (err) => toast.error("Couldn't start the reassessment", err instanceof Error ? err.message : undefined),
                           })
                         }

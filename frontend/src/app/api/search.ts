@@ -100,7 +100,7 @@ export function useCreatorLookup(q: string) {
 export function useReassessCreator(id: string | null) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => apiRequest(`/v1/creators/${id ?? ""}/reassess`, z.object({ status: z.literal("queued") }), { method: "POST" }),
+    mutationFn: () => apiRequest(`/v1/creators/${id ?? ""}/reassess`, z.object({ status: z.enum(["queued", "recent"]) }), { method: "POST" }),
     onSuccess: () => setTimeout(() => void qc.invalidateQueries({ queryKey: ["creator", id] }), 8000),
   });
 }

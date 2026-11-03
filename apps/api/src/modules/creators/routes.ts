@@ -90,7 +90,7 @@ export function registerCreatorRoutes(
     const ctx = tenantOf(req);
     const r = await limiter.limit("ai", ctx.userId);
     if (!r.allowed) throw rateLimitError(r.retryAfterSeconds);
-    return sendOk(reply, z.object({ status: z.literal("queued") }), await service.reassess(ctx, id), 202);
+    return sendOk(reply, z.object({ status: z.enum(["queued", "recent"]) }), await service.reassess(ctx, id), 202);
   });
 
   app.delete("/v1/creators/:id/reveal", read, async (req, reply) => {

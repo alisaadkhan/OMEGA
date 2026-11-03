@@ -348,6 +348,11 @@ export function createCreatorsService(deps: CreatorsDeps) {
           avgLikes: restrictsDerived(p.platform, policy) ? null : p.avgLikes,
           avgComments: restrictsDerived(p.platform, policy) ? null : p.avgComments,
           avgViews: restrictsDerived(p.platform, policy) ? null : p.avgViews,
+          typicalViews: restrictsDerived(p.platform, policy) || p.medianViews === null ? null : Math.round(p.medianViews),
+          typicalViewsSample: restrictsDerived(p.platform, policy) ? null : p.performanceViewsSample,
+          typicalViewsFormat: restrictsDerived(p.platform, policy) ? null : (p.performanceFormat as "reel" | "video" | null),
+          engagementSample: restrictsDerived(p.platform, policy) ? null : p.performanceEngagementSample,
+          metricsNote: restrictsDerived(p.platform, policy) ? ("policy_restricted" as const) : p.performanceAt === null && p.engagementRate === null ? ("not_collected" as const) : p.medianViews === null && p.engagementRate === null ? ("insufficient_posts" as const) : null,
           // Emails and phone numbers in the bio stay hidden until this workspace reveals the contacts.
           bio: revealed ? p.bio : maskBioContacts(p.bio),
           freshness: {
@@ -424,11 +429,19 @@ export function createCreatorsService(deps: CreatorsDeps) {
    * account type, metrics and niche are re-decided by the worker from the last provider answer. No niche is needed, no
    * credits are charged and no discovery run or provider fetch starts; search is re-projected when it finishes.
    */
-  async function reassess(ctx: TenantContext, id: string): Promise<{ status: "queued" }> {
-    return deps.db.withTenant(tenant(ctx), async (tx) => {
+  async function reassess(ctx: TenantContext, id: string): Promise<{ status: "queued" | "recent" }> {
+    // Visibility is decided as the customer (row-level security), like opening the profile.
+    await deps.db.withTenant(tenant(ctx), async (tx) => {
       const c = await repo.getCreator(tx, id);
       if (!c || c.status !== "active") throw new AppError("NOT_FOUND", "Creator not found");
       if (countryLocked(profileEligibilityView(c, await repo.getProfiles(tx, id), now())) && !(await repo.workspaceHasCreator(tx, id))) throw new AppError("NOT_FOUND", "Creator not found");
+    });
+    // The record is shared by every customer: one reassessment per creator per 24 hours, so nobody can keep re-rolling
+    // its assessment (security review 2026-11-03). Serialised per creator so simultaneous requests queue only one.
+    return deps.db.withSystem(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`reassess:${id}`}, 0))`);
+      const [recent] = await tx.execute<{ n: number }>(sql`select count(*)::int n from platform.outbox where aggregate_id = ${id} and event_type = 'creator.assessment_requested' and created_at > now() - interval '24 hours'`);
+      if ((recent?.n ?? 0) > 0) return { status: "recent" as const };
       await writeOutbox(tx, { eventType: "creator.assessment_requested", aggregateType: "creator", aggregateId: id, workspaceId: ctx.workspaceId, payload: { creatorId: id }, requestId: ctx.requestId });
       return { status: "queued" as const };
     });
