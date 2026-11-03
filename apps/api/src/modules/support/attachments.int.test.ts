@@ -73,7 +73,9 @@ describe("support attachments", () => {
     expect((await basicScanner(PDF, "application/pdf")).clean).toBe(true);
     // Filters the scan cannot read, chained filters, encryption and image codecs on object streams are refused.
     const stream = (dict: string) => enc(`%PDF-1.7\n1 0 obj ${dict}\nstream\nAAAA\nendstream\nendobj`);
-    expect((await basicScanner(stream("<< /Filter /ASCIIHexDecode /Length 4 >>"), "application/pdf")).clean).toBe(false);
+    const hexJs = enc(`%PDF-1.7\n1 0 obj << /Filter /ASCIIHexDecode /Length 30 >>\nstream\n${Buffer.from("<< /S /JavaScript >>").toString("hex")}>\nendstream\nendobj`);
+    expect(await basicScanner(hexJs, "application/pdf")).toMatchObject({ clean: false, detail: expect.stringContaining("JavaScript") });
+    expect((await basicScanner(stream("<< /Filter /LZWDecode /Length 4 >>"), "application/pdf")).clean).toBe(false);
     expect((await basicScanner(stream("<< /Filter [/ASCII85Decode /FlateDecode] /Length 4 >>"), "application/pdf")).clean).toBe(false);
     expect((await basicScanner(stream("<< /Type /ObjStm /Filter /DCTDecode /Length 4 >>"), "application/pdf")).clean).toBe(false);
     expect((await basicScanner(stream("<< /Type /XObject /Subtype /Image /Filter /DCTDecode /DecodeParms << /K 1 >> /Length 4 >>"), "application/pdf")).clean).toBe(true);
