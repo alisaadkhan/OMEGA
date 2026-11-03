@@ -1,15 +1,15 @@
 {
  "db": "mushin_catalog_v4",
  "mode": "apply",
- "at": "2026-11-03T12:15:18.711Z",
- "creators": 3148,
+ "at": "2026-11-03T12:54:45.083Z",
+ "creators": 3217,
  "changed": 0,
  "transitions": {},
  "before": {
   "instagram": {
    "foreign": 16,
-   "unknown": 216,
-   "pakistan": 473
+   "unknown": 247,
+   "pakistan": 510
   },
   "youtube": {
    "pakistan": 1371,
@@ -19,14 +19,14 @@
   },
   "tiktok": {
    "unknown": 27,
-   "pakistan": 37
+   "pakistan": 38
   }
  },
  "after": {
   "instagram": {
    "foreign": 16,
-   "unknown": 216,
-   "pakistan": 473
+   "unknown": 247,
+   "pakistan": 510
   },
   "youtube": {
    "pakistan": 1371,
@@ -36,11 +36,11 @@
   },
   "tiktok": {
    "unknown": 27,
-   "pakistan": 37
+   "pakistan": 38
   }
  },
  "projection": {
-  "upserted": 21,
+  "upserted": 30,
   "removed": 0
  }
 }
