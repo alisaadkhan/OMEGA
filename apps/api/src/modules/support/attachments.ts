@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { inflateSync } from "node:zlib";
 import { sql } from "drizzle-orm";
 import { AppError, type TenantContext } from "@mushin/core";
 import type { Db } from "@mushin/db";
@@ -30,12 +31,47 @@ export function sniffType(b: Uint8Array): AttachmentType | null {
   return null;
 }
 
-/** Malware-scan hook: a real scanner can replace this; the built-in one refuses active content in PDFs. */
+/** Malware-scan hook: a real scanner (e.g. ClamAV) can replace this; the built-in one refuses active content in PDFs. */
 export type AttachmentScanner = (bytes: Uint8Array, type: AttachmentType) => Promise<{ clean: boolean; detail: string }>;
+const ACTIVE_PDF = /\/(JavaScript|JS|Launch|EmbeddedFile|OpenAction|AA|RichMedia|XFA|SubmitForm|ImportData|GoToR|GoToE)(?![A-Za-z0-9])/;
+const MAX_INFLATED = 25 * 1024 * 1024;
+const unescapeNames = (s: string) => s.replace(/#([0-9A-Fa-f]{2})/g, (_, h: string) => String.fromCharCode(parseInt(h, 16)));
+
+/**
+ * The PDF's text as a reader would see its names: compressed streams (object streams can hide dictionaries) are
+ * inflated and #xx name escapes (/J#61vaScript) decoded. Null when a compressed stream cannot be read: refused, not trusted.
+ */
+export function pdfScanText(bytes: Uint8Array): string | null {
+  const raw = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const parts = [raw.toString("latin1")];
+  let total = 0;
+  for (let at = raw.indexOf("stream"); at !== -1; at = raw.indexOf("stream", at + 6)) {
+    if (at >= 3 && raw.toString("latin1", at - 3, at) === "end") continue;
+    let start = at + 6;
+    if (raw[start] === 0x0d) start++;
+    if (raw[start] === 0x0a) start++;
+    const end = raw.indexOf("endstream", start);
+    if (end === -1) break;
+    if (/\/FlateDecode/.test(unescapeNames(raw.toString("latin1", Math.max(0, at - 400), at)))) {
+      try {
+        const out = inflateSync(raw.subarray(start, end), { maxOutputLength: MAX_INFLATED });
+        total += out.length;
+        if (total > MAX_INFLATED) return null;
+        parts.push(out.toString("latin1"));
+      } catch {
+        return null;
+      }
+    }
+    at = end;
+  }
+  return unescapeNames(parts.join("\n"));
+}
+
 export const basicScanner: AttachmentScanner = async (bytes, type) => {
   if (type !== "application/pdf") return { clean: true, detail: "Signature checked" };
-  const text = new TextDecoder("latin1").decode(bytes);
-  const active = /\/(JavaScript|JS|Launch|EmbeddedFile|OpenAction|AA|RichMedia|XFA)\b/.exec(text);
+  const text = pdfScanText(bytes);
+  if (text === null) return { clean: false, detail: "PDF with content that could not be checked is not accepted" };
+  const active = ACTIVE_PDF.exec(text);
   return active ? { clean: false, detail: `PDF with active content (${active[1]}) is not accepted` } : { clean: true, detail: "Signature checked; no active PDF content" };
 };
 
@@ -53,16 +89,17 @@ export function createAttachments(deps: { db: Db; storage: ObjectStorage | null;
   };
 
   /** The ticket's workspace when the caller may use it: the customer's own workspace, or any ticket for staff. */
-  async function ticketWorkspace(who: Uploader, ticketId: string): Promise<string> {
+  async function ticket(who: Uploader, ticketId: string): Promise<{ ws: string; status: string }> {
     const rows =
       who.kind === "customer"
-        ? await deps.db.withTenant({ userId: who.ctx.userId, workspaceId: who.ctx.workspaceId }, (tx) => tx.execute<{ workspace_id: string }>(sql`select workspace_id from wp.support_tickets where id = ${ticketId}`))
+        ? await deps.db.withTenant({ userId: who.ctx.userId, workspaceId: who.ctx.workspaceId }, (tx) => tx.execute<{ workspace_id: string; status: string }>(sql`select workspace_id, status from wp.support_tickets where id = ${ticketId}`))
         : // Staff see every ticket through the staff ticket function (tickets are workspace-scoped by row-level security).
-          await deps.db.withSystem((tx) => tx.execute<{ workspace_id: string | null }>(sql`select (platform.staff_ticket(${ticketId}) ->> 'workspaceId') as workspace_id`));
+          await deps.db.withSystem((tx) => tx.execute<{ workspace_id: string | null; status: string | null }>(sql`select t ->> 'workspaceId' as workspace_id, t ->> 'status' as status from platform.staff_ticket(${ticketId}) t`));
     const ws = rows[0]?.workspace_id;
     if (!ws) throw new AppError("NOT_FOUND", "Ticket not found");
-    return ws;
+    return { ws, status: rows[0]?.status ?? "open" };
   }
+  const ticketWorkspace = async (who: Uploader, ticketId: string) => (await ticket(who, ticketId)).ws;
 
   async function row(ws: string, ticketId: string, id: string): Promise<Row> {
     const [r] = await deps.db.withWorkspace(ws, (tx) => tx.execute<Row>(sql`select * from wp.support_attachments where id = ${id} and ticket_id = ${ticketId}`));
@@ -76,7 +113,10 @@ export function createAttachments(deps: { db: Db; storage: ObjectStorage | null;
       if (!type) throw new AppError("VALIDATION_FAILED", "Only JPG, PNG, WebP or PDF files can be attached.", { reason: "type_not_allowed" });
       if (!EXTENSIONS[type].test(body.fileName)) throw new AppError("VALIDATION_FAILED", "The file name does not match its type.", { reason: "extension_mismatch" });
       if (!Number.isInteger(body.sizeBytes) || body.sizeBytes < 1 || body.sizeBytes > MAX_ATTACHMENT_BYTES) throw new AppError("VALIDATION_FAILED", "Files can be at most 5 MB.", { reason: "too_large" });
-      const ws = await ticketWorkspace(who, ticketId);
+      const t = await ticket(who, ticketId);
+      // As with replies, a customer reopens a closed request before adding to it.
+      if (who.kind === "customer" && t.status === "closed") throw new AppError("CONFLICT", "This request is closed. Reopen it to add a file.", { reason: "ticket_closed" });
+      const ws = t.ws;
       const id = randomUUID();
       const key = `${ws}/${ticketId}/${id}`;
       const fileName = body.fileName.replace(/[^\p{L}\p{N}._ -]/gu, "_").slice(0, 160);
@@ -86,7 +126,8 @@ export function createAttachments(deps: { db: Db; storage: ObjectStorage | null;
           values (${id}, ${ticketId}, ${ws}, ${who.kind === "customer" ? who.ctx.userId : null}, ${who.kind === "staff" ? who.staffId : null}, ${fileName}, ${type}, ${key})
           returning *`),
       );
-      await storage().ensureBucket(ATTACHMENT_BUCKET, { public: false });
+      // The storage service itself refuses larger files and other types on upload.
+      await storage().ensureBucket(ATTACHMENT_BUCKET, { public: false, fileSizeLimit: MAX_ATTACHMENT_BYTES, allowedMimeTypes: [...ATTACHMENT_TYPES] });
       return { attachment: toApi(r as Row), uploadUrl: await storage().signedUploadUrl(ATTACHMENT_BUCKET, key) };
     },
 
@@ -95,7 +136,7 @@ export function createAttachments(deps: { db: Db; storage: ObjectStorage | null;
       const ws = await ticketWorkspace(who, ticketId);
       const r = await row(ws, ticketId, id);
       if (r.status !== "pending") return toApi(r);
-      const bytes = await storage().get(ATTACHMENT_BUCKET, r.storage_key);
+      const bytes = await storage().get(ATTACHMENT_BUCKET, r.storage_key, { maxBytes: MAX_ATTACHMENT_BYTES });
       let verdict: { clean: boolean; detail: string };
       if (!bytes) verdict = { clean: false, detail: "Nothing was uploaded" };
       else if (bytes.length > MAX_ATTACHMENT_BYTES) verdict = { clean: false, detail: "Larger than 5 MB" };

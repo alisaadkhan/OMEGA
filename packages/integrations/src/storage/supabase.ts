@@ -34,14 +34,19 @@ export class SupabaseStorage implements ObjectStorage {
     return text.includes(`"statusCode":"${kind}"`) || res.status === Number(kind);
   }
 
-  async ensureBucket(bucket: string, opts: { public: boolean }): Promise<void> {
-    const res = await this.call("/bucket", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ id: bucket, name: bucket, public: opts.public }),
-    });
-    if (res.ok || (await SupabaseStorage.isMissingOrDuplicate(res, "409"))) return;
-    throw unavailable(new Error(`bucket ${bucket}: HTTP ${res.status}`));
+  async ensureBucket(bucket: string, opts: { public: boolean; fileSizeLimit?: number; allowedMimeTypes?: string[] }): Promise<void> {
+    const limits = {
+      ...(opts.fileSizeLimit !== undefined ? { file_size_limit: opts.fileSizeLimit } : {}),
+      ...(opts.allowedMimeTypes ? { allowed_mime_types: opts.allowedMimeTypes } : {}),
+    };
+    const body = JSON.stringify({ id: bucket, name: bucket, public: opts.public, ...limits });
+    const res = await this.call("/bucket", { method: "POST", headers: { "content-type": "application/json" }, body });
+    if (res.ok) return;
+    if (!(await SupabaseStorage.isMissingOrDuplicate(res, "409"))) throw unavailable(new Error(`bucket ${bucket}: HTTP ${res.status}`));
+    if (Object.keys(limits).length === 0) return;
+    // The bucket exists: make sure it carries the limits (an older bucket may have been created without them).
+    const upd = await this.call(`/bucket/${bucket}`, { method: "PUT", headers: { "content-type": "application/json" }, body });
+    if (!upd.ok) throw unavailable(new Error(`bucket ${bucket} limits: HTTP ${upd.status}`));
   }
 
   async put(bucket: string, key: string, body: Uint8Array | string, contentType: string): Promise<void> {
@@ -53,11 +58,29 @@ export class SupabaseStorage implements ObjectStorage {
     if (!res.ok) throw unavailable(new Error(`put ${bucket}/${key}: HTTP ${res.status}`));
   }
 
-  async get(bucket: string, key: string): Promise<Uint8Array | null> {
+  async get(bucket: string, key: string, opts?: { maxBytes?: number }): Promise<Uint8Array | null> {
     const res = await this.call(`/object/${bucket}/${key}`, { method: "GET" });
     if (await SupabaseStorage.isMissingOrDuplicate(res, "404")) return null;
     if (!res.ok) throw unavailable(new Error(`get ${bucket}/${key}: HTTP ${res.status}`));
-    return new Uint8Array(await res.arrayBuffer());
+    const max = opts?.maxBytes;
+    if (max === undefined) return new Uint8Array(await res.arrayBuffer());
+    // Bounded read: a declared larger object is not downloaded; otherwise stop after max + 1 bytes.
+    if (Number(res.headers.get("content-length") ?? 0) > max) {
+      await res.body?.cancel();
+      return new Uint8Array(max + 1);
+    }
+    const out = new Uint8Array(max + 1);
+    let n = 0;
+    const reader = res.body?.getReader();
+    while (reader && n <= max) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const take = Math.min(value.length, max + 1 - n);
+      out.set(value.subarray(0, take), n);
+      n += take;
+    }
+    if (n > max) await reader?.cancel();
+    return out.subarray(0, n);
   }
 
   async remove(bucket: string, keys: string[]): Promise<void> {

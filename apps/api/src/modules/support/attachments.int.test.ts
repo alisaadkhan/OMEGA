@@ -2,7 +2,8 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import type { TenantContext } from "@mushin/core";
 import { createTestDatabase, createTestWorkspace, ownerQuery, resetTables } from "@mushin/db/testing";
 import { MemoryStorage } from "@mushin/integrations";
-import { ATTACHMENT_BUCKET, createAttachments, sniffType } from "./attachments";
+import { deflateSync } from "node:zlib";
+import { ATTACHMENT_BUCKET, basicScanner, createAttachments, sniffType } from "./attachments";
 import { createSupportService } from "./index";
 
 const db = createTestDatabase();
@@ -60,6 +61,23 @@ describe("support attachments", () => {
     await expect(att.downloadUrl(other, t.id, png.attachment.id)).rejects.toMatchObject({ code: "NOT_FOUND" });
     expect((await att.list(who, t.id)).map((a) => a.fileName)).toEqual(["receipt.png"]);
     expect(sniffType(PDF)).toBe("application/pdf");
+  });
+
+  it("sees through PDF name escapes and compressed streams, and refuses files on a closed request", async () => {
+    const enc = (s: string) => new TextEncoder().encode(s);
+    const hidden = deflateSync(Buffer.from("<< /Type /Action /S /JavaScript /JS (app.alert(1)) >>"));
+    const compressed = new Uint8Array(Buffer.concat([Buffer.from("%PDF-1.7\n5 0 obj << /Type /ObjStm /Filter /FlateDecode /Length " + hidden.length + " >>\nstream\n"), hidden, Buffer.from("\nendstream\nendobj\n%%EOF")]));
+    expect((await basicScanner(enc("%PDF-1.7\n<< /OpenA#63tion 2 0 R >>"), "application/pdf")).clean).toBe(false);
+    expect((await basicScanner(compressed, "application/pdf")).clean).toBe(false);
+    expect((await basicScanner(enc("%PDF-1.7\n<< /Filter /FlateDecode >>\nstream\nnot zlib\nendstream"), "application/pdf")).clean).toBe(false);
+    expect((await basicScanner(PDF, "application/pdf")).clean).toBe(true);
+
+    const att = createAttachments({ db, storage: new MemoryStorage() });
+    const support = createSupportService({ db });
+    const c = await customer();
+    const t = await support.create(c, { subject: "Done", category: "other", body: "Thanks." });
+    await ownerQuery(`update wp.support_tickets set status = 'closed' where id = '${t.id}'`);
+    await expect(att.request({ kind: "customer", ctx: c }, t.id, { fileName: "a.pdf", contentType: "application/pdf", sizeBytes: 10 })).rejects.toMatchObject({ code: "CONFLICT", details: { reason: "ticket_closed" } });
   });
 
   it("purges files 90 days after the ticket is resolved or closed, unless on legal hold", async () => {
