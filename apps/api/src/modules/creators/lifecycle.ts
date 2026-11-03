@@ -140,7 +140,7 @@ export async function lifecycleSweep(o: { db: Db; now?: () => Date; apply: boole
     );
     // Search documents whose stored eligibility no longer matches the policy as of now.
     const docs = await tx.execute<{ id: string; eligible: boolean; status: string; is_minor: boolean; minor_override_by_staff_id: string | null; organisation: boolean; profiles: EligibilityProfile[] }>(sql`
-      select c.id, d.eligible, c.status, c.is_minor, c.minor_override_by_staff_id, (c.organisation_category is not null and c.organisation_override_by_staff_id is null) as organisation,
+      select c.id, d.eligible, c.status, c.is_minor, c.minor_override_by_staff_id, ((c.organisation_category is not null or (c.account_type in ('CELEBRITY_PUBLIC_FIGURE', 'COMPANY_CORPORATE', 'BRAND_ACCOUNT', 'BUSINESS_STORE', 'MEDIA_PUBLICATION', 'FAN_PAGE_AGGREGATOR') and c.account_type_confidence in ('high', 'medium'))) and c.organisation_override_by_staff_id is null) as organisation,
         coalesce((select jsonb_agg(jsonb_build_object('platform', p.platform, 'canonicalUrl', p.canonical_url,
           'followers', case when p.platform = 'youtube' and p.followers = 0 then null else p.followers end,
           'followersUpdatedAt', p.followers_updated_at, 'lastPostAt', p.last_post_at, 'availability', p.availability, 'country', jsonb_build_object('code', p.country, 'status', p.country_status, 'checkedAt', p.country_checked_at)))

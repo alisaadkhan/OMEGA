@@ -51,7 +51,7 @@ const SHORT_BIO = 300;
 const EDUCATION = "Education & How-to";
 const FORMAT_FORMS = new Set(["how to", "howto", "tutorial", "tutorials", "diy"]);
 // Search forms too general to prove a niche on their own (they still count for search).
-export const WEAK_NICHE_FORMS = new Set(["style", "styling", "explore", "exploring", "tour", "trip", "trips", "glow", "lawn", "health", "healthy", "diet", "mobile", "mobiles", "phone", "phones", "game", "games", "study", "studies", "learning", "money", "savings", "trading", "car", "cars", "auto", "autos", "bike", "bikes", "farm", "routine", "marketing", "sketch", "memes", "song", "songs", "drama", "film", "films", "movie", "movies", "property", "properties", "sport", "khel", "کھیل", "news", "political", "exam", "exams", "course", "courses", "science"]);
+export const WEAK_NICHE_FORMS = new Set(["safar", "سفر", "style", "styling", "explore", "exploring", "tour", "trip", "trips", "glow", "lawn", "health", "healthy", "diet", "mobile", "mobiles", "phone", "phones", "game", "games", "study", "studies", "learning", "money", "savings", "trading", "car", "cars", "auto", "autos", "bike", "bikes", "farm", "routine", "marketing", "sketch", "memes", "song", "songs", "drama", "film", "films", "movie", "movies", "property", "properties", "sport", "khel", "کھیل", "news", "political", "exam", "exams", "course", "courses", "science"]);
 
 /** Whole-word (or whole-phrase) occurrence of a normalized form in normalized text; Urdu forms match as substrings. */
 export function mentions(text: string, form: string): boolean {

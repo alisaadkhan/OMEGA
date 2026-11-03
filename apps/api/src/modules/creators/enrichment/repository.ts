@@ -15,11 +15,13 @@ import {
   type TenantTx,
 } from "@mushin/db";
 import { maskContact, organisationCategory, type CreatorPlatform } from "../rules";
+import { classifyAccountType } from "../account-type";
 import type { Assessment } from "./assessment";
 import type { ContentPerformance } from "../eligibility-v3";
 import type { AttributeDecision } from "./attribute-evidence";
 import { profileCountry, resolveCountry, type ProfileCountry } from "./country-evidence";
 import { wholeChars } from "./quote";
+import { classifyNiche } from "./niche-evidence";
 import type { ExtractedContact, ExtractedLink } from "./links";
 import type { PreviousMetrics, SignalReport } from "./signals";
 import type { StandardProfile } from "./standardize";
@@ -160,6 +162,19 @@ function performanceColumns(i: SaveInput) {
   };
 }
 
+/** 0075: account type from the platform category, bio and handle (owner master directive 2026-11-03, Part 5). */
+function accountTypeColumns(p: SaveInput["profile"], keepIf?: ReturnType<typeof sql>) {
+  const d = classifyAccountType({ category: p.accountCategory ?? null, bio: p.bio ?? "", handle: p.handle, displayName: p.displayName });
+  const keep = (col: unknown, value: unknown) => (keepIf ? sql`case when ${keepIf} then ${col} else ${value} end` : value);
+  return {
+    accountType: keep(creators.accountType, d.type) as string,
+    accountTypeSource: keep(creators.accountTypeSource, d.source) as string | null,
+    accountTypeConfidence: keep(creators.accountTypeConfidence, d.confidence) as string | null,
+    accountTypeEvidence: keep(creators.accountTypeEvidence, d.evidence) as string | null,
+    accountTypeAssessedAt: new Date(),
+  };
+}
+
 const assessmentStatusOf = (i: SaveInput): "assessed" | "pending" | "insufficient_data" =>
   i.assessment === null ? "pending" : i.report.kind === "insufficient" ? "insufficient_data" : "assessed";
 
@@ -203,6 +218,7 @@ export async function saveEnrichment(tx: Tx, i: SaveInput): Promise<{ creatorId:
         minorFlaggedAt: i.minorReason !== null ? new Date() : null,
         // 0072: an Instagram category naming an organisation keeps the account out of search.
         organisationCategory: p.platform === "instagram" ? organisationCategory(p.accountCategory) : null,
+        ...accountTypeColumns(p),
         lastEnrichedAt: new Date(),
       })
       .returning({ id: creators.id });
@@ -273,6 +289,8 @@ export async function saveEnrichment(tx: Tx, i: SaveInput): Promise<{ creatorId:
         ...(status === "pending" ? {} : { authenticityScore: score }),
         assessmentStatus: status === "pending" ? sql`coalesce(${creators.assessmentStatus}, 'pending')` : status,
         ...(p.platform === "instagram" ? { organisationCategory: organisationCategory(p.accountCategory) } : {}),
+        // A staff decision is never replaced by a rule reading.
+        ...accountTypeColumns(p, sql`${creators.accountTypeSource} = 'staff'`),
         lastEnrichedAt: new Date(),
         ...(i.minorReason !== null
           ? { isMinor: true, minorReason: sql`coalesce(${creators.minorReason}, ${i.minorReason})`, minorFlaggedAt: sql`coalesce(${creators.minorFlaggedAt}, now())` }
@@ -369,10 +387,13 @@ export async function placeAttributes(tx: Tx, creatorId: string, d: AttributeDec
   const values: Partial<typeof creators.$inferInsert> = { ...base, ...nicheColumns(d) };
   // A low-confidence reading is weaker than niches earlier text evidence supported, like an unknown one.
   if ((d.niche.status !== "unknown" && d.niche.confidence !== "low") || !cur?.niches.length) return { values, keptNiches: false };
-  const supported = await tx
-    .select({ value: creatorAttributeEvidence.value })
+  const rows = await tx
+    .select({ value: creatorAttributeEvidence.value, source: creatorAttributeEvidence.source, evidence: creatorAttributeEvidence.evidence })
     .from(creatorAttributeEvidence)
     .where(and(eq(creatorAttributeEvidence.creatorId, creatorId), eq(creatorAttributeEvidence.attribute, "niche"), eq(creatorAttributeEvidence.status, "supported"), sql`${creatorAttributeEvidence.source} in ('profile_text', 'post_text', 'account_category')`));
+  // An earlier bio reading is kept only while today's rules still read that niche from its own quote, so a reading an
+  // older rule got wrong ("business" from "for business inquiries") is not carried forward (directive 2026-11-03).
+  const supported = rows.filter((r) => r.source !== "profile_text" || classifyNiche({ displayName: "", bio: r.evidence, accountCategory: null, posts: [], aiNiches: [] }).niches.includes(r.value));
   const kept = cur.niches.filter((n) => supported.some((r) => r.value === n));
   if (kept.length === 0) return { values, keptNiches: false };
   // The earlier classification stands (its model fields are left as they were).

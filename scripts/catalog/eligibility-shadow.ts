@@ -28,7 +28,7 @@ type Row = Record<string, unknown>;
 const [creators, profiles] = await db.withSystem(async (tx) => {
   await tx.execute(sql`set transaction read only`);
   return [
-    [...(await tx.execute<Row>(sql`select c.id, c.status, c.is_minor, c.minor_override_by_staff_id, (c.organisation_category is not null and c.organisation_override_by_staff_id is null) as organisation from gcp.creators c`))],
+    [...(await tx.execute<Row>(sql`select c.id, c.status, c.is_minor, c.minor_override_by_staff_id, ((c.organisation_category is not null or (c.account_type in ('CELEBRITY_PUBLIC_FIGURE', 'COMPANY_CORPORATE', 'BRAND_ACCOUNT', 'BUSINESS_STORE', 'MEDIA_PUBLICATION', 'FAN_PAGE_AGGREGATOR') and c.account_type_confidence in ('high', 'medium'))) and c.organisation_override_by_staff_id is null) as organisation from gcp.creators c`))],
     [...(await tx.execute<Row>(sql`select creator_id, platform, canonical_url, followers, followers_updated_at, last_post_at, availability, engagement_rate, avg_views,
       country, country_status, country_source, country_checked_at from gcp.creator_profiles`))],
   ] as const;

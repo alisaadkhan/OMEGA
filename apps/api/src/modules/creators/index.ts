@@ -61,3 +61,4 @@ export { profileMetrics } from "./enrichment/signals";
 export { lifecycleSweep, locationState, nextAvailability, permittedActions, recordAvailability } from "./lifecycle";
 export type { Availability, LocationState, PermittedActions, SweepReport } from "./lifecycle";
 export { contentPerformance, evaluateV3, ELIG3_RULES, ELIGIBILITY_V3, type ContentPerformance, type V3Input, type V3Result, type V3Status } from "./eligibility-v3";
+export { ACCOUNT_TYPES, classifyAccountType, NON_TARGET_TYPES, type AccountType, type AccountTypeDecision } from "./account-type";

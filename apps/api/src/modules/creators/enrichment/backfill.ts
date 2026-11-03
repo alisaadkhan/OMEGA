@@ -35,6 +35,9 @@ const SNAPSHOT_COLS = {
   nicheMain: creators.nicheMain,
   nicheStatus: creators.nicheStatus,
   nicheConfidence: creators.nicheConfidence,
+  // 0074 (owner master directive 2026-11-03): bio-identified or post-estimated, and posts read.
+  nicheSource: creators.nicheSource,
+  nichePostsAssessed: creators.nichePostsAssessed,
   nicheAssessedAt: creators.nicheAssessedAt,
   city: creators.city,
   country: creators.country,
@@ -70,7 +73,7 @@ export type BackfillReport = {
 };
 
 // The stored values a run compares; the checked/assessed dates are not compared, so an unchanged creator is not rewritten.
-const COMPARED = ["niches", "nicheMain", "nicheStatus", "nicheConfidence", "city", "country", "platformCountry", "statedCountry", "countrySource", "countryConfidence"] as const;
+const COMPARED = ["nicheSource", "nichePostsAssessed", "niches", "nicheMain", "nicheStatus", "nicheConfidence", "city", "country", "platformCountry", "statedCountry", "countrySource", "countryConfidence"] as const;
 // Keyed exactly as stored (replaceAttributeEvidence trims the same way).
 const evidenceKey = (r: { attribute: string; value: string; source: string; status: string; evidence: string }) => `${r.attribute}|${truncate(r.value, 80)}|${r.source}|${r.status}|${truncate(wholeChars(r.evidence), 300)}`;
 const sameSet = (a: string[], b: string[]) => a.length === b.length && [...a].sort().join("\n") === [...b].sort().join("\n");

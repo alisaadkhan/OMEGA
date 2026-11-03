@@ -179,7 +179,7 @@ export async function getCreator(tx: Tx, id: string): Promise<CreatorRow | null>
       aiSummaryFailedAt: creators.aiSummaryFailedAt,
       isMinor: creators.isMinor,
       minorOverrideByStaffId: creators.minorOverrideByStaffId,
-      organisation: sql<boolean>`(${creators.organisationCategory} is not null and ${creators.organisationOverrideByStaffId} is null)`,
+      organisation: sql<boolean>`((gcp.creators.organisation_category is not null or (gcp.creators.account_type in ('CELEBRITY_PUBLIC_FIGURE', 'COMPANY_CORPORATE', 'BRAND_ACCOUNT', 'BUSINESS_STORE', 'MEDIA_PUBLICATION', 'FAN_PAGE_AGGREGATOR') and gcp.creators.account_type_confidence in ('high', 'medium'))) and gcp.creators.organisation_override_by_staff_id is null)`,
       status: creators.status,
       mergedIntoId: creators.mergedIntoId,
       assessmentStatus: creators.assessmentStatus,
@@ -389,7 +389,7 @@ const UPDATED_EPOCH = sql`extract(epoch from greatest(
 export async function indexRows(tx: SystemTx, ids: string[]): Promise<IndexRow[]> {
   if (ids.length === 0) return [];
   return tx.execute<IndexRow>(sql`
-    select c.id, c.status, c.is_minor as "isMinor", c.minor_override_by_staff_id as "minorOverrideByStaffId", (c.organisation_category is not null and c.organisation_override_by_staff_id is null) as organisation,
+    select c.id, c.status, c.is_minor as "isMinor", c.minor_override_by_staff_id as "minorOverrideByStaffId", ((c.organisation_category is not null or (c.account_type in ('CELEBRITY_PUBLIC_FIGURE', 'COMPANY_CORPORATE', 'BRAND_ACCOUNT', 'BUSINESS_STORE', 'MEDIA_PUBLICATION', 'FAN_PAGE_AGGREGATOR') and c.account_type_confidence in ('high', 'medium'))) and c.organisation_override_by_staff_id is null) as organisation,
       c.display_name as "displayName", c.name_variants as "nameVariants", c.primary_handle as "primaryHandle",
       c.primary_platform as "primaryPlatform", c.city, c.country, c.niches, c.tags, c.verified,
       c.authenticity_score as "authenticityScore",
@@ -621,7 +621,7 @@ export async function lockedForWorkspace(tx: TenantTx, creatorId: string, now: D
 export async function eligibilityOf(tx: Tx, ids: string[], now: Date): Promise<Map<string, CreatorEligibility>> {
   if (ids.length === 0) return new Map();
   const rows = await tx.execute<{ id: string; status: string; isMinor: boolean; minorOverrideByStaffId: string | null; organisation: boolean; profiles: EligibilityProfile[] }>(sql`
-    select c.id, c.status, c.is_minor as "isMinor", c.minor_override_by_staff_id as "minorOverrideByStaffId", (c.organisation_category is not null and c.organisation_override_by_staff_id is null) as organisation,
+    select c.id, c.status, c.is_minor as "isMinor", c.minor_override_by_staff_id as "minorOverrideByStaffId", ((c.organisation_category is not null or (c.account_type in ('CELEBRITY_PUBLIC_FIGURE', 'COMPANY_CORPORATE', 'BRAND_ACCOUNT', 'BUSINESS_STORE', 'MEDIA_PUBLICATION', 'FAN_PAGE_AGGREGATOR') and c.account_type_confidence in ('high', 'medium'))) and c.organisation_override_by_staff_id is null) as organisation,
       coalesce((select jsonb_agg(jsonb_build_object('platform', p.platform, 'canonicalUrl', p.canonical_url,
         'followers', case when p.platform = 'youtube' and p.followers = 0 then null else p.followers end,
         'followersUpdatedAt', p.followers_updated_at, 'lastPostAt', p.last_post_at, 'availability', p.availability, 'country', jsonb_build_object('code', p.country, 'status', p.country_status, 'checkedAt', p.country_checked_at)))

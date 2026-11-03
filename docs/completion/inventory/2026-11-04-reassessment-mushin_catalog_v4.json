@@ -1,0 +1,60 @@
+{
+ "version": "reassess-2026-11-04",
+ "mode": "apply",
+ "database": "mushin_catalog_v4",
+ "creators": 3422,
+ "profiles": 3422,
+ "profilesWithStoredAnswer": 3357,
+ "profilesWithoutStoredAnswer": 65,
+ "impact": {
+  "excluded from results: below follower minimum": 1071,
+  "kept unknown: location not confirmed (research or reassess)": 982,
+  "retained eligible Pakistani creator (account type unknown, shown as such)": 473,
+  "excluded: confirmed non-Pakistani": 312,
+  "retained eligible Pakistani individual creator": 299,
+  "excluded: non-target account type (BUSINESS_STORE)": 158,
+  "excluded: non-target account type (CELEBRITY_PUBLIC_FIGURE)": 63,
+  "excluded: non-target account type (BRAND_ACCOUNT)": 28,
+  "excluded: non-target account type (FAN_PAGE_AGGREGATOR)": 16,
+  "excluded: non-target account type (MEDIA_PUBLICATION)": 8,
+  "excluded: non-target account type (COMPANY_CORPORATE)": 7,
+  "excluded: possible minor (staff review)": 5
+ },
+ "accountTypes": {
+  "UNKNOWN": 1963,
+  "INDIVIDUAL_CREATOR": 1161,
+  "BUSINESS_STORE": 159,
+  "CELEBRITY_PUBLIC_FIGURE": 66,
+  "BRAND_ACCOUNT": 29,
+  "FAN_PAGE_AGGREGATOR": 17,
+  "MEDIA_PUBLICATION": 8,
+  "COMPANY_CORPORATE": 7
+ },
+ "locationOutcomes": {
+  "instagram NON_PAKISTANI_CONFIRMED": 23,
+  "instagram PAKISTAN_CONFIRMED": 629,
+  "instagram UNKNOWN": 326,
+  "tiktok PAKISTAN_CONFIRMED": 38,
+  "tiktok UNKNOWN": 27,
+  "youtube CONFLICTING_EVIDENCE": 22,
+  "youtube NON_PAKISTANI_CONFIRMED": 271,
+  "youtube PAKISTANI_DIASPORA": 18,
+  "youtube PAKISTAN_CONFIRMED": 1370,
+  "youtube UNKNOWN": 698
+ },
+ "elig3Badges": {
+  "instagram Below View/ER Benchmark": 834,
+  "instagram Meets High-Performance Standard": 33,
+  "instagram Performance Assessment Incomplete": 111,
+  "tiktok Below View/ER Benchmark": 41,
+  "tiktok Meets High-Performance Standard": 9,
+  "tiktok Performance Assessment Incomplete": 15,
+  "youtube Performance Assessment Incomplete": 2379
+ },
+ "performanceRecalculated": 975,
+ "countriesChanged": 1,
+ "projection": {
+  "upserted": 3398,
+  "removed": 0
+ }
+}

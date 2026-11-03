@@ -53,7 +53,7 @@ const KIND_WHERE: Record<ReviewKind, ReturnType<typeof sql>> = {
   country: sql`exists (select 1 from gcp.creator_profiles p where p.creator_id = c.id and p.followers >= ${REVIEW_MIN_FOLLOWERS} and p.country_status in ('unknown', 'conflicting'))
     and not exists (select 1 from gcp.creator_profiles p where p.creator_id = c.id and p.country_status = 'pakistan')`,
   minor: sql`c.is_minor and c.minor_override_by_staff_id is null`,
-  organisation: sql`c.organisation_category is not null and c.organisation_override_by_staff_id is null`,
+  organisation: sql`((c.organisation_category is not null or (c.account_type in ('CELEBRITY_PUBLIC_FIGURE', 'COMPANY_CORPORATE', 'BRAND_ACCOUNT', 'BUSINESS_STORE', 'MEDIA_PUBLICATION', 'FAN_PAGE_AGGREGATOR') and c.account_type_confidence in ('high', 'medium'))) and c.organisation_override_by_staff_id is null)`,
   assessment: sql`(c.assessment_status is null or c.assessment_status in ('pending', 'insufficient_data'))
     and exists (select 1 from gcp.creator_profiles p where p.creator_id = c.id and p.followers >= ${REVIEW_MIN_FOLLOWERS})`,
 };
@@ -88,7 +88,7 @@ export function createCatalogueReview(deps: { db: Db }) {
         const items = await tx.execute<z.infer<typeof reviewItemSchema>>(sql`
           select c.id, c.display_name as "displayName", c.avatar_url as "avatarUrl", c.city, c.country,
             c.public_country as "publicCountry", c.public_country_source as "publicCountrySource",
-            c.is_minor as "isMinor", c.minor_reason as "minorReason", c.organisation_category as "organisationCategory", c.assessment_status as "assessmentStatus",
+            c.is_minor as "isMinor", c.minor_reason as "minorReason", coalesce(c.organisation_category, case when c.account_type in ('CELEBRITY_PUBLIC_FIGURE', 'COMPANY_CORPORATE', 'BRAND_ACCOUNT', 'BUSINESS_STORE', 'MEDIA_PUBLICATION', 'FAN_PAGE_AGGREGATOR') then initcap(replace(lower(c.account_type), '_', ' ')) end) as "organisationCategory", c.assessment_status as "assessmentStatus",
             coalesce((select jsonb_agg(jsonb_build_object('platform', p.platform, 'handle', p.handle, 'url', p.canonical_url, 'followers', p.followers,
               'countryStatus', p.country_status, 'country', p.country, 'countrySource', p.country_source, 'bio', left(p.bio, 400)) order by p.followers desc nulls last)
               from gcp.creator_profiles p where p.creator_id = c.id), '[]'::jsonb) as profiles

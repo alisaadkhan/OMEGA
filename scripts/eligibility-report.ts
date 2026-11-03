@@ -18,7 +18,7 @@ type Row = { id: string; status: string; is_minor: boolean; minor_override_by_st
 const hasLastPost = (await sql`select 1 from information_schema.columns where table_schema = 'gcp' and table_name = 'creator_profiles' and column_name = 'last_post_at'`).length > 0;
 const hasCountry = (await sql`select 1 from information_schema.columns where table_schema = 'gcp' and table_name = 'creator_profiles' and column_name = 'country_status'`).length > 0;
 const rows = await sql.unsafe<Row[]>(`
-  select c.id, c.status, c.is_minor, c.minor_override_by_staff_id, (c.organisation_category is not null and c.organisation_override_by_staff_id is null) as organisation,
+  select c.id, c.status, c.is_minor, c.minor_override_by_staff_id, ((c.organisation_category is not null or (c.account_type in ('CELEBRITY_PUBLIC_FIGURE', 'COMPANY_CORPORATE', 'BRAND_ACCOUNT', 'BUSINESS_STORE', 'MEDIA_PUBLICATION', 'FAN_PAGE_AGGREGATOR') and c.account_type_confidence in ('high', 'medium'))) and c.organisation_override_by_staff_id is null) as organisation,
     coalesce((select jsonb_agg(jsonb_build_object('platform', p.platform, 'canonicalUrl', p.canonical_url,
       'followers', case when p.platform = 'youtube' and p.followers = 0 then null else p.followers end,
       'followersUpdatedAt', p.followers_updated_at, 'lastPostAt', ${hasLastPost ? "p.last_post_at" : "null"}${hasCountry ? ", 'availability', p.availability, 'country', jsonb_build_object('code', p.country, 'status', p.country_status, 'checkedAt', p.country_checked_at)" : ""}))

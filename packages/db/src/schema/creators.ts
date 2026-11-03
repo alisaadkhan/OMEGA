@@ -61,6 +61,12 @@ export const creators = gcp.table("creators", {
   organisationCategory: text("organisation_category"),
   organisationOverrideByStaffId: uuid("organisation_override_by_staff_id"),
   organisationOverrideReason: text("organisation_override_reason"),
+  // 0075: account type (individual creator vs company, brand, shop, media, fan page, public figure).
+  accountType: text("account_type"),
+  accountTypeSource: text("account_type_source"),
+  accountTypeConfidence: text("account_type_confidence"),
+  accountTypeEvidence: text("account_type_evidence"),
+  accountTypeAssessedAt: ts("account_type_assessed_at"),
   status: text("status", { enum: ["active", "merged", "removal_requested", "erased"] }).notNull().default("active"),
   mergedIntoId: uuid("merged_into_id"),
   lastEnrichedAt: ts("last_enriched_at"),
