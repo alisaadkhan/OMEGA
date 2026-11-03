@@ -19,6 +19,7 @@ import {
   staffCreateSchema,
   staffDirectorySchema,
   staffTicketAssignSchema,
+  staffTicketPrioritySchema,
   staffTicketDetailSchema,
   staffTicketNoteSchema,
   supportAccessCreateSchema,
@@ -104,6 +105,19 @@ export function createStaffOpsModule(o: {
       const { id } = parseInput(idParams, req.params);
       await actions.noteTicket(staffOf(req), id, parseInput(staffTicketNoteSchema, req.body).body, meta(req));
       return sendOk(reply, staffTicketDetailSchema, await ticket(id), 201);
+    });
+    // Triage level (0073): any staff member who can reply may set it; audited.
+    app.put("/admin/v1/support/tickets/:id/priority", { preHandler: r("support.tickets.reply") }, async (req, reply) => {
+      const { id } = parseInput(idParams, req.params);
+      const { priority } = parseInput(staffTicketPrioritySchema, req.body);
+      const p = staffOf(req);
+      const ok = await o.db.withSystem(async (tx) => {
+        const [row] = await tx.execute<{ ok: boolean }>(sql`select platform.staff_ticket_set_priority(${id}, ${priority}) ok`);
+        if (row?.ok) await recordStaffAudit(tx, { staffId: p.staffId, action: "support.ticket.priority_set", metadata: { ticketId: id, priority }, ...meta(req) });
+        return row?.ok === true;
+      });
+      if (!ok) throw new AppError("NOT_FOUND", "Ticket not found");
+      return sendOk(reply, staffTicketDetailSchema, await ticket(id));
     });
     app.put("/admin/v1/support/tickets/:id/assignee", { preHandler: r("support.tickets.assign_self") }, async (req, reply) => {
       const { id } = parseInput(idParams, req.params);

@@ -11,6 +11,9 @@ import { errText, needsKey, useStepUp } from "./staff-ui";
 
 const STATUS = { open: "Open", in_progress: "In progress", waiting_on_customer: "Waiting on customer", resolved: "Resolved", closed: "Closed" } as const;
 type Status = keyof typeof STATUS;
+const PRIORITY = { urgent: "Urgent", high: "High", normal: "Normal", low: "Low" } as const;
+type Priority = keyof typeof PRIORITY;
+const PRIORITY_STYLE: Record<Priority, string> = { urgent: "bg-rose-50 text-rose-700 ring-rose-200", high: "bg-amber-50 text-amber-800 ring-amber-200", normal: "bg-slate-100 text-slate-600 ring-slate-200", low: "bg-white text-slate-500 ring-slate-200" };
 
 /** Support queue (canonical spec page 20): tickets across workspaces; viewing and replying are audited by the API. */
 export function SupportQueue({ me, canAssignOthers, role }: { me: string; canAssignOthers: boolean; role: AdminRole }) {
@@ -19,7 +22,7 @@ export function SupportQueue({ me, canAssignOthers, role }: { me: string; canAss
   const list = useQuery({ queryKey: ["admin", "tickets", status], queryFn: () => adminRequest(`/admin/v1/support/tickets${status ? `?status=${status}` : ""}`, staffTicketListSchema) });
   return (
     <div>
-      <Header title="Support queue" sub="Customer requests, most recent first. Replies are signed with your staff name." />
+      <Header title="Support queue" sub="Customer requests, urgent first, then most recent. Replies are signed with your staff name." />
       <div className="mb-3 flex gap-1 text-xs" role="group" aria-label="Filter tickets">
         {(["open", "in_progress", "waiting_on_customer", "resolved", "closed", ""] as const).map((s) => (
           <button key={s} onClick={() => setStatus(s)} aria-pressed={status === s} className={`rounded-md px-2.5 py-1 ${status === s ? "bg-slate-900 text-white" : "border border-slate-200 text-slate-700"}`}>{s ? STATUS[s] : "All"}</button>
@@ -32,7 +35,7 @@ export function SupportQueue({ me, canAssignOthers, role }: { me: string; canAss
               {list.data.tickets.map((t) => (
                 <li key={t.id}>
                   <button onClick={() => setOpenId(t.id)} aria-current={openId === t.id} className={`block w-full px-4 py-3 text-left text-xs ${openId === t.id ? "bg-indigo-50/60" : "hover:bg-slate-50"}`}>
-                    <div className="flex justify-between gap-2"><span className="truncate text-sm text-slate-900" style={{ fontWeight: 600 }}>{t.subject}</span><span className="shrink-0 text-slate-500">{STATUS[t.status]}</span></div>
+                    <div className="flex justify-between gap-2"><span className="truncate text-sm text-slate-900" style={{ fontWeight: 600 }}>{t.subject}</span><span className="flex shrink-0 items-center gap-1.5">{t.priority !== "normal" && <span className={`rounded px-1.5 py-0.5 text-[10px] ring-1 ${PRIORITY_STYLE[t.priority]}`} style={{ fontWeight: 600 }}>{PRIORITY[t.priority]}</span>}<span className="text-slate-500">{STATUS[t.status]}</span></span></div>
                     <div className="mt-0.5 text-slate-500">{t.workspaceName} · {t.category} · {t.messages} messages · {t.lastAuthor === "customer" ? "awaiting staff" : "staff replied"}{t.assignedStaffName ? ` · ${t.assignedStaffId === me ? "yours" : t.assignedStaffName}` : " · unassigned"}</div>
                   </button>
                 </li>
@@ -68,6 +71,15 @@ function TicketPanel({ id, me, canAssignOthers, role }: { id: string; me: string
       else throw err;
     }
     void qc.invalidateQueries({ queryKey: ["admin"] });
+  };
+  const setPriority = async (priority: Priority) => {
+    try {
+      await adminRequest(`/admin/v1/support/tickets/${id}/priority`, staffTicketDetailSchema, { method: "PUT", body: { priority } });
+      toast.success(`Priority set to ${PRIORITY[priority].toLowerCase()}`);
+      void qc.invalidateQueries({ queryKey: ["admin"] });
+    } catch (err) {
+      toast.error("Couldn't change the priority", errText(err));
+    }
   };
   const addNote = useMutation({
     mutationFn: () => adminRequest(`/admin/v1/support/tickets/${id}/notes`, staffTicketDetailSchema, { method: "POST", body: { body: note.trim() } }),
@@ -120,6 +132,7 @@ function TicketPanel({ id, me, canAssignOthers, role }: { id: string; me: string
         <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>{t.subject}</div>
         <div className="text-[11px] text-slate-500">{t.workspaceName} · {t.category} · {STATUS[t.status]}</div>
         <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
+          <label>Priority <select value={t.priority} onChange={(e) => void setPriority(e.target.value as Priority)} className="ml-1 rounded-md border border-slate-200 px-1.5 py-0.5">{Object.entries(PRIORITY).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
           <span>Assigned: {t.assignedStaffName ?? "nobody"}</span>
           {t.assignedStaffId !== me && <button onClick={() => void assign(me).catch((err: unknown) => toast.error("Couldn't take the ticket", errText(err)))} className="rounded-md border border-slate-200 px-2 py-0.5 hover:bg-slate-50">Take it</button>}
           {canAssignOthers && staff.data && (
