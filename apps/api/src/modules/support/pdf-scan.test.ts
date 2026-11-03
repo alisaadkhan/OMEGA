@@ -51,4 +51,16 @@ describe("PDF scan text (attachment scan hook)", () => {
     expect(pdfScanText(pdf(stream("<< /Type /XObject /Subtype /Image /Filter /DCTDecode /Length 4 >>", "AAAA")))).not.toBeNull();
     expect(pdfScanText(pdf("trailer << /Encr#79pt 3 0 R >>"))).toBeNull();
   });
+
+  it("closes the gaps of earlier versions: escapes decoded per name, labels not trusted, indirect parameters refused", () => {
+    // An escaped delimiter must not split or merge keys.
+    expect(topLevelDict("<< /A#2fFilter /FlateDecode /Length 4 >>")).toBeNull();
+    // A stream labelled as an image or a cross-reference is still decoded and scanned when it is not predicted.
+    expect(pdfScanText(pdf(stream(`<< /Type /XRef /N 1 /First 0 /Filter /FlateDecode /Length ${hiddenJs.length} >>`, hiddenJs)))).toContain("/JavaScript");
+    expect(pdfScanText(pdf(stream(`<< /Subtype /Image /N 1 /First 0 /Filter /FlateDecode /Length ${hiddenJs.length} >>`, hiddenJs)))).toContain("/JavaScript");
+    // A predictor cannot hide an object stream, and parameters given by reference cannot be checked.
+    expect(pdfScanText(pdf(stream("<< /Type /XRef /N 1 /First 0 /Filter /FlateDecode /DecodeParms << /Predictor 12 >> /Length 4 >>", "AAAA")))).toBeNull();
+    expect(pdfScanText(pdf(stream("<< /Filter /FlateDecode /DecodeParms 7 0 R /Length 4 >>", "AAAA")))).toBeNull();
+    expect(pdfScanText(pdf(stream("<< /Filter [/FlateDecode /FlateDecode /FlateDecode /FlateDecode] /Length 4 >>", "AAAA")))).toBeNull();
+  });
 });
