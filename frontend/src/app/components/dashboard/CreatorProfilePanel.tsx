@@ -61,6 +61,13 @@ const PLATFORM_URL: Record<Creator["platform"], (h: string) => string> = {
  * search. The summary stays in view; "Full profile" opens everything else (evidence, authenticity, every platform,
  * audience, contacts, Update info). Shortlist and campaign open their side panels from here.
  */
+/** Why a metric is missing, never a generic "Unavailable" (owner master directive 2026-11-03, Part 7). */
+function missingNote(note: "policy_restricted" | "not_collected" | "insufficient_posts" | null, platform: string): string {
+  if (note === "policy_restricted" || platform === "youtube") return "Policy restricted for YouTube";
+  if (note === "not_collected") return "Not collected yet";
+  return "Not enough recent posts";
+}
+
 export function CreatorProfilePanel({ creator, onClose, onCompare, onGoToCampaigns }: { creator: Creator | null; onClose: () => void; onCompare?: (c: Creator) => void; onGoToCampaigns?: () => void }) {
   const id = creator?.id ?? null;
   const profile = useCreatorProfile(id);
@@ -234,10 +241,10 @@ export function CreatorProfilePanel({ creator, onClose, onCompare, onGoToCampaig
                 ) : p ? (
                   <>
                     <div className="grid grid-cols-2 gap-2">
-                      <Stat label={creator.platform === "youtube" ? "Subscribers" : "Followers"} value={formatCount(primary?.followers ?? creator.followersNum)} note={primary?.freshness.followers === "stale" ? "Count may be out of date" : `On ${{ instagram: "Instagram", tiktok: "TikTok", youtube: "YouTube" }[creator.platform]}`} />
-                      <Stat label="Engagement rate" accent value={engagement === null ? "—" : `${engagement.toFixed(1)}%`} note={engagement === null ? (creator.platform === "youtube" ? "Not available for YouTube" : "Not enough recent posts") : "Typical recent post"} icon={engagement !== null ? TrendingUp : undefined} />
+                      <Stat label={creator.platform === "youtube" ? "Subscribers" : "Followers"} value={formatCount(primary?.followers ?? creator.followersNum)} note={primary?.freshness.followers === "aging" || primary?.freshness.followers === "stale" ? "Fetched 30+ days ago" : primary?.freshness.followers === "unknown" ? "Fetch date unknown" : `On ${{ instagram: "Instagram", tiktok: "TikTok", youtube: "YouTube" }[creator.platform]}`} />
+                      <Stat label="Engagement rate" accent value={engagement === null ? "—" : `${engagement.toFixed(1)}%`} note={engagement === null ? missingNote(primary?.metricsNote ?? null, creator.platform) : primary?.engagementSample ? `Median of ${primary.engagementSample} recent posts` : "Median of recent posts"} />
                       <Stat label="Audience authenticity" value={authenticity.value} note={authenticity.note} icon={p.authenticity.status === "assessed" ? ShieldCheck : undefined} />
-                      <Stat label={primary?.avgViews != null ? "Typical views" : "Posts"} value={primary?.avgViews != null ? formatCount(primary.avgViews) : formatCount(primary?.posts ?? null)} note={primary?.avgViews != null ? "Average of recent posts" : "Published on this account"} />
+                      <Stat label="Typical views" value={primary?.typicalViews != null ? formatCount(primary.typicalViews) : "—"} note={primary?.typicalViews != null ? `Median of ${primary.typicalViewsSample ?? "recent"} recent ${primary.typicalViewsFormat === "reel" ? "Reels" : "videos"}` : missingNote(primary?.metricsNote ?? null, creator.platform)} />
                     </div>
 
                     <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-[11px] text-slate-600">

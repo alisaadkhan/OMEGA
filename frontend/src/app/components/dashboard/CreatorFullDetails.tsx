@@ -80,7 +80,7 @@ export function CreatorFullDetails({
                 <Mini label="Eng. rate" value={pr.engagementRate != null ? `${pr.engagementRate.toFixed(1)}%` : "—"} />
                 <Mini label="Avg likes" value={pr.avgLikes != null ? formatCount(pr.avgLikes) : "—"} />
                 <Mini label="Avg comments" value={pr.avgComments != null ? formatCount(pr.avgComments) : "—"} />
-                <Mini label="Avg views" value={pr.avgViews != null ? formatCount(pr.avgViews) : "—"} />
+                <Mini label="Typical views" value={pr.typicalViews != null ? formatCount(pr.typicalViews) : "—"} />
               </dl>
             </div>
           ))}

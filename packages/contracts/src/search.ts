@@ -214,6 +214,17 @@ export const creatorProfileSchema = z.object({
       avgLikes: z.number().int().nullable(),
       avgComments: z.number().int().nullable(),
       avgViews: z.number().int().nullable(),
+      /**
+       * Typical views (owner master directive 2026-11-03, Part 7): the MEDIAN views of recent comparable non-pinned videos
+       * (Instagram Reels, YouTube long-form, TikTok videos), never the mean; null below 3 comparable videos.
+       */
+      typicalViews: z.number().int().nullable().default(null),
+      typicalViewsSample: z.number().int().nullable().default(null),
+      typicalViewsFormat: z.enum(["reel", "video"]).nullable().default(null),
+      /** Posts with visible likes behind the engagement rate (median of recent non-pinned posts). */
+      engagementSample: z.number().int().nullable().default(null),
+      /** Why engagement / typical views are missing, when they are: shown instead of a generic "Unavailable". */
+      metricsNote: z.enum(["policy_restricted", "not_collected", "insufficient_posts"]).nullable().default(null),
       bio: z.string().nullable(),
       freshness: z.object({ followers: freshnessSchema, engagement: freshnessSchema, audience: freshnessSchema }),
       updatedAt: metricTimes,
