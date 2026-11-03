@@ -84,6 +84,15 @@ export function registerCreatorRoutes(
     return sendOk(reply, revealResponseSchema, await service.reveal(tenantOf(req), id, body.confirmedCost));
   });
 
+  // Free reassessment from stored data; counted against the AI limit because the worker asks the AI again.
+  app.post("/v1/creators/:id/reassess", read, async (req, reply) => {
+    const { id } = parseInput(idParams, req.params);
+    const ctx = tenantOf(req);
+    const r = await limiter.limit("ai", ctx.userId);
+    if (!r.allowed) throw rateLimitError(r.retryAfterSeconds);
+    return sendOk(reply, z.object({ status: z.literal("queued") }), await service.reassess(ctx, id), 202);
+  });
+
   app.delete("/v1/creators/:id/reveal", read, async (req, reply) => {
     const { id } = parseInput(idParams, req.params);
     await service.forgetReveal(tenantOf(req), id);

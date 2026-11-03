@@ -5,7 +5,7 @@ import { useBillingSummary } from "../../api/billing";
 import { useActiveJobs, useStartJob } from "../../api/discovery";
 import { isOpenJob, jobStatusText } from "../../api/discovery-mapping";
 import { countryWithSource } from "../../api/evidence-mapping";
-import { useCreatorProfile, useForgetReveal, useRevealContact } from "../../api/search";
+import { useCreatorProfile, useForgetReveal, useReassessCreator, useRevealContact } from "../../api/search";
 import { CONTACT_AVAILABILITY_TEXT, avatarFallback, formatCount } from "../../api/search-mapping";
 import { useAuth } from "../../auth/AuthContext";
 import { blockedReasonFor, eligibilityNote, ineligibleText } from "../../lib/eligibility";
@@ -72,6 +72,7 @@ export function CreatorProfilePanel({ creator, onClose, onCompare, onGoToCampaig
   const toast = useToast();
   const { user } = useAuth();
   const refreshLocked = providerActionsLockedText(useBillingSummary().data);
+  const reassess = useReassessCreator(id);
   const [full, setFull] = useState(false);
   const [shortlistFor, setShortlistFor] = useState<DrawerCreator[] | null>(null);
   const [campaignFor, setCampaignFor] = useState<DrawerCreator[] | null>(null);
@@ -196,6 +197,22 @@ export function CreatorProfilePanel({ creator, onClose, onCompare, onGoToCampaig
                       )}
                     </div>
                     <span className="text-[10px] text-slate-500">{refreshing ? jobStatusText(refreshing) : `Updated ${p ? relative(p.lastScrapedAt) : "…"}`}</span>
+                    {p && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          reassess.mutate(undefined, {
+                            onSuccess: () => toast.success("Reassessment started", "MUSHIN re-checks this creator from the data it already has. Free; no niche needed."),
+                            onError: (err) => toast.error("Couldn't start the reassessment", err instanceof Error ? err.message : undefined),
+                          })
+                        }
+                        disabled={reassess.isPending || reassess.isSuccess}
+                        title="Re-check location, account type, metrics and niche from stored data. No credits."
+                        className="rounded text-[11px] font-semibold text-cyan-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50 disabled:text-slate-400 disabled:no-underline"
+                      >
+                        {reassess.isPending ? "Starting…" : reassess.isSuccess ? "Reassessment queued" : "Reassess (free)"}
+                      </button>
+                    )}
                     {refreshLocked && <span className="max-w-[220px] text-right text-[10px] text-slate-600" data-testid="update-locked">Refresh: {refreshLocked}</span>}
                   </div>
                 </div>

@@ -96,6 +96,15 @@ export function useCreatorLookup(q: string) {
   });
 }
 
+/** Free reassessment from stored data (no niche needed, no discovery run); the profile refreshes when the worker is done. */
+export function useReassessCreator(id: string | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiRequest(`/v1/creators/${id ?? ""}/reassess`, z.object({ status: z.literal("queued") }), { method: "POST" }),
+    onSuccess: () => setTimeout(() => void qc.invalidateQueries({ queryKey: ["creator", id] }), 8000),
+  });
+}
+
 export function useForgetReveal(id: string | null) {
   const qc = useQueryClient();
   return useMutation({

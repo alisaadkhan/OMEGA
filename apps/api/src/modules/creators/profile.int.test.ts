@@ -168,3 +168,19 @@ describe("contact reveal (spec D4)", () => {
     expect(reveals[0]?.n).toBe(0);
   });
 });
+
+// Owner master directive 2026-11-03 (Part 6): reassessment needs no niche, costs nothing and starts no discovery run.
+describe("reassess a creator", () => {
+  it("queues a reassessment from stored data, free, without a niche; a hidden creator answers like an unknown id", async () => {
+    const c = await trialCustomer();
+    const id = await addCreator(db, { niches: [] });
+    const before = await available(c);
+    expect(await creators.reassess(c, id)).toEqual({ status: "queued" });
+    expect(await available(c)).toBe(before);
+    const events = await ownerQuery<{ event_type: string }>(`select event_type from platform.outbox where aggregate_id = '${id}' and event_type like 'creator.assessment%' or (aggregate_id = '${id}' and event_type like 'discovery%')`);
+    expect(events.map((e) => e.event_type)).toEqual(["creator.assessment_requested"]);
+    const abroad = await addCreator(db, { confirmedCountry: null, country: null, profiles: [{ bio: "Food reviews, based in Dubai, UAE" }] });
+    await ownerQuery(`update gcp.creator_profiles set country_status = 'foreign', country = 'AE' where creator_id = '${abroad}'`);
+    await expect(creators.reassess(c, abroad)).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+});

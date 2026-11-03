@@ -419,6 +419,21 @@ export function createCreatorsService(deps: CreatorsDeps) {
     });
   }
 
+  /**
+   * Reassess one creator from what MUSHIN already stored (owner master directive 2026-11-03, Part 6): profile, location,
+   * account type, metrics and niche are re-decided by the worker from the last provider answer. No niche is needed, no
+   * credits are charged and no discovery run or provider fetch starts; search is re-projected when it finishes.
+   */
+  async function reassess(ctx: TenantContext, id: string): Promise<{ status: "queued" }> {
+    return deps.db.withTenant(tenant(ctx), async (tx) => {
+      const c = await repo.getCreator(tx, id);
+      if (!c || c.status !== "active") throw new AppError("NOT_FOUND", "Creator not found");
+      if (countryLocked(profileEligibilityView(c, await repo.getProfiles(tx, id), now())) && !(await repo.workspaceHasCreator(tx, id))) throw new AppError("NOT_FOUND", "Creator not found");
+      await writeOutbox(tx, { eventType: "creator.assessment_requested", aggregateType: "creator", aggregateId: id, workspaceId: ctx.workspaceId, payload: { creatorId: id }, requestId: ctx.requestId });
+      return { status: "queued" as const };
+    });
+  }
+
   /** SRS §6.3 "deletable per workspace": the workspace forgets contacts it revealed (no refund). */
   async function forgetReveal(ctx: TenantContext, creatorId: string): Promise<void> {
     if (ctx.role !== "owner" && ctx.role !== "admin") throw new AppError("FORBIDDEN", "Only the team owner or an admin can remove revealed contacts.");
@@ -431,7 +446,7 @@ export function createCreatorsService(deps: CreatorsDeps) {
     return { policy: ELIGIBILITY_VERSION, at: t.toISOString(), ...(await deps.db.withSystem((tx) => repo.eligibilityCoverage(tx, t))) };
   }
 
-  return { search, interpret, lookup, listSaved, createSaved, deleteSaved, profile, reveal, forgetReveal, eligibilityCoverage };
+  return { search, interpret, lookup, listSaved, createSaved, deleteSaved, profile, reveal, forgetReveal, reassess, eligibilityCoverage };
 }
 
 export type CreatorsService = ReturnType<typeof createCreatorsService>;
