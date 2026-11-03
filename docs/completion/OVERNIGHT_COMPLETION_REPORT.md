@@ -155,3 +155,15 @@ resume as soon as the connection returns.
 - elig-3 dry run on today's catalogue: Instagram 29, TikTok 8, YouTube 0 eligible (elig-2: 342 / 25 / 382). elig-2 stays.
 - Live: **3,199 creators; searchable Instagram 297, TikTok 25, YouTube 382**; 0 organisations, 0 emails, 0 phone numbers
   in the index. The expansion keeps running inside the USD 7 cap; its additions go live in the next sync.
+
+## Fourth live sync and navigation (3 November, night)
+
+- Navigation (owner direction): the sidebar shows only Dashboard, Search & Discovery, Shortlists, Campaigns and Inbox
+  on the darker navy of the design; Settings, Credits & billing, Activity log, Support, Leave a review, Back to site and
+  Sign out are in the profile menu. The Analytics page and the omni bar are removed. The Add to Campaign panel uses the
+  mockup's navy and cyan. Settings follows the owner's mockup; the current password is checked before a change; the
+  welcome card waits for the Terms dialog (it used to sit under it for brand-new users).
+- Catalogue: the expansion added 271 more accounts before Claude Code stopped it for low system memory (not restarted).
+  Loaded live: **3,402 creators; searchable Instagram 346, TikTok 25, YouTube 382**; 0 organisations, 0 emails, 0 phone
+  numbers in the index; 201 more photos linked.
+- Browser suites: customer 108 / 55 / 54 passed, 0 failed; staff 34 passed.

@@ -1,0 +1,66 @@
+{
+ "mode": "refresh",
+ "db": "mushin_catalog_v4",
+ "capUsd": 7,
+ "started": "2026-11-03T12:40:25.958Z",
+ "finished": "2026-11-03T12:43:49.469Z",
+ "spendByProvider": [
+  {
+   "provider": "apify",
+   "calls": 11,
+   "usd": "0.090200"
+  },
+  {
+   "provider": "gemini",
+   "calls": 6,
+   "usd": "0.000000"
+  },
+  {
+   "provider": "ollama",
+   "calls": 29,
+   "usd": "0.007678"
+  }
+ ],
+ "jobs": [
+  {
+   "i": 0,
+   "creatorId": "ec6a4498-880c-416e-9234-078e41800c3f",
+   "status": "completed",
+   "outcome": "refreshed",
+   "error": null,
+   "ms": 48591
+  },
+  {
+   "i": 1,
+   "creatorId": "eb9c4196-12af-4301-bd0d-debf120ba4c7",
+   "status": "completed",
+   "outcome": "refreshed",
+   "error": null,
+   "ms": 54351
+  },
+  {
+   "i": 2,
+   "creatorId": "55bc600c-fa33-4377-8388-014eafc9685b",
+   "status": "up_to_date",
+   "outcome": null,
+   "error": null,
+   "ms": 4
+  },
+  {
+   "i": 3,
+   "creatorId": "6ebdfacb-0fa6-4990-8b9c-6d6dbf3a2e80",
+   "status": "completed",
+   "outcome": "refreshed",
+   "error": null,
+   "ms": 62169
+  },
+  {
+   "i": 4,
+   "creatorId": "2c4cd428-5cf3-4f1b-b63a-c78da899e5ed",
+   "status": "completed",
+   "outcome": "refreshed",
+   "error": null,
+   "ms": 38303
+  }
+ ]
+}
