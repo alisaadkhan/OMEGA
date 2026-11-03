@@ -71,6 +71,13 @@ describe("support attachments", () => {
     expect((await basicScanner(compressed, "application/pdf")).clean).toBe(false);
     expect((await basicScanner(enc("%PDF-1.7\n<< /Filter /FlateDecode >>\nstream\nnot zlib\nendstream"), "application/pdf")).clean).toBe(false);
     expect((await basicScanner(PDF, "application/pdf")).clean).toBe(true);
+    // Filters the scan cannot read, chained filters, encryption and image codecs on object streams are refused.
+    const stream = (dict: string) => enc(`%PDF-1.7\n1 0 obj ${dict}\nstream\nAAAA\nendstream\nendobj`);
+    expect((await basicScanner(stream("<< /Filter /ASCIIHexDecode /Length 4 >>"), "application/pdf")).clean).toBe(false);
+    expect((await basicScanner(stream("<< /Filter [/ASCII85Decode /FlateDecode] /Length 4 >>"), "application/pdf")).clean).toBe(false);
+    expect((await basicScanner(stream("<< /Type /ObjStm /Filter /DCTDecode /Length 4 >>"), "application/pdf")).clean).toBe(false);
+    expect((await basicScanner(stream("<< /Type /XObject /Subtype /Image /Filter /DCTDecode /DecodeParms << /K 1 >> /Length 4 >>"), "application/pdf")).clean).toBe(true);
+    expect((await basicScanner(enc("%PDF-1.7\ntrailer << /Encrypt 3 0 R >>"), "application/pdf")).clean).toBe(false);
 
     const att = createAttachments({ db, storage: new MemoryStorage() });
     const support = createSupportService({ db });
