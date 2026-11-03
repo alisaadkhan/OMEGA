@@ -24,6 +24,7 @@ create table wp.support_attachments (
 create index support_attachments_ticket_idx on wp.support_attachments (ticket_id, created_at);
 
 alter table wp.support_attachments enable row level security;
+alter table wp.support_attachments force row level security;
 create policy support_attachments_tenant on wp.support_attachments for all using (workspace_id = platform.current_workspace_id()) with check (workspace_id = platform.current_workspace_id());
 grant select, insert on wp.support_attachments to mushin_app;
 grant select, insert, update, delete on wp.support_attachments to mushin_worker;
