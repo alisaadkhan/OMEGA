@@ -2,7 +2,7 @@ import { createHmac } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { createLogger, loadApiConfig } from "@mushin/core";
 import { createDatabase, createDbProviderCallSink, llmSpendSince, providerPaused, recordAlertEvent, UNVERIFIED_TLS_WARNING, workerHeartbeatAgeSeconds } from "@mushin/db";
-import { createLlm, createPayments, createSearchIndex, MockEmailProvider, pausableLlm, ResendEmailProvider } from "@mushin/integrations";
+import { createLlm, createObjectStorage, createPayments, createSearchIndex, MockEmailProvider, pausableLlm, ResendEmailProvider } from "@mushin/integrations";
 import { buildApp } from "./app";
 import { createSupabaseEmailVerification, createSupabaseIdentityDeletion } from "./auth/auth-admin";
 import { createCustomerGuard } from "./auth/customer-guard";
@@ -15,7 +15,7 @@ import { createCreatorsModule, createCreatorsService, createPostgresCatalogSearc
 import { createDiscoveryModule, createDiscoveryService } from "./modules/discovery";
 import { createActivityModule, createActivityService } from "./modules/activity";
 import { createOpsModule } from "./modules/ops";
-import { createSupportModule, createSupportService } from "./modules/support";
+import { createAttachments, createSupportModule, createSupportService } from "./modules/support";
 import { createAnalyticsModule, createAnalyticsService } from "./modules/analytics";
 import { createCampaignsModule, createCampaignsService } from "./modules/campaigns";
 import { createIdentityModule } from "./modules/identity";
@@ -123,6 +123,8 @@ const staff = createStaffModule({ db, tokens: createStaffTokens(config.staffJwtS
 const removals = createRemovalService({ db, encryptionKey: config.dataEncryptionKey, audit: recordStaffAudit });
 const platform = createPlatformModule({ db, ttlHours: config.idempotencyTtlHours });
 // Audit OPS-03: alerts reach the team's webhook (logged only when none is configured, i.e. development).
+// Support ticket attachments (0076): private bucket, signed URLs; unavailable (routes answer 503) without storage keys.
+const supportAttachments = createAttachments({ db, storage: createObjectStorage(config.storage, logger) });
 const alertNotifier = createAlertNotifier({
   db,
   current: async () => (await createStaffActions({ db }).alerts()).alerts,
@@ -159,11 +161,11 @@ const app = await buildApp({
     createExportsModule({ db, billing, enabled: capabilities.export }),
     createAnalyticsModule({ service: createAnalyticsService({ db }) }),
     createActivityModule({ service: createActivityService({ db }) }),
-    createSupportModule({ service: createSupportService({ db }) }),
+    createSupportModule({ service: createSupportService({ db }), attachments: supportAttachments }),
     createTrialsModule({ service: createTrialService({ db, startTrial: billing.startTrial, onTrialStarted: (id) => accessCache.invalidate(id) }), limiter, requireStaff: staff.requireStaff }),
     createOpsModule({ db, requireStaff: staff.requireStaff }),
     createInsightsModule({ db, requireStaff: staff.requireStaff }),
-    createStaffOpsModule({ db, billing, requireStaff: staff.requireStaff, createStaffAccount: staff.createStaffAccount, alerts: { notifier: alertNotifier, channel: config.alertWebhookUrl ? "webhook" : "log" } }),
+    createStaffOpsModule({ db, billing, attachments: supportAttachments, requireStaff: staff.requireStaff, createStaffAccount: staff.createStaffAccount, alerts: { notifier: alertNotifier, channel: config.alertWebhookUrl ? "webhook" : "log" } }),
     createAudienceModule({ service: createAudienceService({ db, billing, sources: config.audienceSources }), limiter }),
   ],
   readiness,

@@ -4,6 +4,11 @@ import { z } from "zod";
 import {
   alertTestResultSchema,
   approvalDecisionSchema,
+  attachmentDownloadSchema,
+  attachmentListSchema,
+  attachmentRequestSchema,
+  attachmentSchema,
+  attachmentUploadSchema,
   approvalListSchema,
   approvalRequestSchema,
   approvalSchema,
@@ -39,6 +44,7 @@ import { createSupportAccess } from "./access";
 import { createStaffActions } from "./actions";
 import type { AlertNotifier } from "./alert-notifier";
 import { createApprovals } from "./approvals";
+import type { Attachments } from "../support/index";
 import { clearMinorSchema, clearOrganisationSchema, createCatalogueReview, reviewListSchema, reviewQuerySchema, setCountrySchema } from "./catalogue-review";
 
 const idParams = z.object({ id: z.uuid() });
@@ -52,6 +58,8 @@ const meta = (req: FastifyRequest) => ({ ip: req.ip ?? null, requestId: req.id }
 export function createStaffOpsModule(o: {
   db: Db;
   billing: Pick<BillingService, "engine">;
+  /** Support ticket attachments (0076); staff read and add them on any ticket. */
+  attachments?: Attachments | null;
   requireStaff: (action: StaffAction) => PreHandler;
   createStaffAccount: (input: { email: string; name: string; role: "support" }) => Promise<{ id: string; password: string; totpSecret: string; totpUri: string }>;
   /** Alert delivery (audit OPS-03); its channel is "webhook" when ALERT_WEBHOOK_URL is set, otherwise the log. */
@@ -106,6 +114,28 @@ export function createStaffOpsModule(o: {
       await actions.noteTicket(staffOf(req), id, parseInput(staffTicketNoteSchema, req.body).body, meta(req));
       return sendOk(reply, staffTicketDetailSchema, await ticket(id), 201);
     });
+    // Attachments (0076): staff see and add files on any ticket; downloads are 60-second signed links.
+    const att = o.attachments ?? null;
+    if (att) {
+      const fileParams = z.object({ id: z.uuid(), fileId: z.uuid() });
+      const staffWho = (req: FastifyRequest) => ({ kind: "staff" as const, staffId: staffOf(req).staffId });
+      app.get("/admin/v1/support/tickets/:id/attachments", { preHandler: r("support.tickets.read") }, async (req, reply) =>
+        sendOk(reply, attachmentListSchema, { attachments: await att.list(staffWho(req), parseInput(idParams, req.params).id) }),
+      );
+      app.post("/admin/v1/support/tickets/:id/attachments", { preHandler: r("support.tickets.reply") }, async (req, reply) =>
+        sendOk(reply, attachmentUploadSchema, await att.request(staffWho(req), parseInput(idParams, req.params).id, parseInput(attachmentRequestSchema, req.body)), 201),
+      );
+      app.post("/admin/v1/support/tickets/:id/attachments/:fileId/complete", { preHandler: r("support.tickets.reply") }, async (req, reply) => {
+        const p = parseInput(fileParams, req.params);
+        return sendOk(reply, attachmentSchema, await att.complete(staffWho(req), p.id, p.fileId));
+      });
+      app.get("/admin/v1/support/tickets/:id/attachments/:fileId/download", { preHandler: r("support.tickets.read") }, async (req, reply) => {
+        const p = parseInput(fileParams, req.params);
+        await o.db.withSystem((tx) => recordStaffAudit(tx, { staffId: staffOf(req).staffId, action: "support.attachment.downloaded", metadata: { ticketId: p.id, attachmentId: p.fileId }, ...meta(req) }));
+        return sendOk(reply, attachmentDownloadSchema, await att.downloadUrl(staffWho(req), p.id, p.fileId));
+      });
+    }
+
     // Triage level (0073): any staff member who can reply may set it; audited.
     app.put("/admin/v1/support/tickets/:id/priority", { preHandler: r("support.tickets.reply") }, async (req, reply) => {
       const { id } = parseInput(idParams, req.params);

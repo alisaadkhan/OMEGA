@@ -9,4 +9,8 @@ export interface ObjectStorage {
   get(bucket: string, key: string): Promise<Uint8Array | null>;
   remove(bucket: string, keys: string[]): Promise<void>;
   publicUrl(bucket: string, key: string): string;
+  /** A short-lived URL the browser PUTs one object to (private buckets; support attachments). */
+  signedUploadUrl(bucket: string, key: string): Promise<string>;
+  /** A short-lived URL that downloads the object as a file (Content-Disposition: attachment). */
+  signedDownloadUrl(bucket: string, key: string, expiresInSeconds: number, downloadName: string): Promise<string>;
 }

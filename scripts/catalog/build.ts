@@ -83,6 +83,13 @@ function fileStorage(root: string): ObjectStorage {
     publicUrl(bucket, key) {
       return `file://${path(bucket, key)}`;
     },
+    // Catalogue builds never sign browser uploads or downloads.
+    async signedUploadUrl() {
+      throw new Error("signed URLs are not used by catalogue builds");
+    },
+    async signedDownloadUrl() {
+      throw new Error("signed URLs are not used by catalogue builds");
+    },
   };
 }
 

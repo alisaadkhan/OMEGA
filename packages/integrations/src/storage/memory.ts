@@ -22,4 +22,10 @@ export class MemoryStorage implements ObjectStorage {
   publicUrl(bucket: string, key: string): string {
     return `memory://${bucket}/${key}`;
   }
+  async signedUploadUrl(bucket: string, key: string): Promise<string> {
+    return `memory://upload/${bucket}/${key}`;
+  }
+  async signedDownloadUrl(bucket: string, key: string, expiresInSeconds: number, downloadName: string): Promise<string> {
+    return `memory://download/${bucket}/${key}?expires=${expiresInSeconds}&download=${encodeURIComponent(downloadName)}`;
+  }
 }

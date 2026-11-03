@@ -469,6 +469,8 @@ export type ApiConfig = {
   trustedProxies: string[];
   /** Supabase Auth admin access for trusted email checks (audit SEC-03); null when not configured. */
   authAdmin: { url: string; serviceKey: string } | null;
+  /** Private file storage for support ticket attachments (0076); null when the service key is not set. */
+  storage: StorageConfig;
 };
 
 export type OutreachEmailConfig =
@@ -518,6 +520,7 @@ export function loadApiConfig(env: Env): ApiConfig {
     alertWebhookUrl: v.ALERT_WEBHOOK_URL ?? null,
     trustedProxies: v.TRUSTED_PROXIES.split(",").map((s) => s.trim()).filter((s) => s && s !== "none"),
     authAdmin: v.SUPABASE_SERVICE_ROLE_KEY ? { url: v.SUPABASE_URL.replace(/\/+$/, ""), serviceKey: v.SUPABASE_SERVICE_ROLE_KEY } : null,
+    storage: v.SUPABASE_SERVICE_ROLE_KEY ? { url: v.SUPABASE_URL.replace(/\/+$/, ""), serviceKey: v.SUPABASE_SERVICE_ROLE_KEY } : null,
   };
 }
 

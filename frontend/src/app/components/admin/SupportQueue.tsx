@@ -6,6 +6,7 @@ import type { AdminRole } from "../../admin/AdminAuthContext";
 import { adminRequest } from "../../admin/adminApi";
 import { useToast } from "../../lib/toast";
 import { ErrorState, LoadingBlock } from "../dashboard/states";
+import { TicketAttachments } from "../dashboard/TicketAttachments";
 import { Header } from "./OpsViews";
 import { errText, needsKey, useStepUp } from "./staff-ui";
 
@@ -148,6 +149,9 @@ function TicketPanel({ id, me, canAssignOthers, role }: { id: string; me: string
           </li>
         ))}
       </ol>
+      <div className="border-t border-slate-100 p-3">
+        <TicketAttachments base={`/admin/v1/support/tickets/${id}/attachments`} request={adminRequest} canUpload queryKey={["admin", "ticket-attachments", id]} />
+      </div>
       {canAssignOthers && (
         <form
           className="flex flex-wrap items-center gap-2 border-t border-slate-100 p-3 text-xs"

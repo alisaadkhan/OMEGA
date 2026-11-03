@@ -54,3 +54,24 @@ export const staffTicketListSchema = z.object({ tickets: z.array(staffTicketSumm
 export const staffTicketUpdateSchema = z
   .object({ body: z.string().trim().max(5000).optional(), status: ticketStatusSchema.optional() })
   .refine((v) => (v.body && v.body.length > 0) || v.status, "Write a reply or choose a status");
+
+// ── Attachments (owner decision 2026-11-03; migration 0076) ────────────────────────────────────────────────────
+export const attachmentTypeSchema = z.enum(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
+export const attachmentSchema = z.object({
+  id: z.uuid(),
+  fileName: z.string(),
+  contentType: attachmentTypeSchema,
+  sizeBytes: z.number().int().nullable(),
+  status: z.enum(["pending", "clean", "rejected"]),
+  uploadedBy: z.enum(["customer", "staff"]),
+  createdAt: iso,
+});
+export type TicketAttachment = z.output<typeof attachmentSchema>;
+export const attachmentListSchema = z.object({ attachments: z.array(attachmentSchema) });
+export const attachmentRequestSchema = z.object({
+  fileName: z.string().trim().min(1).max(160),
+  contentType: z.string().max(100),
+  sizeBytes: z.number().int().min(1).max(5 * 1024 * 1024, "Files can be at most 5 MB"),
+});
+export const attachmentUploadSchema = z.object({ attachment: attachmentSchema, uploadUrl: z.string() });
+export const attachmentDownloadSchema = z.object({ url: z.string(), expiresInSeconds: z.number().int() });

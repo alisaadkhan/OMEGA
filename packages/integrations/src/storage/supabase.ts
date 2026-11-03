@@ -73,4 +73,21 @@ export class SupabaseStorage implements ObjectStorage {
   publicUrl(bucket: string, key: string): string {
     return `${this.base}/object/public/${bucket}/${key}`;
   }
+
+  /** Supabase signed upload (valid 2 hours, one object, no service key in the browser). */
+  async signedUploadUrl(bucket: string, key: string): Promise<string> {
+    const res = await this.call(`/object/upload/sign/${bucket}/${key}`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+    if (!res.ok) throw unavailable(new Error(`sign upload ${bucket}/${key}: HTTP ${res.status}`));
+    const j = (await res.json()) as { url?: string };
+    if (!j.url) throw unavailable(new Error("sign upload: no url"));
+    return `${this.base}${j.url}`;
+  }
+
+  async signedDownloadUrl(bucket: string, key: string, expiresInSeconds: number, downloadName: string): Promise<string> {
+    const res = await this.call(`/object/sign/${bucket}/${key}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ expiresIn: expiresInSeconds }) });
+    if (!res.ok) throw unavailable(new Error(`sign download ${bucket}/${key}: HTTP ${res.status}`));
+    const j = (await res.json()) as { signedURL?: string };
+    if (!j.signedURL) throw unavailable(new Error("sign download: no url"));
+    return `${this.base}${j.signedURL}&download=${encodeURIComponent(downloadName)}`;
+  }
 }

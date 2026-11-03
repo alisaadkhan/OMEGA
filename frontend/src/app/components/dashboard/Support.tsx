@@ -8,6 +8,7 @@ import { useAuth } from "../../auth/AuthContext";
 import { relative } from "../../lib/time";
 import { useToast } from "../../lib/toast";
 import { ErrorState, LoadingBlock } from "./states";
+import { TicketAttachments } from "./TicketAttachments";
 import { TrialFeedback } from "./TrialFeedback";
 
 const CATEGORY = { search: "Search", discovery: "Find New Creators", billing: "Billing & credits", account: "Account", data_removal: "Data removal", other: "Other" } as const;
@@ -197,6 +198,9 @@ function TicketThread({ id }: { id: string }) {
           );
         })}
       </ol>
+      <div className="bg-white px-6 pt-3">
+        <TicketAttachments base={`/v1/support/tickets/${id}/attachments`} request={apiRequest} canUpload={!closed} queryKey={["support", "attachments", id]} />
+      </div>
       {closed ? (
         <p className="bg-white px-6 py-4 text-xs text-slate-500">This request is closed. Reopen it to reply.</p>
       ) : (

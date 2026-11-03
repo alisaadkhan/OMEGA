@@ -1,6 +1,7 @@
 import { and, eq, sql } from "drizzle-orm";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
+import type { Attachments } from "./attachments";
 import {
   createTicketSchema,
   ticketCustomerStatusSchema,
@@ -10,8 +11,7 @@ import {
   ticketSummarySchema,
   type CreateTicket,
   type TicketDetail,
-  type TicketSummary,
-} from "@mushin/contracts";
+  type TicketSummary, attachmentDownloadSchema, attachmentListSchema, attachmentRequestSchema, attachmentSchema, attachmentUploadSchema } from "@mushin/contracts";
 import { AppError, type TenantContext } from "@mushin/core";
 import { supportMessages, supportTickets, type Db, type TenantTx } from "@mushin/db";
 import { tenantOf } from "../../auth/customer-guard";
@@ -103,8 +103,25 @@ export function createSupportService(deps: { db: Db }) {
 export type SupportService = ReturnType<typeof createSupportService>;
 const idParams = z.object({ id: z.uuid() });
 
-function registerSupportRoutes(app: FastifyInstance, guards: Guards, service: SupportService) {
+function registerSupportRoutes(app: FastifyInstance, guards: Guards, service: SupportService, attachments: Attachments | null) {
   const auth = { preHandler: guards.customer };
+  if (attachments) {
+    // Attachments (0076): request a signed upload, confirm it (signature and scan checks), list, and a short download link.
+    const fileParams = z.object({ id: z.uuid(), fileId: z.uuid() });
+    const who = (req: FastifyRequest) => ({ kind: "customer" as const, ctx: tenantOf(req) });
+    app.get("/v1/support/tickets/:id/attachments", auth, async (req, reply) => sendOk(reply, attachmentListSchema, { attachments: await attachments.list(who(req), parseInput(idParams, req.params).id) }));
+    app.post("/v1/support/tickets/:id/attachments", auth, async (req, reply) =>
+      sendOk(reply, attachmentUploadSchema, await attachments.request(who(req), parseInput(idParams, req.params).id, parseInput(attachmentRequestSchema, req.body)), 201),
+    );
+    app.post("/v1/support/tickets/:id/attachments/:fileId/complete", auth, async (req, reply) => {
+      const p = parseInput(fileParams, req.params);
+      return sendOk(reply, attachmentSchema, await attachments.complete(who(req), p.id, p.fileId));
+    });
+    app.get("/v1/support/tickets/:id/attachments/:fileId/download", auth, async (req, reply) => {
+      const p = parseInput(fileParams, req.params);
+      return sendOk(reply, attachmentDownloadSchema, await attachments.downloadUrl(who(req), p.id, p.fileId));
+    });
+  }
   app.get("/v1/support/tickets", auth, async (req, reply) => sendOk(reply, ticketListSchema, await service.list(tenantOf(req))));
   app.post("/v1/support/tickets", auth, async (req, reply) => sendOk(reply, ticketDetailSchema, await service.create(tenantOf(req), parseInput(createTicketSchema, req.body)), 201));
   app.get("/v1/support/tickets/:id", auth, async (req, reply) => sendOk(reply, ticketDetailSchema, await service.detail(tenantOf(req), parseInput(idParams, req.params).id)));
@@ -116,6 +133,7 @@ function registerSupportRoutes(app: FastifyInstance, guards: Guards, service: Su
   );
 }
 
-export function createSupportModule(o: { service: SupportService }): AppModule {
-  return { name: "support", register: (app, guards) => registerSupportRoutes(app, guards, o.service) };
+export function createSupportModule(o: { service: SupportService; attachments?: Attachments | null }): AppModule {
+  return { name: "support", register: (app, guards) => registerSupportRoutes(app, guards, o.service, o.attachments ?? null) };
 }
+export { createAttachments, type Attachments } from "./attachments";
