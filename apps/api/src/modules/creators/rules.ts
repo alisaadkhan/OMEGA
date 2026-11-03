@@ -9,7 +9,7 @@ function cityFilterValues(value: string): string[] {
   return concept ? [concept.canonical, ...forms] : forms;
 }
 
-export type Freshness = "current" | "aging" | "stale";
+export type Freshness = "current" | "aging" | "unknown";
 export type FreshnessThresholds = { currentDays: number; agingDays: number };
 export type FitWeights = { text: number; filters: number; engagement: number; authenticity: number; freshness: number };
 export type LabelThresholds = { best: number; strong: number; possible: number };
@@ -26,13 +26,13 @@ const DAY_MS = 86_400_000;
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
 
 /** SRS REQ-01.06; thresholds from platform.search_settings (spec D10). */
+/**
+ * Freshness of one platform profile's data, from that profile's last successful fetch (never the record's creation or
+ * update time). Owner rule 2026-11-03: under 30 days "current", 30 days or more "aging", no fetch time "unknown".
+ */
 export function freshnessOf(at: Date | null, now: Date, t: FreshnessThresholds): Freshness {
-  if (!at) return "stale";
-  const age = now.getTime() - at.getTime();
-  if (age <= t.currentDays * DAY_MS) return "current";
-  // 30 days or older is stale, never "aging" (owner 2026-11-02).
-  if (age < t.agingDays * DAY_MS) return "aging";
-  return "stale";
+  if (!at || Number.isNaN(at.getTime())) return "unknown";
+  return now.getTime() - at.getTime() < t.agingDays * DAY_MS ? "current" : "aging";
 }
 
 /** 1 at the centre of a requested follower range (or when no range was asked for), 0.5 at its edges; likewise engagement above its minimum. */
@@ -49,7 +49,7 @@ function filterCloseness(f: SearchFilters, followers: number | null, engagement:
   return parts.length > 0 ? parts.reduce((a, b) => a + b, 0) / parts.length : 1;
 }
 
-const FRESH_SCORE: Record<Freshness, number> = { current: 1, aging: 0.5, stale: 0 };
+const FRESH_SCORE: Record<Freshness, number> = { current: 1, aging: 0.5, unknown: 0 };
 
 /** Deterministic fit score 0–100 (spec D2, §4.2). Authenticity counts as neutral (0.5) while not yet assessed. */
 export function fitScore(c: FitInput, f: SearchFilters, w: FitWeights): number {

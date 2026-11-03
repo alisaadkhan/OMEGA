@@ -25,13 +25,14 @@ const L = { best: 80, strong: 65, possible: 50 };
 const NICHES = ["Bridal", "Fashion", "Beauty", "Tech", "Food", "Travel", "Comedy", "Finance", "Wellness", "Lifestyle"];
 
 describe("freshness", () => {
-  it("is current within 7 days, aging within 30, stale after or when unknown", () => {
-    expect(freshnessOf(days(7), now, T)).toBe("current");
-    expect(freshnessOf(days(8), now, T)).toBe("aging");
-    expect(freshnessOf(days(29), now, T)).toBe("aging");
-    expect(freshnessOf(days(30), now, T)).toBe("stale");
-    expect(freshnessOf(days(31), now, T)).toBe("stale");
-    expect(freshnessOf(null, now, T)).toBe("stale");
+  // Owner rule 2026-11-03: fetched yesterday is current (it used to show "aging" after 7 days).
+  it("is current under 30 days, aging from 30 days, unknown without a fetch time", () => {
+    expect(freshnessOf(days(1), now, T)).toBe("current");
+    expect(freshnessOf(days(8), now, T)).toBe("current");
+    expect(freshnessOf(days(29.9), now, T)).toBe("current");
+    expect(freshnessOf(days(30), now, T)).toBe("aging");
+    expect(freshnessOf(days(400), now, T)).toBe("aging");
+    expect(freshnessOf(null, now, T)).toBe("unknown");
   });
 });
 
@@ -41,7 +42,7 @@ describe("fit score and labels", () => {
 
   it("scores a central, engaged, authentic, fresh creator highly and a weak one lower", () => {
     const top = fitScore(strong, filters, W);
-    const weak = fitScore({ textScore: 0.2, followers: 11_000, engagementRate: 4, authenticityScore: 40, followersFreshness: "stale" }, filters, W);
+    const weak = fitScore({ textScore: 0.2, followers: 11_000, engagementRate: 4, authenticityScore: 40, followersFreshness: "unknown" }, filters, W);
     expect(top).toBeGreaterThanOrEqual(80);
     expect(weak).toBeLessThan(50);
     expect(top).toBeLessThanOrEqual(100);

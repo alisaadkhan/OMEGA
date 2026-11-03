@@ -1,7 +1,8 @@
 import { z } from "zod";
 
 export const creatorPlatformSchema = z.enum(["instagram", "tiktok", "youtube"]);
-export const freshnessSchema = z.enum(["current", "aging", "stale"]);
+/** Owner rule 2026-11-03: under 30 days since the platform profile's last fetch "current", 30 or more "aging", no fetch "unknown". "stale" is kept for older clients only. */
+export const freshnessSchema = z.enum(["current", "aging", "unknown", "stale"]);
 /**
  * What is known about reaching a creator, without revealing anything (2026-10-15). email_unverified: an address was
  * found on the public profile but nothing proves it works ("Email available · Unverified"); email_verified: real

@@ -44,7 +44,7 @@ export type Creator = {
   avgLikes: string;
   avgComments: string;
   tags: string[];
-  followersFreshness: "current" | "aging" | "stale";
+  followersFreshness: "current" | "aging" | "unknown" | "stale";
   hasContact: boolean;
   /** null when not known yet (a creator opened from a link before its profile loads). */
   contactAvailability: import("@mushin/contracts").ContactAvailability | null;

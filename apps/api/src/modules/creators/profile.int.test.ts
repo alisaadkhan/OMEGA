@@ -53,7 +53,7 @@ describe("profile", () => {
       minorProtected: false,
       summary: { status: "generating" },
     });
-    expect(p.profiles[0]?.freshness).toEqual({ followers: "current", engagement: "current", audience: "stale" });
+    expect(p.profiles[0]?.freshness).toEqual({ followers: "current", engagement: "current", audience: "unknown" });
   });
 
   it("returns the authenticity score only together with its evidence", async () => {

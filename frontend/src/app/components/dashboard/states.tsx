@@ -130,12 +130,14 @@ export function Unavailable({ label = "Unavailable" }: { label?: string }) {
 /* Data freshness (§8.3, §22)                                          */
 /* ------------------------------------------------------------------ */
 
-export type Freshness = "current" | "aging" | "stale" | "unavailable";
+export type Freshness = "current" | "aging" | "unknown" | "stale" | "unavailable";
 
 const FRESHNESS: Record<Freshness, { label: string; cls: string; dot: string }> = {
   current: { label: "Current", cls: "border-emerald-100 bg-emerald-50 text-emerald-700", dot: "bg-emerald-500" },
   aging: { label: "Aging", cls: "border-amber-100 bg-amber-50 text-amber-800", dot: "bg-amber-500" },
-  stale: { label: "Stale", cls: "border-rose-100 bg-rose-50 text-rose-700", dot: "bg-rose-500" },
+  unknown: { label: "Unknown", cls: "border-slate-200 bg-slate-50 text-slate-600", dot: "bg-slate-400" },
+  // Older answers only; the API now says "aging" from 30 days (owner rule 2026-11-03).
+  stale: { label: "Aging", cls: "border-amber-100 bg-amber-50 text-amber-800", dot: "bg-amber-500" },
   unavailable: { label: "Unavailable", cls: "border-slate-200 bg-slate-50 text-slate-600", dot: "bg-slate-400" },
 };
 

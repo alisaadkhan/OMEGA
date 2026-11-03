@@ -247,7 +247,7 @@ export function matchToCreator(m: LookupResponse["matches"][number]): Creator {
     avgLikes: "—",
     avgComments: "—",
     tags: [],
-    followersFreshness: "stale",
+    followersFreshness: "unknown",
     hasContact: false,
     contactAvailability: null, // unknown until the profile loads
   };

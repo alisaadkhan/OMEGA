@@ -144,11 +144,11 @@ export function createCreatorsService(deps: CreatorsDeps) {
       () =>
         deps.index.search({
           text: q.text,
-          filter: meiliFilter(q.filters, t, settings.fresh.currentDays),
+          filter: meiliFilter(q.filters, t, settings.fresh.agingDays),
           limit: settings.candidatePool,
           ...(q.text ? {} : { sort: FILTER_ONLY_SORT }),
         }),
-      (s) => s.search({ text: q.text, boost: understood.optional, filters: q.filters, freshCurrentDays: settings.fresh.currentDays, now: t, limit: settings.candidatePool, ...(v2?.groups.length ? { plan: v2.groups } : {}) }, tenant(ctx)),
+      (s) => s.search({ text: q.text, boost: understood.optional, filters: q.filters, freshCurrentDays: settings.fresh.agingDays, now: t, limit: settings.candidatePool, ...(v2?.groups.length ? { plan: v2.groups } : {}) }, tenant(ctx)),
     );
     const relevance = new Map(hits.map((h) => [h.id, h.rankingScore]));
     const rows = await deps.db.withTenant(tenant(ctx), (tx) => repo.cardRows(tx, hits.map((h) => h.id)));

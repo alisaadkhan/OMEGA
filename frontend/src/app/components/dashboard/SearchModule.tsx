@@ -75,7 +75,7 @@ const SORT_LABELS: Record<SortKey, string> = {
   freshness: "Data freshness",
 };
 
-const FRESH_RANK: Record<string, number> = { current: 0, aging: 1, stale: 2, unavailable: 3 };
+const FRESH_RANK: Record<string, number> = { current: 0, aging: 1, stale: 1, unknown: 2, unavailable: 3 };
 
 // The canonical niche list (platform.niches, migration 0054).
 const NICHES = ["Bridal", "Fashion", "Beauty", "Tech", "Food", "Travel", "Comedy", "Finance", "Wellness", "Lifestyle", "Education & How-to", "Gaming", "History", "Literature", "Agriculture", "Business & Ecommerce", "Automotive", "Religion", "Music", "News & Commentary", "Sports", "Entertainment", "Real Estate"];
@@ -1247,7 +1247,7 @@ function AdvancedFilterDrawer(props: {
                 />
                 <div className="flex-1">
                   <div className="text-slate-900" style={{ fontSize: 13, fontWeight: 500 }}>Fresh data only</div>
-                  <div className="text-xs text-slate-500">Hide creators whose core data is aging or stale</div>
+                  <div className="text-xs text-slate-500">Hide creators whose data is 30 days old or more</div>
                 </div>
               </label>
             </div>
