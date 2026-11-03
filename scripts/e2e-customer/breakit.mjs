@@ -67,6 +67,14 @@ check("SETUP-1", "campaign with the fixture creator exists", Boolean(campaignId)
   await fresh.goto("http://localhost:5173/#/dashboard");
   await fresh.getByRole("heading", { name: /Welcome back/ }).waitFor({ timeout: 15000 });
   const card = fresh.getByRole("dialog", { name: "Welcome to MUSHIN" });
+  // A new user sees the Terms dialog first; the welcome card waits until they are accepted (never two dialogs stacked).
+  const terms = fresh.getByRole("dialog", { name: "Before you continue" });
+  if (await terms.waitFor({ state: "visible", timeout: 8000 }).then(() => true, () => false)) {
+    check("WEL-0", "a new user's welcome card waits behind the Terms dialog (no stacked dialogs)", (await card.count()) === 0);
+    await terms.getByRole("checkbox").check();
+    await terms.getByRole("button", { name: /Accept|Continue|Agree/ }).click();
+    await terms.waitFor({ state: "hidden", timeout: 15000 });
+  }
   // isVisible() does not wait (its timeout is ignored): wait for the card, which appears once the workspace data loads.
   const shown = await card.waitFor({ state: "visible", timeout: 15000 }).then(() => true, () => false);
   check("WEL-1", "an empty workspace sees the welcome card, with no claim MUSHIN cannot back (no creator total, no bot detection)", shown && !/3.4M|bot|pod detection|ROI/i.test(await card.innerText().catch(() => "")));

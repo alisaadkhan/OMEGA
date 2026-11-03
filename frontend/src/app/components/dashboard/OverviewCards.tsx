@@ -2,7 +2,7 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowRight, ArrowUpRight, Bookmark, FolderKanban, Megaphone, PauseCircle, Radar, Search, ShieldCheck, Zap } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { analyticsSummarySchema } from "@mushin/contracts";
+import { analyticsSummarySchema, meResponseSchema } from "@mushin/contracts";
 import { useRecentActivity } from "../../api/activity";
 import { rupees, useCampaigns } from "../../api/campaigns";
 import { apiRequest } from "../../api/client";
@@ -162,7 +162,10 @@ export function ActivityCard({ go, className = "" }: { go: (v: DashView) => void
  * while the workspace has no lists, campaigns or activity, until dismissed. Every line describes what MUSHIN does today.
  */
 export function WelcomeCard({ go }: { go: (v: DashView) => void }) {
-  const { user } = useAuth();
+  const { user, status } = useAuth();
+  // Shown only after the current Terms are accepted: a new user sees the Terms dialog first, then this, never stacked.
+  const me = useQuery({ queryKey: ["me"], queryFn: () => apiRequest("/v1/me", meResponseSchema), enabled: status === "signedIn" });
+  const termsAccepted = !!me.data && me.data.legal.acceptedVersion === me.data.legal.currentVersion;
   const lists = useLists();
   const campaigns = useCampaigns();
   const activity = useRecentActivity(6);
@@ -175,7 +178,7 @@ export function WelcomeCard({ go }: { go: (v: DashView) => void }) {
     }
   });
   const isNew = lists.data?.lists.length === 0 && campaigns.data?.campaigns.length === 0 && activity.data?.events.length === 0;
-  if (dismissed || !isNew) return null;
+  if (dismissed || !isNew || !termsAccepted) return null;
   const dismiss = () => {
     setDismissed(true);
     try {
