@@ -56,9 +56,6 @@ export function SnapshotCard({ go }: { go: (v: DashView) => void }) {
     <section aria-label="Last 30 days">
       <div className="mb-3 flex items-baseline justify-between">
         <h2 className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-500">Last 30 days · from your account's records</h2>
-        <button onClick={() => go("analytics")} className="inline-flex items-center gap-1 text-[13px] font-medium text-indigo-600 hover:text-indigo-700">
-          Analytics <ArrowUpRight aria-hidden className="h-3.5 w-3.5" />
-        </button>
       </div>
       {q.isPending ? <Loading /> : q.isError ? <Muted>Couldn't load your numbers. Try again shortly.</Muted> : (
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">

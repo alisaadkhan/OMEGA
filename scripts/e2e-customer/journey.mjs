@@ -103,6 +103,13 @@ async function pageAs(who, viewport = { width: 1440, height: 950 }, { welcome = 
 const shot = (p, n) => p.screenshot({ path: decodeURIComponent(new URL(`${n}.png`, shots).pathname).replace(/^\/([A-Z]:)/, "$1") }).catch(() => {});
 const mainText = async (p) => (await p.locator("main").innerText().catch(() => "")).replace(/\s+/g, " ");
 const nav = async (p, name) => {
+  // Account pages are in the profile menu, not the sidebar (owner direction 2026-11-03).
+  if (["Settings", "Credits & billing", "Activity log", "Support"].includes(name)) {
+    await p.getByRole("button", { name: "Account menu" }).click();
+    await p.getByRole("menuitem", { name, exact: true }).click();
+    await p.getByRole("heading", { name, exact: true }).first().waitFor({ timeout: 15000 });
+    return;
+  }
   // Small screens keep the navigation in a drawer behind the top bar's menu button.
   const drawer = p.getByRole("button", { name: "Open navigation" });
   if (await drawer.isVisible().catch(() => false)) await drawer.click();
@@ -765,10 +772,10 @@ if (phase === "main") {
     const found = await axeFindings(p);
     check("a11y", `${name}: no serious or critical WCAG 2.2 A/AA issues (desktop)`, found.length === 0, found.join(" | "));
   }
-  for (const item of ["Analytics", "Activity", "Settings", "Support"]) {
+  for (const item of ["Activity", "Settings", "Credits & billing", "Support"]) {
     if (item === "Activity") {
       await p.getByRole("button", { name: "Account menu" }).click();
-      await p.getByRole("menuitem", { name: "Activity" }).click();
+      await p.getByRole("menuitem", { name: "Activity log" }).click();
       await p.getByRole("heading", { name: "Activity log" }).waitFor({ timeout: 15000 });
     } else await menu(p, item);
     await p.waitForTimeout(400);
