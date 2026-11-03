@@ -10,7 +10,7 @@ import { useConfirm, useToast } from "../../lib/toast";
 import { ErrorState, LoadingBlock } from "./states";
 
 type Role = "owner" | "admin" | "member";
-const card = "rounded-2xl border border-slate-200/80 bg-white p-5";
+const card = "rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm";
 const errText = (err: unknown) => (err instanceof Error ? err.message : undefined);
 
 /** Members (roles, removal, ownership) and invitations. What a role may do is enforced again by the API. */
@@ -68,9 +68,9 @@ export function TeamSection({ role, me }: { role: Role; me: string }) {
       {manage && (
         <>
           <form className="flex flex-wrap items-end gap-2 border-t border-slate-100 pt-3" onSubmit={(e) => { e.preventDefault(); if (email.trim()) invite.mutate(); }}>
-            <label className="text-xs text-slate-600" style={{ fontWeight: 600 }}>Invite by email<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={254} className="mt-1 block w-64 rounded-md border border-slate-200 px-2.5 py-1.5 text-sm" /></label>
+            <label className="text-xs text-slate-600" style={{ fontWeight: 600 }}>Invite by email<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={254} className="mt-1 block w-64 rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-400/30" /></label>
             <label className="text-xs text-slate-600" style={{ fontWeight: 600 }}>Role<select value={inviteRole} onChange={(e) => setInviteRole(e.target.value as "member" | "admin")} className="mt-1 block rounded-md border border-slate-200 px-2 py-1.5 text-sm"><option value="member">Member</option>{role === "owner" && <option value="admin">Admin</option>}</select></label>
-            <button type="submit" disabled={invite.isPending || !email.trim()} className="rounded-md bg-slate-900 px-3 py-1.5 text-xs text-white disabled:opacity-50">Create invitation</button>
+            <button type="submit" disabled={invite.isPending || !email.trim()} className="rounded-xl bg-[#0A0F24] px-4 py-2 text-xs font-semibold text-white shadow-sm transition-all hover:-translate-y-px hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50 disabled:translate-y-0 disabled:opacity-50">Create invitation</button>
           </form>
           {link && (
             <div className="rounded-md border border-indigo-200 bg-indigo-50 p-3 text-xs text-indigo-900" role="status">
@@ -104,7 +104,7 @@ export function WorkspaceSwitcher({ current }: { current: string }) {
   return (
     <label className="block text-xs text-slate-600" style={{ fontWeight: 600 }}>
       Current team
-      <select value={current} onChange={(e) => { selectWorkspace(e.target.value); window.location.reload(); }} className="mt-1 block w-full max-w-md rounded-md border border-slate-200 px-2.5 py-1.5 text-sm">
+      <select value={current} onChange={(e) => { selectWorkspace(e.target.value); window.location.reload(); }} className="mt-1 block w-full max-w-md rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-400/30">
         {q.data.workspaces.map((w) => <option key={w.id} value={w.id}>{w.name} ({w.role})</option>)}
       </select>
     </label>
@@ -192,34 +192,37 @@ export function PrivacySection({ role, workspaceName, email, onOpenSupport }: { 
         <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Deleted</div>
         <p>What was kept, and why:</p>
         <ul className="list-disc pl-5">{result.map((r) => <li key={r}>{r}</li>)}</ul>
-        {accountDeleted && <button onClick={() => void logout().finally(() => { window.location.hash = "/"; })} className="rounded-md bg-slate-900 px-3 py-1.5 text-xs text-white" style={{ fontWeight: 600 }}>Sign out</button>}
+        {accountDeleted && <button onClick={() => void logout().finally(() => { window.location.hash = "/"; })} className="rounded-xl bg-[#0A0F24] px-4 py-2 text-xs font-semibold text-white shadow-sm transition-all hover:-translate-y-px hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50 disabled:translate-y-0" style={{ fontWeight: 600 }}>Sign out</button>}
       </section>
     );
   }
   return (
-    <section className={`${card} space-y-4 text-sm text-slate-600`}>
-      <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Privacy & data</div>
-      <p>Your lists, campaigns, notes, outreach log and support requests are private to this team. Creator profiles are public data that MUSHIN keeps for every customer. Creators who want their own profile removed can use the public removal form linked in the site footer.</p>
+    <section className={`${card} space-y-5 text-sm text-slate-600 sm:p-8`}>
       <div>
-        <div className="text-slate-900" style={{ fontWeight: 600 }}>Export this team</div>
+        <h2 className="text-2xl font-semibold tracking-[-0.02em] text-slate-900">Data &amp; privacy</h2>
+        <p className="mt-1 text-[13px] text-slate-500">Download your team's data, or delete your account or team.</p>
+      </div>
+      <p>Your lists, campaigns, notes, outreach log and support requests are private to this team. Creator profiles are public data that MUSHIN keeps for every customer. Creators who want their own profile removed can use the public removal form linked in the site footer.</p>
+      <div className="rounded-xl bg-slate-50 p-5">
+        <div className="text-[15px] text-slate-900" style={{ fontWeight: 600 }}>Export this team</div>
         <p className="text-xs">A JSON file with your lists, campaigns, outreach log, saved searches, support requests, jobs and credit history. Contact details you revealed are not included (they belong to the creators).</p>
-        {role === "owner" || role === "admin" ? <button onClick={() => void exportData()} disabled={busy} className="mt-2 rounded-md border border-slate-200 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 disabled:opacity-50">Download export</button> : <p className="mt-1 text-xs text-slate-500">Only the owner or an admin can export the team.</p>}
+        {role === "owner" || role === "admin" ? <button onClick={() => void exportData()} disabled={busy} className="mt-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-800 shadow-sm transition-colors hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:opacity-50">Download export</button> : <p className="mt-1 text-xs text-slate-500">Only the owner or an admin can export the team.</p>}
       </div>
       {role === "owner" && (
-        <form className="space-y-2 rounded-lg border border-red-200 p-3" onSubmit={(e) => { e.preventDefault(); void remove("/v1/workspace/delete", { confirmName }, () => { selectWorkspace(null); }); }}>
+        <form className="space-y-2 rounded-xl border border-rose-200 bg-rose-50/30 p-4" onSubmit={(e) => { e.preventDefault(); void remove("/v1/workspace/delete", { confirmName }, () => { selectWorkspace(null); }); }}>
           <div className="text-red-800" style={{ fontWeight: 600 }}>Delete this team</div>
           <p className="text-xs">Erases its lists, campaigns, outreach log, searches, support requests and discovery history, and removes everyone's access. Cancel any paid subscription first. Billing records are kept for accounting. This cannot be undone.</p>
-          <label className="block text-xs">Type <span className="font-mono">{workspaceName}</span> to confirm<input value={confirmName} onChange={(e) => setConfirmName(e.target.value)} className="mt-1 block w-full max-w-md rounded-md border border-slate-200 px-2.5 py-1.5 text-sm" /></label>
-          <button type="submit" disabled={busy || confirmName.trim() !== workspaceName} className="rounded-md bg-red-600 px-3 py-1.5 text-xs text-white disabled:opacity-50">Delete team</button>
+          <label className="block text-xs">Type <span className="font-mono">{workspaceName}</span> to confirm<input value={confirmName} onChange={(e) => setConfirmName(e.target.value)} className="mt-1 block w-full max-w-md rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-400/30" /></label>
+          <button type="submit" disabled={busy || confirmName.trim() !== workspaceName} className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-semibold shadow-sm transition-colors hover:bg-rose-700 text-white disabled:opacity-50">Delete team</button>
         </form>
       )}
-      <form className="space-y-2 rounded-lg border border-red-200 p-3" onSubmit={(e) => { e.preventDefault(); void remove("/v1/me/delete", { confirmEmail }, () => { selectWorkspace(null); setAccountDeleted(true); }); }}>
+      <form className="space-y-2 rounded-xl border border-rose-200 bg-rose-50/30 p-4" onSubmit={(e) => { e.preventDefault(); void remove("/v1/me/delete", { confirmEmail }, () => { selectWorkspace(null); setAccountDeleted(true); }); }}>
         <div className="text-red-800" style={{ fontWeight: 600 }}>Delete my account</div>
         <p className="text-xs">Ends your access to every team and erases your profile. Teams you own alone are deleted too; if others use a team you own, transfer ownership first. Your sign-in login is removed too, so the address can be used again later.</p>
-        <label className="block text-xs">Type your email <span className="font-mono">{email}</span> to confirm<input value={confirmEmail} onChange={(e) => setConfirmEmail(e.target.value)} className="mt-1 block w-full max-w-md rounded-md border border-slate-200 px-2.5 py-1.5 text-sm" /></label>
-        <button type="submit" disabled={busy || confirmEmail.trim().toLowerCase() !== email.toLowerCase()} className="rounded-md bg-red-600 px-3 py-1.5 text-xs text-white disabled:opacity-50">Delete my account</button>
+        <label className="block text-xs">Type your email <span className="font-mono">{email}</span> to confirm<input value={confirmEmail} onChange={(e) => setConfirmEmail(e.target.value)} className="mt-1 block w-full max-w-md rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-400/30" /></label>
+        <button type="submit" disabled={busy || confirmEmail.trim().toLowerCase() !== email.toLowerCase()} className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-semibold shadow-sm transition-colors hover:bg-rose-700 text-white disabled:opacity-50">Delete my account</button>
       </form>
-      {onOpenSupport && <button onClick={onOpenSupport} className="rounded-md border border-slate-200 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50">Ask Support about your data</button>}
+      {onOpenSupport && <button onClick={onOpenSupport} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-800 shadow-sm transition-colors hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40">Ask Support about your data</button>}
     </section>
   );
 }

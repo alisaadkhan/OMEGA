@@ -99,7 +99,7 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
               {view === "campaigns" && <Campaigns key={navKey} onOpenCreator={setOmniCreator} onGoToSearch={() => setView("search")} />}
               {view === "analytics" && <Analytics />}
               {view === "inbox" && <Inbox onGoToCampaigns={() => setView("campaigns")} />}
-              {view === "settings" && <Settings key={settingsTab} initialTab={settingsTab} onOpenSupport={() => setView("support")} />}
+              {view === "settings" && <Settings key={settingsTab} initialTab={settingsTab} onOpenSupport={() => setView("support")} onOpenBilling={() => setView("billing")} />}
               {view === "billing" && <Billing checkoutResult={checkoutResult} />}
               {view === "support" && <Support />}
               {view === "activity" && <ActivityLog />}
