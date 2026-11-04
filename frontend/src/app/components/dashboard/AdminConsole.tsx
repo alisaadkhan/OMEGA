@@ -67,7 +67,7 @@ export function AdminConsole({ onExit, role, staffId }: { onExit: () => void; ro
         </aside>
         <div className="flex min-w-0 flex-1 flex-col">
           <StepUpBar onSetUp={() => setView("security")} />
-          <main className="flex-1 overflow-y-auto bg-white px-6 py-6">
+          <main tabIndex={0} aria-label="Console section" className="flex-1 overflow-y-auto bg-white px-6 py-6 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cyan-400/50">
             {view === "overview" && (
               <>
                 <OpsAlerts canTest={admin} />

@@ -112,6 +112,23 @@ for (const who of ["super1", "support"]) {
     const found = await axeFindings(p);
     check("a11y", `${role} › ${name}: no serious or critical WCAG 2.2 A/AA issues`, found.length === 0, found.join(" | "));
   }
+  if (who === "support") {
+    // Phone width (overnight directive §2 Persona C: 375×812): every section reachable and clean under axe.
+    await p.setViewportSize({ width: 375, height: 812 });
+    const unreachable = [];
+    const issues = [];
+    for (const name of offered) {
+      const b = p.getByRole("button", { name, exact: true }).first();
+      if (!(await b.isVisible().catch(() => false))) { unreachable.push(name); continue; }
+      await b.click();
+      await p.waitForTimeout(1000);
+      for (const d of await p.getByRole("button", { name: "Dismiss" }).all()) await d.click().catch(() => {});
+      await p.waitForTimeout(300);
+      issues.push(...(await axeFindings(p)).map((f) => `${name}: ${f}`));
+    }
+    check("a11y", "Support console at 375×812: every section reachable from the menu", unreachable.length === 0, unreachable.join(", "));
+    check("a11y", "Support console at 375×812: no serious or critical WCAG 2.2 A/AA issues", issues.length === 0, issues.slice(0, 5).join(" | "));
+  }
   await ctx.close();
 }
 
