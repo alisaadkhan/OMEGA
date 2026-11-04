@@ -14,6 +14,8 @@ export const ticketSummarySchema = z.object({
   lastMessageAt: iso,
   messages: z.number().int().nonnegative(),
   lastAuthor: z.enum(["customer", "staff"]).nullable(),
+  /** A MUSHIN support reply this person has not opened yet (0080). */
+  unread: z.boolean().default(false),
 });
 export type TicketSummary = z.output<typeof ticketSummarySchema>;
 export const ticketDetailSchema = ticketSummarySchema.extend({ thread: z.array(ticketMessageSchema) });

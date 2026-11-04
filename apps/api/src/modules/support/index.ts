@@ -28,7 +28,10 @@ export function createSupportService(deps: { db: Db }) {
     const rows = await tx.execute<Record<string, unknown>>(sql`
       select k.id, k.subject, k.category, k.status, k.created_at, k.last_message_at,
         (select count(*) from wp.support_messages m where m.ticket_id = k.id) messages,
-        (select m.author_kind from wp.support_messages m where m.ticket_id = k.id order by m.created_at desc limit 1) last_author
+        (select m.author_kind from wp.support_messages m where m.ticket_id = k.id order by m.created_at desc limit 1) last_author,
+        -- Unread for this person: a support reply newer than their last look (0080).
+        exists (select 1 from wp.support_messages m where m.ticket_id = k.id and m.author_kind = 'staff'
+                  and m.created_at > coalesce((select r.read_at from wp.support_ticket_reads r where r.ticket_id = k.id and r.user_id = platform.current_user_id()), '-infinity'::timestamptz)) unread
       from wp.support_tickets k where k.workspace_id = ${ws} ${id ? sql`and k.id = ${id}` : sql``}
       order by k.last_message_at desc limit 200`);
     return rows.map((r) => ({
@@ -40,6 +43,7 @@ export function createSupportService(deps: { db: Db }) {
       lastMessageAt: new Date(r["last_message_at"] as string).toISOString(),
       messages: Number(r["messages"]),
       lastAuthor: (r["last_author"] as TicketSummary["lastAuthor"]) ?? null,
+      unread: r["unread"] === true,
     }));
   }
 
@@ -61,8 +65,14 @@ export function createSupportService(deps: { db: Db }) {
     async list(ctx: TenantContext) {
       return { tickets: await deps.db.withTenant(tenant(ctx), (tx) => summaries(tx, ctx.workspaceId)) };
     },
+    /** Opening a request marks it read for this person. */
     async detail(ctx: TenantContext, id: string) {
-      return deps.db.withTenant(tenant(ctx), (tx) => detailIn(tx, ctx, id));
+      return deps.db.withTenant(tenant(ctx), async (tx) => {
+        const d = await detailIn(tx, ctx, id);
+        await tx.execute(sql`insert into wp.support_ticket_reads (ticket_id, workspace_id, user_id) values (${id}, ${ctx.workspaceId}, ${ctx.userId})
+          on conflict (ticket_id, user_id) do update set read_at = now()`);
+        return { ...d, unread: false };
+      });
     },
     async create(ctx: TenantContext, body: CreateTicket): Promise<TicketDetail> {
       return deps.db.withTenant(tenant(ctx), async (tx) => {

@@ -63,6 +63,20 @@ describe("ticket lifecycle and staff performance (0064)", () => {
     expect(await events(t.id)).toEqual(["created:open", "first_response:", "status:in_progress"]);
   });
 
+  it("marks a support reply unread for each teammate until that person opens the request (0080)", async () => {
+    const c = await customer();
+    const [u] = await ownerQuery<{ id: string }>(`insert into wp.users (id, email, display_name) values (gen_random_uuid(), 'mate${randomUUID().slice(0, 6)}@example.com', 'Mate') returning id`);
+    await ownerQuery(`insert into wp.workspace_members (workspace_id, user_id, role) values ('${c.workspaceId}', '${u?.id}', 'member')`);
+    const mate: TenantContext = { ...c, userId: u?.id as string, role: "member" };
+    const t = await support.create(c, ticket(1));
+    expect((await support.list(c)).tickets[0]?.unread).toBe(false); // own message
+    await staffUpdate(t.id, await staffMember("Bilal"), "Here is the fix", null);
+    expect((await support.list(c)).tickets[0]?.unread).toBe(true);
+    await support.detail(c, t.id);
+    expect((await support.list(c)).tickets[0]?.unread).toBe(false);
+    expect((await support.list(mate)).tickets[0]?.unread).toBe(true); // a teammate still sees it as new
+  });
+
   it("TKT-02 a customer reply keeps an in-progress request in progress and reopens a resolved one, counting the reopen", async () => {
     const c = await customer();
     const t = await support.create(c, ticket(1));

@@ -107,7 +107,10 @@ function TicketRow({ t, active, onOpen }: { t: TicketSummary; active: boolean; o
             <span className={`h-2 w-2 shrink-0 rounded-full ${done ? "bg-slate-300" : "bg-[#57dffe]"}`} />
             <span className={`truncate text-[15px] font-semibold ${done ? "text-slate-500" : "text-slate-900"}`}>{t.subject}</span>
           </span>
-          <span className="shrink-0 text-[10px] text-slate-500">{relative(t.lastMessageAt)}</span>
+          <span className="flex shrink-0 items-center gap-1.5 text-[10px] text-slate-500">
+            {t.unread && <span data-testid="ticket-unread" className="rounded-full bg-cyan-600 px-1.5 py-0.5 font-semibold text-white">New reply</span>}
+            {relative(t.lastMessageAt)}
+          </span>
         </div>
         <div className="mt-2 flex items-center gap-2 pl-4 text-[10px] text-slate-500">
           <span>{CATEGORY[t.category]}</span>
