@@ -26,7 +26,7 @@ export function createSupportService(deps: { db: Db }) {
 
   async function summaries(tx: TenantTx, ws: string, id?: string): Promise<TicketSummary[]> {
     const rows = await tx.execute<Record<string, unknown>>(sql`
-      select k.id, k.subject, k.category, k.status, k.created_at, k.last_message_at,
+      select k.id, k.subject, k.category, k.status, k.priority, k.created_at, k.last_message_at,
         (select count(*) from wp.support_messages m where m.ticket_id = k.id) messages,
         (select m.author_kind from wp.support_messages m where m.ticket_id = k.id order by m.created_at desc limit 1) last_author,
         -- Unread for this person: a support reply newer than their last look (0080).
@@ -39,6 +39,7 @@ export function createSupportService(deps: { db: Db }) {
       subject: r["subject"] as string,
       category: r["category"] as TicketSummary["category"],
       status: r["status"] as TicketSummary["status"],
+      priority: r["priority"] as TicketSummary["priority"],
       createdAt: new Date(r["created_at"] as string).toISOString(),
       lastMessageAt: new Date(r["last_message_at"] as string).toISOString(),
       messages: Number(r["messages"]),
@@ -80,7 +81,7 @@ export function createSupportService(deps: { db: Db }) {
         await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`support-tickets:${ctx.workspaceId}`}, 0))`);
         const [open] = await tx.select({ n: sql<number>`count(*)::int` }).from(supportTickets).where(and(eq(supportTickets.workspaceId, ctx.workspaceId), sql`${supportTickets.status} in ('open', 'in_progress', 'waiting_on_customer')`));
         if ((open?.n ?? 0) >= MAX_OPEN_TICKETS) throw new AppError("CONFLICT", `Your team has ${MAX_OPEN_TICKETS} open requests. Close one, or reply on an existing request.`);
-        const [t] = await tx.insert(supportTickets).values({ workspaceId: ctx.workspaceId, createdBy: ctx.userId, subject: body.subject, category: body.category }).returning({ id: supportTickets.id });
+        const [t] = await tx.insert(supportTickets).values({ workspaceId: ctx.workspaceId, createdBy: ctx.userId, subject: body.subject, category: body.category, priority: body.priority ?? "medium" }).returning({ id: supportTickets.id });
         if (!t) throw new Error("ticket insert returned no row");
         await tx.insert(supportMessages).values({ ticketId: t.id, workspaceId: ctx.workspaceId, authorKind: "customer", authorUserId: ctx.userId, body: body.body });
         return detailIn(tx, ctx, t.id);

@@ -523,10 +523,14 @@ if (phase === "main") {
   await menu(p, "Support");
   await p.getByRole("button", { name: "New request" }).click();
   await p.getByLabel("Subject").fill("Find New Creators failed");
+  await p.getByLabel("Topic").selectOption({ label: "Live Discovery Issue" });
+  await p.getByLabel("Priority").selectOption({ label: "High" });
   await p.getByLabel("What happened?").fill("The run said provider unavailable.");
   await p.getByRole("button", { name: "Send request" }).click();
   await p.getByRole("region", { name: "Find New Creators failed" }).waitFor();
   check("support", "request stored for the workspace", sql(`select count(*) from wp.support_tickets where workspace_id = '${ws}'`) === "1");
+  // Master directive §6.1 (0083): the customer's category and priority are stored as chosen.
+  check("support", "the chosen category and priority are stored", sql(`select category || '|' || priority from wp.support_tickets where workspace_id = '${ws}'`) === "discovery|high");
 
   // ── 10. Roles (UI where it matters; every restriction also checked directly against the API) ──
   const adm = await pageAs("admin");

@@ -264,20 +264,20 @@ describe("operations controls", () => {
     expect((await audit("support.ticket.noted"))[0]?.metadata).toEqual({ ticketId: t.id }); // the note text is not copied into the audit
   });
 
-  // 0073: staff triage level; the queue lists urgent first; customers never see it.
-  it("staff set a ticket's priority; the queue lists urgent first; customers never see it", async () => {
+  // 0073/0083: the customer chooses a priority (default medium); staff can change it; the queue lists urgent first.
+  it("staff set a ticket's priority; the queue lists urgent first; the customer sees the current priority", async () => {
     const { call, customer, signIn } = await setup();
     const { h: owner } = await customer("priority@brand.pk");
     const support = await signIn("support");
     const a = (await call("POST", "/v1/support/tickets", owner, { subject: "First", category: "other", body: "One." })).json() as { id: string };
     const b = (await call("POST", "/v1/support/tickets", owner, { subject: "Second", category: "billing", body: "Two." })).json() as { id: string };
-    expect((await call("GET", `/admin/v1/support/tickets/${a.id}`, support.h)).json()).toMatchObject({ priority: "normal" });
+    expect((await call("GET", `/admin/v1/support/tickets/${a.id}`, support.h)).json()).toMatchObject({ priority: "medium" });
     expect((await call("PUT", `/admin/v1/support/tickets/${a.id}/priority`, support.h, { priority: "urgent" })).json()).toMatchObject({ priority: "urgent" });
     expect((await call("PUT", `/admin/v1/support/tickets/${a.id}/priority`, support.h, { priority: "critical" })).statusCode).toBe(400);
     expect((await call("PUT", `/admin/v1/support/tickets/${randomUUID()}/priority`, support.h, { priority: "high" })).statusCode).toBe(404);
     const queue = (await call("GET", "/admin/v1/support/tickets", support.h)).json() as { tickets: { id: string; priority: string }[] };
     expect(queue.tickets.map((t) => t.id).slice(0, 2)).toEqual([a.id, b.id]);
-    expect(JSON.stringify((await call("GET", `/v1/support/tickets/${a.id}`, owner)).json())).not.toContain("urgent");
+    expect((await call("GET", `/v1/support/tickets/${a.id}`, owner)).json()).toMatchObject({ priority: "urgent" });
     expect((await audit("support.ticket.priority_set"))[0]).toMatchObject({ staff_id: support.id, metadata: { ticketId: a.id, priority: "urgent" } });
   });
 

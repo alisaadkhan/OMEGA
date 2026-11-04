@@ -12,14 +12,15 @@ import { errText, needsKey, useStepUp } from "./staff-ui";
 
 const STATUS = { open: "Open", in_progress: "In progress", waiting_on_customer: "Waiting on customer", resolved: "Resolved", closed: "Closed" } as const;
 type Status = keyof typeof STATUS;
-const PRIORITY = { urgent: "Urgent", high: "High", normal: "Normal", low: "Low" } as const;
+const PRIORITY = { urgent: "Urgent", high: "High", medium: "Medium", low: "Low" } as const;
 type Priority = keyof typeof PRIORITY;
-const PRIORITY_STYLE: Record<Priority, string> = { urgent: "bg-rose-50 text-rose-700 ring-rose-200", high: "bg-amber-50 text-amber-800 ring-amber-200", normal: "bg-slate-100 text-slate-600 ring-slate-200", low: "bg-white text-slate-500 ring-slate-200" };
+const PRIORITY_STYLE: Record<Priority, string> = { urgent: "bg-rose-50 text-rose-700 ring-rose-200", high: "bg-amber-50 text-amber-800 ring-amber-200", medium: "bg-slate-100 text-slate-600 ring-slate-200", low: "bg-white text-slate-500 ring-slate-200" };
 
 /** Support queue (canonical spec page 20): tickets across workspaces; viewing and replying are audited by the API. */
 export function SupportQueue({ me, canAssignOthers, role }: { me: string; canAssignOthers: boolean; role: AdminRole }) {
   const [status, setStatus] = useState<Status | "">("open");
   const [openId, setOpenId] = useState<string | null>(null);
+  const [priority, setPriority] = useState<Priority | "">("");
   const list = useQuery({ queryKey: ["admin", "tickets", status], queryFn: () => adminRequest(`/admin/v1/support/tickets${status ? `?status=${status}` : ""}`, staffTicketListSchema) });
   return (
     <div>
@@ -28,15 +29,21 @@ export function SupportQueue({ me, canAssignOthers, role }: { me: string; canAss
         {(["open", "in_progress", "waiting_on_customer", "resolved", "closed", ""] as const).map((s) => (
           <button key={s} onClick={() => setStatus(s)} aria-pressed={status === s} className={`rounded-md px-2.5 py-1 ${status === s ? "bg-slate-900 text-white" : "border border-slate-200 text-slate-700"}`}>{s ? STATUS[s] : "All"}</button>
         ))}
+        <label className="ml-auto flex items-center gap-1 text-slate-600">Priority
+          <select value={priority} onChange={(e) => setPriority(e.target.value as Priority | "")} aria-label="Filter by priority" className="rounded-md border border-slate-200 px-1.5 py-1 text-xs">
+            <option value="">All</option>
+            {Object.entries(PRIORITY).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+          </select>
+        </label>
       </div>
       <div className="grid gap-4 lg:grid-cols-[24rem_1fr]">
         <div>
           {list.isPending ? <LoadingBlock lines={4} /> : list.isError ? <ErrorState body={list.error instanceof Error ? list.error.message : undefined} onRetry={() => void list.refetch()} /> : list.data.tickets.length === 0 ? <p className="text-sm text-slate-500">No tickets.</p> : (
             <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200/80 bg-white">
-              {list.data.tickets.map((t) => (
+              {list.data.tickets.filter((t) => !priority || t.priority === priority).map((t) => (
                 <li key={t.id}>
                   <button onClick={() => setOpenId(t.id)} aria-current={openId === t.id} className={`block w-full px-4 py-3 text-left text-xs ${openId === t.id ? "bg-indigo-50/60" : "hover:bg-slate-50"}`}>
-                    <div className="flex justify-between gap-2"><span className="truncate text-sm text-slate-900" style={{ fontWeight: 600 }}>{t.subject}</span><span className="flex shrink-0 items-center gap-1.5">{t.priority !== "normal" && <span className={`rounded px-1.5 py-0.5 text-[10px] ring-1 ${PRIORITY_STYLE[t.priority]}`} style={{ fontWeight: 600 }}>{PRIORITY[t.priority]}</span>}<span className="text-slate-500">{STATUS[t.status]}</span></span></div>
+                    <div className="flex justify-between gap-2"><span className="truncate text-sm text-slate-900" style={{ fontWeight: 600 }}>{t.subject}</span><span className="flex shrink-0 items-center gap-1.5">{t.priority !== "medium" && <span className={`rounded px-1.5 py-0.5 text-[10px] ring-1 ${PRIORITY_STYLE[t.priority]}`} style={{ fontWeight: 600 }}>{PRIORITY[t.priority]}</span>}<span className="text-slate-500">{STATUS[t.status]}</span></span></div>
                     <div className="mt-0.5 text-slate-500">{t.workspaceName} · {t.category} · {t.messages} messages · {t.lastAuthor === "customer" ? "awaiting staff" : "staff replied"}{t.assignedStaffName ? ` · ${t.assignedStaffId === me ? "yours" : t.assignedStaffName}` : " · unassigned"}</div>
                   </button>
                 </li>

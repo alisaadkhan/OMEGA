@@ -32,6 +32,12 @@ describe("customer support requests", () => {
     expect((await support.reply(c, t.id, "One more thing")).thread).toHaveLength(2);
   });
 
+  it("stores the customer's category and priority (default medium; 0083)", async () => {
+    const c = await customer();
+    expect(await support.create(c, { subject: "Wrong followers", category: "creator_data", priority: "high", body: "Count is old." })).toMatchObject({ category: "creator_data", priority: "high" });
+    expect(await support.create(c, { subject: "Idea", category: "feature_request", body: "Dark mode." })).toMatchObject({ priority: "medium" });
+  });
+
   it("keeps each workspace's requests to itself", async () => {
     const a = await customer();
     const b = await customer();

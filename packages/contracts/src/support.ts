@@ -1,7 +1,11 @@
 import { z } from "zod";
 
 const iso = z.iso.datetime({ offset: true });
-export const ticketCategorySchema = z.enum(["search", "discovery", "billing", "account", "data_removal", "other"]);
+/** Categories offered to customers (master directive §6.1); "search" stays readable for earlier requests (0083). */
+export const ticketCategorySchema = z.enum(["billing", "creator_data", "discovery", "account", "feature_request", "data_removal", "other", "search"]);
+export const NEW_TICKET_CATEGORIES = ["billing", "creator_data", "discovery", "account", "feature_request", "data_removal", "other"] as const;
+/** Priority (0083): chosen by the customer on creation (default medium), changeable by staff. */
+export const ticketPrioritySchema = z.enum(["low", "medium", "high", "urgent"]);
 export const ticketStatusSchema = z.enum(["open", "in_progress", "waiting_on_customer", "resolved", "closed"]);
 
 export const ticketMessageSchema = z.object({ id: z.uuid(), authorKind: z.enum(["customer", "staff"]), authorName: z.string(), body: z.string(), createdAt: iso });
@@ -14,6 +18,7 @@ export const ticketSummarySchema = z.object({
   lastMessageAt: iso,
   messages: z.number().int().nonnegative(),
   lastAuthor: z.enum(["customer", "staff"]).nullable(),
+  priority: ticketPrioritySchema.default("medium"),
   /** A MUSHIN support reply this person has not opened yet (0080). */
   unread: z.boolean().default(false),
 });
@@ -23,7 +28,7 @@ export type TicketDetail = z.output<typeof ticketDetailSchema>;
 export const ticketListSchema = z.object({ tickets: z.array(ticketSummarySchema) });
 
 const body = z.string().trim().min(1, "Write a message").max(5000);
-export const createTicketSchema = z.object({ subject: z.string().trim().min(1, "Add a subject").max(160), category: ticketCategorySchema, body });
+export const createTicketSchema = z.object({ subject: z.string().trim().min(1, "Add a subject").max(160), category: z.enum(NEW_TICKET_CATEGORIES), priority: ticketPrioritySchema.default("medium"), body });
 export type CreateTicket = z.input<typeof createTicketSchema>;
 export const ticketReplySchema = z.object({ body });
 /** Customers may close a ticket or reopen it. */
@@ -32,9 +37,8 @@ export const ticketCustomerStatusSchema = z.object({ status: z.enum(["open", "cl
 // ── Staff (admin console) ──────────────────────────────────────────────────────────────────────────────────────
 const assignee = { assignedStaffId: z.uuid().nullable(), assignedStaffName: z.string().nullable() };
 /** Staff-only triage level (0073); customers never see it. */
-export const ticketPrioritySchema = z.enum(["low", "normal", "high", "urgent"]);
 export const staffTicketPrioritySchema = z.object({ priority: ticketPrioritySchema });
-export const staffTicketSummarySchema = ticketSummarySchema.extend({ workspaceId: z.uuid(), workspaceName: z.string(), priority: ticketPrioritySchema.default("normal"), ...assignee });
+export const staffTicketSummarySchema = ticketSummarySchema.extend({ workspaceId: z.uuid(), workspaceName: z.string(), priority: ticketPrioritySchema.default("medium"), ...assignee });
 /** Staff see internal notes in the thread (authorKind "internal"); customers never receive them. */
 export const staffTicketMessageSchema = ticketMessageSchema.extend({ authorKind: z.enum(["customer", "staff", "internal"]) });
 export const staffTicketDetailSchema = z.object({
@@ -44,7 +48,7 @@ export const staffTicketDetailSchema = z.object({
   subject: z.string(),
   category: ticketCategorySchema,
   status: ticketStatusSchema,
-  priority: ticketPrioritySchema.default("normal"),
+  priority: ticketPrioritySchema.default("medium"),
   createdAt: iso,
   lastMessageAt: iso,
   ...assignee,
