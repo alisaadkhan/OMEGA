@@ -33,6 +33,15 @@ describe("contact routes", () => {
     ]);
   });
 
+  it("keeps a creator's own 'DM for paid collab' statement as a collab route (execution directive 2026-11-04)", () => {
+    const routes = (bio: string) => contactRoutes({ bios: [bio], links: [], contactKinds: [], ownHandles: [] }).routes;
+    expect(routes("Lahore food blogger\nDM for paid collab 📩")).toEqual([{ kind: "collab_route", statement: "DM for paid collab 📩" }]);
+    expect(routes("DM 4 PR")).toEqual([{ kind: "collab_route", statement: "DM 4 PR" }]);
+    expect(routes("For collaborations inbox")).toEqual([{ kind: "collab_route", statement: "For collaborations inbox" }]);
+    expect(routes("Inbox for business inquiries | Karachi")).toEqual([{ kind: "collab_route", statement: "Inbox for business inquiries" }]);
+    expect(routes("I love my DMs being full of memes")).toEqual([]);
+  });
+
   it("returns no routes for a bio without any", () => {
     expect(contactRoutes({ bios: ["Just vibes"], links: [], contactKinds: [], ownHandles: [] }).routes).toEqual([]);
   });

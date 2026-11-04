@@ -290,6 +290,7 @@ export const creatorProfileSchema = z.object({
           z.object({ kind: z.literal("social_contact"), handle: z.string(), cue: z.string() }),
           z.object({ kind: z.literal("external_link"), url: z.string() }),
           z.object({ kind: z.literal("linked_profile"), platform: z.string(), url: z.string() }),
+          z.object({ kind: z.literal("collab_route"), statement: z.string() }),
         ]),
       ),
     })

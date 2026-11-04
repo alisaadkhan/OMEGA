@@ -10,7 +10,9 @@ export type ContactRoute =
   | { kind: "business_contact"; handle: string; cue: string }
   | { kind: "social_contact"; handle: string; cue: string }
   | { kind: "external_link"; url: string }
-  | { kind: "linked_profile"; platform: string; url: string };
+  | { kind: "linked_profile"; platform: string; url: string }
+  /** "DM for paid collab", "DM for PR", "For collaborations inbox": the creator's own words (execution directive 2026-11-04). */
+  | { kind: "collab_route"; statement: string };
 
 export type ContactRoutes = {
   email: "listed" | "not_listed";
@@ -22,6 +24,9 @@ const BUSINESS_CUE = /\b(business(?:\s+(?:queries|inquiries|enquiries|contact))?
 const OTHER_CUE = /\b(other\s+(?:queries|inquiries|enquiries)|personal|fan\s+(?:page|account)|dm|queries)\b/i;
 // A handle starts a word: "@ali" or ": @ali", never the "@domain" of an email address (security review 2026-11-03).
 const HANDLE = /(?:^|[\s:(,|])@([A-Za-z0-9._]{2,30})/g;
+const COLLAB_TOPIC = String.raw`(?:paid\s+)?(?:collab(?:oration)?s?|pr|business|inquiries|enquiries|queries|promotions?|sponsorships?|brand\s+deals?|ads|bookings?)`;
+// "DM for paid collab", "DM 📩 4 PR", "Inbox for business" / "For collabs DM", "Collab? DM me".
+const COLLAB_DM = new RegExp(String.raw`\b(?:dm|inbox|message\s+(?:me|us))\b[^\n]{0,12}?\b(?:for|4)\b[^\n]{0,12}?\b${COLLAB_TOPIC}\b|\b(?:for\s+)?${COLLAB_TOPIC}\b[^\n]{0,12}?\b(?:dm|inbox|message\s+(?:me|us))\b`, "i");
 const EXTERNAL_HOSTS = /(linktr\.ee|beacons\.ai|lnk\.bio|bio\.link|taplink|campsite\.bio|carrd\.co|msha\.ke|solo\.to|komi\.io)/i;
 
 /** The bio split into segments at line breaks and separators, so each handle is read with its own cue. */
@@ -36,7 +41,15 @@ export function contactRoutes(o: { bios: string[]; links: { platform: string; ur
   for (const bio of o.bios) {
     for (const seg of segments(bio)) {
       const handles = [...seg.matchAll(HANDLE)].map((m) => (m[1] as string).replace(/\.$/, ""));
-      if (handles.length === 0) continue;
+      if (handles.length === 0) {
+        const dm = COLLAB_DM.exec(seg);
+        const statement = dm ? seg.replace(/\s+/g, " ").slice(0, 80) : "";
+        if (dm && !seen.has(`collab:${statement.toLowerCase()}`)) {
+          seen.add(`collab:${statement.toLowerCase()}`);
+          routes.push({ kind: "collab_route", statement });
+        }
+        continue;
+      }
       const before = seg.slice(0, seg.search(/(?:^|[\s:(,|])@/));
       const business = BUSINESS_CUE.exec(before);
       const other = business ? null : OTHER_CUE.exec(before);

@@ -297,15 +297,14 @@ export function CreatorProfilePanel({ creator, onClose, onCompare, onGoToCampaig
                           <div className="text-xs text-slate-900">Hidden: this creator may be under 18</div>
                         ) : (
                           <ul className="space-y-0.5 text-xs text-slate-900">
-                            <li>
-                              Email: {p.contacts.some((c) => c.kind === "email") ? p.contacts.filter((c) => c.kind === "email").map((c) => c.value ?? c.masked).join(" · ") : "Not publicly listed"}
-                            </li>
-                            <li>
-                              Phone: {p.contacts.some((c) => c.kind === "phone") ? p.contacts.filter((c) => c.kind === "phone").map((c) => c.value ?? c.masked).join(" · ") : "Not publicly listed"}
-                            </li>
+                            {/* Email, mobile, or both, as listed by the creator (values stay masked until revealed). */}
+                            {p.contacts.some((c) => c.kind === "email") && <li>Email: {p.contacts.filter((c) => c.kind === "email").map((c) => c.value ?? c.masked).join(" · ")}</li>}
+                            {p.contacts.some((c) => c.kind === "phone") && <li>Mobile: {p.contacts.filter((c) => c.kind === "phone").map((c) => c.value ?? c.masked).join(" · ")}</li>}
                             {(p.contactRoutes?.routes ?? []).map((r) =>
                               r.kind === "business_contact" ? (
-                                <li key={`b-${r.handle}`}>Business contact: @{r.handle} <span className="text-slate-500">(bio mention, unverified)</span></li>
+                                <li key={`b-${r.handle}`}>Business inquiries: @{r.handle} <span className="text-slate-500">(bio mention, unverified)</span></li>
+                              ) : r.kind === "collab_route" ? (
+                                <li key={`c-${r.statement}`}>Collab route: <span className="italic">“{r.statement}”</span> <span className="text-slate-500">(from the bio)</span></li>
                               ) : r.kind === "social_contact" ? (
                                 <li key={`s-${r.handle}`}>Other enquiries: @{r.handle} <span className="text-slate-500">(bio mention)</span></li>
                               ) : r.kind === "external_link" ? (
@@ -314,7 +313,7 @@ export function CreatorProfilePanel({ creator, onClose, onCompare, onGoToCampaig
                                 <li key={r.url} className="truncate">Linked profile: <a href={r.url} target="_blank" rel="noreferrer noopener" className="text-cyan-700 hover:underline">{r.platform} {shortUrl(r.url)}</a></li>
                               ),
                             )}
-                            {p.contacts.length === 0 && (p.contactRoutes?.routes.length ?? 0) === 0 && <li className="text-slate-500">No public contact information found</li>}
+                            {p.contacts.length === 0 && (p.contactRoutes?.routes.length ?? 0) === 0 && <li className="text-slate-500">Not publicly listed: no email, mobile number or collab route in the bio</li>}
                           </ul>
                         )}
                       </div>
