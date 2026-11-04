@@ -44,6 +44,11 @@ export type NicheDecision = {
 // Owner master directive 2026-11-03 (Part 3): 6 to 9 recent posts read together when the bio names no niche.
 export const MAX_POSTS_FOR_NICHE = 9;
 const MIN_POSTS = 6;
+/**
+ * Posts are read for the niche only for creators with at least this many followers or subscribers (owner execution
+ * directive 2026-11-04): below it, a creator whose bio/About names no niche stays Unknown rather than guessed.
+ */
+export const POST_NICHE_MIN_FOLLOWERS = 100_000;
 // Negation, contrast, satire: the words alone may say the opposite of the meaning ("not a food channel").
 const CONTRAST = /\b(?:not|no|never|don'?t|doesn'?t|isn'?t|instead|but|except|unlike|satire|satirical|parody|spoof|nahi|nahin|nai)\b|نہیں|بلکہ/iu;
 // Above this length a bio that names several subjects equally is not evidence of Variety on its own.
@@ -90,19 +95,15 @@ function splitPost(raw: string): { caption: string; tags: string } {
 }
 
 /**
- * Hashtags are supporting evidence only (owner master directive 2026-11-03, Part 3): a subject counts for a post from its
- * hashtags only when the captions themselves name it in at least two posts, so "#PUBG" on one or two videos never makes
- * a creator Gaming.
+ * The last 9 posts read together (owner execution directive 2026-11-04, Stage 1 §1): each post's caption/title topics and
+ * its tags count once for that post, and a subject needs at least 3 of the 9 posts (MIN_POST_HITS), so one random tag
+ * never decides the niche.
  */
 function readPosts(posts: string[]): PostReading {
   const parts = posts.map(splitPost).filter((p) => p.caption || p.tags);
-  const captionLabels = parts.map((p) => new Set(labelsIn(p.caption, { strongOnly: true }).keys()));
-  const captionHits = new Map<string, number>();
-  for (const s of captionLabels) for (const l of s) captionHits.set(l, (captionHits.get(l) ?? 0) + 1);
   const counts = new Map<string, number>();
-  for (const [i, p] of parts.entries()) {
-    const labels = new Set(captionLabels[i]);
-    for (const l of labelsIn(p.tags, { strongOnly: true }).keys()) if ((captionHits.get(l) ?? 0) >= 2) labels.add(l);
+  for (const p of parts) {
+    const labels = new Set([...labelsIn(p.caption, { strongOnly: true }).keys(), ...labelsIn(p.tags, { strongOnly: true }).keys()]);
     for (const l of labels) counts.set(l, (counts.get(l) ?? 0) + 1);
   }
   const n = parts.length;
@@ -119,7 +120,7 @@ function readPosts(posts: string[]): PostReading {
   return { kind: "insufficient", counts, n };
 }
 
-export function classifyNiche(o: { displayName: string; bio: string; accountCategory: string | null; posts: string[]; aiNiches: readonly string[] }): NicheDecision {
+export function classifyNiche(o: { displayName: string; bio: string; accountCategory: string | null; posts: string[]; aiNiches: readonly string[]; followers?: number | null }): NicheDecision {
   const observations: NicheObservation[] = [];
   const bioNorm = normalizeTerms(o.bio);
   const catNorm = normalizeTerms(o.accountCategory ?? "");
@@ -147,6 +148,8 @@ export function classifyNiche(o: { displayName: string; bio: string; accountCate
     if (!score.has(l)) observations.push({ value: l, source: "display_name", status: "weak", evidence: `Only the name suggests it ("${f[0]}"); a name alone is not evidence of what the creator makes` });
   }
 
+  // Posts are read only for 100K+ creators (followers unknown: not read). They still confirm a bio niche's confidence.
+  const postsAllowed = (o.followers ?? 0) >= POST_NICHE_MIN_FOLLOWERS;
   const posts = readPosts(o.posts.slice(0, MAX_POSTS_FOR_NICHE));
   const postNote = (l: string) => `${posts.counts.get(l) ?? 0} of ${posts.n} recent posts`;
   const postRow = (l: string): NicheObservation => ({ value: l, source: "post_text", status: "supported", evidence: `${postNote(l)} are about it` });
@@ -159,12 +162,7 @@ export function classifyNiche(o: { displayName: string; bio: string; accountCate
   };
 
   if (bioClear && b1) {
-    // A clear bio decides, unless the recent posts plainly contradict it (a fashion bio over a channel of recipes).
-    const contradicted = posts.kind === "classified" && posts.main !== b1 && posts.confidence !== "low" && (posts.counts.get(b1) ?? 0) <= 1;
-    if (contradicted && posts.kind === "classified") {
-      observations.push(bioRow(b1, "conflicting"), postRow(posts.main), ...posts.secondary.map(postRow));
-      return done({ status: "classified", main: posts.main, niches: [posts.main, ...posts.secondary], confidence: "medium" }, "post_estimated");
-    }
+    // A clear bio/About decides and the reading stops there (owner execution directive 2026-11-04, Stage 1 §1).
     const secondary = bioRank.slice(1).filter(([, s]) => s >= 1).slice(0, 2).map(([l]) => l);
     const confirmed = posts.kind !== "insufficient" && (posts.counts.get(b1) ?? 0) >= 2;
     observations.push(bioRow(b1, "supported"), ...secondary.map((l) => bioRow(l, "supported")));
@@ -177,6 +175,10 @@ export function classifyNiche(o: { displayName: string; bio: string; accountCate
     return done({ status: "classified", main: b1, niches: [b1, ...secondary], confidence, clear: postsAgree && (onlyCategory || shortPlain) }, "bio_identified");
   }
 
+  if (!postsAllowed) {
+    if (posts.kind !== "insufficient" && posts.counts.size > 0) observations.push({ value: ranked(posts.counts)[0]?.[0] as string, source: "post_text", status: "weak", evidence: `Recent posts were not read for the niche: under ${POST_NICHE_MIN_FOLLOWERS.toLocaleString("en-US")} followers and the bio names no niche` });
+    return done({ status: "unknown", main: null, niches: [], confidence: null });
+  }
   if (posts.kind === "classified") {
     observations.push(postRow(posts.main), ...posts.secondary.map(postRow));
     return done({ status: "classified", main: posts.main, niches: [posts.main, ...posts.secondary], confidence: posts.confidence }, "post_estimated");

@@ -5,8 +5,9 @@ import { classifyNiche } from "./niche-evidence";
 import type { StandardProfile } from "./standardize";
 
 const rep = (xs: string[], n = 12) => Array.from({ length: n }, (_, i) => xs[i % xs.length] as string);
-const niche = (o: { name?: string; bio?: string; category?: string | null; posts?: string[]; ai?: string[] }) =>
-  classifyNiche({ displayName: o.name ?? "Creator", bio: o.bio ?? "", accountCategory: o.category ?? null, posts: o.posts ?? [], aiNiches: o.ai ?? [] });
+// Posts are read only for 100K+ creators (execution directive 2026-11-04); the helper defaults to a 100K+ creator.
+const niche = (o: { name?: string; bio?: string; category?: string | null; posts?: string[]; ai?: string[]; followers?: number | null }) =>
+  classifyNiche({ displayName: o.name ?? "Creator", bio: o.bio ?? "", accountCategory: o.category ?? null, posts: o.posts ?? [], aiNiches: o.ai ?? [], followers: o.followers === undefined ? 250_000 : o.followers });
 
 // The canonical labels seeded by migration 0054 (platform.niches).
 const TAXONOMY = ["Bridal", "Fashion", "Beauty", "Tech", "Food", "Travel", "Comedy", "Finance", "Wellness", "Lifestyle", "Education & How-to", "Gaming", "History", "Literature", "Agriculture", "Business & Ecommerce", "Automotive", "Religion", "Music", "News & Commentary", "Sports", "Entertainment", "Real Estate"];
@@ -42,10 +43,24 @@ describe("niche classification: bio first", () => {
     expect(niche({ bio: "Excel aur computer seekhein Urdu mein", posts: rep(["Excel formulas", "VLOOKUP tutorial"]) }).main).toBe("Education & How-to");
   });
 
-  it("lets recent posts overrule a bio they plainly contradict, and records the conflict", () => {
+  it("stops at a clear bio: recent posts never overrule it (execution directive 2026-11-04)", () => {
     const d = niche({ bio: "Fashion blogger", posts: rep(["Chicken karahi recipe", "Baking a cake", "Easy dinner recipe", "Biryani at home"]) });
-    expect(d).toMatchObject({ status: "classified", main: "Food", confidence: "medium" });
-    expect(d.observations).toContainEqual(expect.objectContaining({ value: "Fashion", source: "profile_text", status: "conflicting" }));
+    expect(d).toMatchObject({ status: "classified", main: "Fashion", source: "bio_identified" });
+  });
+
+  it("reads posts only at 100K+ followers; below that a bio without a niche stays Unknown", () => {
+    const posts = rep(["PUBG gameplay", "Free Fire ranked", "PUBG mobile tips", "Gaming setup"], 9);
+    expect(niche({ bio: "Subscribe!", posts, followers: 99_999 })).toMatchObject({ status: "unknown", main: null });
+    expect(niche({ bio: "Subscribe!", posts, followers: null })).toMatchObject({ status: "unknown" });
+    expect(niche({ bio: "Subscribe!", posts, followers: 100_000 })).toMatchObject({ status: "classified", main: "Gaming", source: "post_estimated", postsAssessed: 9 });
+    expect(niche({ bio: "Gaming creator", posts: [], followers: 8_000 })).toMatchObject({ main: "Gaming", source: "bio_identified" });
+  });
+
+  it("needs a subject in at least 3 of the 9 posts, from tags or captions", () => {
+    const two = [...rep(["#cricket match day"], 2), ...rep(["Good morning", "Thank you all", "Weekend vibes"], 7)];
+    expect(niche({ bio: "", posts: two }).main).toBeNull();
+    const three = [...rep(["#cricket match day"], 3), ...rep(["Good morning", "Thank you all", "Weekend vibes"], 6)];
+    expect(niche({ bio: "", posts: three })).toMatchObject({ status: "classified", main: "Sports" });
   });
 });
 
@@ -116,7 +131,7 @@ describe("niche classification: directive 2026-11-03", () => {
 
 describe("YouTube policy gate", () => {
   const yt = (bio: string, captions: string[]): StandardProfile => ({
-    platform: "youtube", handle: "x", displayName: "Channel", bio, followers: 50_000, following: null, posts: 12, verified: false, websiteUrls: [], businessEmail: null, businessPhone: null, country: null, avatarUrl: null,
+    platform: "youtube", handle: "x", displayName: "Channel", bio, followers: 150_000, following: null, posts: 12, verified: false, websiteUrls: [], businessEmail: null, businessPhone: null, country: null, avatarUrl: null,
     recentPosts: captions.map((caption, i) => ({ postedAt: new Date(Date.now() - i * 86_400_000), likes: 1, comments: 1, views: 1, isVideo: true, isPinned: false, caption, hashtags: [] })),
   });
 

@@ -1,3 +1,4 @@
+import { POST_NICHE_MIN_FOLLOWERS } from "./niche-evidence";
 import { randomUUID } from "node:crypto";
 import { contentPerformance } from "../eligibility-v3";
 import { sha256Hex, type Logger } from "@mushin/core";
@@ -114,8 +115,13 @@ export function createEnrichmentPipeline(deps: Deps) {
     const permitted = p.platform !== "youtube" || youtube.contentEvidence;
     const d = deriveAttributes(p, a, { usePostText: permitted });
     if (!deps.semanticNiche || d.niche.clear || !permitted || o.rulesOnly) return d;
-    const sem = await semanticNiche({ llm: deps.llm, input: d.niche.semanticInput, rulesMain: d.niche.main, ctx });
-    return sem ? withSemanticNiche(d, sem) : d;
+    // Under 100K followers posts are not read for the niche (execution directive 2026-11-04): the semantic reading then
+    // sees the bio/About only, and only when the bio names something to interpret (an unclear or negated mention).
+    const postsReadable = (p.followers ?? 0) >= POST_NICHE_MIN_FOLLOWERS;
+    if (!postsReadable && d.niche.source !== "bio_identified") return d;
+    const input = postsReadable ? d.niche.semanticInput : { ...d.niche.semanticInput, posts: [] };
+    const sem = await semanticNiche({ llm: deps.llm, input, rulesMain: d.niche.main, ctx });
+    return sem ? withSemanticNiche(d, sem, { bioOnly: !postsReadable }) : d;
   }
 
   const minorReasonFor = (p: StandardProfile, a: Assessment | null): string | null =>

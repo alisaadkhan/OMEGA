@@ -96,7 +96,9 @@ export function deriveAttributes(p: StandardProfile, a: Assessment | null, o: De
   if (a?.creatorCountry && a.creatorCountry !== country) evidence.push({ attribute: "country", value: a.creatorCountry, source: "ai_assessment", status: "weak", evidence: "Read by the AI assessment; not stated by the creator or the platform" });
 
   // Niche.
-  const nicheInput = { displayName: p.displayName, bio, accountCategory: p.accountCategory ?? null, posts: posts.slice(0, MAX_POSTS_FOR_NICHE).map((x) => x.raw) };
+  // The last 9 non-pinned posts; read for the niche only for 100K+ creators (owner execution directive 2026-11-04).
+  const nichePosts = (o.usePostText === false ? [] : p.recentPosts.filter((x) => !x.isPinned)).slice(0, MAX_POSTS_FOR_NICHE).map((x) => `${x.caption} ${x.hashtags.join(" ")}`);
+  const nicheInput = { displayName: p.displayName, bio, accountCategory: p.accountCategory ?? null, posts: nichePosts, followers: p.followers };
   const n = classifyNiche({ ...nicheInput, aiNiches: a?.niches ?? [] });
   evidence.push(...n.observations.map((r) => ({ attribute: "niche" as const, ...r })));
 
@@ -129,13 +131,13 @@ export function deriveAttributes(p: StandardProfile, a: Assessment | null, o: De
  * Replaces the rules' first reading of the niche with a semantic one. The rules' observations stay, marked weak, so a
  * reviewer can see what the keywords suggested and why it was not used.
  */
-export function withSemanticNiche(d: AttributeDecision, sem: NicheDecision): AttributeDecision {
+export function withSemanticNiche(d: AttributeDecision, sem: NicheDecision, o: { bioOnly?: boolean } = {}): AttributeDecision {
   const ruleRows = d.evidence.filter((r) => r.attribute === "niche").map((r) => ({ ...r, status: "weak" as const, evidence: `Keyword reading, not used: ${r.evidence}`.slice(0, 300) }));
   return {
     ...d,
     niches: sem.niches,
     // A semantic reading keeps "bio-identified" only when it agrees with the bio's niche; otherwise it is an estimate.
-    niche: { ...d.niche, status: sem.status, main: sem.main, confidence: sem.confidence, clear: false, source: sem.status === "unknown" ? null : d.niche.source === "bio_identified" && sem.main === d.niche.main ? "bio_identified" : "post_estimated" },
+    niche: { ...d.niche, status: sem.status, main: sem.main, confidence: sem.confidence, clear: false, source: sem.status === "unknown" ? null : o.bioOnly || (d.niche.source === "bio_identified" && sem.main === d.niche.main) ? "bio_identified" : "post_estimated" },
     evidence: [...d.evidence.filter((r) => r.attribute !== "niche"), ...sem.observations.map((r) => ({ attribute: "niche" as const, ...r })), ...ruleRows],
   };
 }
