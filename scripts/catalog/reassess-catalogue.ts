@@ -32,11 +32,11 @@ const payload = (key: string | null): unknown => {
 
 type Row = {
   creator_id: string; profile_id: string; platform: "instagram" | "tiktok" | "youtube"; handle: string; display_name: string; bio: string | null; followers: number | null;
-  country_status: string | null; country: string | null; primary_platform: string; account_type_source: string | null; organisation_override: boolean; is_minor: boolean; key: string | null;
+  country_status: string | null; country: string | null; diaspora: boolean; primary_platform: string; account_type_source: string | null; organisation_override: boolean; is_minor: boolean; key: string | null;
 };
 const rows = await db.withSystem((tx) =>
   tx.execute<Row>(sql`
-    select p.creator_id, p.id profile_id, p.platform, p.handle, c.display_name, p.bio, p.followers, p.country_status, p.country, c.primary_platform,
+    select p.creator_id, p.id profile_id, p.platform, p.handle, c.display_name, p.bio, p.followers, p.country_status, p.country, p.pakistani_diaspora diaspora, c.primary_platform,
       c.account_type_source, c.organisation_override_by_staff_id is not null organisation_override, (c.is_minor and c.minor_override_by_staff_id is null) is_minor,
       (select r.storage_key from platform.raw_payloads r where r.creator_id = p.creator_id and r.platform = p.platform order by r.fetched_at desc limit 1) key
     from gcp.creator_profiles p join gcp.creators c on c.id = p.creator_id where c.status = 'active'`),
@@ -48,9 +48,8 @@ const rows = await db.withSystem((tx) =>
 const youtubeDerived = process.env["YOUTUBE_DERIVED_METRICS"] !== "off";
 const ownerNamed = new Set<string>((JSON.parse(readFileSync(join(root, "docs", "completion", "seed", "owner-named-2026-11-03.json"), "utf8")) as { candidates: { handle: string }[] }).candidates.map((c) => c.handle.toLowerCase()));
 
-const DIASPORA = /\b(pakistani|🇵🇰|pak(?:istan)?[- ]?born|desi)\b/iu;
 const location = (r: Row): string =>
-  r.country_status === "pakistan" ? "PAKISTAN_CONFIRMED" : r.country_status === "conflicting" ? "CONFLICTING_EVIDENCE" : r.country_status === "foreign" ? (DIASPORA.test(r.bio ?? "") ? "PAKISTANI_DIASPORA" : "NON_PAKISTANI_CONFIRMED") : "UNKNOWN";
+  r.country_status === "pakistan" ? "PAKISTAN_CONFIRMED" : r.country_status === "conflicting" ? "CONFLICTING_EVIDENCE" : r.country_status === "foreign" ? (r.diaspora ? "PAKISTANI_DIASPORA" : "NON_PAKISTANI_CONFIRMED") : "UNKNOWN";
 
 const accountUpdates = new Map<string, { id: string; type: AccountType; source: string | null; confidence: string | null; evidence: string | null }>();
 const perfUpdates: { id: string; mv: number | null; mer: number | null; vs: number; es: number; fmt: string; from: string | null; to: string | null }[] = [];
@@ -91,8 +90,9 @@ const minimum: Record<string, number> = { instagram: 10_000, tiktok: 10_000, you
 for (const [id, ps] of byCreator) {
   const type = accountUpdates.get(id)?.type ?? "UNKNOWN";
   const conf = accountUpdates.get(id)?.confidence ?? null;
-  const pk = ps.filter((p) => p.country_status === "pakistan");
-  if (ps.every((p) => p.country_status === "foreign")) bump(outcome, "excluded: confirmed non-Pakistani");
+  // Pakistan-based and Pakistani-diaspora profiles are both kept (execution directive 2026-11-04, Stage 1 §4).
+  const pk = ps.filter((p) => p.country_status === "pakistan" || (p.country_status === "foreign" && p.diaspora));
+  if (ps.every((p) => p.country_status === "foreign" && !p.diaspora)) bump(outcome, "excluded: confirmed non-Pakistani");
   else if (NON_TARGET_TYPES.has(type) && conf !== "low" && !ps[0]?.organisation_override) bump(outcome, `excluded: non-target account type (${type})`);
   else if (pk.length === 0) bump(outcome, "kept unknown: location not confirmed (research or reassess)");
   else if (pk.every((p) => (p.followers ?? 0) < (minimum[p.platform] ?? 10_000))) bump(outcome, "excluded from results: below follower minimum");

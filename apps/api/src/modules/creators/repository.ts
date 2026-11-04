@@ -398,7 +398,7 @@ export async function indexRows(tx: SystemTx, ids: string[]): Promise<IndexRow[]
       coalesce((
         select jsonb_agg(jsonb_build_object('platform', p.platform, 'handle', p.handle, 'canonicalUrl', p.canonical_url, 'lastPostAt', p.last_post_at,
           'followers', case when p.platform = 'youtube' and p.followers = 0 then null else p.followers end,
-          'engagementRate', p.engagement_rate, 'bio', p.bio, 'followersUpdatedAt', p.followers_updated_at, 'availability', p.availability, 'country', jsonb_build_object('code', p.country, 'status', p.country_status, 'checkedAt', p.country_checked_at)) order by p.followers desc)
+          'engagementRate', p.engagement_rate, 'bio', p.bio, 'followersUpdatedAt', p.followers_updated_at, 'availability', p.availability, 'country', jsonb_build_object('code', p.country, 'status', p.country_status, 'checkedAt', p.country_checked_at, 'diaspora', p.pakistani_diaspora)) order by p.followers desc)
         from gcp.creator_profiles p where p.creator_id = c.id), '[]'::jsonb) as profiles,
       (select s.audience from gcp.enrichment_snapshots s where s.creator_id = c.id and s.audience is not null order by s.created_at desc limit 1) as audience,
       ${UPDATED_EPOCH} as "updatedEpoch"
@@ -624,7 +624,7 @@ export async function eligibilityOf(tx: Tx, ids: string[], now: Date): Promise<M
     select c.id, c.status, c.is_minor as "isMinor", c.minor_override_by_staff_id as "minorOverrideByStaffId", ((c.organisation_category is not null or (c.account_type in ('CELEBRITY_PUBLIC_FIGURE', 'COMPANY_CORPORATE', 'BRAND_ACCOUNT', 'BUSINESS_STORE', 'MEDIA_PUBLICATION', 'FAN_PAGE_AGGREGATOR') and c.account_type_confidence in ('high', 'medium'))) and c.organisation_override_by_staff_id is null) as organisation,
       coalesce((select jsonb_agg(jsonb_build_object('platform', p.platform, 'canonicalUrl', p.canonical_url,
         'followers', case when p.platform = 'youtube' and p.followers = 0 then null else p.followers end,
-        'followersUpdatedAt', p.followers_updated_at, 'lastPostAt', p.last_post_at, 'availability', p.availability, 'country', jsonb_build_object('code', p.country, 'status', p.country_status, 'checkedAt', p.country_checked_at)))
+        'followersUpdatedAt', p.followers_updated_at, 'lastPostAt', p.last_post_at, 'availability', p.availability, 'country', jsonb_build_object('code', p.country, 'status', p.country_status, 'checkedAt', p.country_checked_at, 'diaspora', p.pakistani_diaspora)))
         from gcp.creator_profiles p where p.creator_id = c.id), '[]'::jsonb) as profiles
     from gcp.creators c where c.id in ${ids}`);
   return new Map(rows.map((r) => [r.id, creatorEligibility(r, r.profiles, now)]));

@@ -59,7 +59,7 @@ export type EligibilityProfile = {
    */
   availability?: "available" | "temporarily_unavailable" | "missing_unconfirmed" | "not_found" | "private" | null;
   /** The profile's own resolved country (0060). Absent = unknown: a profile never qualifies by assumption. */
-  country?: { code: string | null; status: "pakistan" | "foreign" | "unknown" | "conflicting" | null; checkedAt: Date | string | null } | null;
+  country?: { code: string | null; status: "pakistan" | "foreign" | "unknown" | "conflicting" | null; checkedAt: Date | string | null; diaspora?: boolean | null } | null;
 };
 /** organisation: the account's platform category names an organisation and no staff member overrode it (0072). */
 export type EligibilityCreator = { status: string; isMinor: boolean; minorOverrideByStaffId: string | null; organisation?: boolean };
@@ -106,7 +106,9 @@ export function profileEligibility(p: EligibilityProfile, now: Date, s: Eligibil
   const checked = time(c?.checkedAt);
   if (!c || c.status === null || c.status === "unknown") reasons.push("country_unknown");
   else if (c.status === "conflicting") reasons.push("country_conflicting");
-  else if (c.code !== s.country) reasons.push("country_not_pakistan");
+  // A Pakistani creator living abroad (the profile's own words, 0081) qualifies like a Pakistan-based one (execution
+  // directive 2026-11-04, Stage 1 §4) and is flagged so the profile says where they are based.
+  else if (c.code !== s.country && !(c.status === "foreign" && c.diaspora === true)) reasons.push("country_not_pakistan");
   // An unknown check time cannot show the evidence is within the window: stale, like an undated follower count.
   else if (checked === null || now.getTime() - checked > s.maxCountryAgeDays * DAY) reasons.push("country_stale");
   const last = time(p.lastPostAt);

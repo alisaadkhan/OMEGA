@@ -355,7 +355,7 @@ export function createCreatorsService(deps: CreatorsDeps) {
           typicalViewsFormat: restrictsDerived(p.platform, policy) ? null : (p.performanceFormat as "reel" | "video" | null),
           engagementSample: restrictsDerived(p.platform, policy) ? null : p.performanceEngagementSample,
           metricsNote: restrictsDerived(p.platform, policy) ? ("policy_restricted" as const) : p.performanceAt === null && p.engagementRate === null ? ("not_collected" as const) : p.medianViews === null && p.engagementRate === null ? ("insufficient_posts" as const) : null,
-          location: locationOutcome(p.countryStatus, p.bio),
+          location: locationOutcome(p.countryStatus, p.bio, p.pakistaniDiaspora),
           ...(({ badge, signals }) => ({ performanceBadge: badge, qualitySignals: signals }))(performanceAssessment(p, { restricted: restrictsDerived(p.platform, policy), now: t })),
           // Emails and phone numbers in the bio stay hidden until this workspace reveals the contacts.
           bio: revealed ? p.bio : maskBioContacts(p.bio),
@@ -473,10 +473,10 @@ export type CreatorsService = ReturnType<typeof createCreatorsService>;
 /** The profile view of eligibility (elig-1): the creator verdict and each profile's own (no counts beyond what the profile shows). */
 function profileEligibilityView(
   c: { status: string; isMinor: boolean; minorOverrideByStaffId: string | null; organisation: boolean },
-  profiles: { platform: "instagram" | "tiktok" | "youtube"; canonicalUrl: string; followers: number | null; followersUpdatedAt: Date | null; lastPostAt: Date | null; availability?: EligibilityProfile["availability"]; country?: string | null; countryStatus?: "pakistan" | "foreign" | "unknown" | "conflicting"; countryCheckedAt?: Date | null }[],
+  profiles: { platform: "instagram" | "tiktok" | "youtube"; canonicalUrl: string; followers: number | null; followersUpdatedAt: Date | null; lastPostAt: Date | null; availability?: EligibilityProfile["availability"]; country?: string | null; countryStatus?: "pakistan" | "foreign" | "unknown" | "conflicting"; countryCheckedAt?: Date | null; pakistaniDiaspora?: boolean | null }[],
   now: Date,
 ) {
-  const e = creatorEligibility(c, profiles.map((p) => ({ ...p, followers: p.platform === "youtube" && p.followers === 0 ? null : p.followers, country: { code: p.country ?? null, status: p.countryStatus ?? null, checkedAt: p.countryCheckedAt ?? null } })), now);
+  const e = creatorEligibility(c, profiles.map((p) => ({ ...p, followers: p.platform === "youtube" && p.followers === 0 ? null : p.followers, country: { code: p.country ?? null, status: p.countryStatus ?? null, checkedAt: p.countryCheckedAt ?? null, diaspora: p.pakistaniDiaspora ?? null } })), now);
   return {
     eligible: e.eligible,
     version: e.version,

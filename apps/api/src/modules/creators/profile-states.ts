@@ -12,10 +12,11 @@ export const LOCATION_OUTCOMES = ["PAKISTAN_CONFIRMED", "NON_PAKISTANI_CONFIRMED
 export type LocationOutcome = (typeof LOCATION_OUTCOMES)[number];
 const DIASPORA = /(?:^|[^\p{L}])(pakistani|pak(?:istan)?[- ]?born)(?![\p{L}])|🇵🇰/iu;
 
-export function locationOutcome(countryStatus: string | null, bio: string | null): LocationOutcome {
+/** `diaspora`: the stored decision (0081); when absent (older callers) the bio is read with the looser pattern. */
+export function locationOutcome(countryStatus: string | null, bio: string | null, diaspora?: boolean | null): LocationOutcome {
   if (countryStatus === "pakistan") return "PAKISTAN_CONFIRMED";
   if (countryStatus === "conflicting") return "CONFLICTING_EVIDENCE";
-  if (countryStatus === "foreign") return DIASPORA.test(bio ?? "") ? "PAKISTANI_DIASPORA" : "NON_PAKISTANI_CONFIRMED";
+  if (countryStatus === "foreign") return (diaspora ?? DIASPORA.test(bio ?? "")) ? "PAKISTANI_DIASPORA" : "NON_PAKISTANI_CONFIRMED";
   return "UNKNOWN";
 }
 

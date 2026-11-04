@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { boolean, char, date, doublePrecision, integer, jsonb, pgSchema, primaryKey, smallint, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { wp } from "./identity";
 
@@ -106,6 +107,8 @@ export const creatorProfiles = gcp.table("creator_profiles", {
   country: text("country"),
   countrySource: text("country_source", { enum: ["creator_confirmed", "creator_stated", "platform_declared", "public_record", "linked_profile"] }),
   countryStatus: text("country_status", { enum: ["pakistan", "foreign", "unknown", "conflicting"] }).notNull().default("unknown"),
+  /** Generated (0081): lives abroad and the bio states Pakistani identity. Read-only. */
+  pakistaniDiaspora: boolean("pakistani_diaspora").generatedAlwaysAs(sql`(see migration 0081)`),
   countryReason: text("country_reason"),
   countryConfidence: text("country_confidence", { enum: ["high", "medium", "low"] }),
   countryCheckedAt: ts("country_checked_at"),

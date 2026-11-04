@@ -92,6 +92,9 @@ describe("creator eligibility elig-2 (Pakistan-only catalogue, 2026-10-27)", () 
     expect(ELIGIBILITY_VERSION).toBe("elig-2");
     expect(profileEligibility(ig(), now).qualifies).toBe(true);
     expect(profileEligibility(ig({ country: { code: "GB", status: "foreign", checkedAt: daysAgo(3) } }), now).reasons).toEqual(["country_not_pakistan"]);
+    // A Pakistani creator living abroad, in their own words (0081), qualifies too (execution directive 2026-11-04).
+    expect(profileEligibility(ig({ country: { code: "GB", status: "foreign", checkedAt: daysAgo(3), diaspora: true } }), now).qualifies).toBe(true);
+    expect(profileEligibility(ig({ country: { code: "GB", status: "foreign", checkedAt: daysAgo(3), diaspora: false } }), now).reasons).toEqual(["country_not_pakistan"]);
     expect(profileEligibility(ig({ country: { code: null, status: "unknown", checkedAt: null } }), now).reasons).toEqual(["country_unknown"]);
     expect(profileEligibility(ig({ country: { code: null, status: "conflicting", checkedAt: daysAgo(3) } }), now).reasons).toEqual(["country_conflicting"]);
   });

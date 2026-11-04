@@ -143,7 +143,7 @@ export async function lifecycleSweep(o: { db: Db; now?: () => Date; apply: boole
       select c.id, d.eligible, c.status, c.is_minor, c.minor_override_by_staff_id, ((c.organisation_category is not null or (c.account_type in ('CELEBRITY_PUBLIC_FIGURE', 'COMPANY_CORPORATE', 'BRAND_ACCOUNT', 'BUSINESS_STORE', 'MEDIA_PUBLICATION', 'FAN_PAGE_AGGREGATOR') and c.account_type_confidence in ('high', 'medium'))) and c.organisation_override_by_staff_id is null) as organisation,
         coalesce((select jsonb_agg(jsonb_build_object('platform', p.platform, 'canonicalUrl', p.canonical_url,
           'followers', case when p.platform = 'youtube' and p.followers = 0 then null else p.followers end,
-          'followersUpdatedAt', p.followers_updated_at, 'lastPostAt', p.last_post_at, 'availability', p.availability, 'country', jsonb_build_object('code', p.country, 'status', p.country_status, 'checkedAt', p.country_checked_at)))
+          'followersUpdatedAt', p.followers_updated_at, 'lastPostAt', p.last_post_at, 'availability', p.availability, 'country', jsonb_build_object('code', p.country, 'status', p.country_status, 'checkedAt', p.country_checked_at, 'diaspora', p.pakistani_diaspora)))
           from gcp.creator_profiles p where p.creator_id = c.id), '[]'::jsonb) profiles
       from gcp.creators c join gcp.creator_search_documents d on d.creator_id = c.id`);
     const changed = docs.filter((d) => creatorEligibility({ status: d.status, isMinor: d.is_minor, minorOverrideByStaffId: d.minor_override_by_staff_id, organisation: d.organisation }, d.profiles, now).eligible !== d.eligible).map((d) => d.id);
