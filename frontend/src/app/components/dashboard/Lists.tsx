@@ -5,7 +5,7 @@ import { ArrowLeft, FolderPlus, ListChecks, Megaphone, MoreHorizontal, Pencil, P
 import type { ListMember, ListSummary } from "@mushin/contracts";
 import { useCreateList, useDeleteList, useList, useLists, useRemoveFromList, useSetListNote, useUpdateList } from "../../api/lists";
 import { ImportCreators } from "./ImportCreators";
-import { avatarFallback, formatCount, initialsAvatar, toCreator } from "../../api/search-mapping";
+import { avatarFallback, formatCount, initialsAvatar, toCreator, formatEr } from "../../api/search-mapping";
 import { relative } from "../../lib/time";
 import { useConfirm, useToast } from "../../lib/toast";
 import type { Creator } from "./CreatorProfilePanel";
@@ -307,7 +307,7 @@ function ListDetail({ id, onBack, onOpenCreator, onGoToSearch }: { id: string; o
   const reach = l.members.reduce((n, m) => n + (m.creator.followers ?? 0), 0);
   const figures = [
     { label: "Combined reach", value: formatCount(reach), note: "Followers across members" },
-    { label: "Median engagement", value: medianEr === null ? "—" : `${medianEr.toFixed(1)}%`, note: `${ers.length} of ${l.members.length} with a figure` },
+    { label: "Median engagement", value: medianEr === null ? "—" : formatEr(medianEr), note: `${ers.length} of ${l.members.length} with a figure` },
     { label: "Authenticity", value: auths.length === 0 ? "—" : `${Math.round(auths.reduce((a, b) => a + b, 0) / auths.length)}`, note: auths.length === 0 ? "Not assessed yet" : `Average of ${auths.length} assessed` },
     { label: "Creators", value: String(l.count), note: `Updated ${relative(l.updatedAt)}` },
   ];

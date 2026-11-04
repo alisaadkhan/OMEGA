@@ -48,6 +48,7 @@ import {
   type ChipState,
   type UiFilters,
   platformMixText,
+  formatEr,
 } from "../../api/search-mapping";
 import { useToast } from "../../lib/toast";
 import { FindNewDialog } from "./FindNewDialog";
@@ -990,7 +991,7 @@ function ResultsTable({
                 </div>
               </td>
               <td className="py-3 text-right tabular-nums text-slate-700">{c.followers}</td>
-              <td className="py-3 text-right tabular-nums text-slate-700">{c.engagement === null ? "—" : `${c.engagement.toFixed(1)}%`}</td>
+              <td className="py-3 text-right tabular-nums text-slate-700">{c.engagement === null ? "—" : formatEr(c.engagement)}</td>
               <td className="py-3 text-right tabular-nums text-slate-700">{c.authenticity ?? "—"}</td>
               <td className="py-3 pr-4 text-right">
                 <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] ${scoreBg(c.score)}`} style={{ fontWeight: 600 }}>

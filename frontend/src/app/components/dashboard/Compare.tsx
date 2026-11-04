@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { X, ArrowUpRight, Info } from "lucide-react";
 import type { Creator } from "./CreatorProfilePanel";
 import { FreshnessBadge } from "./states";
-import { CONTACT_AVAILABILITY_TEXT } from "../../api/search-mapping";
+import { CONTACT_AVAILABILITY_TEXT, formatEr } from "../../api/search-mapping";
 
 /**
  * Compare creators — spec §9.
@@ -30,7 +30,7 @@ const ROWS: Row[] = [
   { label: "City", get: (c) => c.city },
   { label: "Niche", get: (c) => c.niche },
   { label: "Followers", get: (c) => c.followers, best: bestByMax((c) => c.followersNum) },
-  { label: "Engagement", get: (c) => (c.engagement === null ? "Unknown" : `${c.engagement.toFixed(1)}%`), best: bestByMax((c) => c.engagement ?? -1) },
+  { label: "Engagement", get: (c) => (c.engagement === null ? "Unknown" : formatEr(c.engagement)), best: bestByMax((c) => c.engagement ?? -1) },
   { label: "Authenticity", get: (c) => (c.authenticity === null ? "Not yet assessed" : `${c.authenticity}`), best: bestByMax((c) => c.authenticity ?? -1) },
   { label: "Flagged interactions", get: (c) => (c.fake === null ? "—" : `${c.fake}%`), best: bestByMax((c) => -(c.fake ?? 100)) },
   { label: "Creator Fit", get: (c) => `${c.score}`, best: bestByMax((c) => c.score) },

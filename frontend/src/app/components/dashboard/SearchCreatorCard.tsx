@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { motion } from "motion/react";
 import { ArrowRight, BadgeCheck, Ban, Bookmark, Check, Clock, Instagram, Mail, MapPin, Music2, Phone, Star, Youtube } from "lucide-react";
-import { CONTACT_AVAILABILITY_TEXT, initialsAvatar, matchSummary } from "../../api/search-mapping";
+import { CONTACT_AVAILABILITY_TEXT, initialsAvatar, matchSummary, formatEr } from "../../api/search-mapping";
 import { FreshnessBadge } from "./states";
 import type { Creator } from "./CreatorProfilePanel";
 
@@ -105,7 +105,7 @@ export function SearchCreatorCard({
               <div className="border-l border-slate-200/60 pl-3">
                 <dt className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Eng. rate</dt>
                 {creator.engagement !== null ? (
-                  <dd className="text-lg font-bold leading-none tabular-nums text-cyan-700">{`${creator.engagement.toFixed(1)}%`}</dd>
+                  <dd className="text-lg font-bold leading-none tabular-nums text-cyan-700">{formatEr(creator.engagement)}</dd>
                 ) : creator.platform === "youtube" ? (
                   <dd className="text-[11px] font-medium leading-tight text-slate-500" title="YouTube's API rules don't allow MUSHIN to calculate engagement for YouTube channels.">Not available for YouTube</dd>
                 ) : (

@@ -1,7 +1,7 @@
 import { motion } from "motion/react";
 import { ExternalLink, Mail, Phone, ShieldCheck, Sparkles } from "lucide-react";
 import type { CreatorProfile } from "@mushin/contracts";
-import { CONTACT_AVAILABILITY_TEXT, contactEvidenceText, formatCount, uiContactState } from "../../api/search-mapping";
+import { CONTACT_AVAILABILITY_TEXT, contactEvidenceText, formatCount, uiContactState, formatEr } from "../../api/search-mapping";
 import { relative } from "../../lib/time";
 import { AttributeEvidence } from "./AttributeEvidence";
 import { AudienceEstimate } from "./AudienceEstimate";
@@ -77,7 +77,7 @@ export function CreatorFullDetails({
               <dl className="mt-2 grid grid-cols-3 gap-2 text-center sm:grid-cols-6">
                 <Mini label={pr.platform === "youtube" ? "Subscribers" : "Followers"} value={formatCount(pr.followers)} />
                 <Mini label="Posts" value={pr.posts != null ? formatCount(pr.posts) : "—"} />
-                <Mini label="Eng. rate" value={pr.engagementRate != null ? `${pr.engagementRate.toFixed(1)}%` : "—"} />
+                <Mini label="Eng. rate" value={pr.engagementRate != null ? formatEr(pr.engagementRate) : "—"} />
                 <Mini label="Avg likes" value={pr.avgLikes != null ? formatCount(pr.avgLikes) : "—"} />
                 <Mini label="Avg comments" value={pr.avgComments != null ? formatCount(pr.avgComments) : "—"} />
                 <Mini label="Typical views" value={pr.typicalViews != null ? formatCount(pr.typicalViews) : "—"} />

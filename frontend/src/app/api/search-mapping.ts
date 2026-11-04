@@ -166,6 +166,11 @@ export function fromChips(chips: InterpretResponse["chips"]): ChipState {
   };
 }
 
+/** An engagement rate for display: one decimal, and "<0.1%" for a real but tiny rate (never a misleading 0.0%). */
+export function formatEr(n: number): string {
+  return n > 0 && n < 0.05 ? "<0.1%" : `${n.toFixed(1)}%`;
+}
+
 export function formatCount(n: number | null): string {
   if (n === null) return "Unknown";
   const trim = (v: string) => v.replace(/\.0$/, "");

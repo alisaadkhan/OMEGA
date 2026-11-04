@@ -1,4 +1,5 @@
 import type { StandardProfile } from "./enrichment/standardize";
+import { engagementPercent } from "./enrichment/signals";
 import type { CreatorPlatform } from "./rules";
 
 /**
@@ -60,7 +61,7 @@ export function contentPerformance(p: StandardProfile, o: { youtubeDerived?: boo
   const times = used.map((x) => x.postedAt.getTime());
   return {
     medianViews: median(withViews.map((x) => x.views as number)),
-    medianEngagementRate: p.platform === "instagram" && forEngagement.length > 0 ? Math.round((median(forEngagement.map((x) => (((x.likes as number) + (x.comments as number)) / (p.followers as number)) * 100)) as number) * 100) / 100 : null,
+    medianEngagementRate: p.platform === "instagram" && forEngagement.length > 0 ? engagementPercent(median(forEngagement.map((x) => (((x.likes as number) + (x.comments as number)) / (p.followers as number)) * 100)) as number) : null,
     viewsSample: withViews.length,
     shortsMedianViews: shorts.length >= MIN_SAMPLE ? median(shorts.map((x) => x.views as number)) : null,
     engagementSample: p.platform === "instagram" ? forEngagement.length : 0,

@@ -77,7 +77,18 @@ export function storedEngagementRate(p: StandardProfile): number | null {
         : []
       : recent.filter((x) => (x.views ?? 0) > 0).slice(0, ENGAGEMENT_SAMPLE).map((x) => ((x.likes ?? 0) + (x.comments ?? 0)) / (x.views as number));
   if (rates.length < ENGAGEMENT_MIN_SAMPLE) return null;
-  return Math.round(median(rates) * 100 * 100) / 100;
+  return engagementPercent(median(rates) * 100);
+}
+
+/**
+ * A stored engagement percentage, never a misleading 0 (master directive §4.1): two decimals, or four when a real but
+ * tiny rate would round to 0.00 (a brand with 5M followers and a few hundred likes); exactly 0 on every post means the
+ * likes are hidden or not returned, so it is not measurable (null), not "0% engagement".
+ */
+export function engagementPercent(pct: number): number | null {
+  if (!Number.isFinite(pct) || pct <= 0) return null;
+  const two = Math.round(pct * 100) / 100;
+  return two > 0 ? two : Math.max(Math.round(pct * 10_000) / 10_000, 0.0001);
 }
 
 /** Stored profile metrics (rounded). */

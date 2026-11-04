@@ -6,7 +6,7 @@ import { useActiveJobs, useStartJob } from "../../api/discovery";
 import { isOpenJob, jobStatusText } from "../../api/discovery-mapping";
 import { countryWithSource } from "../../api/evidence-mapping";
 import { useCreatorProfile, useForgetReveal, useReassessCreator, useRevealContact } from "../../api/search";
-import { CONTACT_AVAILABILITY_TEXT, avatarFallback, formatCount } from "../../api/search-mapping";
+import { CONTACT_AVAILABILITY_TEXT, avatarFallback, formatCount, formatEr } from "../../api/search-mapping";
 import { useAuth } from "../../auth/AuthContext";
 import { blockedReasonFor, eligibilityNote, ineligibleText } from "../../lib/eligibility";
 import { providerActionsLockedText } from "../../lib/provider-actions";
@@ -268,7 +268,7 @@ export function CreatorProfilePanel({ creator, onClose, onCompare, onGoToCampaig
                   <>
                     <div className="grid grid-cols-2 gap-2">
                       <Stat label={creator.platform === "youtube" ? "Subscribers" : "Followers"} value={formatCount(primary?.followers ?? creator.followersNum)} note={primary?.freshness.followers === "aging" || primary?.freshness.followers === "stale" ? "Fetched 30+ days ago" : primary?.freshness.followers === "unknown" ? "Fetch date unknown" : `On ${{ instagram: "Instagram", tiktok: "TikTok", youtube: "YouTube" }[creator.platform]}`} />
-                      <Stat label="Engagement rate" accent value={engagement === null ? "—" : `${engagement.toFixed(1)}%`} note={engagement === null ? missingNote(primary?.metricsNote ?? null, creator.platform) : primary?.engagementSample ? `Median of ${primary.engagementSample} recent posts` : "Median of recent posts"} />
+                      <Stat label="Engagement rate" accent value={engagement === null ? "—" : formatEr(engagement)} note={engagement === null ? missingNote(primary?.metricsNote ?? null, creator.platform) : primary?.engagementSample ? `Median of ${primary.engagementSample} recent posts` : "Median of recent posts"} />
                       <Stat label="Audience authenticity" value={authenticity.value} note={authenticity.note} icon={p.authenticity.status === "assessed" ? ShieldCheck : undefined} />
                       <Stat label="Typical views" value={primary?.typicalViews != null ? formatCount(primary.typicalViews) : "—"} note={primary?.typicalViews != null ? `Median of ${primary.typicalViewsSample ?? "recent"} recent ${primary.typicalViewsFormat === "reel" ? "Reels" : "videos"}` : missingNote(primary?.metricsNote ?? null, creator.platform)} />
                     </div>

@@ -130,3 +130,14 @@ describe("signals", () => {
     expect(profileMetrics(profile({ platform: "instagram", followers: 10_000, recentPosts: thin })).engagementRate).toBeNull();
   });
 });
+
+describe("engagementPercent (master directive §4.1: never a misleading 0%)", () => {
+  it("keeps two decimals, four for a real but tiny rate, and null when nothing is measurable", async () => {
+    const { engagementPercent } = await import("./signals");
+    expect(engagementPercent(6.3449)).toBe(6.34);
+    expect(engagementPercent(0.0034)).toBe(0.0034); // a 5M-follower brand with a few hundred likes
+    expect(engagementPercent(0.000001)).toBe(0.0001);
+    expect(engagementPercent(0)).toBeNull(); // likes hidden on every post: not measurable, not 0%
+    expect(engagementPercent(Number.NaN)).toBeNull();
+  });
+});
