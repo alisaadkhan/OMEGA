@@ -342,6 +342,7 @@ export function createCreatorsService(deps: CreatorsDeps) {
           platform: p.platform,
           handle: p.handle,
           url: p.canonicalUrl,
+          avatarUrl: p.avatarUrl ?? null,
           followers: p.followers,
           following: p.following,
           posts: p.posts,

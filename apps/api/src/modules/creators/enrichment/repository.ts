@@ -298,6 +298,8 @@ export async function saveEnrichment(tx: Tx, i: SaveInput): Promise<{ creatorId:
       })
       .where(eq(creators.id, creatorId));
   }
+  // Every fetch and refresh keeps this platform profile's own photo too (0084; owner directive 2026-11-04 §1).
+  if (i.avatar) await tx.update(creatorProfiles).set({ avatarUrl: i.avatar.url, avatarKey: i.avatar.key }).where(eq(creatorProfiles.id, profileId));
 
   await tx.insert(profileMetricSnapshots).values({
     profileId,

@@ -3,7 +3,9 @@
  * are files, so the loader clears their references). Every scrape keeps a copy because platform photo links expire;
  * a catalogue moved to staging must carry them too (owner, 2026-10-22).
  *   uploads:  each local copy to the public `creator-avatars` bucket of the staging project, under the same key;
- *   links:    the staging creator to it, only where staging has no photo yet (a newer photo from a real scrape wins);
+ *   links:    the staging creator (and its primary profile, 0084) to it where staging has no photo, has this same key
+ *             (the re-upload refreshes it), or was fetched less recently than the local copy (owner directive
+ *             2026-11-04 §1: a refreshed photo replaces the old one); a newer staging scrape keeps its own photo;
  *   skips:    YouTube-primary creators whose YouTube profile was not refreshed within 30 days on staging (YouTube API
  *             retention, migration 0031: their photo may not be kept), and creators staging does not have.
  * Dry run by default (counts only); --apply writes. DIRECT_URL and SUPABASE_URL must be the staging project (checked by ref).
@@ -37,23 +39,27 @@ const storage = new SupabaseStorage({ url: storageUrl, serviceKey });
 const TYPES: Record<string, string> = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp" };
 
 try {
-  const local = await src<{ id: string; key: string }[]>`
-    select id::text, avatar_key key from gcp.creators
-    where avatar_key is not null and status = 'active' and not is_minor and merged_into_id is null`;
-  const ids = local.map((r) => r.id);
-  // Staging decides eligibility: present, no photo yet, and (YouTube-primary) refreshed within the retention window.
+  const local = await src<{ id: string; key: string; fetched: string | null }[]>`
+    select c.id::text, c.avatar_key key, (select max(p.last_scraped_at)::text from gcp.creator_profiles p where p.creator_id = c.id and p.platform = c.primary_platform) fetched
+    from gcp.creators c
+    where c.avatar_key is not null and c.status = 'active' and not c.is_minor and c.merged_into_id is null`;
+  // Staging decides eligibility: present; no photo, the same key, or fetched less recently than the local copy; and
+  // (YouTube-primary) refreshed within the retention window. One join over the local list.
   const eligible = new Set(
     (
       await dst<{ id: string }[]>`
-        select c.id::text from gcp.creators c
-        where c.id = any(${ids}::uuid[]) and c.avatar_url is null and c.status = 'active'
+        select c.id::text from jsonb_to_recordset(${JSON.stringify(local)}::jsonb) l(id uuid, key text, fetched timestamptz)
+        join gcp.creators c on c.id = l.id
+        left join lateral (select max(p.last_scraped_at) at from gcp.creator_profiles p where p.creator_id = c.id and p.platform = c.primary_platform) s on true
+        where c.status = 'active'
+          and (c.avatar_url is null or c.avatar_key = l.key or coalesce(s.at, '-infinity') < coalesce(l.fetched, '-infinity'))
           and (c.primary_platform <> 'youtube' or exists (
             select 1 from gcp.creator_profiles p where p.creator_id = c.id and p.platform = 'youtube'
               and coalesce(p.last_scraped_at, p.created_at) >= now() - interval '30 days'))`
     ).map((r) => r.id),
   );
   const todo = local.filter((r) => eligible.has(r.id));
-  console.log(`local photos ${local.length}; to copy ${todo.length}; skipped ${local.length - todo.length} (not on staging, already has a photo, or past YouTube retention)`);
+  console.log(`local photos ${local.length}; to copy ${todo.length}; skipped ${local.length - todo.length} (not on staging, staging has a newer photo, or past YouTube retention)`);
   if (!values.apply) {
     console.log("Dry run: nothing changed. Add --apply to copy and link them.");
   } else {
@@ -79,7 +85,7 @@ try {
         }
       }),
     );
-    // Link in one transaction; the "still no photo" condition keeps a photo a real scrape added meanwhile.
+    // Link in one transaction (creator and its primary profile); a staging scrape newer than the decision keeps its photo.
     const linked = await dst.begin(async (tx) => {
       let n = 0;
       for (let i = 0; i < done.length; i += 500) {
@@ -87,7 +93,12 @@ try {
         const r = await tx`
           update gcp.creators c set avatar_url = v.url, avatar_key = v.key, updated_at = now()
           from (select unnest(${part.map((d) => d.id)}::uuid[]) id, unnest(${part.map((d) => d.url)}::text[]) url, unnest(${part.map((d) => d.key)}::text[]) key) v
-          where c.id = v.id and c.avatar_url is null`;
+          where c.id = v.id`;
+        await tx`
+          update gcp.creator_profiles p set avatar_url = v.url, avatar_key = v.key
+          from (select unnest(${part.map((d) => d.id)}::uuid[]) id, unnest(${part.map((d) => d.url)}::text[]) url, unnest(${part.map((d) => d.key)}::text[]) key) v
+          join gcp.creators c on c.id = v.id
+          where p.creator_id = v.id and p.platform = c.primary_platform`;
         n += r.count;
       }
       return n;

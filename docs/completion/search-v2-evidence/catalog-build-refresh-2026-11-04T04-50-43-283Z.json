@@ -1,0 +1,24 @@
+{
+ "mode": "refresh",
+ "db": "mushin_catalog_v4",
+ "capUsd": 15,
+ "started": "2026-11-04T04:50:43.283Z",
+ "finished": "2026-11-04T04:51:07.821Z",
+ "spendByProvider": [
+  {
+   "provider": "apify",
+   "calls": 1,
+   "usd": "0.003000"
+  }
+ ],
+ "jobs": [
+  {
+   "i": 0,
+   "creatorId": "55bc600c-fa33-4377-8388-014eafc9685b",
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND",
+   "ms": 24454
+  }
+ ]
+}

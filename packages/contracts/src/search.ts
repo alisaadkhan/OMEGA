@@ -217,6 +217,8 @@ export const creatorProfileSchema = z.object({
       platform: creatorPlatformSchema,
       handle: z.string(),
       url: z.string(),
+      /** This platform profile's own photo (0084); null shows the creator's photo or initials. */
+      avatarUrl: z.string().nullable().default(null),
       followers: z.number().int().nullable(),
       following: z.number().int().nullable(),
       posts: z.number().int().nullable(),
