@@ -35,4 +35,20 @@ describe("versioned catalogue reassessment", () => {
     const c = await reassessNextBatch({ db, readPayload: async () => { throw new Error("gone"); }, version: "t2", batch: 10 });
     expect(c).toMatchObject({ processed: 3, finished: true, changed: 0 });
   });
+
+  it("recovers an email, a mobile number and links the stored answer holds but the database missed (encrypted, masked)", async () => {
+    const id = await addCreator(db, { displayName: "Sana", profiles: [{ platform: "instagram", handle: "sana.cooks", followers: 40_000 }] });
+    await ownerQuery(`insert into platform.raw_payloads (provider, platform, canonical_url, job_id, storage_key, bytes, sha256, delete_after, creator_id)
+      values ('apify', 'instagram', 'https://instagram.com/sana.cooks', gen_random_uuid(), 'k/sana', 1, 'x', now() + interval '30 days', '${id}')`);
+    const raw = [{ username: "sana.cooks", fullName: "Sana", biography: "Lahore recipes | Email for paid collab: sana.cooks@gmail.com | WhatsApp 0300 1234567", externalUrl: "https://www.youtube.com/@sanacooks", followersCount: 40_000, followsCount: 10, postsCount: 20, latestPosts: [] }];
+    const key = Buffer.alloc(32, 7);
+    await reassessNextBatch({ db, readPayload: async () => raw, version: "t3", batch: 10, contacts: { encryptionKey: key, youtubeDescriptionContacts: true } });
+    const contacts = await ownerQuery<{ kind: string; masked: string; value_encrypted: string }>(`select kind, masked, value_encrypted from gcp.creator_contacts where creator_id = '${id}' order by kind`);
+    expect(contacts.map((x) => x.kind)).toEqual(["email", "phone"]);
+    expect(contacts.every((x) => !x.value_encrypted.includes("sana.cooks@gmail.com") && !x.masked.includes("1234567"))).toBe(true);
+    expect((await ownerQuery<{ url: string }>(`select url from gcp.creator_links where creator_id = '${id}'`)).map((l) => l.url).join()).toContain("youtube.com");
+    // Running again adds nothing.
+    await reassessNextBatch({ db, readPayload: async () => raw, version: "t4", batch: 10, contacts: { encryptionKey: key, youtubeDescriptionContacts: true } });
+    expect(await ownerQuery(`select 1 from gcp.creator_contacts where creator_id = '${id}'`)).toHaveLength(2);
+  });
 });

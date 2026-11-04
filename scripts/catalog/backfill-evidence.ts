@@ -36,8 +36,8 @@ const dbName = values.db ?? "";
 if (!/^mushin_catalog_[a-z0-9_]+$/.test(dbName) || /eval/.test(dbName)) throw new Error("--db must name a local operational catalogue (mushin_catalog_*), never an evaluation corpus");
 const url = `postgres://postgres@127.0.0.1:54330/${dbName}`;
 // Only the two policy switches are read (never .env secrets): no key, token or provider is needed for a backfill.
-const sourcePolicy = { youtubeDerivedMetrics: process.env["YOUTUBE_DERIVED_METRICS"] === "on" };
-const youtubeContentEvidence = process.env["YOUTUBE_CONTENT_EVIDENCE"] === "on";
+const sourcePolicy = { youtubeDerivedMetrics: process.env["YOUTUBE_DERIVED_METRICS"] !== "off" }; // owner override 2026-11-04: on unless "off"
+const youtubeContentEvidence = process.env["YOUTUBE_CONTENT_EVIDENCE"] !== "off";
 const logger = createLogger({ level: "info", name: "catalog-backfill" });
 const db = createDatabase(url, { max: 2, applicationName: "catalog-backfill", caPem: null });
 const repo = resolve(fileURLToPath(new URL("../..", import.meta.url)));

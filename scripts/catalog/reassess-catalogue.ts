@@ -14,7 +14,7 @@ import { parseArgs } from "node:util";
 import { createLogger } from "@mushin/core";
 import { createDatabase } from "@mushin/db";
 import { sql } from "drizzle-orm";
-import { bulkRefreshProfileCountries, classifyAccountType, contentPerformance, createCreatorIndexer, evaluateV3, NON_TARGET_TYPES, REASSESSMENT_VERSION, standardize, type AccountType } from "../../apps/api/src/modules/creators/index";
+import { classifyAccountType, contentPerformance, createCreatorIndexer, evaluateV3, NON_TARGET_TYPES, REASSESSMENT_VERSION, reassessCreators, standardize, type AccountType } from "../../apps/api/src/modules/creators/index";
 
 
 const { values } = parseArgs({ options: { db: { type: "string" }, apply: { type: "boolean", default: false }, out: { type: "string" } } });
@@ -133,11 +133,42 @@ if (values.apply) {
         where p.id = u.id`),
     );
   }
+  // The worker's own re-derivation (reassessment.ts): performance, countries, and contacts/links the stored answers hold
+  // but the database missed (encrypted with this catalogue's key). Owner-named account types above are staff decisions.
   const ids = [...tally.creators];
   let changed = 0;
-  for (let i = 0; i < ids.length; i += 500) changed += (await db.withSystem((tx) => bulkRefreshProfileCountries(tx, ids.slice(i, i + 500), { source: "backfill" }))).length;
+  const contactKey = process.env["DATA_ENCRYPTION_KEY"] ? Buffer.from(process.env["DATA_ENCRYPTION_KEY"], "base64") : null;
+  const contactsBefore = (await db.withSystem((tx) => tx.execute<{ n: number }>(sql`select count(*)::int n from gcp.creator_contacts`)))[0]?.n ?? 0;
+  for (let i = 0; i < ids.length; i += 500) {
+    changed += await reassessCreators(db, ids.slice(i, i + 500), async (k) => payload(k), { youtubeDerived, contacts: contactKey ? { encryptionKey: contactKey, youtubeDescriptionContacts: youtubeDerived } : null });
+  }
+  const contactsAfter = (await db.withSystem((tx) => tx.execute<{ n: number }>(sql`select count(*)::int n from gcp.creator_contacts`)))[0]?.n ?? 0;
+  Object.assign(report, { contactsRecovered: contactsAfter - contactsBefore, contactRecovery: contactKey ? "on" : "off (no DATA_ENCRYPTION_KEY)" });
   Object.assign(report, { countriesChanged: changed, projection: await createCreatorIndexer({ db, index: null, logger }).reconcile() });
 }
+// Field completeness of every searchable (eligible) creator's qualifying profiles (execution directive 2026-11-04,
+// Stage 1 §5): how many lack each promised field, per platform. Missing is reported, never filled in.
+const completeness = await db.withSystem((tx) =>
+  tx.execute<Record<string, number | string>>(sql`
+    select p.platform, count(*)::int profiles,
+      count(*) filter (where p.followers is null)::int no_followers,
+      count(*) filter (where p.engagement_rate is null)::int no_engagement_rate,
+      count(*) filter (where p.median_views is null)::int no_typical_views,
+      count(*) filter (where c.authenticity_score is null)::int no_authenticity,
+      count(*) filter (where c.niche_main is null)::int niche_unknown,
+      count(*) filter (where c.niche_source = 'bio_identified')::int niche_from_bio,
+      count(*) filter (where c.niche_source = 'post_estimated')::int niche_from_posts,
+      count(*) filter (where not exists (select 1 from gcp.creator_contacts k where k.creator_id = c.id))::int no_email_or_mobile,
+      count(*) filter (where c.city is null)::int no_city,
+      count(*) filter (where p.pakistani_diaspora)::int diaspora,
+      count(*) filter (where p.last_scraped_at < now() - interval '30 days')::int aging,
+      count(*) filter (where c.avatar_url is null)::int no_avatar,
+      count(*) filter (where p.last_post_at is null)::int no_recent_post
+    from gcp.creator_search_documents d join gcp.creators c on c.id = d.creator_id
+    join gcp.creator_profiles p on p.creator_id = c.id and p.platform = any(d.qualifying_platforms)
+    where d.eligible group by p.platform order by p.platform`),
+);
+Object.assign(report, { searchableCompleteness: [...completeness] });
 const text = JSON.stringify(report, null, 1);
 if (values.out) writeFileSync(values.out, text);
 console.log(text);
