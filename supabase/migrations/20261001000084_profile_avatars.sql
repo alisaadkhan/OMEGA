@@ -15,6 +15,8 @@ declare
   cutoff timestamptz := now() - make_interval(days => greatest(p_days, 1));
   stale uuid[];
   metrics uuid[];
+  photo_creators uuid[];
+  photo_keys text[];
 begin
   delete from gcp.profile_metric_snapshots s
   using gcp.creator_profiles p
@@ -27,15 +29,19 @@ begin
         median_views = null, median_engagement_rate = null, performance_views_sample = null, performance_engagement_sample = null,
         performance_format = null, performance_from = null, performance_to = null, performance_at = null, post_locations = null,
         avatar_url = null, avatar_key = null, updated_at = now()
-    where p.platform = 'youtube'
+    from gcp.creator_profiles old
+    where old.id = p.id and p.platform = 'youtube'
       and coalesce(p.last_scraped_at, p.created_at) < cutoff
       and (p.followers is not null or p.following is not null or p.posts is not null or p.engagement_rate is not null
            or p.avg_likes is not null or p.avg_comments is not null or p.avg_views is not null or p.bio is not null
            or p.median_views is not null or p.median_engagement_rate is not null or p.performance_at is not null or p.post_locations is not null
            or p.avatar_url is not null)
-    returning p.creator_id
+    returning p.creator_id, old.avatar_key
   )
-  select coalesce(array_agg(distinct e.creator_id), '{}') into metrics from expired e;
+  -- The cleared profile photos' files are returned too, so the job removes them from storage (security review).
+  select coalesce(array_agg(distinct e.creator_id), '{}'), coalesce(array_agg(e.creator_id) filter (where e.avatar_key is not null), '{}'),
+         coalesce(array_agg(e.avatar_key) filter (where e.avatar_key is not null), '{}')
+    into metrics, photo_creators, photo_keys from expired e;
 
   -- 0060: a YouTube profile's country comes from the channel's declared country and description (YouTube API data); a
   -- country the creator confirmed is not YouTube data and stays.
@@ -103,6 +109,8 @@ begin
   )
   select x.id, x.avatar_key from cleared x
   union
-  select m, null::text from unnest(metrics) m where m not in (select x2.id from cleared x2);
+  select m, null::text from unnest(metrics) m where m not in (select x2.id from cleared x2)
+  union
+  select pc, pk from unnest(photo_creators, photo_keys) as f(pc, pk);
 end
 $$;

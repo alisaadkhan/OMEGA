@@ -106,6 +106,16 @@ describe("YouTube derived-metrics policy", () => {
     expect(await expireYoutubeApiData(db)).toEqual([]); // idempotent
   });
 
+  it("removes a YouTube profile's own photo file even when YouTube is not the creator's primary platform (0084)", async () => {
+    const both = await addCreator(db, { displayName: "Two Platforms", primaryPlatform: "instagram", snapshot, profiles: [{ platform: "instagram", handle: "twoplat", followers: 30_000 }, { platform: "youtube", handle: "twoplattube", followers: 20_000 }] });
+    await ownerQuery(`update gcp.creator_profiles set last_scraped_at = now() - interval '31 days', avatar_url = 'https://x/yt.jpg', avatar_key = 'youtube/twoplat.jpg' where creator_id = '${both}' and platform = 'youtube'`);
+    const removed: string[][] = [];
+    await expireYoutubeApiData(db, { storage: { remove: async (_bucket, keys) => void removed.push(keys) } });
+    expect(removed.flat()).toContain("youtube/twoplat.jpg");
+    const [p] = await ownerQuery<{ avatar_key: string | null }>(`select avatar_key from gcp.creator_profiles where creator_id = '${both}' and platform = 'youtube'`);
+    expect(p?.avatar_key).toBeNull();
+  });
+
   it("also clears content performance, post locations, niche source and a channel-read account type, keeping staff decisions (0078)", async () => {
     const staffKept = await addCreator(db, { displayName: "Staff Tube", primaryPlatform: "youtube", snapshot, profiles: [{ platform: "youtube", handle: "stafftube", followers: 8_000 }] });
     await ownerQuery(`update gcp.creator_profiles set last_scraped_at = now() - interval '31 days', median_views = 900, median_engagement_rate = 4, performance_views_sample = 6, performance_at = now(), post_locations = '{Lahore}' where creator_id in ('${yt}', '${staffKept}');
