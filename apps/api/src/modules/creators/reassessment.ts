@@ -22,7 +22,7 @@ export const REASSESSMENT_BATCH = 200;
 export type ReadPayload = (storageKey: string) => Promise<unknown | null>;
 type Row = {
   creator_id: string; profile_id: string; platform: "instagram" | "tiktok" | "youtube"; handle: string; display_name: string; bio: string | null;
-  primary_platform: string; account_type_source: string | null; key: string | null; canonical_url: string;
+  primary_platform: string; account_type_source: string | null; key: string | null; canonical_url: string; youtube_expired: boolean;
 };
 /**
  * Contacts recovery (execution directive 2026-11-04, Stage 1 sections 2 and 5): emails, mobile numbers and links the
@@ -37,7 +37,9 @@ export async function reassessCreators(db: Db, creatorIds: string[], readPayload
   const rows = await db.withSystem((tx) =>
     tx.execute<Row>(sql`
       select p.creator_id, p.id profile_id, p.platform, p.handle, p.canonical_url, c.display_name, p.bio, c.primary_platform, c.account_type_source,
-        (select r.storage_key from platform.raw_payloads r where r.creator_id = p.creator_id and r.platform = p.platform order by r.fetched_at desc limit 1) key
+        -- Only answers still inside their retention period (YouTube API data: 30 days) are read (security review).
+        (select r.storage_key from platform.raw_payloads r where r.creator_id = p.creator_id and r.platform = p.platform and r.delete_after > now() order by r.fetched_at desc limit 1) key,
+        (p.platform = 'youtube' and coalesce(p.last_scraped_at, p.created_at) < now() - interval '30 days') youtube_expired
       from gcp.creator_profiles p join gcp.creators c on c.id = p.creator_id
       where c.status = 'active' and c.id in (select jsonb_array_elements_text(${JSON.stringify(creatorIds)}::jsonb)::uuid)`),
   );
@@ -47,7 +49,8 @@ export async function reassessCreators(db: Db, creatorIds: string[], readPayload
   const links: { creator_id: string; platform: string; url: string; source: string }[] = [];
   for (const r of rows) {
     // A missing or expired answer leaves this profile as it is.
-    const raw = r.key ? await readPayload(r.key).catch(() => null) : null;
+    // YouTube data past its 30 days is never re-derived: retention (0063/0078) cleared it and only a refresh brings it back.
+    const raw = r.key && !r.youtube_expired ? await readPayload(r.key).catch(() => null) : null;
     const std = raw ? standardize(r.platform, r.handle, raw, { maxPosts: 30 }) : null;
     if (r.platform === r.primary_platform && r.account_type_source !== "staff") {
       const d = classifyAccountType({ category: std?.kind === "ok" ? (std.profile.accountCategory ?? null) : null, bio: r.bio ?? "", handle: r.handle, displayName: r.display_name });
@@ -63,6 +66,10 @@ export async function reassessCreators(db: Db, creatorIds: string[], readPayload
     }
   }
   let changed = 0;
+  // Checked in the writing statement itself: a creator removed or put on the do-not-re-add list while this batch read
+  // its payloads gets nothing back (security review: no resurrection after erasure).
+  const writable = sql`exists (select 1 from gcp.creators c where c.id = u.creator_id and c.status = 'active')
+    and not exists (select 1 from gcp.creator_profiles pp join gcp.creator_suppressions s on s.url_hash = encode(sha256(convert_to(lower(trim(pp.canonical_url)), 'UTF8')), 'hex') where pp.creator_id = u.creator_id)`;
   await db.withSystem(async (tx) => {
     if (accounts.length) {
       const res = await tx.execute(sql`
@@ -84,6 +91,7 @@ export async function reassessCreators(db: Db, creatorIds: string[], readPayload
         insert into gcp.creator_contacts (creator_id, kind, value_encrypted, value_hash, masked, trust, source)
         select u.creator_id, u.kind, u.enc, u.hash, u.masked, u.trust, u.source
         from jsonb_to_recordset(${JSON.stringify(contacts)}::jsonb) as u(creator_id uuid, kind text, enc text, hash text, masked text, trust text, source text)
+        where ${writable}
         on conflict (creator_id, kind, value_hash) do nothing`);
       changed += res.count ?? 0;
     }
@@ -91,6 +99,7 @@ export async function reassessCreators(db: Db, creatorIds: string[], readPayload
       const res = await tx.execute(sql`
         insert into gcp.creator_links (creator_id, platform, url, source)
         select u.creator_id, u.platform, u.url, u.source from jsonb_to_recordset(${JSON.stringify(links)}::jsonb) as u(creator_id uuid, platform text, url text, source text)
+        where ${writable}
         on conflict (creator_id, url) do nothing`);
       changed += res.count ?? 0;
     }

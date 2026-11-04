@@ -47,6 +47,16 @@ describe("versioned catalogue reassessment", () => {
     expect(contacts.map((x) => x.kind)).toEqual(["email", "phone"]);
     expect(contacts.every((x) => !x.value_encrypted.includes("sana.cooks@gmail.com") && !x.masked.includes("1234567"))).toBe(true);
     expect((await ownerQuery<{ url: string }>(`select url from gcp.creator_links where creator_id = '${id}'`)).map((l) => l.url).join()).toContain("youtube.com");
+    // A suppressed (do-not-re-add) creator gets nothing back, and an expired answer is never read.
+    const gone = await addCreator(db, { displayName: "Gone", profiles: [{ platform: "instagram", handle: "gone.one", followers: 40_000 }] });
+    await ownerQuery(`insert into platform.raw_payloads (provider, platform, canonical_url, job_id, storage_key, bytes, sha256, delete_after, creator_id)
+      values ('apify', 'instagram', 'https://instagram.com/gone.one', gen_random_uuid(), 'k/gone', 1, 'x', now() + interval '30 days', '${gone}');
+      insert into gcp.creator_suppressions (url_hash, platform) select encode(sha256(convert_to(lower(trim(canonical_url)), 'UTF8')), 'hex'), 'instagram' from gcp.creator_profiles where creator_id = '${gone}'`);
+    const old = await addCreator(db, { displayName: "Old", profiles: [{ platform: "instagram", handle: "old.one", followers: 40_000 }] });
+    await ownerQuery(`insert into platform.raw_payloads (provider, platform, canonical_url, job_id, storage_key, bytes, sha256, delete_after, creator_id)
+      values ('apify', 'instagram', 'https://instagram.com/old.one', gen_random_uuid(), 'k/old', 1, 'x', now() - interval '1 day', '${old}')`);
+    await reassessNextBatch({ db, readPayload: async () => raw, version: "t3b", batch: 10, contacts: { encryptionKey: key, youtubeDescriptionContacts: true } });
+    expect(await ownerQuery(`select 1 from gcp.creator_contacts where creator_id in ('${gone}', '${old}')`)).toHaveLength(0);
     // Running again adds nothing.
     await reassessNextBatch({ db, readPayload: async () => raw, version: "t4", batch: 10, contacts: { encryptionKey: key, youtubeDescriptionContacts: true } });
     expect(await ownerQuery(`select 1 from gcp.creator_contacts where creator_id = '${id}'`)).toHaveLength(2);
