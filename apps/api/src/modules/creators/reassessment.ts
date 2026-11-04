@@ -13,7 +13,7 @@ import { bulkRefreshProfileCountries } from "./enrichment/repository";
  * engagement; not YouTube while derived YouTube metrics are restricted) and each profile's country. No provider or AI
  * call, nothing deleted. scripts/catalog/reassess-catalogue.ts is the same rules with an impact report for a dry run.
  */
-export const REASSESSMENT_VERSION = "reassess-2026-11-04";
+export const REASSESSMENT_VERSION = "reassess-2026-11-04b";
 export const REASSESSMENT_BATCH = 200;
 
 export type ReadPayload = (storageKey: string) => Promise<unknown | null>;
@@ -23,7 +23,7 @@ type Row = {
 };
 
 /** Re-derives the given creators; returns how many creator or profile values changed. */
-export async function reassessCreators(db: Db, creatorIds: string[], readPayload: ReadPayload): Promise<number> {
+export async function reassessCreators(db: Db, creatorIds: string[], readPayload: ReadPayload, o: { youtubeDerived?: boolean } = {}): Promise<number> {
   if (creatorIds.length === 0) return 0;
   const rows = await db.withSystem((tx) =>
     tx.execute<Row>(sql`
@@ -42,8 +42,8 @@ export async function reassessCreators(db: Db, creatorIds: string[], readPayload
       const d = classifyAccountType({ category: std?.kind === "ok" ? (std.profile.accountCategory ?? null) : null, bio: r.bio ?? "", handle: r.handle, displayName: r.display_name });
       accounts.push({ id: r.creator_id, ...d });
     }
-    if (std?.kind === "ok" && r.platform !== "youtube") {
-      const p = contentPerformance(std.profile);
+    if (std?.kind === "ok" && (r.platform !== "youtube" || o.youtubeDerived)) {
+      const p = contentPerformance(std.profile, { youtubeDerived: o.youtubeDerived ?? false });
       if (p) perf.push({ id: r.profile_id, mv: p.medianViews, mer: p.medianEngagementRate, vs: p.viewsSample, es: p.engagementSample, fmt: p.format, f: p.sampleFrom?.toISOString() ?? null, t: p.sampleTo?.toISOString() ?? null });
     }
   }
@@ -75,7 +75,7 @@ export type ReassessmentReport = { version: string; processed: number; changed: 
  * One step of the run for the current version: the next batch after the cursor, then the cursor moves. Returns the
  * creators it touched (for the search projection). A finished version does nothing until the version changes.
  */
-export async function reassessNextBatch(o: { db: Db; readPayload: ReadPayload; version?: string; batch?: number }): Promise<ReassessmentReport> {
+export async function reassessNextBatch(o: { db: Db; readPayload: ReadPayload; version?: string; batch?: number; youtubeDerived?: boolean }): Promise<ReassessmentReport> {
   const version = o.version ?? REASSESSMENT_VERSION;
   const [run] = await o.db.withSystem((tx) =>
     tx.execute<{ cursor_id: string | null; processed: number; changed: number; finished_at: string | null }>(sql`
@@ -88,7 +88,7 @@ export async function reassessNextBatch(o: { db: Db; readPayload: ReadPayload; v
       tx.execute<{ id: string }>(sql`select id from gcp.creators where status = 'active' and (${run.cursor_id}::uuid is null or id > ${run.cursor_id}::uuid) order by id limit ${o.batch ?? REASSESSMENT_BATCH}`),
     )),
   ].map((r) => r.id);
-  const changed = await reassessCreators(o.db, ids, o.readPayload);
+  const changed = await reassessCreators(o.db, ids, o.readPayload, { youtubeDerived: o.youtubeDerived ?? false });
   const finished = ids.length < (o.batch ?? REASSESSMENT_BATCH);
   await o.db.withSystem((tx) =>
     tx.execute(sql`

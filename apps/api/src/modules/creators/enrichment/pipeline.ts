@@ -54,7 +54,8 @@ type Deps = {
    */
   attributePolicy?: "evidence" | "legacy";
   /** YouTube policy gates (both off in configuration until the owner confirms the use case; unset = previous behaviour). */
-  youtube?: { contentEvidence: boolean; descriptionContacts: boolean };
+  /** YouTube switches (config); derivedMetrics: median views/ER from YouTube data (owner override 2026-11-04). */
+  youtube?: { contentEvidence: boolean; descriptionContacts: boolean; derivedMetrics?: boolean };
   /** Semantic (AI) niche reading for evidence the rules cannot read clearly (NICHE_SEMANTIC; default on when set). */
   semanticNiche?: boolean;
 };
@@ -69,7 +70,7 @@ export function createEnrichmentPipeline(deps: Deps) {
   const now = deps.now ?? (() => new Date());
   const storage = deps.storage;
   const evidencePolicy = deps.attributePolicy === "evidence";
-  const youtube = deps.youtube ?? { contentEvidence: true, descriptionContacts: true };
+  const youtube = { derivedMetrics: true, ...(deps.youtube ?? { contentEvidence: true, descriptionContacts: true }) };
   const needStorage = (): ObjectStorage => {
     if (!storage) throw new ProviderError(false, "not_configured", "File storage is not configured (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)");
     return storage;
@@ -221,7 +222,7 @@ export function createEnrichmentPipeline(deps: Deps) {
         requestId: job.requestId,
         ...(attributes ? { attributes } : {}),
         ...(noAi ? { keepAssessment: true } : {}),
-        performance: contentPerformance(p),
+        performance: contentPerformance(p, { youtubeDerived: youtube.derivedMetrics }),
       });
     const out: SavedResult = o.system
       ? await deps.db.withSystem(async (tx) => {

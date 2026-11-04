@@ -33,11 +33,11 @@ const llmReply = (req: { input: string }) => {
   };
 };
 
-function setup(o: { scraper?: FixtureScraper; llm?: MockLlm } = {}) {
+function setup(o: { scraper?: FixtureScraper; llm?: MockLlm; youtubeDerived?: boolean } = {}) {
   const scraper = o.scraper ?? FixtureScraper.defaults();
   const storage = new MemoryStorage();
   const llm = o.llm ?? new MockLlm(llmReply);
-  const pipeline = createEnrichmentPipeline({ db, scraper, storage, llm, encryptionKey: TEST_KEY, logger, fetchImage: async () => new Response(new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]), { headers: { "content-type": "image/jpeg" } }) });
+  const pipeline = createEnrichmentPipeline({ db, scraper, storage, llm, encryptionKey: TEST_KEY, logger, ...(o.youtubeDerived === undefined ? {} : { youtube: { contentEvidence: true, descriptionContacts: true, derivedMetrics: o.youtubeDerived } }), fetchImage: async () => new Response(new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]), { headers: { "content-type": "image/jpeg" } }) });
   return { pipeline, scraper, storage, llm };
 }
 
@@ -331,7 +331,7 @@ describe("content performance (0066)", () => {
     ownerQuery<{ median_views: number | null; median_engagement_rate: number | null; performance_views_sample: number | null; performance_at: string | null }>(
       `select median_views, median_engagement_rate, performance_views_sample, performance_at from gcp.creator_profiles where canonical_url = '${url}'`,
     );
-  it("PERF-01 an Instagram fetch stores median views and engagement with the sample size; a YouTube fetch stores none", async () => {
+  it("PERF-01 an Instagram fetch stores median views and engagement with the sample size; YouTube follows the derived-metrics switch", async () => {
     const { pipeline } = setup();
     const ig = await job("instagram");
     expect((await pipeline.enrich(ig, hooks().h)).kind).toBe("saved");
@@ -339,9 +339,17 @@ describe("content performance (0066)", () => {
     expect(i?.performance_at).not.toBeNull();
     expect(i?.performance_views_sample === null || (i?.performance_views_sample ?? 0) <= 10).toBe(true);
     expect(i?.median_engagement_rate === null || Number(i?.median_engagement_rate) >= 0).toBe(true);
+    // Switched off (the earlier restriction): YouTube stores no derived performance.
+    const yt = await job("youtube");
+    expect((await setup({ youtubeDerived: false }).pipeline.enrich(yt, hooks().h)).kind).toBe("saved");
+    const [y] = await perf(yt.canonicalUrl);
+    expect(y).toMatchObject({ median_views: null, median_engagement_rate: null, performance_views_sample: null });
+  });
+
+  it("PERF-02 by default (owner override 2026-11-04) a YouTube fetch stores its typical views too", async () => {
     const yt = await job("youtube");
     expect((await setup().pipeline.enrich(yt, hooks().h)).kind).toBe("saved");
     const [y] = await perf(yt.canonicalUrl);
-    expect(y).toMatchObject({ median_views: null, median_engagement_rate: null, performance_views_sample: null });
+    expect(y?.performance_at).not.toBeNull();
   });
 });

@@ -44,6 +44,8 @@ const rows = await db.withSystem((tx) =>
 
 // Creators the owner named as creators (owner-named manifest, master directive 2026-11-03 Wave 1): the famous-creator
 // safeguard keeps them individual creators whatever their platform category says (e.g. "Actor").
+// Owner override 2026-11-04: YouTube derived metrics on unless YOUTUBE_DERIVED_METRICS=off.
+const youtubeDerived = process.env["YOUTUBE_DERIVED_METRICS"] !== "off";
 const ownerNamed = new Set<string>((JSON.parse(readFileSync(join(root, "docs", "completion", "seed", "owner-named-2026-11-03.json"), "utf8")) as { candidates: { handle: string }[] }).candidates.map((c) => c.handle.toLowerCase()));
 
 const DIASPORA = /\b(pakistani|🇵🇰|pak(?:istan)?[- ]?born|desi)\b/iu;
@@ -74,10 +76,10 @@ for (const r of rows) {
     accountUpdates.set(r.creator_id, { id: r.creator_id, ...d });
     bump(accountTypes, d.type);
   }
-  if (std?.kind === "ok" && r.platform !== "youtube") {
-    const perf = contentPerformance(std.profile);
+  if (std?.kind === "ok" && (r.platform !== "youtube" || youtubeDerived)) {
+    const perf = contentPerformance(std.profile, { youtubeDerived });
     if (perf) perfUpdates.push({ id: r.profile_id, mv: perf.medianViews, mer: perf.medianEngagementRate, vs: perf.viewsSample, es: perf.engagementSample, fmt: perf.format, from: perf.sampleFrom?.toISOString() ?? null, to: perf.sampleTo?.toISOString() ?? null });
-    const v3 = evaluateV3({ platform: r.platform, followers: r.followers, following: std.profile.following, followersFresh: true, countryStatus: (r.country_status ?? null) as "pakistan" | "foreign" | "unknown" | "conflicting" | null, available: true, performance: perf });
+    const v3 = evaluateV3({ platform: r.platform, followers: r.followers, following: std.profile.following, followersFresh: true, countryStatus: (r.country_status ?? null) as "pakistan" | "foreign" | "unknown" | "conflicting" | null, available: true, performance: perf, youtubeDerivedPermitted: youtubeDerived });
     bump(badges, `${r.platform} ${v3.status === "eligible" ? "Meets High-Performance Standard" : v3.status === "below_minimum" ? "Below View/ER Benchmark" : "Performance Assessment Incomplete"}`);
   } else bump(badges, `${r.platform} Performance Assessment Incomplete`);
 }

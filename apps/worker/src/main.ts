@@ -57,7 +57,7 @@ const reconcileProviderRuns = async () => {
 };
 if (!config.scraping.apifyToken) logger.warn("APIFY_TOKEN not set: Instagram and TikTok jobs will fail and refund");
 if (!config.scraping.youtubeApiKey) logger.warn("YouTube API calls are off (YOUTUBE_API_CALLS) or YOUTUBE_API_KEY is not set: YouTube jobs fail as not configured and are refunded");
-const pipeline = createEnrichmentPipeline({ db, scraper, storage: createObjectStorage(config.storage, logger), llm, encryptionKey: config.dataEncryptionKey, logger, attributePolicy: config.enrichment.attributePolicy, youtube: { contentEvidence: config.enrichment.youtubeContentEvidence, descriptionContacts: config.enrichment.youtubeDescriptionContacts }, semanticNiche: config.enrichment.semanticNiche });
+const pipeline = createEnrichmentPipeline({ db, scraper, storage: createObjectStorage(config.storage, logger), llm, encryptionKey: config.dataEncryptionKey, logger, attributePolicy: config.enrichment.attributePolicy, youtube: { contentEvidence: config.enrichment.youtubeContentEvidence, descriptionContacts: config.enrichment.youtubeDescriptionContacts, derivedMetrics: config.sourcePolicy.youtubeDerivedMetrics }, semanticNiche: config.enrichment.semanticNiche });
 const runner = createDiscoveryRunner({ db, billing, pipeline, logger });
 const web = createSerperSearch({
   apiKey: config.scraping.serperApiKey,
@@ -94,7 +94,7 @@ const worker = await startWorker({
   handlers: { ...defaultHandlers(db, { reconcileProviderRuns, checkProviders: () => checkProviderStatus({ db, config }) }), ...billingHandlers(billing), ...notifyHandlers(), ...creatorHandlers({ indexer, summaries, expireYoutube: () => expireYoutubeApiData(db, pipeline.storage ? { storage: pipeline.storage } : {}),
       refreshYoutube: config.scraping.youtubeApiKey ? () => refreshDueYoutube({ db, refresh: pipeline.refreshKnown, onError: (err, url) => logger.warn({ err, url }, "YouTube refresh failed; retried tomorrow") }) : null,
       alert: (e) => db.withSystem((tx) => recordAlertEvent(tx, e)), sweep: () => lifecycleSweep({ db, apply: true, reproject: (ids) => indexer.sync(ids) }),
-      reassessStep: () => reassessNextBatch({ db, readPayload: async (key) => { const b = pipeline.storage ? await pipeline.storage.get(RAW_PAYLOAD_BUCKET, key) : null; return b ? JSON.parse(new TextDecoder().decode(b)) : null; } }) }), ...discoveryHandlers({ runner, liveRunner, searchCache, pipeline }), ...erasureHandlers({ eraser }),
+      reassessStep: () => reassessNextBatch({ db, youtubeDerived: config.sourcePolicy.youtubeDerivedMetrics, readPayload: async (key) => { const b = pipeline.storage ? await pipeline.storage.get(RAW_PAYLOAD_BUCKET, key) : null; return b ? JSON.parse(new TextDecoder().decode(b)) : null; } }) }), ...discoveryHandlers({ runner, liveRunner, searchCache, pipeline }), ...erasureHandlers({ eraser }),
     // Support attachments 90 days after the ticket was resolved or closed, unless on legal hold (0076).
     "system.purge_support_attachments": async (_d, { logger: l }) => {
       l.info({ purged: await createAttachments({ db, storage: pipeline.storage ?? null }).purgeExpired() }, "expired support attachments purged");

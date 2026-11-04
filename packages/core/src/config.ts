@@ -38,16 +38,18 @@ const sharedObject = z.object({
   SEARCH_PROFILE: z.enum(["v1", "v2"]).default("v1"),
   // Owner decision 2026-10-19: a free trial starts only when staff approve it. "automatic" restores trial-at-sign-up.
   TRIAL_ACTIVATION: z.enum(["approval", "automatic"]).default("approval"),
-  // MUSHIN-derived metrics from YouTube API data (DATA-004): off until the owner confirms policy eligibility.
-  YOUTUBE_DERIVED_METRICS: z.enum(["on", "off"]).default("off"),
+  // MUSHIN-derived metrics from YouTube API data (DATA-004). Owner override 2026-11-04 (execution directive Stage 1 §3):
+  // on, accepting the YouTube API Services Developer Policies risk; "off" restores the earlier restriction.
+  YOUTUBE_DERIVED_METRICS: z.enum(["on", "off"]).default("on"),
   // How enrichment stores niche, country and city (owner instruction 2026-10-26), separate from SEARCH_PROFILE (which
   // only chooses query understanding). "evidence": stored from evidence with provenance; "legacy": the AI's reading.
   ENRICHMENT_ATTRIBUTE_POLICY: z.enum(["evidence", "legacy"]).default("evidence"),
   // YouTube video titles/descriptions as niche, city and language evidence, and contacts read from a channel's
-  // description: off until the owner confirms Roster's YouTube API use case allows them (Developer Policies III.E.4.h,
-  // YouTube Terms "collect information that might identify a person"). Existing stored data is not deleted by this.
-  YOUTUBE_CONTENT_EVIDENCE: z.enum(["on", "off"]).default("off"),
-  YOUTUBE_DESCRIPTION_CONTACTS: z.enum(["on", "off"]).default("off"),
+  // description (Developer Policies III.E.4.h, YouTube Terms "collect information that might identify a person"). Owner
+  // override 2026-11-04 (execution directive Stage 1 §3): on by default; "off" restores the restriction. The 30-day
+  // retention of YouTube API data (0063/0078) is unchanged.
+  YOUTUBE_CONTENT_EVIDENCE: z.enum(["on", "off"]).default("on"),
+  YOUTUBE_DESCRIPTION_CONTACTS: z.enum(["on", "off"]).default("on"),
   // Owner decision 2026-10-26: no new YouTube Data API calls (channel fetches, video search, audience) while the YouTube
   // policy decision is pending. Off withholds the key from every YouTube adapter, so no request can be made; YouTube
   // jobs then fail as "not configured" and are refunded. Retention purges of stored YouTube data keep running.

@@ -116,16 +116,18 @@ describe("loadWorkerConfig", () => {
     expect(() => loadWorkerConfig({ DIRECT_URL: "postgresql://u:p@pooler.example.com:5432/postgres", MOCK_PADDLE_WEBHOOK_SECRET: MOCK })).toThrow(/DATABASE_URL/);
   });
 
-  it("keeps the enrichment policy apart from SEARCH_PROFILE, with the YouTube gates off by default", () => {
+  it("keeps the enrichment policy apart from SEARCH_PROFILE, with the YouTube content gates on by default (owner override 2026-11-04) and switchable off", () => {
     const base = { DATABASE_URL: "postgresql://u:p@pooler.example.com:6543/postgres", DIRECT_URL: "postgresql://u:p@pooler.example.com:5432/postgres", MOCK_PADDLE_WEBHOOK_SECRET: MOCK, DATA_ENCRYPTION_KEY: KEY };
-    expect(loadWorkerConfig(base).enrichment).toEqual({ attributePolicy: "evidence", youtubeContentEvidence: false, youtubeDescriptionContacts: false, semanticNiche: true });
+    expect(loadWorkerConfig(base).enrichment).toEqual({ attributePolicy: "evidence", youtubeContentEvidence: true, youtubeDescriptionContacts: true, semanticNiche: true });
+    expect(loadWorkerConfig(base).sourcePolicy).toEqual({ youtubeDerivedMetrics: true });
+    expect(loadWorkerConfig({ ...base, YOUTUBE_DERIVED_METRICS: "off" }).sourcePolicy).toEqual({ youtubeDerivedMetrics: false });
     // No YouTube API call is possible while YOUTUBE_API_CALLS is off: the key is withheld from every adapter.
     expect(loadWorkerConfig({ ...base, YOUTUBE_API_KEY: "yt" }).scraping).toMatchObject({ youtubeApiKey: null, youtubeSearch: false });
     expect(loadWorkerConfig({ ...base, YOUTUBE_API_KEY: "yt", YOUTUBE_API_CALLS: "on" }).scraping).toMatchObject({ youtubeApiKey: "yt", youtubeSearch: true });
     // SEARCH_PROFILE no longer changes how enrichment stores attributes.
     expect(loadWorkerConfig({ ...base, SEARCH_PROFILE: "v1" }).enrichment.attributePolicy).toBe("evidence");
     expect(loadWorkerConfig({ ...base, SEARCH_PROFILE: "v2", ENRICHMENT_ATTRIBUTE_POLICY: "legacy" }).enrichment.attributePolicy).toBe("legacy");
-    expect(loadWorkerConfig({ ...base, YOUTUBE_CONTENT_EVIDENCE: "on", YOUTUBE_DESCRIPTION_CONTACTS: "on" }).enrichment).toMatchObject({ youtubeContentEvidence: true, youtubeDescriptionContacts: true });
+    expect(loadWorkerConfig({ ...base, YOUTUBE_CONTENT_EVIDENCE: "off", YOUTUBE_DESCRIPTION_CONTACTS: "off" }).enrichment).toMatchObject({ youtubeContentEvidence: false, youtubeDescriptionContacts: false });
   });
 });
 

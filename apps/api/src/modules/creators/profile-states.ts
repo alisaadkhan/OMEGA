@@ -70,6 +70,7 @@ export function performanceAssessment(p: Parameters<typeof performanceBadge>[0],
     countryStatus: (p.countryStatus ?? null) as "pakistan" | "foreign" | "unknown" | "conflicting" | null,
     available: true,
     performance,
+    youtubeDerivedPermitted: !opts.restricted,
   });
   return {
     badge: v.status === "eligible" ? "meets_standard" : v.status === "below_minimum" ? "below_benchmark" : "incomplete",
