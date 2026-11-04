@@ -462,7 +462,14 @@ export async function postgresSearchState(tx: SystemTx, eligibilityVersion?: str
 
 /** Every creator that belongs in the index, with its last-change time (nightly reconcile). */
 export function indexState(tx: SystemTx): Promise<{ id: string; updatedEpoch: number }[]> {
-  return tx.execute<{ id: string; updatedEpoch: number }>(sql`select c.id, ${UPDATED_EPOCH} as "updatedEpoch" from gcp.creators c where ${VISIBLE}`);
+  // The same value as UPDATED_EPOCH, from two grouped joins instead of two correlated subqueries per creator (60K-scale
+  // directive §2.3): one pass over profiles and snapshots for the whole catalogue.
+  return tx.execute<{ id: string; updatedEpoch: number }>(sql`
+    select c.id, extract(epoch from greatest(c.updated_at, coalesce(pm.m, c.updated_at), coalesce(sm.m, c.updated_at)))::int as "updatedEpoch"
+    from gcp.creators c
+    left join (select creator_id, max(updated_at) m from gcp.creator_profiles group by creator_id) pm on pm.creator_id = c.id
+    left join (select creator_id, max(created_at) m from gcp.enrichment_snapshots group by creator_id) sm on sm.creator_id = c.id
+    where ${VISIBLE}`);
 }
 
 /** Whether customers can see this creator (active, and not a possible minor without a staff override). */
