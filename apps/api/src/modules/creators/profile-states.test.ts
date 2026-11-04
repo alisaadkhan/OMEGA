@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { locationOutcome, performanceBadge } from "./profile-states";
+import { locationOutcome, performanceAssessment, performanceBadge } from "./profile-states";
 
 const now = new Date("2026-11-04T00:00:00Z");
 const base = {
@@ -24,5 +24,12 @@ describe("profile states (master directive Parts 4 and 8)", () => {
     expect(badge({ performanceViewsSample: 2, performanceEngagementSample: 2 })).toBe("incomplete");
     expect(badge({ followersUpdatedAt: new Date("2026-01-01T00:00:00Z") })).toBe("incomplete");
     expect(badge({}, true)).toBe("incomplete");
+  });
+
+  it("states soft quality signals in plain words, without changing the badge", () => {
+    const a = performanceAssessment({ ...base, following: 9_000 }, { restricted: false, now });
+    expect(a.signals).toEqual(["Follows many accounts for its size (following is over 10% of followers)"]);
+    expect(a.badge).toBe(performanceBadge(base, { restricted: false, now }));
+    expect(performanceAssessment({ ...base, following: 9_000 }, { restricted: true, now }).signals).toEqual([]);
   });
 });

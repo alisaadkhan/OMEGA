@@ -278,6 +278,11 @@ export function CreatorProfilePanel({ creator, onClose, onCompare, onGoToCampaig
                         {BADGE[primary.performanceBadge].label}
                       </p>
                     )}
+                    {primary && primary.qualitySignals.length > 0 && (
+                      <ul data-testid="quality-signals" className="space-y-0.5 text-[11px] text-amber-800" aria-label="Things to check">
+                        {primary.qualitySignals.map((s) => <li key={s}>Worth checking: {s}</li>)}
+                      </ul>
+                    )}
 
                     <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-[11px] text-slate-600">
                       <span>{LOCATION_TEXT[primary?.location ?? "UNKNOWN"](location)}</span>

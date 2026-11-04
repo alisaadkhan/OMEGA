@@ -239,6 +239,8 @@ export const creatorProfileSchema = z.object({
       location: z.enum(["PAKISTAN_CONFIRMED", "NON_PAKISTANI_CONFIRMED", "PAKISTANI_DIASPORA", "UNKNOWN", "CONFLICTING_EVIDENCE"]).default("UNKNOWN"),
       /** elig-3 quality badge (owner decision 2026-11-03): a badge only, never a reason to hide the creator. */
       performanceBadge: z.enum(["meets_standard", "below_benchmark", "incomplete"]).default("incomplete"),
+      /** Campaign-fit signals for a person to weigh (directive §4.2): shown, never used to hide a creator. */
+      qualitySignals: z.array(z.string()).default([]),
       bio: z.string().nullable(),
       freshness: z.object({ followers: freshnessSchema, engagement: freshnessSchema, audience: freshnessSchema }),
       updatedAt: metricTimes,

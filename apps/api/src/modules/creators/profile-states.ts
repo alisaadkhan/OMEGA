@@ -22,6 +22,12 @@ export function locationOutcome(countryStatus: string | null, bio: string | null
 export type PerformanceBadge = "meets_standard" | "below_benchmark" | "incomplete";
 const FRESH_DAYS = { instagram: 90, tiktok: 90, youtube: 30 } as const;
 
+/** Soft quality signals for a person to read (never a filter or a deletion): elig-3 warnings, in plain words. */
+export const QUALITY_SIGNAL_TEXT: Record<string, string> = {
+  following_over_10pct_of_followers: "Follows many accounts for its size (following is over 10% of followers)",
+  tiktok_views_below_1_5x_followers: "Typical TikTok views are below 1.5x followers",
+};
+
 export function performanceBadge(
   p: {
     platform: "instagram" | "tiktok" | "youtube";
@@ -37,7 +43,12 @@ export function performanceBadge(
   },
   opts: { restricted: boolean; now: Date },
 ): PerformanceBadge {
-  if (opts.restricted) return "incomplete";
+  return performanceAssessment(p, opts).badge;
+}
+
+/** The badge and the soft quality signals from one evaluation. */
+export function performanceAssessment(p: Parameters<typeof performanceBadge>[0], opts: { restricted: boolean; now: Date }): { badge: PerformanceBadge; signals: string[] } {
+  if (opts.restricted) return { badge: "incomplete", signals: [] };
   const fresh = p.followersUpdatedAt !== null && opts.now.getTime() - p.followersUpdatedAt.getTime() <= FRESH_DAYS[p.platform] * 86_400_000;
   const performance =
     p.performanceViewsSample === null && p.performanceEngagementSample === null
@@ -60,5 +71,8 @@ export function performanceBadge(
     available: true,
     performance,
   });
-  return v.status === "eligible" ? "meets_standard" : v.status === "below_minimum" ? "below_benchmark" : "incomplete";
+  return {
+    badge: v.status === "eligible" ? "meets_standard" : v.status === "below_minimum" ? "below_benchmark" : "incomplete",
+    signals: v.warnings.map((w) => QUALITY_SIGNAL_TEXT[w]).filter((x): x is string => Boolean(x)),
+  };
 }
