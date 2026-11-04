@@ -44,7 +44,7 @@ export function OpsOverview() {
             )}
           </div>
           <EligibilityCoverageCard />
-          <p className="mt-4 text-[11px] text-slate-500">Backups, uptime and provider quota are not instrumented in this console. Check Supabase and the provider dashboards directly.</p>
+          <p className="mt-4 text-[11px] text-slate-500">Backups and uptime are not instrumented in this console: check Supabase directly. Provider spend against caps is on the Providers tab.</p>
         </>
       )}
     </div>
@@ -173,7 +173,7 @@ export function OpsProviders() {
   const q = useQuery({ queryKey: ["admin", "providers", hours], queryFn: () => adminRequest(`/admin/v1/ops/providers?hours=${hours}`, providerUsageSchema) });
   return (
     <div>
-      <Header title="Providers" sub="Calls MUSHIN recorded to each external provider. Remaining quota and account balance are not instrumented: check each provider's dashboard." />
+      <Header title="Providers" sub="Calls MUSHIN recorded to each external provider, and spend against each cap as the worker last checked it. A provider that does not report its balance shows Not reported." />
       <div className="mb-3 flex gap-1 text-xs" role="group" aria-label="Window">{[24, 168, 720].map((h) => <button key={h} onClick={() => setHours(h)} aria-pressed={hours === h} className={`rounded-md px-2.5 py-1 ${hours === h ? "bg-slate-900 text-white" : "border border-slate-200 text-slate-700"}`}>{h === 24 ? "24 hours" : h === 168 ? "7 days" : "30 days"}</button>)}</div>
       {q.isPending ? <LoadingBlock lines={4} /> : q.isError ? <ErrorState body={errorBody(q.error)} onRetry={() => void q.refetch()} /> : q.data.providers.length === 0 ? <p className="text-sm text-slate-500">No provider calls recorded in this window. That says nothing about the provider's health.</p> : (
         <Table head={["Provider", "Calls", "Errors", "Error rate", "p95 latency", "Recorded cost (USD)", "Last call", "Last error"]}>
@@ -181,6 +181,35 @@ export function OpsProviders() {
             <tr key={p.provider}><td className="px-3 py-2" style={{ fontWeight: 600 }}>{p.provider}</td><td className="px-3 py-2 tabular-nums">{p.calls}</td><td className="px-3 py-2 tabular-nums">{p.errors}</td><td className="px-3 py-2 tabular-nums">{p.calls ? `${Math.round((p.errors / p.calls) * 100)}%` : "—"}</td><td className="px-3 py-2 tabular-nums">{p.p95LatencyMs === null ? "—" : `${p.p95LatencyMs} ms`}</td><td className="px-3 py-2 tabular-nums">{p.costUsd.toFixed(4)}</td><td className="px-3 py-2 text-slate-500">{when(p.lastCallAt)}</td><td className="px-3 py-2 text-red-700">{p.lastErrorCode ?? ""}</td></tr>
           ))}
         </Table>
+      )}
+      {q.data && q.data.status.length > 0 && (
+        <div className="mt-6">
+          <div className="mb-2 text-sm text-slate-900" style={{ fontWeight: 600 }}>Status and spend against caps</div>
+          <Table head={["Provider", "Configured", "Used / cap", "Source", "Checked", "Check error"]}>
+            {q.data.status.map((s) => {
+              const pct = s.quota && s.quota.limit > 0 ? Math.min(100, Math.round((s.quota.used / s.quota.limit) * 100)) : null;
+              const fmt = (n: number) => (s.quota?.unit === "usd" ? `$${n.toFixed(2)}` : n.toLocaleString("en-US"));
+              return (
+                <tr key={s.provider}>
+                  <td className="px-3 py-2" style={{ fontWeight: 600 }}>{s.provider}</td>
+                  <td className="px-3 py-2">{s.configured ? "Yes" : "No"}</td>
+                  <td className="px-3 py-2 tabular-nums">
+                    {s.quota ? (
+                      <span className={pct !== null && pct >= 90 ? "text-rose-700" : pct !== null && pct >= 75 ? "text-amber-800" : ""}>
+                        {fmt(s.quota.used)} / {fmt(s.quota.limit)}{pct !== null ? ` (${pct}%)` : ""}
+                      </span>
+                    ) : (
+                      <span className="text-slate-500">Not reported</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2 text-slate-600">{s.quota?.source ?? "—"}</td>
+                  <td className="px-3 py-2 text-slate-500">{when(s.checkedAt)}</td>
+                  <td className="px-3 py-2 text-slate-600">{s.checkError ?? "—"}</td>
+                </tr>
+              );
+            })}
+          </Table>
+        </div>
       )}
     </div>
   );
