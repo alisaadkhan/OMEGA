@@ -40,6 +40,9 @@ describe("contact routes", () => {
     expect(routes("For collaborations inbox")).toEqual([{ kind: "collab_route", statement: "For collaborations inbox" }]);
     expect(routes("Inbox for business inquiries | Karachi")).toEqual([{ kind: "collab_route", statement: "Inbox for business inquiries" }]);
     expect(routes("I love my DMs being full of memes")).toEqual([]);
+    // Even given a raw bio, the statement never carries an email or phone number (paid contacts).
+    const raw = routes("DM for paid collab or mail sana.cooks@gmail.com / 0300 1234567")[0];
+    expect(raw?.kind === "collab_route" && !/sana\.cooks@gmail\.com|1234567/.test(raw.statement)).toBe(true);
   });
 
   it("returns no routes for a bio without any", () => {

@@ -20,6 +20,8 @@ export type ContactRoutes = {
   routes: ContactRoute[];
 };
 
+import { maskBioContacts } from "./rules";
+
 const BUSINESS_CUE = /\b(business(?:\s+(?:queries|inquiries|enquiries|contact))?|collab(?:oration)?s?|pr(?:\s+(?:queries|inquiries))?|bookings?|managed\s+by|management|mgmt|manager|work(?:\s+(?:queries|inquiries))?|sponsorships?|brand\s+deals?|ads?)\b/i;
 const OTHER_CUE = /\b(other\s+(?:queries|inquiries|enquiries)|personal|fan\s+(?:page|account)|dm|queries)\b/i;
 // A handle starts a word: "@ali" or ": @ali", never the "@domain" of an email address (security review 2026-11-03).
@@ -43,7 +45,8 @@ export function contactRoutes(o: { bios: string[]; links: { platform: string; ur
       const handles = [...seg.matchAll(HANDLE)].map((m) => (m[1] as string).replace(/\.$/, ""));
       if (handles.length === 0) {
         const dm = COLLAB_DM.exec(seg);
-        const statement = dm ? seg.replace(/\s+/g, " ").slice(0, 80) : "";
+        // Masked here too, whatever the caller passed: a statement never carries a paid contact (security review).
+        const statement = dm ? maskBioContacts(seg).replace(/\s+/g, " ").slice(0, 80) : "";
         if (dm && !seen.has(`collab:${statement.toLowerCase()}`)) {
           seen.add(`collab:${statement.toLowerCase()}`);
           routes.push({ kind: "collab_route", statement });
