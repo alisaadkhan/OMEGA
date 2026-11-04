@@ -87,14 +87,47 @@ export class OpenAiCompatibleLlm implements Llm {
   private readonly coolingUntil = new Map<string, number>();
   /** Provider name → consecutive throttled answers; each one doubles the pause, a success resets it. */
   private readonly strikes = new Map<string, number>();
+  /** Provider name → start times of its requests in the last minute (token bucket for requestsPerMinute). */
+  private readonly recent = new Map<string, number[]>();
+
+  /** Whether the provider is under its per-minute limit now; records the request when it is. */
+  private takeSlot(p: LlmProviderConfig, nowMs: number): boolean {
+    if (!p.requestsPerMinute) return true;
+    const window = (this.recent.get(p.name) ?? []).filter((t) => nowMs - t < 60_000);
+    if (window.length >= p.requestsPerMinute) {
+      this.recent.set(p.name, window);
+      return false;
+    }
+    window.push(nowMs);
+    this.recent.set(p.name, window);
+    return true;
+  }
+
+  /** Milliseconds until the provider has a free slot again (0 when it has one). */
+  private slotWaitMs(p: LlmProviderConfig, nowMs: number): number {
+    if (!p.requestsPerMinute) return 0;
+    const window = (this.recent.get(p.name) ?? []).filter((t) => nowMs - t < 60_000);
+    return window.length < p.requestsPerMinute ? 0 : 60_000 - (nowMs - (window[0] as number));
+  }
 
   async complete<T>(req: LlmRequest<T>): Promise<{ value: T; model: string }> {
     if (this.o.providers.length === 0) throw new AppError("PROVIDER_UNAVAILABLE", "AI features are not configured.");
     let last: unknown;
     const nowMs = (this.o.now ?? Date.now)();
-    // A cooling provider is skipped while another is available; the last remaining provider is always tried.
-    const usable = this.o.providers.filter((p) => (this.coolingUntil.get(p.name) ?? 0) <= nowMs);
-    for (const p of usable.length > 0 ? usable : this.o.providers) {
+    // A cooling provider, or one at its per-minute limit, is skipped while another is available; when none is, the
+    // request waits for the first free per-minute slot rather than sending a call that would be refused.
+    const ready = (p: LlmProviderConfig) => (this.coolingUntil.get(p.name) ?? 0) <= nowMs && this.slotWaitMs(p, nowMs) === 0;
+    let usable = this.o.providers.filter(ready);
+    if (usable.length === 0) {
+      const waits = this.o.providers.filter((p) => (this.coolingUntil.get(p.name) ?? 0) <= nowMs).map((p) => ({ p, ms: this.slotWaitMs(p, nowMs) }));
+      const soonest = waits.sort((a, b) => a.ms - b.ms)[0];
+      if (soonest && soonest.ms > 0 && soonest.ms <= 60_000) {
+        await (this.o.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms))))(soonest.ms);
+        usable = [soonest.p];
+      } else usable = this.o.providers;
+    }
+    for (const p of usable) {
+      if (!this.takeSlot(p, (this.o.now ?? Date.now)()) && usable.length > 1) continue;
       try {
         const value = await this.withProvider(p, req);
         this.strikes.delete(p.name);

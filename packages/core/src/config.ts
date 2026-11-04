@@ -78,6 +78,8 @@ const sharedObject = z.object({
   GEMINI_PRICE_OUT_PER_MTOK: z.coerce.number().min(0).optional(),
   // "free_accepted": the owner knowingly uses an unpaid-tier key (decision 2026-11-02), accepting that Google may use the prompts.
   GEMINI_BILLING: z.enum(["paid", "free_accepted"]).optional(),
+  // At most this many Gemini requests per minute (free tier: 10); over it, the next provider answers instead.
+  GEMINI_RPM: z.coerce.number().int().min(1).default(10),
   // Ollama Cloud gpt-oss:20b pay-as-you-go price (ollama.com/pricing, checked 2026-10-14). Plans include usage credits,
   // but usage is still recorded at the per-token price so paid fallback traffic is never booked as free.
   OLLAMA_API_KEY: z.string().min(1).optional(),
@@ -88,10 +90,15 @@ const sharedObject = z.object({
   // Groq (owner added a key 2026-11-03): OpenAI-compatible, tried after Gemini and before Ollama. Prices are Groq's
   // published gpt-oss-120b on-demand rates (USD per million tokens, assumed from groq.com/pricing; override if changed).
   GROQ_API_KEY: z.string().min(1).optional(),
-  GROQ_BASE_URL: z.url().default("https://api.groq.com/openai/v1"),
-  GROQ_MODEL: z.string().min(1).default("openai/gpt-oss-120b"),
+  GROQ_BASE_URL: z.url().optional(),
+  GROQ_MODEL: z.string().min(1).optional(),
   GROQ_PRICE_IN_PER_MTOK: z.coerce.number().min(0).default(0.15),
   GROQ_PRICE_OUT_PER_MTOK: z.coerce.number().min(0).default(0.75),
+  // The preferred provider (owner .env 2026-11-04: LLM_PROVIDER=groq). It is tried first; LLM_MODEL / LLM_BASE_URL apply
+  // to it when its own GROQ_/GEMINI_/OLLAMA_ variable is not set. Groq's model defaults to openai/gpt-oss-120b.
+  LLM_PROVIDER: z.enum(["gemini", "groq", "ollama"]).optional(),
+  LLM_MODEL: z.string().min(1).optional(),
+  LLM_BASE_URL: z.url().optional(),
   // Monthly cap on hosted-LLM spend across Gemini and Ollama (USD). Required in production (owner decision 2026-10-14);
   // local and staging use USD 5 when unset. 0 refuses every AI call; no value disables the cap.
   LLM_MONTHLY_BUDGET_USD: z.coerce.number().min(0).optional(),
@@ -101,9 +108,10 @@ type SharedValues = z.output<typeof sharedObject>;
 const PADDLE_KEYS = ["PADDLE_API_KEY", "PADDLE_CLIENT_TOKEN", "PADDLE_WEBHOOK_SECRET"] as const;
 
 const LLM_KEYS = {
-  GEMINI_API_KEY: true, GEMINI_MODEL: true, GEMINI_BASE_URL: true, GEMINI_PRICE_IN_PER_MTOK: true, GEMINI_PRICE_OUT_PER_MTOK: true, GEMINI_BILLING: true,
+  GEMINI_API_KEY: true, GEMINI_MODEL: true, GEMINI_BASE_URL: true, GEMINI_PRICE_IN_PER_MTOK: true, GEMINI_PRICE_OUT_PER_MTOK: true, GEMINI_BILLING: true, GEMINI_RPM: true,
   OLLAMA_API_KEY: true, OLLAMA_BASE_URL: true, OLLAMA_MODEL: true, OLLAMA_PRICE_IN_PER_MTOK: true, OLLAMA_PRICE_OUT_PER_MTOK: true,
   GROQ_API_KEY: true, GROQ_BASE_URL: true, GROQ_MODEL: true, GROQ_PRICE_IN_PER_MTOK: true, GROQ_PRICE_OUT_PER_MTOK: true,
+  LLM_PROVIDER: true, LLM_MODEL: true, LLM_BASE_URL: true,
 } as const;
 type LlmValues = Pick<SharedValues, keyof typeof LLM_KEYS>;
 
@@ -366,6 +374,8 @@ export type LlmProviderConfig = {
   model: string;
   priceInPerMTok: number;
   priceOutPerMTok: number;
+  /** Requests per minute MUSHIN sends at most (Gemini free tier: 10, owner master directive §4.4); undefined = no limit. */
+  requestsPerMinute?: number;
 };
 
 function searchFrom(v: SharedValues, key: string | undefined): SearchConfig {
@@ -385,14 +395,16 @@ function llmFrom(v: LlmValues): LlmProviderConfig[] {
       model: v.GEMINI_MODEL,
       priceInPerMTok: v.GEMINI_PRICE_IN_PER_MTOK,
       priceOutPerMTok: v.GEMINI_PRICE_OUT_PER_MTOK,
+      requestsPerMinute: v.GEMINI_RPM,
     });
   }
   if (v.GROQ_API_KEY) {
+    const preferred = v.LLM_PROVIDER === "groq";
     out.push({
       name: "groq",
-      baseUrl: v.GROQ_BASE_URL.replace(/\/+$/, ""),
+      baseUrl: (v.GROQ_BASE_URL ?? (preferred ? v.LLM_BASE_URL : undefined) ?? "https://api.groq.com/openai/v1").replace(/\/+$/, ""),
       apiKey: v.GROQ_API_KEY,
-      model: v.GROQ_MODEL,
+      model: v.GROQ_MODEL ?? (preferred ? v.LLM_MODEL : undefined) ?? "openai/gpt-oss-120b",
       priceInPerMTok: v.GROQ_PRICE_IN_PER_MTOK,
       priceOutPerMTok: v.GROQ_PRICE_OUT_PER_MTOK,
     });
@@ -407,7 +419,9 @@ function llmFrom(v: LlmValues): LlmProviderConfig[] {
       priceOutPerMTok: v.OLLAMA_PRICE_OUT_PER_MTOK,
     });
   }
-  return out;
+  // LLM_PROVIDER names the provider tried first; the others keep their order as fallbacks.
+  const first = out.findIndex((p) => p.name === v.LLM_PROVIDER);
+  return first > 0 ? [out[first] as LlmProviderConfig, ...out.filter((_, i) => i !== first)] : out;
 }
 
 export type ScrapingConfig = {

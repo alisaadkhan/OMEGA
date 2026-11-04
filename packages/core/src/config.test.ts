@@ -233,6 +233,11 @@ describe("search and LLM settings", () => {
       ["groq", "openai/gpt-oss-120b", "https://api.groq.com/openai/v1"],
       ["ollama", "gpt-oss:20b", "https://ollama.com/v1"],
     ]);
+    // LLM_PROVIDER=groq (owner .env 2026-11-04): Groq first; LLM_MODEL / LLM_BASE_URL apply when GROQ_* are unset.
+    const groqFirst = loadApiConfig({ ...valid, ...gemini, GROQ_API_KEY: "g", OLLAMA_API_KEY: "o", LLM_PROVIDER: "groq" }).llm;
+    expect(groqFirst.map((p) => [p.name, p.model])).toEqual([["groq", "openai/gpt-oss-120b"], ["gemini", "gemini-model-from-config"], ["ollama", "gpt-oss:20b"]]);
+    expect(loadApiConfig({ ...valid, GROQ_API_KEY: "g", LLM_PROVIDER: "groq", LLM_MODEL: "openai/gpt-oss-20b" }).llm[0]?.model).toBe("openai/gpt-oss-20b");
+    expect(loadApiConfig({ ...valid, GROQ_API_KEY: "g", LLM_PROVIDER: "groq", LLM_MODEL: "x", GROQ_MODEL: "openai/gpt-oss-120b" }).llm[0]?.model).toBe("openai/gpt-oss-120b");
     expect(loadApiConfig(valid).llm).toEqual([]);
     expect([loadApiConfig(valid).llmMonthlyBudgetUsd, loadApiConfig({ ...valid, LLM_MONTHLY_BUDGET_USD: "12.5" }).llmMonthlyBudgetUsd]).toEqual([5, 12.5]);
     // Production needs an explicit cap; 0 is a cap (every call refused), not "no cap".

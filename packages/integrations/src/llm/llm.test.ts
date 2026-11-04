@@ -114,6 +114,29 @@ describe("OpenAiCompatibleLlm", () => {
     expect(geminiCalls()).toBe(9);
   });
 
+  it("keeps Gemini under its per-minute limit: over it, the next provider answers; alone, it waits for a free slot", async () => {
+    let t = 1_000_000;
+    const make = (providers: LlmProviderConfig[]) => {
+      const urls: string[] = [];
+      const slept: number[] = [];
+      const fetchFake = async (input: string | URL | Request) => (urls.push(String(input)), reply('{"ok":true}'));
+      const client = new OpenAiCompatibleLlm({ providers, sink: new MemoryProviderCallSink(), logger: createLogger({ level: "silent" }), fetch: fetchFake as typeof fetch, now: () => t, sleep: async (ms) => { slept.push(ms); t += ms; } });
+      return { client, urls, slept };
+    };
+    const limited = { ...gemini, requestsPerMinute: 2 };
+    const ask = (c: OpenAiCompatibleLlm) => c.complete({ feature: "creator_assessment", system: "s", input: "i", schema });
+    const both = make([limited, ollama]);
+    for (let i = 0; i < 3; i++) await ask(both.client);
+    expect(both.urls.map((u) => (u.includes("gemini") ? "gemini" : "ollama"))).toEqual(["gemini", "gemini", "ollama"]);
+    t += 60_001; // a minute later Gemini has room again
+    await ask(both.client);
+    expect(both.urls.at(-1)).toContain("gemini");
+    const solo = make([limited]);
+    for (let i = 0; i < 3; i++) await ask(solo.client);
+    expect(solo.urls).toHaveLength(3);
+    expect(solo.slept).toHaveLength(1); // the third waited for a slot instead of sending a call that would be refused
+  });
+
   it("retries a rate-limited 429 once and records both provider attempts", async () => {
     let attempts = 0;
     const { client, bodies, sink } = llm([gemini], () => (++attempts === 1 ? reply("", 429) : reply('{"ok":true}')));
