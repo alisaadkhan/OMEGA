@@ -37,6 +37,9 @@ const CREATOR_WORDS = /\b(youtuber|you tuber|vlogger|vlogs?|blogger|content crea
 const FAN_WORDS = /\b(fan ?page|fan ?account|fan club|fanclub|fans? of|not affiliated|unofficial|updates? (?:page|account)|daily updates|credits? (?:to|go to) (?:the )?owners?|dm for (?:credit|removal)|repost(?:s|ing)?)\b/i;
 const FAN_HANDLE = /(fanpage|fan_page|_fans?$|^fans?_|fanclub|updates$|_updates|\.updates|memes?$|_memes|viral|lovers$)/i;
 
+const MEDIA_WORDS = /\b(entertainment channel|(?:tv|television|news) channel|news (?:platform|network|agency|portal)|digital news|media (?:house|group|network)|newspaper|official (?:news|broadcaster))\b/i;
+const SHOP_WORDS = /\b(beauty (?:store|shop|parlou?r|salon)|online (?:store|shop)|shipping (?:all over|nationwide|worldwide|across)|cash on delivery|100% original products|wholesale|parlou?r|salon|boutique|order (?:now|online|via))\b/i;
+
 export function classifyAccountType(o: { category: string | null; bio: string; handle: string; displayName: string }): AccountTypeDecision {
   const bio = o.bio ?? "";
   if (FAN_WORDS.test(bio) || FAN_HANDLE.test(o.handle)) {
@@ -54,5 +57,11 @@ export function classifyAccountType(o: { category: string | null; bio: string; h
     }
   }
   if (creatorWord) return { type: "INDIVIDUAL_CREATOR", source: "rules", confidence: "medium", evidence: `Bio says "${creatorWord}"` };
+  // No category and no creator word: the bio's own wording names a shop or a media outlet (owner directive 2026-11-04:
+  // Khaadi, HUM TV, "Beauty Store… Shipping all over Pakistan" stayed UNKNOWN and so in search).
+  const media = MEDIA_WORDS.exec(bio)?.[0];
+  if (media) return { type: "MEDIA_PUBLICATION", source: "rules", confidence: "medium", evidence: `Bio says "${media}"` };
+  const shop = SHOP_WORDS.exec(bio)?.[0];
+  if (shop) return { type: "BUSINESS_STORE", source: "rules", confidence: "medium", evidence: `Bio says "${shop}"` };
   return { type: "UNKNOWN", source: null, confidence: null, evidence: null };
 }

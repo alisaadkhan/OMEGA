@@ -20,6 +20,14 @@ describe("account type", () => {
     expect(c({ category: "Marketing Agency" }).type).toBe("COMPANY_CORPORATE");
     expect(c({ bio: "Fan page of Sajal Aly. Not affiliated", handle: "sajal_fanpage" }).type).toBe("FAN_PAGE_AGGREGATOR");
     expect(c({ handle: "pakistani.memes", bio: "Daily laughs. Credits to owners" }).type).toBe("FAN_PAGE_AGGREGATOR");
+    // From the bio's own wording when the platform gives no category (directive 2026-11-04).
+    expect(c({ bio: "Pakistan's leading entertainment channel. Home to the nation's most loved dramas." }).type).toBe("MEDIA_PUBLICATION");
+    expect(c({ bio: "Daily Mumtaz Digital is pioneer digital news platform of Pakistan." }).type).toBe("MEDIA_PUBLICATION");
+    expect(c({ bio: "Korean & Japanese Beauty Store ✨ Shipping all over Pakistan 🚚 100% Original Products" }).type).toBe("BUSINESS_STORE");
+    expect(c({ bio: "Kashee's Kingdom • Bridal | Glam | Makeovers • Beauty Parlour" }).type).toBe("BUSINESS_STORE");
+    // A creator who mentions a shop stays a creator.
+    expect(c({ bio: "Fashion blogger | Shop my looks | Lahore" }).type).toBe("INDIVIDUAL_CREATOR");
+    expect(c({ bio: "Makeup artist, salon owner, Karachi" }).type).toBe("INDIVIDUAL_CREATOR");
   });
 
   it("marks traditional public figures, and leaves the rest unknown rather than assuming a creator", () => {
