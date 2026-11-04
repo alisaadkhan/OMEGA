@@ -75,7 +75,7 @@ export async function reassessCreators(db: Db, creatorIds: string[], readPayload
       const res = await tx.execute(sql`
         update gcp.creators c set account_type = u.type, account_type_source = u.source, account_type_confidence = u.confidence, account_type_evidence = left(u.evidence, 300), account_type_assessed_at = now(), updated_at = now()
         from jsonb_to_recordset(${JSON.stringify(accounts)}::jsonb) as u(id uuid, type text, source text, confidence text, evidence text)
-        where c.id = u.id and c.account_type_source is distinct from 'staff'
+        where c.id = u.id and c.status = 'active' and c.account_type_source is distinct from 'staff'
           and (c.account_type, c.account_type_source, c.account_type_confidence) is distinct from (u.type, u.source, u.confidence)`);
       changed += res.count ?? 0;
     }
@@ -83,7 +83,7 @@ export async function reassessCreators(db: Db, creatorIds: string[], readPayload
       const res = await tx.execute(sql`
         update gcp.creator_profiles p set median_views = u.mv, median_engagement_rate = u.mer, performance_views_sample = u.vs, performance_engagement_sample = u.es, performance_format = u.fmt, performance_from = u.f::timestamptz, performance_to = u.t::timestamptz, performance_at = now(), updated_at = now()
         from jsonb_to_recordset(${JSON.stringify(perf)}::jsonb) as u(id uuid, mv double precision, mer double precision, vs integer, es integer, fmt text, f text, t text)
-        where p.id = u.id and (p.median_views, p.median_engagement_rate, p.performance_views_sample, p.performance_engagement_sample) is distinct from (u.mv::integer, u.mer, u.vs::smallint, u.es::smallint)`);
+        where p.id = u.id and exists (select 1 from gcp.creators c where c.id = p.creator_id and c.status = 'active') and (p.median_views, p.median_engagement_rate, p.performance_views_sample, p.performance_engagement_sample) is distinct from (u.mv::integer, u.mer, u.vs::smallint, u.es::smallint)`);
       changed += res.count ?? 0;
     }
     if (contacts.length) {
