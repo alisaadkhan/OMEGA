@@ -251,3 +251,52 @@ Verified: the stored ER and typical views of the five records match the post-by-
    lasting answer; the scan hook accepts one without code changes elsewhere.
 3. Still open: Masoom Ana's handle; Atif Aslam's "Travel" niche (from older post evidence); the YouTube decision due
    12 November; OpenRouter key not present.
+
+# Execution directive 2026-11-04: niche rule, contacts, YouTube unlock, re-audit, discovery
+
+Local only (not pushed; live still at 0073). Migrations 0080 (ticket reads) and 0081 (Pakistani diaspora) are local.
+
+## Earlier directives: remaining items finished
+
+- Soft campaign-fit signals on the profile ("Worth checking: …"), never a filter.
+- Support: "New reply" marker per teammate (0080).
+- Staff Providers view: status and spend against each cap (worker-checked), amber at 75 %, red at 90 %.
+- Staff console checked with axe at 375×812 on every Support section; the scrollable main area is now keyboard-focusable.
+- Still open: merging linked profiles into one creator record (linked profiles already pass Pakistani evidence to each
+  other); export buttons stay out of the UI by the owner's 2 November rule (exports are API-only, permission-checked).
+
+## Stage 1 (done and verified on `mushin_catalog_v4`)
+
+1. **Niche**: a clear bio/About decides and stops; otherwise posts are read only at 100K+ followers (last 9 non-pinned;
+   tags and topics count; a subject needs 3 of 9). Under 100K with no bio niche: Unknown. YouTube known niches went from
+   1,944 to 1,755 (sub-100K post guesses removed); 410 creators changed.
+2. **Contacts**: Email and Mobile shown when listed (both when both; values masked until revealed); "DM for paid
+   collab"-type statements kept as collab routes; "Not publicly listed" only when there is none of them. Recovery pass
+   found no missed contacts (every YouTube bio email was already stored; 5 Instagram bio emails are unusable addresses).
+3. **YouTube unlocked (owner override)**: derived metrics, video-text evidence and description contacts on by default
+   (each switchable off). The owner accepts the YouTube API Services Developer Policies risk; the 30-day retention is
+   unchanged. Result: YouTube elig-3 badges 173 meet / 2,089 below / 117 incomplete (before: all incomplete).
+4. **Diaspora kept**: a profile living abroad whose own bio states Pakistani identity is eligible (0081, generated
+   column). Topics ("Pakistani recipes"), a shop's flag and another stated identity ("an Afghan girl…") never count.
+   14 profiles flagged; 4 of them searchable.
+5. **Re-audit**: 3,423 creators. Searchable: Instagram 315, YouTube 380, TikTok 25. In search: 0 foreign
+   non-diaspora, 0 below minimum, 0 shops/brands/media/companies/fan pages/public figures. Completeness of searchable
+   profiles (missing): typical views IG 12 / YT 29; authenticity IG 6 / YT 11; ER YT 8; niche unknown IG 104 / TT 17 /
+   YT 152; no email or mobile IG 240 / TT 18 / YT 248; no photo IG 8 / TT 1 / YT 6. Full report:
+   `docs/completion/inventory/2026-11-04-stage1-reassessment-mushin_catalog_v4.json`.
+
+## Stage 2 (run within the approved USD 7 cap)
+
+Expansion from related/mentioned Instagram handles: 50 fetched for USD 0.13; 49 no longer exist, 1 added
+(@sportspavilionofficial, location not confirmed, so not searchable). **New eligible creators: 0.** Recorded spend is
+now USD 6.00 of 7; the build keeps USD 1 headroom, so no further run is possible without more budget. A Live Discovery
+pass over the research niches costs about USD 1 per run.
+
+## Tests
+
+Unit 678+; integration (local, non-Meilisearch) all passing; customer browser 108/55/54; staff browser 36/0.
+
+## Waiting for the owner
+
+1. Go-ahead to sync live (0074–0081, live reassessment, push). The live worker then recovers contacts with the live key.
+2. Budget for Stage 2 Live Discovery (for example USD 5–10 for 5–10 niche runs).

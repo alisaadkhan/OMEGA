@@ -1,0 +1,426 @@
+{
+ "mode": "expand",
+ "db": "mushin_catalog_v4",
+ "capUsd": 7,
+ "started": "2026-11-04T04:05:52.443Z",
+ "finished": "2026-11-04T04:17:24.339Z",
+ "spendByProvider": [
+  {
+   "provider": "apify",
+   "calls": 50,
+   "usd": "0.130000"
+  },
+  {
+   "provider": "gemini",
+   "calls": 2,
+   "usd": "0.000000"
+  },
+  {
+   "provider": "groq",
+   "calls": 1,
+   "usd": "0.000757"
+  }
+ ],
+ "jobs": [
+  {
+   "i": 0,
+   "handle": "sohopakistan",
+   "refs": 14,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 1,
+   "handle": "pitapakistan",
+   "refs": 14,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 2,
+   "handle": "yazu.pakistan",
+   "refs": 13,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 3,
+   "handle": "aanganbyz",
+   "refs": 11,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 4,
+   "handle": "cloudnaan",
+   "refs": 11,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 5,
+   "handle": "cluckinchicksofficial",
+   "refs": 11,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 6,
+   "handle": "olivetreebistro_bakery",
+   "refs": 10,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 7,
+   "handle": "thevegasstudiopk",
+   "refs": 10,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 8,
+   "handle": "masalawala_qasarenoor",
+   "refs": 10,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 9,
+   "handle": "atblendcoffee",
+   "refs": 9,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 10,
+   "handle": "charizma_official",
+   "refs": 9,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 11,
+   "handle": "orienttextiles",
+   "refs": 9,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 12,
+   "handle": "dropcoffeebar",
+   "refs": 9,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 13,
+   "handle": "dagwood.pk",
+   "refs": 9,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 14,
+   "handle": "lavishdine_restaurant_khi",
+   "refs": 9,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 15,
+   "handle": "smartinnfitness",
+   "refs": 8,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 16,
+   "handle": "sportspavilionofficial",
+   "refs": 8,
+   "status": "completed",
+   "outcome": "created",
+   "error": null
+  },
+  {
+   "i": 17,
+   "handle": "cartelloungeandrestaurant",
+   "refs": 8,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 18,
+   "handle": "sabafaisal.official",
+   "refs": 8,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 19,
+   "handle": "bareezeofficial",
+   "refs": 8,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 20,
+   "handle": "thezeenwoman",
+   "refs": 8,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 21,
+   "handle": "gulahmedfashion",
+   "refs": 8,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 22,
+   "handle": "vibraniumfitness.pk",
+   "refs": 8,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 23,
+   "handle": "primalfitness_pk",
+   "refs": 8,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 24,
+   "handle": "das.numberi",
+   "refs": 8,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 25,
+   "handle": "todayatjune",
+   "refs": 8,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 26,
+   "handle": "smashlahore",
+   "refs": 8,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 27,
+   "handle": "fomofroyo",
+   "refs": 8,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 28,
+   "handle": "2brokeengineers",
+   "refs": 8,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 29,
+   "handle": "kifayahsupermarket",
+   "refs": 8,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 30,
+   "handle": "ammoskarachi",
+   "refs": 7,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 31,
+   "handle": "chai.chenak",
+   "refs": 7,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 32,
+   "handle": "salt_pakistan",
+   "refs": 7,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 33,
+   "handle": "heymelbrew",
+   "refs": 7,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 34,
+   "handle": "woktok.pk",
+   "refs": 7,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 35,
+   "handle": "strengthfitness10",
+   "refs": 7,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 36,
+   "handle": "chaupalpk",
+   "refs": 7,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 37,
+   "handle": "monalrawalpindi",
+   "refs": 7,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 38,
+   "handle": "haleemghar",
+   "refs": 7,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 39,
+   "handle": "notorestaurantofficial",
+   "refs": 7,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 40,
+   "handle": "funkymonkpk",
+   "refs": 7,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 41,
+   "handle": "bigtreehousekarachi",
+   "refs": 7,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 42,
+   "handle": "hashimali90",
+   "refs": 7,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 43,
+   "handle": "vistavenues",
+   "refs": 7,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 44,
+   "handle": "_amoons_",
+   "refs": 7,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 45,
+   "handle": "yifangfalcon",
+   "refs": 7,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 46,
+   "handle": "diverseactivewear",
+   "refs": 7,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 47,
+   "handle": "eten.restaurants",
+   "refs": 7,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 48,
+   "handle": "chaayekhanajt",
+   "refs": 7,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  },
+  {
+   "i": 49,
+   "handle": "creedfitness.mc",
+   "refs": 6,
+   "status": "failed",
+   "outcome": null,
+   "error": "NOT_FOUND"
+  }
+ ]
+}
