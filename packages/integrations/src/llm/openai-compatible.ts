@@ -206,6 +206,16 @@ export class OpenAiCompatibleLlm implements Llm {
     );
     const again = parseReply(second, req.schema);
     if (again.ok) return again.value;
+    // Both HTTP calls were answered (and recorded as "ok"); the outcome was not usable. Recorded as its own failure so
+    // the hourly error-share alert and the provider table see it (observability review 2026-11-15: ~190 unusable
+    // replies in October were invisible there). The validation message is never recorded: it can quote the reply.
+    await this.o.sink
+      .record({
+        provider: p.name, operation: req.feature, model: p.model, tokensIn: null, tokensOut: null, units: null, latencyMs: 0, status: "error",
+        costUsd: 0, errorCode: "invalid_reply", workspaceId: req.ctx?.workspaceId ?? null, jobId: req.ctx?.jobId ?? null, requestId: req.ctx?.requestId ?? null,
+      })
+      .catch((err: unknown) => this.o.logger.error({ err, provider: p.name }, "failed to record provider call"));
+    this.o.logger.warn({ event: "llm_reply_unusable", provider: p.name, model: p.model, feature: req.feature, jobId: req.ctx?.jobId ?? null, requestId: req.ctx?.requestId ?? null }, "LLM reply unusable after one correction");
     throw new LlmOutputError(again.error);
   }
 

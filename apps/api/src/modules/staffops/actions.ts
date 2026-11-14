@@ -26,6 +26,21 @@ export const ALERT_THRESHOLDS = {
   providerStatusAgeSeconds: { warning: 3 * 3600, critical: 24 * 3600 },
 } as const;
 
+/** What each recorded failure class means for the person reading the alert (errorCodeOf in packages/integrations). */
+const CAUSE_HINT: Record<string, string> = {
+  build_not_found: "a pinned actor build was removed by its publisher; re-pin it",
+  http_401: "credentials refused; check or replace the key",
+  http_403: "access refused; check the key and the account's permissions",
+  http_429: "rate-limited by the provider; work is slowed or moved to the next model",
+  quota: "the provider's daily quota is used up",
+  spend_cap: "MUSHIN's own spend cap for this provider is reached",
+  timeout: "calls are timing out; the provider may be slow or down",
+  network: "the provider cannot be reached (network or DNS)",
+  invalid_reply: "the AI model's replies fail validation; check the model in use",
+  not_configured: "the provider is not configured or refused the request",
+  provider: "the provider answered with an error",
+};
+
 /** Operations actions (staff spec §4): each checks its preconditions, needs a reason, is idempotent and audited. */
 export function createStaffActions(deps: { db: Db; now?: () => Date }) {
   const now = deps.now ?? (() => new Date());
@@ -144,9 +159,24 @@ export function createStaffActions(deps: { db: Db; now?: () => Date }) {
       push("outbox", level(m.outboxOldestSeconds, ALERT_THRESHOLDS.outboxOldestSeconds), `Background work is waiting: the oldest item is ${m.outboxOldestSeconds ?? 0} s old (${m.outboxPending} pending).`);
       push("stuck_jobs", level(m.stuckJobs, ALERT_THRESHOLDS.stuckJobs), `${m.stuckJobs} job(s) queued or running for more than 30 minutes.`);
       push("failed_jobs", level(m.failedJobs1h, ALERT_THRESHOLDS.failedJobs1h), `${m.failedJobs1h} job(s) failed in the last hour.`);
+      // The most frequent failure class per provider, so an alert says why and what to do, not only how many failed
+      // (observability review 2026-11-15: Apify's removed builds read as "N of M failed" with no cause for days).
+      const causes = await deps.db.withSystem((tx) =>
+        tx.execute<{ provider: string; code: string; n: number }>(sql`
+          select provider, coalesce(error_code, 'error') as code, count(*)::int as n from platform.provider_calls
+          where status = 'error' and created_at > now() - interval '1 hour' group by 1, 2 order by 3 desc, 2`),
+      );
+      const topCause = new Map<string, string>();
+      for (const c of causes) if (!topCause.has(c.provider)) topCause.set(c.provider, c.code);
       for (const [provider, calls] of Object.entries(m.providerCalls1h)) {
         const errors = m.providerErrors1h[provider] ?? 0;
-        if (calls >= ALERT_THRESHOLDS.providerErrorShare.minCalls) push(`provider_${provider}`, level(errors / calls, ALERT_THRESHOLDS.providerErrorShare), `${provider}: ${errors} of ${calls} calls failed in the last hour.`);
+        const cause = topCause.get(provider);
+        const why = cause ? ` Mostly ${cause}: ${CAUSE_HINT[cause] ?? "see the provider table for details"}.` : "";
+        if (calls >= ALERT_THRESHOLDS.providerErrorShare.minCalls) push(`provider_${provider}`, level(errors / calls, ALERT_THRESHOLDS.providerErrorShare), `${provider}: ${errors} of ${calls} calls failed in the last hour.${why}`);
+      }
+      // A removed pinned build fails every fetch through that actor: critical at the first occurrence, with the fix.
+      for (const c of causes.filter((x) => x.code === "build_not_found")) {
+        alerts.push({ key: `build_${c.provider}`, severity: "critical", message: `${c.provider}: the pinned actor build no longer exists (${c.n} failed call(s) in the last hour). Every fetch through it fails until APIFY_INSTAGRAM_BUILD / APIFY_TIKTOK_BUILD are set to a current build (or the defaults in packages/core/src/config.ts are updated) and the service is redeployed.` });
       }
       push("removals", level(m.oldestRemovalDays, ALERT_THRESHOLDS.oldestRemovalDays), `The oldest open creator removal request is ${m.oldestRemovalDays ?? 0} day(s) old.`);
       if (m.workerHeartbeatSeconds === null) alerts.push({ key: "worker", severity: "critical", message: "The background worker has never reported: no jobs, billing renewals or live runs are processed." });

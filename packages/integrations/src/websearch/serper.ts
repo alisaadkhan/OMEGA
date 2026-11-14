@@ -43,7 +43,7 @@ export function createSerperSearch(o: { apiKey: string | null; limit: SpendGuard
               body: JSON.stringify({ q: q.query, gl: q.country, hl: q.hl ?? "en", num: q.num, ...(q.page === undefined ? {} : { page: q.page }), ...(q.autocorrect === undefined ? {} : { autocorrect: q.autocorrect }) }),
               signal,
             });
-            if (res.status === 401 || res.status === 403) throw new ProviderError(false, "not_configured", `Serper refused the key (HTTP ${res.status})`);
+            if (res.status === 401 || res.status === 403) throw Object.assign(new ProviderError(false, "not_configured", `Serper refused the key (HTTP ${res.status})`), { status: res.status });
             if (res.status === 400) {
               const text = await res.text();
               throw new ProviderError(false, /credit/i.test(text) ? "quota" : "provider", "Serper rejected the search (HTTP 400)");

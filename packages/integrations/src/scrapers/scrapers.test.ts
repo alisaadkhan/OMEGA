@@ -125,14 +125,20 @@ describe("profile scraper", () => {
 
   it("says a removed pinned build is the problem, not the token (2026-11-14)", async () => {
     const answer = (type: string) => () => new Response(JSON.stringify({ error: { type, message: "x" } }), { status: 403 });
-    const make = (type: string) =>
-      createProfileScraper({
+    const sinks: MemoryProviderCallSink[] = [];
+    const make = (type: string) => {
+      const sink = new MemoryProviderCallSink();
+      sinks.push(sink);
+      return createProfileScraper({
         apify: { token: "t", instagramActor: "apify/instagram-profile-scraper", instagramBuild: "0.0.1", tiktokActor: "clockworks/tiktok-profile-scraper" },
         youtubeApiKey: "yt", tiktokVideos: 6,
-        spendGuard: { begin: async () => () => {} }, sink: new MemoryProviderCallSink(), logger, fetch: fakeFetch(answer(type)).fetch, sleep: async () => {},
+        spendGuard: { begin: async () => () => {} }, sink, logger, fetch: fakeFetch(answer(type)).fetch, sleep: async () => {},
       });
+    };
     await expect(make("build-not-found").fetchProfile({ platform: "instagram", handle: "x" })).rejects.toThrow(/pinned actor build no longer exists/);
     await expect(make("token-not-valid").fetchProfile({ platform: "instagram", handle: "x" })).rejects.toThrow(/refused the token/);
+    // Each recorded as its own class (observability review 2026-11-15): the credentials alert counts http_401/http_403 only.
+    expect(sinks.map((s) => s.calls.map((c) => c.errorCode))).toEqual([["build_not_found"], ["http_403"]]);
   });
 
   it("pins TikTok runs to the configured immutable build", async () => {

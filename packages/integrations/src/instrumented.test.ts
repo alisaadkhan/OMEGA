@@ -131,4 +131,14 @@ describe("provider failure codes", () => {
     expect(errorCodeOf(new Error("boom"))).toBe("error");
     expect(errorCodeOf("boom")).toBe("error");
   });
+
+  // Observability review 2026-11-15: every failure class on-call needs to tell apart, from a small fixed set.
+  it("names the precise cause: an adapter code, an invalid model reply, a network failure", () => {
+    expect(errorCodeOf(Object.assign(new Error("x"), { reason: "not_configured", status: 403, code: "build_not_found" }))).toBe("build_not_found");
+    expect(errorCodeOf(Object.assign(new Error("x"), { code: "PROVIDER_UNAVAILABLE", status: 503 }))).toBe("http_503"); // upper-case codes are not ours
+    expect(errorCodeOf(Object.assign(new Error("LLM reply was not usable: bad json"), { name: "LlmOutputError" }))).toBe("invalid_reply");
+    expect(errorCodeOf(new TypeError("fetch failed", { cause: Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET" }) }))).toBe("network");
+    expect(errorCodeOf(new TypeError("fetch failed"))).toBe("network");
+    expect(errorCodeOf(Object.assign(new Error("aborted"), { name: "AbortError" }))).toBe("aborted");
+  });
 });

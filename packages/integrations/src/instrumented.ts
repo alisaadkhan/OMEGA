@@ -50,6 +50,7 @@ export async function instrumented<T>(opts: InstrumentOptions<T>, fn: (signal: A
     } catch (err) {
       lastError = err;
       const timedOut = err instanceof ProviderTimeoutError || controller.signal.reason instanceof ProviderTimeoutError;
+      const errorCode = timedOut ? "timeout" : errorCodeOf(err);
       await record(opts, {
         model: null,
         tokensIn: null,
@@ -58,9 +59,13 @@ export async function instrumented<T>(opts: InstrumentOptions<T>, fn: (signal: A
         costUsd: 0,
         latencyMs: Math.round(performance.now() - started),
         status: "error",
-        errorCode: timedOut ? "timeout" : errorCodeOf(err),
+        errorCode,
       });
-      opts.logger.warn({ err, provider: opts.provider, operation: opts.operation, attempt }, "provider call failed");
+      // One stable event with the failure class and the run's ids, so a log search finds every failure of one job or request.
+      opts.logger.warn(
+        { event: "provider_call_failed", err, provider: opts.provider, operation: opts.operation, attempt, errorCode, jobId: opts.ctx?.jobId ?? null, requestId: opts.ctx?.requestId ?? null },
+        "provider call failed",
+      );
       if (attempt === opts.retries || !(timedOut || isRetryable(err))) break;
       await sleep(200 * 2 ** attempt);
       continue;
@@ -93,12 +98,23 @@ export async function instrumented<T>(opts: InstrumentOptions<T>, fn: (signal: A
  * A fixed, non-sensitive failure class: `http_<status>` when the provider answered, the adapter's reason otherwise.
  * Messages are never recorded (they can echo prompts or provider output). A generic "error" for every failure hid
  * whether 12 live-run Groq failures were rate limits or bad requests (2026-10-13).
+ *
+ * Observability review 2026-11-15: an adapter's own `code` (lower-case, bounded) names the cause more precisely than the
+ * status ("build_not_found" rather than a 403 that reads as a refused key); invalid model replies and network failures,
+ * 1,250+ rows of plain "error" in October, get their own classes. The set stays small and fixed: a metric label, never a
+ * message.
  */
 export function errorCodeOf(err: unknown): string {
   if (typeof err !== "object" || err === null) return "error";
-  const { status, reason } = err as { status?: unknown; reason?: unknown };
+  const { status, reason, code, name, cause, message } = err as { status?: unknown; reason?: unknown; code?: unknown; name?: unknown; cause?: unknown; message?: unknown };
+  if (typeof code === "string" && /^[a-z_]{1,32}$/.test(code)) return code;
   if (typeof status === "number" && Number.isInteger(status) && status >= 100 && status <= 599) return `http_${status}`;
   if (typeof reason === "string" && /^[a-z_]{1,32}$/.test(reason)) return reason;
+  if (name === "LlmOutputError" || name === "ZodError") return "invalid_reply";
+  if (name === "AbortError") return "aborted";
+  // fetch() fails with TypeError("fetch failed") and the system error (ECONNRESET, ENOTFOUND, ...) as its cause.
+  const sys = typeof cause === "object" && cause !== null ? (cause as { code?: unknown }).code : undefined;
+  if ((typeof sys === "string" && /^E[A-Z_]{2,30}$/.test(sys)) || (name === "TypeError" && typeof message === "string" && /fetch failed/i.test(message))) return "network";
   return "error";
 }
 

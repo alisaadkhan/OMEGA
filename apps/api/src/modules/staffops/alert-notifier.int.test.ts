@@ -65,6 +65,19 @@ describe("alert delivery (audit OPS-03)", () => {
     expect(out.filter(Boolean)).toHaveLength(1);
   });
 
+  // Observability review 2026-11-15: Apify's removed builds read as "N of M calls failed" (and as a key problem) for days.
+  it("says why a provider is failing, and raises a removed actor build at once without blaming the key", async () => {
+    const actions = createStaffActions({ db });
+    const failed = Array.from({ length: 6 }, () => `('apify', 'scrape_instagram', 10, 'error', 0, 'build_not_found')`).join(", ");
+    await ownerQuery(`insert into platform.provider_calls (provider, operation, latency_ms, status, cost_usd, error_code) values ${failed}`);
+    const { alerts } = await actions.alerts();
+    expect(alerts).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: "provider_apify", severity: "critical", message: expect.stringContaining("6 of 6 calls failed in the last hour. Mostly build_not_found: a pinned actor build was removed") }),
+      expect.objectContaining({ key: "build_apify", severity: "critical", message: expect.stringContaining("APIFY_INSTAGRAM_BUILD") }),
+    ]));
+    expect(alerts.some((a) => a.key === "auth_apify")).toBe(false);
+  });
+
   it("raises a critical alert when the worker never reported or its heartbeat is stale", async () => {
     const actions = createStaffActions({ db });
     expect((await actions.alerts()).alerts).toEqual(expect.arrayContaining([expect.objectContaining({ key: "worker", severity: "critical" })]));

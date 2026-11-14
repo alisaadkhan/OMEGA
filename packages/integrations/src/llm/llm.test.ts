@@ -38,8 +38,11 @@ describe("OpenAiCompatibleLlm", () => {
     expect((await fixed.client.complete({ feature: "creator_summary", system: "s", input: "i", schema })).value).toEqual({ ok: true });
     expect(fixed.bodies[1]?.body["messages"]).toHaveLength(4);
     const broken = llm([gemini, ollama], () => reply('{"ok":"yes"}'));
-    await expect(broken.client.complete({ feature: "creator_summary", system: "s", input: "i", schema })).rejects.toMatchObject({ code: "PROVIDER_UNAVAILABLE" });
+    await expect(broken.client.complete({ feature: "creator_summary", system: "s", input: "i", schema, ctx: { jobId: "j1" } })).rejects.toMatchObject({ code: "PROVIDER_UNAVAILABLE" });
     expect(broken.bodies.every((b) => b.url.startsWith("https://gemini.test"))).toBe(true);
+    // Observability review 2026-11-15: the unusable outcome is recorded as its own failure, after the two answered calls.
+    expect(broken.sink.calls.map((c) => [c.status, c.errorCode])).toEqual([["ok", null], ["ok", null], ["error", "invalid_reply"]]);
+    expect(broken.sink.calls[2]).toMatchObject({ provider: "gemini", operation: "creator_summary", costUsd: 0, jobId: "j1" });
   });
 
   it("falls back to Ollama Cloud when Gemini fails, and fails cleanly when both do", async () => {

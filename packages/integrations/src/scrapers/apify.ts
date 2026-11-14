@@ -57,10 +57,12 @@ export function createApifyClient(o: ClientOptions) {
     if (res.status === 401 || res.status === 403) {
       // Apify also answers 403 for a pinned build its publisher removed: say so, not "token" (found 2026-11-14).
       const type = await res.json().then((b: { error?: { type?: string } }) => b?.error?.type ?? null).catch(() => null);
-      if (type === "build-not-found") throw new ProviderError(false, "not_configured", "Apify: the pinned actor build no longer exists (re-pin APIFY_*_BUILD)");
-      throw new ProviderError(false, "not_configured", `Apify refused the token (HTTP ${res.status})`);
+      // Recorded as their own classes (observability review 2026-11-15): "build_not_found" raises its own alert, and a
+      // refused token carries its status so the credentials alert fires (it counts http_401/http_403 only).
+      if (type === "build-not-found") throw Object.assign(new ProviderError(false, "not_configured", "Apify: the pinned actor build no longer exists (re-pin APIFY_*_BUILD)"), { code: "build_not_found" });
+      throw Object.assign(new ProviderError(false, "not_configured", `Apify refused the token (HTTP ${res.status})`), { status: res.status });
     }
-    if (!res.ok) throw new ProviderError(res.status >= 500 || res.status === 429, "provider", `Apify answered HTTP ${res.status}`);
+    if (!res.ok) throw Object.assign(new ProviderError(res.status >= 500 || res.status === 429, "provider", `Apify answered HTTP ${res.status}`), { status: res.status });
     return (await res.json()) as T;
   }
 
