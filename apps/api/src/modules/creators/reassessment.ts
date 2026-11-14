@@ -17,7 +17,7 @@ import { bulkRefreshProfileCountries } from "./enrichment/repository";
  * engagement; not YouTube while derived YouTube metrics are restricted) and each profile's country. No provider or AI
  * call, nothing deleted. scripts/catalog/reassess-catalogue.ts is the same rules with an impact report for a dry run.
  */
-export const REASSESSMENT_VERSION = "reassess-2026-11-04d";
+export const REASSESSMENT_VERSION = "reassess-2026-11-14";
 export const REASSESSMENT_BATCH = 200;
 
 export type ReadPayload = (storageKey: string) => Promise<unknown | null>;
@@ -48,11 +48,13 @@ export async function reassessCreators(db: Db, creatorIds: string[], readPayload
   const perf: { id: string; mv: number | null; mer: number | null; vs: number; es: number; fmt: string; f: string | null; t: string | null; er: number | null }[] = [];
   const contacts: { creator_id: string; kind: string; enc: string; hash: string; masked: string; trust: string; source: string }[] = [];
   const links: { creator_id: string; platform: string; url: string; source: string }[] = [];
+  const ticks: { id: string; v: boolean }[] = [];
   for (const r of rows) {
     // A missing or expired answer leaves this profile as it is.
     // YouTube data past its 30 days is never re-derived: retention (0063/0078) cleared it and only a refresh brings it back.
     const raw = r.key && !r.youtube_expired ? await readPayload(r.key).catch(() => null) : null;
     const std = raw ? standardize(r.platform, r.handle, raw, { maxPosts: 30 }) : null;
+    if (std?.kind === "ok" && r.platform !== "youtube") ticks.push({ id: r.profile_id, v: std.profile.verified });
     if (r.platform === r.primary_platform && r.account_type_source !== "staff") {
       const d = classifyAccountType({ category: std?.kind === "ok" ? (std.profile.accountCategory ?? null) : null, bio: r.bio ?? "", handle: r.handle, displayName: r.display_name });
       accounts.push({ id: r.creator_id, ...d });
@@ -103,6 +105,15 @@ export async function reassessCreators(db: Db, creatorIds: string[], readPayload
         where ${writable}
         on conflict (creator_id, url) do nothing`);
       changed += res.count ?? 0;
+    }
+    // Blue tick per profile (0086); the creator is verified when any profile is. YouTube has no badge in its API.
+    if (ticks.length) {
+      const res = await tx.execute(sql`
+        update gcp.creator_profiles p set verified = u.v from jsonb_to_recordset(${JSON.stringify(ticks)}::jsonb) as u(id uuid, v boolean)
+        where p.id = u.id and p.verified is distinct from u.v`);
+      changed += res.count ?? 0;
+      await tx.execute(sql`update gcp.creators c set verified = exists (select 1 from gcp.creator_profiles p where p.creator_id = c.id and p.verified)
+        where c.id in (select jsonb_array_elements_text(${JSON.stringify(creatorIds)}::jsonb)::uuid)`);
     }
     // Countries last: recovered links can carry a linked profile's Pakistani evidence.
     changed += (await bulkRefreshProfileCountries(tx, creatorIds, { source: "backfill" })).length;

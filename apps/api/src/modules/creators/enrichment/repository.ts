@@ -300,6 +300,9 @@ export async function saveEnrichment(tx: Tx, i: SaveInput): Promise<{ creatorId:
   }
   // Every fetch and refresh keeps this platform profile's own photo too (0084; owner directive 2026-11-04 §1).
   if (i.avatar) await tx.update(creatorProfiles).set({ avatarUrl: i.avatar.url, avatarKey: i.avatar.key }).where(eq(creatorProfiles.id, profileId));
+  // Blue tick per platform profile (0086); the creator is verified when any of its profiles is.
+  await tx.update(creatorProfiles).set({ verified: p.verified }).where(eq(creatorProfiles.id, profileId));
+  await tx.execute(sql`update gcp.creators c set verified = exists (select 1 from gcp.creator_profiles p where p.creator_id = c.id and p.verified) where c.id = ${creatorId}`);
 
   await tx.insert(profileMetricSnapshots).values({
     profileId,

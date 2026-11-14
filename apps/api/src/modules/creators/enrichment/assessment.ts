@@ -166,13 +166,13 @@ export async function assessCreator(o: {
   const captions = o.profile.recentPosts
     .slice(0, 6)
     // Each post with its tags: the AI sees what the creator tags, not only what they write (unified plan 2026-11-14).
-    .map((p) => `${redactContacts(p.caption).slice(0, 200)}${p.hashtags.length ? ` [tags: ${p.hashtags.slice(0, 10).join(", ")}]` : ""}`)
+    .map((p) => redactContacts(`${p.caption.slice(0, 200)}${p.hashtags.length ? ` [tags: ${p.hashtags.slice(0, 10).join(", ")}]` : ""}`))
     .filter(Boolean)
     .join("\n");
   const input = [
     `Platform: ${o.profile.platform}. Followers: ${o.profile.followers} (${o.report.tier}). Verified (blue tick): ${o.profile.verified ? "yes" : "no"}.`,
-    fenced("name", o.profile.displayName),
-    fenced("category", o.profile.accountCategory ?? "none"),
+    fenced("name", redactContacts(o.profile.displayName)),
+    fenced("category", redactContacts(o.profile.accountCategory ?? "none")),
     scoreLine,
     `Niche list: ${o.nicheLabels.join(", ")}`,
     fenced("signals", signalLines || "none measured"),

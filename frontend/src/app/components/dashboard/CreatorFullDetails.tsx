@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { ExternalLink, Mail, Phone, ShieldCheck, Sparkles } from "lucide-react";
+import { BadgeCheck, ExternalLink, Mail, Phone, ShieldCheck, Sparkles } from "lucide-react";
 import type { CreatorProfile } from "@mushin/contracts";
 import { CONTACT_AVAILABILITY_TEXT, contactEvidenceText, formatCount, uiContactState, formatEr } from "../../api/search-mapping";
 import { relative } from "../../lib/time";
@@ -70,7 +70,9 @@ export function CreatorFullDetails({
             <div key={pr.platform} className="rounded-xl bg-slate-50 p-3">
               <div className="flex items-center justify-between text-xs">
                 <a href={pr.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-semibold text-slate-900 hover:text-cyan-700">
-                  {PLATFORM_LABEL[pr.platform]} · @{pr.handle} <ExternalLink className="h-3 w-3" />
+                  {PLATFORM_LABEL[pr.platform]} · @{pr.handle}
+                  {pr.verified && <BadgeCheck aria-label={`Verified on ${PLATFORM_LABEL[pr.platform]}`} className="h-3.5 w-3.5 text-[#06B6D4]" />}
+                  <ExternalLink className="h-3 w-3" />
                 </a>
                 <FreshnessBadge value={pr.freshness.followers} updated={relative(pr.updatedAt.followers)} />
               </div>

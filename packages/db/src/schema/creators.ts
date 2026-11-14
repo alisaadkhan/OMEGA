@@ -109,6 +109,8 @@ export const creatorProfiles = gcp.table("creator_profiles", {
   countryStatus: text("country_status", { enum: ["pakistan", "foreign", "unknown", "conflicting"] }).notNull().default("unknown"),
   /** Generated (0081): lives abroad and the bio states Pakistani identity. Read-only. */
   pakistaniDiaspora: boolean("pakistani_diaspora").generatedAlwaysAs(sql`(see migration 0081)`),
+  /** This platform profile's own blue tick (0086). */
+  verified: boolean("verified").notNull().default(false),
   /** This platform profile's own photo (0084); the creator keeps the primary one. */
   avatarUrl: text("avatar_url"),
   avatarKey: text("avatar_key"),

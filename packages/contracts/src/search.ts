@@ -219,6 +219,8 @@ export const creatorProfileSchema = z.object({
       url: z.string(),
       /** This platform profile's own photo (0084); null shows the creator's photo or initials. */
       avatarUrl: z.string().nullable().default(null),
+      /** This platform profile's own blue tick (0086). */
+      verified: z.boolean().default(false),
       followers: z.number().int().nullable(),
       following: z.number().int().nullable(),
       posts: z.number().int().nullable(),

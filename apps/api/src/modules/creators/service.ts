@@ -343,6 +343,7 @@ export function createCreatorsService(deps: CreatorsDeps) {
           handle: p.handle,
           url: p.canonicalUrl,
           avatarUrl: p.avatarUrl ?? null,
+          verified: p.verified ?? false,
           followers: p.followers,
           following: p.following,
           posts: p.posts,
