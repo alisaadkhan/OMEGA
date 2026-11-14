@@ -61,6 +61,7 @@ const REASONS: Record<string, string> = {
   profile_private: "Profile private",
   no_profile: "No profile",
   minor_protected: "Protected (possible minor)",
+  account_not_individual_creator: "Not an individual creator",
   creator_not_active: "Creator removed or merged",
   evidence_expired: "Count or post date expired since indexing",
 };

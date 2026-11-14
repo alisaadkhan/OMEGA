@@ -30,6 +30,28 @@ describe("account type", () => {
     expect(c({ bio: "Makeup artist, salon owner, Karachi" }).type).toBe("INDIVIDUAL_CREATOR");
   });
 
+  // Owner unified plan 2026-11-14, Phase 5.
+  it("excludes official game, brand and media accounts and storefront boilerplate, but never a creator using a brand's name", () => {
+    expect(c({ handle: "pubgm_pk_official", displayName: "PUBG MOBILE Pakistan" }).type).toBe("BRAND_ACCOUNT");
+    expect(c({ handle: "samsungpakistan", displayName: "Samsung Pakistan" }).type).toBe("BRAND_ACCOUNT");
+    expect(c({ handle: "kfcpakistan", displayName: "KFC Pakistan" }).type).toBe("BRAND_ACCOUNT");
+    expect(c({ handle: "freefire_pk_official" }).type).toBe("BRAND_ACCOUNT");
+    expect(c({ bio: "Official account of Foodies Co. Order online, nationwide delivery" }).type).toBe("BRAND_ACCOUNT");
+    expect(c({ category: "Video game" }).type).toBe("BRAND_ACCOUNT");
+    expect(c({ category: "Sports team" }).type).toBe("COMPANY_CORPORATE");
+    // Creators keep their creator status even with a game or brand in the handle.
+    expect(c({ handle: "pubg_pakistan_gamer", bio: "PUBG streamer and content creator" }).type).toBe("INDIVIDUAL_CREATOR");
+    expect(c({ handle: "aryan.vlogs", bio: "Daily vlogs" }).type).toBe("INDIVIDUAL_CREATOR");
+    expect(c({ handle: "applebeauty", bio: "Living the dream" }).type).toBe("UNKNOWN");
+  });
+
+  it("separates traditional celebrities from creators: an actor's bio is a public figure, a vlogging actor stays a creator", () => {
+    expect(c({ bio: "TV actress | Drama serial Mere Paas Tum Ho" }).type).toBe("CELEBRITY_PUBLIC_FIGURE");
+    expect(c({ bio: "Politician, Member of the National Assembly" }).type).toBe("CELEBRITY_PUBLIC_FIGURE");
+    expect(c({ bio: "Cricketer. Pakistan national team" }).type).toBe("CELEBRITY_PUBLIC_FIGURE");
+    expect(c({ bio: "Actor and YouTuber, weekly vlogs" }).type).toBe("INDIVIDUAL_CREATOR");
+  });
+
   it("marks traditional public figures, and leaves the rest unknown rather than assuming a creator", () => {
     expect(c({ category: "Actor", bio: "Managed by @mintcommpk" }).type).toBe("CELEBRITY_PUBLIC_FIGURE");
     expect(c({ category: "Politician" }).type).toBe("CELEBRITY_PUBLIC_FIGURE");

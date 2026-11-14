@@ -10,11 +10,11 @@ describe("organisation accounts", () => {
   it.each(["Digital creator", "Blogger", "Artist", "Actor", "Public figure", "Makeup Artist", "Health/beauty", "Beauty, cosmetic & personal care", "Social Media Agency", "Food & Drink", null, ""])("%s stays a creator", (c) => {
     expect(organisationCategory(c)).toBeNull();
   });
-  it("an organisation is not eligible (reason organisation_account) unless staff override it", () => {
+  it("an organisation is not eligible (reason account_not_individual_creator) unless staff override it", () => {
     const profile = { platform: "instagram" as const, canonicalUrl: "https://instagram.com/burgeroclock", followers: 100_000, followersUpdatedAt: new Date(), lastPostAt: new Date(), availability: null, country: { code: "PK", status: "pakistan" as const, checkedAt: new Date() } };
     const base = { status: "active", isMinor: false, minorOverrideByStaffId: null };
     expect(creatorEligibility({ ...base, organisation: false }, [profile], new Date()).eligible).toBe(true);
     const org = creatorEligibility({ ...base, organisation: true }, [profile], new Date());
-    expect(org).toMatchObject({ eligible: false, reasons: ["organisation_account"] });
+    expect(org).toMatchObject({ eligible: false, reasons: ["account_not_individual_creator"] });
   });
 });

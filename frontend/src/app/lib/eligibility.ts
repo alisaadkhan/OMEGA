@@ -17,6 +17,7 @@ const REASON_TEXT: Record<string, string> = {
   country_stale: "Country evidence older than a year",
   creator_not_active: "No longer available",
   minor_protected: "Hidden by MUSHIN's minor protection",
+  account_not_individual_creator: "Not an individual creator (brand, company, shop, media, fan page or traditional celebrity)",
   no_profile: "No profile on record",
   not_evaluated: "Not checked yet",
 };

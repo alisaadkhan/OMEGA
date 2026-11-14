@@ -43,7 +43,7 @@ export const DEFAULT_ELIGIBILITY: EligibilitySettings = { minFollowers: MIN_FOLL
 export type ProfileReason =
   | "invalid_profile_url" | "followers_unknown" | "followers_stale" | "below_follower_minimum" | "inactive" | "profile_not_found" | "profile_private"
   | "country_not_pakistan" | "country_unknown" | "country_conflicting" | "country_stale";
-export type CreatorReason = "creator_not_active" | "minor_protected" | "organisation_account" | "no_profile";
+export type CreatorReason = "creator_not_active" | "minor_protected" | "account_not_individual_creator" | "no_profile";
 export type EligibilityFlag = "activity_unverified" | "availability_unconfirmed";
 
 export type EligibilityProfile = {
@@ -126,7 +126,8 @@ export function creatorEligibility(c: EligibilityCreator, profiles: EligibilityP
   const creatorReasons: CreatorReason[] = [];
   if (c.status !== "active") creatorReasons.push("creator_not_active");
   if (isMinorProtected(c)) creatorReasons.push("minor_protected");
-  if (c.organisation === true) creatorReasons.push("organisation_account");
+  // A brand, company, shop, media outlet, fan page or traditional celebrity (plan 2026-11-14 Phase 5): not a creator.
+  if (c.organisation === true) creatorReasons.push("account_not_individual_creator");
   if (profiles.length === 0) creatorReasons.push("no_profile");
   const evaluated = profiles.map((p) => profileEligibility(p, now, s));
   const qualifying = evaluated.filter((p) => p.qualifies);

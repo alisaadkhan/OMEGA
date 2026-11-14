@@ -3,7 +3,7 @@ import { AppError, type Logger } from "@mushin/core";
 import { providerSpendForJob, type Db, type LivePrices, type LiveProgress, type TenantTx } from "@mushin/db";
 import { ProviderError, type Llm, type ProfileScraper } from "@mushin/integrations";
 import type { BillingService } from "../billing/index";
-import { findProfileByUrl, fitLabel, getSearchSettings, profileCountry, profileEligibility, isVisibleCreator, rankCards, suppressedUrls, type CreatorPlatform, type SourcePolicy, type EnrichJob, type EnrichmentPipeline } from "../creators/index";
+import { classifyAccountType, findProfileByUrl, fitLabel, NON_TARGET_TYPES, getSearchSettings, profileCountry, profileEligibility, isVisibleCreator, rankCards, suppressedUrls, type CreatorPlatform, type SourcePolicy, type EnrichJob, type EnrichmentPipeline } from "../creators/index";
 import { notifyFinished, releaseHeld } from "./finish";
 import { TERMS_V2, type TaggedSearch } from "./topic-evidence";
 import type { CachedSearch } from "./live/cache";
@@ -151,7 +151,14 @@ export function createLiveRunner(deps: Deps) {
     // Creator eligibility (elig-1, now elig-2) before delivery: the profile that was found must itself have a recent count of at
     // least 10,000 followers/subscribers. A creator below it is saved (nothing is deleted) but not delivered or charged.
     // elig-2 (2026-10-27): the profile found must also be Pakistani on its own evidence (its bio; YouTube: the channel country).
-    const eligibleProfile = (k: Kept, p: { followers: number | null; recentPosts: { postedAt: Date }[]; bio: string; country: string | null }, observedAt: Date) => {
+    // Plan 2026-11-14 Phase 5: a brand, company, shop, media outlet, fan page or traditional celebrity is saved but never
+    // delivered or charged (reason account_not_individual_creator), the same rule as search.
+    const eligibleProfile = (k: Kept, p: { followers: number | null; recentPosts: { postedAt: Date }[]; bio: string; country: string | null; displayName?: string; accountCategory?: string | null }, observedAt: Date) => {
+      const kind = classifyAccountType({ category: p.accountCategory ?? null, bio: p.bio, handle: k.handle, displayName: p.displayName ?? "" });
+      if (NON_TARGET_TYPES.has(kind.type) && (kind.confidence === "high" || kind.confidence === "medium")) {
+        trail.set(k.canonicalUrl, "verification", "rejected", "account_not_individual_creator");
+        return false;
+      }
       const latest = p.recentPosts.reduce<Date | null>((max, x) => (max === null || x.postedAt > max ? x.postedAt : max), null);
       const pc = profileCountry({ bio: p.bio, platformCountry: p.country, confirmed: null });
       const e = profileEligibility({ platform: k.platform, canonicalUrl: k.canonicalUrl, followers: k.platform === "youtube" && p.followers === 0 ? null : p.followers, followersUpdatedAt: observedAt, lastPostAt: latest, country: { code: pc.country, status: pc.status, checkedAt: observedAt } }, now());
