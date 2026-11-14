@@ -195,7 +195,7 @@ export function toCreator(c: CreatorCard): Creator {
     platform: c.platform,
     city: c.city ?? "",
     niche: c.niches.join(" · "),
-    nicheNote: c.niches.length > 0 && c.nicheSource === "post_estimated" ? (c.nichePostsAssessed ? `Estimated niche · Based on ${c.nichePostsAssessed} recent posts` : "Estimated niche · Based on recent posts") : null,
+    nicheNote: c.niches.length > 0 && c.nicheSource === "post_estimated" ? (c.platform === "youtube" ? `Estimated niche · Based on ${c.nichePostsAssessed ?? "recent"} recent video titles` : `Estimated niche · Based on tags in ${c.nichePostsAssessed ?? "recent"} recent posts`) : null,
     followers: formatCount(c.followers),
     followersNum: c.followers,
     engagement: c.engagementRate, // unknown stays unknown, never 0

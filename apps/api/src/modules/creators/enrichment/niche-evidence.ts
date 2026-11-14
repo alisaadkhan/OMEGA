@@ -41,9 +41,16 @@ export type NicheDecision = {
   postsAssessed?: number;
 };
 
-// Owner master directive 2026-11-03 (Part 3): 6 to 9 recent posts read together when the bio names no niche.
-export const MAX_POSTS_FOR_NICHE = 9;
-const MIN_POSTS = 6;
+// Tier 2 of the niche engine (owner unified plan 2026-11-14, Phase 3): when the bio/About names no niche and the creator
+// has 100K+ followers, YouTube's last 5 video titles (with their tags) and Instagram/TikTok's last 6 posts (tags and
+// captions) are read; a niche must appear in at least 2 of them, so one random tag never decides it.
+export const YT_TITLE_NICHE_SAMPLE = 5;
+export const SOCIAL_TAG_NICHE_SAMPLE = 6;
+/** The largest sample (kept for callers that size what they pass). */
+export const MAX_POSTS_FOR_NICHE = SOCIAL_TAG_NICHE_SAMPLE;
+export const nicheSample = (platform: string | null | undefined) => (platform === "youtube" ? YT_TITLE_NICHE_SAMPLE : SOCIAL_TAG_NICHE_SAMPLE);
+const MIN_POSTS = 3;
+const MIN_POST_HITS = 2;
 /**
  * Posts are read for the niche only for creators with at least this many followers or subscribers (owner execution
  * directive 2026-11-04): below it, a creator whose bio/About names no niche stays Unknown rather than guessed.
@@ -95,9 +102,8 @@ function splitPost(raw: string): { caption: string; tags: string } {
 }
 
 /**
- * The last 9 posts read together (owner execution directive 2026-11-04, Stage 1 §1): each post's caption/title topics and
- * its tags count once for that post, and a subject needs at least 3 of the 9 posts (MIN_POST_HITS), so one random tag
- * never decides the niche.
+ * The sample read together: each post's caption/title topics and its tags count once for that post, and the niche must
+ * be the clear leader in at least MIN_POST_HITS posts (2 of 5 YouTube titles, 2 of 6 Instagram/TikTok posts).
  */
 function readPosts(posts: string[]): PostReading {
   const parts = posts.map(splitPost).filter((p) => p.caption || p.tags);
@@ -111,16 +117,15 @@ function readPosts(posts: string[]): PostReading {
   const r = ranked(counts);
   const [l1, c1] = r[0] as [string, number];
   const c2 = r[1]?.[1] ?? 0;
-  const secondary = (main: string) => r.filter(([l, c]) => l !== main && c >= 2 && c / n >= 0.25).slice(0, 2).map(([l]) => l);
-  if (c1 >= 3 && c1 / n >= 0.4 && c1 > c2) return { kind: "classified", main: l1, secondary: secondary(l1), confidence: c1 / n >= 0.6 ? "high" : "medium", counts, n };
-  if (c1 >= 3 && c1 / n >= 0.25 && c1 >= 2 * c2) return { kind: "classified", main: l1, secondary: secondary(l1), confidence: "low", counts, n };
-  const several = r.filter(([, c]) => c >= 2 && c / n >= 0.15);
-  if (several.length === 2 && c1 === c2 && c1 >= 3) return { kind: "tie", labels: [l1, r[1]?.[0] as string], counts, n };
+  const secondary = (main: string) => r.filter(([l, c]) => l !== main && c >= MIN_POST_HITS).slice(0, 2).map(([l]) => l);
+  if (c1 >= MIN_POST_HITS && c1 > c2) return { kind: "classified", main: l1, secondary: secondary(l1), confidence: c1 / n >= 0.6 ? "high" : c1 / n >= 0.4 ? "medium" : "low", counts, n };
+  const several = r.filter(([, c]) => c >= MIN_POST_HITS);
+  if (several.length === 2 && c1 === c2) return { kind: "tie", labels: [l1, r[1]?.[0] as string], counts, n };
   if (several.length >= 2) return { kind: "variety", labels: several.slice(0, 3).map(([l]) => l), confidence: several.length >= 3 ? "medium" : "low", counts, n };
   return { kind: "insufficient", counts, n };
 }
 
-export function classifyNiche(o: { displayName: string; bio: string; accountCategory: string | null; posts: string[]; aiNiches: readonly string[]; followers?: number | null }): NicheDecision {
+export function classifyNiche(o: { displayName: string; bio: string; accountCategory: string | null; posts: string[]; aiNiches: readonly string[]; followers?: number | null; platform?: string | null }): NicheDecision {
   const observations: NicheObservation[] = [];
   const bioNorm = normalizeTerms(o.bio);
   const catNorm = normalizeTerms(o.accountCategory ?? "");
@@ -150,7 +155,7 @@ export function classifyNiche(o: { displayName: string; bio: string; accountCate
 
   // Posts are read only for 100K+ creators (followers unknown: not read). They still confirm a bio niche's confidence.
   const postsAllowed = (o.followers ?? 0) >= POST_NICHE_MIN_FOLLOWERS;
-  const posts = readPosts(o.posts.slice(0, MAX_POSTS_FOR_NICHE));
+  const posts = readPosts(o.posts.slice(0, nicheSample(o.platform)));
   const postNote = (l: string) => `${posts.counts.get(l) ?? 0} of ${posts.n} recent posts`;
   const postRow = (l: string): NicheObservation => ({ value: l, source: "post_text", status: "supported", evidence: `${postNote(l)} are about it` });
   const ai = (stored: string[]) => {

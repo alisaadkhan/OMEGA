@@ -52,27 +52,27 @@ describe("niche classification: bio first", () => {
     const posts = rep(["PUBG gameplay", "Free Fire ranked", "PUBG mobile tips", "Gaming setup"], 9);
     expect(niche({ bio: "Subscribe!", posts, followers: 99_999 })).toMatchObject({ status: "unknown", main: null });
     expect(niche({ bio: "Subscribe!", posts, followers: null })).toMatchObject({ status: "unknown" });
-    expect(niche({ bio: "Subscribe!", posts, followers: 100_000 })).toMatchObject({ status: "classified", main: "Gaming", source: "post_estimated", postsAssessed: 9 });
+    expect(niche({ bio: "Subscribe!", posts, followers: 100_000 })).toMatchObject({ status: "classified", main: "Gaming", source: "post_estimated", postsAssessed: 6 });
     expect(niche({ bio: "Gaming creator", posts: [], followers: 8_000 })).toMatchObject({ main: "Gaming", source: "bio_identified" });
   });
 
-  it("needs a subject in at least 3 of the 9 posts, from tags or captions", () => {
-    const two = [...rep(["#cricket match day"], 2), ...rep(["Good morning", "Thank you all", "Weekend vibes"], 7)];
-    expect(niche({ bio: "", posts: two }).main).toBeNull();
-    const three = [...rep(["#cricket match day"], 3), ...rep(["Good morning", "Thank you all", "Weekend vibes"], 6)];
-    expect(niche({ bio: "", posts: three })).toMatchObject({ status: "classified", main: "Sports" });
+  it("needs a subject in at least 2 of the 6 recent posts (plan 2026-11-14), from tags or captions", () => {
+    const one = ["#cricket match day", ...rep(["Good morning", "Thank you all", "Weekend vibes"], 5)];
+    expect(niche({ bio: "", posts: one }).main).toBeNull();
+    const two = [...rep(["#cricket match day"], 2), ...rep(["Good morning", "Thank you all", "Weekend vibes"], 4)];
+    expect(niche({ bio: "", posts: two })).toMatchObject({ status: "classified", main: "Sports", postsAssessed: 6 });
   });
 });
 
 describe("niche classification: recent posts when the bio is unclear", () => {
   it("finds the main niche and up to two secondary niches", () => {
-    const d = niche({ bio: "Subscribe for more", posts: [...rep(["PSL final analysis", "Cricket highlights reaction"], 6), "Biryani review", "Street food tour", "Karahi night"] });
+    const d = niche({ bio: "Subscribe for more", posts: ["PSL final analysis", "Biryani review", "Cricket highlights reaction", "Street food tour", "PSL qualifier", "Cricket world cup"] });
     expect(d).toMatchObject({ status: "classified", main: "Sports" });
     expect(d.niches).toEqual(["Sports", "Food"]);
   });
 
   it("calls a creator with several subjects and no dominant one Variety", () => {
-    const d = niche({ posts: rep(["Cricket highlights", "New song cover", "Prank on brother", "PUBG stream", "Biryani recipe", "Breaking news today"]) });
+    const d = niche({ posts: ["Cricket highlights", "New song cover", "PUBG stream", "Cricket world cup", "Song release", "PUBG rank push"] });
     expect(d.status).toBe("variety");
     expect(d.main).toBeNull();
     expect(d.niches.length).toBeGreaterThanOrEqual(2);
@@ -116,16 +116,17 @@ describe("niche classification: directive 2026-11-03", () => {
     expect(niche({ bio: "Journalist and news anchor, Karachi" })).toMatchObject({ main: "News & Commentary", source: "bio_identified" });
   });
 
-  it("never calls a creator Gaming from #PUBG on one or two posts", () => {
-    const posts = ["Morning routine #pubg", "Office day #pubg", "Family dinner", "Eid shopping", "Weekend drive", "Rainy day", "Chai time"];
+  it("never calls a creator Gaming from a single #PUBG post", () => {
+    const posts = ["Morning routine #pubg", "Office day", "Family dinner", "Eid shopping", "Weekend drive", "Rainy day", "Chai time #pubg"];
     expect(niche({ bio: "", posts }).main).not.toBe("Gaming");
   });
 
-  it("estimates from 6 to 9 posts read together, records how many, and says Unknown below six", () => {
+  it("reads the last 6 Instagram/TikTok posts or the last 5 YouTube titles, records how many, and says Unknown below three", () => {
     const d = niche({ bio: "", posts: rep(["Biryani recipe at home", "Karahi tutorial", "Street food review"], 9) });
-    expect(d).toMatchObject({ main: "Food", source: "post_estimated", postsAssessed: 9 });
-    expect(niche({ bio: "", posts: rep(["Biryani recipe at home"], 12) }).postsAssessed).toBe(9);
-    expect(niche({ bio: "", posts: rep(["Biryani recipe at home"], 5) })).toMatchObject({ status: "unknown", source: null, postsAssessed: 5 });
+    expect(d).toMatchObject({ main: "Food", source: "post_estimated", postsAssessed: 6 });
+    expect(niche({ bio: "", posts: rep(["Biryani recipe at home"], 12) }).postsAssessed).toBe(6);
+    expect(classifyNiche({ displayName: "C", bio: "", accountCategory: null, posts: rep(["Biryani recipe at home"], 12), aiNiches: [], followers: 200_000, platform: "youtube" }).postsAssessed).toBe(5);
+    expect(niche({ bio: "", posts: rep(["Biryani recipe at home"], 2) })).toMatchObject({ status: "unknown", source: null, postsAssessed: 2 });
   });
 });
 

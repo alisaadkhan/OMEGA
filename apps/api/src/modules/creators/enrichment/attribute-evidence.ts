@@ -1,7 +1,7 @@
 import { CITIES_V2, normalizeTerms } from "../terminology";
 import type { Assessment } from "./assessment";
 import { deriveCountry, type CountryConfidence } from "./country-evidence";
-import { classifyNiche, mentions, MAX_POSTS_FOR_NICHE, type NicheConfidence, type NicheDecision, type NicheStatus } from "./niche-evidence";
+import { classifyNiche, mentions, MAX_POSTS_FOR_NICHE, nicheSample, type NicheConfidence, type NicheDecision, type NicheStatus } from "./niche-evidence";
 import { quote } from "./quote";
 import type { SemanticInput } from "./semantic-niche";
 import type { StandardProfile } from "./standardize";
@@ -102,8 +102,9 @@ export function deriveAttributes(p: StandardProfile, a: Assessment | null, o: De
 
   // Niche.
   // The last 9 non-pinned posts; read for the niche only for 100K+ creators (owner execution directive 2026-11-04).
-  const nichePosts = (o.usePostText === false ? [] : p.recentPosts.filter((x) => !x.isPinned)).slice(0, MAX_POSTS_FOR_NICHE).map((x) => `${x.caption} ${x.hashtags.join(" ")}`);
-  const nicheInput = { displayName: p.displayName, bio: unwrapHashtags(p.bio), accountCategory: p.accountCategory ?? null, posts: nichePosts, followers: p.followers };
+  // YouTube: video titles with their tags; Instagram/TikTok: captions with their tags (tags as #words, read as tags).
+  const nichePosts = (o.usePostText === false ? [] : p.recentPosts.filter((x) => !x.isPinned)).slice(0, nicheSample(p.platform)).map((x) => `${x.caption} ${x.hashtags.map((h) => `#${h.replace(/\s+/g, "_")}`).join(" ")}`);
+  const nicheInput = { displayName: p.displayName, bio: unwrapHashtags(p.bio), accountCategory: p.accountCategory ?? null, posts: nichePosts, followers: p.followers, platform: p.platform };
   const n = classifyNiche({ ...nicheInput, aiNiches: a?.niches ?? [] });
   evidence.push(...n.observations.map((r) => ({ attribute: "niche" as const, ...r })));
 
