@@ -1,0 +1,34 @@
+{
+ "mode": "reprocess",
+ "db": "mushin_catalog_v4",
+ "capUsd": 15,
+ "started": "2026-11-14T13:54:19.688Z",
+ "finished": "2026-11-14T13:54:21.478Z",
+ "spendByProvider": [],
+ "jobs": [
+  {
+   "i": 0,
+   "handle": "jannatmirza",
+   "status": "saved",
+   "ms": 878
+  },
+  {
+   "i": 1,
+   "handle": "tastebykamal",
+   "status": "saved",
+   "ms": 551
+  },
+  {
+   "i": 2,
+   "handle": "suchtvnews",
+   "status": "saved",
+   "ms": 142
+  },
+  {
+   "i": 3,
+   "handle": "ghanaaliraza",
+   "status": "saved",
+   "ms": 143
+  }
+ ]
+}

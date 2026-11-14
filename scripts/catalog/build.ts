@@ -36,10 +36,10 @@ import { createCachedSearch, createDiscoveryRunner, createDiscoveryService, crea
 
 const { positionals, values } = parseArgs({
   allowPositionals: true,
-  options: { "missing-avatars": { type: "boolean", default: false }, "min-refs": { type: "string", default: "2" }, manifest: { type: "string" }, db: { type: "string" }, cap: { type: "string", default: "20" }, platform: { type: "string" }, limit: { type: "string" }, niches: { type: "string" }, cities: { type: "string" }, size: { type: "string", default: "10" }, label: { type: "string", default: "main" } },
+  options: { handles: { type: "string" }, "missing-avatars": { type: "boolean", default: false }, "min-refs": { type: "string", default: "2" }, manifest: { type: "string" }, db: { type: "string" }, cap: { type: "string", default: "20" }, platform: { type: "string" }, limit: { type: "string" }, niches: { type: "string" }, cities: { type: "string" }, size: { type: "string", default: "10" }, label: { type: "string", default: "main" } },
 });
 const mode = positionals[0];
-if (mode !== "refresh" && mode !== "discover" && mode !== "reassess" && mode !== "seed" && mode !== "expand") throw new Error("usage: build.ts <refresh|discover|reassess|seed|expand> --db <catalogue db> --cap <usd> [--manifest <seed.json>] [--limit n] [--min-refs n]");
+if (mode !== "refresh" && mode !== "discover" && mode !== "reassess" && mode !== "seed" && mode !== "expand" && mode !== "reprocess") throw new Error("usage: build.ts <refresh|discover|reassess|seed|expand> --db <catalogue db> --cap <usd> [--manifest <seed.json>] [--limit n] [--min-refs n]");
 const dbName = values.db ?? "";
 if (!/^mushin_catalog_[a-z0-9_]+$/.test(dbName)) throw new Error("--db must name a local catalogue database (mushin_catalog_*); the frozen corpus is never a target");
 const capUsd = Number(values.cap);
@@ -276,12 +276,49 @@ if (mode === "reassess") {
     tried.add(h);
     writeFileSync(triedFile, JSON.stringify([...tried]));
   }
+} else if (mode === "reprocess") {
+  // Pilot (owner unified plan 2026-11-14, Phase 7): the full enrichment pipeline over each handle's newest stored answer
+  // (account type, niche, contacts, location, metrics, AI assessment, photo), exactly as a fetch would save it, with no
+  // provider call. For when a live fetch is not possible (e.g. the scraper refused the token).
+  const platform = (values.platform ?? "instagram") as "instagram" | "tiktok" | "youtube";
+  const handleList = (values.handles ?? "").split(",").map((h) => h.trim().replace(/^@/, "").toLowerCase()).filter(Boolean);
+  for (const [i, h] of handleList.entries()) {
+    const started1 = Date.now();
+    const [ref] = await db.withSystem((tx) =>
+      tx.execute<{ id: string; storage_key: string; canonical_url: string; handle: string; fetched_at: string }>(sql`
+        select r.id, r.storage_key, p.canonical_url, p.handle, r.fetched_at::text fetched_at from gcp.creator_profiles p
+        join platform.raw_payloads r on r.creator_id = p.creator_id and r.platform = p.platform
+        where p.platform = ${platform} and lower(p.handle) = ${h} and r.delete_after > now() order by r.fetched_at desc limit 1`),
+    );
+    if (!ref) {
+      report.push({ i, handle: h, status: "no stored answer" });
+      continue;
+    }
+    const bytes = await pipeline.storage?.get("raw-payloads", ref.storage_key);
+    const raw = bytes ? JSON.parse(new TextDecoder().decode(bytes)) : null;
+    if (!raw) {
+      report.push({ i, handle: h, status: "stored answer file missing" });
+      continue;
+    }
+    const job = { jobId: randomUUID(), workspaceId: ctx.workspaceId, platform, handle: ref.handle, canonicalUrl: ref.canonical_url, requestId: null };
+    const out = await pipeline.processProfile(job, ref.id, raw, { onSaved: async () => {} }, { system: true }).catch((e: Error) => ({ kind: "error", message: e.message }));
+    // The data is as old as the stored answer: freshness must say so (a save stamps "now").
+    await db.withSystem((tx) =>
+      tx.execute(sql`update gcp.creator_profiles set last_scraped_at = ${ref.fetched_at}::timestamptz, followers_updated_at = ${ref.fetched_at}::timestamptz, engagement_updated_at = ${ref.fetched_at}::timestamptz
+        where platform = ${platform} and lower(handle) = ${h}`),
+    );
+    report.push({ i, handle: h, status: out.kind, ms: Date.now() - started1 });
+    logger.info(report.at(-1), "reprocess");
+  }
 } else if (mode === "refresh") {
   const platform = values.platform ?? "youtube";
   const limit = Number(values.limit ?? 1000);
   // --missing-avatars: only searchable creators without a stored profile photo (owner rule: every profile keeps its image).
+  // --handles a,b,c: only these handles on --platform (pilot runs; owner unified plan 2026-11-14, Phase 7).
+  const handleList = (values.handles ?? "").split(",").map((h) => h.trim().replace(/^@/, "").toLowerCase()).filter(Boolean);
+  const onlyHandles = handleList.length ? sql`and lower(p.handle) in (select jsonb_array_elements_text(${JSON.stringify(handleList)}::jsonb))` : sql``;
   const onlyMissing = values["missing-avatars"] ? sql`and p.platform = c.primary_platform and c.avatar_url is null and exists (select 1 from gcp.creator_search_documents d where d.creator_id = c.id and d.eligible)` : sql``;
-  const rows = await db.withSystem((tx) => tx.execute<{ id: string }>(sql`select p.creator_id as id from gcp.creator_profiles p join gcp.creators c on c.id = p.creator_id where c.status = 'active' and p.platform = ${platform} ${onlyMissing} order by p.followers desc nulls last limit ${limit}`));
+  const rows = await db.withSystem((tx) => tx.execute<{ id: string }>(sql`select p.creator_id as id from gcp.creator_profiles p join gcp.creators c on c.id = p.creator_id where c.status = 'active' and p.platform = ${platform} ${onlyMissing} ${onlyHandles} order by p.followers desc nulls last limit ${limit}`));
   logger.info({ creators: rows.length, platform }, "refresh start");
   for (const [i, r] of rows.entries()) {
     if ((await spentUsd()) >= capUsd - JOB_HEADROOM_USD) {

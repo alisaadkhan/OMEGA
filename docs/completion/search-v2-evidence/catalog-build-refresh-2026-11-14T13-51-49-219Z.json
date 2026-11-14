@@ -1,0 +1,53 @@
+{
+ "mode": "refresh",
+ "db": "mushin_catalog_v4",
+ "capUsd": 15,
+ "started": "2026-11-14T13:51:49.219Z",
+ "finished": "2026-11-14T13:52:11.692Z",
+ "spendByProvider": [
+  {
+   "provider": "groq",
+   "calls": 9,
+   "usd": "0.003623"
+  },
+  {
+   "provider": "youtube",
+   "calls": 4,
+   "usd": "0.000000"
+  }
+ ],
+ "jobs": [
+  {
+   "i": 0,
+   "creatorId": "15c59c7c-8ad7-48d1-8e62-12d4d3469e8e",
+   "status": "completed",
+   "outcome": "refreshed",
+   "error": null,
+   "ms": 11196
+  },
+  {
+   "i": 1,
+   "creatorId": "470ffbcb-cb02-4ec4-a9a6-f500853b61ad",
+   "status": "completed",
+   "outcome": "refreshed",
+   "error": null,
+   "ms": 1532
+  },
+  {
+   "i": 2,
+   "creatorId": "36c3e529-18f5-4a98-99b1-142802d86bd5",
+   "status": "completed",
+   "outcome": "refreshed",
+   "error": null,
+   "ms": 3346
+  },
+  {
+   "i": 3,
+   "creatorId": "dccba46c-897b-43a4-8611-9e48784fc679",
+   "status": "completed",
+   "outcome": "refreshed",
+   "error": null,
+   "ms": 6201
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "mode": "seed",
+ "db": "mushin_catalog_v4",
+ "capUsd": 15,
+ "started": "2026-11-14T13:51:16.565Z",
+ "finished": "2026-11-14T13:51:19.454Z",
+ "spendByProvider": [
+  {
+   "provider": "apify",
+   "calls": 1,
+   "usd": "0.000000"
+  }
+ ],
+ "jobs": [
+  {
+   "i": 0,
+   "handle": "jannatmirza",
+   "status": "known",
+   "outcome": null,
+   "error": null,
+   "ms": 12
+  },
+  {
+   "i": 1,
+   "handle": "duckybhai",
+   "status": "known",
+   "outcome": null,
+   "error": null,
+   "ms": 3
+  },
+  {
+   "i": 2,
+   "handle": "reviewspk",
+   "status": "known",
+   "outcome": null,
+   "error": null,
+   "ms": 4
+  },
+  {
+   "i": 3,
+   "handle": "ajffbt",
+   "status": "known",
+   "outcome": null,
+   "error": null,
+   "ms": 4
+  },
+  {
+   "i": 4,
+   "handle": "tastebykamal",
+   "status": "known",
+   "outcome": null,
+   "error": null,
+   "ms": 3
+  },
+  {
+   "i": 5,
+   "handle": "suchtvnews",
+   "status": "known",
+   "outcome": null,
+   "error": null,
+   "ms": 2
+  },
+  {
+   "i": 6,
+   "handle": "samaatv",
+   "status": "known",
+   "outcome": null,
+   "error": null,
+   "ms": 4
+  },
+  {
+   "i": 7,
+   "handle": "ghanaaliraza",
+   "status": "known",
+   "outcome": null,
+   "error": null,
+   "ms": 2
+  },
+  {
+   "i": 8,
+   "handle": "pubgm_pk_official",
+   "status": "failed",
+   "outcome": null,
+   "error": "PROVIDER_UNAVAILABLE",
+   "ms": 1390
+  },
+  {
+   "i": 9,
+   "handle": "sajalaly",
+   "status": "known",
+   "outcome": null,
+   "error": null,
+   "ms": 7
+  }
+ ]
+}

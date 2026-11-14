@@ -1,0 +1,16 @@
+{
+ "mode": "reprocess",
+ "db": "mushin_catalog_v4",
+ "capUsd": 15,
+ "started": "2026-11-14T13:54:22.749Z",
+ "finished": "2026-11-14T13:54:23.759Z",
+ "spendByProvider": [],
+ "jobs": [
+  {
+   "i": 0,
+   "handle": "sajalaly",
+   "status": "saved",
+   "ms": 941
+  }
+ ]
+}

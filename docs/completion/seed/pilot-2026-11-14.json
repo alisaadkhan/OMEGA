@@ -1,0 +1,15 @@
+{
+ "purpose": "Pilot verification batch (owner unified plan 2026-11-14, Phase 7): each account fetched live through the add-by-link path and assessed by the new rules. Handles are real accounts chosen from the catalogue's own data, plus one negative control named by the owner.",
+ "candidates": [
+  { "handle": "jannatmirza", "url": "https://www.tiktok.com/@jannatmirza", "role": "100K+ with no niche in the bio (6-post tag fallback)" },
+  { "handle": "duckybhai", "url": "https://www.youtube.com/@duckybhai", "role": "100K+ with no niche in the About (5-title fallback)" },
+  { "handle": "reviewspk", "url": "https://www.youtube.com/@reviewspk", "role": "contact only in video descriptions" },
+  { "handle": "ajffbt", "url": "https://www.youtube.com/@ajffbt", "role": "contact only in video descriptions (J FF)" },
+  { "handle": "tastebykamal", "url": "https://www.tiktok.com/@tastebykamal", "role": "collab route 'For Promotions DM me'" },
+  { "handle": "suchtvnews", "url": "https://www.tiktok.com/@suchtvnews", "role": "negative control: TV news channel" },
+  { "handle": "samaatv", "url": "https://www.youtube.com/@samaatv", "role": "negative control: TV news channel" },
+  { "handle": "ghanaaliraza", "url": "https://www.tiktok.com/@ghanaaliraza", "role": "negative control: actress" },
+  { "handle": "pubgm_pk_official", "url": "https://www.instagram.com/pubgm_pk_official/", "role": "negative control: official game account (owner's example)" },
+  { "handle": "sajalaly", "url": "https://www.instagram.com/sajalaly/", "role": "known gap: actress whose bio does not say so" }
+ ]
+}
