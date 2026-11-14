@@ -47,7 +47,12 @@ const locatedCue = (form: string) =>
 const PK_CUE = /\b(?:pakistan|pakistani|sindh)\b|پاکستان|سندھ|🇵🇰/iu;
 const AMBIGUOUS_CITY = new Set(["hyderabad"]);
 const cityForms = (forms: readonly string[]) => forms.filter((f) => /[؀-ۿ]/u.test(f) || f.length >= 5);
-const stripHashtags = (t: string) => t.replace(/#[\p{L}\p{N}_]+/gu, " ");
+// A bio hashtag keeps its word ("#TechBlogger | #Lahore" reads as "TechBlogger Lahore"): the creator wrote it about
+// themselves (unified plan 2026-11-14, Phase 2.3). Underscores join words in tags, so they become spaces.
+const unwrapHashtags = (t: string) => t.replace(/#([\p{L}\p{N}_]+)/gu, (_, w: string) => ` ${w.replace(/_/g, " ").replace(/(\p{Ll})(\p{Lu})/gu, "$1 $2")} `);
+// For location only, a bio that is a hashtag list (3+ tags: "#hania #lahore #srk #pakistan #bollywood", a UAE seller's
+// SEO tags) says nothing about where the creator lives; a tag or two in a sentence ("#Lahore") still counts.
+const stripHashtags = (t: string) => ((t.match(/#[\p{L}\p{N}_]+/gu) ?? []).length >= 3 ? t.replace(/#[\p{L}\p{N}_]+/gu, " ") : unwrapHashtags(t));
 const ROMAN_URDU = new Set("main mein mera meri mujhe hum aap tum hai hain tha thi hoon hun karta karti karte kya kiya ka ki ke ko se nahi nahin aur bhi".split(" "));
 const CITY_NAMES: Record<string, string> = Object.fromEntries(CITIES_V2.map((c) => [c.key, c.key.charAt(0).toUpperCase() + c.key.slice(1)]));
 
@@ -98,7 +103,7 @@ export function deriveAttributes(p: StandardProfile, a: Assessment | null, o: De
   // Niche.
   // The last 9 non-pinned posts; read for the niche only for 100K+ creators (owner execution directive 2026-11-04).
   const nichePosts = (o.usePostText === false ? [] : p.recentPosts.filter((x) => !x.isPinned)).slice(0, MAX_POSTS_FOR_NICHE).map((x) => `${x.caption} ${x.hashtags.join(" ")}`);
-  const nicheInput = { displayName: p.displayName, bio, accountCategory: p.accountCategory ?? null, posts: nichePosts, followers: p.followers };
+  const nicheInput = { displayName: p.displayName, bio: unwrapHashtags(p.bio), accountCategory: p.accountCategory ?? null, posts: nichePosts, followers: p.followers };
   const n = classifyNiche({ ...nicheInput, aiNiches: a?.niches ?? [] });
   evidence.push(...n.observations.map((r) => ({ attribute: "niche" as const, ...r })));
 

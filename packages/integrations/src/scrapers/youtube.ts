@@ -25,7 +25,7 @@ export async function fetchYouTubeChannel(o: Options & { handle: string }): Prom
   const doFetch = o.fetch ?? fetch;
   const api = "https://www.googleapis.com/youtube/v3";
   const key = `key=${encodeURIComponent(o.apiKey)}`;
-  const channel = (await get(doFetch, `${api}/channels?part=snippet,statistics,contentDetails&forHandle=${encodeURIComponent(o.handle)}&${key}`)) as {
+  const channel = (await get(doFetch, `${api}/channels?part=snippet,statistics,contentDetails,brandingSettings,topicDetails&forHandle=${encodeURIComponent(o.handle)}&${key}`)) as {
     items?: { contentDetails?: { relatedPlaylists?: { uploads?: string } } }[];
   };
   const uploads = channel.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;

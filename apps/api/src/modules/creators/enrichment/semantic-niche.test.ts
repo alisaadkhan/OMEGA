@@ -39,12 +39,11 @@ const input = { displayName: "X", bio: "Not a food channel! Honest phone and lap
 const valid = { status: "classified", main: "Tech", secondary: [], confidence: "high", reason: "Reviews phones and laptops; explicitly not food.", evidence: [{ quote: "Honest phone and laptop reviews", source: "bio", supports: "Tech" }, { quote: "iPhone 16 camera test", source: "post", supports: "Tech" }] };
 
 describe("semantic reply validation", () => {
-  const schema = semanticSchema(input);
+  const schema = semanticSchema();
   it("accepts a reply grounded in the supplied text", () => {
     expect(schema.safeParse(valid).success).toBe(true);
   });
   it("rejects invented evidence, labels outside the taxonomy, and impossible variety or unknown", () => {
-    expect(schema.safeParse({ ...valid, evidence: [{ quote: "Daily food vlogs", source: "bio", supports: "Tech" }] }).success).toBe(false);
     expect(schema.safeParse({ ...valid, main: "Gadgets" }).success).toBe(false);
     expect(schema.safeParse({ ...valid, evidence: [{ ...valid.evidence[0], supports: "Gadgets" }] }).success).toBe(false);
     expect(schema.safeParse({ ...valid, status: "variety", main: null, secondary: ["Tech"] }).success).toBe(false);
@@ -54,6 +53,13 @@ describe("semantic reply validation", () => {
 });
 
 describe("semanticNiche", () => {
+  it("drops an invented quote (no reading without grounded evidence) but keeps a quote that differs only by punctuation or tags", async () => {
+    expect(await semanticNiche({ llm: new MockLlm(() => ({ ...valid, evidence: [{ quote: "Daily food vlogs and recipes", source: "bio", supports: "Tech" }] })), input, rulesMain: null })).toBeNull();
+    const q = valid.evidence[0]?.quote ?? "";
+    const loose = { ...valid, evidence: [{ ...valid.evidence[0], quote: `#${q.replace(/ /g, "  ")}!!` }] };
+    expect(await semanticNiche({ llm: new MockLlm(() => loose), input, rulesMain: null })).toMatchObject({ main: "Tech" });
+  });
+
   it("returns a grounded decision and never stores the model's own 'high' unless the rules agree", async () => {
     const d = await semanticNiche({ llm: new MockLlm(() => valid), input, rulesMain: "Food" });
     expect(d).toMatchObject({ status: "classified", main: "Tech", niches: ["Tech"], confidence: "medium" });

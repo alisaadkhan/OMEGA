@@ -19,6 +19,10 @@ export type StandardPost = {
   durationSeconds?: number | null;
   /** Accounts the post @mentions or tags as co-authors (candidate creators, never evidence about this one). */
   mentions?: string[];
+  /** YouTube video description (contacts and location are often written there), up to 2,000 characters. */
+  description?: string;
+  /** YouTube video category id ("20" Gaming, "26" Howto & Style…). */
+  categoryId?: string | null;
 };
 
 export type StandardProfile = {
@@ -42,6 +46,8 @@ export type StandardProfile = {
   seller?: boolean;
   /** Handles the platform suggests as related (Instagram relatedProfiles): candidates for discovery only. */
   related?: string[];
+  /** YouTube channel keywords (brandingSettings.channel.keywords). */
+  channelKeywords?: string;
 };
 
 const HANDLE = /^[a-z0-9._-]{1,60}$/u;
@@ -58,7 +64,7 @@ export function isoDurationSeconds(v: unknown): number | null {
 export type StandardizeResult = { kind: "ok"; profile: StandardProfile } | { kind: "not_found" } | { kind: "private" };
 
 // Photo links are only fetched (never stored or shown) and the platforms sign them with long query strings.
-const LIMITS = { name: 200, bio: 2000, caption: 500, hashtag: 60, url: 300, photoUrl: 2000, hashtags: 15, links: 5 };
+const LIMITS = { name: 200, bio: 2000, caption: 2000, hashtag: 60, url: 300, photoUrl: 2000, hashtags: 15, links: 5 };
 const record = z.record(z.string(), z.unknown());
 const records = z.array(record);
 type Rec = z.output<typeof record>;
@@ -138,8 +144,10 @@ function instagram(handle: string, raw: unknown, maxPosts: number): StandardizeR
       postedAt,
       likes: count(p["likesCount"]),
       comments: count(p["commentsCount"]),
-      views: count(p["videoViewCount"]),
-      isVideo: p["type"] === "Video",
+      // Reels report views as videoViewCount or videoPlayCount (playCount on some actor versions); a Reel inside a
+      // carousel or with only a play count is still a video (unified plan 2026-11-14, Phase 2.2).
+      views: count(p["videoViewCount"]) ?? count(p["videoPlayCount"]) ?? count(p["playCount"]),
+      isVideo: p["type"] === "Video" || p["productType"] === "clips" || (count(p["videoViewCount"]) ?? count(p["videoPlayCount"])) !== null,
       isPinned: p["isPinned"] === true,
       caption: cleanText(p["caption"], LIMITS.caption),
       hashtags: tags(p["hashtags"]),
@@ -160,7 +168,7 @@ function instagram(handle: string, raw: unknown, maxPosts: number): StandardizeR
       followers,
       following: count(first["followsCount"]),
       posts: count(first["postsCount"]),
-      verified: first["verified"] === true,
+      verified: first["verified"] === true || first["isVerified"] === true,
       websiteUrls: links([first["externalUrl"], ...external]),
       businessEmail: email(first["businessEmail"] ?? first["publicEmail"]),
       businessPhone: phone(first["businessPhoneNumber"] ?? first["publicPhoneNumber"]),
@@ -212,7 +220,8 @@ function tiktok(handle: string, raw: unknown, maxPosts: number): StandardizeResu
       following: count(author["following"]),
       posts: count(author["video"]),
       verified: author["verified"] === true,
-      websiteUrls: links([author["bioLink"]]),
+      // Apify gives bioLink as a string or as { link }.
+      websiteUrls: links([typeof author["bioLink"] === "string" ? author["bioLink"] : sub(author["bioLink"])["link"]]),
       businessEmail: null,
       businessPhone: null,
       country: null,
@@ -246,6 +255,8 @@ function youtube(handle: string, raw: unknown, maxPosts: number): StandardizeRes
       isPinned: false,
       caption: cleanText(s["title"], LIMITS.caption),
       hashtags: tags(s["tags"]),
+      description: cleanText(s["description"], 2000),
+      categoryId: cleanText(s["categoryId"], 20) || null,
       durationSeconds,
       format: durationSeconds === null ? null : durationSeconds <= 60 ? "short" : "long",
     };
@@ -262,6 +273,8 @@ function youtube(handle: string, raw: unknown, maxPosts: number): StandardizeRes
       followers: stats["hiddenSubscriberCount"] === true ? null : count(stats["subscriberCount"]),
       following: null,
       posts: count(stats["videoCount"]),
+      // The Data API exposes no verification badge, and YouTube grants it on request, not at a subscriber count:
+      // never inferred (a blue tick is shown only when it is actually known).
       verified: false,
       websiteUrls: links(urlsIn(description)),
       businessEmail: null,
@@ -269,6 +282,7 @@ function youtube(handle: string, raw: unknown, maxPosts: number): StandardizeRes
       country,
       avatarUrl: httpUrl(sub(thumbs["high"])["url"] ?? sub(thumbs["medium"])["url"] ?? sub(thumbs["default"])["url"], LIMITS.photoUrl),
       recentPosts: newestFirst(videos, maxPosts),
+      channelKeywords: cleanText(sub(sub(channel["brandingSettings"])["channel"])["keywords"], 1000),
     },
   };
 }

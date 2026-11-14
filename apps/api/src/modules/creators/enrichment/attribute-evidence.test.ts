@@ -77,6 +77,12 @@ describe("evidence-based creator attributes", () => {
     expect(d.countries).toMatchObject({ platform: "AE", stated: null });
   });
 
+  it("keeps a bio hashtag's word: '#TechBlogger | #Lahore' gives a niche and a city (unified plan 2026-11-14)", () => {
+    const d = deriveAttributes(profile({ bio: "Pakistani #TechBlogger | #Lahore" }), null);
+    expect(d.city).toBe("Lahore");
+    expect(d.niche).toMatchObject({ main: "Tech", source: "bio_identified" });
+  });
+
   it("reads where a creator who moved abroad now lives, not where they came from", () => {
     const d = deriveAttributes(profile({ bio: "Daily life of a family that immigrated to Canada from Pakistan in 2023", country: "CA" }), null);
     expect(d.countries).toEqual({ platform: "CA", stated: "CA", statedConfidence: "high" });

@@ -78,7 +78,7 @@ describe("standardize", () => {
     expect(p.displayName.length).toBe(200);
     expect(p.recentPosts).toHaveLength(3);
     const edited = p.recentPosts.find((x) => x.caption.startsWith("yyy"));
-    expect(edited?.caption.length).toBe(500);
+    expect(edited?.caption.length).toBe(2000) // raised from 500 so contacts at the end of a caption survive (unified plan 2026-11-14);
     expect(edited?.likes).toBeNull();
     expect(edited?.comments).toBeNull();
     const broken = igRaw();
@@ -114,5 +114,19 @@ describe("platform-declared account type", () => {
     for (const item of shop) if (item["authorMeta"]) item["authorMeta"]["ttSeller"] = true;
     const handle = String(shop[0]?.["authorMeta"]?.["name"] ?? "x");
     expect(ok(standardize("tiktok", handle, shop, { maxPosts: 6 })).seller).toBe(true);
+  });
+});
+
+describe("standardize: fields the plan of 2026-11-14 keeps (Phase 2)", () => {
+  it("keeps Reel views from videoPlayCount, TikTok bio links given as objects, and YouTube video descriptions and keywords", () => {
+    const ig = standardize("instagram", "x", [{ username: "x", followersCount: 20_000, latestPosts: [{ timestamp: "2026-11-01T00:00:00Z", type: "Sidecar", productType: "clips", videoPlayCount: 41_000, likesCount: 10, commentsCount: 1 }] }], { maxPosts: 5 });
+    expect(ig.kind === "ok" && ig.profile.recentPosts[0]).toMatchObject({ views: 41_000, isVideo: true });
+    const tt = standardize("tiktok", "x", [{ id: "1", createTimeISO: "2026-11-01T00:00:00Z", authorMeta: { name: "x", fans: 20_000, bioLink: { link: "https://linktr.ee/x" } } }], { maxPosts: 5 });
+    expect(tt.kind === "ok" && tt.profile.websiteUrls).toEqual(["https://linktr.ee/x"]);
+    const desc = `Unboxing. ${"words ".repeat(120)}Business: hello@example.pk`;
+    const yt = standardize("youtube", "x", { channel: { items: [{ snippet: { title: "X" }, statistics: { subscriberCount: "200000" }, brandingSettings: { channel: { keywords: "tech reviews pakistan" } } }] }, videos: { items: [{ snippet: { title: "Phone review", description: desc, categoryId: "28", publishedAt: "2026-11-01T00:00:00Z" }, statistics: { viewCount: "5000" }, contentDetails: { duration: "PT10M" } }] } }, { maxPosts: 5 });
+    expect(yt.kind === "ok" && yt.profile.channelKeywords).toBe("tech reviews pakistan");
+    expect(yt.kind === "ok" && yt.profile.recentPosts[0]?.description).toContain("hello@example.pk");
+    expect(yt.kind === "ok" && yt.profile.recentPosts[0]?.categoryId).toBe("28");
   });
 });

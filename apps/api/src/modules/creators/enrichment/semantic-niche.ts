@@ -29,10 +29,8 @@ export type SemanticInput = { displayName: string; bio: string; accountCategory:
 
 const norm = (s: string) => s.normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
 
-export function semanticSchema(input: SemanticInput): z.ZodType<SemanticReply> {
+export function semanticSchema(): z.ZodType<SemanticReply> {
   const labels = new Set<string>(NICHE_TAXONOMY);
-  const bio = norm([input.bio, input.accountCategory ?? ""].join(" \n "));
-  const posts = input.posts.map(norm);
   return reply.superRefine((v, ctx) => {
     const named = [v.main, ...v.secondary].filter((x): x is string => x !== null);
     for (const [i, l] of named.entries()) if (!labels.has(l)) ctx.addIssue({ code: "custom", path: i === 0 && v.main ? ["main"] : ["secondary"], message: `"${l}" is not in the taxonomy` });
@@ -42,13 +40,21 @@ export function semanticSchema(input: SemanticInput): z.ZodType<SemanticReply> {
     if (v.status === "unknown" && (v.secondary.length > 0 || v.confidence !== null)) ctx.addIssue({ code: "custom", path: ["status"], message: "unknown has no niches and no confidence" });
     if (v.status !== "unknown" && v.confidence === null) ctx.addIssue({ code: "custom", path: ["confidence"], message: "give a confidence" });
     if (v.status !== "unknown" && v.evidence.length === 0) ctx.addIssue({ code: "custom", path: ["evidence"], message: "quote the evidence" });
+    // Quotes are checked afterwards (groundedQuote), one by one: a quote that differs by punctuation, a removed hashtag
+    // or spacing no longer throws the whole reading away (unified plan 2026-11-14, Phase 2.4).
     for (const [i, e] of v.evidence.entries()) {
-      const q = norm(e.quote);
-      const found = e.source === "bio" ? bio.includes(q) : posts.some((p) => p.includes(q));
-      if (!found) ctx.addIssue({ code: "custom", path: ["evidence", i, "quote"], message: "copy the quote exactly from the supplied text" });
       if (!labels.has(e.supports)) ctx.addIssue({ code: "custom", path: ["evidence", i, "supports"], message: "name the taxonomy label this quote supports" });
     }
   });
+}
+
+const words = (s: string) => norm(s).replace(/[^\p{L}\p{N}\s]/gu, " ").split(" ").filter((w) => w.length > 1);
+/** A quote counts as grounded when at least 60% of its words appear in the text it claims to come from. */
+export function groundedQuote(quote: string, text: string): boolean {
+  const q = words(quote);
+  if (q.length === 0) return false;
+  const have = new Set(words(text));
+  return q.filter((w) => have.has(w)).length / q.length >= 0.6;
 }
 
 export const SEMANTIC_SYSTEM_PROMPT = [
@@ -74,10 +80,15 @@ export async function semanticNiche(o: { llm: Llm; input: SemanticInput; rulesMa
   ].join("\n");
   let v: SemanticReply;
   try {
-    v = (await o.llm.complete({ feature: "niche_classification", system: SEMANTIC_SYSTEM_PROMPT, input: text, schema: semanticSchema(input), maxTokens: 1200, timeoutMs: 30_000, ...(o.ctx ? { ctx: o.ctx } : {}) })).value;
+    v = (await o.llm.complete({ feature: "niche_classification", system: SEMANTIC_SYSTEM_PROMPT, input: text, schema: semanticSchema(), maxTokens: 1200, timeoutMs: 30_000, ...(o.ctx ? { ctx: o.ctx } : {}) })).value;
   } catch {
     return null; // the caller keeps the rules' reading, marked as needing review
   }
+  // Ungrounded quotes are dropped; a reading left with no grounded quote is not used (no evidence, no niche).
+  const sourceText = (e: SemanticReply["evidence"][number]) => (e.source === "bio" ? [input.bio, input.accountCategory ?? ""].join(" ") : posts.join(" \n "));
+  const evidence = v.evidence.filter((e) => groundedQuote(e.quote, sourceText(e)));
+  if (v.status !== "unknown" && evidence.length === 0) return null;
+  v = { ...v, evidence };
   const confidence = v.confidence === "high" && v.main !== o.rulesMain ? "medium" : v.confidence;
   const niches = v.status === "classified" ? [v.main as string, ...v.secondary.filter((s) => s !== v.main)] : v.status === "variety" ? v.secondary : [];
   const observations: NicheObservation[] = v.evidence
