@@ -92,8 +92,8 @@ const sharedObject = z.object({
   GROQ_API_KEY: z.string().min(1).optional(),
   GROQ_BASE_URL: z.url().optional(),
   GROQ_MODEL: z.string().min(1).optional(),
-  GROQ_PRICE_IN_PER_MTOK: z.coerce.number().min(0).default(0.15),
-  GROQ_PRICE_OUT_PER_MTOK: z.coerce.number().min(0).default(0.75),
+  GROQ_PRICE_IN_PER_MTOK: z.coerce.number().min(0).optional(),
+  GROQ_PRICE_OUT_PER_MTOK: z.coerce.number().min(0).optional(),
   // The preferred provider (owner .env 2026-11-04: LLM_PROVIDER=groq). It is tried first; LLM_MODEL / LLM_BASE_URL apply
   // to it when its own GROQ_/GEMINI_/OLLAMA_ variable is not set. Groq's model defaults to openai/gpt-oss-120b.
   LLM_PROVIDER: z.enum(["gemini", "groq", "ollama"]).optional(),
@@ -383,11 +383,41 @@ function searchFrom(v: SharedValues, key: string | undefined): SearchConfig {
   return { host: v.MEILISEARCH_HOST.replace(/\/+$/, ""), apiKey: key, indexPrefix: v.MEILISEARCH_INDEX_PREFIX };
 }
 
-/** Gemini first, then Groq (key added 2026-11-03), then Ollama Cloud as the last fallback (owner decision 2026-10-26). */
+/**
+ * The model chain (owner unified plan 2026-11-14): three Groq models, then two Ollama Cloud models, each its own entry so
+ * a rate limit or a removed model on one moves to the next at once (cooldowns are per model). Gemini is used only on a
+ * paid key (the free tier answered 429 to every call, 2026-11-02 to 11-04) and comes last. LLM_PROVIDER moves that
+ * provider's models to the front.
+ */
+const GROQ_PRICES: Record<string, [number, number]> = { "openai/gpt-oss-120b": [0.15, 0.6], "openai/gpt-oss-20b": [0.075, 0.3], "llama-3.3-70b-versatile": [0.59, 0.79] };
+const OLLAMA_PRICES: Record<string, [number, number]> = { "gpt-oss:120b": [0.15, 0.6], "gpt-oss:20b": [0.07, 0.3] };
+
 function llmFrom(v: LlmValues): LlmProviderConfig[] {
   const out: LlmProviderConfig[] = [];
-  // checkShared guarantees the model, prices and paid billing whenever the key is set.
-  if (v.GEMINI_API_KEY && v.GEMINI_MODEL && v.GEMINI_PRICE_IN_PER_MTOK !== undefined && v.GEMINI_PRICE_OUT_PER_MTOK !== undefined && v.GEMINI_BILLING !== undefined) {
+  if (v.GROQ_API_KEY) {
+    const preferred = v.LLM_PROVIDER === "groq";
+    const baseUrl = (v.GROQ_BASE_URL ?? (preferred ? v.LLM_BASE_URL : undefined) ?? "https://api.groq.com/openai/v1").replace(/\/+$/, "");
+    const primary = v.GROQ_MODEL ?? (preferred ? v.LLM_MODEL : undefined) ?? "openai/gpt-oss-120b";
+    for (const model of [...new Set([primary, "openai/gpt-oss-20b", "llama-3.3-70b-versatile"])]) {
+      const [pin, pout] = model === primary && (v.GROQ_PRICE_IN_PER_MTOK !== undefined || v.GROQ_PRICE_OUT_PER_MTOK !== undefined)
+        ? [v.GROQ_PRICE_IN_PER_MTOK ?? GROQ_PRICES[model]?.[0] ?? 0.15, v.GROQ_PRICE_OUT_PER_MTOK ?? GROQ_PRICES[model]?.[1] ?? 0.6]
+        : (GROQ_PRICES[model] ?? [0.15, 0.6]);
+      out.push({ name: "groq", baseUrl, apiKey: v.GROQ_API_KEY, model, priceInPerMTok: pin, priceOutPerMTok: pout });
+    }
+  }
+  if (v.OLLAMA_API_KEY) {
+    const baseUrl = v.OLLAMA_BASE_URL.replace(/\/+$/, "");
+    for (const model of [...new Set(["gpt-oss:120b", v.OLLAMA_MODEL])]) {
+      const configured = model === v.OLLAMA_MODEL;
+      out.push({
+        name: "ollama", baseUrl, apiKey: v.OLLAMA_API_KEY, model,
+        priceInPerMTok: configured ? v.OLLAMA_PRICE_IN_PER_MTOK : (OLLAMA_PRICES[model]?.[0] ?? 0.15),
+        priceOutPerMTok: configured ? v.OLLAMA_PRICE_OUT_PER_MTOK : (OLLAMA_PRICES[model]?.[1] ?? 0.6),
+      });
+    }
+  }
+  // checkShared guarantees the model and prices whenever the key is set; only a paid key is used.
+  if (v.GEMINI_API_KEY && v.GEMINI_BILLING === "paid" && v.GEMINI_MODEL && v.GEMINI_PRICE_IN_PER_MTOK !== undefined && v.GEMINI_PRICE_OUT_PER_MTOK !== undefined) {
     out.push({
       name: "gemini",
       baseUrl: v.GEMINI_BASE_URL.replace(/\/+$/, ""),
@@ -398,30 +428,8 @@ function llmFrom(v: LlmValues): LlmProviderConfig[] {
       requestsPerMinute: v.GEMINI_RPM,
     });
   }
-  if (v.GROQ_API_KEY) {
-    const preferred = v.LLM_PROVIDER === "groq";
-    out.push({
-      name: "groq",
-      baseUrl: (v.GROQ_BASE_URL ?? (preferred ? v.LLM_BASE_URL : undefined) ?? "https://api.groq.com/openai/v1").replace(/\/+$/, ""),
-      apiKey: v.GROQ_API_KEY,
-      model: v.GROQ_MODEL ?? (preferred ? v.LLM_MODEL : undefined) ?? "openai/gpt-oss-120b",
-      priceInPerMTok: v.GROQ_PRICE_IN_PER_MTOK,
-      priceOutPerMTok: v.GROQ_PRICE_OUT_PER_MTOK,
-    });
-  }
-  if (v.OLLAMA_API_KEY) {
-    out.push({
-      name: "ollama",
-      baseUrl: v.OLLAMA_BASE_URL.replace(/\/+$/, ""),
-      apiKey: v.OLLAMA_API_KEY,
-      model: v.OLLAMA_MODEL,
-      priceInPerMTok: v.OLLAMA_PRICE_IN_PER_MTOK,
-      priceOutPerMTok: v.OLLAMA_PRICE_OUT_PER_MTOK,
-    });
-  }
-  // LLM_PROVIDER names the provider tried first; the others keep their order as fallbacks.
-  const first = out.findIndex((p) => p.name === v.LLM_PROVIDER);
-  return first > 0 ? [out[first] as LlmProviderConfig, ...out.filter((_, i) => i !== first)] : out;
+  // LLM_PROVIDER moves that provider's models to the front; the rest keep their order as fallbacks.
+  return [...out.filter((p) => p.name === v.LLM_PROVIDER), ...out.filter((p) => p.name !== v.LLM_PROVIDER)];
 }
 
 export type ScrapingConfig = {

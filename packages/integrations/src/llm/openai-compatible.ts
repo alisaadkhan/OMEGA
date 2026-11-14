@@ -9,16 +9,44 @@ type ChatResponse = { choices?: { message?: { content?: string | null } }[]; usa
 
 /** Keeps only the provider's error code and type: the body can echo the prompt or the model's output (user input). */
 class HttpStatusError extends Error {
+  /** The provider's error code (e.g. model_not_found), when it gave one. */
+  readonly code: string | null;
   constructor(
     readonly status: number,
     body: string,
-    /** Seconds from the provider's Retry-After header, when it sent one. */
+    /** Seconds until the provider accepts requests again (Retry-After or Groq's x-ratelimit-reset-* headers). */
     readonly retryAfterS: number | null = null,
   ) {
     super(`LLM provider answered ${status}${errorLabel(body)}`);
     this.name = "HttpStatusError";
+    this.code = errorCode(body);
   }
 }
+
+function errorCode(body: string): string | null {
+  try {
+    const c = (JSON.parse(body) as { error?: { code?: unknown } }).error?.code;
+    return typeof c === "string" && /^[\w.-]{1,64}$/.test(c) ? c : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Groq's reset headers: "7.66s", "2m59.56s", "120ms". */
+export function resetSeconds(v: string | null): number | null {
+  if (!v) return null;
+  const m = /^(?:(\d+)h)?(?:(\d+)m(?!s))?(?:([\d.]+)s)?(?:([\d.]+)ms)?$/.exec(v.trim());
+  if (!m || !m[0]) return null;
+  return Number(m[1] ?? 0) * 3600 + Number(m[2] ?? 0) * 60 + Number(m[3] ?? 0) + Number(m[4] ?? 0) / 1000;
+}
+
+/** A model that no longer exists for this key: skipped for the rest of the process. */
+const isGoneModel = (err: unknown): boolean => {
+  for (let e: unknown = err; e instanceof Error; e = e.cause) {
+    if (e instanceof HttpStatusError && (e.status === 404 || e.code === "model_not_found" || e.code === "model_decommissioned")) return true;
+  }
+  return false;
+};
 
 function errorLabel(body: string): string {
   try {
@@ -30,7 +58,8 @@ function errorLabel(body: string): string {
   }
 }
 
-const COOLDOWN_MS = 60_000;
+/** A 429 without a reset header pauses that model 15 s at first (Groq token buckets refill in seconds), doubling on repeats. */
+const COOLDOWN_MS = 15_000;
 const MAX_COOLDOWN_MS = 15 * 60_000;
 /**
  * A 429 (rate limit) or 503 (overloaded) anywhere in the error's cause chain, with the provider's Retry-After when given.
@@ -46,6 +75,8 @@ function retryAfterSeconds(h: string | null, nowMs: number): number | null {
   const at = Date.parse(h);
   return Number.isFinite(at) ? Math.max(0, Math.round((at - nowMs) / 1000)) : null;
 }
+
+const key = (p: LlmProviderConfig) => `${p.name}:${p.model}`;
 
 class LlmOutputError extends Error {
   constructor(reason: string) {
@@ -83,30 +114,35 @@ export class OpenAiCompatibleLlm implements Llm {
     },
   ) {}
 
-  /** Provider name → time until which it is skipped after answering 429 (measured 2026-10-13 on the earlier provider: every call 429'd for hours). */
+  /**
+   * Keyed by provider and model ("groq:openai/gpt-oss-120b"): a rate limit on one model pauses only that model, and the
+   * next model of the chain (another Groq model, then Ollama Cloud) answers at once (owner unified plan 2026-11-14).
+   */
   private readonly coolingUntil = new Map<string, number>();
-  /** Provider name → consecutive throttled answers; each one doubles the pause, a success resets it. */
+  /** Model → consecutive throttled answers; each one doubles the pause, a success resets it. */
   private readonly strikes = new Map<string, number>();
-  /** Provider name → start times of its requests in the last minute (token bucket for requestsPerMinute). */
+  /** Model → start times of its requests in the last minute (token bucket for requestsPerMinute). */
   private readonly recent = new Map<string, number[]>();
+  /** Models that answered 404 / model_not_found / model_decommissioned: skipped for the rest of the process. */
+  private readonly gone = new Set<string>();
 
   /** Whether the provider is under its per-minute limit now; records the request when it is. */
   private takeSlot(p: LlmProviderConfig, nowMs: number): boolean {
     if (!p.requestsPerMinute) return true;
-    const window = (this.recent.get(p.name) ?? []).filter((t) => nowMs - t < 60_000);
+    const window = (this.recent.get(key(p)) ?? []).filter((t) => nowMs - t < 60_000);
     if (window.length >= p.requestsPerMinute) {
-      this.recent.set(p.name, window);
+      this.recent.set(key(p), window);
       return false;
     }
     window.push(nowMs);
-    this.recent.set(p.name, window);
+    this.recent.set(key(p), window);
     return true;
   }
 
   /** Milliseconds until the provider has a free slot again (0 when it has one). */
   private slotWaitMs(p: LlmProviderConfig, nowMs: number): number {
     if (!p.requestsPerMinute) return 0;
-    const window = (this.recent.get(p.name) ?? []).filter((t) => nowMs - t < 60_000);
+    const window = (this.recent.get(key(p)) ?? []).filter((t) => nowMs - t < 60_000);
     return window.length < p.requestsPerMinute ? 0 : 60_000 - (nowMs - (window[0] as number));
   }
 
@@ -116,60 +152,64 @@ export class OpenAiCompatibleLlm implements Llm {
     const nowMs = (this.o.now ?? Date.now)();
     // A cooling provider, or one at its per-minute limit, is skipped while another is available; when none is, the
     // request waits for the first free per-minute slot rather than sending a call that would be refused.
-    const ready = (p: LlmProviderConfig) => (this.coolingUntil.get(p.name) ?? 0) <= nowMs && this.slotWaitMs(p, nowMs) === 0;
-    let usable = this.o.providers.filter(ready);
+    const alive = this.o.providers.filter((p) => !this.gone.has(key(p)));
+    if (alive.length === 0) throw new AppError("PROVIDER_UNAVAILABLE", "AI is unavailable right now. Please try again shortly.");
+    const ready = (p: LlmProviderConfig) => (this.coolingUntil.get(key(p)) ?? 0) <= nowMs && this.slotWaitMs(p, nowMs) === 0;
+    let usable = alive.filter(ready);
     if (usable.length === 0) {
-      const waits = this.o.providers.filter((p) => (this.coolingUntil.get(p.name) ?? 0) <= nowMs).map((p) => ({ p, ms: this.slotWaitMs(p, nowMs) }));
+      const waits = alive.filter((p) => (this.coolingUntil.get(key(p)) ?? 0) <= nowMs).map((p) => ({ p, ms: this.slotWaitMs(p, nowMs) }));
       const soonest = waits.sort((a, b) => a.ms - b.ms)[0];
       if (soonest && soonest.ms > 0 && soonest.ms <= 60_000) {
         await (this.o.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms))))(soonest.ms);
         usable = [soonest.p];
-      } else usable = this.o.providers;
+      } else usable = alive;
     }
     for (const p of usable) {
       if (!this.takeSlot(p, (this.o.now ?? Date.now)()) && usable.length > 1) continue;
       try {
-        const value = await this.withProvider(p, req);
-        this.strikes.delete(p.name);
+        const value = await this.withProvider(p, req, usable.length === 1);
+        this.strikes.delete(key(p));
         return { value, model: `${p.name}:${p.model}` };
       } catch (err) {
         if (err instanceof LlmOutputError) {
           throw new AppError("PROVIDER_UNAVAILABLE", "The AI could not produce a usable answer. Please try again.", undefined, { cause: err });
         }
         last = err;
+        if (isGoneModel(err)) this.gone.add(key(p));
         const t = throttled(err);
         if (t) {
-          const n = (this.strikes.get(p.name) ?? 0) + 1;
-          this.strikes.set(p.name, n);
-          const backoff = Math.min(COOLDOWN_MS * 2 ** (n - 1), MAX_COOLDOWN_MS);
-          const asked = t.retryAfterS === null ? 0 : Math.min(t.retryAfterS * 1000, MAX_COOLDOWN_MS);
-          this.coolingUntil.set(p.name, (this.o.now ?? Date.now)() + Math.max(backoff, asked));
+          const n = (this.strikes.get(key(p)) ?? 0) + 1;
+          this.strikes.set(key(p), n);
+          // The provider's own reset time when it sent one; otherwise 15 s, doubling on repeats.
+          const pause = t.retryAfterS !== null ? Math.min(t.retryAfterS * 1000, MAX_COOLDOWN_MS) : Math.min(COOLDOWN_MS * 2 ** (n - 1), MAX_COOLDOWN_MS);
+          this.coolingUntil.set(key(p), (this.o.now ?? Date.now)() + pause);
         }
-        this.o.logger.warn({ err, provider: p.name, feature: req.feature }, "LLM provider failed; trying the next one");
+        this.o.logger.warn({ err, provider: p.name, model: p.model, feature: req.feature }, "LLM model failed; trying the next one");
       }
     }
     throw new AppError("PROVIDER_UNAVAILABLE", "AI is unavailable right now. Please try again shortly.", undefined, { cause: last });
   }
 
-  private async withProvider<T>(p: LlmProviderConfig, req: LlmRequest<T>): Promise<T> {
+  private async withProvider<T>(p: LlmProviderConfig, req: LlmRequest<T>, solo: boolean): Promise<T> {
     const messages: Message[] = [
       { role: "system", content: req.system },
       { role: "user", content: req.input },
     ];
-    const first = await this.chat(p, req, messages);
+    const first = await this.chat(p, req, messages, solo);
     const parsed = parseReply(first, req.schema);
     if (parsed.ok) return parsed.value;
-    const second = await this.chat(p, req, [
-      ...messages,
-      { role: "assistant", content: first },
-      { role: "user", content: `That reply was not valid (${parsed.error}). Reply again with only the JSON object.` },
-    ]);
+    const second = await this.chat(
+      p,
+      req,
+      [...messages, { role: "assistant", content: first }, { role: "user", content: `That reply was not valid (${parsed.error}). Reply again with only the JSON object.` }],
+      solo,
+    );
     const again = parseReply(second, req.schema);
     if (again.ok) return again.value;
     throw new LlmOutputError(again.error);
   }
 
-  private async chat<T>(p: LlmProviderConfig, req: LlmRequest<T>, messages: Message[]): Promise<string> {
+  private async chat<T>(p: LlmProviderConfig, req: LlmRequest<T>, messages: Message[], solo: boolean): Promise<string> {
     const doFetch = this.o.fetch ?? fetch;
     const result = await instrumented<ChatResult>(
       {
@@ -187,8 +227,9 @@ export class OpenAiCompatibleLlm implements Llm {
           tokensOut: r.tokensOut,
           costUsd: (r.tokensIn * p.priceInPerMTok + r.tokensOut * p.priceOutPerMTok) / 1_000_000,
         }),
-        // A 4xx other than 429 means our request is wrong; repeating it would not help.
-        isRetryable: (err) => !(err instanceof HttpStatusError && err.status < 500 && err.status !== 429),
+        // A 4xx other than 429 means our request is wrong; repeating it would not help. A 429 is retried on the same
+        // model only when no other model can answer: otherwise the next one in the chain answers at once.
+        isRetryable: (err) => !(err instanceof HttpStatusError && err.status < 500 && (err.status !== 429 || !solo)),
       },
       async (signal) => {
         const res = await doFetch(`${p.baseUrl}/chat/completions`, {
@@ -205,7 +246,10 @@ export class OpenAiCompatibleLlm implements Llm {
           }),
         });
         const text = await res.text();
-        if (!res.ok) throw new HttpStatusError(res.status, text, retryAfterSeconds(res.headers.get("retry-after"), Date.now()));
+        if (!res.ok) {
+          const waits = [retryAfterSeconds(res.headers.get("retry-after"), Date.now()), resetSeconds(res.headers.get("x-ratelimit-reset-tokens")), res.status === 429 ? resetSeconds(res.headers.get("x-ratelimit-reset-requests")) : null].filter((w): w is number => w !== null);
+          throw new HttpStatusError(res.status, text, waits.length ? Math.ceil(Math.max(...waits)) : null);
+        }
         const j = JSON.parse(text) as ChatResponse;
         return { content: j.choices?.[0]?.message?.content ?? "", tokensIn: j.usage?.prompt_tokens ?? 0, tokensOut: j.usage?.completion_tokens ?? 0 };
       },

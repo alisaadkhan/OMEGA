@@ -55,7 +55,7 @@ describe("OpenAiCompatibleLlm", () => {
   });
 
   // Measured 2026-10-13 on the earlier provider: every call answered 429 for hours, adding a retry before each fallback.
-  it("skips a provider that answered 429 for a minute while another is available, then tries it again", async () => {
+  it("on a 429 moves to the next model at once, pauses that model 15 s, then tries it again", async () => {
     let clock = 0;
     const sink = new MemoryProviderCallSink();
     const urls: string[] = [];
@@ -66,13 +66,13 @@ describe("OpenAiCompatibleLlm", () => {
     const client = new OpenAiCompatibleLlm({ providers: [gemini, ollama], sink, logger: createLogger({ level: "silent" }), fetch: fetchFake as typeof fetch, sleep: async () => {}, now: () => clock });
     const ask = () => client.complete({ feature: "creator_assessment", system: "s", input: "i", schema });
     expect((await ask()).model).toBe("ollama:gpt-oss:20b");
-    expect(urls.filter((u) => u.startsWith("https://gemini.test"))).toHaveLength(2);
-    clock = 30_000;
+    expect(urls.filter((u) => u.startsWith("https://gemini.test"))).toHaveLength(1); // no same-model retry when another model can answer
+    clock = 10_000;
     expect((await ask()).model).toBe("ollama:gpt-oss:20b");
-    expect(urls.filter((u) => u.startsWith("https://gemini.test"))).toHaveLength(2);
-    clock = 61_000;
+    expect(urls.filter((u) => u.startsWith("https://gemini.test"))).toHaveLength(1);
+    clock = 16_000;
     await ask();
-    expect(urls.filter((u) => u.startsWith("https://gemini.test"))).toHaveLength(4);
+    expect(urls.filter((u) => u.startsWith("https://gemini.test"))).toHaveLength(2);
     // The only provider is never skipped.
     const solo = llm([gemini], () => reply("", 429));
     await expect(solo.client.complete({ feature: "search_interpret", system: "s", input: "i", schema })).rejects.toMatchObject({ code: "PROVIDER_UNAVAILABLE" });
@@ -112,6 +112,38 @@ describe("OpenAiCompatibleLlm", () => {
     clock = 903_000;
     await ask();
     expect(geminiCalls()).toBe(9);
+  });
+
+  it("cools down per model: a 429 on Groq 120b moves to Groq 20b on the same key; Groq's reset header sets the pause; a removed model is skipped for good", async () => {
+    let clock = 0;
+    const g120: LlmProviderConfig = { name: "groq", baseUrl: "https://groq.test/v1", apiKey: "k", model: "openai/gpt-oss-120b", priceInPerMTok: 0, priceOutPerMTok: 0 };
+    const g20 = { ...g120, model: "openai/gpt-oss-20b" };
+    const llama = { ...g120, model: "llama-3.3-70b-versatile" };
+    const models: string[] = [];
+    let limited = true;
+    const fetchFake = async (_input: string | URL | Request, init?: RequestInit) => {
+      const model = String((JSON.parse(String(init?.body)) as { model: string }).model);
+      models.push(model);
+      if (model === "openai/gpt-oss-120b" && limited) return new Response('{"error":{"code":"rate_limit_exceeded"}}', { status: 429, headers: { "x-ratelimit-reset-tokens": "7.66s" } });
+      if (model === "openai/gpt-oss-20b") return new Response('{"error":{"code":"model_decommissioned"}}', { status: 400 });
+      return reply('{"ok":true}');
+    };
+    const client = new OpenAiCompatibleLlm({ providers: [g120, g20, llama], sink: new MemoryProviderCallSink(), logger: createLogger({ level: "silent" }), fetch: fetchFake as typeof fetch, sleep: async () => {}, now: () => clock });
+    const ask = () => client.complete({ feature: "creator_assessment", system: "s", input: "i", schema });
+    expect((await ask()).model).toBe("groq:llama-3.3-70b-versatile");
+    expect(models).toEqual(["openai/gpt-oss-120b", "openai/gpt-oss-20b", "llama-3.3-70b-versatile"]);
+    clock = 5_000; // inside the 7.66 s Groq asked for: 120b skipped; 20b is gone for good
+    await ask();
+    expect(models.slice(3)).toEqual(["llama-3.3-70b-versatile"]);
+    clock = 9_000;
+    limited = false;
+    expect((await ask()).model).toBe("groq:openai/gpt-oss-120b");
+    expect(models.filter((m) => m === "openai/gpt-oss-20b")).toHaveLength(1);
+  });
+
+  it("reads Groq's reset durations", async () => {
+    const { resetSeconds } = await import("./openai-compatible");
+    expect([resetSeconds("7.66s"), resetSeconds("2m59.56s"), resetSeconds("120ms"), resetSeconds("1h2m3s"), resetSeconds("soon")]).toEqual([7.66, 179.56, 0.12, 3723, null]);
   });
 
   it("keeps Gemini under its per-minute limit: over it, the next provider answers; alone, it waits for a free slot", async () => {
