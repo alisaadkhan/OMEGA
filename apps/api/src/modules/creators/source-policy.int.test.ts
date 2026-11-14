@@ -106,6 +106,14 @@ describe("YouTube derived-metrics policy", () => {
     expect(await expireYoutubeApiData(db)).toEqual([]); // idempotent
   });
 
+  it("clears contacts and location evidence read from YouTube video descriptions after 30 days (0087)", async () => {
+    await ownerQuery(`update gcp.creator_profiles set last_scraped_at = now() - interval '31 days', caption_country_evidence = 'Stated in a recent video description: based in Lahore' where creator_id = '${yt}';
+      insert into gcp.creator_contacts (creator_id, kind, value_encrypted, value_hash, masked, trust, source) values ('${yt}', 'email', 'x', 'h-desc', 'm***@x.pk', 'unverified', 'video_description')`);
+    await expireYoutubeApiData(db);
+    expect(await ownerQuery(`select caption_country_evidence from gcp.creator_profiles where creator_id = '${yt}'`)).toEqual([{ caption_country_evidence: null }]);
+    expect(await ownerQuery(`select 1 from gcp.creator_contacts where creator_id = '${yt}' and source = 'video_description'`)).toHaveLength(0);
+  });
+
   it("removes a YouTube profile's own photo file even when YouTube is not the creator's primary platform (0084)", async () => {
     const both = await addCreator(db, { displayName: "Two Platforms", primaryPlatform: "instagram", snapshot, profiles: [{ platform: "instagram", handle: "twoplat", followers: 30_000 }, { platform: "youtube", handle: "twoplattube", followers: 20_000 }] });
     await ownerQuery(`update gcp.creator_profiles set last_scraped_at = now() - interval '31 days', avatar_url = 'https://x/yt.jpg', avatar_key = 'youtube/twoplat.jpg' where creator_id = '${both}' and platform = 'youtube'`);
