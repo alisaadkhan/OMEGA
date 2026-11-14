@@ -93,24 +93,28 @@ export function rankByEvidence<T extends Candidate>(search: LiveSearch, candidat
  */
 export const RELEVANCE_BATCH = 12;
 
-/** A stranger's title or snippet on one line: a line break could otherwise forge another numbered candidate (AI review 2026-11-15). */
-const oneLine = (s: string): string => s.replace(/\s*\n\s*/g, " ");
+/**
+ * A stranger's title or snippet on one line: any line break (\n, \r, \u2028, …) could otherwise forge another numbered
+ * candidate (AI review 2026-11-15). All whitespace collapses to one space.
+ */
+const oneLine = (s: string): string => s.replace(/\s+/g, " ").trim();
 
 const GENERIC = new Set(
   "a an and the in on of for from with by at to is are who whose their his her its this that as or creator creators content profile account page posts post videos video shares makes making focused based matches match request about".split(" "),
 );
 const reasonWords = (s: string) => s.normalize("NFKC").toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/).filter((w) => w.length > 1);
 /**
- * The model's reason is shown on the delivered card, so it must come from that candidate's own result or the brand's
- * request: at least 60% of its specific words (compared by their first five letters). A reason injected through another
- * candidate's snippet, or invented, is dropped and the card shows none (AI review 2026-11-15).
+ * The model's reason is shown on the delivered card, so every specific word in it must come from that candidate's own
+ * handle, title or snippet (compared by their first five letters); the brand's request gives no credit, so "in Lahore"
+ * is shown only when the result itself says Lahore. A negation, a judgement ("fake", "scam") or a claim injected through
+ * another candidate's snippet is therefore dropped, and the card shows no reason (AI review 2026-11-15; audit SEC-16).
  */
 export function groundedReason(reason: string, ownText: string): boolean {
   const stem = (w: string) => w.slice(0, 5);
   const have = new Set(reasonWords(ownText).map(stem));
-  const specific = reasonWords(reason).filter((w) => !GENERIC.has(w));
-  if (specific.length === 0) return true;
-  return specific.filter((w) => have.has(stem(w))).length / specific.length >= 0.6;
+  return reasonWords(reason)
+    .filter((w) => !GENERIC.has(w))
+    .every((w) => have.has(stem(w)));
 }
 
 async function reviewBatch(o: { llm: Llm; search: LiveSearch; candidates: Candidate[]; ctx?: CallContext }): Promise<Kept[]> {
@@ -124,12 +128,11 @@ async function reviewBatch(o: { llm: Llm; search: LiveSearch; candidates: Candid
     timeoutMs: 30_000,
     ...(o.ctx ? { ctx: o.ctx } : {}),
   });
-  const request = describe(o.search);
   return value.keep.flatMap((k) => {
     const c = o.candidates[k.i];
     if (!c) return [];
     const reason = cleanText(k.reason, 160);
-    return [{ ...c, reason: reason && groundedReason(reason, `${c.handle} ${c.title} ${c.snippet} ${request}`) ? reason : null }];
+    return [{ ...c, reason: reason && groundedReason(reason, `${c.handle} ${c.title} ${c.snippet}`) ? reason : null }];
   });
 }
 
