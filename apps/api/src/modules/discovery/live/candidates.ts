@@ -30,8 +30,17 @@ export function spreadByPlatform<T extends { platform: CreatorPlatform }>(items:
  * different account (measured 2026-10-13), so it is never taken from there.
  */
 const IG_TITLE_AUTHOR = /^[^"“@]{0,80}?\(\s*@([A-Za-z0-9._]{2,30})\s*\)\s*(?:on Instagram\b|•)/i;
+const IG_PATH_AUTHOR = /^https?:\/\/(?:www\.|m\.)?instagram\.com\/([A-Za-z0-9._]{2,30})\/(?:p|reel|reels|tv)\//i;
+const IG_RESERVED = new Set(["p", "reel", "reels", "tv", "explore", "stories"]);
 export function instagramPostAuthor(link: string, title: string): string | null {
   if (!IG_CONTENT.test(link)) return null;
+  // A handle in the link's path is written by Instagram, not by the account: it wins over the title.
+  const path = IG_PATH_AUTHOR.exec(link)?.[1]?.toLowerCase();
+  if (path && !IG_RESERVED.has(path)) return path.replace(/\.$/, "");
+  // The display name before "(@handle)" is the account's own text: a name that itself holds "(@someone)" could point
+  // the parser at another account (security review 2026-11-15), so a title with more than one is not read at all.
+  const head = title.trim().split(/["“]/)[0] ?? "";
+  if ((head.match(/\(\s*@/g) ?? []).length !== 1) return null;
   const m = IG_TITLE_AUTHOR.exec(title.trim());
   return m ? (m[1] as string).toLowerCase().replace(/\.$/, "") : null;
 }
