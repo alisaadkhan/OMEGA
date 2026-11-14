@@ -598,9 +598,11 @@ export function loadWorkerConfig(env: Env): WorkerConfig {
     scraping: {
       apifyToken: v.APIFY_TOKEN ?? null,
       instagramActor: v.APIFY_INSTAGRAM_ACTOR_ID,
-      instagramBuild: v.APIFY_INSTAGRAM_BUILD ?? (v.APIFY_INSTAGRAM_ACTOR_ID === "apify/instagram-profile-scraper" ? "0.0.634" : null),
+      // Re-pinned 2026-11-14: the publishers removed 0.0.634 and 0.99.2065 (Apify answered 403 build-not-found). The new
+      // builds were checked on live profiles (sajalaly; jannatmirza, ghanaaliraza, tastebykamal) through the full pipeline.
+      instagramBuild: v.APIFY_INSTAGRAM_BUILD ?? (v.APIFY_INSTAGRAM_ACTOR_ID === "apify/instagram-profile-scraper" ? "0.0.689" : null),
       tiktokActor: v.APIFY_TIKTOK_ACTOR_ID,
-      tiktokBuild: v.APIFY_TIKTOK_BUILD ?? (v.APIFY_TIKTOK_ACTOR_ID === "clockworks/tiktok-profile-scraper" ? "0.99.2065" : null),
+      tiktokBuild: v.APIFY_TIKTOK_BUILD ?? (v.APIFY_TIKTOK_ACTOR_ID === "clockworks/tiktok-profile-scraper" ? "0.0.522" : null),
       instagramPostActor: v.APIFY_INSTAGRAM_POST_ACTOR_ID === "off" ? null : v.APIFY_INSTAGRAM_POST_ACTOR_ID,
       instagramPostBuild: v.APIFY_INSTAGRAM_POST_BUILD ?? (v.APIFY_INSTAGRAM_POST_ACTOR_ID === "apify/instagram-scraper" ? "0.0.812" : null),
       contentResolutionMax: v.LIVE_CONTENT_RESOLUTION_MAX,

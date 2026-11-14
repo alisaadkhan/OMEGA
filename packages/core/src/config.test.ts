@@ -269,9 +269,9 @@ describe("scraping and storage settings (worker only)", () => {
     expect(c.scraping).toEqual({
       apifyToken: "apify",
       instagramActor: "apify/instagram-profile-scraper",
-      instagramBuild: "0.0.634",
+      instagramBuild: "0.0.689",
       tiktokActor: "clockworks/tiktok-profile-scraper",
-      tiktokBuild: "0.99.2065",
+      tiktokBuild: "0.0.522",
       instagramPostActor: "apify/instagram-scraper",
       instagramPostBuild: "0.0.812",
       contentResolutionMax: 0,
@@ -298,7 +298,7 @@ describe("scraping and storage settings (worker only)", () => {
   });
 
   it("pins the reviewed TikTok actor version and permits explicit custom actor builds", () => {
-    expect(loadWorkerConfig(worker).scraping.tiktokBuild).toBe("0.99.2065");
+    expect(loadWorkerConfig(worker).scraping.tiktokBuild).toBe("0.0.522");
     expect(loadWorkerConfig({ ...worker, APIFY_TIKTOK_ACTOR_ID: "team/custom-tiktok", APIFY_TIKTOK_BUILD: "1.2.3" }).scraping.tiktokBuild).toBe("1.2.3");
   });
 

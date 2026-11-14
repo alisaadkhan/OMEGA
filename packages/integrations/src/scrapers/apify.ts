@@ -54,7 +54,12 @@ export function createApifyClient(o: ClientOptions) {
     } catch (err) {
       throw new ProviderError(true, "provider", `Apify is unreachable: ${err instanceof Error ? err.message : String(err)}`);
     }
-    if (res.status === 401 || res.status === 403) throw new ProviderError(false, "not_configured", `Apify refused the token (HTTP ${res.status})`);
+    if (res.status === 401 || res.status === 403) {
+      // Apify also answers 403 for a pinned build its publisher removed: say so, not "token" (found 2026-11-14).
+      const type = await res.json().then((b: { error?: { type?: string } }) => b?.error?.type ?? null).catch(() => null);
+      if (type === "build-not-found") throw new ProviderError(false, "not_configured", "Apify: the pinned actor build no longer exists (re-pin APIFY_*_BUILD)");
+      throw new ProviderError(false, "not_configured", `Apify refused the token (HTTP ${res.status})`);
+    }
     if (!res.ok) throw new ProviderError(res.status >= 500 || res.status === 429, "provider", `Apify answered HTTP ${res.status}`);
     return (await res.json()) as T;
   }
