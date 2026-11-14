@@ -59,3 +59,10 @@ describe("account type", () => {
     expect(c({ category: "Public figure", bio: "Grateful" }).type).toBe("UNKNOWN");
   });
 });
+
+describe("account type: self-audit 2026-11-14", () => {
+  it("does not treat Instagram's 'Artist' category as a creator: actresses and actors choose it too", () => {
+    expect(classifyAccountType({ category: "Artist", bio: "Official manager : @djmaq", handle: "sarahkhanofficial", displayName: "Sarah Khan" }).type).toBe("UNKNOWN");
+    expect(classifyAccountType({ category: "Artist", bio: "Digital artist and illustrator, reels every week", handle: "x", displayName: "X" }).type).toBe("INDIVIDUAL_CREATOR");
+  });
+});

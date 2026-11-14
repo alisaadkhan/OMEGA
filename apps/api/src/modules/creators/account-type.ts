@@ -29,7 +29,7 @@ const CATEGORY_TYPE: [RegExp, AccountType][] = [
   [/^(company|sports team|sports club|amateur sports team|professional sports team)$/i, "COMPANY_CORPORATE"],
   [/^(magazine|media\/news company|news & media website|tv channel|broadcasting & media production company|radio station|newspaper|media)$/i, "MEDIA_PUBLICATION"],
   [/^(marketing agency|advertising\/marketing|advertising agency|public relations agency|school|college & university|education|university|hospital|medical center|medical & health|non-governmental organization \(ngo\)|nonprofit organization|government organization|community organization|company|business service|real estate company|app page|software company|internet company|telecommunication company|bank|financial service|sports team)$/i, "COMPANY_CORPORATE"],
-  [/^(digital creator|video creator|blogger|personal blog|gaming video creator|gamer|reel creator|creator|creators & celebrities|food critic|makeup artist|fitness trainer|photographer|comedian|artist|fashion designer|nutritionist)$/i, "INDIVIDUAL_CREATOR"],
+  [/^(digital creator|video creator|blogger|personal blog|gaming video creator|gamer|reel creator|creator|creators & celebrities|food critic|makeup artist|fitness trainer|photographer|comedian|fashion designer|nutritionist)$/i, "INDIVIDUAL_CREATOR"],
   [/^(actor|actress|musician|musician\/band|singer|athlete|sportsperson|politician|political candidate|news personality|tv show host|film director|producer)$/i, "CELEBRITY_PUBLIC_FIGURE"],
 ];
 
