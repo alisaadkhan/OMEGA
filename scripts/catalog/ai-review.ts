@@ -63,6 +63,8 @@ const creators = await db.withSystem((tx) =>
 );
 logger.info({ candidates: creators.length, apply: values.apply }, "ai review start");
 
+const MAX_ATTEMPTS = 8;
+const WAIT_MS = 20_000;
 type Result = { id: string; handle: string; platform: string; followers: number; before: { type: string | null; niche: string | null }; decision: AiReviewDecision | null; error?: string; postsRead: number };
 const results: Result[] = [];
 async function review(c: Creator): Promise<void> {
@@ -80,19 +82,28 @@ async function review(c: Creator): Promise<void> {
   const posts = std?.kind === "ok" ? std.profile.recentPosts.filter((x) => !x.isPinned).slice(0, 6).map((x) => `${x.caption} ${x.hashtags.map((h) => `#${h.replace(/\s+/g, "_")}`).join(" ")}`.trim()) : [];
   const postsRead = posts.filter((p) => /[\p{L}\p{N}]{3,}/u.test(p)).length;
   const r: Result = { id: c.id, handle: main.handle, platform: main.platform, followers: Number(c.followers), before: { type: c.account_type, niche: c.niche_main }, decision: null, postsRead };
-  try {
-    r.decision = await gate.guard(0.002, () =>
-      aiReview({
-        llm,
-        input: {
-          displayName: c.display_name, handle: main.handle, platform: main.platform, followers: main.followers, verified: main.verified,
-          category: std?.kind === "ok" ? (std.profile.accountCategory ?? null) : null, bio: main.bio ?? "", posts, publicRecord: c.public_country_source,
-          linkedProfiles: profiles.slice(1).map((p) => ({ platform: p.platform, handle: p.handle, bio: p.bio ?? "" })),
-        },
-      }),
-    );
-  } catch (err) {
-    r.error = err instanceof Error ? err.message.slice(0, 120) : String(err);
+  // When every model is cooling down (Groq's tokens-per-minute limit; Ollama answered 402 in the first full run), wait
+  // and try again rather than failing the creator: 462 of 474 failed in under a minute that way (2026-11-15).
+  for (let attempt = 1; ; attempt++) {
+    try {
+      r.decision = await gate.guard(0.002, () =>
+        aiReview({
+          llm,
+          input: {
+            displayName: c.display_name, handle: main.handle, platform: main.platform, followers: main.followers, verified: main.verified,
+            category: std?.kind === "ok" ? (std.profile.accountCategory ?? null) : null, bio: main.bio ?? "", posts, publicRecord: c.public_country_source,
+            linkedProfiles: profiles.slice(1).map((p) => ({ platform: p.platform, handle: p.handle, bio: p.bio ?? "" })),
+          },
+        }),
+      );
+      delete r.error;
+      break;
+    } catch (err) {
+      r.error = err instanceof Error ? err.message.slice(0, 120) : String(err);
+      const unavailable = /unavailable right now/i.test(r.error);
+      if (!unavailable || attempt >= MAX_ATTEMPTS) break;
+      await new Promise((resolveWait) => setTimeout(resolveWait, WAIT_MS * attempt));
+    }
   }
   results.push(r);
   if (!values.apply || !r.decision) return;
