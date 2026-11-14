@@ -63,21 +63,32 @@ function engagementRaw(p: StandardProfile): number | null {
 export const ENGAGEMENT_SAMPLE = 10;
 export const ENGAGEMENT_MIN_SAMPLE = 3;
 
+/** A post whose likes + comments exceed this multiple of the creator's followers is a collab/viral outlier. */
+export const ENGAGEMENT_OUTLIER_MULTIPLE = 5;
+
 /**
- * Stored engagement rate (%): the MEDIAN per-post rate over the latest ${ENGAGEMENT_SAMPLE} non-pinned posts that show
- * their likes (per follower on Instagram, per view on TikTok and YouTube). Never capped: a capped average hid viral
- * outliers as "100%". Fewer than ${ENGAGEMENT_MIN_SAMPLE} usable posts gives null (not enough evidence), never 0.
+ * The engagement rate shown and stored for every platform (owner directive 2026-11-15, §1): per follower/subscriber,
+ * ((likes + comments) / followers) × 100 per post, the MEDIAN over the latest ${ENGAGEMENT_SAMPLE} non-pinned posts that
+ * show their likes. Posts with hidden likes (likes ≤ 0) and collab/viral outliers (likes + comments above
+ * ${ENGAGEMENT_OUTLIER_MULTIPLE}× followers) are left out. Fewer than ${ENGAGEMENT_MIN_SAMPLE} usable posts gives null,
+ * never 0. The same value feeds engagement_rate and median_engagement_rate, with its sample, so they never differ.
+ * (A per-view rate is still used inside the authenticity signals — engagementRaw — never stored as the engagement rate.)
  */
+export function followerEngagement(p: StandardProfile): { rate: number | null; sample: number } {
+  const followers = p.followers;
+  if (followers === null || followers <= 0) return { rate: null, sample: 0 };
+  const usable = p.recentPosts
+    .filter((x) => !x.isPinned && x.likes !== null && x.likes > 0)
+    .filter((x) => (x.likes as number) + (x.comments ?? 0) <= followers * ENGAGEMENT_OUTLIER_MULTIPLE)
+    .sort((a, b) => b.postedAt.getTime() - a.postedAt.getTime())
+    .slice(0, ENGAGEMENT_SAMPLE);
+  if (usable.length < ENGAGEMENT_MIN_SAMPLE) return { rate: null, sample: usable.length };
+  return { rate: engagementPercent(median(usable.map((x) => (((x.likes as number) + (x.comments ?? 0)) / followers) * 100))), sample: usable.length };
+}
+
+/** Stored engagement rate (%): the follower-based median above. */
 export function storedEngagementRate(p: StandardProfile): number | null {
-  const recent = engaged(p.recentPosts).filter((x) => !x.isPinned).sort((a, b) => b.postedAt.getTime() - a.postedAt.getTime());
-  const rates =
-    p.platform === "instagram"
-      ? p.followers && p.followers > 0
-        ? recent.slice(0, ENGAGEMENT_SAMPLE).map((x) => ((x.likes ?? 0) + (x.comments ?? 0)) / (p.followers as number))
-        : []
-      : recent.filter((x) => (x.views ?? 0) > 0).slice(0, ENGAGEMENT_SAMPLE).map((x) => ((x.likes ?? 0) + (x.comments ?? 0)) / (x.views as number));
-  if (rates.length < ENGAGEMENT_MIN_SAMPLE) return null;
-  return engagementPercent(median(rates) * 100);
+  return followerEngagement(p).rate;
 }
 
 /**

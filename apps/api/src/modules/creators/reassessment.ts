@@ -3,6 +3,7 @@ import { encryptSecret, sha256Hex } from "@mushin/core";
 import type { Db } from "@mushin/db";
 import { extractContacts, extractLinks } from "./enrichment/links";
 import { maskContact } from "./rules";
+import { hasCollabRoute } from "./contact-routes";
 import { classifyAccountType } from "./account-type";
 import { contentPerformance } from "./eligibility-v3";
 import { standardize } from "./enrichment/standardize";
@@ -18,14 +19,32 @@ import { bulkRefreshProfileCountries } from "./enrichment/repository";
  * engagement; not YouTube while derived YouTube metrics are restricted) and each profile's country. No provider or AI
  * call, nothing deleted. scripts/catalog/reassess-catalogue.ts is the same rules with an impact report for a dry run.
  */
-export const REASSESSMENT_VERSION = "reassess-2026-11-14";
+export const REASSESSMENT_VERSION = "reassess-2026-11-15";
 export const REASSESSMENT_BATCH = 200;
 
 export type ReadPayload = (storageKey: string) => Promise<unknown | null>;
 type Row = {
   creator_id: string; profile_id: string; platform: "instagram" | "tiktok" | "youtube"; handle: string; display_name: string; bio: string | null;
   primary_platform: string; account_type_source: string | null; key: string | null; canonical_url: string; youtube_expired: boolean;
+  followers: number | null; niche_main: string | null; niche_status: string | null;
 };
+
+/** At or above this audience an UNKNOWN account is decided by the AI account-type pass, never promoted by rule. */
+export const AI_ACCOUNT_TYPE_MIN_FOLLOWERS = 100_000;
+// First-person creator cues in a bio: "my channel", "my vlogs", "subscribe", "DM for collab/promotions".
+const CREATOR_CUE = /\b(?:my\s+(?:channel|videos?|vlogs?|content|recipes?|reviews?)|subscribe|new\s+videos?\s+every)\b/i;
+
+/**
+ * Owner directive 2026-11-15 (§2.4): an account under 100K that no brand, company, shop, media, fan-page or celebrity
+ * rule matched (UNKNOWN), with a creator niche read from its own bio or a first-person creator / collab cue, is an
+ * individual creator. 100K and above are left to the AI pass, so a famous actor with a booking line is not promoted.
+ */
+export function promoteToCreator(r: { followers: number | null; nicheMain: string | null; nicheStatus: string | null; bio: string }): { evidence: string } | null {
+  if ((r.followers ?? 0) >= AI_ACCOUNT_TYPE_MIN_FOLLOWERS) return null;
+  if (r.nicheMain && r.nicheStatus === "classified") return { evidence: `No brand, shop, media, fan-page or celebrity signs; creator niche from its own content: ${r.nicheMain}` };
+  if (CREATOR_CUE.test(r.bio) || hasCollabRoute([r.bio])) return { evidence: "No brand, shop, media, fan-page or celebrity signs; first-person creator or collab cue in the bio" };
+  return null;
+}
 /**
  * Contacts recovery (execution directive 2026-11-04, Stage 1 sections 2 and 5): emails, mobile numbers and links the
  * stored answer holds but the database missed (also YouTube channel-description contacts, now permitted). Added only,
@@ -39,6 +58,7 @@ export async function reassessCreators(db: Db, creatorIds: string[], readPayload
   const rows = await db.withSystem((tx) =>
     tx.execute<Row>(sql`
       select p.creator_id, p.id profile_id, p.platform, p.handle, p.canonical_url, c.display_name, p.bio, c.primary_platform, c.account_type_source,
+        p.followers, c.niche_main, c.niche_status,
         -- Only answers still inside their retention period (YouTube API data: 30 days) are read (security review).
         (select r.storage_key from platform.raw_payloads r where r.creator_id = p.creator_id and r.platform = p.platform and r.delete_after > now() order by r.fetched_at desc limit 1) key,
         (p.platform = 'youtube' and coalesce(p.last_scraped_at, p.created_at) < now() - interval '30 days') youtube_expired
@@ -63,7 +83,13 @@ export async function reassessCreators(db: Db, creatorIds: string[], readPayload
     }
     if (r.platform === r.primary_platform && r.account_type_source !== "staff") {
       const d = classifyAccountType({ category: std?.kind === "ok" ? (std.profile.accountCategory ?? null) : null, bio: r.bio ?? "", handle: r.handle, displayName: r.display_name });
-      accounts.push({ id: r.creator_id, ...d });
+      // The rules never undo the AI pass's decision with "no idea" (owner directive 2026-11-15, §2.3); a confident rule does.
+      if (d.type === "UNKNOWN" && r.account_type_source === "ai") {
+        // keep the stored AI decision
+      } else if (d.type === "UNKNOWN") {
+        const promoted = promoteToCreator({ followers: r.followers, nicheMain: r.niche_main, nicheStatus: r.niche_status, bio: r.bio ?? "" });
+        accounts.push(promoted ? { id: r.creator_id, type: "INDIVIDUAL_CREATOR", source: "rules", confidence: "low", evidence: promoted.evidence } : { id: r.creator_id, ...d });
+      } else accounts.push({ id: r.creator_id, ...d });
     }
     if (std?.kind === "ok" && (r.platform !== "youtube" || o.youtubeDerived)) {
       const p = contentPerformance(std.profile, { youtubeDerived: o.youtubeDerived ?? false });
@@ -89,10 +115,15 @@ export async function reassessCreators(db: Db, creatorIds: string[], readPayload
       changed += res.count ?? 0;
     }
     if (perf.length) {
+      // Owner decision 2026-11-15 (Decision 3): an Instagram answer whose Reels carry no view counts (the provider stopped
+      // returning them in November) keeps the stored Reel views and their sample instead of wiping them.
+      const keepViews = sql`(p.platform = 'instagram' and u.vs = 0 and p.median_views is not null)`;
+      const mv = sql`case when ${keepViews} then p.median_views else u.mv::integer end`;
+      const vs = sql`case when ${keepViews} then p.performance_views_sample else u.vs::smallint end`;
       const res = await tx.execute(sql`
-        update gcp.creator_profiles p set engagement_rate = u.er, median_views = u.mv, median_engagement_rate = u.mer, performance_views_sample = u.vs, performance_engagement_sample = u.es, performance_format = u.fmt, performance_from = u.f::timestamptz, performance_to = u.t::timestamptz, performance_at = now(), updated_at = now()
+        update gcp.creator_profiles p set engagement_rate = u.er, median_views = ${mv}, median_engagement_rate = u.mer, performance_views_sample = ${vs}, performance_engagement_sample = u.es, performance_format = u.fmt, performance_from = u.f::timestamptz, performance_to = u.t::timestamptz, performance_at = now(), updated_at = now()
         from jsonb_to_recordset(${JSON.stringify(perf)}::jsonb) as u(id uuid, mv double precision, mer double precision, vs integer, es integer, fmt text, f text, t text, er double precision)
-        where p.id = u.id and exists (select 1 from gcp.creators c where c.id = p.creator_id and c.status = 'active') and (p.engagement_rate, p.median_views, p.median_engagement_rate, p.performance_views_sample, p.performance_engagement_sample) is distinct from (u.er, u.mv::integer, u.mer, u.vs::smallint, u.es::smallint)`);
+        where p.id = u.id and exists (select 1 from gcp.creators c where c.id = p.creator_id and c.status = 'active') and (p.engagement_rate, p.median_views, p.median_engagement_rate, p.performance_views_sample, p.performance_engagement_sample) is distinct from (u.er, ${mv}, u.mer, ${vs}, u.es::smallint)`);
       changed += res.count ?? 0;
     }
     if (contacts.length) {

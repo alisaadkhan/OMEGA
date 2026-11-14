@@ -90,9 +90,13 @@ export async function semanticNiche(o: { llm: Llm; input: SemanticInput; rulesMa
   if (v.status !== "unknown" && evidence.length === 0) return null;
   v = { ...v, evidence };
   const confidence = v.confidence === "high" && v.main !== o.rulesMain ? "medium" : v.confidence;
-  const niches = v.status === "classified" ? [v.main as string, ...v.secondary.filter((s) => s !== v.main)] : v.status === "variety" ? v.secondary : [];
+  // Owner directive 2026-11-15 (§2.1): "variety" still names a main niche, the model's first-listed subject (it lists the
+  // most prominent first), with the others secondary; it is never left without one.
+  const varietyMain = v.status === "variety" ? (v.secondary.find((s) => s === o.rulesMain) ?? v.secondary[0] ?? null) : null;
+  const main = v.status === "classified" ? v.main : varietyMain;
+  const niches = main ? [main, ...v.secondary.filter((s) => s !== main)] : [];
   const observations: NicheObservation[] = v.evidence
     .filter((e) => niches.includes(e.supports))
     .map((e) => ({ value: e.supports, source: e.source === "bio" ? "profile_text" : "post_text", status: "supported", evidence: `AI reading (${v.reason.slice(0, 120)}): "${e.quote}"`.slice(0, 300) }));
-  return { status: v.status, main: v.status === "classified" ? v.main : null, niches, confidence: v.status === "unknown" ? null : confidence, observations };
+  return { status: main ? "classified" : v.status, main, niches, confidence: v.status === "unknown" ? null : v.status === "variety" ? "low" : confidence, observations };
 }

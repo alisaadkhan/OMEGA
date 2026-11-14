@@ -1,5 +1,5 @@
 import type { StandardProfile } from "./enrichment/standardize";
-import { engagementPercent } from "./enrichment/signals";
+import { followerEngagement } from "./enrichment/signals";
 import type { CreatorPlatform } from "./rules";
 
 /**
@@ -55,16 +55,18 @@ export function contentPerformance(p: StandardProfile, o: { youtubeDerived?: boo
   const viewable = (x: (typeof recent)[number]) => x.isVideo && x.views !== null && (p.platform === "instagram" ? x.format !== "post" : p.platform === "youtube" ? x.format !== "short" : true);
   const withViews = recent.filter(viewable).slice(0, PERFORMANCE_SAMPLE);
   const shorts = p.platform === "youtube" ? recent.filter((x) => x.format === "short" && x.views !== null).slice(0, PERFORMANCE_SAMPLE) : [];
-  const forEngagement = p.followers && p.followers > 0 ? recent.filter((x) => x.likes !== null && x.comments !== null).slice(0, PERFORMANCE_SAMPLE) : [];
+  // Owner directive 2026-11-15 (§1): the same follower-based median as the stored engagement rate, on every platform.
+  const engagement = followerEngagement(p);
+  const forEngagement = p.followers && p.followers > 0 ? recent.filter((x) => x.likes !== null && x.likes > 0).slice(0, PERFORMANCE_SAMPLE) : [];
   const used = [...withViews, ...forEngagement];
   if (used.length === 0) return null;
   const times = used.map((x) => x.postedAt.getTime());
   return {
     medianViews: median(withViews.map((x) => x.views as number)),
-    medianEngagementRate: p.platform === "instagram" && forEngagement.length > 0 ? engagementPercent(median(forEngagement.map((x) => (((x.likes as number) + (x.comments as number)) / (p.followers as number)) * 100)) as number) : null,
+    medianEngagementRate: engagement.rate,
     viewsSample: withViews.length,
     shortsMedianViews: shorts.length >= MIN_SAMPLE ? median(shorts.map((x) => x.views as number)) : null,
-    engagementSample: p.platform === "instagram" ? forEngagement.length : 0,
+    engagementSample: engagement.sample,
     format: p.platform === "instagram" ? "reel" : "video",
     sampleFrom: new Date(Math.min(...times)),
     sampleTo: new Date(Math.max(...times)),

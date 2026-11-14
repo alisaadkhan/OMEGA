@@ -131,6 +131,32 @@ describe("signals", () => {
   });
 });
 
+// Owner directive 2026-11-15 (§1): one engagement rate, per follower, on every platform; stored ER and median agree.
+describe("engagement rate per follower on every platform", () => {
+  it("divides by followers on TikTok and YouTube too: a 2.4M account with ~1,175 views is not '9% engaged'", async () => {
+    const { followerEngagement } = await import("./signals");
+    const { contentPerformance } = await import("../eligibility-v3");
+    const dead = Array.from({ length: 6 }, (_, i) => post(i, 100, 10, 1_175));
+    const tt = profile({ platform: "tiktok", followers: 2_400_000, recentPosts: dead });
+    expect(followerEngagement(tt)).toEqual({ rate: 0.0046, sample: 6 });
+    expect(profileMetrics(tt).engagementRate).toBe(0.0046);
+    expect(contentPerformance(tt)).toMatchObject({ medianEngagementRate: 0.0046, engagementSample: 6 });
+    const yt = profile({ platform: "youtube", followers: 100_000, recentPosts: Array.from({ length: 5 }, (_, i) => post(i, 2_000, 500, 40_000)) });
+    expect(profileMetrics(yt).engagementRate).toBe(2.5);
+    expect(contentPerformance(yt, { youtubeDerived: true })).toMatchObject({ medianEngagementRate: 2.5, engagementSample: 5 });
+  });
+
+  it("leaves out hidden likes and collab outliers above 5x followers; the sample says how many posts counted", async () => {
+    const { followerEngagement } = await import("./signals");
+    const normal = Array.from({ length: 5 }, (_, i) => post(i + 1, 300, 20));
+    const collab = post(0, 60_000, 500); // a co-authored viral post: 6x the creator's 10,000 followers
+    const hidden = [post(7, 0, 4), post(8, -1, 2)];
+    expect(followerEngagement(profile({ followers: 10_000, recentPosts: [collab, ...normal, ...hidden] }))).toEqual({ rate: 3.2, sample: 5 });
+    expect(followerEngagement(profile({ followers: 10_000, recentPosts: [collab, normal[0] as StandardPost, ...hidden] }))).toEqual({ rate: null, sample: 1 });
+    expect(followerEngagement(profile({ followers: 0, recentPosts: normal }))).toEqual({ rate: null, sample: 0 });
+  });
+});
+
 describe("engagementPercent (master directive §4.1: never a misleading 0%)", () => {
   it("keeps two decimals, four for a real but tiny rate, and null when nothing is measurable", async () => {
     const { engagementPercent } = await import("./signals");

@@ -71,11 +71,17 @@ describe("niche classification: recent posts when the bio is unclear", () => {
     expect(d.niches).toEqual(["Sports", "Food"]);
   });
 
-  it("calls a creator with several subjects and no dominant one Variety", () => {
+  // Owner directive 2026-11-15 (§2.1): several prominent subjects still name a main niche (the rest secondary).
+  it("names a main niche even when several subjects are equally prominent", () => {
     const d = niche({ posts: ["Cricket highlights", "New song cover", "PUBG stream", "Cricket world cup", "Song release", "PUBG rank push"] });
-    expect(d.status).toBe("variety");
-    expect(d.main).toBeNull();
-    expect(d.niches.length).toBeGreaterThanOrEqual(2);
+    expect(d).toMatchObject({ status: "classified", main: "Gaming", confidence: "low" });
+    expect(d.niches).toEqual(["Gaming", "Sports"]);
+  });
+
+  it("counts vlog-only posts for Lifestyle, but a specific subject wins (funny vlogs: Comedy)", () => {
+    expect(niche({ posts: ["Day out #vlog", "Family trip vlog", "Morning #vlogs"] })).toMatchObject({ status: "classified", main: "Lifestyle" });
+    expect(niche({ posts: ["Awards night #vlog #funny_vlogs", "Unboxing #vlog #funny_vlogs", "Prayers #vlog #funny_vlogs"] })).toMatchObject({ main: "Comedy" });
+    expect(niche({ posts: ["New video", "Shorts", "#reels #video"] }).status).toBe("unknown");
   });
 
   it("returns Unknown when evidence is empty, vague or too thin", () => {
@@ -103,8 +109,9 @@ describe("niche classification: the AI's reading", () => {
   it("only breaks an exact tie between subjects the posts support", () => {
     const posts = rep(["PUBG rank push", "Biryani recipe"], 8);
     expect(niche({ posts, ai: ["Food"] })).toMatchObject({ status: "classified", main: "Food", niches: ["Food", "Gaming"], confidence: "low" });
-    expect(niche({ posts, ai: ["Lifestyle"] })).toMatchObject({ status: "variety", main: null });
-    expect(niche({ posts })).toMatchObject({ status: "variety" });
+    // Owner directive 2026-11-15 (§2.1): without an AI pick among them, a tie still names the first specific subject.
+    expect(niche({ posts, ai: ["Lifestyle"] })).toMatchObject({ status: "classified", main: "Food", niches: ["Food", "Gaming"], confidence: "low" });
+    expect(niche({ posts })).toMatchObject({ status: "classified", main: "Food" });
   });
 });
 
@@ -149,7 +156,10 @@ describe("niche classification: long descriptions", () => {
     const long = `${"Welcome to our channel about life in our city. ".repeat(7)}We sometimes cover food, travel and cricket.`;
     expect(long.length).toBeGreaterThan(300);
     expect(niche({ bio: long })).toMatchObject({ status: "unknown", niches: [] });
-    expect(niche({ bio: "Travel vlogs / fashion vlogs / food vlogs" })).toMatchObject({ status: "variety" });
+    const short = niche({ bio: "Travel vlogs / fashion vlogs / food vlogs" });
+    expect(short).toMatchObject({ status: "classified", confidence: "low" });
+    expect(short.niches).toHaveLength(3);
+    expect(short.niches[0]).toBe(short.main);
   });
 });
 

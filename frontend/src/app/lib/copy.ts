@@ -21,7 +21,7 @@ export const COPY = {
 } as const;
 
 export const METRIC_HELP = {
-  engagement: "Average likes and comments per post divided by followers, over recent posts.",
+  engagement: "Likes and comments per post divided by followers (subscribers on YouTube): the median over up to 10 recent posts, on every platform.",
   creatorFit: "How closely this creator matches your search or campaign requirements. An estimate, not a guarantee.",
   authenticity:
     "Evidence-based signals about unusual audience or engagement patterns. A signal to review, not proof either way.",

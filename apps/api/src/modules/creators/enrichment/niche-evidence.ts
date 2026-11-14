@@ -61,7 +61,21 @@ const CONTRAST = /\b(?:not|no|never|don'?t|doesn'?t|isn'?t|instead|but|except|un
 // Above this length a bio that names several subjects equally is not evidence of Variety on its own.
 const SHORT_BIO = 300;
 const EDUCATION = "Education & How-to";
+const LIFESTYLE = "Lifestyle";
 const FORMAT_FORMS = new Set(["how to", "howto", "tutorial", "tutorials", "diy"]);
+/**
+ * Vlog/blog words describe a format. A post whose only cue is one of them counts for Lifestyle as a fallback; with a
+ * specific subject ("funny vlogs", "food blogger") the subject counts instead (owner directive 2026-11-15, §2.1).
+ * "video", "shorts" and "reels" are format words with no subject at all, so they count for nothing.
+ */
+const VLOG_FORMS = ["vlog", "vlogs", "vlogging", "vlogger", "vloggers", "blog", "blogs", "blogger", "bloggers"];
+/**
+ * When niches tie or several are prominent, a main niche is still named (owner directive 2026-11-15, §2.1): the AI's
+ * pick when it named one of them, else a specific subject before the Lifestyle fallback, else the most frequent.
+ */
+function pickMain(labels: string[], aiNiches: readonly string[]): string {
+  return labels.find((l) => aiNiches.includes(l)) ?? labels.find((l) => l !== LIFESTYLE) ?? (labels[0] as string);
+}
 // Search forms too general to prove a niche on their own (they still count for search).
 export const WEAK_NICHE_FORMS = new Set(["safar", "سفر", "style", "styling", "explore", "exploring", "tour", "trip", "trips", "glow", "lawn", "health", "healthy", "diet", "mobile", "mobiles", "phone", "phones", "game", "games", "study", "studies", "learning", "money", "savings", "trading", "car", "cars", "auto", "autos", "bike", "bikes", "farm", "routine", "marketing", "sketch", "memes", "song", "songs", "drama", "film", "films", "movie", "movies", "property", "properties", "sport", "khel", "کھیل", "news", "political", "exam", "exams", "course", "courses", "science"]);
 
@@ -110,6 +124,7 @@ function readPosts(posts: string[]): PostReading {
   const counts = new Map<string, number>();
   for (const p of parts) {
     const labels = new Set([...labelsIn(p.caption, { strongOnly: true }).keys(), ...labelsIn(p.tags, { strongOnly: true }).keys()]);
+    if (labels.size === 0 && VLOG_FORMS.some((f) => mentions(p.caption, f) || mentions(p.tags, f))) labels.add(LIFESTYLE);
     for (const l of labels) counts.set(l, (counts.get(l) ?? 0) + 1);
   }
   const n = parts.length;
@@ -195,12 +210,17 @@ export function classifyNiche(o: { displayName: string; bio: string; accountCate
       observations.push({ value: pick, source: "ai_assessment", status: "supported", evidence: `AI broke a tie between ${posts.labels.join(" and ")} (${postNote(pick)} each)` }, postRow(other));
       return done({ status: "classified", main: pick, niches: [pick, other], confidence: "low" }, "post_estimated");
     }
+    // Owner directive 2026-11-15 (§2.1): a tie still names a main niche, a specific subject before the Lifestyle fallback.
+    const main = pickMain(posts.labels, o.aiNiches);
     observations.push(...posts.labels.map(postRow));
-    return done({ status: "variety", main: null, niches: [...posts.labels], confidence: "low" }, "post_estimated");
+    return done({ status: "classified", main, niches: [main, ...posts.labels.filter((l) => l !== main)], confidence: "low" }, "post_estimated");
   }
   if (posts.kind === "variety") {
+    // Several prominent subjects: the most frequent (or the AI's pick among them) is the main niche, the rest secondary.
+    const top = posts.labels.filter((l) => (posts.counts.get(l) ?? 0) === (posts.counts.get(posts.labels[0] as string) ?? 0));
+    const main = pickMain(top, o.aiNiches);
     observations.push(...posts.labels.map(postRow));
-    return done({ status: "variety", main: null, niches: posts.labels, confidence: posts.confidence }, "post_estimated");
+    return done({ status: "classified", main, niches: [main, ...posts.labels.filter((l) => l !== main)], confidence: "low" }, "post_estimated");
   }
   // A short bio that lists several subjects equally, with no posts to weigh them ("travel / fashion / food vlogs"). A long
   // description names many things in passing, so without posts it is not enough to call the creator Variety.
@@ -210,8 +230,10 @@ export function classifyNiche(o: { displayName: string; bio: string; accountCate
   }
   if (bioRank.length >= 2) {
     const labels = bioRank.slice(0, 3).map(([l]) => l);
+    const topScore = bioRank[0]?.[1];
+    const main = pickMain(bioRank.filter(([, s]) => s === topScore).map(([l]) => l), o.aiNiches);
     observations.push(...labels.map((l) => bioRow(l, "supported")));
-    return done({ status: "variety", main: null, niches: labels, confidence: "low" }, "bio_identified");
+    return done({ status: "classified", main, niches: [main, ...labels.filter((l) => l !== main)], confidence: "low" }, "bio_identified");
   }
   return done({ status: "unknown", main: null, niches: [], confidence: null });
 }
