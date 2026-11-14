@@ -67,6 +67,12 @@ begin
   -- are copies of YouTube API data. A contact entered by staff ('staff') is not, and stays. contact_checks cascade;
   -- contact_reveals keep no value, so a workspace's reveal history is unaffected.
   delete from gcp.creator_contacts ct where ct.creator_id = any(stale) and ct.source in ('bio', 'video_description');
+  -- 'video_description' is only ever read from YouTube: cleared for every creator with an expired YouTube profile,
+  -- whatever its primary platform (merged multi-platform creators; security review).
+  delete from gcp.creator_contacts ct using gcp.creator_profiles yp
+    where yp.creator_id = ct.creator_id and yp.platform = 'youtube' and coalesce(yp.last_scraped_at, yp.created_at) < cutoff and ct.source = 'video_description';
+  delete from gcp.creator_links l using gcp.creator_profiles yp
+    where yp.creator_id = l.creator_id and yp.platform = 'youtube' and coalesce(yp.last_scraped_at, yp.created_at) < cutoff and l.source = 'video_description';
   delete from gcp.creator_links l where l.creator_id = any(stale);
 
   update wp.discovery_results r

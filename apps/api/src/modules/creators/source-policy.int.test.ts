@@ -114,6 +114,15 @@ describe("YouTube derived-metrics policy", () => {
     expect(await ownerQuery(`select 1 from gcp.creator_contacts where creator_id = '${yt}' and source = 'video_description'`)).toHaveLength(0);
   });
 
+  it("clears YouTube description contacts of a merged creator whose primary platform is Instagram (0087)", async () => {
+    const both = await addCreator(db, { displayName: "Merged", primaryPlatform: "instagram", snapshot, profiles: [{ platform: "instagram", handle: "mergedig", followers: 30_000 }, { platform: "youtube", handle: "mergedyt", followers: 20_000 }] });
+    await ownerQuery(`update gcp.creator_profiles set last_scraped_at = now() - interval '31 days' where creator_id = '${both}' and platform = 'youtube';
+      insert into gcp.creator_contacts (creator_id, kind, value_encrypted, value_hash, masked, trust, source) values
+        ('${both}', 'email', 'x', 'h-yt', 'y***@x.pk', 'unverified', 'video_description'), ('${both}', 'email', 'x', 'h-ig', 'i***@x.pk', 'unverified', 'bio')`);
+    await expireYoutubeApiData(db);
+    expect((await ownerQuery<{ source: string }>(`select source from gcp.creator_contacts where creator_id = '${both}'`)).map((r) => r.source)).toEqual(["bio"]);
+  });
+
   it("removes a YouTube profile's own photo file even when YouTube is not the creator's primary platform (0084)", async () => {
     const both = await addCreator(db, { displayName: "Two Platforms", primaryPlatform: "instagram", snapshot, profiles: [{ platform: "instagram", handle: "twoplat", followers: 30_000 }, { platform: "youtube", handle: "twoplattube", followers: 20_000 }] });
     await ownerQuery(`update gcp.creator_profiles set last_scraped_at = now() - interval '31 days', avatar_url = 'https://x/yt.jpg', avatar_key = 'youtube/twoplat.jpg' where creator_id = '${both}' and platform = 'youtube'`);
