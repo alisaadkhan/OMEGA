@@ -32,17 +32,36 @@ export function spreadByPlatform<T extends { platform: CreatorPlatform }>(items:
 const IG_TITLE_AUTHOR = /^[^"“@]{0,80}?\(\s*@([A-Za-z0-9._]{2,30})\s*\)\s*(?:on Instagram\b|•)/i;
 const IG_PATH_AUTHOR = /^https?:\/\/(?:www\.|m\.)?instagram\.com\/([A-Za-z0-9._]{2,30})\/(?:p|reel|reels|tv)\//i;
 const IG_RESERVED = new Set(["p", "reel", "reels", "tv", "explore", "stories"]);
+const IG_AUTHOR_MARKER = /\(\s*@[A-Za-z0-9._]{2,30}\s*\)\s*(?:on Instagram\b|•)/gi;
+/**
+ * Security review 2026-11-15: neither field alone is proof of authorship. The display name is the account's own text
+ * (it can hold "(@someone) •" or a quote mark), and Instagram serves /<anything>/p/<code>, so a path prefix can name
+ * anyone. A title is read only when it holds exactly one author marker in total, in the author position; a path prefix
+ * must agree with it. Otherwise the post is not used (no fetch).
+ */
 export function instagramPostAuthor(link: string, title: string): string | null {
   if (!IG_CONTENT.test(link)) return null;
-  // A handle in the link's path is written by Instagram, not by the account: it wins over the title.
-  const path = IG_PATH_AUTHOR.exec(link)?.[1]?.toLowerCase();
-  if (path && !IG_RESERVED.has(path)) return path.replace(/\.$/, "");
-  // The display name before "(@handle)" is the account's own text: a name that itself holds "(@someone)" could point
-  // the parser at another account (security review 2026-11-15), so a title with more than one is not read at all.
-  const head = title.trim().split(/["“]/)[0] ?? "";
-  if ((head.match(/\(\s*@/g) ?? []).length !== 1) return null;
-  const m = IG_TITLE_AUTHOR.exec(title.trim());
-  return m ? (m[1] as string).toLowerCase().replace(/\.$/, "") : null;
+  const t = title.trim();
+  if ((t.match(IG_AUTHOR_MARKER) ?? []).length !== 1) return null;
+  const m = IG_TITLE_AUTHOR.exec(t);
+  if (!m) return null;
+  const author = (m[1] as string).toLowerCase().replace(/\.$/, "");
+  const path = IG_PATH_AUTHOR.exec(link)?.[1]?.toLowerCase().replace(/\.$/, "");
+  if (path && !IG_RESERVED.has(path) && path !== author) return null;
+  return author;
+}
+
+/**
+ * The profile a search result stands for: an Instagram post only through its established author, anything else through
+ * its link. Shared by candidate collection and the decision trail so both record the same profile.
+ */
+export function resultProfile(platform: CreatorPlatform, r: Pick<WebResult, "link" | "title">): ReturnType<typeof normalizeProfileUrl> {
+  if (platform === "instagram" && isInstagramContent(r.link)) {
+    const author = instagramPostAuthor(r.link, r.title);
+    // A post whose author cannot be established is skipped, never read from its path prefix (security review 2026-11-15).
+    return author ? normalizeProfileUrl(`https://instagram.com/${author}`) : null;
+  }
+  return normalizeProfileUrl(r.link);
 }
 
 /** Spec §4.2 step 2: result links → unique profiles of the platform searched (posts, reels and app pages are not profiles). */
@@ -52,8 +71,7 @@ export function collectCandidates(groups: { platform: CreatorPlatform; results: 
     for (const r of g.results) {
       // A post or reel whose title names its author becomes that author's profile at no extra cost. (TikTok video links
       // already carry the author in the path and normalize to the profile below.)
-      const author = g.platform === "instagram" ? instagramPostAuthor(r.link, r.title) : null;
-      const n = author ? normalizeProfileUrl(`https://instagram.com/${author}`) : normalizeProfileUrl(r.link);
+      const n = resultProfile(g.platform, r);
       if (!n || n.platform !== g.platform || seen.has(n.canonicalUrl)) continue;
       const handle = (n.canonicalUrl.split("/").pop() ?? "").replace(/^@/, "");
       seen.set(n.canonicalUrl, { platform: n.platform, handle, canonicalUrl: n.canonicalUrl, title: r.title, snippet: r.snippet });

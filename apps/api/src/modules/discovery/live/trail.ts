@@ -1,7 +1,7 @@
 import type { CandidateDecision, CandidateStage } from "@mushin/db";
 import type { WebResult } from "@mushin/integrations";
-import { cleanText, normalizeProfileUrl, redactContacts, type CreatorPlatform } from "../../creators/index";
-import { isInstagramContent } from "./candidates";
+import { cleanText, redactContacts, type CreatorPlatform } from "../../creators/index";
+import { isInstagramContent, resultProfile } from "./candidates";
 import type { CandidateRow } from "../repository";
 
 export type SearchGroup = { platform: CreatorPlatform; query: string; round: number; results: WebResult[] };
@@ -31,7 +31,7 @@ export function createTrail(o: { workspaceId: string; jobId: string }) {
     observe(groups: SearchGroup[]): void {
       for (const g of groups) {
         g.results.forEach((r, index) => {
-          const n = normalizeProfileUrl(r.link);
+          const n = resultProfile(g.platform, r);
           const sourceUrl = r.link.slice(0, 500);
           const key = n && n.platform === g.platform ? n.canonicalUrl : sourceUrl;
           const existing = rows.get(key);

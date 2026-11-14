@@ -213,8 +213,12 @@ describe("free profile candidates from post and video links (plan 2026-11-14)", 
     // Security review 2026-11-15: the account's display name cannot point the parser at someone else.
     expect(instagramPostAuthor("https://www.instagram.com/p/Cx12345abc/", "Foo (@victim) • (@attacker) on Instagram: \"x\"")).toBeNull();
     expect(instagramPostAuthor("https://www.instagram.com/p/Cx12345abc/", "Foo (@victim) on Instagram (@attacker) on Instagram: \"x\"")).toBeNull();
-    // A handle in the link's own path (written by Instagram) wins over whatever the title says.
-    expect(instagramPostAuthor("https://www.instagram.com/attacker/p/Cx12345abc/", "Foo (@victim) on Instagram: \"x\"")).toBe("attacker");
+    // A quote mark in the display name does not hide a second marker; a path prefix must agree with the title's author.
+    expect(instagramPostAuthor("https://www.instagram.com/p/Cx12345abc/", "(@victim) on Instagram: \"x\" (@attacker) on Instagram: \"caption\"")).toBeNull();
+    expect(instagramPostAuthor("https://www.instagram.com/attacker/p/Cx12345abc/", "Foo (@victim) on Instagram: \"x\"")).toBeNull();
+    expect(instagramPostAuthor("https://www.instagram.com/ali.eats/p/Cx12345abc/", "Ali Eats (@ali.eats) on Instagram: \"x\"")).toBe("ali.eats");
+    // A post link whose author cannot be established is skipped, not read from its path prefix.
+    expect(collectCandidates([{ platform: "instagram", results: [{ link: "https://www.instagram.com/victim/p/Cx12345abc/", title: "Instagram", snippet: "" }] }])).toEqual([]);
     const c = collectCandidates([
       { platform: "instagram", results: [{ link: "https://www.instagram.com/reel/Cx12345abc/", title: "Ali Eats (@ali.eats) on Instagram: \"Karahi\"", snippet: "" }] },
       { platform: "tiktok", results: [{ link: "https://www.tiktok.com/@foodie.pk/video/7312345678901234567", title: "Karahi", snippet: "" }] },
