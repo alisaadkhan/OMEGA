@@ -342,3 +342,15 @@ export function countryCode(value: string): string | null {
   const v = value.trim();
   return isoCountryCode(v) ?? NAMES.get(normalizeTerms(v)) ?? null;
 }
+
+// Pakistani diaspora (0081), the same rule as the generated column, for decisions made before a profile is saved (live
+// discovery): a profile living abroad whose own bio states Pakistani identity. Keep in step with 0081.
+const DIASPORA_OTHER_IDENTITY = /(^|[^\p{L}])(afghan|indian|bangladeshi|iranian|nepali|sri\s+lankan|arab|turkish|british|american|canadian)\s+(girl|boy|guy|woman|man|mom|mum|dad|creator|blogger|vlogger|youtuber|influencer|family|couple)([^\p{L}]|$)/iu;
+const DIASPORA_SHOP = /(made\s+in|deliver(ing|y|s)|(^|[^\p{L}])(stores?|ceo|wholesale|cod|shop|outlets?)([^\p{L}]|$)|cash\s+on\s+delivery)/iu;
+const DIASPORA_IDENTITY = /(^|[^\p{L}])(born\s+in\s+pakistan|pakistani\s+(origin|heritage|roots|descent)|pak(istan)?[- ]born|proud(ly)?\s+pakistani|pakistani\s*[-–]?\s*(american|british|canadian|australian|german|norwegian|danish|dutch|french|italian|irish|scottish|swedish|kiwi|emirati|turkish)|(a|am|i'm|im)\s+pakistani|pakistani\s+(in|living|based|from|girl|boy|mom|mum|dad|wife|husband|guy|woman|man|creator|blogger|vlogger|youtuber|abroad|expat))([^\p{L}]|$)/iu;
+export function isPakistaniDiaspora(countryStatus: string | null, bio: string | null): boolean {
+  if (countryStatus !== "foreign" || !bio) return false;
+  const folded = bio.replace(/pakistani\s*[-–]?\s*(american|british|canadian|turkish|arab)/giu, "pakistani");
+  if (DIASPORA_OTHER_IDENTITY.test(folded)) return false;
+  return (bio.includes("🇵🇰") && !DIASPORA_SHOP.test(bio)) || DIASPORA_IDENTITY.test(bio);
+}

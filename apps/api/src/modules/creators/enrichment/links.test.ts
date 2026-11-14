@@ -43,3 +43,21 @@ describe("location from video descriptions (Phase 4.2)", () => {
     expect(captionCountryEvidence(["Based in Lahore", "Now living in Dubai"])).toBeNull();
   });
 });
+
+describe("Pakistani diaspora in code (mirror of 0081)", () => {
+  it("decides the same cases as the database column", async () => {
+    const { isPakistaniDiaspora } = await import("./country-evidence");
+    const cases: [string, string, boolean][] = [
+      ["Pakistani girl living in the UK", "foreign", true],
+      ["I'm Pakistani, based in Dubai", "foreign", true],
+      ["Born in Pakistan, bred in China, living in Canada.", "foreign", true],
+      ["Pakistani-American mom of two", "foreign", true],
+      ["Vlogs from Sydney 🇵🇰🇦🇺", "foreign", true],
+      ["Best Pakistani recipes in London", "foreign", false],
+      ["Made in 🇺🇸 · Delivering all over 🇵🇰", "foreign", false],
+      ["An Afghan girl in search of good food in Islamabad 🇦🇫 🇵🇰", "foreign", false],
+      ["Pakistani girl living in Lahore", "pakistan", false],
+    ];
+    for (const [bio, status, expected] of cases) expect(isPakistaniDiaspora(status, bio), bio).toBe(expected);
+  });
+});

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { searchFiltersSchema } from "@mushin/contracts";
 import { MockLlm } from "@mushin/integrations";
-import { collectCandidates, spreadByPlatform } from "./candidates";
+import { collectCandidates, instagramPostAuthor, spreadByPlatform } from "./candidates";
 import { buildQueries, platformsFor, youtubeNativeQuery } from "./queries";
 import { classifyCandidates, filterRelevant, rankByEvidence, RELEVANCE_BATCH } from "./relevance";
 
@@ -43,6 +43,12 @@ describe("Google queries from the filter chips", () => {
     expect(q?.query.slice("site:instagram.com ".length)).not.toMatch(/[":]|\bOR\b|evil\.com/);
   });
 
+  it("adds niche-native role searches when the brief comes from the niche chip (plan 2026-11-14)", () => {
+    const qs = buildQueries(search("", { platform: "youtube", niches: ["Tech"], creatorCountry: "PK" }));
+    expect(qs.map((q) => q.query)).toEqual(["site:youtube.com/@ tech content creator pakistan", "site:youtube.com/@ tech reviewer pakistan", "site:youtube.com/@ unboxing pakistan", "site:youtube.com/@ tech influencer pakistan"]);
+    expect(qs.every((q) => q.num === 20)).toBe(true);
+  });
+
   it("plans bounded Roman Urdu and Urdu-script recall rounds for Pakistani niches", () => {
     const s = search("food blogger in Lahore", { platform: "tiktok", niches: ["Food"], creatorCity: "Lahore", creatorCountry: "PK" });
     const roman = buildQueries(s, 2);
@@ -51,7 +57,7 @@ describe("Google queries from the filter chips", () => {
     expect(roman.find((q) => q.hl === "en")?.query).toContain("khana foodie");
     expect(urdu?.query).toContain("کھانا");
     expect(urdu?.query).toContain("لاہور");
-    expect(roman.every((q) => q.num <= 10 && q.round === 2)).toBe(true);
+    expect(roman.every((q) => q.num === 20 && q.round === 2)).toBe(true);
     // Measured 2026-10-13: Urdu-script recall queries on Instagram found 1 new profile in 19 searches, none eligible.
     const ig = { ...s, filters: { ...s.filters, platform: "instagram" as const } };
     expect([...buildQueries(ig, 2), ...buildQueries(ig, 3)].some((q) => q.hl === "ur")).toBe(false);
@@ -195,5 +201,33 @@ describe("extraction order", () => {
     ] }]);
     const ranked = rankByEvidence(search("food", { niches: ["Food"], creatorCity: "Lahore" }), pool).map((c) => c.handle);
     expect(ranked).toEqual(["ali_eats", "sana_eats", "plain_one", "plain_two", "biryani_house"]);
+  });
+});
+
+describe("free profile candidates from post and video links (plan 2026-11-14)", () => {
+  it("takes an Instagram post's author only from the author position of Google's title, and TikTok video authors from the path", () => {
+    expect(instagramPostAuthor("https://www.instagram.com/reel/Cx12345abc/", "Ali Eats (@ali.eats) on Instagram: \"Best karahi in Lahore\"")).toBe("ali.eats");
+    expect(instagramPostAuthor("https://www.instagram.com/p/Cx12345abc/", "Sana (@sana.cooks) • Instagram photos and videos")).toBe("sana.cooks");
+    expect(instagramPostAuthor("https://www.instagram.com/p/Cx12345abc/", "Instagram: \"collab with (@someone)\"")).toBeNull();
+    expect(instagramPostAuthor("https://www.instagram.com/ali.eats/", "Ali Eats (@ali.eats) • Instagram photos and videos")).toBeNull(); // a profile link is handled as a profile
+    const c = collectCandidates([
+      { platform: "instagram", results: [{ link: "https://www.instagram.com/reel/Cx12345abc/", title: "Ali Eats (@ali.eats) on Instagram: \"Karahi\"", snippet: "" }] },
+      { platform: "tiktok", results: [{ link: "https://www.tiktok.com/@foodie.pk/video/7312345678901234567", title: "Karahi", snippet: "" }] },
+    ]);
+    expect(c.map((x) => x.canonicalUrl)).toEqual(["https://instagram.com/ali.eats", "https://tiktok.com/@foodie.pk"]);
+  });
+});
+
+describe("pre-screen drops non-creators before any paid fetch (plan 2026-11-14)", () => {
+  it("drops official game, brand and news accounts and described actresses; keeps creators", () => {
+    const c = (handle: string, title: string, snippet = "") => ({ platform: "instagram" as const, handle, canonicalUrl: `https://instagram.com/${handle}`, title, snippet });
+    const r = classifyCandidates(search("gaming", { niches: ["Gaming"] }), [
+      c("pubgm_pk_official", "PUBG MOBILE Pakistan (@pubgm_pk_official)"),
+      c("suchtvnews", "SUCH TV", "Official account of SUCH TV News"),
+      c("some.actress", "Some Name", "Pakistani TV actress | drama serial"),
+      c("ali.plays", "Ali Plays", "PUBG streamer and gaming youtuber"),
+    ]);
+    expect(r.businesses.map((x) => x.handle)).toEqual(["pubgm_pk_official", "suchtvnews", "some.actress"]);
+    expect([...r.possible, ...r.ambiguous].map((x) => x.handle)).toEqual(["ali.plays"]);
   });
 });

@@ -70,6 +70,31 @@ function regionName(code: string): string {
   }
 }
 
+/**
+ * Niche-native role words for round 1 (owner plan 2026-11-14, Phase 1): people describe themselves as "food vlogger" or
+ * "tech reviewer", not only "content creator". Keyed by the canonical niche word (lower case).
+ */
+export const ROLE_TERMS: Record<string, [string, string]> = {
+  food: ["food vlogger", "food reviewer"],
+  tech: ["tech reviewer", "unboxing"],
+  beauty: ["makeup artist", "skincare blogger"],
+  gaming: ["gaming youtuber", "streamer"],
+  fashion: ["fashion blogger", "stylist"],
+  bridal: ["bridal makeup artist", "bridal stylist"],
+  travel: ["travel vlogger", "traveller"],
+  wellness: ["fitness coach", "health coach"],
+  comedy: ["comedian", "funny videos"],
+  education: ["educator", "teacher"],
+  finance: ["finance educator", "investing"],
+  lifestyle: ["lifestyle vlogger", "daily vlogs"],
+  automotive: ["car reviewer", "auto vlogger"],
+  sports: ["sports creator", "cricket analyst"],
+  music: ["singer", "music producer"],
+  parenting: ["mom blogger", "family vlogger"],
+  podcasts: ["podcaster", "podcast host"],
+};
+const rolesFor = (niche: string): [string, string] | null => ROLE_TERMS[niche.split(/[\s&,-]+/)[0] ?? ""] ?? null;
+
 /** Spec §4.2 step 1: 2–3 targeted searches per platform in scope, built by code from the chips (the text only adds topic words). */
 export function buildQueries(s: LiveSearch, round: 1 | 2 | 3 = 1): PlannedQuery[] {
   const niches = s.filters.niches.map((n) => words(n, 40)).filter(Boolean);
@@ -91,8 +116,17 @@ export function buildQueries(s: LiveSearch, round: 1 | 2 | 3 = 1): PlannedQuery[
     const known = URDU_TERMS[topic] ?? URDU_TERMS[typed];
     // Urdu-script text mixed with English role words returned 0 results in every measured query (2026-10-13).
     const urduTyped = typedUrdu ? [{ parts: [typedUrdu, localizedPlace || place], hl: "ur" }] : [];
+    // Niche-native roles only when the topic comes from the niche chip: words the user typed stay their own.
+    const roles = typed ? null : rolesFor(niches[0] ?? "");
+    const english = roles
+      ? [[topic, "content creator", place || market], [roles[0], place || market], [roles[1], place || market], [roleTopic, "influencer", place || market]]
+      : [[topic, "content creator", place || market], [roleTopic, "blogger", place || market], [roleTopic, "influencer", place || market]];
     const planned: { parts: string[]; hl: string }[] = round === 1
-      ? [...[[topic, "content creator", place || market], [roleTopic, "blogger", place || market], [roleTopic, "influencer", place || market]].map((parts) => ({ parts, hl: "en" })), ...urduTyped]
+      ? [
+          // An Urdu-script query keeps its place within the four searches per platform.
+          ...english.slice(0, urduTyped.length ? 3 : 4).map((parts) => ({ parts, hl: "en" })),
+          ...urduTyped,
+        ]
       : round === 2 && isPakistan && known
         ? [
             { parts: [known.roman, place], hl: "en" },
@@ -111,7 +145,8 @@ export function buildQueries(s: LiveSearch, round: 1 | 2 | 3 = 1): PlannedQuery[
       const query = [SITE[platform], ...parts.filter(Boolean)].join(" ").slice(0, 240);
       if (query === SITE[platform] || seen.has(`${hl}|${query}`) || seen.size === 4) continue;
       seen.add(`${hl}|${query}`);
-      out.push({ platform, query, country, hl, round, num: 10 });
+      // 20 results per search (owner plan 2026-11-14): more candidates from the same query.
+      out.push({ platform, query, country, hl, round, num: 20 });
     }
   }
   return out;

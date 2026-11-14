@@ -25,7 +25,7 @@ export { createEnrichmentPipeline } from "./enrichment/pipeline";
 export type { EnrichHooks, EnrichJob, EnrichmentPipeline, EnrichResult, SavedResult } from "./enrichment/pipeline";
 export { findProfileByUrl, getEnrichmentSettings, placeAttributes, profileTarget, refreshProfileCountries, bulkRefreshProfileCountries, replaceAttributeEvidence } from "./enrichment/repository";
 export { deriveAttributes } from "./enrichment/attribute-evidence";
-export { profileCountry, type ProfileCountry } from "./enrichment/country-evidence";
+export { captionCountryEvidence, isPakistaniDiaspora, profileCountry, type ProfileCountry } from "./enrichment/country-evidence";
 export { backfillAttributes, restoreBeforeImages } from "./enrichment/backfill";
 export type { BackfillReport, BeforeImage } from "./enrichment/backfill";
 export type { AttributeDecision, EvidenceRow } from "./enrichment/attribute-evidence";

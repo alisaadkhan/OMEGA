@@ -3,7 +3,7 @@ import { AppError, type Logger } from "@mushin/core";
 import { providerSpendForJob, type Db, type LivePrices, type LiveProgress, type TenantTx } from "@mushin/db";
 import { ProviderError, type Llm, type ProfileScraper } from "@mushin/integrations";
 import type { BillingService } from "../billing/index";
-import { classifyAccountType, findProfileByUrl, fitLabel, NON_TARGET_TYPES, getSearchSettings, profileCountry, profileEligibility, isVisibleCreator, rankCards, suppressedUrls, type CreatorPlatform, type SourcePolicy, type EnrichJob, type EnrichmentPipeline } from "../creators/index";
+import { captionCountryEvidence, classifyAccountType, findProfileByUrl, isPakistaniDiaspora, fitLabel, NON_TARGET_TYPES, getSearchSettings, profileCountry, profileEligibility, isVisibleCreator, rankCards, suppressedUrls, type CreatorPlatform, type StandardPost, type SourcePolicy, type EnrichJob, type EnrichmentPipeline } from "../creators/index";
 import { notifyFinished, releaseHeld } from "./finish";
 import { TERMS_V2, type TaggedSearch } from "./topic-evidence";
 import type { CachedSearch } from "./live/cache";
@@ -55,6 +55,12 @@ type Deps = {
 
 /** G2: candidates after the cheap G1 gate needed before extraction (spec default 8); below it the run is `insufficient`. */
 export const MIN_POOL = 8;
+/**
+ * A search round stops early only once the pool holds this many plausible profiles (owner plan 2026-11-14, Phase 1):
+ * 20, or twice the run size when that is larger. With 8 the run used to stop after round 1 and skip the Roman Urdu and
+ * local-term rounds. (MIN_POOL stays the floor below which a run is reported as having too few candidates.)
+ */
+export const continuePool = (maxNew: number) => Math.max(20, 2 * maxNew);
 
 const MESSAGES: Record<ProviderError["reason"], string> = {
   spend_cap: "Finding new creators is paused right now. Please try again later. Your credits were returned.",
@@ -153,15 +159,28 @@ export function createLiveRunner(deps: Deps) {
     // elig-2 (2026-10-27): the profile found must also be Pakistani on its own evidence (its bio; YouTube: the channel country).
     // Plan 2026-11-14 Phase 5: a brand, company, shop, media outlet, fan page or traditional celebrity is saved but never
     // delivered or charged (reason account_not_individual_creator), the same rule as search.
-    const eligibleProfile = (k: Kept, p: { followers: number | null; recentPosts: { postedAt: Date }[]; bio: string; country: string | null; displayName?: string; accountCategory?: string | null }, observedAt: Date) => {
+    const eligibleProfile = (k: Kept, p: { followers: number | null; recentPosts: StandardPost[]; bio: string; country: string | null; displayName?: string; accountCategory?: string | null; websiteUrls?: string[] }, observedAt: Date) => {
       const kind = classifyAccountType({ category: p.accountCategory ?? null, bio: p.bio, handle: k.handle, displayName: p.displayName ?? "" });
       if (NON_TARGET_TYPES.has(kind.type) && (kind.confidence === "high" || kind.confidence === "medium")) {
         trail.set(k.canonicalUrl, "verification", "rejected", "account_not_individual_creator");
         return false;
       }
       const latest = p.recentPosts.reduce<Date | null>((max, x) => (max === null || x.postedAt > max ? x.postedAt : max), null);
-      const pc = profileCountry({ bio: p.bio, platformCountry: p.country, confirmed: null });
-      const e = profileEligibility({ platform: k.platform, canonicalUrl: k.canonicalUrl, followers: k.platform === "youtube" && p.followers === 0 ? null : p.followers, followersUpdatedAt: observedAt, lastPostAt: latest, country: { code: pc.country, status: pc.status, checkedAt: observedAt } }, now());
+      // The catalogue's full location hierarchy (plan 2026-11-14, Phase 1.5): bio/About and platform country, links, post
+      // geotags and recent descriptions; a Pakistani living abroad in their own words is kept like a Pakistan-based one.
+      const recent = p.recentPosts.slice(0, 5);
+      const pc = profileCountry({
+        bio: p.bio,
+        platformCountry: p.country,
+        confirmed: null,
+        extras: {
+          urls: p.websiteUrls ?? [],
+          postLocations: p.recentPosts.map((x) => x.location).filter((x): x is string => typeof x === "string" && x.length > 0),
+          captionEvidence: captionCountryEvidence(recent.map((x) => [x.caption, x.description ?? ""].join("\n"))),
+        },
+      });
+      const diaspora = isPakistaniDiaspora(pc.status, p.bio);
+      const e = profileEligibility({ platform: k.platform, canonicalUrl: k.canonicalUrl, followers: k.platform === "youtube" && p.followers === 0 ? null : p.followers, followersUpdatedAt: observedAt, lastPostAt: latest, country: { code: pc.country, status: pc.status, checkedAt: observedAt, diaspora } }, now());
       if (!e.qualifies) trail.set(k.canonicalUrl, "verification", "rejected", e.reasons[0] ?? "ineligible");
       return e.qualifies;
     };
@@ -203,7 +222,7 @@ export function createLiveRunner(deps: Deps) {
           afterDedupe: candidates.length,
         });
         const g1 = classifyCandidates(search, candidates);
-        if (g1.possible.length + g1.ambiguous.length >= MIN_POOL) break;
+        if (g1.possible.length + g1.ambiguous.length >= continuePool(maxNew)) break;
         await checkCancel();
       }
       // 2b. Posts and reels as discovery evidence: authors the provider reports for the exact post, and creator

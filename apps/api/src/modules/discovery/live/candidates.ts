@@ -24,12 +24,27 @@ export function spreadByPlatform<T extends { platform: CreatorPlatform }>(items:
   }
 }
 
+/**
+ * The author of an Instagram post or reel as Google titles it: "Name (@handle) on Instagram: ..." or "Name (@handle) •"
+ * (owner plan 2026-11-14, Phase 1). Only the author position counts: an @handle inside the quoted caption is often a
+ * different account (measured 2026-10-13), so it is never taken from there.
+ */
+const IG_TITLE_AUTHOR = /^[^"“@]{0,80}?\(\s*@([A-Za-z0-9._]{2,30})\s*\)\s*(?:on Instagram\b|•)/i;
+export function instagramPostAuthor(link: string, title: string): string | null {
+  if (!IG_CONTENT.test(link)) return null;
+  const m = IG_TITLE_AUTHOR.exec(title.trim());
+  return m ? (m[1] as string).toLowerCase().replace(/\.$/, "") : null;
+}
+
 /** Spec §4.2 step 2: result links → unique profiles of the platform searched (posts, reels and app pages are not profiles). */
 export function collectCandidates(groups: { platform: CreatorPlatform; results: WebResult[] }[], max = 60): Candidate[] {
   const seen = new Map<string, Candidate>();
   for (const g of groups) {
     for (const r of g.results) {
-      const n = normalizeProfileUrl(r.link);
+      // A post or reel whose title names its author becomes that author's profile at no extra cost. (TikTok video links
+      // already carry the author in the path and normalize to the profile below.)
+      const author = g.platform === "instagram" ? instagramPostAuthor(r.link, r.title) : null;
+      const n = author ? normalizeProfileUrl(`https://instagram.com/${author}`) : normalizeProfileUrl(r.link);
       if (!n || n.platform !== g.platform || seen.has(n.canonicalUrl)) continue;
       const handle = (n.canonicalUrl.split("/").pop() ?? "").replace(/^@/, "");
       seen.set(n.canonicalUrl, { platform: n.platform, handle, canonicalUrl: n.canonicalUrl, title: r.title, snippet: r.snippet });
