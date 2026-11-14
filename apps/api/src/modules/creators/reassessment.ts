@@ -7,6 +7,7 @@ import { classifyAccountType } from "./account-type";
 import { contentPerformance } from "./eligibility-v3";
 import { standardize } from "./enrichment/standardize";
 import { storedEngagementRate } from "./enrichment/signals";
+import { captionCountryEvidence } from "./enrichment/country-evidence";
 import { bulkRefreshProfileCountries } from "./enrichment/repository";
 
 /**
@@ -49,12 +50,17 @@ export async function reassessCreators(db: Db, creatorIds: string[], readPayload
   const contacts: { creator_id: string; kind: string; enc: string; hash: string; masked: string; trust: string; source: string }[] = [];
   const links: { creator_id: string; platform: string; url: string; source: string }[] = [];
   const ticks: { id: string; v: boolean }[] = [];
+  const captionEvidence: { id: string; e: string | null }[] = [];
   for (const r of rows) {
     // A missing or expired answer leaves this profile as it is.
     // YouTube data past its 30 days is never re-derived: retention (0063/0078) cleared it and only a refresh brings it back.
     const raw = r.key && !r.youtube_expired ? await readPayload(r.key).catch(() => null) : null;
     const std = raw ? standardize(r.platform, r.handle, raw, { maxPosts: 30 }) : null;
     if (std?.kind === "ok" && r.platform !== "youtube") ticks.push({ id: r.profile_id, v: std.profile.verified });
+    // Location evidence from the last 5 descriptions / captions (0087); YouTube text only while it may be used.
+    if (std?.kind === "ok" && (r.platform !== "youtube" || o.youtubeDerived)) {
+      captionEvidence.push({ id: r.profile_id, e: captionCountryEvidence(std.profile.recentPosts.slice(0, 5).map((x) => [x.caption, x.description ?? ""].join("\n"))) });
+    }
     if (r.platform === r.primary_platform && r.account_type_source !== "staff") {
       const d = classifyAccountType({ category: std?.kind === "ok" ? (std.profile.accountCategory ?? null) : null, bio: r.bio ?? "", handle: r.handle, displayName: r.display_name });
       accounts.push({ id: r.creator_id, ...d });
@@ -114,6 +120,12 @@ export async function reassessCreators(db: Db, creatorIds: string[], readPayload
       changed += res.count ?? 0;
       await tx.execute(sql`update gcp.creators c set verified = exists (select 1 from gcp.creator_profiles p where p.creator_id = c.id and p.verified)
         where c.id in (select jsonb_array_elements_text(${JSON.stringify(creatorIds)}::jsonb)::uuid)`);
+    }
+    if (captionEvidence.length) {
+      const res = await tx.execute(sql`
+        update gcp.creator_profiles p set caption_country_evidence = u.e from jsonb_to_recordset(${JSON.stringify(captionEvidence)}::jsonb) as u(id uuid, e text)
+        where p.id = u.id and p.caption_country_evidence is distinct from u.e`);
+      changed += res.count ?? 0;
     }
     // Countries last: recovered links can carry a linked profile's Pakistani evidence.
     changed += (await bulkRefreshProfileCountries(tx, creatorIds, { source: "backfill" })).length;

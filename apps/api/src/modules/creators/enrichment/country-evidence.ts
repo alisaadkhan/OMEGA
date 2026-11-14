@@ -80,7 +80,7 @@ const codesIn = (re: RegExp, text: string, pick: (m: RegExpExecArray) => string 
 };
 
 /** Extra profile evidence beyond the bio: the profile's own links, and the place names of its recent posts' geotags. */
-export type CountryExtras = { urls?: readonly string[]; postLocations?: readonly string[] };
+export type CountryExtras = { urls?: readonly string[]; postLocations?: readonly string[]; captionEvidence?: string | null };
 
 const PK_PHONE = /(?:\+92|0092)[\s-]?3\d{2}[\s-]?\d{3}[\s-]?\d{4}|(?<!\d)03\d{2}[\s-]?\d{7}(?!\d)/u;
 const PK_DOMAIN = /\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.pk\b/iu;
@@ -163,7 +163,25 @@ export function storefrontSignals(bio: string, extras: CountryExtras = {}): { pa
   if (PKR.test(bio)) return { foreign: null, pakistan: { confidence: "low", evidence: "Prices quoted in PKR in the bio" } };
   const tagged = (extras.postLocations ?? []).filter((l) => /pakistan/iu.test(l) || pkCityIn(l) !== null);
   if (tagged.length >= 2) return { foreign: null, pakistan: { confidence: "medium", evidence: `${tagged.length} recent posts geotagged in Pakistan (e.g. ${tagged[0]?.slice(0, 40)})` } };
+  if (extras.captionEvidence) return { foreign: null, pakistan: { confidence: "medium", evidence: extras.captionEvidence.slice(0, 300) } };
   return { pakistan: null, foreign: null };
+}
+
+/**
+ * Pakistani location evidence in the last 5 video descriptions / captions (owner unified plan 2026-11-14, Phase 4.2),
+ * read only to settle a profile whose bio/About says nothing. Captions talk about places the creator visits, so it
+ * takes an explicit residence statement ("based in Lahore") in one of them, or Pakistani evidence in 2 or more; any
+ * stated residence abroad cancels it.
+ */
+export function captionCountryEvidence(texts: readonly string[]): string | null {
+  const readings = texts.slice(0, 5).map((t) => deriveCountry(t, null));
+  if (readings.some((d) => d.stated !== null && d.stated !== "PK" && d.statedConfidence !== "low")) return null;
+  const pk = readings.map((d, i) => ({ d, i })).filter(({ d }) => d.stated === "PK");
+  const quote = (i: number) => (readings[i]?.observations.find((o) => o.value === "PK")?.evidence ?? "").slice(0, 200);
+  const strong = pk.find(({ d }) => d.statedConfidence === "high");
+  if (strong) return `Stated in a recent video description or caption: ${quote(strong.i)}`.slice(0, 300);
+  if (pk.length >= 2) return `Pakistani evidence in ${pk.length} of the last ${Math.min(texts.length, 5)} video descriptions or captions: ${quote(pk[0]?.i ?? 0)}`.slice(0, 300);
+  return null;
 }
 
 /** `bio` is the creator's own profile text with hashtags removed; the display name is deliberately not read. */

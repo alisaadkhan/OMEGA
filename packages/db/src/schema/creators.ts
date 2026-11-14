@@ -128,6 +128,8 @@ export const creatorProfiles = gcp.table("creator_profiles", {
   performanceAt: ts("performance_at"),
   /** Geotag place names of the latest fetched posts (0068). */
   postLocations: text("post_locations").array(),
+  /** Pakistani location evidence quoted from recent video descriptions / captions (0087). */
+  captionCountryEvidence: text("caption_country_evidence"),
   createdAt: ts("created_at").notNull().defaultNow(),
   updatedAt: ts("updated_at").notNull().defaultNow(),
 });
@@ -263,7 +265,7 @@ export const creatorLinks = gcp.table("creator_links", {
   creatorId: uuid("creator_id").notNull(),
   platform: text("platform", { enum: ["instagram", "tiktok", "youtube", "website"] }).notNull(),
   url: text("url").notNull(),
-  source: text("source", { enum: ["bio", "profile_link"] }).notNull(),
+  source: text("source", { enum: ["bio", "profile_link", "video_description", "post_caption"] }).notNull(),
   firstSeenAt: ts("first_seen_at").notNull().defaultNow(),
   lastSeenAt: ts("last_seen_at").notNull().defaultNow(),
 });
