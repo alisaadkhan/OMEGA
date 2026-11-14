@@ -109,7 +109,7 @@ export function SearchCreatorCard({
                 ) : creator.engagementNote === "policy_restricted" ? (
                   <dd className="text-[11px] font-medium leading-tight text-slate-500" title="YouTube's API rules don't allow MUSHIN to calculate engagement for YouTube channels.">Not available for YouTube</dd>
                 ) : (
-                  <dd className="text-[11px] font-medium leading-tight text-slate-500" title="Not enough recent posts to calculate it yet.">Not enough posts yet</dd>
+                  <dd className="text-[11px] font-medium leading-tight text-slate-500" title="Likes are hidden on recent posts, or there are too few recent posts to calculate it.">Likes hidden or too few posts</dd>
                 )}
               </div>
             </dl>

@@ -95,10 +95,12 @@ function contactSource(source: string, platforms: Creator["platform"][]): string
 }
 
 /** The API's own reason (YouTube metrics are on by owner override 2026-11-04, so a YouTube gap is not assumed to be policy). */
-function missingNote(note: "policy_restricted" | "not_collected" | "insufficient_posts" | null): string {
+function missingNote(note: "policy_restricted" | "not_collected" | "insufficient_posts" | null, metric: "engagement" | "views"): string {
   if (note === "policy_restricted") return "Policy restricted for YouTube";
   if (note === "not_collected") return "Not collected yet";
-  return "Not enough recent posts";
+  // True whichever the cause: too few posts, likes hidden by the creator, or (since November 2026) Instagram no longer
+  // giving view counts to MUSHIN's data provider.
+  return metric === "views" ? "No view counts on recent videos" : "Likes hidden or too few recent posts";
 }
 
 export function CreatorProfilePanel({ creator, onClose, onCompare, onGoToCampaigns }: { creator: Creator | null; onClose: () => void; onCompare?: (c: Creator) => void; onGoToCampaigns?: () => void }) {
@@ -303,9 +305,9 @@ export function CreatorProfilePanel({ creator, onClose, onCompare, onGoToCampaig
                     )}
                     <div className="grid grid-cols-2 gap-2">
                       <Stat label={shownPlatform === "youtube" ? "Subscribers" : "Followers"} value={formatCount(primary?.followers ?? creator.followersNum)} note={primary?.freshness.followers === "aging" || primary?.freshness.followers === "stale" ? "Fetched 30+ days ago" : primary?.freshness.followers === "unknown" ? "Fetch date unknown" : `On ${PLATFORM_NAME[shownPlatform]}`} />
-                      <Stat label="Engagement rate" accent value={engagement === null ? "—" : formatEr(engagement)} note={engagement === null ? missingNote(primary?.metricsNote ?? null) : primary?.engagementSample ? `Median of ${primary.engagementSample} recent posts` : "Median of recent posts"} />
+                      <Stat label="Engagement rate" accent value={engagement === null ? "—" : formatEr(engagement)} note={engagement === null ? missingNote(primary?.metricsNote ?? null, "engagement") : primary?.engagementSample ? `Median of ${primary.engagementSample} recent posts` : "Median of recent posts"} />
                       <Stat label="Audience authenticity" value={authenticity.value} note={authenticity.note} icon={p.authenticity.status === "assessed" ? ShieldCheck : undefined} />
-                      <Stat label="Typical views" value={primary?.typicalViews != null ? formatCount(primary.typicalViews) : "—"} note={primary?.typicalViews != null ? `Median of ${primary.typicalViewsSample ?? "recent"} recent ${primary.typicalViewsFormat === "reel" ? "Reels" : "videos"}` : missingNote(primary?.metricsNote ?? null)} />
+                      <Stat label="Typical views" value={primary?.typicalViews != null ? formatCount(primary.typicalViews) : "—"} note={primary?.typicalViews != null ? `Median of ${primary.typicalViewsSample ?? "recent"} recent ${primary.typicalViewsFormat === "reel" ? "Reels" : "videos"}` : missingNote(primary?.metricsNote ?? null, "views")} />
                     </div>
 
                     {primary && (
