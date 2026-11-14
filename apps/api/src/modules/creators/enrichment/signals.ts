@@ -83,7 +83,11 @@ export function followerEngagement(p: StandardProfile): { rate: number | null; s
     .sort((a, b) => b.postedAt.getTime() - a.postedAt.getTime())
     .slice(0, ENGAGEMENT_SAMPLE);
   if (usable.length < ENGAGEMENT_MIN_SAMPLE) return { rate: null, sample: usable.length };
-  return { rate: engagementPercent(median(usable.map((x) => (((x.likes as number) + (x.comments ?? 0)) / followers) * 100))), sample: usable.length };
+  const pct = median(usable.map((x) => (((x.likes as number) + (x.comments ?? 0)) / followers) * 100));
+  // A typical post engaging more people than follow the account means the follower figure is hidden or wrong (a YouTube
+  // channel reporting 1 subscriber): not measurable per follower, so null, never capped to 100% (the column allows 0–100).
+  if (pct > 100) return { rate: null, sample: usable.length };
+  return { rate: engagementPercent(pct), sample: usable.length };
 }
 
 /** Stored engagement rate (%): the follower-based median above. */

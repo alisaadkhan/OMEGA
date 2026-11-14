@@ -122,9 +122,12 @@ describe("signals", () => {
     const viral = post(0, 150_000, 0);
     const m = profileMetrics(profile({ platform: "instagram", followers: 10_000, recentPosts: [viral, ...ordinary] }));
     expect(m.engagementRate).toBe(3);
-    // A creator whose typical post really exceeds the follower count keeps the real figure (no silent 100% cap).
+    // A typical post engaging more people than follow the account: not measurable per follower (null), never capped to
+    // 100% (found 2026-11-15: the database allows 0–100, so 210% was never storable and stopped the reassessment).
     const huge = Array.from({ length: 5 }, (_, i) => post(i, 20_000, 1_000));
-    expect(profileMetrics(profile({ platform: "instagram", followers: 10_000, recentPosts: huge })).engagementRate).toBe(210);
+    expect(profileMetrics(profile({ platform: "instagram", followers: 10_000, recentPosts: huge })).engagementRate).toBeNull();
+    const high = Array.from({ length: 5 }, (_, i) => post(i, 8_000, 500));
+    expect(profileMetrics(profile({ platform: "instagram", followers: 10_000, recentPosts: high })).engagementRate).toBe(85);
     // Pinned posts are left out; fewer than 3 usable posts is "not enough evidence", never 0.
     const thin = [post(0, 300, 0), post(1, 300, 0), post(2, 99_000, 0, null, true)];
     expect(profileMetrics(profile({ platform: "instagram", followers: 10_000, recentPosts: thin })).engagementRate).toBeNull();

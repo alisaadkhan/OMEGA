@@ -7,7 +7,8 @@
  *     [--handles a,b] [--min-followers 100000] [--cap 15] [--apply] [--out <file outside the repository>]
  *
  * Writes only: account type (source "ai", never over a staff decision or a rule's type) and, when the niche is empty,
- * an estimated niche (source "post_estimated"; posts_assessed 0 when it came from public knowledge, not the text).
+ * an estimated niche (source "post_estimated", posts_assessed 0: always shown as "AI estimate", whatever basis the model
+ * claims — in the pilot it called a public-knowledge guess "profile text").
  * Possible minors are skipped. The per-creator output stays out of git (it holds YouTube channel data).
  */
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -106,7 +107,7 @@ async function review(c: Creator): Promise<void> {
     if (d.niche && c.niche_main === null) {
       await tx.execute(sql`
         update gcp.creators set niche_main = ${d.niche.label}, niches = array[${d.niche.label}]::text[], niche_status = 'classified', niche_source = 'post_estimated',
-          niche_confidence = 'low', niche_posts_assessed = ${d.niche.fromText ? Math.min(postsRead, 50) : 0}, niche_assessed_at = now(), updated_at = now()
+          niche_confidence = 'low', niche_posts_assessed = 0, niche_assessed_at = now(), updated_at = now()
         where id = ${c.id} and status = 'active' and niche_main is null`);
     }
   });

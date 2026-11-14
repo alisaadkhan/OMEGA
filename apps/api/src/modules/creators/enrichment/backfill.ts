@@ -168,8 +168,8 @@ type Source = { kind: "ok"; profile: StandardProfile; fromPayload: boolean; payl
 
 /** The newest archived response inside its retention period, else the stored fields. */
 async function sourceProfile(tx: SystemTx, o: BackfillOptions, c: { id: string; displayName: string; platform: CreatorPlatform; handle: string }, now: Date): Promise<Source> {
-  const [profile] = await tx.execute<{ handle: string; bio: string | null; canonical_url: string }>(
-    sql`select handle, bio, canonical_url from gcp.creator_profiles where creator_id = ${c.id} and platform = ${c.platform} order by followers desc nulls last limit 1`,
+  const [profile] = await tx.execute<{ handle: string; bio: string | null; canonical_url: string; followers: number | null }>(
+    sql`select handle, bio, canonical_url, followers from gcp.creator_profiles where creator_id = ${c.id} and platform = ${c.platform} order by followers desc nulls last limit 1`,
   );
   if (!profile) return { kind: "missing", reason: "no stored profile on the primary platform" };
   const [payload] = await tx.execute<{ id: string; storage_key: string }>(
@@ -190,7 +190,8 @@ async function sourceProfile(tx: SystemTx, o: BackfillOptions, c: { id: string; 
     handle: profile.handle,
     displayName: c.displayName,
     bio: profile.bio,
-    followers: null,
+    // The stored count, so the 100K niche rules apply the same with or without a fresh answer (pilot 2026-11-15).
+    followers: profile.followers,
     following: null,
     posts: null,
     verified: false,

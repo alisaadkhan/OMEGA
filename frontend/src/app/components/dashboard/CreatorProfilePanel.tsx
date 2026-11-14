@@ -224,7 +224,7 @@ export function CreatorProfilePanel({ creator, onClose, onCompare, onGoToCampaig
                         <span className="truncate">{[niche, p?.city].filter(Boolean).join(" · ") || "Niche and city not known yet"}</span>
                         {p?.nicheClassification?.source === "post_estimated" && niche && (
                           <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
-                            Estimated niche · {p.nicheClassification.postsAssessed === 0 ? "AI estimate from public information" : "Based on "}{p.nicheClassification.postsAssessed === 0 ? "" : p.platform === "youtube" ? `${p.nicheClassification.postsAssessed ?? "recent"} recent video titles` : `tags in ${p.nicheClassification.postsAssessed ?? "recent"} recent posts`}
+                            Estimated niche · {p.nicheClassification.postsAssessed === 0 ? "AI estimate" : "Based on "}{p.nicheClassification.postsAssessed === 0 ? "" : p.platform === "youtube" ? `${p.nicheClassification.postsAssessed ?? "recent"} recent video titles` : `tags in ${p.nicheClassification.postsAssessed ?? "recent"} recent posts`}
                           </span>
                         )}
                       </div>

@@ -386,7 +386,7 @@ function nicheColumns(d: AttributeDecision) {
  * reading (`keptNiches`); their evidence rows are kept too.
  */
 export async function placeAttributes(tx: Tx, creatorId: string, d: AttributeDecision): Promise<{ values: Partial<typeof creators.$inferInsert>; keptNiches: boolean }> {
-  const [cur] = await tx.select({ city: creators.city, niches: creators.niches, confirmedCountry: creators.confirmedCountry }).from(creators).where(eq(creators.id, creatorId)).limit(1);
+  const [cur] = await tx.select({ city: creators.city, niches: creators.niches, nicheMain: creators.nicheMain, confirmedCountry: creators.confirmedCountry }).from(creators).where(eq(creators.id, creatorId)).limit(1);
   const conflictingCity = d.evidence.some((r) => r.attribute === "city" && r.status === "conflicting");
   const aiCities = d.evidence.filter((r) => r.attribute === "city" && r.source === "ai_assessment").map((r) => r.value.toLowerCase());
   const city = d.city ?? (conflictingCity || (cur?.city != null && aiCities.includes(cur.city.toLowerCase())) ? null : (cur?.city ?? null));
@@ -403,6 +403,9 @@ export async function placeAttributes(tx: Tx, creatorId: string, d: AttributeDec
   const supported = rows.filter((r) => r.source !== "profile_text" || classifyNiche({ displayName: "", bio: r.evidence, accountCategory: null, posts: [], aiNiches: [] }).niches.includes(r.value));
   const kept = cur.niches.filter((n) => supported.some((r) => r.value === n));
   if (kept.length === 0) return { values, keptNiches: false };
+  // The earlier record named no main niche (a tie or "variety") and today's reading names one of the same niches: the
+  // same evidence, now resolved (owner directive 2026-11-15, §2.1), so it is applied rather than kept out.
+  if (cur.nicheMain === null && d.niche.main !== null && kept.includes(d.niche.main)) return { values, keptNiches: false };
   // The earlier classification stands (its model fields are left as they were).
   return { values: { ...base, niches: kept }, keptNiches: true };
 }
