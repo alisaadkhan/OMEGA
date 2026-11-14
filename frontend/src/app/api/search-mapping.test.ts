@@ -171,7 +171,9 @@ describe("search mapping", () => {
 
   it("states contact availability honestly", () => {
     expect(CONTACT_AVAILABILITY_TEXT.email_unverified.label).toBe("Email available · Unverified");
-    expect(CONTACT_AVAILABILITY_TEXT.none.label).toBe("No contact info");
+    expect(CONTACT_AVAILABILITY_TEXT.none.label).toBe("Not publicly listed");
+    expect(CONTACT_AVAILABILITY_TEXT.email_and_phone.label).toBe("Email & mobile available");
+    expect(CONTACT_AVAILABILITY_TEXT.collab_route.label).toBe("Collab route in bio");
     expect(CONTACT_AVAILABILITY_TEXT.email_invalid.label).toBe("Email invalid");
     const d = (iso: string) => iso.slice(0, 10);
     const k = { source: "business_field", lastSeenAt: "2026-10-12T00:00:00.000Z", status: "unverified" as const, checkedAt: null, checkDetail: null };

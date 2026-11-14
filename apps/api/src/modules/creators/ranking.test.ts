@@ -33,6 +33,7 @@ function row(id: string, displayName: string, primaryHandle: string, strong: boo
     engagementRate: strong ? 9 : 0.5,
     followersUpdatedAt: strong ? now : null,
     contactStates: [],
+    bios: [],
     eligibility: { eligible: true, eligibleUntil: null, version: "elig-1", reasons: [], flags: [], qualifyingPlatforms: ["instagram"], profiles: [] },
   };
 }

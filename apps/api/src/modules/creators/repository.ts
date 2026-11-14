@@ -79,6 +79,8 @@ export type CardRow = {
   followersUpdatedAt: Date | null;
   /** Kind and status of each stored contact (never the value). */
   contactStates: { kind: "email" | "phone"; status: string }[];
+  /** Every profile's public bio, to tell a "DM for collab" line apart from no route at all (owner plan 2026-11-14). */
+  bios: string[];
   /** Creator eligibility (elig-1) from the stored creator and profiles, as of the read (the same function builds the index). */
   eligibility: CreatorEligibility;
 };
@@ -92,7 +94,8 @@ export async function cardRows(tx: Tx, ids: string[]): Promise<CardRow[]> {
       c.authenticity_score as "authenticityScore", c.fake_follower_pct as "fakeFollowerPct",
       case when p.platform = 'youtube' and p.followers = 0 then null else p.followers end as followers,
       p.engagement_rate as "engagementRate", p.followers_updated_at as "followersUpdatedAt",
-      coalesce((select jsonb_agg(jsonb_build_object('kind', k.kind, 'status', k.status)) from gcp.creator_contacts k where k.creator_id = c.id), '[]'::jsonb) as "contactStates"
+      coalesce((select jsonb_agg(jsonb_build_object('kind', k.kind, 'status', k.status)) from gcp.creator_contacts k where k.creator_id = c.id), '[]'::jsonb) as "contactStates",
+      coalesce((select array_agg(b.bio) from gcp.creator_profiles b where b.creator_id = c.id and b.bio is not null), '{}') as bios
     from gcp.creators c
     left join lateral (
       select pr.platform, pr.followers, pr.engagement_rate, pr.followers_updated_at from gcp.creator_profiles pr

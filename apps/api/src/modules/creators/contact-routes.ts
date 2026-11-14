@@ -79,3 +79,7 @@ export function contactRoutes(o: { bios: string[]; links: { platform: string; ur
     routes,
   };
 }
+
+/** Whether any bio says how to reach the creator for collaborations ("DM for collab"), for the contact state on cards. */
+export const hasCollabRoute = (bios: string[]): boolean =>
+  contactRoutes({ bios, links: [], contactKinds: [], ownHandles: [] }).routes.some((r) => r.kind === "collab_route");

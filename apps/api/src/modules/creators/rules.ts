@@ -206,14 +206,20 @@ export function fenced(tag: string, text: string): string {
  * so it reveals nothing). A working-looking email wins over a phone; "invalid" is shown only when every email was shown
  * not to work and there is no phone; a public address is never treated as verified.
  */
-export function contactAvailability(contacts: readonly { kind: "email" | "phone"; status: string }[]): ContactAvailability {
+export function contactAvailability(contacts: readonly { kind: "email" | "phone"; status: string }[], o: { collabRoute?: boolean } = {}): ContactAvailability {
   const emails = contacts.filter((k) => k.kind === "email");
+  const usableEmail = emails.some((k) => k.status !== "invalid");
+  const usablePhone = contacts.some((k) => k.kind === "phone" && k.status !== "invalid");
+  if (usableEmail && usablePhone) return "email_and_phone";
   if (emails.some((k) => k.status === "verified")) return "email_verified";
-  if (emails.some((k) => k.status !== "invalid")) return "email_unverified";
-  if (contacts.some((k) => k.kind === "phone" && k.status !== "invalid")) return "phone_unverified";
+  if (usableEmail) return "email_unverified";
+  if (usablePhone) return "phone_unverified";
+  // A "DM for collab" line is a way in, but nothing to reveal (owner plan 2026-11-14, Phase 2).
+  if (o.collabRoute) return "collab_route";
   return emails.length > 0 ? "email_invalid" : "none";
 }
-export const isContactable = (a: ContactAvailability): boolean => a !== "none" && a !== "email_invalid";
+/** Something worth revealing: an email or number that has not been shown not to work (a collab line is already public). */
+export const isContactable = (a: ContactAvailability): boolean => a !== "none" && a !== "email_invalid" && a !== "collab_route";
 
 export function maskContact(kind: "email" | "phone", value: string): string {
   if (kind === "email") {

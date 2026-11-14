@@ -199,6 +199,7 @@ export function toCreator(c: CreatorCard): Creator {
     followers: formatCount(c.followers),
     followersNum: c.followers,
     engagement: c.engagementRate, // unknown stays unknown, never 0
+    engagementNote: c.engagementNote ?? null,
     authenticity: c.authenticityScore,
     fake: c.fakeFollowerPct,
     score: c.fitScore,
@@ -207,7 +208,6 @@ export function toCreator(c: CreatorCard): Creator {
     posts: 0,
     avgLikes: "—",
     avgComments: "—",
-    tags: c.tags,
     followersFreshness: c.followersFreshness,
     hasContact: c.hasContact,
     contactAvailability: c.contactAvailability,
@@ -244,6 +244,7 @@ export function matchToCreator(m: LookupResponse["matches"][number]): Creator {
     followers: "—",
     followersNum: null,
     engagement: null,
+    engagementNote: null,
     authenticity: null,
     fake: null,
     score: 0,
@@ -252,7 +253,6 @@ export function matchToCreator(m: LookupResponse["matches"][number]): Creator {
     posts: 0,
     avgLikes: "—",
     avgComments: "—",
-    tags: [],
     followersFreshness: "unknown",
     hasContact: false,
     contactAvailability: null, // unknown until the profile loads
@@ -261,11 +261,14 @@ export function matchToCreator(m: LookupResponse["matches"][number]): Creator {
 
 /** What a search card says about reaching the creator; a public address is never presented as working. */
 export const CONTACT_AVAILABILITY_TEXT: Record<ContactAvailability, { label: string; title: string }> = {
+  // Owner plan 2026-11-14 (Phase 2): the same states the API computes, in the same words on cards and profiles.
+  email_and_phone: { label: "Email & mobile available", title: "An email and a mobile number were found on the creator's public profile. Nothing proves yet that they work." },
   email_unverified: { label: "Email available · Unverified", title: "An email was found on the creator's public profile. Nothing proves yet that it works." },
   email_verified: { label: "Email available · Verified", title: "There is delivery or confirmation evidence for this email." },
   email_invalid: { label: "Email invalid", title: "A check showed that the email found cannot receive mail." },
-  phone_unverified: { label: "Phone available · Unverified", title: "Only a phone number was found on the public profile. Nothing proves yet that it works." },
-  none: { label: "No contact info", title: "No usable contact details have been found for this creator." },
+  phone_unverified: { label: "Mobile available · Unverified", title: "Only a mobile number was found on the public profile. Nothing proves yet that it works." },
+  collab_route: { label: "Collab route in bio", title: "No email or number is listed, but the creator's bio says how to reach them (for example \"DM for collab\")." },
+  none: { label: "Not publicly listed", title: "No email, mobile number or collab route was found on the creator's public profiles." },
 };
 
 /** The badge for one contact follows what has been established about it, not where it was found. */

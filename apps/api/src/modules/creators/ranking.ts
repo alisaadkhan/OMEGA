@@ -1,6 +1,7 @@
 import type { CreatorCard, SearchFilters } from "@mushin/contracts";
 import type { SystemTx, TenantTx } from "@mushin/db";
 import * as repo from "./repository";
+import { hasCollabRoute } from "./contact-routes";
 import { contactAvailability, fitLabel, fitScore, freshnessOf, isContactable } from "./rules";
 import { DEFAULT_SOURCE_POLICY, restrictsDerived, type SourcePolicy } from "./source-policy";
 
@@ -52,10 +53,12 @@ export function toCards(rows: repo.CardRow[], req: { text: string; filters: Sear
         verified: r.verified,
         followers: r.followers,
         engagementRate,
+        engagementNote: engagementRate !== null ? null : restricted ? ("policy_restricted" as const) : ("insufficient_posts" as const),
         authenticityScore,
         fakeFollowerPct: restricted ? null : r.fakeFollowerPct,
         hasContact: isContactable(contactAvailability(r.contactStates)),
-        contactAvailability: contactAvailability(r.contactStates),
+        // Same state as the profile: card rows never include a possible minor (VISIBLE).
+        contactAvailability: contactAvailability(r.contactStates, { collabRoute: hasCollabRoute(r.bios ?? []) }),
         followersFreshness,
         fitScore: score,
         fitLabel: fitLabel(score, settings.labels),

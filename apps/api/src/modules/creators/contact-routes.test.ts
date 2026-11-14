@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { contactRoutes } from "./contact-routes";
+import { contactRoutes, hasCollabRoute } from "./contact-routes";
+import { contactAvailability, isContactable } from "./rules";
 
 // Owner master directive 2026-11-03 (Part 7.6): the duckybhai bio showed "Direct contact" and "No contact info" at once.
 describe("contact routes", () => {
@@ -53,5 +54,35 @@ describe("contact routes", () => {
   it("never reads an email address as a handle", () => {
     const r = contactRoutes({ bios: ["Business: sana.bridal@gmail.com"], links: [], contactKinds: [], ownHandles: [] });
     expect(r.routes).toEqual([]);
+  });
+});
+
+// Owner plan 2026-11-14 (Phase 2): one contact state for cards and profiles, in the owner's five plain groups.
+describe("contact availability states", () => {
+  const e = (status = "unverified") => ({ kind: "email" as const, status });
+  const ph = (status = "unverified") => ({ kind: "phone" as const, status });
+  it("names email and mobile together, each alone, a collab line, and nothing", () => {
+    expect(contactAvailability([e(), ph()])).toBe("email_and_phone");
+    expect(contactAvailability([e("verified")])).toBe("email_verified");
+    expect(contactAvailability([e()])).toBe("email_unverified");
+    expect(contactAvailability([ph()])).toBe("phone_unverified");
+    expect(contactAvailability([e("invalid"), ph()])).toBe("phone_unverified");
+    expect(contactAvailability([], { collabRoute: true })).toBe("collab_route");
+    expect(contactAvailability([e("invalid")], { collabRoute: true })).toBe("collab_route");
+    expect(contactAvailability([e("invalid")])).toBe("email_invalid");
+    expect(contactAvailability([])).toBe("none");
+  });
+
+  it("offers a reveal only for an email or number (a collab line is already public)", () => {
+    expect(isContactable("email_and_phone")).toBe(true);
+    expect(isContactable("collab_route")).toBe(false);
+    expect(isContactable("none")).toBe(false);
+  });
+
+  it("reads a collab line from any bio, never from a handle mention", () => {
+    expect(hasCollabRoute(["Lahore | DM for paid collab"])).toBe(true);
+    expect(hasCollabRoute(["Food vlogger", "For collabs inbox"])).toBe(true);
+    expect(hasCollabRoute(["Business: @mymanager"])).toBe(false);
+    expect(hasCollabRoute([])).toBe(false);
   });
 });

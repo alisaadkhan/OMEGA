@@ -51,6 +51,8 @@ export const FIXTURE_CREATORS: NewCreator[] = [
   creator({ displayName: "Fixture Tiny Dance", primaryHandle: "fxtinydance", primaryPlatform: "tiktok", niches: ["Lifestyle"], profiles: [tt("fxtinydance", 688, "Dance clips (synthetic fixture)")] }),
   creator({ displayName: "Fixture Money Talk", primaryHandle: "fxmoneytalk", primaryPlatform: "youtube", niches: ["Finance", "Lifestyle"], profiles: [yt("fxmoneytalk", 2_360, "Personal finance basics (synthetic fixture)")] }),
   creator({ displayName: "Fixture Wellness Daily", primaryHandle: "fxwellness", primaryPlatform: "youtube", niches: ["Wellness", "Tech"], profiles: [yt("fxwellness", 663, "Wellness routines (synthetic fixture)")] }),
+  // On two platforms, with an email, a mobile number and a "DM for collab" line (owner plan 2026-11-14, Phase 2 tabs).
+  creator({ displayName: "Fixture Multan Music", primaryHandle: "fxmultanmusic", primaryPlatform: "instagram", city: "Multan", niches: ["Music"], profiles: [ig("fxmultanmusic", 120_000, "Singer from Multan | DM for paid collab (synthetic fixture)"), tt("fxmultanmusic", 45_000, "Music clips (synthetic fixture)")], contacts: [email("fxmultanmusic"), phone(4)] }),
   // Based abroad (elig-2, Pakistan-only): kept in the database, never shown to customers, refused by id, link and lists.
   creator({ displayName: "Fixture Toronto Tech", primaryHandle: "fxtorontotech", primaryPlatform: "youtube", city: "Toronto", niches: ["Tech"], confirmedCountry: null, platformCountry: "CA", profiles: [yt("fxtorontotech", 23_400, "Tech reviews, based in Toronto, Canada (synthetic fixture)")] }),
   // A possible minor: never shown to customers.

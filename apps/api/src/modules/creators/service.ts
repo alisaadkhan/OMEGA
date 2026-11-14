@@ -22,7 +22,7 @@ import * as repo from "./repository";
 import { cleanInterpretation, contactAvailability, fenced, freshnessOf, isContactable, isMinorProtected, maskBioContacts, meiliFilter, normalizeProfileUrl, refreshActionFor, sourceHash } from "./rules";
 import { toCards } from "./ranking";
 import { suppressedUrls } from "./suppressions";
-import { contactRoutes } from "./contact-routes";
+import { contactRoutes, hasCollabRoute } from "./contact-routes";
 import { locationOutcome, performanceAssessment } from "./profile-states";
 import { assertCanPayCatalogSearch, chargeCatalogSearch } from "./search-charge";
 import { decodeCursor, encodeCursor } from "./cursor";
@@ -383,7 +383,8 @@ export function createCreatorsService(deps: CreatorsDeps) {
           id: k.id, kind: k.kind, masked: k.masked, trust: k.trust, value: values.get(k.id) ?? null, source: k.source,
           firstSeenAt: k.firstSeenAt.toISOString(), lastSeenAt: k.lastSeenAt.toISOString(), status: k.status, checkedAt: iso(k.checkedAt), checkDetail: k.checkDetail,
         })),
-        contactAvailability: contactAvailability(contacts),
+        // A "DM for collab" line counts only where routes are shown at all (never for a possible minor).
+        contactAvailability: contactAvailability(contacts, { collabRoute: !isMinorProtected(c) && hasCollabRoute(profiles.map((x) => maskBioContacts(x.bio ?? ""))) }),
         eligibility: profileEligibilityView(c, profiles, t),
         revealed,
         revealCost,

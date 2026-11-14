@@ -35,6 +35,8 @@ export type Creator = {
   followersNum: number | null;
   /** null when unknown or not calculated for the source (e.g. YouTube data under policy review). */
   engagement: number | null;
+  /** Why engagement is missing on the card: the API's own reason, never assumed from the platform. */
+  engagementNote: "policy_restricted" | "insufficient_posts" | null;
   /** null until MUSHIN has assessed the creator (never shown without evidence, SRS §5.5). */
   authenticity: number | null;
   fake: number | null;
@@ -45,7 +47,6 @@ export type Creator = {
   posts: number;
   avgLikes: string;
   avgComments: string;
-  tags: string[];
   followersFreshness: "current" | "aging" | "unknown" | "stale";
   hasContact: boolean;
   /** null when not known yet (a creator opened from a link before its profile loads). */
@@ -76,15 +77,26 @@ const BADGE = {
 
 /** The five location outcomes (master directive Part 4), each said plainly. */
 const LOCATION_TEXT: Record<"PAKISTAN_CONFIRMED" | "NON_PAKISTANI_CONFIRMED" | "PAKISTANI_DIASPORA" | "UNKNOWN" | "CONFLICTING_EVIDENCE", (shown: string | null) => string> = {
-  PAKISTAN_CONFIRMED: (s) => `Location: ${s ?? "Pakistan"} (confirmed)`,
+  PAKISTAN_CONFIRMED: (s) => `Location: ${s ?? "Pakistan"}${s?.includes("confirmed") ? "" : " (confirmed)"}`,
   NON_PAKISTANI_CONFIRMED: (s) => `Based outside Pakistan${s ? `: ${s}` : ""}`,
   PAKISTANI_DIASPORA: (s) => `Pakistani creator based abroad${s ? `: ${s}` : ""}`,
   UNKNOWN: () => "Location not confirmed yet: no public evidence found.",
   CONFLICTING_EVIDENCE: () => "Location unclear: public sources disagree.",
 };
 
-function missingNote(note: "policy_restricted" | "not_collected" | "insufficient_posts" | null, platform: string): string {
-  if (note === "policy_restricted" || platform === "youtube") return "Policy restricted for YouTube";
+const PLATFORM_NAME: Record<Creator["platform"], string> = { instagram: "Instagram", tiktok: "TikTok", youtube: "YouTube" };
+
+/** Where a contact was found, in plain words (owner plan 2026-11-14, Phase 2): the bio/About, the business button, or video descriptions. */
+function contactSource(source: string, platforms: Creator["platform"][]): string {
+  if (source === "video_description") return "from video descriptions";
+  if (source === "business_field") return "business contact button";
+  // YouTube calls its bio "About"; a contact's record does not say which of the creator's profiles it came from.
+  return platforms.every((x) => x === "youtube") ? "from the About section" : platforms.includes("youtube") ? "from the bio or About section" : "from the bio";
+}
+
+/** The API's own reason (YouTube metrics are on by owner override 2026-11-04, so a YouTube gap is not assumed to be policy). */
+function missingNote(note: "policy_restricted" | "not_collected" | "insufficient_posts" | null): string {
+  if (note === "policy_restricted") return "Policy restricted for YouTube";
   if (note === "not_collected") return "Not collected yet";
   return "Not enough recent posts";
 }
@@ -102,15 +114,21 @@ export function CreatorProfilePanel({ creator, onClose, onCompare, onGoToCampaig
   const refreshLocked = providerActionsLockedText(useBillingSummary().data);
   const reassess = useReassessCreator(id);
   const [full, setFull] = useState(false);
+  // Which platform profile the numbers below describe; null = the creator's main platform (owner plan 2026-11-14, Phase 2).
+  const [tab, setTab] = useState<Creator["platform"] | null>(null);
   const [shortlistFor, setShortlistFor] = useState<DrawerCreator[] | null>(null);
   const [campaignFor, setCampaignFor] = useState<DrawerCreator[] | null>(null);
   const p = profile.data;
-  const primary = p?.profiles.find((x) => x.platform === creator?.platform) ?? p?.profiles[0];
+  const primary = p?.profiles.find((x) => x.platform === (tab ?? p.platform)) ?? p?.profiles[0];
+  const shownPlatform = primary?.platform ?? creator?.platform ?? "instagram";
   const blocked = p ? blockedReasonFor([p.eligibility]) : null;
   const refreshing = jobs.data?.jobs.find((j) => j.kind === "refresh" && j.creatorId === id && isOpenJob(j)) ?? null;
   const drawerOpen = shortlistFor !== null || campaignFor !== null;
 
-  useEffect(() => setFull(false), [id]);
+  useEffect(() => {
+    setFull(false);
+    setTab(null);
+  }, [id]);
   useEffect(() => {
     if (!creator) return;
     const onKey = (e: KeyboardEvent) => {
@@ -195,15 +213,16 @@ export function CreatorProfilePanel({ creator, onClose, onCompare, onGoToCampaig
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-1.5">
                         <h2 className="truncate text-base font-bold tracking-tight text-slate-900">{p?.displayName ?? creator.name}</h2>
-                        {(p?.verified ?? creator.verified) && <BadgeCheck aria-label="Verified" className="h-4 w-4 shrink-0 text-[#06B6D4]" />}
-                        <a href={primary?.url ?? PLATFORM_URL[creator.platform](creator.handle)} target="_blank" rel="noreferrer" className="text-xs font-medium text-slate-500 hover:text-cyan-700">@{creator.handle}</a>
+                        {/* The blue tick of the profile shown: each platform's own badge, never carried over from another (0086). */}
+                        {(primary ? primary.verified : (p?.verified ?? creator.verified)) && <BadgeCheck aria-label="Verified" className="h-4 w-4 shrink-0 text-[#06B6D4]" />}
+                        <a href={primary?.url ?? PLATFORM_URL[creator.platform](creator.handle)} target="_blank" rel="noreferrer" className="text-xs font-medium text-slate-500 hover:text-cyan-700">@{primary?.handle ?? creator.handle}</a>
                       </div>
                       <div className="mt-0.5 flex items-center gap-1 text-xs text-slate-500">
                         <MapPin aria-hidden className="h-3 w-3 shrink-0" />
                         <span className="truncate">{[niche, p?.city].filter(Boolean).join(" · ") || "Niche and city not known yet"}</span>
                         {p?.nicheClassification?.source === "post_estimated" && niche && (
                           <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
-                            Estimated niche · Based on {creator.platform === "youtube" ? `${p.nicheClassification.postsAssessed ?? "recent"} recent video titles` : `tags in ${p.nicheClassification.postsAssessed ?? "recent"} recent posts`}
+                            Estimated niche · Based on {p.platform === "youtube" ? `${p.nicheClassification.postsAssessed ?? "recent"} recent video titles` : `tags in ${p.nicheClassification.postsAssessed ?? "recent"} recent posts`}
                           </span>
                         )}
                       </div>
@@ -266,11 +285,27 @@ export function CreatorProfilePanel({ creator, onClose, onCompare, onGoToCampaig
                   </div>
                 ) : p ? (
                   <>
+                    {p.profiles.length > 1 && (
+                      <div role="tablist" aria-label="Platform profiles" className="flex flex-wrap gap-1.5" data-testid="platform-tabs">
+                        {p.profiles.map((x) => (
+                          <button
+                            key={x.platform}
+                            type="button"
+                            role="tab"
+                            aria-selected={x.platform === shownPlatform}
+                            onClick={() => setTab(x.platform)}
+                            className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50 ${x.platform === shownPlatform ? "bg-[#0A0F24] text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
+                          >
+                            {PLATFORM_NAME[x.platform]} · @{x.handle}{x.platform === p.platform ? " (main)" : ""}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     <div className="grid grid-cols-2 gap-2">
-                      <Stat label={creator.platform === "youtube" ? "Subscribers" : "Followers"} value={formatCount(primary?.followers ?? creator.followersNum)} note={primary?.freshness.followers === "aging" || primary?.freshness.followers === "stale" ? "Fetched 30+ days ago" : primary?.freshness.followers === "unknown" ? "Fetch date unknown" : `On ${{ instagram: "Instagram", tiktok: "TikTok", youtube: "YouTube" }[creator.platform]}`} />
-                      <Stat label="Engagement rate" accent value={engagement === null ? "—" : formatEr(engagement)} note={engagement === null ? missingNote(primary?.metricsNote ?? null, creator.platform) : primary?.engagementSample ? `Median of ${primary.engagementSample} recent posts` : "Median of recent posts"} />
+                      <Stat label={shownPlatform === "youtube" ? "Subscribers" : "Followers"} value={formatCount(primary?.followers ?? creator.followersNum)} note={primary?.freshness.followers === "aging" || primary?.freshness.followers === "stale" ? "Fetched 30+ days ago" : primary?.freshness.followers === "unknown" ? "Fetch date unknown" : `On ${PLATFORM_NAME[shownPlatform]}`} />
+                      <Stat label="Engagement rate" accent value={engagement === null ? "—" : formatEr(engagement)} note={engagement === null ? missingNote(primary?.metricsNote ?? null) : primary?.engagementSample ? `Median of ${primary.engagementSample} recent posts` : "Median of recent posts"} />
                       <Stat label="Audience authenticity" value={authenticity.value} note={authenticity.note} icon={p.authenticity.status === "assessed" ? ShieldCheck : undefined} />
-                      <Stat label="Typical views" value={primary?.typicalViews != null ? formatCount(primary.typicalViews) : "—"} note={primary?.typicalViews != null ? `Median of ${primary.typicalViewsSample ?? "recent"} recent ${primary.typicalViewsFormat === "reel" ? "Reels" : "videos"}` : missingNote(primary?.metricsNote ?? null, creator.platform)} />
+                      <Stat label="Typical views" value={primary?.typicalViews != null ? formatCount(primary.typicalViews) : "—"} note={primary?.typicalViews != null ? `Median of ${primary.typicalViewsSample ?? "recent"} recent ${primary.typicalViewsFormat === "reel" ? "Reels" : "videos"}` : missingNote(primary?.metricsNote ?? null)} />
                     </div>
 
                     {primary && (
@@ -298,8 +333,8 @@ export function CreatorProfilePanel({ creator, onClose, onCompare, onGoToCampaig
                         ) : (
                           <ul className="space-y-0.5 text-xs text-slate-900">
                             {/* Email, mobile, or both, as listed by the creator (values stay masked until revealed). */}
-                            {p.contacts.some((c) => c.kind === "email") && <li>Email: {p.contacts.filter((c) => c.kind === "email").map((c) => c.value ?? c.masked).join(" · ")}</li>}
-                            {p.contacts.some((c) => c.kind === "phone") && <li>Mobile: {p.contacts.filter((c) => c.kind === "phone").map((c) => c.value ?? c.masked).join(" · ")}</li>}
+                            {p.contacts.some((c) => c.kind === "email") && <li>Email: {p.contacts.filter((c) => c.kind === "email").map((c) => `${c.value ?? c.masked} (${contactSource(c.source, p.profiles.map((x) => x.platform))})`).join(" · ")}</li>}
+                            {p.contacts.some((c) => c.kind === "phone") && <li>Mobile: {p.contacts.filter((c) => c.kind === "phone").map((c) => `${c.value ?? c.masked} (${contactSource(c.source, p.profiles.map((x) => x.platform))})`).join(" · ")}</li>}
                             {(p.contactRoutes?.routes ?? []).map((r) =>
                               r.kind === "business_contact" ? (
                                 <li key={`b-${r.handle}`}>Business inquiries: @{r.handle} <span className="text-slate-500">(bio mention, unverified)</span></li>
@@ -313,7 +348,7 @@ export function CreatorProfilePanel({ creator, onClose, onCompare, onGoToCampaig
                                 <li key={r.url} className="truncate">Linked profile: <a href={r.url} target="_blank" rel="noreferrer noopener" className="text-cyan-700 hover:underline">{r.platform} {shortUrl(r.url)}</a></li>
                               ),
                             )}
-                            {p.contacts.length === 0 && (p.contactRoutes?.routes.length ?? 0) === 0 && <li className="text-slate-500">Not publicly listed: no email, mobile number or collab route in the bio</li>}
+                            {p.contacts.length === 0 && (p.contactRoutes?.routes.length ?? 0) === 0 && <li className="text-slate-500">No email, mobile number or collab route in the bio</li>}
                           </ul>
                         )}
                       </div>

@@ -281,7 +281,8 @@ if (phase === "main") {
   // mainText collapses whitespace, so count the label itself (one per explained card).
   const matchedLines = (t.match(/Matched: /g) ?? []).length;
   check("search", "each result says where the query matched (API matchedOn shown on the card)", apiFood.results.length > 0 && explained.length === apiFood.results.length && matchedLines >= Math.min(explained.length, 10), `explained ${explained.length}/${apiFood.results.length}; card lines ${matchedLines}`);
-  const LABELS = { email_unverified: "Email available · Unverified", email_verified: "Email available · Verified", email_invalid: "Email invalid", phone_unverified: "Phone available · Unverified", none: "No contact info" };
+  // Owner plan 2026-11-14 (Phase 2): the same states and words as the API and the frontend table.
+  const LABELS = { email_and_phone: "Email & mobile available", email_unverified: "Email available · Unverified", email_verified: "Email available · Verified", email_invalid: "Email invalid", phone_unverified: "Mobile available · Unverified", collab_route: "Collab route in bio", none: "Not publicly listed" };
   check("search", "every card states contact availability from the API, never a value or an unproven claim", apiFood.results.every((r) => r.contactAvailability in LABELS && t.includes(LABELS[r.contactAvailability])) && !/Contact on file|Contactable/.test(t) && !/[a-z0-9._%+-]+@[a-z0-9-]+[.][a-z]{2,}/i.test(t), [...new Set(apiFood.results.map((r) => r.contactAvailability))].join(", "));
   // Creator eligibility (elig-1): every result meets the 10,000 minimum; a food creator below it is absent, cannot be saved
   // through the API, and its profile says why. The small food fixture (5,990 YouTube subscribers) matches "food" but is below.
@@ -310,6 +311,14 @@ if (phase === "main") {
   // Owner decision D-05 (2026-10-28): a search that finds no eligible creator costs nothing.
   check("pricing", "a zero-result search is free: no ledger spend", searchSpends(ws) === spendsBeforeEmpty, `spends ${spendsBeforeEmpty}→${searchSpends(ws)}`);
   check("search", "malformed input is rejected by the API", (await apiSearch("owner", "x".repeat(400))).status === 400);
+  // Owner plan 2026-11-14 (Phase 2): a two-platform creator opens on its main platform; the tabs switch every number.
+  const twin = await openProfile(p, "fxmultanmusic");
+  await twin.getByRole("tablist", { name: "Platform profiles" }).waitFor({ timeout: 15000 });
+  const twinMain = await twin.innerText();
+  await twin.getByRole("tab", { name: /TikTok/ }).click();
+  const twinTt = await twin.innerText();
+  check("profile", "a two-platform creator opens on its main platform, the tabs switch the numbers, contacts say email & mobile and the collab line", /Instagram · @fxmultanmusic \(main\)/.test(twinMain) && twinMain.includes("120K") && twinTt.includes("45K") && twinTt.includes("On TikTok") && twinMain.includes(LABELS.email_and_phone) && /Collab route/.test(twinMain), `${twinMain.includes("120K")}/${twinTt.includes("45K")}/${twinMain.includes(LABELS.email_and_phone)}`);
+  await closeAll(p);
   const panel = await openProfile(p, FX.main);
   const rw = (await apiSearch("owner", FX.main)).json.results[0];
   const prof = (await api("owner", "GET", `/v1/creators/${rw.id}`)).json;

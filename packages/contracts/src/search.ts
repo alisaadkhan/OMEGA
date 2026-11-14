@@ -7,9 +7,11 @@ export const freshnessSchema = z.enum(["current", "aging", "unknown", "stale"]);
  * What is known about reaching a creator, without revealing anything (2026-10-15). email_unverified: an address was
  * found on the public profile but nothing proves it works ("Email available · Unverified"); email_verified: real
  * delivery or confirmation evidence (nothing sets it yet); email_invalid: every email found was shown not to work and
- * no other contact exists; phone_unverified: only a phone number; none: "No contact info".
+ * no other contact exists; phone_unverified: only a phone number; none: "Not publicly listed".
+ * Owner plan 2026-11-14 (Phase 2): email_and_phone: a usable email and a usable mobile number; collab_route: no usable
+ * email or number, but the creator's bio says how to reach them ("DM for collab"): nothing to reveal, the words are public.
  */
-export const contactAvailabilitySchema = z.enum(["email_unverified", "email_verified", "email_invalid", "phone_unverified", "none"]);
+export const contactAvailabilitySchema = z.enum(["email_and_phone", "email_unverified", "email_verified", "email_invalid", "phone_unverified", "collab_route", "none"]);
 export type ContactAvailability = z.output<typeof contactAvailabilitySchema>;
 /** unverified: not checked; domain_ok: format and domain mail servers check out, the inbox is still unproven. */
 export const contactStatusSchema = z.enum(["unverified", "domain_ok", "invalid", "verified"]);
@@ -99,6 +101,8 @@ export const creatorCardSchema = z.object({
   verified: z.boolean(),
   followers: z.number().int().nullable(),
   engagementRate: z.number().nullable(),
+  /** Why the engagement rate is missing, when it is (owner plan 2026-11-14 parity): source policy, or too few posts yet. */
+  engagementNote: z.enum(["policy_restricted", "insufficient_posts"]).nullable().optional(),
   authenticityScore: z.number().int().nullable(),
   fakeFollowerPct: z.number().nullable(),
   hasContact: z.boolean(),

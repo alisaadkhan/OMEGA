@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "motion/react";
-import { ArrowRight, BadgeCheck, Ban, Bookmark, Check, Clock, Instagram, Mail, MapPin, Music2, Phone, Star, Youtube } from "lucide-react";
+import { ArrowRight, BadgeCheck, Ban, Bookmark, Check, Clock, Instagram, Mail, MapPin, MessageCircle, Music2, Phone, Star, Youtube } from "lucide-react";
 import { CONTACT_AVAILABILITY_TEXT, initialsAvatar, matchSummary, formatEr } from "../../api/search-mapping";
 import { FreshnessBadge } from "./states";
 import type { Creator } from "./CreatorProfilePanel";
@@ -33,7 +33,7 @@ export function SearchCreatorCard({
 }) {
   const contact = creator.contactAvailability ?? (creator.hasContact ? "email_unverified" : "none");
   const contactText = CONTACT_AVAILABILITY_TEXT[contact];
-  const ContactIcon = contact === "email_invalid" ? Ban : contact === "phone_unverified" ? Phone : contact === "none" ? Clock : Mail;
+  const ContactIcon = contact === "email_invalid" ? Ban : contact === "phone_unverified" ? Phone : contact === "collab_route" ? MessageCircle : contact === "none" ? Clock : Mail;
   const plat = PLATFORM[creator.platform];
   // A stored photo that fails to load shows the initials avatar, like a creator with no photo (never an empty box).
   const [photoFailed, setPhotoFailed] = useState(false);
@@ -106,7 +106,7 @@ export function SearchCreatorCard({
                 <dt className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Eng. rate</dt>
                 {creator.engagement !== null ? (
                   <dd className="text-lg font-bold leading-none tabular-nums text-cyan-700">{formatEr(creator.engagement)}</dd>
-                ) : creator.platform === "youtube" ? (
+                ) : creator.engagementNote === "policy_restricted" ? (
                   <dd className="text-[11px] font-medium leading-tight text-slate-500" title="YouTube's API rules don't allow MUSHIN to calculate engagement for YouTube channels.">Not available for YouTube</dd>
                 ) : (
                   <dd className="text-[11px] font-medium leading-tight text-slate-500" title="Not enough recent posts to calculate it yet.">Not enough posts yet</dd>
