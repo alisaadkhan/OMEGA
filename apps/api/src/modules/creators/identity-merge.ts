@@ -4,17 +4,17 @@ import { socialTarget } from "./enrichment/repository";
 
 /**
  * Which creators are one person across platforms (addendum 3; owner directive 2026-11-04 §3 item 5). A pair is merged
- * only on strong evidence; a one-way mention alone ("collab with @x", "my brother's channel") never is:
+ * only on evidence an outsider cannot forge (security review: a bio is controlled by its owner, so only links FROM an
+ * established profile count); a one-way mention alone ("collab with @x", "my brother's channel") never is:
  *   - the two profiles link to each other;
- *   - one links to the other and their handles match (letters and digits only) or their display names match;
- *   - no link, but the same handle (5+ characters), the same display name, and both profiles confirmed in Pakistan.
+ *   - one links to the other, the linking profile is established (10,000+ followers, confirmed in Pakistan), and the
+ *     handles are identical or the display names match.
+ * A matching handle without any link is not merged (anyone can register a look-alike handle).
  * Pairs join into groups (one person's Instagram, YouTube and TikTok). A group with two profiles on one platform is
  * left alone. The kept creator is the one with the most followers; platform.merge_creator (0085) moves the rest.
  */
 type Profile = { creator_id: string; platform: string; handle: string; name: string; country_status: string; followers: number | null };
 export type MergeGroup = { keep: string; absorb: string[]; evidence: string[]; handles: string[] };
-
-const norm = (h: string) => h.toLowerCase().replace(/[^a-z0-9]/g, "");
 
 export async function findMergeGroups(db: Db): Promise<MergeGroup[]> {
   const profiles = [
@@ -43,29 +43,18 @@ export async function findMergeGroups(db: Db): Promise<MergeGroup[]> {
     if (!A || !B || A.platform === B.platform) continue;
     const key = [a, b].sort().join("|");
     if (pairEvidence.has(key)) continue;
+    // A is the profile that links (its owner wrote the link); it must be established for a one-way link to count.
+    const established = (A.followers ?? 0) >= 10_000 && A.country_status === "pakistan";
     const why = edges.has(`${b}>${a}`)
       ? "the profiles link to each other"
-      : norm(A.handle) === norm(B.handle)
-        ? "one links to the other and the handles match"
-        : A.name.length >= 4 && A.name === B.name
-          ? "one links to the other and the names match"
-          : null;
+      : !established
+        ? null
+        : A.handle === B.handle
+          ? "an established profile links to the other and the handles are identical"
+          : A.name.length >= 4 && A.name === B.name
+            ? "an established profile links to the other and the names match"
+            : null;
     if (why) pairEvidence.set(key, why);
-  }
-  const byHandle = new Map<string, Profile[]>();
-  for (const p of profiles) if (norm(p.handle).length >= 5) byHandle.set(norm(p.handle), [...(byHandle.get(norm(p.handle)) ?? []), p]);
-  for (const ps of byHandle.values()) {
-    for (let i = 0; i < ps.length; i++) {
-      for (let j = i + 1; j < ps.length; j++) {
-        const A = ps[i] as Profile;
-        const B = ps[j] as Profile;
-        if (A.platform === B.platform || A.creator_id === B.creator_id) continue;
-        const key = [A.creator_id, B.creator_id].sort().join("|");
-        if (!pairEvidence.has(key) && A.country_status === "pakistan" && B.country_status === "pakistan" && A.name.length >= 4 && A.name === B.name) {
-          pairEvidence.set(key, "same handle and name, both confirmed in Pakistan");
-        }
-      }
-    }
   }
   // Union-find over the pairs.
   const parent = new Map<string, string>();

@@ -40,4 +40,20 @@ describe("cross-platform identity merge", () => {
     const [r] = await ownerQuery<{ v: { merged: boolean; reason: string } }>(`select platform.merge_creator('${a}', '${c}', 'test') v`);
     expect(r?.v).toEqual({ merged: false, reason: "same_platform" });
   });
+
+  // Security review 2026-11-14: a look-alike account cannot attach itself to a real creator, and protections survive.
+  it("ignores a one-way link from a small or unconfirmed profile, and never merges a possible minor or a creator with an open removal request", async () => {
+    const real = await addCreator(db, { displayName: "Sana Cooks", primaryPlatform: "youtube", profiles: [{ platform: "youtube", handle: "sanacooks", followers: 400_000 }] });
+    const fake = await addCreator(db, { displayName: "Sana Cooks", profiles: [{ platform: "instagram", handle: "sanacooks", followers: 300 }] });
+    await link(fake, "https://www.youtube.com/@sanacooks"); // the impostor's own bio
+    expect(await findMergeGroups(db)).toEqual([]);
+
+    const tt = await addCreator(db, { displayName: "Sana Cooks", primaryPlatform: "tiktok", profiles: [{ platform: "tiktok", handle: "sanacooks", followers: 50_000 }] });
+    await ownerQuery(`update gcp.creators set is_minor = true where id = '${tt}'`);
+    const [m] = await ownerQuery<{ v: { reason: string } }>(`select platform.merge_creator('${real}', '${tt}', 'test') v`);
+    expect(m?.v.reason).toBe("possible_minor");
+    await ownerQuery(`insert into gcp.removal_requests (urls, creator_id, status) values (array['https://instagram.com/sanacooks'], '${fake}', 'received')`);
+    const [rr] = await ownerQuery<{ v: { reason: string } }>(`select platform.merge_creator('${real}', '${fake}', 'test') v`);
+    expect(rr?.v.reason).toBe("removal_requested");
+  });
 });

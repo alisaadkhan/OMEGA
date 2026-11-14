@@ -4,7 +4,11 @@
 -- import rows), rows that would duplicate one the kept creator already has are dropped, the absorbed creator becomes
 -- status 'merged' with merged_into_id, and both get an identity lifecycle event. All or nothing, in one call. Refused when
 -- either creator is not active, or both have a profile on the same platform (two accounts on one platform are not
--- proof of one person). Which pairs are merged is decided by the caller (identity-merge.ts), never by this function.
+-- proof of one person), when either is a possible minor without a staff override (the protection must not be lost), or
+-- when either has an open removal request (it stays with the creator it was made about). Contacts moved from the absorbed
+-- creator become "unverified"; each moved profile records where it came from (merged_from_creator_id), so a merge can be
+-- audited or undone. Which pairs are merged is decided by the caller (identity-merge.ts), never by this function.
+alter table gcp.creator_profiles add column merged_from_creator_id uuid;
 alter table gcp.creator_lifecycle_events drop constraint if exists creator_lifecycle_events_kind_check;
 alter table gcp.creator_lifecycle_events add constraint creator_lifecycle_events_kind_check
   check (kind in ('availability', 'retention', 'location', 'removal', 'eligibility', 'identity'));
@@ -24,14 +28,20 @@ begin
              where a.creator_id = p_keep and b.creator_id = p_absorb) then
     return jsonb_build_object('merged', false, 'reason', 'same_platform');
   end if;
+  if exists (select 1 from gcp.creators where id in (p_keep, p_absorb) and is_minor and minor_override_by_staff_id is null) then
+    return jsonb_build_object('merged', false, 'reason', 'possible_minor');
+  end if;
+  if exists (select 1 from gcp.removal_requests where creator_id in (p_keep, p_absorb) and status = 'received') then
+    return jsonb_build_object('merged', false, 'reason', 'removal_requested');
+  end if;
 
-  update gcp.creator_profiles set creator_id = p_keep where creator_id = p_absorb;
+  update gcp.creator_profiles set creator_id = p_keep, merged_from_creator_id = coalesce(merged_from_creator_id, p_absorb) where creator_id = p_absorb;
   get diagnostics c = row_count; n := n || jsonb_build_object('profiles', c);
 
   -- Rows the kept creator already has are dropped, then the rest move.
   delete from gcp.creator_contacts a using gcp.creator_contacts k
     where a.creator_id = p_absorb and k.creator_id = p_keep and k.kind = a.kind and k.value_hash = a.value_hash;
-  update gcp.creator_contacts set creator_id = p_keep where creator_id = p_absorb;
+  update gcp.creator_contacts set creator_id = p_keep, trust = 'unverified' where creator_id = p_absorb;
   delete from gcp.creator_links a using gcp.creator_links k where a.creator_id = p_absorb and k.creator_id = p_keep and k.url = a.url;
   update gcp.creator_links set creator_id = p_keep where creator_id = p_absorb;
   update gcp.contact_checks set creator_id = p_keep where creator_id = p_absorb;
