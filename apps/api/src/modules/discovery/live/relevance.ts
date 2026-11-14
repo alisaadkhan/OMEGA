@@ -93,8 +93,28 @@ export function rankByEvidence<T extends Candidate>(search: LiveSearch, candidat
  */
 export const RELEVANCE_BATCH = 12;
 
+/** A stranger's title or snippet on one line: a line break could otherwise forge another numbered candidate (AI review 2026-11-15). */
+const oneLine = (s: string): string => s.replace(/\s*\n\s*/g, " ");
+
+const GENERIC = new Set(
+  "a an and the in on of for from with by at to is are who whose their his her its this that as or creator creators content profile account page posts post videos video shares makes making focused based matches match request about".split(" "),
+);
+const reasonWords = (s: string) => s.normalize("NFKC").toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/).filter((w) => w.length > 1);
+/**
+ * The model's reason is shown on the delivered card, so it must come from that candidate's own result or the brand's
+ * request: at least 60% of its specific words (compared by their first five letters). A reason injected through another
+ * candidate's snippet, or invented, is dropped and the card shows none (AI review 2026-11-15).
+ */
+export function groundedReason(reason: string, ownText: string): boolean {
+  const stem = (w: string) => w.slice(0, 5);
+  const have = new Set(reasonWords(ownText).map(stem));
+  const specific = reasonWords(reason).filter((w) => !GENERIC.has(w));
+  if (specific.length === 0) return true;
+  return specific.filter((w) => have.has(stem(w))).length / specific.length >= 0.6;
+}
+
 async function reviewBatch(o: { llm: Llm; search: LiveSearch; candidates: Candidate[]; ctx?: CallContext }): Promise<Kept[]> {
-  const lines = o.candidates.map((c, i) => `${i}. ${c.platform} @${c.handle} | ${redactContacts(cleanText(c.title, 200))} | ${redactContacts(cleanText(c.snippet, 300))}`).join("\n");
+  const lines = o.candidates.map((c, i) => `${i}. ${c.platform} @${c.handle} | ${oneLine(redactContacts(cleanText(c.title, 200)))} | ${oneLine(redactContacts(cleanText(c.snippet, 300)))}`).join("\n");
   const { value } = await o.llm.complete({
     feature: "discovery_relevance",
     system: RELEVANCE_SYSTEM_PROMPT,
@@ -104,9 +124,12 @@ async function reviewBatch(o: { llm: Llm; search: LiveSearch; candidates: Candid
     timeoutMs: 30_000,
     ...(o.ctx ? { ctx: o.ctx } : {}),
   });
+  const request = describe(o.search);
   return value.keep.flatMap((k) => {
     const c = o.candidates[k.i];
-    return c ? [{ ...c, reason: cleanText(k.reason, 160) || null }] : [];
+    if (!c) return [];
+    const reason = cleanText(k.reason, 160);
+    return [{ ...c, reason: reason && groundedReason(reason, `${c.handle} ${c.title} ${c.snippet} ${request}`) ? reason : null }];
   });
 }
 
