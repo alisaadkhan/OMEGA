@@ -145,6 +145,7 @@ behaviour beyond the E2E viewport checks, load.
 | Outreach email | No email-provider key on live; no worker | Yes for outreach |
 | YouTube retention | Live YouTube data read 20–21 Oct reaches 30 days on **19 Nov**; refresh script ready (about 7,100 quota units), paused by the owner today | Yes, before 19 Nov |
 | Mock checkout | While payments are mock, anyone can complete a checkout as paid for free (route exists only in mock mode) | Yes, with real Paddle keys it disappears |
+| Customer notifications | Shown in the app (Payment due badge, billing banner with what was lost, amber low-credit meter, activity bell); but payment failed, trial ending/expired, credits low, subscription canceled, Live Discovery finished and removal processed are only logged by the worker, never emailed or pushed ("sub-project 7" was never built) | High: needs an email sender and the worker |
 | Two old evidence files in GitHub history | Hold YouTube data; removal needs a force-push (owner decision) | Yes, before 19 Nov |
 | Email confirmation | Hosted Supabase "Confirm email" on; API gate active | — |
 | Search, profiles, reviews, staff console | E2E-tested (L3–L4) | — |
