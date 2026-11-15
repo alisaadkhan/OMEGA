@@ -40,11 +40,13 @@ Providers (each optional; without one, that capability reports "unavailable" ins
 
 | Variable(s) | Used for |
 |---|---|
-| `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_PRICE_IN_PER_MTOK`, `GEMINI_PRICE_OUT_PER_MTOK`, `GEMINI_BILLING=paid` | Main LLM (assessments, relevance, summaries) |
-| `OLLAMA_API_KEY` (+ `OLLAMA_MODEL`, prices) | LLM fallback |
+| `GROQ_API_KEY_1` … `GROQ_API_KEY_5`, `LLM_PROVIDER=groq` | Main LLM chain (assessments, relevance, niche, summaries): each key's gpt-oss-120b then 20b; the same keys as the API's Vercel settings |
+| `OPENROUTER_API_KEY` (optional) | Paid fallback after the Groq keys (gpt-oss-120b, gemini-2.5-flash) |
+| `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_PRICE_IN_PER_MTOK`, `GEMINI_PRICE_OUT_PER_MTOK`, `GEMINI_BILLING=paid` | Last fallback, paid key only |
 | `APIFY_TOKEN`, `APIFY_MONTHLY_BUDGET_USD` | Instagram and TikTok profile extraction |
 | `SERPER_API_KEY`, `SERPER_MONTHLY_SEARCH_LIMIT` | Live Discovery web search |
-| `YOUTUBE_API_KEY` | YouTube channels (Data API quota, no cost) |
+| `YOUTUBE_API_KEY`, `YOUTUBE_API_CALLS=on` | YouTube channels (Data API quota, no cost); `on` is needed for the 20-day refresh and Live Discovery's YouTube search, otherwise YouTube calls are off |
+| `OUTREACH_EMAIL_MODE=resend`, `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET` (`whsec_…`), `OUTREACH_EMAIL_FROM`, `OUTREACH_POSTAL_ADDRESS` | Outreach email sending and delivery webhooks (all five, or outreach stays off) |
 | `MEILISEARCH_*` | Only when `CATALOG_SEARCH_BACKEND=meilisearch` |
 
 Policy switches (defaults are the safe settings): `ENRICHMENT_ATTRIBUTE_POLICY=evidence`, `YOUTUBE_CONTENT_EVIDENCE=off`,
@@ -71,9 +73,10 @@ staging variables come from a file only the owner holds. Script: `scripts/ops/az
 - Shape: one Container App, Consumption plan, 0.25 vCPU / 0.5 GiB, exactly one replica (pg-boss needs a process that
   keeps running; scale-to-zero would stop the queue). Image built in Azure Container Registry (Basic) with `az acr build`,
   so no local Docker is needed. No Log Analytics workspace.
-- Safety built into the script: refuses `NODE_ENV=production`, refuses paid provider keys (Apify, Serper, Gemini,
-  Ollama, YouTube) unless `ALLOW_PAID_PROVIDERS=yes` is set for an approved test, forces `YOUTUBE_API_CALLS=off`, and
-  refuses an env file inside the repository. Every variable is stored as a Container Apps secret.
+- Safety built into the script: refuses `NODE_ENV=production`, refuses provider keys (Apify, Serper, Gemini, Ollama,
+  OpenRouter, YouTube) and `YOUTUBE_API_CALLS=on` unless `ALLOW_PAID_PROVIDERS=yes` is set with the owner's approval,
+  keeps YouTube calls off unless the env file turns them on (the 20-day YouTube refresh needs them on), and refuses an
+  env file inside the repository. Every variable is stored as a Container Apps secret.
 - Free grant (Consumption plan, per subscription per month; azure.microsoft.com/pricing/details/container-apps, read
   2026-10-26): 180,000 vCPU-seconds, 360,000 GiB-seconds, 2 million requests. One always-on replica of 0.25 vCPU / 0.5
   GiB uses about 648,000 vCPU-s and 1,296,000 GiB-s a month, so roughly 468,000 vCPU-s and 936,000 GiB-s are billed

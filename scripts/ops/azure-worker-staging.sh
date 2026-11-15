@@ -36,12 +36,16 @@ deploy() {
   local envfile="${1:?usage: deploy <env-file>}"
   [[ -f "$envfile" ]] || { echo "No such file: $envfile" >&2; exit 2; }
   case "$(realpath "$envfile")" in *"/MUSHIN/"*) echo "Keep the env file outside the repository." >&2; exit 2;; esac
-  # Safety: staging only, no paid providers, no YouTube API calls.
+  # Safety: staging only; provider keys and YouTube API calls only with the owner's approval (ALLOW_PAID_PROVIDERS=yes).
   if grep -Eq '^NODE_ENV=production' "$envfile"; then echo "Refusing NODE_ENV=production (staging only)." >&2; exit 2; fi
-  if [[ "${ALLOW_PAID_PROVIDERS:-no}" != "yes" ]] && grep -Eq '^(APIFY_TOKEN|SERPER_API_KEY|GEMINI_API_KEY|OLLAMA_API_KEY|YOUTUBE_API_KEY)=.+' "$envfile"; then
+  if [[ "${ALLOW_PAID_PROVIDERS:-no}" != "yes" ]] && grep -Eq '^(APIFY_TOKEN|SERPER_API_KEY|GEMINI_API_KEY|OLLAMA_API_KEY|OPENROUTER_API_KEY|YOUTUBE_API_KEY)=.+' "$envfile"; then
     echo "Refusing paid provider keys without ALLOW_PAID_PROVIDERS=yes (owner approval needed)." >&2; exit 2
   fi
-  if grep -Eq '^YOUTUBE_API_CALLS=on' "$envfile"; then echo "Refusing YOUTUBE_API_CALLS=on (policy decision pending)." >&2; exit 2; fi
+  # YouTube API use was approved by the owner on 2026-11-04 and the 20-day refresh needs it; still only with the approval
+  # switch, and off unless the env file asks for it.
+  if [[ "${ALLOW_PAID_PROVIDERS:-no}" != "yes" ]] && grep -Eq '^YOUTUBE_API_CALLS=on' "$envfile"; then
+    echo "Refusing YOUTUBE_API_CALLS=on without ALLOW_PAID_PROVIDERS=yes (owner approval needed)." >&2; exit 2
+  fi
 
   az group create -n "$RG" -l "$LOCATION" -o none
   # Basic registry: the image is built in Azure (no local Docker needed). It is billed from the credit.
@@ -57,7 +61,7 @@ deploy() {
     local name; name="$(echo "$k" | tr 'A-Z_' 'a-z-')"
     secrets+=("$name=$v"); envs+=("$k=secretref:$name")
   done < "$envfile"
-  envs+=("YOUTUBE_API_CALLS=off")
+  grep -Eq '^YOUTUBE_API_CALLS=' "$envfile" || envs+=("YOUTUBE_API_CALLS=off")
   local server; server="$(az acr show -n "$ACR" --query loginServer -o tsv)"
   if az containerapp show -n "$APP" -g "$RG" -o none 2>/dev/null; then
     az containerapp secret set -n "$APP" -g "$RG" --secrets "${secrets[@]}" -o none
