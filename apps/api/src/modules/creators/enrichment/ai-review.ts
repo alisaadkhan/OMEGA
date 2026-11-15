@@ -168,6 +168,45 @@ export function wikipediaMatches(reply: unknown, query: string): WikipediaArticl
     .map(({ title, description, extract }) => ({ title, description, extract }));
 }
 
+/** The names to look up for an account: its display name and its handle's name, each when it has 2+ words. */
+export const wikipediaQueries = (displayName: string, handle: string): string[] =>
+  [...new Set([wikipediaQuery(displayName, ""), wikipediaQuery("", handle)].filter((q): q is string => q !== null))];
+
+/**
+ * Exact titles, 20 to a request (Wikipedia throttled one-at-a-time lookups to one per ~50 s on 2026-11-15): fills
+ * `cache` with each title's article (after Wikipedia's own normalisation and redirects), or null when there is none or
+ * it is a disambiguation page. Returns how many titles could not be fetched (they stay out of the cache).
+ */
+export async function prefetchWikipediaTitles(fetchFn: typeof fetch, titles: string[], cache: Map<string, WikipediaArticle | null>, o: { attempts?: number; pauseMs?: number } = {}): Promise<number> {
+  const todo = [...new Set(titles)].filter((t) => !cache.has(t));
+  let unfetched = 0;
+  for (let i = 0; i < todo.length; i += 20) {
+    const batch = todo.slice(i, i + 20);
+    const url = `https://en.wikipedia.org/w/api.php?${new URLSearchParams({ action: "query", format: "json", formatversion: "2", titles: batch.join("|"), redirects: "1", prop: "description|extracts|pageprops", ppprop: "disambiguation", exintro: "1", explaintext: "1", exsentences: "2", exlimit: "20" })}`;
+    let res: Awaited<ReturnType<typeof getWikipedia>> = null;
+    for (let attempt = 1; attempt <= (o.attempts ?? 4) && !res?.body; attempt++) {
+      res = await getWikipedia(fetchFn, url);
+      if (!res?.body && attempt < (o.attempts ?? 4)) await new Promise((resolveWait) => setTimeout(resolveWait, o.pauseMs ?? 60_000));
+    }
+    const q = (res?.body as { query?: { normalized?: { from: string; to: string }[]; redirects?: { from: string; to: string }[]; pages?: { title?: string; missing?: boolean; description?: string; extract?: string; pageprops?: { disambiguation?: string } }[] } } | null)?.query;
+    if (!q) {
+      unfetched += batch.length;
+      continue;
+    }
+    const step = (list: { from: string; to: string }[] | undefined) => new Map((list ?? []).map((x) => [x.from, x.to]));
+    const normalized = step(q.normalized);
+    const redirects = step(q.redirects);
+    const pages = new Map((q.pages ?? []).map((p) => [p.title ?? "", p]));
+    for (const t of batch) {
+      const n = normalized.get(t) ?? t;
+      const p = pages.get(redirects.get(n) ?? n);
+      cache.set(t, p && !p.missing && p.pageprops?.disambiguation === undefined ? { title: p.title ?? "", description: p.description ?? "", extract: p.extract ?? "" } : null);
+    }
+    if (i + 20 < todo.length) await new Promise((resolveWait) => setTimeout(resolveWait, o.pauseMs ?? 5_000));
+  }
+  return unfetched;
+}
+
 export const wikipediaSummaryUrl = (title: string): string => `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title.replace(/ /g, "_"))}`;
 
 /** Exact titles to try for a query: the whole name, and its first two words ("Ushna Shah" for "ushna shah amin"). */
@@ -198,12 +237,23 @@ async function getWikipedia(fetchFn: typeof fetch, url: string): Promise<{ statu
  * (it follows Wikipedia's own redirects: "Saboor Ali" reaches "Saboor Aly"); then, unless `search` is false, a full-text
  * search, which finds spelling variants but which Wikipedia throttles hard (429 on most requests, 2026-11-15).
  */
-export async function lookupWikipedia(fetchFn: typeof fetch, displayName: string, handle: string, o: { search?: boolean } = {}): Promise<WikipediaArticle[] | null> {
-  const queries = [...new Set([wikipediaQuery(displayName, ""), wikipediaQuery("", handle)].filter((q): q is string => q !== null))];
+export async function lookupWikipedia(
+  fetchFn: typeof fetch,
+  displayName: string,
+  handle: string,
+  o: { search?: boolean; cache?: Map<string, WikipediaArticle | null> } = {},
+): Promise<WikipediaArticle[] | null> {
+  const queries = wikipediaQueries(displayName, handle);
   if (queries.length === 0) return [];
   let failed = false;
   for (const query of queries) {
     for (const title of wikipediaTitles(query)) {
+      if (o.cache?.has(title)) {
+        const cached = o.cache.get(title) ?? null;
+        const found = cached ? wikipediaMatches({ query: { pages: [{ ...cached, index: 1 }] } }, query) : [];
+        if (found.length) return found;
+        continue;
+      }
       const res = await getWikipedia(fetchFn, wikipediaSummaryUrl(title));
       if (res === null || (res.status !== 404 && res.body === null)) {
         failed = true;

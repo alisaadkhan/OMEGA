@@ -111,6 +111,30 @@ describe("Wikipedia check", () => {
     expect(urls).toHaveLength(1);
   });
 
+  it("fetches exact titles 20 to a request, follows redirects, and answers lookups from that cache", async () => {
+    const { prefetchWikipediaTitles } = await import("./ai-review");
+    const requests: string[] = [];
+    const wiki = (async (url: string) => {
+      requests.push(url);
+      return Response.json({ query: {
+        redirects: [{ from: "Saboor Ali Ansari", to: "Saboor Aly" }],
+        pages: [
+          { title: "Saboor Aly", description: "Pakistani television actress", extract: "Saboor Ali Ansari (born 1995) is a Pakistani actress." },
+          { title: "Rajab Ali", description: "Topics referred to by the same term", extract: "", pageprops: { disambiguation: "" } },
+          { title: "Nobody Known", missing: true },
+        ],
+      } });
+    }) as unknown as typeof fetch;
+    const cache = new Map();
+    expect(await prefetchWikipediaTitles(wiki, ["Saboor Ali Ansari", "Rajab Ali", "Nobody Known"], cache, { pauseMs: 0 })).toBe(0);
+    expect(requests).toHaveLength(1);
+    expect(cache.get("Rajab Ali")).toBeNull();
+    const none = (async () => { throw new Error("no network expected"); }) as unknown as typeof fetch;
+    expect((await lookupWikipedia(none, "Saboor Ali Ansari", "sabooraly", { search: false, cache }))?.map((w) => w.title)).toEqual(["Saboor Aly"]);
+    cache.set("Saboor Ali", null);
+    expect(await lookupWikipedia(none, "Nobody Known", "x", { search: false, cache })).toEqual([]);
+  });
+
   it("waits as Wikipedia asks after a 429, once, then uses the answer", async () => {
     const answers = [new Response("", { status: 429, headers: { "retry-after": "1" } }), Response.json({ type: "standard", title: "Komal Meer", description: "Pakistani actress", extract: "Komal Meer is a Pakistani actress." })];
     const flaky = (async () => answers.shift() as Response) as unknown as typeof fetch;

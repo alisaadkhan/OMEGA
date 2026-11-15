@@ -29,7 +29,7 @@ import { createDatabase, createDbProviderCallSink, llmSpendSince } from "@mushin
 import { createLlm } from "@mushin/integrations";
 import { sql } from "drizzle-orm";
 import postgres from "postgres";
-import { aiReview, lookupWikipedia, type AiReviewDecision, type WikipediaArticle } from "../../apps/api/src/modules/creators/enrichment/ai-review";
+import { aiReview, lookupWikipedia, prefetchWikipediaTitles, wikipediaQueries, wikipediaTitles, type AiReviewDecision, type WikipediaArticle } from "../../apps/api/src/modules/creators/enrichment/ai-review";
 import { createCreatorIndexer, standardize } from "../../apps/api/src/modules/creators/index";
 import { createBudgetGate } from "./budget";
 
@@ -61,13 +61,13 @@ const payload = (key: string | null): unknown => {
   return null;
 };
 
-type Creator = { id: string; display_name: string; primary_platform: "instagram" | "tiktok" | "youtube"; account_type: string | null; account_type_source: string | null; account_type_evidence: string | null; niche_main: string | null; public_country_source: string | null; followers: number };
+type Creator = { id: string; display_name: string; primary_handle: string | null; primary_platform: "instagram" | "tiktok" | "youtube"; account_type: string | null; account_type_source: string | null; account_type_evidence: string | null; niche_main: string | null; public_country_source: string | null; followers: number };
 type Profile = { platform: "instagram" | "tiktok" | "youtube"; handle: string; followers: number | null; verified: boolean; bio: string | null; key: string | null };
 const onlyHandles = handles.length ? sql`and exists (select 1 from gcp.creator_profiles h where h.creator_id = c.id and lower(h.handle) in (select jsonb_array_elements_text(${JSON.stringify(handles)}::jsonb)))` : sql``;
 const creators = await db.withSystem((tx) =>
   tx.execute<Creator>(sql`
     select * from (
-      select c.id, c.display_name, c.primary_platform, c.account_type, c.account_type_source, c.account_type_evidence, c.niche_main, c.public_country_source,
+      select c.id, c.display_name, c.primary_handle, c.primary_platform, c.account_type, c.account_type_source, c.account_type_evidence, c.niche_main, c.public_country_source,
         (select max(p.followers) from gcp.creator_profiles p where p.creator_id = c.id)::bigint as followers
       from gcp.creators c
       where c.status = 'active' and not (c.is_minor and c.minor_override_by_staff_id is null) ${onlyHandles}
@@ -101,7 +101,7 @@ async function review(c: Creator): Promise<void> {
   let found: WikipediaArticle[] | null = null;
   // Wikipedia answers 429 to bursts of searches (seen 2026-11-15): back off 5 s, 20 s, 45 s, and pace every lookup.
   for (let attempt = 1; attempt <= 3 && found === null; attempt++) {
-    found = await lookupWikipedia(fetch, c.display_name, main.handle, { search: !values["titles-only"] });
+    found = await lookupWikipedia(fetch, c.display_name, main.handle, { search: !values["titles-only"], cache: wikiCache });
     await new Promise((resolveWait) => setTimeout(resolveWait, found === null ? 5_000 * attempt * attempt : values["titles-only"] ? 500 : 3_000));
   }
   const wikipedia = found ?? [];
@@ -176,6 +176,11 @@ async function review(c: Creator): Promise<void> {
 // and a rerun picks up only what is left.
 const STOP_AFTER_FAILURES = 4;
 let failuresInARow = 0;
+// Exact titles for every candidate, 20 to a request, before the reviews (lookups then come from this cache).
+const wikiCache = new Map<string, WikipediaArticle | null>();
+const allTitles = creators.filter((c) => !/\[Wikipedia:/.test(c.account_type_evidence ?? "")).flatMap((c) => wikipediaQueries(c.display_name, "").concat(wikipediaQueries("", c.primary_handle ?? "")).flatMap(wikipediaTitles));
+const unfetched = await prefetchWikipediaTitles(fetch, allTitles, wikiCache);
+logger.info({ event: "wikipedia_prefetch", titles: new Set(allTitles).size, articles: [...wikiCache.values()].filter(Boolean).length, unfetched }, "Wikipedia titles prefetched");
 const queue = [...creators];
 await Promise.all(Array.from({ length: Math.max(1, Number(values.concurrency)) }, async () => {
   for (let c = queue.shift(); c && failuresInARow < STOP_AFTER_FAILURES; c = queue.shift()) {
