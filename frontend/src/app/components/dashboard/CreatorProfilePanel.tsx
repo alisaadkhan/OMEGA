@@ -15,6 +15,7 @@ import { useConfirm, useToast } from "../../lib/toast";
 import { CampaignDrawer } from "./CampaignDrawer";
 import { CreatorFullDetails } from "./CreatorFullDetails";
 import { ShortlistDrawer, type DrawerCreator } from "./ShortlistDrawer";
+import { ReviewCreatorButton } from "./ReviewCreatorButton";
 import { Spinner } from "./states";
 
 export type Creator = {
@@ -103,7 +104,7 @@ function missingNote(note: "policy_restricted" | "not_collected" | "insufficient
   return metric === "views" ? "No view counts on recent videos" : "Likes hidden or too few recent posts";
 }
 
-export function CreatorProfilePanel({ creator, onClose, onCompare, onGoToCampaigns }: { creator: Creator | null; onClose: () => void; onCompare?: (c: Creator) => void; onGoToCampaigns?: () => void }) {
+export function CreatorProfilePanel({ creator, onClose, onCompare, onGoToCampaigns, sourceMode = "db_search" }: { creator: Creator | null; onClose: () => void; onCompare?: (c: Creator) => void; onGoToCampaigns?: () => void; sourceMode?: "db_search" | "live_discovery" }) {
   const id = creator?.id ?? null;
   const profile = useCreatorProfile(id);
   const reveal = useRevealContact(id);
@@ -377,6 +378,7 @@ export function CreatorProfilePanel({ creator, onClose, onCompare, onGoToCampaig
                       <GitCompare aria-hidden className="h-3.5 w-3.5" /> Compare
                     </button>
                   )}
+                  <ReviewCreatorButton creatorId={creator.id} creatorName={creator.name} platform={creator.platform} sourceMode={sourceMode} />
                 </div>
 
                 {p && (

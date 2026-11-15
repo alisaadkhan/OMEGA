@@ -681,7 +681,7 @@ export function SearchModule({ liveJobId = null, onGoToCampaigns }: { liveJobId?
                 >
                   {c.discovery.isNew ? "New" : "Already in MUSHIN"}
                 </span>
-                <SearchCreatorCard creator={c} index={i} selected={selected.has(c.id)} onSelect={() => toggleSelect(c.id)} onOpen={() => setProfileId(c.id)} onShortlist={() => setShortlistFor([asDrawer(c)])} />
+                <SearchCreatorCard creator={c} index={i} selected={selected.has(c.id)} onSelect={() => toggleSelect(c.id)} onOpen={() => setProfileId(c.id)} onShortlist={() => setShortlistFor([asDrawer(c)])} sourceMode="live_discovery" />
                 {c.discovery.campaignFit && <p className="px-1 text-[11px] text-indigo-700">Fit based on {c.discovery.campaignFit.sampleSize} recent posts · {Math.round(c.discovery.campaignFit.confidence * 100)}% evidence confidence</p>}
                 {c.discovery.campaignFit && c.discovery.campaignFit.evidence.length > 0 && (
                   <details className="px-1 text-[11px] text-slate-600">
@@ -871,6 +871,7 @@ export function SearchModule({ liveJobId = null, onGoToCampaigns }: { liveJobId?
       <CreatorProfilePanel
         onGoToCampaigns={onGoToCampaigns}
         creator={activeProfile ?? linkCreator}
+        sourceMode={profileId !== null && liveCards.some((c) => c.id === profileId) ? "live_discovery" : "db_search"}
         onClose={() => {
           setProfileId(null);
           setLinkCreator(null);

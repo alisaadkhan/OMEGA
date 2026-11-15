@@ -4,6 +4,7 @@ import { ArrowRight, BadgeCheck, Ban, Bookmark, Check, Clock, Instagram, Mail, M
 import { CONTACT_AVAILABILITY_TEXT, initialsAvatar, matchSummary, formatEr } from "../../api/search-mapping";
 import { FreshnessBadge } from "./states";
 import type { Creator } from "./CreatorProfilePanel";
+import { ReviewCreatorButton } from "./ReviewCreatorButton";
 
 const PLATFORM = {
   instagram: { Icon: Instagram, label: "Instagram", color: "text-rose-300" },
@@ -23,6 +24,7 @@ export function SearchCreatorCard({
   onSelect,
   onOpen,
   onShortlist,
+  sourceMode = "db_search",
 }: {
   creator: Creator;
   index: number;
@@ -30,6 +32,8 @@ export function SearchCreatorCard({
   onSelect: () => void;
   onOpen: () => void;
   onShortlist: () => void;
+  /** Where the card is shown, recorded with a review (owner directive 2026-11-15 §3). */
+  sourceMode?: "db_search" | "live_discovery";
 }) {
   const contact = creator.contactAvailability ?? (creator.hasContact ? "email_unverified" : "none");
   const contactText = CONTACT_AVAILABILITY_TEXT[contact];
@@ -139,6 +143,7 @@ export function SearchCreatorCard({
               <button onClick={onShortlist} title="Save to shortlist" aria-label={`Save ${creator.name} to a shortlist`} className="rounded-xl border border-slate-200/70 p-2.5 text-slate-400 transition-colors hover:bg-slate-50 hover:text-[#06B6D4] focus:outline-none focus:ring-2 focus:ring-[#06B6D4]/50 disabled:opacity-50">
                 <Bookmark aria-hidden className="h-4 w-4" />
               </button>
+              <ReviewCreatorButton creatorId={creator.id} creatorName={creator.name} platform={creator.platform} sourceMode={sourceMode} compact />
             </div>
           </div>
         </div>
