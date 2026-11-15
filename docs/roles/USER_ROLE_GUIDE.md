@@ -46,8 +46,16 @@ sign-in service's own record, not your browser). An expired or used link says so
 **Filters:** Platform, Niche, Follower band, Engagement rate, Authenticity, Verified only, Has contact, Fresh only. The
 Niche filter shows 15 groups (for example *Fashion & Beauty*, *Education & Finance*, *Comedy & Entertainment*); a group
 searches every niche in it, so no creator of a covered niche is missed. Active filters show as removable chips;
-**Clear all** and **Reset filters** start over. You can also type a request in plain words: the AI reading only
-suggests filters, which you apply.
+**Clear all** and **Reset filters** start over. You can also type a request in plain words and ask MUSHIN to read it:
+the AI reading only suggests filters, which you apply. It shows what it understood: each suggested filter is marked
+**you said** (written in your request) or **inferred** (deduced by the AI, check it), the topics it noted (not filters:
+the search matches the words you typed), and anything that is **not a filter**, such as a campaign purpose ("to promote
+a new phone"): results are not ranked for it, so check each profile's recent content for fit. Applying a reading keeps
+the filters you already set unless the reading replaces them.
+
+Results say which filters the search ran with (**Filters applied**), and warn if you changed filters on screen since.
+An empty search lists every condition it combined; removing one usually brings results, and nothing is changed until
+you do.
 
 ## 4. Creator profiles
 

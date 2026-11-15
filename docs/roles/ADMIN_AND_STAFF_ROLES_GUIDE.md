@@ -57,6 +57,18 @@ These run as scripts against the local catalogue and, after approval, staging:
 - **Owner account-type decisions:** `docs/completion/seed/owner-account-types-2026-11-15.json`, applied as staff
   decisions by the reassessment.
 - **Catalogue sync to staging:** `scripts/catalog/load-staging.ts` then `sync-avatars.ts` (dry run first; staging only).
+  The dry run executes everything and rolls back, so its counts are exact. Rules (`live-sync.ts`): fresher data wins,
+  staff decisions and confirmed countries on staging are kept, local staff account types always apply, identity merges
+  are replayed with `platform.merge_creator`, no YouTube API data older than 30 days is copied (and the retention function
+  runs in the same transaction), contacts are never copied. A new creator is held back while its AI assessment (and so
+  its minor check) is pending, and a new 100K+ account of undecided type waits for the AI account check.
+- **Growing the catalogue:** `build.ts discover` (Live Discovery grid), `build.ts expand` (Instagram profiles that
+  Pakistani creators link to or mention), `youtube-candidates.ts` then `build.ts seed --manifest` (YouTube channel search
+  through the official API, region PK; known and under-10K channels skipped). Then `build.ts reassess` completes AI
+  assessments left pending by rate limits (would-be-searchable creators first), `reassess-catalogue.ts --apply` applies
+  the rules, and `ai-review.ts` checks 100K+ accounts.
+- **YouTube 20-day refresh without a worker:** `scripts/catalog/youtube-refresh.ts` (about 3 quota units per channel),
+  then the staging sync. The worker does this daily once it runs.
 - **Retention:** YouTube API data older than 30 days is cleared daily by the worker (`platform.expire_youtube_api_data`);
   raw provider answers expire on their own schedule.
 - **Exports for the owner:** `scripts/catalog/export-catalogue.ts` (qualified and disqualified accounts; contact details
