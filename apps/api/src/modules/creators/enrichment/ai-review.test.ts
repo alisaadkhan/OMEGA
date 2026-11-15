@@ -94,11 +94,25 @@ describe("Wikipedia check", () => {
     const down = (async () => { calls++; throw new Error("offline"); }) as unknown as typeof fetch;
     expect(await lookupWikipedia(down, "Sajal Ali", "sajalaly")).toBeNull();
     expect(await lookupWikipedia(down, "HUDA", "huda")).toEqual([]);
-    expect(calls).toBe(1);
+    expect(calls).toBe(2); // the exact title, then the search
+  });
+
+  it("tries exact titles first (whole name, then its first two words), then searches unless told not to", async () => {
+    const urls: string[] = [];
+    const wiki = (async (url: string) => {
+      urls.push(url);
+      if (url.endsWith("/Ushna_Shah")) return Response.json({ type: "standard", title: "Ushna Shah", description: "Pakistani actress", extract: "Ushna Shah is a Pakistani actress." });
+      return new Response("", { status: 404 });
+    }) as unknown as typeof fetch;
+    expect((await lookupWikipedia(wiki, "Ushna Shah-Amin", "ushnashah"))?.map((w) => w.title)).toEqual(["Ushna Shah"]);
+    expect(urls.map((u) => u.split("/").pop())).toEqual(["Ushna_Shah_Amin", "Ushna_Shah"]);
+    urls.length = 0;
+    expect(await lookupWikipedia(wiki, "Nobody Known", "x", { search: false })).toEqual([]);
+    expect(urls).toHaveLength(1);
   });
 
   it("waits as Wikipedia asks after a 429, once, then uses the answer", async () => {
-    const answers = [new Response("", { status: 429, headers: { "retry-after": "1" } }), Response.json({ query: { pages: [page(1, "Komal Meer", "Pakistani actress", "Komal Meer is a Pakistani actress.")] } })];
+    const answers = [new Response("", { status: 429, headers: { "retry-after": "1" } }), Response.json({ type: "standard", title: "Komal Meer", description: "Pakistani actress", extract: "Komal Meer is a Pakistani actress." })];
     const flaky = (async () => answers.shift() as Response) as unknown as typeof fetch;
     expect((await lookupWikipedia(flaky, "Komal Meer", "komallmeer"))?.map((w) => w.title)).toEqual(["Komal Meer"]);
   });

@@ -12,6 +12,8 @@
  * never a staff or rule decision. --models keeps only the chain entries whose model contains one of the given names.
  * --wikipedia-only asks the model only where Wikipedia has an article for the name (the evidence a smaller model can use
  * reliably when gpt-oss-120b's free daily token limit, 200K, is spent); the rest wait for a 120B pass.
+ * --titles-only skips Wikipedia's full-text search (exact titles and redirects only): much faster, since the search is
+ * throttled hard, but a spelling the encyclopedia has no redirect for is missed.
  *
  * Writes only: account type (source "ai", never over a staff decision or a rule's type) and, when the niche is empty,
  * an estimated niche (source "post_estimated", posts_assessed 0: always shown as "AI estimate", whatever basis the model
@@ -32,7 +34,7 @@ import { createCreatorIndexer, standardize } from "../../apps/api/src/modules/cr
 import { createBudgetGate } from "./budget";
 
 const { values } = parseArgs({
-  options: { db: { type: "string" }, handles: { type: "string" }, "min-followers": { type: "string", default: "100000" }, cap: { type: "string", default: "15" }, apply: { type: "boolean", default: false }, "rereview-ai": { type: "boolean", default: false }, "wikipedia-only": { type: "boolean", default: false }, models: { type: "string" }, out: { type: "string" }, concurrency: { type: "string", default: "4" } },
+  options: { db: { type: "string" }, handles: { type: "string" }, "min-followers": { type: "string", default: "100000" }, cap: { type: "string", default: "15" }, apply: { type: "boolean", default: false }, "rereview-ai": { type: "boolean", default: false }, "wikipedia-only": { type: "boolean", default: false }, "titles-only": { type: "boolean", default: false }, models: { type: "string" }, out: { type: "string" }, concurrency: { type: "string", default: "4" } },
 });
 const dbName = values.db ?? "";
 if (!/^mushin_catalog_[a-z0-9_]+$/.test(dbName) || /eval/.test(dbName)) throw new Error("--db must name a local operational catalogue (mushin_catalog_*)");
@@ -99,8 +101,8 @@ async function review(c: Creator): Promise<void> {
   let found: WikipediaArticle[] | null = null;
   // Wikipedia answers 429 to bursts of searches (seen 2026-11-15): back off 5 s, 20 s, 45 s, and pace every lookup.
   for (let attempt = 1; attempt <= 3 && found === null; attempt++) {
-    found = await lookupWikipedia(fetch, c.display_name, main.handle);
-    await new Promise((resolveWait) => setTimeout(resolveWait, found === null ? 5_000 * attempt * attempt : 3_000));
+    found = await lookupWikipedia(fetch, c.display_name, main.handle, { search: !values["titles-only"] });
+    await new Promise((resolveWait) => setTimeout(resolveWait, found === null ? 5_000 * attempt * attempt : values["titles-only"] ? 500 : 3_000));
   }
   const wikipedia = found ?? [];
   const r: Result = { id: c.id, handle: main.handle, platform: main.platform, followers: Number(c.followers), before: { type: c.account_type, niche: c.niche_main }, decision: null, postsRead, wikipedia: wikipedia.map((w) => `${w.title}: ${w.description}`), ...(found === null ? { wikipediaFailed: true as const } : {}) };

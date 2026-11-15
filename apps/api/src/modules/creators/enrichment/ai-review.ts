@@ -168,24 +168,55 @@ export function wikipediaMatches(reply: unknown, query: string): WikipediaArticl
     .map(({ title, description, extract }) => ({ title, description, extract }));
 }
 
-/**
- * One search with a 10 s limit: the matching articles, [] when there are none or the name is one word, and null when
- * the lookup failed (the first full run lost lookups silently that way, which looked like "no article").
- */
-export async function lookupWikipedia(fetchFn: typeof fetch, displayName: string, handle: string): Promise<WikipediaArticle[] | null> {
-  const query = wikipediaQuery(displayName, handle);
-  if (!query) return [];
+export const wikipediaSummaryUrl = (title: string): string => `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title.replace(/ /g, "_"))}`;
+
+/** Exact titles to try for a query: the whole name, and its first two words ("Ushna Shah" for "ushna shah amin"). */
+export function wikipediaTitles(query: string): string[] {
+  const words = query.split(" ").map((w) => `${w.charAt(0).toUpperCase()}${w.slice(1)}`);
+  return [...new Set([words.join(" "), ...(words.length >= 3 ? [words.slice(0, 2).join(" ")] : [])])];
+}
+
+/** One GET with a 10 s limit; a 429 is waited out as Wikipedia asks (at most a minute), once; null on failure. */
+async function getWikipedia(fetchFn: typeof fetch, url: string): Promise<{ status: number; body: unknown } | null> {
   try {
-    const get = () => fetchFn(wikipediaSearchUrl(query), { headers: { "user-agent": "MUSHIN-catalogue-review/1.0" }, signal: AbortSignal.timeout(10_000) });
+    const get = () => fetchFn(url, { headers: { "user-agent": "MUSHIN-catalogue-review/1.0" }, signal: AbortSignal.timeout(10_000) });
     let res = await get();
-    // Wikipedia answers 429 with Retry-After to bursts of searches (seen 2026-11-15): wait as asked (at most a minute), once.
     if (res.status === 429) {
       const wait = Math.min(60, Math.max(1, Number(res.headers.get("retry-after")) || 30));
       await new Promise((resolveWait) => setTimeout(resolveWait, wait * 1000));
       res = await get();
     }
-    return res.ok ? wikipediaMatches(await res.json(), query) : null;
+    return { status: res.status, body: res.ok ? await res.json() : null };
   } catch {
     return null;
   }
+}
+
+/**
+ * The matching articles, [] when there are none or the name is one word, and null when a lookup failed (the first full
+ * run lost lookups silently, which looked like "no article"). Exact titles first, through the cached page-summary API
+ * (it follows Wikipedia's own redirects: "Saboor Ali" reaches "Saboor Aly"); then, unless `search` is false, a full-text
+ * search, which finds spelling variants but which Wikipedia throttles hard (429 on most requests, 2026-11-15).
+ */
+export async function lookupWikipedia(fetchFn: typeof fetch, displayName: string, handle: string, o: { search?: boolean } = {}): Promise<WikipediaArticle[] | null> {
+  const queries = [...new Set([wikipediaQuery(displayName, ""), wikipediaQuery("", handle)].filter((q): q is string => q !== null))];
+  if (queries.length === 0) return [];
+  let failed = false;
+  for (const query of queries) {
+    for (const title of wikipediaTitles(query)) {
+      const res = await getWikipedia(fetchFn, wikipediaSummaryUrl(title));
+      if (res === null || (res.status !== 404 && res.body === null)) {
+        failed = true;
+        continue;
+      }
+      const page = res.body as { type?: unknown; title?: unknown; description?: unknown; extract?: unknown } | null;
+      if (page?.type !== "standard") continue;
+      const found = wikipediaMatches({ query: { pages: [{ ...page, index: 1 }] } }, query);
+      if (found.length) return found;
+    }
+  }
+  if (o.search === false) return failed ? null : [];
+  const query = queries[0] as string;
+  const res = await getWikipedia(fetchFn, wikipediaSearchUrl(query));
+  return res?.body ? wikipediaMatches(res.body, query) : null;
 }
