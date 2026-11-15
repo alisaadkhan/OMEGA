@@ -19,16 +19,17 @@
  * The frozen evaluation corpus (mushin_eval_disposable) is refused as a target.
  */
 import { randomUUID } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync, existsSync, rmSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { searchFiltersSchema, type LiveRunSize } from "@mushin/contracts";
 import { createLogger, loadWorkerConfig, type TenantContext } from "@mushin/core";
 import { createDatabase, createDbProviderCallSink, createDbProviderRunStore, createDbReservationLedger, llmSpendSince } from "@mushin/db";
-import { createLlm, createPayments, createProfileScraper, createSerperSearch, createSharedSpendGuard, createYouTubeSearch, ProviderError, type Llm, type ObjectStorage, type ProfileScraper, type WebSearch } from "@mushin/integrations";
+import { createLlm, createPayments, createProfileScraper, createSerperSearch, createSharedSpendGuard, createYouTubeSearch, ProviderError, type Llm, type ProfileScraper, type WebSearch } from "@mushin/integrations";
 import postgres from "postgres";
 import { BudgetExhausted, createBudgetGate } from "./budget";
+import { fileStorage } from "./file-storage";
 import { sql } from "drizzle-orm";
 import { createBillingService, noAccessCache } from "../../apps/api/src/modules/billing/index";
 import { bulkRefreshProfileCountries, createCreatorIndexer, createEnrichmentPipeline, getEnrichmentSettings, standardize } from "../../apps/api/src/modules/creators/index";
@@ -62,36 +63,6 @@ const gated = <T>(estimateUsd: number, call: () => Promise<T>): Promise<T> =>
   });
 // Worst-case reservations, each above the recorded unit cost (Serper 0.001/search, AI ~0.0002/call, Apify ~0.03/run).
 const COST = { search: 0.002, llmCall: 0.01, apifyPerProfile: 0.05 };
-
-/** Archived provider payloads and avatars, on local disk (never the staging bucket from .env). */
-function fileStorage(root: string): ObjectStorage {
-  const path = (bucket: string, key: string) => join(root, bucket, ...key.split("/"));
-  return {
-    async ensureBucket(bucket) {
-      mkdirSync(join(root, bucket), { recursive: true });
-    },
-    async put(bucket, key, body) {
-      mkdirSync(dirname(path(bucket, key)), { recursive: true });
-      writeFileSync(path(bucket, key), body);
-    },
-    async get(bucket, key) {
-      return existsSync(path(bucket, key)) ? new Uint8Array(readFileSync(path(bucket, key))) : null;
-    },
-    async remove(bucket, keys) {
-      for (const k of keys) rmSync(path(bucket, k), { force: true });
-    },
-    publicUrl(bucket, key) {
-      return `file://${path(bucket, key)}`;
-    },
-    // Catalogue builds never sign browser uploads or downloads.
-    async signedUploadUrl() {
-      throw new Error("signed URLs are not used by catalogue builds");
-    },
-    async signedDownloadUrl() {
-      throw new Error("signed URLs are not used by catalogue builds");
-    },
-  };
-}
 
 const sink = createDbProviderCallSink(db);
 const ledger = createDbReservationLedger(db);

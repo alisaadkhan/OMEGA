@@ -164,16 +164,22 @@ function performanceColumns(i: SaveInput) {
   };
 }
 
-/** 0075: account type from the platform category, bio and handle (owner master directive 2026-11-03, Part 5). */
-function accountTypeColumns(p: SaveInput["profile"], keepIf?: ReturnType<typeof sql>) {
+/**
+ * 0075: account type from the platform category, bio and handle (owner master directive 2026-11-03, Part 5). On an
+ * existing creator a staff decision is never replaced by a rule reading, and the rules' "no idea" (UNKNOWN) never
+ * undoes the AI review's decision (owner directive 2026-11-15 §2.3, as reassessCreators does): on 2026-11-15 a YouTube
+ * refresh turned 8 of 10 AI-reviewed channels back to UNKNOWN.
+ */
+function accountTypeColumns(p: SaveInput["profile"], existing: boolean) {
   const d = classifyAccountType({ category: p.accountCategory ?? null, bio: p.bio ?? "", handle: p.handle, displayName: p.displayName });
+  const keepIf = !existing ? null : d.type === "UNKNOWN" ? sql`${creators.accountTypeSource} in ('staff', 'ai')` : sql`${creators.accountTypeSource} = 'staff'`;
   const keep = (col: unknown, value: unknown) => (keepIf ? sql`case when ${keepIf} then ${col} else ${value} end` : value);
   return {
     accountType: keep(creators.accountType, d.type) as string,
     accountTypeSource: keep(creators.accountTypeSource, d.source) as string | null,
     accountTypeConfidence: keep(creators.accountTypeConfidence, d.confidence) as string | null,
     accountTypeEvidence: keep(creators.accountTypeEvidence, d.evidence) as string | null,
-    accountTypeAssessedAt: new Date(),
+    accountTypeAssessedAt: keep(creators.accountTypeAssessedAt, sql`now()`) as Date,
   };
 }
 
@@ -220,7 +226,7 @@ export async function saveEnrichment(tx: Tx, i: SaveInput): Promise<{ creatorId:
         minorFlaggedAt: i.minorReason !== null ? new Date() : null,
         // 0072: an Instagram category naming an organisation keeps the account out of search.
         organisationCategory: p.platform === "instagram" ? organisationCategory(p.accountCategory) : null,
-        ...accountTypeColumns(p),
+        ...accountTypeColumns(p, false),
         lastEnrichedAt: new Date(),
       })
       .returning({ id: creators.id });
@@ -291,8 +297,7 @@ export async function saveEnrichment(tx: Tx, i: SaveInput): Promise<{ creatorId:
         ...(status === "pending" ? {} : { authenticityScore: score }),
         assessmentStatus: status === "pending" ? sql`coalesce(${creators.assessmentStatus}, 'pending')` : status,
         ...(p.platform === "instagram" ? { organisationCategory: organisationCategory(p.accountCategory) } : {}),
-        // A staff decision is never replaced by a rule reading.
-        ...accountTypeColumns(p, sql`${creators.accountTypeSource} = 'staff'`),
+        ...accountTypeColumns(p, true),
         lastEnrichedAt: new Date(),
         ...(i.minorReason !== null
           ? { isMinor: true, minorReason: sql`coalesce(${creators.minorReason}, ${i.minorReason})`, minorFlaggedAt: sql`coalesce(${creators.minorFlaggedAt}, now())` }

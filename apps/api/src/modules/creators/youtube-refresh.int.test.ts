@@ -80,4 +80,22 @@ describe("scheduled YouTube refresh (20-day target, 30-day limit)", () => {
     const { pipeline } = setup();
     expect(await refreshDueYoutube({ db, refresh: pipeline.refreshKnown })).toMatchObject({ due: 1, refreshed: 1 });
   });
+  it("RF-05 a refresh keeps the AI review's account type when the rules cannot tell, and a staff decision always (2026-11-15)", async () => {
+    const id = await storedChannel(22);
+    const typeOf = async () => (await ownerQuery<{ t: string | null; s: string | null }>(`select account_type t, account_type_source s from gcp.creators where id = '${id}'`))[0];
+    // The fixture channel gives the rules nothing to go on: UNKNOWN.
+    await ownerQuery(`update gcp.creators set account_type = 'CELEBRITY_PUBLIC_FIGURE', account_type_source = 'ai', account_type_confidence = 'medium', account_type_evidence = 'AI review' where id = '${id}'`);
+    const { pipeline } = setup();
+    expect(await refreshDueYoutube({ db, refresh: pipeline.refreshKnown })).toMatchObject({ refreshed: 1 });
+    expect(await typeOf()).toEqual({ t: "CELEBRITY_PUBLIC_FIGURE", s: "ai" });
+    await ownerQuery(`update gcp.creator_profiles set last_scraped_at = now() - interval '22 days' where creator_id = '${id}'`);
+    await ownerQuery(`update gcp.creators set account_type = 'BRAND_ACCOUNT', account_type_source = 'staff', account_type_confidence = 'high', account_type_evidence = 'staff' where id = '${id}'`);
+    await refreshDueYoutube({ db, refresh: pipeline.refreshKnown });
+    expect(await typeOf()).toEqual({ t: "BRAND_ACCOUNT", s: "staff" });
+    // A rule-read type with no AI or staff decision behind it follows the new reading.
+    await ownerQuery(`update gcp.creator_profiles set last_scraped_at = now() - interval '22 days' where creator_id = '${id}'`);
+    await ownerQuery(`update gcp.creators set account_type = 'BRAND_ACCOUNT', account_type_source = 'rules', account_type_confidence = 'low', account_type_evidence = 'old bio' where id = '${id}'`);
+    await refreshDueYoutube({ db, refresh: pipeline.refreshKnown });
+    expect((await typeOf())?.t).toBe("UNKNOWN");
+  });
 });
