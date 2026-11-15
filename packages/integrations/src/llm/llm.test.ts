@@ -144,6 +144,30 @@ describe("OpenAiCompatibleLlm", () => {
     expect(models.filter((m) => m === "openai/gpt-oss-20b")).toHaveLength(1);
   });
 
+  it("rotates Groq keys: a 429 on key 1 moves to key 2's same model, key 2 is not paused by it, then OpenRouter answers", async () => {
+    let clock = 0;
+    const k1: LlmProviderConfig = { name: "groq", slot: 1, baseUrl: "https://groq.test/v1", apiKey: "key-one", model: "openai/gpt-oss-120b", priceInPerMTok: 0, priceOutPerMTok: 0 };
+    const k2 = { ...k1, slot: 2, apiKey: "key-two" };
+    const calls: string[] = [];
+    let keyTwoLimited = false;
+    const fetchFake = async (_input: string | URL | Request, init?: RequestInit) => {
+      const auth = new Headers(init?.headers).get("authorization") ?? "";
+      calls.push(auth.includes("key-one") ? "k1" : auth.includes("key-two") ? "k2" : "or");
+      if (auth.includes("key-one") || (auth.includes("key-two") && keyTwoLimited)) return new Response('{"error":{"code":"rate_limit_exceeded"}}', { status: 429, headers: { "retry-after": "600" } });
+      return reply('{"ok":true}');
+    };
+    const client = new OpenAiCompatibleLlm({ providers: [k1, k2, openrouter], sink: new MemoryProviderCallSink(), logger: createLogger({ level: "silent" }), fetch: fetchFake as typeof fetch, sleep: async () => {}, now: () => clock });
+    const ask = () => client.complete({ feature: "creator_assessment", system: "s", input: "i", schema });
+    expect((await ask()).model).toBe("groq:openai/gpt-oss-120b");
+    expect(calls).toEqual(["k1", "k2"]);
+    clock = 60_000; // key 1 still cooling (600 s): key 2 answers directly
+    await ask();
+    expect(calls.slice(2)).toEqual(["k2"]);
+    keyTwoLimited = true; // both keys spent: OpenRouter answers
+    expect((await ask()).model).toBe("openrouter:gpt-oss:20b");
+    expect(calls.slice(3)).toEqual(["k2", "or"]);
+  });
+
   it("reads Groq's reset durations", async () => {
     const { resetSeconds } = await import("./openai-compatible");
     expect([resetSeconds("7.66s"), resetSeconds("2m59.56s"), resetSeconds("120ms"), resetSeconds("1h2m3s"), resetSeconds("soon")]).toEqual([7.66, 179.56, 0.12, 3723, null]);

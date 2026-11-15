@@ -235,6 +235,18 @@ describe("search and LLM settings", () => {
     expect(loadApiConfig({ ...valid, GROQ_API_KEY: "g", LLM_PROVIDER: "groq", LLM_MODEL: "openai/gpt-oss-20b" }).llm.map((p) => p.model)).toEqual(["openai/gpt-oss-20b"]);
     expect(loadApiConfig({ ...valid, GROQ_API_KEY: "g", LLM_PROVIDER: "groq", LLM_MODEL: "x", GROQ_MODEL: "openai/gpt-oss-120b" }).llm[0]?.model).toBe("openai/gpt-oss-120b");
     expect(loadApiConfig(valid).llm).toEqual([]);
+    // Two Groq keys: key 1's models, then key 2's, then OpenRouter; GROQ_API_KEY is key 1's old name, a repeat is one key.
+    const two = loadApiConfig({ ...valid, GROQ_API_KEY_1: "g1", GROQ_API_KEY_2: "g2", OPENROUTER_API_KEY: "r" }).llm;
+    expect(two.map((p) => [p.name, p.slot ?? null, p.apiKey, p.model])).toEqual([
+      ["groq", 1, "g1", "openai/gpt-oss-120b"],
+      ["groq", 1, "g1", "openai/gpt-oss-20b"],
+      ["groq", 2, "g2", "openai/gpt-oss-120b"],
+      ["groq", 2, "g2", "openai/gpt-oss-20b"],
+      ["openrouter", null, "r", "openai/gpt-oss-120b"],
+      ["openrouter", null, "r", "google/gemini-2.5-flash"],
+    ]);
+    expect(loadApiConfig({ ...valid, GROQ_API_KEY: "g", GROQ_API_KEY_2: "g2" }).llm.map((p) => [p.apiKey, p.slot])).toEqual([["g", 1], ["g", 1], ["g2", 2], ["g2", 2]]);
+    expect(loadApiConfig({ ...valid, GROQ_API_KEY_1: "g", GROQ_API_KEY_2: "g" }).llm.map((p) => [p.apiKey, p.slot])).toEqual([["g", undefined], ["g", undefined]]);
     expect([loadApiConfig(valid).llmMonthlyBudgetUsd, loadApiConfig({ ...valid, LLM_MONTHLY_BUDGET_USD: "12.5" }).llmMonthlyBudgetUsd]).toEqual([5, 12.5]);
     // Production needs an explicit cap; 0 is a cap (every call refused), not "no cap".
     const production = { ...valid, NODE_ENV: "production", DATABASE_SSL_CA_FILE: caFile(), PADDLE_API_KEY: "p", PADDLE_CLIENT_TOKEN: "c", PADDLE_WEBHOOK_SECRET: "w", SUPABASE_SERVICE_ROLE_KEY: "service", ALERT_WEBHOOK_URL: "https://hooks.example.com/alerts", TRUSTED_PROXIES: "10.0.0.0/8" };

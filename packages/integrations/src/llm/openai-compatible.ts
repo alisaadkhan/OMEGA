@@ -76,7 +76,8 @@ function retryAfterSeconds(h: string | null, nowMs: number): number | null {
   return Number.isFinite(at) ? Math.max(0, Math.round((at - nowMs) / 1000)) : null;
 }
 
-const key = (p: LlmProviderConfig) => `${p.name}:${p.model}`;
+/** Cooldowns, slots and removed models are per key and model: "groq#2:openai/gpt-oss-120b" is not paused by key 1's 429. */
+const key = (p: LlmProviderConfig) => `${p.name}${p.slot ? `#${p.slot}` : ""}:${p.model}`;
 
 class LlmOutputError extends Error {
   constructor(reason: string) {
@@ -184,7 +185,7 @@ export class OpenAiCompatibleLlm implements Llm {
           const pause = t.retryAfterS !== null ? Math.min(t.retryAfterS * 1000, MAX_COOLDOWN_MS) : Math.min(COOLDOWN_MS * 2 ** (n - 1), MAX_COOLDOWN_MS);
           this.coolingUntil.set(key(p), (this.o.now ?? Date.now)() + pause);
         }
-        this.o.logger.warn({ err, provider: p.name, model: p.model, feature: req.feature }, "LLM model failed; trying the next one");
+        this.o.logger.warn({ err, provider: p.name, slot: p.slot ?? null, model: p.model, feature: req.feature }, "LLM model failed; trying the next one");
       }
     }
     throw new AppError("PROVIDER_UNAVAILABLE", "AI is unavailable right now. Please try again shortly.", undefined, { cause: last });
