@@ -97,6 +97,17 @@ describe("attribute backfill from stored data", () => {
     expect(await run({ apply: true })).toMatchObject({ changed: 0 });
   });
 
+  it("keeps an AI-estimated niche when today's evidence names no main niche", async () => {
+    const id = await addCreator(db, { niches: ["Lifestyle"], profiles: [{ bio: "Subscribe for more" }] });
+    await ownerQuery(`update gcp.creators set niche_main = 'Lifestyle', niche_status = 'classified', niche_source = 'post_estimated', niche_confidence = 'low', niche_posts_assessed = 0 where id = '${id}'`);
+    await run({ apply: true });
+    expect(await creator(id)).toMatchObject({ niches: ["Lifestyle"], niche_main: "Lifestyle", niche_status: "classified" });
+    const own = await addCreator(db, { niches: ["Lifestyle"], profiles: [{ bio: "PUBG gameplay and Free Fire" }] });
+    await ownerQuery(`update gcp.creators set niche_main = 'Lifestyle', niche_source = 'post_estimated', niche_posts_assessed = 0 where id = '${own}'`);
+    await run({ apply: true });
+    expect(await creator(own)).toMatchObject({ niche_main: "Gaming" });
+  });
+
   it("never overwrites a country the creator confirmed", async () => {
     const id = await addCreator(db, { niches: [], country: "AE", profiles: [{ bio: "Food reviews. Based in Lahore, Pakistan" }] });
     await ownerQuery(`update gcp.creators set confirmed_country = 'AE' where id = '${id}'`);

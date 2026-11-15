@@ -386,7 +386,11 @@ function nicheColumns(d: AttributeDecision) {
  * reading (`keptNiches`); their evidence rows are kept too.
  */
 export async function placeAttributes(tx: Tx, creatorId: string, d: AttributeDecision): Promise<{ values: Partial<typeof creators.$inferInsert>; keptNiches: boolean }> {
-  const [cur] = await tx.select({ city: creators.city, niches: creators.niches, nicheMain: creators.nicheMain, confirmedCountry: creators.confirmedCountry }).from(creators).where(eq(creators.id, creatorId)).limit(1);
+  const [cur] = await tx
+    .select({ city: creators.city, niches: creators.niches, nicheMain: creators.nicheMain, nicheSource: creators.nicheSource, nichePostsAssessed: creators.nichePostsAssessed, confirmedCountry: creators.confirmedCountry })
+    .from(creators)
+    .where(eq(creators.id, creatorId))
+    .limit(1);
   const conflictingCity = d.evidence.some((r) => r.attribute === "city" && r.status === "conflicting");
   const aiCities = d.evidence.filter((r) => r.attribute === "city" && r.source === "ai_assessment").map((r) => r.value.toLowerCase());
   const city = d.city ?? (conflictingCity || (cur?.city != null && aiCities.includes(cur.city.toLowerCase())) ? null : (cur?.city ?? null));
@@ -394,6 +398,10 @@ export async function placeAttributes(tx: Tx, creatorId: string, d: AttributeDec
   const values: Partial<typeof creators.$inferInsert> = { ...base, ...nicheColumns(d) };
   // A low-confidence reading is weaker than niches earlier text evidence supported, like an unknown one.
   if ((d.niche.status !== "unknown" && d.niche.confidence !== "low") || !cur?.niches.length) return { values, keptNiches: false };
+  // An AI estimate (scripts/catalog/ai-review.ts: post_estimated from 0 posts) is written only where this evidence gave
+  // no niche, so a weak reading without a main niche must not erase it (found 2026-11-15: a rerun would have cleared
+  // 183); the creator's own content naming a main niche still replaces it.
+  if (cur.nicheSource === "post_estimated" && cur.nichePostsAssessed === 0 && cur.nicheMain !== null && d.niche.main === null) return { values: base, keptNiches: true };
   const rows = await tx
     .select({ value: creatorAttributeEvidence.value, source: creatorAttributeEvidence.source, evidence: creatorAttributeEvidence.evidence })
     .from(creatorAttributeEvidence)
