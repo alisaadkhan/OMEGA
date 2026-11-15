@@ -168,6 +168,8 @@ export function wikipediaMatches(reply: unknown, query: string): WikipediaArticl
     .map(({ title, description, extract }) => ({ title, description, extract }));
 }
 
+const PERSON_ROLE = /\b(actor|actress|singer|musician|rapper|cricketer|footballer|athlete|player|presenter|host|anchor|journalist|politician|model|director|producer|writer|author|youtuber|tiktoker|vlogger|influencer|personality|comedian|chef|designer)\b/i;
+
 /** The names to look up for an account: its display name and its handle's name, each when it has 2+ words. */
 export const wikipediaQueries = (displayName: string, handle: string): string[] =>
   [...new Set([wikipediaQuery(displayName, ""), wikipediaQuery("", handle)].filter((q): q is string => q !== null))];
@@ -248,9 +250,13 @@ export async function lookupWikipedia(
   let failed = false;
   for (const query of queries) {
     for (const title of wikipediaTitles(query)) {
+      // A shortened name ("Street Food" from "Street Food Tour", "Kamal Hussain" redirected to a Bangladeshi
+      // politician) reached a phrase, a film or a namesake in the full run: it counts only for an article about a person.
+      const shortened = title.split(" ").length < query.split(" ").length;
+      const fits = (found: WikipediaArticle[]) => (shortened ? found.filter((w) => PERSON_ROLE.test(w.description)) : found);
       if (o.cache?.has(title)) {
         const cached = o.cache.get(title) ?? null;
-        const found = cached ? wikipediaMatches({ query: { pages: [{ ...cached, index: 1 }] } }, query) : [];
+        const found = fits(cached ? wikipediaMatches({ query: { pages: [{ ...cached, index: 1 }] } }, query) : []);
         if (found.length) return found;
         continue;
       }
@@ -261,7 +267,7 @@ export async function lookupWikipedia(
       }
       const page = res.body as { type?: unknown; title?: unknown; description?: unknown; extract?: unknown } | null;
       if (page?.type !== "standard") continue;
-      const found = wikipediaMatches({ query: { pages: [{ ...page, index: 1 }] } }, query);
+      const found = fits(wikipediaMatches({ query: { pages: [{ ...page, index: 1 }] } }, query));
       if (found.length) return found;
     }
   }

@@ -131,6 +131,10 @@ describe("Wikipedia check", () => {
     expect(cache.get("Rajab Ali")).toBeNull();
     const none = (async () => { throw new Error("no network expected"); }) as unknown as typeof fetch;
     expect((await lookupWikipedia(none, "Saboor Ali Ansari", "sabooraly", { search: false, cache }))?.map((w) => w.title)).toEqual(["Saboor Aly"]);
+    // A shortened name counts only for an article about a person (full run: "Street Food Tour" reached "Street food").
+    cache.set("Street Food Tour", null);
+    cache.set("Street Food", { title: "Street food", description: "Ready-to-eat food or drink sold on a street", extract: "Street food is ready-to-eat food." });
+    expect(await lookupWikipedia(none, "Street Food Tour Official", "streetfoodtourofficial", { search: false, cache })).toEqual([]);
     cache.set("Saboor Ali", null);
     expect(await lookupWikipedia(none, "Nobody Known", "x", { search: false, cache })).toEqual([]);
   });
