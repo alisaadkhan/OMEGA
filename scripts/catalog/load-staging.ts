@@ -1,7 +1,7 @@
 /**
  * Loads the validated operational catalogue into staging (owner decisions 2026-10-20: catalogue built locally, then
  * staging; staging is the yknp… project, never production). One transaction, idempotent, and only public catalogue data:
- *   loaded:   active, non-minor, unmerged creators; their profiles, links, attribute evidence, metric and assessment
+ *   loaded:   active, non-minor, unmerged, assessed creators; their profiles, links, attribute evidence, metric and assessment
  *             snapshots; then the search projection is rebuilt from them;
  *   excluded: contacts (encrypted with the local key), raw payloads and avatar copies (local files; avatar and payload
  *             references are cleared), every workspace, job, ledger and the catalog_build schema.
@@ -38,7 +38,9 @@ const dst = postgres(target, { max: 1, onnotice: () => {}, ssl: local ? false : 
 // expired YouTube profile readings, snapshots, or links read from video descriptions.
 const YT_PROFILE_EXPIRED = (p: string) => `(${p}.platform = 'youtube' and coalesce(${p}.last_scraped_at, ${p}.created_at) < ${YT_CUTOFF})`;
 const YT_PRIMARY_EXPIRED = `(c.primary_platform = 'youtube' and exists (select 1 from gcp.creator_profiles y where y.creator_id = c.id and ${YT_PROFILE_EXPIRED("y")}))`;
-const KEEP = `c.status = 'active' and not c.is_minor and c.merged_into_id is null and not ${YT_PRIMARY_EXPIRED}`;
+// A creator whose AI assessment is still pending has had no minor check: staging (no worker to finish it) never gets it
+// as a new creator until the assessment is complete (2026-11-15: 750 new channels were saved pending under rate limits).
+const KEEP = `c.status = 'active' and not c.is_minor and c.merged_into_id is null and c.assessment_status is distinct from 'pending' and not ${YT_PRIMARY_EXPIRED}`;
 const YT_CLEARED = JSON.stringify(Object.fromEntries(["followers", "following", "posts", "engagement_rate", "avg_likes", "avg_comments", "avg_views", "bio",
   "followers_updated_at", "engagement_updated_at", "median_views", "median_engagement_rate", "performance_views_sample", "performance_engagement_sample",
   "performance_format", "performance_from", "performance_to", "performance_at", "post_locations", "avatar_url", "avatar_key", "caption_country_evidence",
