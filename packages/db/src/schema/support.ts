@@ -63,3 +63,25 @@ export const trialFeedback = wp.table("trial_feedback", {
   comments: text("comments"),
   createdAt: ts("created_at").notNull().defaultNow(),
 });
+
+/**
+ * A customer's review of one creator (0090, owner directive 2026-11-15 §3): "valid" confirms the profile, "invalid"
+ * flags a problem for the staff Catalogue review. One open flag per person and creator.
+ */
+export const creatorProfileReviews = wp.table("creator_profile_reviews", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").notNull(),
+  submittedBy: uuid("submitted_by").notNull(),
+  creatorId: uuid("creator_id").notNull(),
+  platform: text("platform", { enum: ["instagram", "tiktok", "youtube"] }),
+  sourceMode: text("source_mode", { enum: ["db_search", "live_discovery"] }).notNull(),
+  verdict: text("verdict", { enum: ["valid", "invalid"] }).notNull(),
+  reason: text("reason", { enum: ["not_individual_creator", "wrong_location", "wrong_niche", "broken_profile", "other"] }),
+  note: text("note"),
+  status: text("status", { enum: ["pending", "resolved", "dismissed"] }).notNull().default("pending"),
+  resolvedByStaffId: uuid("resolved_by_staff_id"),
+  resolvedAt: ts("resolved_at"),
+  resolution: text("resolution"),
+  createdAt: ts("created_at").notNull().defaultNow(),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+});

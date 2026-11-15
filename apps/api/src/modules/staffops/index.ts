@@ -32,6 +32,9 @@ import {
   supportAccessListSchema,
   supportAccessSchema,
   supportAccessViewSchema,
+  creatorFlagDecisionSchema,
+  creatorFlagListSchema,
+  creatorFlagQuerySchema,
 } from "@mushin/contracts";
 import { AppError } from "@mushin/core";
 import type { Db } from "@mushin/db";
@@ -46,6 +49,7 @@ import type { AlertNotifier } from "./alert-notifier";
 import { createApprovals } from "./approvals";
 import type { Attachments } from "../support/index";
 import { clearMinorSchema, clearOrganisationSchema, createCatalogueReview, reviewListSchema, reviewQuerySchema, setCountrySchema } from "./catalogue-review";
+import { createCreatorFlags } from "./creator-flags";
 
 const idParams = z.object({ id: z.uuid() });
 const meta = (req: FastifyRequest) => ({ ip: req.ip ?? null, requestId: req.id });
@@ -69,6 +73,7 @@ export function createStaffOpsModule(o: {
   const deps = { db: o.db, ...(o.now ? { now: o.now } : {}) };
   const approvals = createApprovals({ ...deps, billing: o.billing });
   const review = createCatalogueReview({ db: o.db });
+  const flags = createCreatorFlags({ db: o.db });
   const actions = createStaffActions(deps);
   const access = createSupportAccess(deps);
   const staffOf = (req: FastifyRequest): StaffPrincipal => {
@@ -195,6 +200,15 @@ export function createStaffOpsModule(o: {
     app.post("/admin/v1/catalogue/creators/:id/organisation-override", { preHandler: r("catalogue.review.decide") }, async (req, reply) => {
       const { id } = parseInput(idParams, req.params);
       return sendOk(reply, z.object({ cleared: z.literal(true) }), await review.clearOrganisation(staffOf(req), id, parseInput(clearOrganisationSchema, req.body), meta(req)));
+    });
+    // Customer flags on creator profiles (owner directive 2026-11-15 §3, 0090).
+    app.get("/admin/v1/catalogue/flags", { preHandler: r("catalogue.review.read") }, async (req, reply) =>
+      sendOk(reply, creatorFlagListSchema, await flags.list(parseInput(creatorFlagQuerySchema, req.query))),
+    );
+    app.post("/admin/v1/catalogue/flags/:id/decision", { preHandler: r("catalogue.review.decide") }, async (req, reply) => {
+      const { id } = parseInput(idParams, req.params);
+      const out = await flags.decide(staffOf(req), id, parseInput(creatorFlagDecisionSchema, req.body), meta(req));
+      return sendOk(reply, z.object({ status: z.enum(["resolved", "dismissed"]), creatorId: z.uuid() }), out);
     });
     app.post("/admin/v1/catalogue/creators/:id/minor-override", { preHandler: r("catalogue.review.decide") }, async (req, reply) => {
       const { id } = parseInput(idParams, req.params);

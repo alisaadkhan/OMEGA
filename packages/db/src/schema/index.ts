@@ -39,7 +39,7 @@ import { discoveryCandidates, discoveryEstimates, discoveryJobs, discoveryResult
 import { users, workspaceInvitations, workspaceMembers, workspaces } from "./identity";
 import { dataExports, listMembers, lists } from "./lists";
 import { campaignCreators, campaigns, outreachEmails, outreachEvents } from "./campaigns";
-import { supportAccessRequests, supportMessages, supportTickets, trialFeedback } from "./support";
+import { creatorProfileReviews, supportAccessRequests, supportMessages, supportTickets, trialFeedback } from "./support";
 import { idempotencyKeys, outbox, providerCalls, providerControls, trialRequests } from "./platform";
 import { approvals, auditLog, staffSessions, staffUsers, stepUps, webauthnChallenges, webauthnCredentials } from "./staff";
 
@@ -118,6 +118,7 @@ export const ALL_TABLES = [
   supportTickets,
   supportMessages,
   supportAccessRequests,
+  creatorProfileReviews,
   removalRequests,
   creatorSuppressions,
   audienceEstimates,

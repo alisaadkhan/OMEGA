@@ -11,7 +11,7 @@ import { searchReadiness } from "./http/health";
 import type { Guards, ReadinessCheck } from "./http/types";
 import { createAudienceModule, createAudienceService } from "./modules/audience";
 import { createBillingModule, createBillingService, noAccessCache } from "./modules/billing";
-import { createCreatorsModule, createCreatorsService, createPostgresCatalogSearch, createRemovalService } from "./modules/creators";
+import { createCreatorReviewsModule, createCreatorsModule, createCreatorsService, createPostgresCatalogSearch, createRemovalService } from "./modules/creators";
 import { createDiscoveryModule, createDiscoveryService } from "./modules/discovery";
 import { createActivityModule, createActivityService } from "./modules/activity";
 import { createOpsModule } from "./modules/ops";
@@ -153,6 +153,7 @@ const app = await buildApp({
     staff.module,
     createBillingModule({ service: billing, payments, appUrl: config.appUrl }),
     createCreatorsModule({ service: creators, limiter, removals, requireStaff: staff.requireStaff }),
+    createCreatorReviewsModule({ db, limiter }),
     createDiscoveryModule({ service: createDiscoveryService({ db, billing, sourcePolicy: config.sourcePolicy, workerAvailable }), limiter }),
     createListsModule({ service: createListsService({ db, sourcePolicy: config.sourcePolicy }) }),
     createImportsModule({ service: createImportsService({ db, encryptionKey: config.dataEncryptionKey }) }),

@@ -7,6 +7,7 @@ import { registerCreatorRoutes } from "./routes";
 import type { CreatorsService } from "./service";
 
 export { createCreatorsService } from "./service";
+export { createCreatorReviewsModule, submitCreatorReview } from "./reviews";
 export type { CreatorsDeps, CreatorsService } from "./service";
 export { createPostgresCatalogSearch } from "./postgres-search";
 export { createCreatorIndexer } from "./indexer";
