@@ -97,9 +97,10 @@ async function review(c: Creator): Promise<void> {
   const posts = std?.kind === "ok" ? std.profile.recentPosts.filter((x) => !x.isPinned).slice(0, 6).map((x) => `${x.caption} ${x.hashtags.map((h) => `#${h.replace(/\s+/g, "_")}`).join(" ")}`.trim()) : [];
   const postsRead = posts.filter((p) => /[\p{L}\p{N}]{3,}/u.test(p)).length;
   let found: WikipediaArticle[] | null = null;
+  // Wikipedia answers 429 to bursts of searches (seen 2026-11-15): back off 5 s, 20 s, 45 s, and pace every lookup.
   for (let attempt = 1; attempt <= 3 && found === null; attempt++) {
     found = await lookupWikipedia(fetch, c.display_name, main.handle);
-    if (found === null) await new Promise((resolveWait) => setTimeout(resolveWait, 3_000 * attempt));
+    await new Promise((resolveWait) => setTimeout(resolveWait, found === null ? 5_000 * attempt * attempt : 1_000));
   }
   const wikipedia = found ?? [];
   const r: Result = { id: c.id, handle: main.handle, platform: main.platform, followers: Number(c.followers), before: { type: c.account_type, niche: c.niche_main }, decision: null, postsRead, wikipedia: wikipedia.map((w) => `${w.title}: ${w.description}`), ...(found === null ? { wikipediaFailed: true as const } : {}) };
