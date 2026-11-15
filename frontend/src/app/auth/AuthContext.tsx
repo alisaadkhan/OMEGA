@@ -1,6 +1,6 @@
 import { normalizeEmail, signupOutcome, type SignupOutcome } from "../api/signup-outcome";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import type { Session } from "@supabase/supabase-js";
+import type { Session } from "@supabase/auth-js";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { meResponseSchema, type MeResponse } from "@mushin/contracts";
 import { apiRequest } from "../api/client";

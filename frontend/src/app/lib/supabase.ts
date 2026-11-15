@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { AuthClient } from "@supabase/auth-js";
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
@@ -8,13 +8,27 @@ if (!url || !key) {
 }
 
 /**
+ * The browser uses Supabase for sign-in only (no database, storage or realtime calls: all data goes through the MUSHIN
+ * API), so it loads the auth client alone instead of the full supabase-js bundle (2026-11-15: about a quarter of the
+ * main bundle's source). It is built exactly as supabase-js builds it, so existing sessions stay valid: the same auth URL,
+ * the same `apikey`/Bearer headers and the same storage key `sb-<project ref>-auth-token`.
+ *
  * PKCE flow (audit UX-02): email links (sign-up confirmation, password recovery) come back with `?code=` in the query
  * string, which the client exchanges for a session. The implicit flow put tokens in the URL fragment, which collided with
  * the `#/` router and left recovery links on a broken page.
  */
-export const supabase = createClient(url, key, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: "pkce" },
-});
+const base = new URL(url.endsWith("/") ? url : `${url}/`);
+export const supabase = {
+  auth: new AuthClient({
+    url: new URL("auth/v1", base).href,
+    headers: { Authorization: `Bearer ${key}`, apikey: key },
+    storageKey: `sb-${base.hostname.split(".")[0]}-auth-token`,
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    flowType: "pkce",
+  }),
+};
 
 /**
  * Which kind of email link this browser asked for last (gap UX-08). A failed link comes back with only an error in the
