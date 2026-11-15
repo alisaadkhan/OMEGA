@@ -48,7 +48,7 @@ try {
   const eligible = new Set(
     (
       await dst<{ id: string }[]>`
-        select c.id::text from jsonb_to_recordset(${JSON.stringify(local)}::jsonb) l(id uuid, key text, fetched timestamptz)
+        select c.id::text from jsonb_to_recordset((${JSON.stringify(local)}::text)::jsonb) l(id uuid, key text, fetched timestamptz)
         join gcp.creators c on c.id = l.id
         left join lateral (select max(p.last_scraped_at) at from gcp.creator_profiles p where p.creator_id = c.id and p.platform = c.primary_platform) s on true
         where c.status = 'active'
