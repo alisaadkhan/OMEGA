@@ -51,6 +51,13 @@ export function Login({ onSuccess, goSignup, goForgot }: Props) {
           >
             Create an account
           </button>
+          {/* Two portals (owner directive 2026-11-15 §2): staff accounts are separate and sign in at the Staff Portal. */}
+          <span className="mt-2 block text-xs text-slate-500">
+            MUSHIN staff?{" "}
+            <a href="#/staff/login" className="font-semibold text-slate-700 underline-offset-4 hover:underline">
+              Sign in to the Staff Portal
+            </a>
+          </span>
         </>
       }
     >

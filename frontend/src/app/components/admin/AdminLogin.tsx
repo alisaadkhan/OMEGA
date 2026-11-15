@@ -75,7 +75,7 @@ export function AdminLogin({
             <div className="text-white" style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>
               mushin.io / admin
             </div>
-            <div className="mt-1 text-xs text-white/50">Restricted access · sign in with your staff account</div>
+            <div className="mt-1 text-xs text-white/50">Staff Portal · staff access only</div>
           </div>
         </div>
 
@@ -149,6 +149,11 @@ export function AdminLogin({
           <button onClick={onExit} className="hover:text-white/80">← Back to mushin.io</button>
           <span>Unauthorized access is logged and reported.</span>
         </div>
+        {/* Customer accounts cannot sign in here; the answer never says whether an email has a customer account. */}
+        <p className="mt-3 text-center text-xs text-white/50">
+          Unauthorized: staff access only. Brands and agencies sign in at the{" "}
+          <a href="#/login" className="font-medium text-white/80 underline-offset-4 hover:underline">customer login</a>.
+        </p>
       </div>
     </div>
   );

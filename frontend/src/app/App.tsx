@@ -41,8 +41,9 @@ function useHashRoute(initial: Route): [Route, (r: Route) => void] {
   const parse = (): Route => {
     if (typeof window === "undefined") return initial;
     const h = window.location.hash.replace(/^#\/?/, "");
-    if (h.startsWith("admin/login")) return "admin-login";
-    if (h.startsWith("admin")) return "admin";
+    // Staff Portal (owner directive 2026-11-15 §2): #/staff/login and #/staff are the same portal as #/admin.
+    if (h.startsWith("admin/login") || h.startsWith("staff/login")) return "admin-login";
+    if (h.startsWith("admin") || h === "staff" || h.startsWith("staff/")) return "admin";
     if (h === "login") return "login";
     if (h === "signup") return "signup";
     if (h === "forgot") return "forgot";

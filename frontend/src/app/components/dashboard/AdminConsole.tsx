@@ -40,7 +40,9 @@ const NAV: { id: AdminView; label: string; icon: typeof X; roles: AdminRole[] }[
 ];
 
 export function AdminConsole({ onExit, role, staffId }: { onExit: () => void; role: AdminRole; staffId: string }) {
-  const [view, setView] = useState<AdminView>("overview");
+  // Each role lands on its own primary workspace (owner directive 2026-11-15 §2): support staff on the support queue,
+  // admins on the overview.
+  const [view, setView] = useState<AdminView>(role === "support" ? "support" : "overview");
   const items = NAV.filter((n) => n.roles.includes(role));
   const admin = role !== "support";
   return (
