@@ -45,6 +45,29 @@ export function withoutExtra(extra: Partial<SearchFilters>, key: ExtraKey): Part
 }
 
 /** Labels for every filter the screen has no control for, so none is applied silently (SRS REQ-02.02). */
+/**
+ * The conditions a search actually ran with, in the user's terms (natural-language master prompt §5): read from the
+ * executed request, never from the screen, so a filter changed after the search is not reported as applied.
+ */
+export function appliedFilterLabels(f: SearchFilters): string[] {
+  const out: string[] = [];
+  if (f.platform) out.push(`platform ${f.platform}`);
+  if (f.niches.length > 0) out.push(`niche ${[...new Set(f.niches.map(nicheGroupLabel))].join(" or ")}`);
+  if (f.creatorCity) out.push(`city ${f.creatorCity}`);
+  if (f.creatorCountry) out.push(`creator country ${f.creatorCountry}`);
+  if (f.audienceCountry) out.push(`audience country ${f.audienceCountry}`);
+  if (f.followersMin !== undefined && f.followersMax !== undefined) out.push(`followers ${formatCount(f.followersMin)}–${formatCount(f.followersMax)}`);
+  else if (f.followersMin !== undefined) out.push(`followers ${formatCount(f.followersMin)}+`);
+  else if (f.followersMax !== undefined) out.push(`followers up to ${formatCount(f.followersMax)}`);
+  if (f.engagementMin !== undefined) out.push(`engagement ${f.engagementMin}%+`);
+  if (f.engagementMax !== undefined) out.push(`engagement up to ${f.engagementMax}%`);
+  if (f.minAuthenticity !== undefined) out.push(`authenticity ${f.minAuthenticity}+`);
+  if (f.verifiedOnly) out.push("verified only");
+  if (f.hasContact) out.push("has contact");
+  if (f.freshOnly) out.push("fresh data only");
+  return out;
+}
+
 export function extraChips(extra: Partial<SearchFilters>): { key: ExtraKey; label: string }[] {
   const out: { key: ExtraKey; label: string }[] = [];
   if (extra.creatorCountry) out.push({ key: "creatorCountry", label: extra.creatorCountry });

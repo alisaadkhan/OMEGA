@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ApiError } from "./http";
 import {
+  appliedFilterLabels,
   CITY_FILTER_ENABLED,
   extraChips,
   formatCount,
@@ -207,3 +208,14 @@ describe("platformMixText", () => {
     expect(platformMixText({ youtube: 0, instagram: 0, tiktok: 0 })).toBe("Matches by platform: YouTube 0 · Instagram 0 · TikTok 0.");
   });
 });
+
+describe("the conditions a search ran with", () => {
+  it("lists every applied filter in the user's terms, and nothing when none is set", async () => {
+    const { searchFiltersShape } = await import("@mushin/contracts");
+    expect(appliedFilterLabels(searchFiltersShape.parse({}))).toEqual([]);
+    expect(
+      appliedFilterLabels(searchFiltersShape.parse({ platform: "instagram", creatorCity: "Lahore", followersMin: 10_000, followersMax: 100_000, engagementMin: 2, verifiedOnly: true, hasContact: true })),
+    ).toEqual(["platform instagram", "city Lahore", "followers 10K–100K", "engagement 2%+", "verified only", "has contact"]);
+  });
+});
+

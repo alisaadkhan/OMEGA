@@ -32,6 +32,7 @@ import { useCreateSavedSearch, useCreatorSearch, useDeleteSavedSearch, useInterp
 import { useActionCosts, useBillingSummary } from "../../api/billing";
 import { providerActionsLockedText } from "../../lib/provider-actions";
 import {
+  appliedFilterLabels,
   extraChips,
   fromChips,
   pageCount,
@@ -735,6 +736,12 @@ export function SearchModule({ liveJobId = null, onGoToCampaigns }: { liveJobId?
                   <> · {search.data.understood.filters.followersMin?.toLocaleString("en-PK") ?? "any"}–{search.data.understood.filters.followersMax?.toLocaleString("en-PK") ?? "any"} followers</>
                 )}
                 {search.data.understood.filters.engagementMin !== undefined && <> · engagement {search.data.understood.filters.engagementMin}%+</>}
+              </p>
+            )}
+            {request && appliedFilterLabels(request.filters).length > 0 && (
+              <p className="text-xs text-slate-500" data-testid="applied-filters">
+                Filters applied: <span className="text-slate-700">{appliedFilterLabels(request.filters).join(" · ")}</span>
+                {filtersChanged && <span className="text-amber-700"> (the filters on screen changed since; search again to apply them)</span>}
               </p>
             )}
             {search.data && request?.filters.platform === undefined && search.data.understood.filters.platform === undefined && (
