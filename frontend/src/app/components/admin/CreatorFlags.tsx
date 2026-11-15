@@ -5,6 +5,7 @@ import { ExternalLink, ThumbsUp } from "lucide-react";
 import { CREATOR_REVIEW_REASON_LABEL, STAFF_EXCLUDE_TYPES, creatorFlagListSchema, type CreatorFlag } from "@mushin/contracts";
 import { adminRequest } from "../../admin/adminApi";
 import { useToast } from "../../lib/toast";
+import { Header } from "./OpsViews";
 
 type Status = "pending" | "resolved" | "dismissed";
 const TYPE_LABEL: Record<(typeof STAFF_EXCLUDE_TYPES)[number], string> = {
@@ -26,11 +27,8 @@ export function CreatorFlags({ canDecide }: { canDecide: boolean }) {
   const list = useQuery({ queryKey: ["admin", "creator-flags", status], queryFn: () => adminRequest(`/admin/v1/catalogue/flags?status=${status}`, creatorFlagListSchema) });
   const counts = list.data?.counts;
   return (
-    <section aria-labelledby="flags-title" className="space-y-4">
-      <div>
-        <h2 id="flags-title" className="text-base font-semibold text-slate-900">Creator flags</h2>
-        <p className="text-xs text-slate-500">Profiles customers reported as wrong. Fix the creator in Catalogue review, then resolve; or exclude it here, or dismiss the report.</p>
-      </div>
+    <section className="space-y-4">
+      <Header title="Creator flags" sub="Profiles customers reported as wrong. Fix the creator in Catalogue review, then resolve; or exclude it here, or dismiss the report." />
       <div role="tablist" aria-label="Flag status" className="flex gap-2">
         {(["pending", "resolved", "dismissed"] as const).map((s) => (
           <button key={s} role="tab" aria-selected={status === s} onClick={() => setStatus(s)} className={`rounded-full px-3 py-1 text-xs font-medium ${status === s ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}>

@@ -17,6 +17,8 @@ const people = {
   expired: { sub: "55555555-5555-4555-8555-555555555555", email: "expired@e2e.test", name: "Ed Expired" },
   // Joins the owner's workspace through a real invitation link (team journey).
   invitee: { sub: "66666666-6666-4666-8666-666666666666", email: "invitee@e2e.test", name: "Ivy Invitee" },
+  // Signed up but never opened the confirmation link (owner directive 2026-11-15: the API serves such an account nothing).
+  unverified: { sub: "99999999-9999-4999-8999-999999999999", email: "unverified@e2e.test", name: "Una Unverified" },
 };
 const exp = Math.floor(Date.now() / 1000) + 10 * 3600;
 const out = {};
@@ -65,7 +67,7 @@ createServer((req, res) => {
     }
     const p = Object.values(people).find((x) => x.sub === admin[1]);
     res.writeHead(p ? 200 : 404, { "content-type": "application/json" });
-    return res.end(p ? JSON.stringify({ id: p.sub, email: p.email, email_confirmed_at: confirmedAt }) : "{}");
+    return res.end(p ? JSON.stringify({ id: p.sub, email: p.email, email_confirmed_at: p === people.unverified ? null : confirmedAt }) : "{}");
   }
   if (req.url === "/jwks.json") {
     res.writeHead(200, { "content-type": "application/json" });

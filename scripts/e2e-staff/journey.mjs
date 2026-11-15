@@ -47,7 +47,19 @@ const serverErrors = [];
 const pageErrors = [];
 const coverageCards = {};
 const ADMIN_ONLY = ["Providers", "Removal requests", "Approvals", "Staff", "Audit log"];
-const EVERYONE = ["Overview", "Jobs", "Workspaces", "Workspace access", "Support queue", "Catalogue review", "Security"];
+const EVERYONE = ["Overview", "Jobs", "Workspaces", "Workspace access", "Support queue", "Catalogue review", "Creator flags", "Security"];
+
+// Staff Portal (owner directive 2026-11-15 §2): #/staff/login is the same portal as #/admin/login, says it is staff only
+// and sends customers to their own login.
+{
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 950 } });
+  const p = await ctx.newPage();
+  await p.goto(`${APP}/#/staff/login`);
+  await p.getByLabel("Staff email").waitFor({ timeout: 30000 });
+  check("portals", "#/staff/login opens the Staff Portal, marked staff only, with a link to the customer login",
+    (await p.getByText(/staff access only/i).first().isVisible()) && (await p.getByRole("link", { name: "customer login" }).getAttribute("href")) === "#/login");
+  await ctx.close();
+}
 
 for (const who of ["super1", "support"]) {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 950 } });
@@ -68,6 +80,11 @@ for (const who of ["super1", "support"]) {
   await p.getByText("MUSHIN · OPS").waitFor({ timeout: 30000 });
   const role = staff[who].role === "super_admin" ? "Super Admin" : "Support";
   check("staff", `${role} signs in with password and authenticator code`, await p.getByText(role, { exact: true }).first().isVisible());
+  // Each role lands on its own workspace (owner directive 2026-11-15 §2): Support on the support queue, admins on the overview.
+  const landing = who === "support" ? "Support queue" : "Overview";
+  await p.getByRole("heading", { name: landing, level: 1 }).waitFor({ timeout: 20000 }).catch(() => {});
+  check("portals", `${role} lands on ${landing} after signing in`, await p.getByRole("heading", { name: landing, level: 1 }).isVisible().catch(() => false));
+  if (who === "support") await p.getByRole("button", { name: "Overview", exact: true }).first().click();
   const card = p.getByRole("region", { name: "Creator eligibility coverage" });
   await card.getByText(/creators in the search catalogue qualify/).waitFor({ timeout: 20000 }).catch(() => {});
   coverageCards[who] = (await card.innerText().catch(() => "")).replace(/\s+/g, " ");
@@ -91,6 +108,16 @@ for (const who of ["super1", "support"]) {
     await open("Staff");
     await p.getByText(staff.support.email).first().waitFor({ timeout: 20000 }).catch(() => {});
     check("security", "after confirming with the key, the staff directory lists every staff account", (await Promise.all(["super1", "super2", "admin", "support"].map((k) => p.getByText(staff[k].email).first().isVisible().catch(() => false)))).every(Boolean));
+    // Creator flags (owner directive 2026-11-15 §3): the seeded customer flag is listed and dismissed in one step.
+    await open("Creator flags");
+    const flag = p.getByRole("listitem", { name: "Flag on E2E Flagged Shop" });
+    await flag.waitFor({ timeout: 20000 }).catch(() => {});
+    const flagText = (await flag.innerText().catch(() => "")).replace(/\s+/g, " ");
+    check("flags", "the customer's flag is listed with its reason, note and source, without the submitter", /Not an individual creator/.test(flagText) && flagText.includes("This is a shop, not a person") && /Live Discovery/.test(flagText) && !flagText.includes("brand@e2e-staff.test"), flagText.slice(0, 200));
+    await flag.getByLabel("Decision note for E2E Flagged Shop").fill("Checked: a person runs this account");
+    await flag.getByRole("button", { name: "Dismiss", exact: true }).click();
+    await p.getByText("Flag dismissed").first().waitFor({ timeout: 20000 }).catch(() => {});
+    check("flags", "a Super Admin dismisses the flag with a note (after the security-key confirmation)", await p.getByText("Flag dismissed").first().isVisible().catch(() => false));
     await open("Audit log");
     await p.getByLabel("Action starts with").fill("staff.super_admin");
     await p.getByRole("button", { name: "Filter" }).click();
@@ -143,6 +170,25 @@ check("roles", "Support is refused staff management, the audit log and provider 
 const reviewRead = await fetch(`${API}/admin/v1/catalogue/review?kind=country`, { headers: { authorization: `Bearer ${supportToken}` } });
 const reviewDecide = await fetch(`${API}/admin/v1/catalogue/creators/00000000-0000-4000-8000-000000000000/country`, { method: "POST", headers: { authorization: `Bearer ${supportToken}`, "content-type": "application/json" }, body: JSON.stringify({ country: "PK", evidence: "Staff E2E: should be refused" }) });
 check("roles", "Support can read the catalogue review queue but not decide a country (API 200 / 403)", reviewRead.status === 200 && reviewDecide.status === 403, `${reviewRead.status}/${reviewDecide.status}`);
+// Creator flags: Support reads the queue (the dismissed flag is there) but cannot decide one.
+const flagsRead = await fetch(`${API}/admin/v1/catalogue/flags?status=dismissed`, { headers: { authorization: `Bearer ${supportToken}` } });
+const dismissed = flagsRead.status === 200 ? (await flagsRead.json()).items : [];
+const flagDecide = await fetch(`${API}/admin/v1/catalogue/flags/00000000-0000-4000-8000-000000000000/decision`, { method: "POST", headers: { authorization: `Bearer ${supportToken}`, "content-type": "application/json" }, body: JSON.stringify({ action: "dismiss", note: "not allowed" }) });
+check("flags", "Support reads the flag queue (dismissed flag listed with the decision) but cannot decide (API 200 / 403)",
+  flagsRead.status === 200 && dismissed.some((f) => f.creatorId === staff.fixtures.creatorId && /a person runs this account/.test(f.resolution ?? "")) && flagDecide.status === 403, `${flagsRead.status}/${flagDecide.status}`);
+// Support ticket workflow (owner directive 2026-11-15 §5): open the customer's ticket, read the thread, reply, then
+// open → in progress → resolved → closed.
+const sAuth = { authorization: `Bearer ${supportToken}`, "content-type": "application/json" };
+const ticketList = await (await fetch(`${API}/admin/v1/support/tickets`, { headers: sAuth })).json();
+const thread = await (await fetch(`${API}/admin/v1/support/tickets/${staff.fixtures.ticketId}`, { headers: sAuth })).json();
+check("support", "Support finds the customer's ticket and reads its thread", ticketList.tickets?.some((t) => t.id === staff.fixtures.ticketId) && thread.messages?.some((m) => m.authorKind === "customer" && /follower count/.test(m.body)));
+const steps = [];
+for (const body of [{ body: "Thanks, we are checking this creator now.", status: "in_progress" }, { status: "resolved" }, { status: "closed" }]) {
+  const r = await fetch(`${API}/admin/v1/support/tickets/${staff.fixtures.ticketId}`, { method: "PATCH", headers: sAuth, body: JSON.stringify(body) });
+  steps.push(`${r.status}:${r.status < 300 ? (await r.json()).status : ""}`);
+}
+const after = await (await fetch(`${API}/admin/v1/support/tickets/${staff.fixtures.ticketId}`, { headers: sAuth })).json();
+check("support", "Support replies and moves the ticket open → in progress → resolved → closed", steps.join(",") === "200:in_progress,200:resolved,200:closed" && after.status === "closed" && after.messages?.some((m) => m.authorKind === "staff" && /checking this creator/.test(m.body)), steps.join(","));
 const adminToken = await apiToken("admin");
 const keyless = await fetch(`${API}/admin/v1/staff`, { headers: { authorization: `Bearer ${adminToken}` } });
 check("security", "an Admin session without a security-key confirmation is refused admin reads (API 403 hardware_key_required)", keyless.status === 403 && (await keyless.json()).error?.details?.reason === "hardware_key_required");

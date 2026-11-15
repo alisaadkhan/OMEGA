@@ -2,6 +2,7 @@
 // Customer E2E journey through the real local UI → API → worker → PostgreSQL (mushin_e2e) → Meilisearch (e2e_ index).
 // Usage: node journey.mjs <run-label> <phase: main|after-restart>. Paid providers and LLMs are blank by environment.
 import { execFileSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync, appendFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -71,7 +72,7 @@ const api = async (who, method, path, body, extra = {}) => {
   return { status: r.status, json: await r.json().catch(() => null) };
 };
 const session = (who) => ({ access_token: ids[who].token, token_type: "bearer", expires_in: ids[who].exp - Math.floor(Date.now() / 1000), expires_at: ids[who].exp, refresh_token: "e2e-local",
-  user: { id: ids[who].sub, aud: "authenticated", role: "authenticated", email: ids[who].email, user_metadata: { full_name: ids[who].name }, app_metadata: {}, email_confirmed_at: new Date().toISOString(), created_at: new Date().toISOString() } });
+  user: { id: ids[who].sub, aud: "authenticated", role: "authenticated", email: ids[who].email, user_metadata: { full_name: ids[who].name }, app_metadata: {}, email_confirmed_at: who === "unverified" ? null : new Date().toISOString(), created_at: new Date().toISOString() } });
 
 const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: true });
 const consoleErrors = [];
@@ -226,6 +227,23 @@ if (phase === "main") {
   check("auth", "expired session is refused by the API", (await api("expired", "GET", "/v1/me")).status === 401);
   check("auth", "expired session ends on the login page", /#\/login/.test(exp.url()), exp.url());
   await exp.context().close();
+  // Mandatory email verification (owner directive 2026-11-15 §1): the API serves an unconfirmed account nothing (checked
+  // with the Auth server, never the token), creates no workspace, and the app keeps it on the login page.
+  const unv = await api("unverified", "GET", "/v1/me");
+  check("auth", "an unconfirmed email gets nothing from the API (403 email_not_verified) and no workspace", unv.status === 403 && unv.json?.error?.details?.reason === "email_not_verified" && sql(`select count(*) from wp.workspace_members where user_id = '${ids.unverified.sub}'`) === "0", `${unv.status} ${JSON.stringify(unv.json?.error?.details ?? {})}`);
+  const unvPage = await pageAs("unverified");
+  await unvPage.goto("http://localhost:5173/#/dashboard");
+  await unvPage.waitForTimeout(3000);
+  // The dashboard greets by name ("Welcome back, Olivia"); the login page's title is "Welcome back".
+  check("auth", "an unconfirmed session cannot open the dashboard (sent to login)", /#\/login/.test(unvPage.url()) && !(await unvPage.getByRole("heading", { name: /Welcome back,/ }).isVisible().catch(() => false)), unvPage.url());
+  await unvPage.context().close();
+  // Two portals (owner directive 2026-11-15 §2): the customer login links to the Staff Portal.
+  const loginPage = await pageAs(null);
+  await loginPage.goto("http://localhost:5173/#/login");
+  const staffLink = loginPage.getByRole("link", { name: "Sign in to the Staff Portal" });
+  await staffLink.waitFor({ timeout: 15000 }).catch(() => {});
+  check("portals", "the customer login links to the Staff Portal (#/staff/login)", (await staffLink.getAttribute("href").catch(() => null)) === "#/staff/login");
+  await loginPage.context().close();
 
   p = await pageAs("owner");
   await p.goto("http://localhost:5173/#/dashboard");
@@ -245,6 +263,11 @@ if (phase === "main") {
   await p.reload();
   await p.getByRole("heading", { name: /Welcome back/ }).waitFor({ timeout: 30000 });
   check("auth", "reload on a direct dashboard URL restores the session", p.url().includes("#/dashboard"));
+  // The confirmation link, opened in the browser that signed up, goes straight into the dashboard with a welcome.
+  await p.goto("http://localhost:5173/#/confirmed");
+  await p.getByText("Welcome to MUSHIN").first().waitFor({ timeout: 15000 }).catch(() => {});
+  check("auth", "the confirmation link lands in the dashboard with a welcome message", (await p.getByText("Welcome to MUSHIN").first().isVisible().catch(() => false)) && p.url().includes("#/dashboard"), p.url());
+  for (const b of await p.getByRole("button", { name: "Dismiss" }).all()) await b.click().catch(() => {});
   // Test fixture: 1,000 labelled pilot credits (a lot plus its ledger grant, as the billing engine writes them).
   sql(`with lot as (insert into wp.credit_lots (workspace_id, source, amount, remaining, expires_at) values ('${ws}', 'adjustment', 1000, 1000, now() + interval '30 days') returning id)
        insert into wp.credit_ledger (workspace_id, amount, kind, lot_id, source_ref, note) select '${ws}', 1000, 'grant', id, 'e2e-pilot-${label}', 'E2E pilot credits (test fixture)' from lot`);
@@ -276,6 +299,28 @@ if (phase === "main") {
   const apiFood = (await apiSearch("owner", "food")).json;
   check("search", "text search shows exactly the API's creators", apiFood.total > 0 && apiFood.results.every((r) => handles(t).includes(`@${r.handle}`)), `API ${apiFood.total}, UI ${handles(t).length}`);
   check("search", "AI reading unavailable does not block search (INT-002)", apiFood.total > 0);
+  // Review / flag (owner directive 2026-11-15 §3): a card's flag button records a report, and a confirmation.
+  {
+    const flagButtons = p.getByRole("button", { name: /^Review or flag / });
+    await flagButtons.first().click();
+    await p.getByRole("button", { name: "Report an issue" }).click();
+    await p.getByLabel("Wrong niche").check();
+    await p.getByLabel("Note for the review team").fill(`E2E ${label}: niche looks wrong`);
+    await p.getByRole("button", { name: "Send report" }).click();
+    await p.getByText("Thanks, our team will check this profile").first().waitFor({ timeout: 15000 }).catch(() => {});
+    const flagged = sql(`select verdict || '|' || reason || '|' || source_mode || '|' || status from wp.creator_profile_reviews where note = 'E2E ${label}: niche looks wrong'`);
+    check("reviews", "a card's Review / flag button sends a report from database search (reason, pending for staff)", flagged === "invalid|wrong_niche|db_search|pending", flagged);
+    await flagButtons.nth(1).click();
+    await p.getByRole("button", { name: "Valid creator" }).click();
+    await p.getByText("Thanks for confirming").first().waitFor({ timeout: 15000 }).catch(() => {});
+    check("reviews", "the same button confirms a creator as valid (stored already resolved)", Number(sql(`select count(*) from wp.creator_profile_reviews where workspace_id = '${ws}' and verdict = 'valid' and status = 'resolved'`)) >= 1);
+    for (const b of await p.getByRole("button", { name: "Dismiss" }).all()) await b.click().catch(() => {});
+    const firstId = apiFood.results[0]?.id;
+    const fromLive = await api("owner", "POST", `/v1/creators/${firstId}/reviews`, { verdict: "invalid", reason: "wrong_location", sourceMode: "live_discovery" }, { "idempotency-key": randomUUID() });
+    check("reviews", "a report from Live Discovery is recorded as such (API)", fromLive.status === 201 && sql(`select source_mode from wp.creator_profile_reviews where id = '${fromLive.json?.id}'`) === "live_discovery", `${fromLive.status}`);
+    const noReason = await api("owner", "POST", `/v1/creators/${firstId}/reviews`, { verdict: "invalid", sourceMode: "db_search" }, { "idempotency-key": randomUUID() });
+    check("reviews", "a report without a reason is refused (API 400)", noReason.status === 400, `${noReason.status}`);
+  }
   // CAT-005: every result explains where "food" matched, and the card shows that explanation.
   const explained = apiFood.results.filter((r) => r.matchedOn.some((m) => m.term === "food"));
   // mainText collapses whitespace, so count the label itself (one per explained card).
