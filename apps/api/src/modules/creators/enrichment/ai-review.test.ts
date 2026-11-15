@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { MockLlm } from "@mushin/integrations";
 import { promoteToCreator } from "../reassessment";
-import { aiReview, aiReviewDecision, aiReviewInput, aiReviewSchema, latinName, lookupWikipedia, wikipediaMatches, wikipediaQuery, type AiReviewInput } from "./ai-review";
+import { aiReview, aiReviewDecision, aiReviewInput, aiReviewSchema, latinName, lookupWikipedia, wikipediaMatches, wikipediaQuery, wikipediaRecordTitles, type AiReviewInput } from "./ai-review";
 
 // Owner directive 2026-11-15 (§2.2–2.4, Decision 2).
 const input = (over: Partial<AiReviewInput> = {}): AiReviewInput => ({
@@ -55,6 +55,16 @@ describe("promotion of rule-UNKNOWN accounts to individual creators (§2.4)", ()
 // §2.3 Wikipedia check. Shapes from the live search API (2026-11-15).
 const page = (index: number, title: string, description: string, extract: string) => ({ index, title, description, extract });
 describe("Wikipedia check", () => {
+  it("reads the Wikipedia titles a public record links to (owner-named manifests)", () => {
+    expect(wikipediaRecordTitles("Named by the owner (directive 2026-11-03) as an established Pakistani creator; https://en.wikipedia.org/wiki/Sadaf_Kanwal")).toEqual(["Sadaf Kanwal"]);
+    expect(wikipediaRecordTitles("https://en.wikipedia.org/wiki/Ahad_Raza_Mir; https://en.wikipedia.org/wiki/Ahad_Raza_Mir")).toEqual(["Ahad Raza Mir"]);
+    expect(wikipediaRecordTitles("https://en.wikipedia.org/wiki/Mooroo_%28musician%29")).toEqual(["Mooroo (musician)"]);
+    expect(wikipediaRecordTitles("https://www.heepsy.com/ranking/top-lifestyle-influencers-in-pakistan")).toEqual([]);
+    expect(wikipediaRecordTitles("https://fr.wikipedia.org/wiki/Paris")).toEqual([]);
+    expect(wikipediaRecordTitles("https://en.wikipedia.org/wiki/%E0%A4%A")).toEqual([]);
+    expect([wikipediaRecordTitles(null), wikipediaRecordTitles(undefined)]).toEqual([[], []]);
+  });
+
   it("looks up a two-word Latin name, never a one-word one", () => {
     expect(latinName("𝐒𝐚𝐛𝐚 𝐐𝐚𝐦𝐚𝐫")).toBe("saba qamar");
     expect(wikipediaQuery("Hania Aamir 哈尼亚·阿米尔", "haniaheheofficial")).toBe("hania aamir");

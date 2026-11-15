@@ -209,6 +209,22 @@ export async function prefetchWikipediaTitles(fetchFn: typeof fetch, titles: str
   return unfetched;
 }
 
+/**
+ * Wikipedia titles named in a creator's public record (owner-named manifests link the article, e.g.
+ * "…; https://en.wikipedia.org/wiki/Sadaf_Kanwal"): evidence that this account is that article's subject, used when the
+ * display name does not match the title (married names, "MAWRA"-style display names).
+ */
+export function wikipediaRecordTitles(publicRecord: string | null | undefined): string[] {
+  const titles = [...(publicRecord ?? "").matchAll(/https:\/\/en\.wikipedia\.org\/wiki\/([^\s;,|)]+)/g)].map((m) => {
+    try {
+      return decodeURIComponent(m[1] ?? "").replace(/_/g, " ").trim();
+    } catch {
+      return "";
+    }
+  });
+  return [...new Set(titles.filter((t) => t.length > 0 && t.length <= 200))];
+}
+
 export const wikipediaSummaryUrl = (title: string): string => `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title.replace(/ /g, "_"))}`;
 
 /** Exact titles to try for a query: the whole name, and its first two words ("Ushna Shah" for "ushna shah amin"). */

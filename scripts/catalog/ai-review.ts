@@ -9,7 +9,8 @@
  * Each account's name is looked up on Wikipedia first (§2.3); name-matched articles go to the model as evidence.
  * --rereview-ai also re-asks earlier AI decisions, but only where Wikipedia now has an article for the name (no new
  * evidence, no new call) or a weaker model than gpt-oss-120b made them; a newer AI decision may replace an older AI one,
- * never a staff or rule decision. --models keeps only the chain entries whose model contains one of the given names.
+ * never a staff or rule decision, and an earlier AI exclusion is lifted only with a Wikipedia article. An article the
+ * public record links to (owner-named manifests) counts as the account's article. --models keeps only the chain entries whose model contains one of the given names.
  * --wikipedia-only asks the model only where Wikipedia has an article for the name (the evidence a smaller model can use
  * reliably when gpt-oss-120b's free daily token limit, 200K, is spent); the rest wait for a 120B pass.
  * --titles-only skips Wikipedia's full-text search (exact titles and redirects only): much faster, since the search is
@@ -29,7 +30,7 @@ import { createDatabase, createDbProviderCallSink, llmSpendSince } from "@mushin
 import { createLlm } from "@mushin/integrations";
 import { sql } from "drizzle-orm";
 import postgres from "postgres";
-import { aiReview, lookupWikipedia, prefetchWikipediaTitles, wikipediaQueries, wikipediaTitles, type AiReviewDecision, type WikipediaArticle } from "../../apps/api/src/modules/creators/enrichment/ai-review";
+import { aiReview, lookupWikipedia, prefetchWikipediaTitles, wikipediaQueries, wikipediaRecordTitles, wikipediaTitles, type AiReviewDecision, type WikipediaArticle } from "../../apps/api/src/modules/creators/enrichment/ai-review";
 import { createCreatorIndexer, standardize } from "../../apps/api/src/modules/creators/index";
 import { createBudgetGate } from "./budget";
 
@@ -78,6 +79,7 @@ const creators = await db.withSystem((tx) =>
 logger.info({ candidates: creators.length, apply: values.apply }, "ai review start");
 
 const MAX_ATTEMPTS = 8;
+const EXCLUDING = new Set(["CELEBRITY_PUBLIC_FIGURE", "COMPANY_CORPORATE", "BRAND_ACCOUNT", "BUSINESS_STORE", "MEDIA_PUBLICATION", "FAN_PAGE_AGGREGATOR"]);
 const WAIT_MS = 20_000;
 type Result = { id: string; handle: string; platform: string; followers: number; before: { type: string | null; niche: string | null }; decision: AiReviewDecision | null; error?: string; postsRead: number; wikipedia: string[]; wikipediaFailed?: true; skipped?: string };
 const results: Result[] = [];
@@ -104,11 +106,21 @@ async function review(c: Creator): Promise<void> {
     found = await lookupWikipedia(fetch, c.display_name, main.handle, { search: !values["titles-only"], cache: wikiCache });
     await new Promise((resolveWait) => setTimeout(resolveWait, found === null ? 5_000 * attempt * attempt : values["titles-only"] ? 500 : 3_000));
   }
-  const wikipedia = found ?? [];
+  // An article the public record links to is evidence too (the display name may not match its title).
+  const linked = wikipediaRecordTitles(c.public_country_source).map((t) => wikiCache.get(t)).filter((a): a is WikipediaArticle => !!a);
+  const wikipedia = [...(found ?? []), ...linked].filter((a, i, all) => all.findIndex((b) => b.title === a.title) === i);
   const r: Result = { id: c.id, handle: main.handle, platform: main.platform, followers: Number(c.followers), before: { type: c.account_type, niche: c.niche_main }, decision: null, postsRead, wikipedia: wikipedia.map((w) => `${w.title}: ${w.description}`), ...(found === null ? { wikipediaFailed: true as const } : {}) };
   if (found === null) logger.warn({ event: "wikipedia_lookup_failed", handle: main.handle }, "Wikipedia lookup failed three times");
   if (values["wikipedia-only"] && wikipedia.length === 0) {
     r.skipped = found === null ? "Wikipedia lookup failed; left for a later pass" : "no Wikipedia article; left for a 120B pass";
+    results.push(r);
+    return;
+  }
+  // An earlier AI exclusion (celebrity, brand, media…) is never made searchable without new evidence: on 2026-11-15 the
+  // 120B re-review, given no article, turned two actresses whose display names do not match their Wikipedia titles
+  // ("MAWRA" for Mawra Hocane) into creators. Only a Wikipedia article can lift it; otherwise staff decide.
+  if (c.account_type_source === "ai" && EXCLUDING.has(c.account_type ?? "") && wikipedia.length === 0) {
+    r.skipped = found === null ? "earlier AI exclusion kept: Wikipedia lookup failed" : "earlier AI exclusion kept: no Wikipedia article, no new evidence";
     results.push(r);
     return;
   }
@@ -178,7 +190,7 @@ const STOP_AFTER_FAILURES = 4;
 let failuresInARow = 0;
 // Exact titles for every candidate, 20 to a request, before the reviews (lookups then come from this cache).
 const wikiCache = new Map<string, WikipediaArticle | null>();
-const allTitles = creators.filter((c) => !/\[Wikipedia:/.test(c.account_type_evidence ?? "")).flatMap((c) => wikipediaQueries(c.display_name, "").concat(wikipediaQueries("", c.primary_handle ?? "")).flatMap(wikipediaTitles));
+const allTitles = creators.filter((c) => !/\[Wikipedia:/.test(c.account_type_evidence ?? "")).flatMap((c) => wikipediaQueries(c.display_name, "").concat(wikipediaQueries("", c.primary_handle ?? "")).flatMap(wikipediaTitles).concat(wikipediaRecordTitles(c.public_country_source)));
 const unfetched = await prefetchWikipediaTitles(fetch, allTitles, wikiCache);
 logger.info({ event: "wikipedia_prefetch", titles: new Set(allTitles).size, articles: [...wikiCache.values()].filter(Boolean).length, unfetched }, "Wikipedia titles prefetched");
 const queue = [...creators];
