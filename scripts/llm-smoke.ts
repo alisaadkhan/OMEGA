@@ -40,7 +40,7 @@ for (const p of providers) {
     console.log(JSON.stringify({ provider: p.name, key: p.slot ?? 1, model, valid: true, value, tokensIn: call?.tokensIn, tokensOut: call?.tokensOut, costUsd: call?.costUsd }));
   } catch (err) {
     failed++;
-    console.log(JSON.stringify({ provider: p.name, model: p.model, valid: false, error: err instanceof Error ? err.message : String(err), attempts: sink.calls.map((c) => c.status) }));
+    console.log(JSON.stringify({ provider: p.name, key: p.slot ?? 1, model: p.model, valid: false, error: err instanceof Error ? err.message : String(err), attempts: sink.calls.map((c) => c.status) }));
   }
 }
 process.exit(failed ? 1 : 0);
