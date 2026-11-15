@@ -61,4 +61,17 @@ describe("versioned catalogue reassessment", () => {
     await reassessNextBatch({ db, readPayload: async () => raw, version: "t4", batch: 10, contacts: { encryptionKey: key, youtubeDescriptionContacts: true } });
     expect(await ownerQuery(`select 1 from gcp.creator_contacts where creator_id = '${id}'`)).toHaveLength(2);
   });
+
+  // Owner directive 2026-11-15 (§1), found in the full run: 0 subscribers left an older per-view rate behind.
+  it("clears an older rate when the stored answer has nothing to measure per follower", async () => {
+    const id = await addCreator(db, { displayName: "Hidden Subs", profiles: [{ platform: "instagram", handle: "hidden.subs", followers: 0 }] });
+    await ownerQuery(`update gcp.creator_profiles set engagement_rate = 1.25, median_engagement_rate = null where creator_id = '${id}';
+      insert into platform.raw_payloads (provider, platform, canonical_url, job_id, storage_key, bytes, sha256, delete_after, creator_id)
+      values ('apify', 'instagram', 'https://instagram.com/hidden.subs', gen_random_uuid(), 'k/hidden', 1, 'x', now() + interval '30 days', '${id}')`);
+    const answer = [{ username: "hidden.subs", fullName: "Hidden Subs", biography: "", followersCount: 0, followsCount: 1, postsCount: 0, latestPosts: [] }];
+    const r = await reassessNextBatch({ db, readPayload: async () => answer, version: "er1", batch: 10 });
+    expect(r.finished).toBe(true);
+    const rows = await ownerQuery<{ engagement_rate: number | null; median_engagement_rate: number | null }>(`select engagement_rate, median_engagement_rate from gcp.creator_profiles where creator_id = '${id}'`);
+    expect(rows[0]).toEqual({ engagement_rate: null, median_engagement_rate: null });
+  });
 });
