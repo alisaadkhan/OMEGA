@@ -50,6 +50,7 @@ import {
   platformMixText,
   formatEr,
 } from "../../api/search-mapping";
+import { NICHE_GROUPS, nicheGroupLabel } from "../../api/niche-groups";
 import { useToast } from "../../lib/toast";
 import { FindNewDialog } from "./FindNewDialog";
 import { SearchCreatorCard } from "./SearchCreatorCard";
@@ -78,8 +79,7 @@ const SORT_LABELS: Record<SortKey, string> = {
 
 const FRESH_RANK: Record<string, number> = { current: 0, aging: 1, stale: 1, unknown: 2, unavailable: 3 };
 
-// The canonical niche list (platform.niches, migration 0054).
-const NICHES = ["Bridal", "Fashion", "Beauty", "Tech", "Food", "Travel", "Comedy", "Finance", "Wellness", "Lifestyle", "Education & How-to", "Gaming", "History", "Literature", "Agriculture", "Business & Ecommerce", "Automotive", "Religion", "Music", "News & Commentary", "Sports", "Entertainment", "Real Estate"];
+// The filter shows niche groups (owner directive 2026-11-15 §4); each searches all of its catalogue niches.
 
 const asDrawer = (c: Creator): DrawerCreator => ({ id: c.id, name: c.name, handle: c.handle, avatar: c.avatar, city: c.city === "Unknown" ? null : c.city });
 
@@ -282,7 +282,7 @@ export function SearchModule({ liveJobId = null, onGoToCampaigns }: { liveJobId?
   const chips: { label: string; onRemove: () => void }[] = [
     platform !== "all" && { label: platform, onRemove: () => setPlatform("all") },
     city && { label: city, onRemove: () => setCity(null) },
-    niche && { label: niche, onRemove: () => setNiche(null) },
+    niche && { label: nicheGroupLabel(niche), onRemove: () => setNiche(null) },
     followerBand && { label: followerBand, onRemove: () => setFollowerBand(null) },
     minEng && { label: `ER ${minEng}`, onRemove: () => setMinEng(null) },
     minScore && { label: `Authenticity ${minScore}`, onRemove: () => setMinScore(null) },
@@ -1183,11 +1183,14 @@ function AdvancedFilterDrawer(props: {
               )}
 
               <FilterGroup label="Niche" icon={Sparkles}>
-                {NICHES.map((n) => (
-                  <Chip key={n} active={props.niche === n} onClick={() => props.setNiche(props.niche === n ? null : n)}>
-                    {n}
-                  </Chip>
-                ))}
+                {NICHE_GROUPS.map((g) => {
+                  const active = props.niche !== null && nicheGroupLabel(props.niche) === g.label;
+                  return (
+                    <Chip key={g.label} active={active} onClick={() => props.setNiche(active ? null : g.label)}>
+                      {g.label}
+                    </Chip>
+                  );
+                })}
               </FilterGroup>
 
               <FilterGroup label="Follower band" icon={Users}>

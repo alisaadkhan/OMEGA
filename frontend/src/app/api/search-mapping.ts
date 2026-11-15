@@ -1,5 +1,6 @@
 import type { ContactAvailability, CreatorCard, CreatorProfile, InterpretResponse, LookupResponse, MatchReason, SearchFilters, SearchRequest, SearchResponse, SearchResult } from "@mushin/contracts";
 import { ApiError } from "./http";
+import { expandNiche, nicheGroupLabel } from "./niche-groups";
 import type { Creator } from "../components/dashboard/CreatorProfilePanel";
 import type { ContactTrust } from "../components/dashboard/states";
 
@@ -110,7 +111,8 @@ export function toFilters(s: UiFilters): SearchFilters {
     ...extra,
     ...(s.platform !== "all" ? { platform: s.platform } : {}),
     ...(CITY_FILTER_ENABLED && s.city ? { creatorCity: s.city } : {}),
-    niches: s.niche ? [s.niche] : (extra.niches ?? []),
+    // A niche group searches every catalogue niche in it (owner directive 2026-11-15 §4).
+    niches: s.niche ? expandNiche(s.niche) : (extra.niches ?? []),
     ...(band ? band : {}),
     ...(engagementMin !== undefined ? { engagementMin } : {}),
     ...(minAuthenticity !== undefined ? { minAuthenticity } : {}),
@@ -158,7 +160,7 @@ export function fromChips(chips: InterpretResponse["chips"]): ChipState {
   return {
     platform: chips.platform ?? "all",
     city: CITY_FILTER_ENABLED ? (chips.creatorCity ?? null) : null,
-    niche: chips.niches.length === 1 ? (chips.niches[0] ?? null) : null,
+    niche: chips.niches.length === 1 && chips.niches[0] ? nicheGroupLabel(chips.niches[0]) : null,
     followerBand: band ?? null,
     minEng,
     verifiedOnly: chips.verifiedOnly,

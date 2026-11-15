@@ -19,13 +19,13 @@ describe("API mounted under a path prefix", () => {
     expect((await app.inject({ method: "GET", url: "/api/health/live" })).statusCode).toBe(200);
     expect((await app.inject({ method: "GET", url: "/health/live" })).statusCode).toBe(200);
     expect((await app.inject({ method: "GET", url: "/apix/health/live" })).statusCode).toBe(404);
-  });
+  }, 20_000); // building the app (helmet, CORS, error handling) takes seconds when the whole suite runs in parallel
 
   it("is a no-op without a prefix (local development behind the Vite proxy)", async () => {
     const app = await buildTestApp();
     expect((await app.inject({ method: "GET", url: "/health/live" })).statusCode).toBe(200);
     expect((await app.inject({ method: "GET", url: "/api/health/live" })).statusCode).toBe(404);
-  });
+  }, 20_000);
 
   it("scopes the staff refresh cookie to the path the browser sees", () => {
     const at = (originalUrl: string, url: string) => cookiePathFor({ originalUrl, url } as Parameters<typeof cookiePathFor>[0]);

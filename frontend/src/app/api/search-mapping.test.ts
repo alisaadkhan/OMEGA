@@ -30,7 +30,7 @@ describe("search mapping", () => {
     expect(toFilters(ui)).toEqual({
       platform: "instagram",
       creatorCountry: "PK",
-      niches: ["Bridal"],
+      niches: ["Fashion", "Beauty", "Bridal"], // the niche's filter group (owner directive 2026-11-15 §4)
       followersMin: 10_000,
       followersMax: 99_999,
       engagementMin: 5,
@@ -62,7 +62,7 @@ describe("search mapping", () => {
     });
     // Ranges that match a preset still use it.
     expect(fromChips({ niches: ["Bridal"], followersMin: 100_000, followersMax: 999_999, engagementMin: 5, verifiedOnly: true, hasContact: false, freshOnly: false })).toMatchObject({
-      niche: "Bridal",
+      niche: "Fashion & Beauty",
       followerBand: "100K–1M",
       minEng: "5%+",
       extra: {},
@@ -73,7 +73,7 @@ describe("search mapping", () => {
     // Regression: a reading with no platform used to reset an explicit YouTube search to "all" (and TikTok pricing).
     const current = { platform: "youtube" as const, city: "Lahore", niche: null, followerBand: null, minEng: null, verifiedOnly: false, extra: {} };
     const reading = fromChips({ niches: ["Food"], verifiedOnly: false, hasContact: false, freshOnly: false });
-    expect(applySuggestion(current, reading)).toEqual({ ...current, city: null, niche: "Food" });
+    expect(applySuggestion(current, reading)).toEqual({ ...current, city: null, niche: "Food & Cooking" });
     // What the reading does name still replaces the user's value.
     expect(applySuggestion(current, fromChips({ platform: "instagram", creatorCity: "Karachi", niches: [], verifiedOnly: false, hasContact: false, freshOnly: false }))).toMatchObject({
       platform: "instagram",

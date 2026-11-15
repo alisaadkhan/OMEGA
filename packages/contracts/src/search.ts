@@ -29,7 +29,8 @@ export const searchFiltersShape = z.object({
   followersMax: z.number().int().min(0).max(500_000_000).optional(),
   engagementMin: z.number().min(0).max(100).optional(),
   engagementMax: z.number().min(0).max(100).optional(),
-  niches: z.array(z.string().trim().min(1).max(40)).max(10).default([]),
+  // Up to every catalogue niche: a niche group in the filter sends all of its niches (owner directive 2026-11-15 §4).
+  niches: z.array(z.string().trim().min(1).max(40)).max(30).default([]),
   verifiedOnly: z.boolean().default(false),
   minAuthenticity: z.number().int().min(0).max(100).optional(),
   hasContact: z.boolean().default(false),
