@@ -92,6 +92,7 @@ cross-request memory, result explanations by an AI (would need product decisions
 | Unit (API, packages) | 729 passed (103 files) |
 | Frontend unit | 88 passed (16 files) |
 | Integration (creators: refresh, reassessment, retention, enrichment) | 46 passed |
+| Integration (billing: plan table from the database, entitlements, refunds, chargebacks, idempotent webhooks, allowances; staff operations; identity and the email gate) | 127 passed (11 files) |
 | Customer browser E2E (sign-up, email gate, portals, search, reviews, lists, campaigns, support) | 118 + 55 + 54 passed, 0 failed |
 | Staff browser E2E (roles, permissions, flags, tickets, audit) | 46 passed, 0 failed |
 | Typecheck, lint | clean |
