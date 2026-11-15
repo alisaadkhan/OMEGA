@@ -14,7 +14,9 @@ const PLATFORM_WORDS: Record<string, RegExp> = {
   youtube: /\b(youtube|yt|you tube)\b/,
 };
 const NUMBER = /\d+(?:[.,]\d+)?\s*(?:k|m|lakh|lac|million|thousand)?\b/;
-const PURPOSE = /\b(?:for|to)\s+(?:promot\w*|advertis\w*|market\w*|launch\w*|endors\w*|sell\w*)\b[^.,;!?]{0,60}|\b(?:campaign|brand deal|sponsor\w*|collab\w*)\b[^.,;!?]{0,40}/i;
+// A purpose: "to/for promote…", "who can promote…", "endorse…" (2026-11-15 live evaluation missed "fitness creators who
+// can promote a protein supplement"); plain "marketing" is a niche, so it counts only after for/to.
+const PURPOSE = /\b(?:(?:for|to)\s+(?:promot\w*|advertis\w*|market\w*|launch\w*|endors\w*|sell\w*)|(?:can|could|will|would|who)\s+(?:promot\w*|advertis\w*|endors\w*))\b[^.,;!?]{0,60}|\b(?:campaign|brand deal|sponsor\w*|collab\w*)\b[^.,;!?]{0,40}/i;
 
 function regionName(code: string): string | null {
   try {

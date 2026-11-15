@@ -18,6 +18,11 @@ describe("what the AI reading took from a search", () => {
     expect(u.notFilters).toEqual([]);
   });
 
+  it("catches a purpose phrased as 'who can promote …' but not a marketing niche (live evaluation 2026-11-15)", () => {
+    expect(explainInterpretation("pakistani fitness creators who can promote a protein supplement", chips({ niches: ["Wellness"] })).notFilters).toEqual(["can promote a protein supplement"]);
+    expect(explainInterpretation("digital marketing urdu creators", chips({ niches: ["Business & Ecommerce"] })).notFilters).toEqual([]);
+  });
+
   it("reads Urdu-script Pakistan, a blue tick, a percentage and an audience country", () => {
     const u = explainInterpretation("پاکستان food bloggers with blue tick, 5% engagement, audience in united arab emirates", chips({ creatorCountry: "PK", verifiedOnly: true, engagementMin: 5, audienceCountry: "AE" }));
     expect(u.basis).toEqual({ creatorCountry: "stated", verifiedOnly: "stated", engagement: "stated", audienceCountry: "stated" });
