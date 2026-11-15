@@ -47,7 +47,7 @@ const BODIES: Record<LegalDoc, React.ReactNode> = {
         <p>Your name, email address and the workspaces you belong to; what you create in a workspace (lists, campaigns, notes, outreach records, support requests); your credit and payment history; and security logs (sign-ins, requests) for protection against abuse.</p>
       </S>
       <S title="Who processes it for us">
-        <p>Supabase (database and sign-in), Paddle (payments, when enabled), and the providers MUSHIN uses to collect public creator data: Apify, Serper (web search), the YouTube Data API, and Groq and Ollama Cloud (AI reading of public profiles). An email provider is used only once outreach email is switched on.</p>
+        <p>Supabase (database and sign-in), Paddle (payments, when enabled), and the providers MUSHIN uses to collect public creator data: Apify, Serper (web search), the YouTube Data API, and Groq and OpenRouter (AI reading of public profiles). An email provider is used only once outreach email is switched on.</p>
       </S>
       <S title="Your rights">
         <p>In Settings › Privacy & data you can download your workspace's data, delete a workspace you own, or delete your account. Billing records are kept for accounting after a deletion; the retention period has not been set yet and will be stated here.</p>

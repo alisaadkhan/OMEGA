@@ -205,7 +205,7 @@ describe.skipIf(!live || !realLlm || !platform)("Live Discovery platform end-to-
         (select count(*)::int from platform.provider_calls where job_id = '${jobId}' and provider = 'serper' and status = 'ok') serper,
         (select count(*)::int from platform.provider_calls where job_id = '${jobId}' and provider = 'apify' and status = 'ok') apify,
         (select count(*)::int from platform.provider_calls where job_id = '${jobId}' and provider = 'youtube' and status = 'ok') youtube,
-        (select count(*)::int from platform.provider_calls where job_id = '${jobId}' and provider in ('groq','ollama') and status = 'ok') llm`);
+        (select count(*)::int from platform.provider_calls where job_id = '${jobId}' and provider in ('groq','openrouter') and status = 'ok') llm`);
     expect(persisted[0]?.profiles).toBeGreaterThan(0);
     expect(persisted[0]?.payloads).toBeGreaterThan(0);
     expect(persisted[0]?.serper).toBeGreaterThan(0);

@@ -40,7 +40,7 @@ export async function checkProviderStatus(o: { db: Db; config: Pick<WorkerConfig
   const doFetch = o.fetch ?? fetch;
   const now = o.now ?? (() => new Date());
   const monthStart = new Date(Date.UTC(now().getUTCFullYear(), now().getUTCMonth(), 1));
-  const llm = (name: "gemini" | "groq" | "ollama"): Row => {
+  const llm = (name: "gemini" | "groq" | "openrouter"): Row => {
     const p = o.config.llm.find((x) => x.name === name);
     return { provider: name, configured: Boolean(p), detail: p ? { model: p.model } : {}, quota: null, checkError: null };
   };
@@ -51,7 +51,7 @@ export async function checkProviderStatus(o: { db: Db; config: Pick<WorkerConfig
   const rows: Row[] = [
     llm("gemini"),
     llm("groq"),
-    llm("ollama"),
+    llm("openrouter"),
     apify,
     {
       provider: "serper",

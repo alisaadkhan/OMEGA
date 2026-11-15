@@ -207,19 +207,22 @@ describe("search and LLM settings", () => {
     expect(loadApiConfig({ ...valid, CATALOG_SEARCH_BACKEND: "meilisearch" }).catalogSearchBackend).toBe("meilisearch");
   });
 
-  it("builds the model chain: three Groq models, two Ollama Cloud models, then Gemini only on a paid key (owner plan 2026-11-14)", () => {
+  it("builds the model chain: Groq 120b and 20b, then OpenRouter, then Gemini only on a paid key (owner decision 2026-11-15)", () => {
     const gemini = { GEMINI_API_KEY: "k", GEMINI_MODEL: "gemini-model-from-config", GEMINI_PRICE_IN_PER_MTOK: "0.3", GEMINI_PRICE_OUT_PER_MTOK: "2.5", GEMINI_BILLING: "paid" };
-    const c = loadApiConfig({ ...valid, ...gemini, GROQ_API_KEY: "g", OLLAMA_API_KEY: "o" });
+    // Ollama (402, no credits) and Groq's removed llama-3.3-70b are out of the chain even when an Ollama key is set.
+    const c = loadApiConfig({ ...valid, ...gemini, GROQ_API_KEY: "g", OLLAMA_API_KEY: "o", OPENROUTER_API_KEY: "r" });
     expect(c.llm.map((p) => [p.name, p.model, p.priceInPerMTok, p.priceOutPerMTok])).toEqual([
       ["groq", "openai/gpt-oss-120b", 0.15, 0.6],
       ["groq", "openai/gpt-oss-20b", 0.075, 0.3],
-      ["groq", "llama-3.3-70b-versatile", 0.59, 0.79],
-      ["ollama", "gpt-oss:120b", 0.15, 0.6],
-      ["ollama", "gpt-oss:20b", 0.07, 0.3],
+      ["openrouter", "openai/gpt-oss-120b", 0.15, 0.6],
+      ["openrouter", "google/gemini-2.5-flash", 0.3, 2.5],
       ["gemini", "gemini-model-from-config", 0.3, 2.5],
     ]);
     expect(c.llm[0]?.baseUrl).toBe("https://api.groq.com/openai/v1");
-    expect(c.llm[3]?.baseUrl).toBe("https://ollama.com/v1");
+    expect(c.llm[2]?.baseUrl).toBe("https://openrouter.ai/api/v1");
+    // OpenRouter models are chosen by OPENROUTER_MODELS; one without a known price is left out unless priced explicitly.
+    expect(loadApiConfig({ ...valid, OPENROUTER_API_KEY: "r", OPENROUTER_MODELS: "meta-llama/llama-3.3-70b-instruct, vendor/unpriced" }).llm.map((p) => p.model)).toEqual(["meta-llama/llama-3.3-70b-instruct"]);
+    expect(loadApiConfig({ ...valid, OPENROUTER_API_KEY: "r", OPENROUTER_MODELS: "vendor/unpriced", OPENROUTER_PRICE_IN_PER_MTOK: "1", OPENROUTER_PRICE_OUT_PER_MTOK: "2" }).llm.map((p) => [p.model, p.priceInPerMTok])).toEqual([["vendor/unpriced", 1]]);
     for (const missing of ["GEMINI_MODEL", "GEMINI_PRICE_IN_PER_MTOK", "GEMINI_PRICE_OUT_PER_MTOK"]) {
       expect(() => loadApiConfig({ ...valid, ...gemini, [missing]: undefined }), missing).toThrow(new RegExp(missing));
     }
@@ -228,8 +231,8 @@ describe("search and LLM settings", () => {
     expect(loadApiConfig({ ...valid, ...gemini, GEMINI_BILLING: "free_accepted" }).llm).toEqual([]);
     expect(() => loadApiConfig({ ...valid, ...gemini, GEMINI_BILLING: "free" })).toThrow(/GEMINI_BILLING/);
     // LLM_PROVIDER moves a provider's models to the front; LLM_MODEL / GROQ_MODEL choose the first Groq model.
-    expect(loadApiConfig({ ...valid, ...gemini, GROQ_API_KEY: "g", OLLAMA_API_KEY: "o", LLM_PROVIDER: "ollama" }).llm.map((p) => p.name)).toEqual(["ollama", "ollama", "groq", "groq", "groq", "gemini"]);
-    expect(loadApiConfig({ ...valid, GROQ_API_KEY: "g", LLM_PROVIDER: "groq", LLM_MODEL: "openai/gpt-oss-20b" }).llm.map((p) => p.model)).toEqual(["openai/gpt-oss-20b", "llama-3.3-70b-versatile"]);
+    expect(loadApiConfig({ ...valid, ...gemini, GROQ_API_KEY: "g", OPENROUTER_API_KEY: "r", LLM_PROVIDER: "openrouter" }).llm.map((p) => p.name)).toEqual(["openrouter", "openrouter", "groq", "groq", "gemini"]);
+    expect(loadApiConfig({ ...valid, GROQ_API_KEY: "g", LLM_PROVIDER: "groq", LLM_MODEL: "openai/gpt-oss-20b" }).llm.map((p) => p.model)).toEqual(["openai/gpt-oss-20b"]);
     expect(loadApiConfig({ ...valid, GROQ_API_KEY: "g", LLM_PROVIDER: "groq", LLM_MODEL: "x", GROQ_MODEL: "openai/gpt-oss-120b" }).llm[0]?.model).toBe("openai/gpt-oss-120b");
     expect(loadApiConfig(valid).llm).toEqual([]);
     expect([loadApiConfig(valid).llmMonthlyBudgetUsd, loadApiConfig({ ...valid, LLM_MONTHLY_BUDGET_USD: "12.5" }).llmMonthlyBudgetUsd]).toEqual([5, 12.5]);
@@ -245,7 +248,7 @@ describe("search and LLM settings", () => {
     expect(() => loadApiConfig({ ...production, ALERT_WEBHOOK_URL: undefined, LLM_MONTHLY_BUDGET_USD: "0" })).toThrow(/ALERT_WEBHOOK_URL: required/);
     expect(() => loadApiConfig({ ...production, ALERT_WEBHOOK_URL: "http://hooks.example.com/a", LLM_MONTHLY_BUDGET_USD: "0" })).toThrow(/ALERT_WEBHOOK_URL: must use https/);
     expect(loadApiConfig(valid).alertWebhookUrl).toBeNull();
-    expect(loadWorkerConfig({ ...worker, OLLAMA_API_KEY: "o", OLLAMA_MODEL: "gemma4:31b" }).llm.map((p) => p.model)).toEqual(["gpt-oss:120b", "gemma4:31b"]);
+    expect(loadWorkerConfig({ ...worker, OLLAMA_API_KEY: "o", OLLAMA_MODEL: "gemma4:31b" }).llm).toEqual([]);
   });
 });
 

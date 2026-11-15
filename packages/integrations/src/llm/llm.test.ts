@@ -6,7 +6,7 @@ import { MockLlm } from "./mock";
 import { OpenAiCompatibleLlm } from "./openai-compatible";
 
 const gemini: LlmProviderConfig = { name: "gemini", baseUrl: "https://gemini.test/v1beta/openai", apiKey: "secret-gemini-key", model: "gemini-test-model", priceInPerMTok: 0.1, priceOutPerMTok: 0.4 };
-const ollama: LlmProviderConfig = { name: "ollama", baseUrl: "https://ollama.test/v1", apiKey: "o", model: "gpt-oss:20b", priceInPerMTok: 0, priceOutPerMTok: 0 };
+const openrouter: LlmProviderConfig = { name: "openrouter", baseUrl: "https://openrouter.test/v1", apiKey: "o", model: "gpt-oss:20b", priceInPerMTok: 0, priceOutPerMTok: 0 };
 const schema = z.object({ ok: z.boolean() });
 const reply = (content: string, status = 200) =>
   status === 200 ? Response.json({ choices: [{ message: { content } }], usage: { prompt_tokens: 1000, completion_tokens: 500 } }) : new Response("boom", { status });
@@ -37,7 +37,7 @@ describe("OpenAiCompatibleLlm", () => {
     const fixed = llm([gemini], () => reply(++n === 1 ? "not json" : '{"ok":true}'));
     expect((await fixed.client.complete({ feature: "creator_summary", system: "s", input: "i", schema })).value).toEqual({ ok: true });
     expect(fixed.bodies[1]?.body["messages"]).toHaveLength(4);
-    const broken = llm([gemini, ollama], () => reply('{"ok":"yes"}'));
+    const broken = llm([gemini, openrouter], () => reply('{"ok":"yes"}'));
     await expect(broken.client.complete({ feature: "creator_summary", system: "s", input: "i", schema, ctx: { jobId: "j1" } })).rejects.toMatchObject({ code: "PROVIDER_UNAVAILABLE" });
     expect(broken.bodies.every((b) => b.url.startsWith("https://gemini.test"))).toBe(true);
     // Observability review 2026-11-15: the unusable outcome is recorded as its own failure, after the two answered calls.
@@ -46,14 +46,14 @@ describe("OpenAiCompatibleLlm", () => {
   });
 
   it("falls back to Ollama Cloud when Gemini fails, and fails cleanly when both do", async () => {
-    const { client, sink } = llm([gemini, ollama], (url) => (url.startsWith("https://gemini.test") ? reply("", 503) : reply('{"ok":false}')));
-    expect(await client.complete({ feature: "search_interpret", system: "s", input: "i", schema })).toEqual({ value: { ok: false }, model: "ollama:gpt-oss:20b" });
+    const { client, sink } = llm([gemini, openrouter], (url) => (url.startsWith("https://gemini.test") ? reply("", 503) : reply('{"ok":false}')));
+    expect(await client.complete({ feature: "search_interpret", system: "s", input: "i", schema })).toEqual({ value: { ok: false }, model: "openrouter:gpt-oss:20b" });
     expect(sink.calls.map((c) => [c.provider, c.status])).toEqual([
       ["gemini", "error"],
       ["gemini", "error"],
-      ["ollama", "ok"],
+      ["openrouter", "ok"],
     ]);
-    const down = llm([gemini, ollama], () => reply("", 503));
+    const down = llm([gemini, openrouter], () => reply("", 503));
     await expect(down.client.complete({ feature: "search_interpret", system: "s", input: "i", schema })).rejects.toMatchObject({ code: "PROVIDER_UNAVAILABLE" });
   });
 
@@ -66,12 +66,12 @@ describe("OpenAiCompatibleLlm", () => {
       urls.push(String(input));
       return String(input).startsWith("https://gemini.test") ? reply("", 429) : reply('{"ok":true}');
     };
-    const client = new OpenAiCompatibleLlm({ providers: [gemini, ollama], sink, logger: createLogger({ level: "silent" }), fetch: fetchFake as typeof fetch, sleep: async () => {}, now: () => clock });
+    const client = new OpenAiCompatibleLlm({ providers: [gemini, openrouter], sink, logger: createLogger({ level: "silent" }), fetch: fetchFake as typeof fetch, sleep: async () => {}, now: () => clock });
     const ask = () => client.complete({ feature: "creator_assessment", system: "s", input: "i", schema });
-    expect((await ask()).model).toBe("ollama:gpt-oss:20b");
+    expect((await ask()).model).toBe("openrouter:gpt-oss:20b");
     expect(urls.filter((u) => u.startsWith("https://gemini.test"))).toHaveLength(1); // no same-model retry when another model can answer
     clock = 10_000;
-    expect((await ask()).model).toBe("ollama:gpt-oss:20b");
+    expect((await ask()).model).toBe("openrouter:gpt-oss:20b");
     expect(urls.filter((u) => u.startsWith("https://gemini.test"))).toHaveLength(1);
     clock = 16_000;
     await ask();
@@ -92,7 +92,7 @@ describe("OpenAiCompatibleLlm", () => {
       if (!String(input).startsWith("https://gemini.test")) return reply('{"ok":true}');
       return geminiDown ? new Response("busy", { status: 503, headers: { "retry-after": "300" } }) : reply('{"ok":true}');
     };
-    const client = new OpenAiCompatibleLlm({ providers: [gemini, ollama], sink: new MemoryProviderCallSink(), logger: createLogger({ level: "silent" }), fetch: fetchFake as typeof fetch, sleep: async () => {}, now: () => clock });
+    const client = new OpenAiCompatibleLlm({ providers: [gemini, openrouter], sink: new MemoryProviderCallSink(), logger: createLogger({ level: "silent" }), fetch: fetchFake as typeof fetch, sleep: async () => {}, now: () => clock });
     const ask = () => client.complete({ feature: "creator_assessment", system: "s", input: "i", schema });
     const geminiCalls = () => urls.filter((u) => u.startsWith("https://gemini.test")).length;
     await ask();
@@ -160,9 +160,9 @@ describe("OpenAiCompatibleLlm", () => {
     };
     const limited = { ...gemini, requestsPerMinute: 2 };
     const ask = (c: OpenAiCompatibleLlm) => c.complete({ feature: "creator_assessment", system: "s", input: "i", schema });
-    const both = make([limited, ollama]);
+    const both = make([limited, openrouter]);
     for (let i = 0; i < 3; i++) await ask(both.client);
-    expect(both.urls.map((u) => (u.includes("gemini") ? "gemini" : "ollama"))).toEqual(["gemini", "gemini", "ollama"]);
+    expect(both.urls.map((u) => (u.includes("gemini") ? "gemini" : "openrouter"))).toEqual(["gemini", "gemini", "openrouter"]);
     t += 60_001; // a minute later Gemini has room again
     await ask(both.client);
     expect(both.urls.at(-1)).toContain("gemini");
@@ -206,9 +206,9 @@ describe("OpenAiCompatibleLlm with Gemini as the main provider", () => {
       if (String(input).startsWith("https://gemini.test")) throw new DOMException("The operation timed out.", "TimeoutError");
       return reply('{"ok":true}');
     };
-    const client = new OpenAiCompatibleLlm({ providers: [gemini, ollama], sink, logger: createLogger({ level: "silent" }), fetch: fetchFake as typeof fetch, sleep: async () => {} });
-    expect((await client.complete({ feature: "creator_assessment", system: "s", input: "i", schema })).model).toBe("ollama:gpt-oss:20b");
-    expect(sink.calls.at(-1)).toMatchObject({ provider: "ollama", status: "ok" });
+    const client = new OpenAiCompatibleLlm({ providers: [gemini, openrouter], sink, logger: createLogger({ level: "silent" }), fetch: fetchFake as typeof fetch, sleep: async () => {} });
+    expect((await client.complete({ feature: "creator_assessment", system: "s", input: "i", schema })).model).toBe("openrouter:gpt-oss:20b");
+    expect(sink.calls.at(-1)).toMatchObject({ provider: "openrouter", status: "ok" });
     expect(sink.calls.filter((c) => c.provider === "gemini").every((c) => c.status === "error")).toBe(true);
   });
 

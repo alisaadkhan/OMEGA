@@ -12,7 +12,7 @@ const SECRET = "apify_api_SECRETTOKEN123";
 const config = (o: { apify?: boolean; serper?: boolean; gemini?: boolean } = {}): Pick<WorkerConfig, "llm" | "scraping"> => ({
   llm: [
     ...(o.gemini === false ? [] : [{ name: "gemini" as const, baseUrl: "https://x", apiKey: "gem-secret", model: "gemini-test", priceInPerMTok: 1, priceOutPerMTok: 1 }]),
-    { name: "ollama" as const, baseUrl: "https://y", apiKey: "oll-secret", model: "gpt-oss:20b", priceInPerMTok: 0, priceOutPerMTok: 0 },
+    { name: "openrouter" as const, baseUrl: "https://y", apiKey: "oll-secret", model: "openai/gpt-oss-120b", priceInPerMTok: 0, priceOutPerMTok: 0 },
   ],
   scraping: { apifyToken: o.apify === false ? null : SECRET, serperApiKey: o.serper === false ? null : "serper-secret", serperMonthlySearchLimit: 100, youtubeApiKey: null } as WorkerConfig["scraping"],
 });

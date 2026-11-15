@@ -94,9 +94,17 @@ const sharedObject = z.object({
   GROQ_MODEL: z.string().min(1).optional(),
   GROQ_PRICE_IN_PER_MTOK: z.coerce.number().min(0).optional(),
   GROQ_PRICE_OUT_PER_MTOK: z.coerce.number().min(0).optional(),
+  // OpenRouter (owner decision 2026-11-15): OpenAI-compatible fallback after Groq, so a Groq rate limit or daily cap
+  // fails over at once. Comma-separated models, tried in order; prices are OpenRouter's listed per-token rates
+  // (openrouter.ai/api/v1/models, checked 2026-11-15) and a model missing from OPENROUTER_PRICES needs its own prices.
+  OPENROUTER_API_KEY: z.string().min(1).optional(),
+  OPENROUTER_BASE_URL: z.url().default("https://openrouter.ai/api/v1"),
+  OPENROUTER_MODELS: z.string().min(1).default("openai/gpt-oss-120b,google/gemini-2.5-flash"),
+  OPENROUTER_PRICE_IN_PER_MTOK: z.coerce.number().min(0).optional(),
+  OPENROUTER_PRICE_OUT_PER_MTOK: z.coerce.number().min(0).optional(),
   // The preferred provider (owner .env 2026-11-04: LLM_PROVIDER=groq). It is tried first; LLM_MODEL / LLM_BASE_URL apply
   // to it when its own GROQ_/GEMINI_/OLLAMA_ variable is not set. Groq's model defaults to openai/gpt-oss-120b.
-  LLM_PROVIDER: z.enum(["gemini", "groq", "ollama"]).optional(),
+  LLM_PROVIDER: z.enum(["gemini", "groq", "ollama", "openrouter"]).optional(),
   LLM_MODEL: z.string().min(1).optional(),
   LLM_BASE_URL: z.url().optional(),
   // Monthly cap on hosted-LLM spend across Gemini and Ollama (USD). Required in production (owner decision 2026-10-14);
@@ -111,6 +119,7 @@ const LLM_KEYS = {
   GEMINI_API_KEY: true, GEMINI_MODEL: true, GEMINI_BASE_URL: true, GEMINI_PRICE_IN_PER_MTOK: true, GEMINI_PRICE_OUT_PER_MTOK: true, GEMINI_BILLING: true, GEMINI_RPM: true,
   OLLAMA_API_KEY: true, OLLAMA_BASE_URL: true, OLLAMA_MODEL: true, OLLAMA_PRICE_IN_PER_MTOK: true, OLLAMA_PRICE_OUT_PER_MTOK: true,
   GROQ_API_KEY: true, GROQ_BASE_URL: true, GROQ_MODEL: true, GROQ_PRICE_IN_PER_MTOK: true, GROQ_PRICE_OUT_PER_MTOK: true,
+  OPENROUTER_API_KEY: true, OPENROUTER_BASE_URL: true, OPENROUTER_MODELS: true, OPENROUTER_PRICE_IN_PER_MTOK: true, OPENROUTER_PRICE_OUT_PER_MTOK: true,
   LLM_PROVIDER: true, LLM_MODEL: true, LLM_BASE_URL: true,
 } as const;
 type LlmValues = Pick<SharedValues, keyof typeof LLM_KEYS>;
@@ -368,7 +377,7 @@ export type EnrichmentPolicy = { attributePolicy: "evidence" | "legacy"; youtube
 
 export type SearchConfig = { host: string; apiKey: string; indexPrefix: string } | null;
 export type LlmProviderConfig = {
-  name: "gemini" | "groq" | "ollama";
+  name: "gemini" | "groq" | "openrouter";
   baseUrl: string;
   apiKey: string;
   model: string;
@@ -384,13 +393,19 @@ function searchFrom(v: SharedValues, key: string | undefined): SearchConfig {
 }
 
 /**
- * The model chain (owner unified plan 2026-11-14): three Groq models, then two Ollama Cloud models, each its own entry so
- * a rate limit or a removed model on one moves to the next at once (cooldowns are per model). Gemini is used only on a
- * paid key (the free tier answered 429 to every call, 2026-11-02 to 11-04) and comes last. LLM_PROVIDER moves that
+ * The model chain (owner decision 2026-11-15): Groq gpt-oss-120b → gpt-oss-20b, then OpenRouter's models, each its own
+ * entry so a rate limit or a daily cap on one moves to the next at once (cooldowns are per model). Ollama Cloud (it
+ * answered 402, no credits) and Groq's llama-3.3-70b (removed by Groq) are no longer in the chain. Gemini is used only
+ * on a paid key (the free tier answered 429 to every call, 2026-11-02 to 11-04) and comes last. LLM_PROVIDER moves that
  * provider's models to the front.
  */
-const GROQ_PRICES: Record<string, [number, number]> = { "openai/gpt-oss-120b": [0.15, 0.6], "openai/gpt-oss-20b": [0.075, 0.3], "llama-3.3-70b-versatile": [0.59, 0.79] };
-const OLLAMA_PRICES: Record<string, [number, number]> = { "gpt-oss:120b": [0.15, 0.6], "gpt-oss:20b": [0.07, 0.3] };
+const GROQ_PRICES: Record<string, [number, number]> = { "openai/gpt-oss-120b": [0.15, 0.6], "openai/gpt-oss-20b": [0.075, 0.3] };
+const OPENROUTER_PRICES: Record<string, [number, number]> = {
+  "openai/gpt-oss-120b": [0.15, 0.6],
+  "openai/gpt-oss-20b": [0.03, 0.13],
+  "meta-llama/llama-3.3-70b-instruct": [0.71, 0.71],
+  "google/gemini-2.5-flash": [0.3, 2.5],
+};
 
 function llmFrom(v: LlmValues): LlmProviderConfig[] {
   const out: LlmProviderConfig[] = [];
@@ -398,22 +413,23 @@ function llmFrom(v: LlmValues): LlmProviderConfig[] {
     const preferred = v.LLM_PROVIDER === "groq";
     const baseUrl = (v.GROQ_BASE_URL ?? (preferred ? v.LLM_BASE_URL : undefined) ?? "https://api.groq.com/openai/v1").replace(/\/+$/, "");
     const primary = v.GROQ_MODEL ?? (preferred ? v.LLM_MODEL : undefined) ?? "openai/gpt-oss-120b";
-    for (const model of [...new Set([primary, "openai/gpt-oss-20b", "llama-3.3-70b-versatile"])]) {
+    for (const model of [...new Set([primary, "openai/gpt-oss-20b"])]) {
       const [pin, pout] = model === primary && (v.GROQ_PRICE_IN_PER_MTOK !== undefined || v.GROQ_PRICE_OUT_PER_MTOK !== undefined)
         ? [v.GROQ_PRICE_IN_PER_MTOK ?? GROQ_PRICES[model]?.[0] ?? 0.15, v.GROQ_PRICE_OUT_PER_MTOK ?? GROQ_PRICES[model]?.[1] ?? 0.6]
         : (GROQ_PRICES[model] ?? [0.15, 0.6]);
       out.push({ name: "groq", baseUrl, apiKey: v.GROQ_API_KEY, model, priceInPerMTok: pin, priceOutPerMTok: pout });
     }
   }
-  if (v.OLLAMA_API_KEY) {
-    const baseUrl = v.OLLAMA_BASE_URL.replace(/\/+$/, "");
-    for (const model of [...new Set(["gpt-oss:120b", v.OLLAMA_MODEL])]) {
-      const configured = model === v.OLLAMA_MODEL;
-      out.push({
-        name: "ollama", baseUrl, apiKey: v.OLLAMA_API_KEY, model,
-        priceInPerMTok: configured ? v.OLLAMA_PRICE_IN_PER_MTOK : (OLLAMA_PRICES[model]?.[0] ?? 0.15),
-        priceOutPerMTok: configured ? v.OLLAMA_PRICE_OUT_PER_MTOK : (OLLAMA_PRICES[model]?.[1] ?? 0.6),
-      });
+  if (v.OPENROUTER_API_KEY) {
+    const baseUrl = v.OPENROUTER_BASE_URL.replace(/\/+$/, "");
+    const preferred = v.LLM_PROVIDER === "openrouter";
+    const models = [...new Set([...(preferred && v.LLM_MODEL ? [v.LLM_MODEL] : []), ...v.OPENROUTER_MODELS.split(",").map((m) => m.trim()).filter(Boolean)])];
+    for (const model of models) {
+      const listed = OPENROUTER_PRICES[model];
+      const [pin, pout] = [v.OPENROUTER_PRICE_IN_PER_MTOK ?? listed?.[0], v.OPENROUTER_PRICE_OUT_PER_MTOK ?? listed?.[1]];
+      // Spend must never be booked as free: a model without a known price is left out rather than guessed.
+      if (pin === undefined || pout === undefined) continue;
+      out.push({ name: "openrouter", baseUrl, apiKey: v.OPENROUTER_API_KEY, model, priceInPerMTok: pin, priceOutPerMTok: pout });
     }
   }
   // checkShared guarantees the model and prices whenever the key is set; only a paid key is used.
