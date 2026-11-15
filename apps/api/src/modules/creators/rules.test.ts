@@ -115,6 +115,7 @@ describe("interpretation cleanup", () => {
     expect(out).toEqual({
       chips: { platform: "instagram", creatorCountry: "PK", creatorCity: "Lahore", niches: ["Bridal", "Beauty"], followersMin: 50_000, engagementMin: 5, verifiedOnly: false, hasContact: false, freshOnly: false },
       keywords: ["wedding"],
+      understood: { basis: {}, notFilters: [] },
     });
   });
 

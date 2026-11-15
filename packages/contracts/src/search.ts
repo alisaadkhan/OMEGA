@@ -161,7 +161,18 @@ export const searchResponseSchema = z.object({
 export type SearchResponse = z.output<typeof searchResponseSchema>;
 
 export const interpretRequestSchema = z.object({ text: z.string().trim().min(1).max(300) });
-export const interpretResponseSchema = z.object({ chips: searchFiltersShape, keywords: z.array(z.string()) });
+export const interpretResponseSchema = z.object({
+  chips: searchFiltersShape,
+  keywords: z.array(z.string()),
+  /**
+   * What was taken from the request: per suggested filter, "stated" (written in the request) or "inferred" (deduced by the
+   * AI), keyed by filter (platform, creatorCountry, audienceCountry, creatorCity, followers, engagement, verifiedOnly,
+   * niche:<label>); and parts of the request no filter covers (a campaign purpose).
+   */
+  understood: z
+    .object({ basis: z.record(z.string(), z.enum(["stated", "inferred"])), notFilters: z.array(z.string()) })
+    .default({ basis: {}, notFilters: [] }),
+});
 export type InterpretResponse = z.output<typeof interpretResponseSchema>;
 
 export const lookupQuerySchema = z.object({ q: z.string().trim().min(2).max(300) });

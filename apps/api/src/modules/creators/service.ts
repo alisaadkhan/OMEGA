@@ -20,6 +20,7 @@ import type { BillingService } from "../billing/index";
 import { interpretOutputSchema, interpretSystemPrompt } from "./prompts";
 import * as repo from "./repository";
 import { cleanInterpretation, contactAvailability, fenced, freshnessOf, isContactable, isMinorProtected, maskBioContacts, meiliFilter, normalizeProfileUrl, refreshActionFor, sourceHash } from "./rules";
+import { explainInterpretation } from "./understood";
 import { toCards } from "./ranking";
 import { suppressedUrls } from "./suppressions";
 import { contactRoutes, hasCollabRoute } from "./contact-routes";
@@ -201,7 +202,8 @@ export function createCreatorsService(deps: CreatorsDeps) {
       timeoutMs: 8_000,
       ctx: { workspaceId: ctx.workspaceId, requestId: ctx.requestId },
     });
-    return cleanInterpretation(value, niches);
+    const cleaned = cleanInterpretation(value, niches);
+    return { ...cleaned, understood: explainInterpretation(text, cleaned) };
   }
 
   /** Omnibar (SRS §3.1): a profile URL is matched exactly; anything else searches names and handles. */

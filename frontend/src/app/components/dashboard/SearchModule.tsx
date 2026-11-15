@@ -27,7 +27,7 @@ import {
 import { CreatorProfilePanel, type Creator } from "./CreatorProfilePanel";
 import { AddByLinkDialog } from "./AddByLinkDialog";
 import { Compare } from "./Compare";
-import type { SearchFilters, SearchRequest } from "@mushin/contracts";
+import type { InterpretResponse, SearchFilters, SearchRequest } from "@mushin/contracts";
 import { useCreateSavedSearch, useCreatorSearch, useDeleteSavedSearch, useInterpret, useSavedSearches } from "../../api/search";
 import { useActionCosts, useBillingSummary } from "../../api/billing";
 import { providerActionsLockedText } from "../../lib/provider-actions";
@@ -122,6 +122,8 @@ export function SearchModule({ liveJobId = null, onGoToCampaigns }: { liveJobId?
   const [request, setRequest] = useState<SearchRequest | null>(null);
   const [extra, setExtra] = useState<Partial<SearchFilters>>({});
   const [suggested, setSuggested] = useState<ChipState | null>(null);
+  /** What the AI reading took from the request: stated vs inferred per filter, topic words, and what is not a filter. */
+  const [reading, setReading] = useState<Pick<InterpretResponse, "keywords" | "understood"> | null>(null);
   const search = useCreatorSearch(request);
   const interpret = useInterpret();
   const saved = useSavedSearches();
@@ -193,6 +195,7 @@ export function SearchModule({ liveJobId = null, onGoToCampaigns }: { liveJobId?
     submit(requestFor(query, uiFilters(), searchCost));
     // Catalogue search itself is deterministic; the AI reading is asked for only when the user clicks for it.
     setSuggested(null);
+    setReading(null);
     setShowInterpret(false);
   };
 
@@ -202,9 +205,13 @@ export function SearchModule({ liveJobId = null, onGoToCampaigns }: { liveJobId?
     interpret.mutate(query.trim(), {
       onSuccess: (r) => {
         setSuggested(fromChips(r.chips));
+        setReading({ keywords: r.keywords, understood: r.understood });
         setShowInterpret(true);
       },
-      onError: () => setSuggested(null),
+      onError: () => {
+        setSuggested(null);
+        setReading(null);
+      },
     });
   };
 
@@ -419,14 +426,24 @@ export function SearchModule({ liveJobId = null, onGoToCampaigns }: { liveJobId?
                     Review before running — these become editable filters, nothing is assumed silently.
                   </p>
                   <div className="mt-2 flex flex-wrap gap-1.5">
-                    {interpreted.platform && <InterpChip>Platform · {interpreted.platform}</InterpChip>}
-                    {interpreted.city && <InterpChip>City · {interpreted.city}</InterpChip>}
-                    {interpreted.niche && <InterpChip>Niche · {interpreted.niche}</InterpChip>}
-                    {interpreted.followerBand && <InterpChip>Followers · {interpreted.followerBand}</InterpChip>}
-                    {interpreted.minEng && <InterpChip>Engagement · {interpreted.minEng}</InterpChip>}
-                    {interpreted.verifiedOnly && <InterpChip>Verified only</InterpChip>}
-                    {suggested && extraChips(suggested.extra).map((c) => <InterpChip key={c.key}>{c.label}</InterpChip>)}
+                    {interpreted.platform && <InterpChip basis={basisOf(reading, "platform")}>Platform · {interpreted.platform}</InterpChip>}
+                    {interpreted.city && <InterpChip basis={basisOf(reading, "creatorCity")}>City · {interpreted.city}</InterpChip>}
+                    {interpreted.niche && <InterpChip basis={basisOf(reading, "niche")}>Niche · {interpreted.niche}</InterpChip>}
+                    {interpreted.followerBand && <InterpChip basis={basisOf(reading, "followers")}>Followers · {interpreted.followerBand}</InterpChip>}
+                    {interpreted.minEng && <InterpChip basis={basisOf(reading, "engagement")}>Engagement · {interpreted.minEng}</InterpChip>}
+                    {interpreted.verifiedOnly && <InterpChip basis={basisOf(reading, "verifiedOnly")}>Verified only</InterpChip>}
+                    {suggested && extraChips(suggested.extra).map((c) => <InterpChip key={c.key} basis={basisOf(reading, c.key === "niches" ? "niche" : c.key)}>{c.label}</InterpChip>)}
                   </div>
+                  {reading && reading.keywords.length > 0 && (
+                    <p className="mt-2 text-[11px] text-slate-600">
+                      <span style={{ fontWeight: 600 }}>Topic words searched:</span> {reading.keywords.join(", ")}
+                    </p>
+                  )}
+                  {reading?.understood.notFilters.map((n) => (
+                    <p key={n} className="mt-1 text-[11px] text-amber-700">
+                      <span style={{ fontWeight: 600 }}>Not a filter:</span> “{n}”. Results are not ranked for this; check each profile's recent content for fit.
+                    </p>
+                  ))}
                   <div className="mt-2.5 flex items-center gap-2">
                     <button
                       onClick={applyInterpreted}
@@ -1297,13 +1314,27 @@ function FilterGroup({ label, icon: Icon, children }: { label: string; icon: any
   );
 }
 
-function InterpChip({ children }: { children: React.ReactNode }) {
+/** "stated" when the request says it, "inferred" when the AI deduced it; null when the reading did not say. */
+function basisOf(reading: Pick<InterpretResponse, "understood"> | null, key: string): "stated" | "inferred" | null {
+  if (!reading) return null;
+  const b = reading.understood.basis;
+  if (key === "niche") {
+    const niches = Object.entries(b).filter(([k]) => k.startsWith("niche:"));
+    if (niches.length === 0) return null;
+    return niches.every(([, v]) => v === "stated") ? "stated" : "inferred";
+  }
+  return b[key] ?? null;
+}
+
+function InterpChip({ children, basis = null }: { children: React.ReactNode; basis?: "stated" | "inferred" | null }) {
   return (
     <span
       className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-white px-2.5 py-1 text-[11px] capitalize text-indigo-700"
       style={{ fontWeight: 500 }}
+      title={basis === "stated" ? "Taken from your words" : basis === "inferred" ? "Inferred by the AI: check it before applying" : undefined}
     >
       {children}
+      {basis && <span className={`normal-case ${basis === "stated" ? "text-indigo-400" : "text-amber-600"}`}>· {basis === "stated" ? "you said" : "inferred"}</span>}
     </span>
   );
 }
