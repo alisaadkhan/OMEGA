@@ -151,7 +151,7 @@ behaviour beyond the E2E viewport checks, load.
 | Background worker | **Not running for live.** No retention, no 20-day YouTube refresh, Update info and Live Discovery refused (API checks the worker heartbeat), outreach queue not processed | Yes: needs a container host account (Render, Fly.io, Railway, VPS); `Dockerfile.worker` and `docs/readiness/worker-hosting.md` are ready |
 | Payments | Live uses the **mock** payment provider (no Paddle keys) | Yes for charging customers |
 | Outreach email | No email-provider key on live; no worker | Yes for outreach |
-| YouTube retention | Live YouTube data read 20–21 Oct reaches 30 days on **19 Nov**; refresh script ready (about 7,100 quota units), paused by the owner today | Yes, before 19 Nov |
+| YouTube retention | Live YouTube data read 20–21 Oct reaches 30 days on **19 Nov**. 16 Nov 01:30: 229 channels refreshed and synced (new 30-day window); 2,117 left for the next quota day (13:00 PKT 16 Nov, about 6,400 units). The first real refresh found and fixed two account-type bugs (66b3745) | Yes, before 19 Nov |
 | Mock checkout | While payments are mock, anyone can complete a checkout as paid for free (route exists only in mock mode) | Yes, with real Paddle keys it disappears |
 | Customer notifications | Shown in the app (Payment due badge, billing banner with what was lost, amber low-credit meter, activity bell); but payment failed, trial ending/expired, credits low, subscription canceled, Live Discovery finished and removal processed are only logged by the worker, never emailed or pushed ("sub-project 7" was never built) | High: needs an email sender and the worker |
 | Two old evidence files in GitHub history | Hold YouTube data; removal needs a force-push (owner decision) | Yes, before 19 Nov |
