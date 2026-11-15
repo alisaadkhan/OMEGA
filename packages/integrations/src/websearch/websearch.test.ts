@@ -29,11 +29,28 @@ describe("Serper web search", () => {
   it("sends the query with the country and size, and returns title, link and snippet", async () => {
     const { s, calls, sink } = serper(() => Response.json({ organic: webSearchFixture("serper-instagram.json") }));
     const out = await s.search({ query: "site:instagram.com bridal makeup Lahore", country: "pk", num: 20, hl: "ur", autocorrect: false });
-    expect(calls[0]).toMatchObject({ url: "https://google.serper.dev/search", body: { q: "site:instagram.com bridal makeup Lahore", gl: "pk", hl: "ur", num: 20, autocorrect: false } });
+    // 20 results are asked as pages of 10 (Serper's free tier refuses more than 10 with site:).
+    expect(calls[0]).toMatchObject({ url: "https://google.serper.dev/search", body: { q: "site:instagram.com bridal makeup Lahore", gl: "pk", hl: "ur", num: 10, page: 1, autocorrect: false } });
     expect(calls[0]?.headers["x-api-key"]).toBe("k");
     expect(out.length).toBeGreaterThan(0);
     expect(Object.keys(out[0] ?? {}).sort()).toEqual(["link", "snippet", "title"]);
-    expect(sink.calls).toEqual([expect.objectContaining({ provider: "serper", operation: "web_search", status: "ok", costUsd: 0.001 })]);
+    // One recorded search per page asked for.
+    expect(sink.calls).toEqual(calls.map(() => expect.objectContaining({ provider: "serper", operation: "web_search", status: "ok", costUsd: 0.001 })));
+  });
+
+  it("asks for more than 10 results page by page, drops repeats, records each page, and stops after a short page", async () => {
+    const page = (n: number, from: number) => Array.from({ length: n }, (_, i) => ({ title: `t${from + i}`, link: `https://www.youtube.com/@c${from + i}`, snippet: "" }));
+    const full = serper((body) => Response.json({ organic: (body as { page: number }).page === 1 ? page(10, 0) : page(10, 9) }));
+    const out = await full.s.search({ query: "site:youtube.com/@ cricket Lahore", country: "pk", num: 20 });
+    expect(full.calls.map((c) => [(c.body as { num: number }).num, (c.body as { page: number }).page])).toEqual([[10, 1], [10, 2]]);
+    expect(out).toHaveLength(19);
+    expect(full.sink.calls).toHaveLength(2);
+    const short = serper(() => Response.json({ organic: page(4, 0) }));
+    expect(await short.s.search({ query: "q", country: "pk", num: 20 })).toHaveLength(4);
+    expect(short.calls).toHaveLength(1);
+    const ten = serper(() => Response.json({ organic: page(10, 0) }));
+    await ten.s.search({ query: "q", country: "pk", num: 10 });
+    expect(ten.calls.map((c) => c.body)).toEqual([expect.not.objectContaining({ page: expect.anything() })]);
   });
 
   it("caps hostile text and ignores malformed rows", async () => {

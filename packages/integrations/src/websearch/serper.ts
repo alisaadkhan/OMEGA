@@ -16,53 +16,76 @@ function providerErrorOf(err: unknown): ProviderError | null {
   return null;
 }
 
+/**
+ * Results per request. Serper's free tier refuses `site:` queries asking for more than 10 results ("Query pattern not
+ * allowed for free accounts", measured 2026-11-15: every Live Discovery search failed), so a search for 20 results is two
+ * pages of 10: the same credits (one per page), and each page is recorded as its own search.
+ */
+const PAGE_SIZE = 10;
+
 export function createSerperSearch(o: { apiKey: string | null; limit: SpendGuard; sink: ProviderCallSink; logger: Logger; fetch?: typeof fetch }): WebSearch {
   const doFetch = o.fetch ?? fetch;
+  async function onePage(q: Parameters<WebSearch["search"]>[0], apiKey: string, num: number, page: number | undefined): Promise<WebResult[]> {
+    const done = await o.limit.begin();
+    try {
+      return await instrumented<WebResult[]>(
+        {
+          provider: "serper",
+          operation: "web_search",
+          timeoutMs: 15_000,
+          retries: 1,
+          sink: o.sink,
+          logger: o.logger,
+          ctx: q.ctx,
+          usage: () => ({ units: 1, costUsd: SERPER_COST_USD }),
+          isRetryable: (err) => providerErrorOf(err)?.retryable ?? true,
+        },
+        async (signal) => {
+          const res = await doFetch(SERPER_URL, {
+            method: "POST",
+            headers: { "x-api-key": apiKey, "content-type": "application/json" },
+            body: JSON.stringify({ q: q.query, gl: q.country, hl: q.hl ?? "en", num, ...(page === undefined ? {} : { page }), ...(q.autocorrect === undefined ? {} : { autocorrect: q.autocorrect }) }),
+            signal,
+          });
+          if (res.status === 401 || res.status === 403) throw Object.assign(new ProviderError(false, "not_configured", `Serper refused the key (HTTP ${res.status})`), { status: res.status });
+          if (res.status === 400) {
+            const text = await res.text();
+            throw new ProviderError(false, /credit/i.test(text) ? "quota" : "provider", "Serper rejected the search (HTTP 400)");
+          }
+          if (!res.ok) throw new ProviderError(res.status >= 500 || res.status === 429, "provider", `Serper answered HTTP ${res.status}`);
+          const body = reply.parse(await res.json());
+          return body.organic
+            .map((r) => row.safeParse(r))
+            .filter((r) => r.success && r.data.link !== "")
+            .map((r) => (r as { data: WebResult }).data)
+            .slice(0, num)
+            .map((r) => ({ title: r.title.slice(0, 300), link: r.link.slice(0, 500), snippet: r.snippet.slice(0, 500) }));
+        },
+      );
+    } catch (err) {
+      throw providerErrorOf(err) ?? new ProviderError(true, "provider", err instanceof Error ? err.message : String(err));
+    } finally {
+      done();
+    }
+  }
   return {
     async search(q) {
       const apiKey = o.apiKey;
       if (!apiKey) throw new ProviderError(false, "not_configured", "SERPER_API_KEY is not set");
-      const done = await o.limit.begin();
-      try {
-        return await instrumented<WebResult[]>(
-          {
-            provider: "serper",
-            operation: "web_search",
-            timeoutMs: 15_000,
-            retries: 1,
-            sink: o.sink,
-            logger: o.logger,
-            ctx: q.ctx,
-            usage: () => ({ units: 1, costUsd: SERPER_COST_USD }),
-            isRetryable: (err) => providerErrorOf(err)?.retryable ?? true,
-          },
-          async (signal) => {
-            const res = await doFetch(SERPER_URL, {
-              method: "POST",
-              headers: { "x-api-key": apiKey, "content-type": "application/json" },
-              body: JSON.stringify({ q: q.query, gl: q.country, hl: q.hl ?? "en", num: q.num, ...(q.page === undefined ? {} : { page: q.page }), ...(q.autocorrect === undefined ? {} : { autocorrect: q.autocorrect }) }),
-              signal,
-            });
-            if (res.status === 401 || res.status === 403) throw Object.assign(new ProviderError(false, "not_configured", `Serper refused the key (HTTP ${res.status})`), { status: res.status });
-            if (res.status === 400) {
-              const text = await res.text();
-              throw new ProviderError(false, /credit/i.test(text) ? "quota" : "provider", "Serper rejected the search (HTTP 400)");
-            }
-            if (!res.ok) throw new ProviderError(res.status >= 500 || res.status === 429, "provider", `Serper answered HTTP ${res.status}`);
-            const body = reply.parse(await res.json());
-            return body.organic
-              .map((r) => row.safeParse(r))
-              .filter((r) => r.success && r.data.link !== "")
-              .map((r) => (r as { data: WebResult }).data)
-              .slice(0, q.num)
-              .map((r) => ({ title: r.title.slice(0, 300), link: r.link.slice(0, 500), snippet: r.snippet.slice(0, 500) }));
-          },
-        );
-      } catch (err) {
-        throw providerErrorOf(err) ?? new ProviderError(true, "provider", err instanceof Error ? err.message : String(err));
-      } finally {
-        done();
+      if (q.num <= PAGE_SIZE || q.page !== undefined) return onePage(q, apiKey, Math.min(q.num, PAGE_SIZE), q.page);
+      const out: WebResult[] = [];
+      const seen = new Set<string>();
+      for (let page = 1; page <= Math.ceil(q.num / PAGE_SIZE) && out.length < q.num; page++) {
+        const rows = await onePage(q, apiKey, PAGE_SIZE, page);
+        for (const r of rows) {
+          if (seen.has(r.link)) continue;
+          seen.add(r.link);
+          out.push(r);
+        }
+        // A short page is the last one: no further page is paid for.
+        if (rows.length < PAGE_SIZE) break;
       }
+      return out.slice(0, q.num);
     },
   };
 }
