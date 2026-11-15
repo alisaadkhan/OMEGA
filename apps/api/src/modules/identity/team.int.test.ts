@@ -54,8 +54,10 @@ async function setup(o: { verify?: VerifyEmail | null } = {}) {
     const sub = o.sub ?? randomUUID();
     authRecords.set(sub, { email: email.toLowerCase(), confirmed: o.confirmed ?? true });
     const h = { authorization: `Bearer ${await iss.sign({ sub, email, fullName: email.split("@")[0] ?? "x", emailVerified: true })}` };
-    const me = (await call("GET", "/v1/me", h)).json() as { workspace: { id: string }; user: { id: string } };
-    return { h, sub, userId: me.user.id, workspaceId: me.workspace.id };
+    const res = await call("GET", "/v1/me", h);
+    const me = res.json() as { workspace?: { id: string }; user?: { id: string } };
+    // An unconfirmed account gets nothing (0089): no user row, no workspace.
+    return { h, sub, status: res.statusCode, userId: me.user?.id ?? sub, workspaceId: me.workspace?.id ?? "" };
   };
   const invite = async (h: H, email: string, role = "member") => (await call("POST", "/v1/workspace/invitations", h, { email, role })).json() as { id: string; acceptUrl: string };
   const tokenOf = (url: string) => url.split("/invite/")[1] ?? "";
@@ -74,9 +76,10 @@ describe("workspace invitations and workspace selection", () => {
     const stranger = await person("mallory@evil.pk");
     expect((await call("POST", "/v1/invitations/accept", stranger.h, { token })).json().error.details).toMatchObject({ reason: "invitation_invalid" });
     // Audit SEC-03: the token claims user_metadata.email_verified = true (users can set that themselves) but the Auth
-    // server has not confirmed the address: refused.
+    // server has not confirmed the address: refused, and since the email gate (0089) before the invitation is even read.
     const unverified = await person("sara@agency.pk", { confirmed: false });
-    expect((await call("POST", "/v1/invitations/accept", unverified.h, { token })).json().error.details).toMatchObject({ reason: "email_unverified" });
+    expect(unverified.status).toBe(403);
+    expect((await call("POST", "/v1/invitations/accept", unverified.h, { token })).json().error.details).toMatchObject({ reason: "email_not_verified" });
     // If the Auth check cannot be made, nobody is let in.
     authDown = true;
     const down = await call("POST", "/v1/invitations/accept", unverified.h, { token });

@@ -203,16 +203,16 @@ describe("monthly testing allowance (TA)", () => {
     expect(await restarted.ledger(c, { limit: 50 })).toEqual(before.l);
   });
 
-  it("TA-13 an unverified email gets no allowance; after verifying, the next visit grants it once, even with concurrent visits", async () => {
+  it("TA-13 an unverified email gets no workspace and no allowance (email gate 0089); after verifying, the first visits grant it once, even concurrently", async () => {
     const id = person();
     unverified.add(id.userId);
-    const t = await identity.resolveTenant(id, "req");
-    const ctx = ctxOf(t.userId, t.workspaceId);
-    await identity.getMe(ctx);
-    expect(await grants(t.workspaceId)).toEqual([]);
+    await expect(identity.resolveTenant(id, "req")).rejects.toMatchObject({ code: "FORBIDDEN", details: { reason: "email_not_verified" } });
+    expect(await ownerQuery(`select 1 from wp.workspace_members where user_id = '${id.userId}'`)).toHaveLength(0);
     unverified.delete(id.userId);
-    await Promise.all(Array.from({ length: 5 }, () => identity.getMe(ctx)));
-    await identity.getMe(ctx);
+    const visits = await Promise.all(Array.from({ length: 5 }, (_, i) => identity.resolveTenant(id, `r${i}`)));
+    expect(new Set(visits.map((v) => v.workspaceId)).size).toBe(1);
+    const t = visits[0] as (typeof visits)[number];
+    await identity.getMe(ctxOf(t.userId, t.workspaceId));
     expect(await grants(t.workspaceId)).toEqual([{ source_ref: `testing:${t.workspaceId}:2026-10`, amount: 500 }]);
   });
 
@@ -226,11 +226,13 @@ describe("monthly testing allowance (TA)", () => {
     expect((await ownerQuery<{ at: string | null }>(`select testing_allowance_at::text at from wp.users where id = '${guest.userId}'`))[0]?.at).toBeNull();
   });
 
-  it("TA-15 when the email check cannot be made, nothing is granted and a later visit grants it", async () => {
+  it("TA-15 when the email check cannot be made, the visit is refused (nothing created or granted) and a later visit grants it", async () => {
     authDown = true;
-    const t = await signUp();
-    expect(await grants(t.workspaceId)).toEqual([]);
+    const id = person();
+    await expect(identity.resolveTenant(id, "req")).rejects.toMatchObject({ code: "PROVIDER_UNAVAILABLE", details: { reason: "email_check_unavailable" } });
+    expect(await ownerQuery(`select 1 from wp.users where id = '${id.userId}'`)).toHaveLength(0);
     authDown = false;
+    const t = await identity.resolveTenant(id, "req-2");
     await identity.getMe(ctxOf(t.userId, t.workspaceId));
     expect(await grants(t.workspaceId)).toHaveLength(1);
   });

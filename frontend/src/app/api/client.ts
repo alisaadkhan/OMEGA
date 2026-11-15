@@ -52,6 +52,12 @@ async function guardWorkspace(res: Response, selected: string | null): Promise<v
       window.location.reload();
       throw new ApiError("FORBIDDEN", "You no longer have access to that workspace.", 403, res.headers.get("x-request-id"));
     }
+    // Mandatory email verification (0089): the API serves nothing before the Auth server confirms the address.
+    if (body?.error?.details?.reason === "email_not_verified") {
+      void supabase.auth.signOut({ scope: "local" });
+      window.location.hash = "/login";
+      throw new ApiError("FORBIDDEN", "Please confirm your email address first: open the link we sent you, then sign in again.", 403, res.headers.get("x-request-id"));
+    }
   }
   const actedIn = res.headers.get("x-workspace-id");
   if (selected && actedIn && actedIn !== selected) {

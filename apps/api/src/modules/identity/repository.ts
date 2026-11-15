@@ -17,14 +17,20 @@ export async function findMembership(tx: UserTx | TenantTx, userId: string, requ
   return requested === undefined ? (rows[0] ?? null) : (rows.find((r) => r.workspaceId === requested) ?? null);
 }
 
-export async function userStatus(tx: UserTx, userId: string): Promise<string | null> {
-  const [r] = await tx.select({ status: users.status }).from(users).where(eq(users.id, userId));
-  return r?.status ?? null;
-}
-
 /** Serializes provisioning per user inside the current transaction. */
 export async function lockUser(tx: TenantTx, userId: string): Promise<void> {
   await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${userId}, 0))`);
+}
+
+/** The person's account status and the address the Auth server confirmed (0089); null before their first workspace. */
+export async function userAccess(tx: UserTx, userId: string): Promise<{ status: string; emailConfirmedFor: string | null } | null> {
+  const [r] = await tx.select({ status: users.status, emailConfirmedFor: users.emailConfirmedFor }).from(users).where(eq(users.id, userId));
+  return r ?? null;
+}
+
+/** Remembers that the Auth server confirmed this address (0089): later requests need no Auth call. */
+export async function recordEmailConfirmed(tx: UserTx | TenantTx, userId: string, email: string): Promise<void> {
+  await tx.update(users).set({ emailConfirmedAt: new Date(), emailConfirmedFor: email }).where(eq(users.id, userId));
 }
 
 export async function upsertUser(tx: TenantTx, u: { id: string; email: string; displayName: string | null }): Promise<void> {

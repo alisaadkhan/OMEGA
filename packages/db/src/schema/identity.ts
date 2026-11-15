@@ -18,6 +18,9 @@ export const users = wp.table("users", {
   trialGrantedAt: ts("trial_granted_at"),
   /** The monthly testing allowance was claimed for this person (0061); one per person. */
   testingAllowanceAt: ts("testing_allowance_at"),
+  /** When the Auth server confirmed this person's email, and for which address (0089, email verification gate). */
+  emailConfirmedAt: ts("email_confirmed_at"),
+  emailConfirmedFor: text("email_confirmed_for"),
   createdAt: ts("created_at").notNull().defaultNow(),
   updatedAt: ts("updated_at").notNull().defaultNow(),
 });

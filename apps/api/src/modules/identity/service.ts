@@ -32,10 +32,34 @@ export function createIdentityService(db: Db, autoTrial: StartTrial | null, test
       return false;
     }
   }
+  /**
+   * Mandatory email verification (owner directive 2026-11-15, 0089): a customer whose email the Auth server has not
+   * confirmed gets nothing from the API. The answer is remembered for the confirmed address, so this costs one Auth call
+   * per person (and one more after an email change). Without the Auth admin key (development and tests) there is no
+   * gate; production requires the key (config, audit SEC-03). Returns true when a new confirmation must be recorded.
+   */
+  async function confirmEmail(identity: CustomerIdentity, confirmedFor: string | null): Promise<boolean> {
+    if (!verifyEmail || confirmedFor === identity.email) return false;
+    let record: Awaited<ReturnType<VerifyEmail>>;
+    try {
+      record = await verifyEmail(identity.userId);
+    } catch (err) {
+      throw new AppError("PROVIDER_UNAVAILABLE", "We could not check your email confirmation just now. Please try again in a moment.", { reason: "email_check_unavailable" }, { cause: err });
+    }
+    // Supabase applies a changed address only once it is confirmed (secure email change), so the account's confirmed
+    // flag covers the address in the token; it is remembered for that address.
+    if (!record?.confirmed) {
+      throw new AppError("FORBIDDEN", "Please confirm your email address first: open the link we sent you, then sign in again.", { reason: "email_not_verified" });
+    }
+    return true;
+  }
+
   async function resolveTenant(identity: CustomerIdentity, requestId: string, requested?: string): Promise<TenantContext> {
-    const { existing, status } = await db.withUser(identity.userId, async (tx) => ({ existing: await repo.findMembership(tx, identity.userId, requested), status: await repo.userStatus(tx, identity.userId) }));
+    const { existing, access } = await db.withUser(identity.userId, async (tx) => ({ existing: await repo.findMembership(tx, identity.userId, requested), access: await repo.userAccess(tx, identity.userId) }));
     // A deleted account stays deleted: signing in again does not bring it (or a fresh workspace) back.
-    if (status === "deleted") throw new AppError("FORBIDDEN", "This account was deleted.", { reason: "account_deleted" });
+    if (access?.status === "deleted") throw new AppError("FORBIDDEN", "This account was deleted.", { reason: "account_deleted" });
+    const newlyConfirmed = await confirmEmail(identity, access?.emailConfirmedFor ?? null);
+    if (newlyConfirmed && access) await db.withUser(identity.userId, (tx) => repo.recordEmailConfirmed(tx, identity.userId, identity.email));
     if (existing) return { requestId, userId: identity.userId, ...existing };
     // A workspace was asked for and this person is not (or no longer) a member: refuse, never switch silently to
     // another workspace (audit SEC-04). The client drops its stale selection and asks again without one.
@@ -51,6 +75,7 @@ export function createIdentityService(db: Db, autoTrial: StartTrial | null, test
       const raced = await repo.findMembership(tx, identity.userId);
       if (raced) return raced;
       await repo.upsertUser(tx, { id: identity.userId, email: identity.email, displayName: identity.fullName });
+      if (newlyConfirmed && !access) await repo.recordEmailConfirmed(tx, identity.userId, identity.email);
       await repo.insertWorkspace(tx, { id: workspaceId, name: workspaceNameFor(identity), ownerUserId: identity.userId });
       await repo.insertMember(tx, { workspaceId, userId: identity.userId, role: "owner" });
       // One free trial per person: a workspace provisioned after deleting or leaving an earlier one starts without it.

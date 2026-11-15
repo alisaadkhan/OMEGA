@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowRight, CheckCircle2, MailWarning } from "lucide-react";
 import { Button } from "../ui/button";
 import { AuthShell, FormField } from "./AuthShell";
 import { useAuth } from "../../auth/AuthContext";
+import { useToast } from "../../lib/toast";
 
 type Props = { goDashboard: () => void; goLogin: () => void };
 
@@ -10,13 +11,23 @@ type Props = { goDashboard: () => void; goLogin: () => void };
  * Where the sign-up confirmation email lands (`#/confirmed`; mandate v3 §3.2 UX-02, gap UX-08). The PKCE code exchange
  * signs the person in when the link is opened in the browser that signed up. In another browser the address is still
  * confirmed (the Auth server did that before redirecting), so the person signs in. An expired or used link says so and
- * offers a new email.
+ * offers a new email. Signed in by the link, the person goes straight to the dashboard with a welcome message (owner
+ * directive 2026-11-15, email verification §1); the "Continue" button stays as a fallback.
  */
 export function EmailConfirmed({ goDashboard, goLogin }: Props) {
   const { status, linkError, resendConfirmation } = useAuth();
+  const toast = useToast();
+  const welcomed = useRef(false);
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (status !== "signedIn" || linkError || welcomed.current) return;
+    welcomed.current = true;
+    toast.success("Welcome to MUSHIN", "Your email is confirmed and your account is ready.");
+    goDashboard();
+  }, [status, linkError, goDashboard, toast]);
 
   if (status === "loading") {
     return <AuthShell formKey="confirm-checking" title="Checking your link" subtitle="One moment…">{null}</AuthShell>;
