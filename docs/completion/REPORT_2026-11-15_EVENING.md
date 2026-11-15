@@ -133,6 +133,14 @@ behaviour beyond the E2E viewport checks, load.
 - Documentation brought up to date: README and the LLM smoke test describe the current AI chain; the worker hosting
   guide lists the Groq, YouTube and outreach settings; the Azure worker script allows YouTube calls with the owner's
   approval switch (the 20-day refresh needs them) and treats OpenRouter as paid.
+- Rate limits are counted in PostgreSQL by default (shared by every serverless instance; `memory` is refused in
+  production). CORS is an allowlist: a request from a foreign origin gets no `Access-Control-Allow-Origin` (checked on
+  production).
+- Refactors with no behaviour change: one `providerErrorOf` instead of five copies; one `CREATOR_VISIBLE` rule (active,
+  not an unoverridden possible minor) for search, lists, campaigns, exports and analytics instead of six copies, so a
+  future rule protects every path at once (731 unit + 163 integration tests).
+- The read-only acceptance suite on the frozen corpus (CORPUS-*) now skips with its reason: the corpus was deleted on
+  12 Nov for YouTube retention. Three search suites need a Meilisearch server and run only where one is configured.
 - Script database connections without a CA file do not verify the server certificate (`DATABASE_SSL_CA_FILE` unset):
   set Supabase's CA certificate to close this.
 

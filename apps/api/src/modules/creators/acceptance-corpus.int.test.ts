@@ -33,7 +33,12 @@ const docs = (ids: string[]) =>
     return tx.execute<{ id: string; platforms: string[]; eligible: boolean; has_contact: boolean }>(sql`select creator_id as id, platforms, eligible, has_contact from gcp.creator_search_documents where creator_id in (${sql.join(ids.map((i) => sql`${i}::uuid`), sql`, `)})`);
   });
 
-describe("frozen corpus, read-only (CORPUS)", () => {
+// The corpus was deleted on 2026-11-12 (it held YouTube API data past its 30 days; owner decision 2026-10-15). Without it
+// the suite is skipped and says why, instead of failing on every machine and hiding real failures.
+const corpusPresent = await corpus.ping().then(() => true, () => false);
+if (!corpusPresent) console.warn("CORPUS-* skipped: mushin_eval_disposable no longer exists (deleted 2026-11-12, YouTube API retention)");
+
+describe.skipIf(!corpusPresent)("frozen corpus, read-only (CORPUS)", () => {
   it("CORPUS-01 equivalent supported wordings of 'food creators in Lahore' return the identical set on real data", async () => {
     const wordings = ["food vloggers in Lahore", "food bloggers in Lahore", "food content creators based in Lahore", "Lahore mein khana walay vloggers", "LHR foodie", "food vlogers in lahor"];
     const runs = await Promise.all(wordings.map((w) => run(w)));
