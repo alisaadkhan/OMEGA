@@ -73,7 +73,7 @@ const VLOG_FORMS = ["vlog", "vlogs", "vlogging", "vlogger", "vloggers", "blog", 
  * When niches tie or several are prominent, a main niche is still named (owner directive 2026-11-15, §2.1): the AI's
  * pick when it named one of them, else a specific subject before the Lifestyle fallback, else the most frequent.
  */
-function pickMain(labels: string[], aiNiches: readonly string[]): string {
+export function pickMain(labels: string[], aiNiches: readonly string[]): string {
   return labels.find((l) => aiNiches.includes(l)) ?? labels.find((l) => l !== LIFESTYLE) ?? (labels[0] as string);
 }
 // Search forms too general to prove a niche on their own (they still count for search).

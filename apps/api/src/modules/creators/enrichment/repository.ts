@@ -21,7 +21,7 @@ import type { ContentPerformance } from "../eligibility-v3";
 import type { AttributeDecision } from "./attribute-evidence";
 import { captionCountryEvidence, profileCountry, resolveCountry, type ProfileCountry } from "./country-evidence";
 import { wholeChars } from "./quote";
-import { classifyNiche } from "./niche-evidence";
+import { classifyNiche, pickMain } from "./niche-evidence";
 import type { ExtractedContact, ExtractedLink } from "./links";
 import type { PreviousMetrics, SignalReport } from "./signals";
 import type { StandardProfile } from "./standardize";
@@ -406,7 +406,13 @@ export async function placeAttributes(tx: Tx, creatorId: string, d: AttributeDec
   // The earlier record named no main niche (a tie or "variety") and today's reading names one of the same niches: the
   // same evidence, now resolved (owner directive 2026-11-15, §2.1), so it is applied rather than kept out.
   if (cur.nicheMain === null && d.niche.main !== null && kept.includes(d.niche.main)) return { values, keptNiches: false };
-  // The earlier classification stands (its model fields are left as they were).
+  // The earlier classification stands (its model fields are left as they were). When it named no main niche, one of its
+  // own supported niches becomes the main one, by the tie rule (owner directive 2026-11-15, §2.1: found after the full
+  // run, 56 searchable creators kept older niches with no main niche).
+  if (cur.nicheMain === null) {
+    const main = pickMain(kept, []);
+    return { values: { ...base, niches: [main, ...kept.filter((n) => n !== main)], nicheMain: main, nicheStatus: "classified", nicheConfidence: "low" }, keptNiches: true };
+  }
   return { values: { ...base, niches: kept }, keptNiches: true };
 }
 

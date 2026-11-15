@@ -85,6 +85,18 @@ describe("attribute backfill from stored data", () => {
     expect(after?.niches[0]).toBe("Fashion");
   });
 
+  // §2.1, found after the full run: kept older niches with no main niche stayed without one.
+  it("gives kept earlier niches a main niche when the earlier record named none", async () => {
+    const id = await addCreator(db, { niches: ["Lifestyle", "Food"], profiles: [{ bio: "Subscribe for more" }] });
+    await ownerQuery(`update gcp.creators set niche_main = null, niche_status = null where id = '${id}'`);
+    await ownerQuery(`insert into gcp.creator_attribute_evidence (creator_id, attribute, value, source, status, evidence) values
+      ('${id}', 'niche', 'Lifestyle', 'post_text', 'supported', '6 of 12 recent posts use its terms'), ('${id}', 'niche', 'Food', 'post_text', 'supported', '6 of 12 recent posts use its terms')`);
+    const r = await run({ apply: true });
+    expect(r.keptEarlierNiches).toBe(1);
+    expect(await creator(id)).toMatchObject({ niches: ["Food", "Lifestyle"], niche_main: "Food", niche_status: "classified" });
+    expect(await run({ apply: true })).toMatchObject({ changed: 0 });
+  });
+
   it("never overwrites a country the creator confirmed", async () => {
     const id = await addCreator(db, { niches: [], country: "AE", profiles: [{ bio: "Food reviews. Based in Lahore, Pakistan" }] });
     await ownerQuery(`update gcp.creators set confirmed_country = 'AE' where id = '${id}'`);
