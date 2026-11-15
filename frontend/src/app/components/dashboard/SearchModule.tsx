@@ -436,7 +436,7 @@ export function SearchModule({ liveJobId = null, onGoToCampaigns }: { liveJobId?
                   </div>
                   {reading && reading.keywords.length > 0 && (
                     <p className="mt-2 text-[11px] text-slate-600">
-                      <span style={{ fontWeight: 600 }}>Topic words searched:</span> {reading.keywords.join(", ")}
+                      <span style={{ fontWeight: 600 }}>Topics noted (not filters; the search matches the words you typed):</span> {reading.keywords.join(", ")}
                     </p>
                   )}
                   {reading?.understood.notFilters.map((n) => (
