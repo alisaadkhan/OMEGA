@@ -176,7 +176,14 @@ export async function lookupWikipedia(fetchFn: typeof fetch, displayName: string
   const query = wikipediaQuery(displayName, handle);
   if (!query) return [];
   try {
-    const res = await fetchFn(wikipediaSearchUrl(query), { headers: { "user-agent": "MUSHIN-catalogue-review/1.0" }, signal: AbortSignal.timeout(10_000) });
+    const get = () => fetchFn(wikipediaSearchUrl(query), { headers: { "user-agent": "MUSHIN-catalogue-review/1.0" }, signal: AbortSignal.timeout(10_000) });
+    let res = await get();
+    // Wikipedia answers 429 with Retry-After to bursts of searches (seen 2026-11-15): wait as asked (at most a minute), once.
+    if (res.status === 429) {
+      const wait = Math.min(60, Math.max(1, Number(res.headers.get("retry-after")) || 30));
+      await new Promise((resolveWait) => setTimeout(resolveWait, wait * 1000));
+      res = await get();
+    }
     return res.ok ? wikipediaMatches(await res.json(), query) : null;
   } catch {
     return null;

@@ -96,4 +96,10 @@ describe("Wikipedia check", () => {
     expect(await lookupWikipedia(down, "HUDA", "huda")).toEqual([]);
     expect(calls).toBe(1);
   });
+
+  it("waits as Wikipedia asks after a 429, once, then uses the answer", async () => {
+    const answers = [new Response("", { status: 429, headers: { "retry-after": "1" } }), Response.json({ query: { pages: [page(1, "Komal Meer", "Pakistani actress", "Komal Meer is a Pakistani actress.")] } })];
+    const flaky = (async () => answers.shift() as Response) as unknown as typeof fetch;
+    expect((await lookupWikipedia(flaky, "Komal Meer", "komallmeer"))?.map((w) => w.title)).toEqual(["Komal Meer"]);
+  });
 });

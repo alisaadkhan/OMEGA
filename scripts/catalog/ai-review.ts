@@ -100,7 +100,7 @@ async function review(c: Creator): Promise<void> {
   // Wikipedia answers 429 to bursts of searches (seen 2026-11-15): back off 5 s, 20 s, 45 s, and pace every lookup.
   for (let attempt = 1; attempt <= 3 && found === null; attempt++) {
     found = await lookupWikipedia(fetch, c.display_name, main.handle);
-    await new Promise((resolveWait) => setTimeout(resolveWait, found === null ? 5_000 * attempt * attempt : 1_000));
+    await new Promise((resolveWait) => setTimeout(resolveWait, found === null ? 5_000 * attempt * attempt : 3_000));
   }
   const wikipedia = found ?? [];
   const r: Result = { id: c.id, handle: main.handle, platform: main.platform, followers: Number(c.followers), before: { type: c.account_type, niche: c.niche_main }, decision: null, postsRead, wikipedia: wikipedia.map((w) => `${w.title}: ${w.description}`), ...(found === null ? { wikipediaFailed: true as const } : {}) };
