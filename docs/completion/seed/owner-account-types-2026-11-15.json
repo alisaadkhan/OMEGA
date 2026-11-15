@@ -1,0 +1,10 @@
+{
+  "source": "Owner staff-review decisions, 2026-11-15 (directive: owner decisions, OpenRouter fallback chain and exports, section 2)",
+  "note": "Applied by scripts/catalog/reassess-catalogue.ts as staff decisions (source staff, confidence high): never replaced by the rules or the AI review.",
+  "decisions": [
+    { "handle": "rajab.butt94", "type": "INDIVIDUAL_CREATOR", "reason": "Rajab Butt: digital creator" },
+    { "handle": "falakshabir1", "type": "CELEBRITY_PUBLIC_FIGURE", "reason": "Falak Shabir: mainstream singer" },
+    { "handle": "haroonkadwani", "type": "CELEBRITY_PUBLIC_FIGURE", "reason": "Haroon Kadwani: actor" },
+    { "handle": "naimalkhawarkhan", "type": "CELEBRITY_PUBLIC_FIGURE", "reason": "Naimal Khawar: actor" }
+  ]
+}

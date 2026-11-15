@@ -47,6 +47,9 @@ const rows = await db.withSystem((tx) =>
 // Owner override 2026-11-04: YouTube derived metrics on unless YOUTUBE_DERIVED_METRICS=off.
 const youtubeDerived = process.env["YOUTUBE_DERIVED_METRICS"] !== "off";
 const ownerNamed = new Set<string>((JSON.parse(readFileSync(join(root, "docs", "completion", "seed", "owner-named-2026-11-03.json"), "utf8")) as { candidates: { handle: string }[] }).candidates.map((c) => c.handle.toLowerCase()));
+// Owner staff-review decisions of 2026-11-15 (any account type, e.g. a singer excluded as a public figure): applied as
+// staff decisions, which neither the rules nor the AI review ever replace.
+const ownerTypes = new Map((JSON.parse(readFileSync(join(root, "docs", "completion", "seed", "owner-account-types-2026-11-15.json"), "utf8")) as { decisions: { handle: string; type: AccountType; reason: string }[] }).decisions.map((d) => [d.handle.toLowerCase(), d]));
 
 const location = (r: Row): string =>
   r.country_status === "pakistan" ? "PAKISTAN_CONFIRMED" : r.country_status === "conflicting" ? "CONFLICTING_EVIDENCE" : r.country_status === "foreign" ? (r.diaspora ? "PAKISTANI_DIASPORA" : "NON_PAKISTANI_CONFIRMED") : "UNKNOWN";
@@ -69,7 +72,10 @@ for (const r of rows) {
   else tally.noPayload++;
   // Account type from the creator's primary profile (the platform category lives there).
   if (r.platform === r.primary_platform && r.account_type_source !== "staff") {
-    const d = ownerNamed.has(r.handle.toLowerCase())
+    const owned = ownerTypes.get(r.handle.toLowerCase());
+    const d = owned
+      ? { type: owned.type, source: "staff", confidence: "high", evidence: `Owner staff review 2026-11-15: ${owned.reason}` }
+      : ownerNamed.has(r.handle.toLowerCase())
       ? { type: "INDIVIDUAL_CREATOR" as const, source: "staff", confidence: "high", evidence: "Named by the owner as a creator (owner-named manifest 2026-11-03)" }
       : classifyAccountType({ category: std?.kind === "ok" ? (std.profile.accountCategory ?? null) : null, bio: r.bio ?? "", handle: r.handle, displayName: r.display_name });
     // Only the owner-named staff decisions are written here. Everything else is left to the worker's reassessment
