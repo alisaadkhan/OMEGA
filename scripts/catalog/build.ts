@@ -155,16 +155,32 @@ const report: Record<string, unknown>[] = [];
 const ctx = await buildWorkspace();
 
 if (mode === "reassess") {
-  const rows = await ownerSql<{ id: string }[]>`select id from gcp.creators where status = 'active' and assessment_status = 'pending' order by created_at`;
+  // Creators search would show come first (their minor check matters most); the rest by age.
+  const rows = await ownerSql<{ id: string }[]>`
+    select c.id from gcp.creators c left join gcp.creator_search_documents d on d.creator_id = c.id
+    where c.status = 'active' and c.assessment_status = 'pending' order by coalesce(d.eligible, false) desc, c.created_at`;
   logger.info({ creators: rows.length }, "reassess start");
   const outcome: Record<string, number> = {};
+  // A rate-limited AI (per-minute token limits shared with other runs) is waited out, not counted as a result; ten
+  // creators in a row still unavailable after the waits means a daily limit: stop, a rerun continues.
+  let unavailableInARow = 0;
   for (const [i, r] of rows.entries()) {
     if ((await spentUsd()) >= capUsd - JOB_HEADROOM_USD) {
       logger.warn({ spent: await spentUsd(), capUsd }, "spend cap reached: stopping");
       break;
     }
-    const result = await pipeline.reassess(r.id).catch((e: Error) => `failed: ${e.message.slice(0, 60)}`);
+    let result = "";
+    for (let attempt = 1; attempt <= 6; attempt++) {
+      result = await pipeline.reassess(r.id).catch((e: Error) => `failed: ${e.message.slice(0, 60)}`);
+      if (!/unavailable right now/i.test(result)) break;
+      await new Promise((resolveWait) => setTimeout(resolveWait, 15_000 * attempt));
+    }
+    unavailableInARow = /unavailable right now/i.test(result) ? unavailableInARow + 1 : 0;
     outcome[result] = (outcome[result] ?? 0) + 1;
+    if (unavailableInARow >= 10) {
+      logger.warn({ done: i + 1, of: rows.length }, "AI unavailable for 10 creators in a row (daily limit?): stopping");
+      break;
+    }
     if (i % 50 === 0) logger.info({ done: i + 1, of: rows.length, outcome, spentUsd: await spentUsd() }, "reassess progress");
   }
   report.push({ mode, pending: rows.length, outcome });
