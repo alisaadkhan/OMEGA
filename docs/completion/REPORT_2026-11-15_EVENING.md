@@ -125,6 +125,14 @@ behaviour beyond the E2E viewport checks, load.
 - Public API routes (no session): health, public plans, removal requests (rate-limited), email unsubscribe (signed
   token), staff sign-in steps (rate-limited); all validate input with schemas. Webhooks verify signatures.
 - Route inventory: 163 API routes, all guarded except 14 public by design (`API_ROUTE_INVENTORY_2026-11-15.md`).
+- Live database (pg_stat_statements, read-only): customer searches take about 105–110 ms on the server (worst 316 ms),
+  the worker's projection writes 105–190 ms; the slowest statements are Supabase's own. No index work is needed at
+  the current catalogue size; measure again as it grows.
+- Public site: every link and button on the landing page works (10 in-app routes, 4 in-page sections, 22 buttons with a
+  visible effect, one honestly disabled "Talk to sales (coming soon)").
+- Documentation brought up to date: README and the LLM smoke test describe the current AI chain; the worker hosting
+  guide lists the Groq, YouTube and outreach settings; the Azure worker script allows YouTube calls with the owner's
+  approval switch (the 20-day refresh needs them) and treats OpenRouter as paid.
 - Script database connections without a CA file do not verify the server certificate (`DATABASE_SSL_CA_FILE` unset):
   set Supabase's CA certificate to close this.
 
