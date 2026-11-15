@@ -5,6 +5,7 @@ import type { Db } from "@mushin/db";
 import type { SearchHit } from "@mushin/integrations";
 import { cityForms, expandQuery, normalizeQuery, type QueryGroup } from "./aliases";
 import type { PlanGroup } from "./understand-v2";
+import { CREATOR_VISIBLE } from "./visibility";
 
 /**
  * Consonant skeleton of a name word, so spelling variants of the same name meet: Malik / Malek / Mullick → "mlk",
@@ -42,7 +43,7 @@ export function createPostgresCatalogSearch(db: Db): CatalogSearch {
     const text = query.text.trim();
     // Creator eligibility (elig-1) before ranking: eligible documents whose evidence has not expired.
     const conditions = [
-      sql`c.status = 'active' and not (c.is_minor and c.minor_override_by_staff_id is null)`,
+      CREATOR_VISIBLE,
       sql`d.eligible and d.eligible_until_epoch > ${Math.floor(query.now.getTime() / 1000)}`,
     ];
     // Recognised niche and city words (English, Roman Urdu, Urdu script, city short forms) match any of their reviewed

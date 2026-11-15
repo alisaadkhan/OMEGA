@@ -23,12 +23,13 @@ import type { CreatorDocument } from "@mushin/integrations";
 import type { MatchFields } from "./match-reasons";
 import { creatorEligibility, ELIGIBILITY_VERSION, type CreatorEligibility, type EligibilityProfile, countryLocked } from "./eligibility";
 import { isMinorProtected, maskContact, type FitWeights, type FreshnessThresholds, type LabelThresholds, type SummarySource } from "./rules";
+import { CREATOR_VISIBLE } from "./visibility";
 
 type Tx = TenantTx | SystemTx;
 type Platform = "instagram" | "tiktok" | "youtube";
 
 /** Visible to customers: active, and not a possible minor without a staff override (SRS §5.2). */
-const VISIBLE = sql`c.status = 'active' and not (c.is_minor and c.minor_override_by_staff_id is null)`;
+const VISIBLE = CREATOR_VISIBLE;
 
 // ── config ──────────────────────────────────────────────────────────────────
 export type SearchSettings = {

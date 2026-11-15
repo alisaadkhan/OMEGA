@@ -2,8 +2,9 @@ import { sql, type SQL } from "drizzle-orm";
 import type { AnalyticsSummary } from "@mushin/contracts";
 import type { TenantContext } from "@mushin/core";
 import type { Db } from "@mushin/db";
+import { CREATOR_VISIBLE } from "../creators/visibility";
 
-const VISIBLE = sql`c.status = 'active' and not (c.is_minor and c.minor_override_by_staff_id is null)`;
+const VISIBLE = CREATOR_VISIBLE;
 const n = (v: unknown) => Number(v ?? 0);
 
 /** Workspace analytics (canonical spec page 12): read-only aggregates of persisted rows, under the tenant's RLS context. */

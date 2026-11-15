@@ -1,5 +1,6 @@
 import { and, desc, eq, ne, sql } from "drizzle-orm";
 import { campaignCreators, campaigns, outreachEvents, type TenantTx } from "@mushin/db";
+import { CREATOR_VISIBLE } from "../creators/visibility";
 
 export type CampaignRow = typeof campaigns.$inferSelect;
 export type MemberRow = typeof campaignCreators.$inferSelect;
@@ -16,7 +17,7 @@ export type SummaryRow = CampaignRow & {
 };
 
 /** Same visibility rule as search: hidden creators are not counted or shown (they come back if unhidden). */
-const VISIBLE = sql`c.status = 'active' and not (c.is_minor and c.minor_override_by_staff_id is null)`;
+const VISIBLE = CREATOR_VISIBLE;
 export const MAX_CAMPAIGNS = 500;
 export const MAX_CREATORS = 500;
 

@@ -3,6 +3,7 @@ import type { DataExport } from "@mushin/contracts";
 import { AppError, type TenantContext } from "@mushin/core";
 import { campaigns, dataExports, lists, type Db, type TenantTx } from "@mushin/db";
 import type { BillingService } from "../billing/index";
+import { CREATOR_VISIBLE } from "../creators/visibility";
 
 export type ExportsDeps = { db: Db; billing: Pick<BillingService, "getAccess">; enabled: boolean; now?: () => Date };
 
@@ -22,7 +23,7 @@ export function csvCell(v: unknown): string {
 const csv = (header: string[], rows: unknown[][]) => [header, ...rows].map((r) => r.map(csvCell).join(",")).join("\r\n") + "\r\n";
 
 /** Creators the workspace may still see (removed and protected creators are left out, as everywhere else). */
-const VISIBLE = sql`c.status = 'active' and not (c.is_minor and c.minor_override_by_staff_id is null)`;
+const VISIBLE = CREATOR_VISIBLE;
 
 async function listRows(tx: TenantTx, workspaceId: string, scopeId: string | null) {
   const rows = await tx.execute<Record<string, unknown>>(sql`

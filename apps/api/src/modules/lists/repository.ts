@@ -1,11 +1,12 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { listMembers, lists, type TenantTx } from "@mushin/db";
+import { CREATOR_VISIBLE } from "../creators/visibility";
 
 export type ListRow = typeof lists.$inferSelect;
 export type SummaryRow = ListRow & { count: number; preview: { id: string; displayName: string; avatarUrl: string | null }[]; containsCreator: boolean | null };
 
 /** Customers only ever see active creators that are not protected possible minors (same rule as search). */
-const VISIBLE = sql`c.status = 'active' and not (c.is_minor and c.minor_override_by_staff_id is null)`;
+const VISIBLE = CREATOR_VISIBLE;
 
 export const MAX_LISTS = 200;
 export const MAX_MEMBERS = 1000;
