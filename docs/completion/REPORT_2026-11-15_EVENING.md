@@ -15,6 +15,8 @@ with real users or production monitoring. Nothing here is L5: MUSHIN has no real
 | ee4c540 | An empty search names every condition it combined; nothing is changed until the user removes one | Frontend build and tests (L2) |
 | b00763f | Vite 6.3.5 → 6.4.5: 12 dev-server advisories; `npm audit` now 0 (frontend) | Audit, build, 88 frontend tests (L3) |
 | e0596ec | Removed `AddToCampaignMenu.tsx`, unreferenced since CampaignDrawer replaced it | Typecheck, build, tests (L2) |
+| 9051fdb | The browser loads Supabase's auth client alone (it never used the database, storage or realtime clients), built as supabase-js builds it so sessions stay valid: main bundle 247 → 214 KB gzipped | Customer E2E 118/55/54; on production every auth page loads with no console error and a sign-in attempt reaches Supabase Auth and shows the right message (L4) |
+| 341b410 | Results say which filters the search ran with, read from the executed request | Frontend tests (L2) |
 | 3000672, 43e3363, 734b510 | Catalogue sync to staging: freshness rules, staff decisions kept, merges replayed, no YouTube data over 30 days, never a creator whose AI assessment (minor check) is pending | Rehearsed on a local copy (8 rule cases), dry run, apply (L4) |
 | 7021d12 | AI review: an earlier exclusion (celebrity, brand) is lifted only with a Wikipedia article | Found when two actresses were made searchable; restored and re-reviewed (L4) |
 
@@ -97,6 +99,18 @@ cross-request memory, result explanations by an AI (would need product decisions
 | Staff browser E2E (roles, permissions, flags, tickets, audit) | 46 passed, 0 failed |
 | Typecheck, lint | clean |
 
+Measured on production after the auth-client change (scripts/e2e-customer/load-profile.mjs, headless Chrome, cache off):
+
+| Landing page | Before | After |
+|---|---|---|
+| Downloaded | 274 KB | 241 KB |
+| Slow 4G (phone) | 2.04 s to the first heading | 1.91 s |
+| Fast 3G (phone) | 3.71 s | 3.42 s |
+
+Accessibility on production (axe-core, WCAG 2.0–2.2 A/AA, serious and critical): landing, login, sign-up, forgot
+password, free trial, terms, remove-my-data and staff login, at 1366 px and 390 px: none found, and no horizontal scroll
+on a phone. The signed-in pages are covered by the customer E2E's 15 accessibility checks.
+
 Not tested today: real payments (live billing is in mock mode), real email delivery, slow-network and mobile-device
 behaviour beyond the E2E viewport checks, load.
 
@@ -104,6 +118,8 @@ behaviour beyond the E2E viewport checks, load.
 
 - Dependencies: root workspace 9 moderate findings, all in the ESLint toolchain (development only, not shipped); frontend
   0 after the Vite update. Every declared runtime dependency is imported.
+- Errors: the API answers unexpected errors with a generic message and a request id (details only in the server log), so
+  the screens that show an error's message cannot leak internals.
 - Dead code: one unreferenced component removed; no empty click handlers, placeholder links, TODO/FIXME markers or
   `alert()` in shipped code; the only `console.log` is the migration CLI's output.
 - Public API routes (no session): health, public plans, removal requests (rate-limited), email unsubscribe (signed
