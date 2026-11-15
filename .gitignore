@@ -35,3 +35,7 @@ certs/
 
 # Vercel CLI project link (local only)
 .vercel/
+
+# Owner catalogue exports (scripts/catalog/export-catalogue.ts): creator contact details and YouTube API data, never committed.
+docs/completion/inventory/MUSHIN_QUALIFIED_CREATORS.*
+docs/completion/inventory/MUSHIN_DISQUALIFIED_ACCOUNTS.*
