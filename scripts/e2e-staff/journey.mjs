@@ -32,8 +32,19 @@ async function axeFindings(p) {
     return r.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => `${v.id} (${v.nodes.length}) ${v.nodes.map((n) => n.html.slice(0, 160)).join(" ; ")}`);
   });
 }
-// A code is accepted once (replay protection), so each sign-in waits for a fresh 30-second step.
-const nextStep = () => new Promise((r) => setTimeout(r, 30_000 - (Date.now() % 30_000) + 1500));
+// A code is accepted once (replay protection), so each sign-in waits for a fresh 30-second step. The API also allows 5
+// sign-in calls per address per minute (rate-limit "auth" bucket); a sign-in is two calls (password, code), so before
+// each one the journey waits until both fit, or three sign-ins 30 s apart trip the limit (seen 2026-11-15).
+const signInCalls = [];
+const nextStep = async () => {
+  for (;;) {
+    while (signInCalls.length && Date.now() - signInCalls[0] > 62_000) signInCalls.shift();
+    if (signInCalls.length <= 3) break;
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  await new Promise((r) => setTimeout(r, 30_000 - (Date.now() % 30_000) + 1500));
+  signInCalls.push(Date.now(), Date.now());
+};
 async function apiToken(who) {
   await nextStep();
   const login = await fetch(`${API}/admin/v1/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: staff[who].email, password: staff[who].password }) });

@@ -20,7 +20,12 @@ let clock = new Date("2026-10-27T10:00:00Z");
 const now = () => clock;
 const payments = new MockPayments({ webhookSecret: "x".repeat(40), publicApiUrl: "http://api.test", now, deliver: async () => {} });
 const billing = createBillingService({ db, payments, cache: new MemoryAccessCache(), logger, now });
-const identity = createIdentityService(db, null, billing.startTestingAllowance, async () => ({ email: "e@test.mushin.pk", confirmed: true }));
+// The Auth server's record: every account here confirmed its own address (the email gate, 0089, compares them).
+const addresses = new Map<string, string>();
+const identity = createIdentityService(db, null, billing.startTestingAllowance, async (userId) => {
+  const email = addresses.get(userId);
+  return email ? { email, confirmed: true } : null;
+});
 const creators = createCreatorsService({ db, index: new UnavailableSearchIndex(), nativeSearch: createPostgresCatalogSearch(db), llm: new MockLlm(() => ({})), billing, encryptionKey: TEST_KEY, logger, now });
 const indexer = createCreatorIndexer({ db, index: null, logger });
 
@@ -31,7 +36,9 @@ beforeEach(async () => {
 afterAll(() => db.close());
 
 async function account(): Promise<TenantContext> {
-  const t = await identity.resolveTenant({ userId: randomUUID(), email: `x-${randomUUID().slice(0, 6)}@test.mushin.pk`, fullName: "X" }, "req");
+  const who = { userId: randomUUID(), email: `x-${randomUUID().slice(0, 6)}@test.mushin.pk`, fullName: "X" };
+  addresses.set(who.userId, who.email);
+  const t = await identity.resolveTenant(who, "req");
   return { ...t, requestId: "req", role: "owner" };
 }
 const req = (text: string, confirmedCost = 50) => searchRequestSchema.parse({ text, filters: {}, confirmedCost });
