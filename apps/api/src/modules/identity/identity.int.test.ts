@@ -123,24 +123,24 @@ describe("GET /v1/me", () => {
 
 // Owner directive 2026-11-15 ("authentication flows" §1, 0089): no API access before the Auth server confirms the email.
 describe("mandatory email verification gate", () => {
-  const records = new Map<string, boolean>();
+  const records = new Map<string, { email: string; confirmed: boolean }>();
   let calls = 0;
   const gated = createIdentityModule({
     db,
     autoTrial: createCreditEngine().startTrial,
     verifyEmail: async (userId) => {
       calls++;
-      return records.has(userId) ? { email: "any@mushin.pk", confirmed: records.get(userId) === true } : null;
+      return records.get(userId) ?? null;
     },
   });
 
   it("refuses an unconfirmed account, lets it in once confirmed, and asks the Auth server once per address", async () => {
     calls = 0;
     const who = person();
-    records.set(who.userId, false);
+    records.set(who.userId, { email: who.email, confirmed: false });
     await expect(gated.resolveTenant(who, "r1")).rejects.toMatchObject({ code: "FORBIDDEN", details: { reason: "email_not_verified" } });
     await expect(gated.resolveTenant(person({ userId: randomUUID() }), "r2")).rejects.toMatchObject({ details: { reason: "email_not_verified" } }); // unknown to the Auth server
-    records.set(who.userId, true);
+    records.set(who.userId, { email: who.email, confirmed: true });
     const first = await gated.resolveTenant(who, "r3");
     await gated.resolveTenant(who, "r4");
     await gated.resolveTenant(who, "r5");
@@ -148,19 +148,22 @@ describe("mandatory email verification gate", () => {
     const [row] = await ownerQuery<{ for: string; at: string | null }>(`select email_confirmed_for "for", email_confirmed_at::text at from wp.users where id = '${who.userId}'`);
     expect(row).toMatchObject({ for: who.email });
     expect(row?.at).not.toBeNull();
-    // A changed address is checked again (and remembered for the new one).
-    await gated.resolveTenant({ ...who, email: "ayesha.new@mushin.pk" }, "r6");
-    expect(calls).toBe(4);
-    expect((await gated.resolveTenant(who, "r7")).workspaceId).toBe(first.workspaceId);
+    // A token whose address is not the one the Auth server confirmed is refused (security review 2026-11-15).
+    await expect(gated.resolveTenant({ ...who, email: "someone.else@mushin.pk" }, "r6")).rejects.toMatchObject({ details: { reason: "email_not_verified" } });
+    // A changed and confirmed address is checked again, and remembered for the new one.
+    records.set(who.userId, { email: "ayesha.new@mushin.pk", confirmed: true });
+    expect((await gated.resolveTenant({ ...who, email: "ayesha.new@mushin.pk" }, "r7")).workspaceId).toBe(first.workspaceId);
+    expect(calls).toBe(5);
+    expect((await ownerQuery<{ for: string }>(`select email_confirmed_for "for" from wp.users where id = '${who.userId}'`))[0]?.for).toBe("ayesha.new@mushin.pk");
   });
 
   it("checks an account that existed before the gate once, on its next request", async () => {
     const who = person();
     await identity.resolveTenant(who, "before-gate"); // no Auth admin key: no gate, nothing recorded
     expect((await ownerQuery<{ at: string | null }>(`select email_confirmed_at::text at from wp.users where id = '${who.userId}'`))[0]?.at).toBeNull();
-    records.set(who.userId, false);
+    records.set(who.userId, { email: who.email, confirmed: false });
     await expect(gated.resolveTenant(who, "after-gate")).rejects.toMatchObject({ details: { reason: "email_not_verified" } });
-    records.set(who.userId, true);
+    records.set(who.userId, { email: who.email, confirmed: true });
     expect((await gated.resolveTenant(who, "confirmed")).userId).toBe(who.userId);
   });
 });

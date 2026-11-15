@@ -25,10 +25,12 @@ const payments = new MockPayments({ webhookSecret: "t".repeat(40), publicApiUrl:
 const billing = createBillingService({ db, payments, cache, logger: createLogger({ level: "silent" }), now: () => clock });
 // The Auth server's record of confirmed emails (owner decision 2026-10-28: the allowance needs a verified email).
 const unverified = new Set<string>();
+const addresses = new Map<string, string>();
 let authDown = false;
 const verifyEmail = async (userId: string) => {
   if (authDown) throw new Error("auth admin unavailable");
-  return { email: "x@test.mushin.pk", confirmed: !unverified.has(userId) };
+  const email = addresses.get(userId);
+  return email ? { email, confirmed: !unverified.has(userId) } : null;
 };
 const identity = createIdentityService(db, null, billing.startTestingAllowance, verifyEmail);
 beforeEach(async () => {
@@ -39,7 +41,11 @@ beforeEach(async () => {
   await ownerQuery(`update platform.billing_settings set testing_monthly_credits = 500`);
 });
 
-const person = () => ({ userId: randomUUID(), email: `t-${randomUUID().slice(0, 6)}@test.mushin.pk`, fullName: "Test Person" });
+const person = () => {
+  const p = { userId: randomUUID(), email: `t-${randomUUID().slice(0, 6)}@test.mushin.pk`, fullName: "Test Person" };
+  addresses.set(p.userId, p.email); // the Auth server's record of this account's address
+  return p;
+};
 const ctxOf = (userId: string, workspaceId: string): TenantContext => ({ userId, workspaceId, requestId: "req", role: "owner" });
 const grants = (ws: string) => ownerQuery<{ source_ref: string; amount: number }>(`select source_ref, amount from wp.credit_ledger where workspace_id = '${ws}' and kind = 'grant' order by created_at`);
 const lots = (ws: string) => ownerQuery<{ source: string; amount: number; remaining: number; expires_at: string | null }>(`select source, amount, remaining, to_char(expires_at at time zone 'UTC', 'YYYY-MM-DD HH24:MI:SS') || '+00' expires_at from wp.credit_lots where workspace_id = '${ws}' order by created_at`);
