@@ -131,7 +131,8 @@ what the database holds after the AI review.
   fresh YouTube API read, not a guess. One channel still shows a rate from data past 30 days; the retention job
   (0063/0078), which has not run on this local copy, clears it.
 - Locally, the search, creators-API, worker-side and acceptance-corpus integration suites need Meilisearch and were
-  not run (CI runs them). Everything else passes: typecheck, lint, 715 unit tests, all creators integration tests.
+  not run (CI runs them). Everything else passes: typecheck, lint, 718 unit tests, all creators integration tests, and
+  the customer browser suite (110 / 55 / 54 after restart).
 
 ## 7. Before the push and the live sync (owner decisions)
 
