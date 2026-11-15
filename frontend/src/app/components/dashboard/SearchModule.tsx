@@ -722,7 +722,7 @@ export function SearchModule({ liveJobId = null, onGoToCampaigns }: { liveJobId?
       <div className="min-h-[420px]">
         {status === "loading" && <ResultsSkeleton view={view} />}
         {status === "error" && <ErrorState message={searchErrorMessage(search.error)} onRetry={() => void search.refetch()} />}
-        {status === "empty" && <EmptyResults onReset={resetSearch} onAddByLink={() => setAddOpen(true)} onFindNew={() => setCreditConfirmOpen(true)} />}
+        {status === "empty" && <EmptyResults applied={appliedLabels(uiFilters(), query)} onReset={resetSearch} onAddByLink={() => setAddOpen(true)} onFindNew={() => setCreditConfirmOpen(true)} />}
 
         {(status === "results" || status === "streaming") && (
           <div className="space-y-3">
@@ -1066,7 +1066,23 @@ function ResultsSkeleton({ view }: { view: ViewMode }) {
   );
 }
 
-function EmptyResults({ onReset, onAddByLink, onFindNew }: { onReset: () => void; onAddByLink: () => void; onFindNew: () => void }) {
+/** The conditions the empty search combined, in the user's terms (natural-language master prompt §11). */
+function appliedLabels(f: UiFilters, query: string): string[] {
+  const out: string[] = [];
+  if (query.trim()) out.push(`words “${query.trim().slice(0, 60)}”`);
+  if (f.platform && f.platform !== "all") out.push(`platform ${f.platform}`);
+  if (f.city) out.push(`city ${f.city}`);
+  if (f.niche) out.push(`niche ${f.niche}`);
+  if (f.followerBand) out.push(`followers ${f.followerBand}`);
+  if (f.minEng) out.push(`engagement ${f.minEng}`);
+  if (f.verifiedOnly) out.push("verified only");
+  if (f.contactOnly) out.push("has contact");
+  if (f.freshOnly) out.push("fresh only");
+  for (const c of extraChips(f.extra)) out.push(c.label);
+  return out;
+}
+
+function EmptyResults({ applied, onReset, onAddByLink, onFindNew }: { applied: string[]; onReset: () => void; onAddByLink: () => void; onFindNew: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-16 text-center animate-in fade-in duration-300">
       <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-slate-500 shadow-sm ring-1 ring-slate-200">
@@ -1078,6 +1094,11 @@ function EmptyResults({ onReset, onAddByLink, onFindNew }: { onReset: () => void
       <p className="mt-1 max-w-sm text-sm text-slate-500">
         No eligible Pakistani creators match these filters yet, so this search cost nothing. Widen the filters, add a creator you know by their profile link, or find new creators live where your plan allows it.
       </p>
+      {applied.length > 1 && (
+        <p className="mt-2 max-w-md text-xs text-slate-500">
+          This search required all of: {applied.join(", ")}. Removing one of them usually brings results; nothing is changed until you do.
+        </p>
+      )}
       <div className="mt-4 flex gap-2">
         <button onClick={onFindNew} className="rounded-xl bg-[#0A0F24] px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-400/50">
           Find new creators
