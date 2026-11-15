@@ -1,7 +1,8 @@
 import { searchFiltersSchema, type CreatorCard, type DiscoveryJobStep, type LiveSearch } from "@mushin/contracts";
 import { AppError, type Logger } from "@mushin/core";
 import { providerSpendForJob, type Db, type LivePrices, type LiveProgress, type TenantTx } from "@mushin/db";
-import { ProviderError, type Llm, type ProfileScraper } from "@mushin/integrations";
+import type { ProviderError } from "@mushin/integrations";
+import { providerErrorOf, type Llm, type ProfileScraper } from "@mushin/integrations";
 import type { BillingService } from "../billing/index";
 import { captionCountryEvidence, classifyAccountType, findProfileByUrl, isPakistaniDiaspora, fitLabel, NON_TARGET_TYPES, getSearchSettings, profileCountry, profileEligibility, isVisibleCreator, rankCards, suppressedUrls, type CreatorPlatform, type StandardPost, type SourcePolicy, type EnrichJob, type EnrichmentPipeline } from "../creators/index";
 import { notifyFinished, releaseHeld } from "./finish";
@@ -68,11 +69,6 @@ const MESSAGES: Record<ProviderError["reason"], string> = {
   not_configured: "Finding new creators isn't available right now. Your credits were returned.",
   provider: "We couldn't finish finding new creators right now. Please try again later. Your credits were returned.",
 };
-
-function providerErrorOf(err: unknown): ProviderError | null {
-  for (let e: unknown = err; e instanceof Error; e = e.cause) if (e instanceof ProviderError) return e;
-  return null;
-}
 
 /** Thrown at a safe point after the customer asked the run to stop (JOB-003). */
 class RunCanceled extends Error {

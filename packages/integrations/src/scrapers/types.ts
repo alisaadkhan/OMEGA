@@ -39,6 +39,12 @@ export class ProviderError extends Error {
   }
 }
 
+/** The first ProviderError in an error's cause chain (a provider failure wrapped by retries or timeouts), or null. */
+export function providerErrorOf(err: unknown): ProviderError | null {
+  for (let e: unknown = err; e instanceof Error; e = e.cause) if (e instanceof ProviderError) return e;
+  return null;
+}
+
 /** Admits paid work (`units` runs, default 1), or throws spend_cap; call the returned function once its cost is recorded. */
 export type SpendGuard = { begin(units?: number): Promise<() => void> };
 

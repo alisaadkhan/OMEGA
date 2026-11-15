@@ -1,7 +1,8 @@
 import { sql } from "drizzle-orm";
 import { AppError, type Logger } from "@mushin/core";
 import type { Db } from "@mushin/db";
-import { ProviderError } from "@mushin/integrations";
+import type { ProviderError } from "@mushin/integrations";
+import { providerErrorOf } from "@mushin/integrations";
 import type { BillingService } from "../billing/index";
 import { getEnrichmentSettings, recordAvailability, type EnrichmentPipeline } from "../creators/index";
 import { failJob, notifyFinished, releaseHeld } from "./finish";
@@ -17,11 +18,6 @@ const MESSAGES: Record<ProviderError["reason"], string> = {
 };
 
 const stuckJobsQuery = (minutes: number) => sql`select id, workspace_id from platform.stuck_discovery_jobs(${minutes})`;
-
-function providerErrorOf(err: unknown): ProviderError | null {
-  for (let e: unknown = err; e instanceof Error; e = e.cause) if (e instanceof ProviderError) return e;
-  return null;
-}
 
 /** Worker side of spec §5: runs the pipeline, then commits (in the save transaction) or refunds. */
 export function createDiscoveryRunner(deps: Deps) {

@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import type { Logger, ProviderCallSink } from "@mushin/core";
 import { instrumented } from "../instrumented";
 import { createApifyClient } from "./apify";
-import { ProviderError, type PostOwnerResult, type ProfileScraper, type ProviderRunStore, type ScrapeRequest, type ScrapeResult, type SpendGuard } from "./types";
+import { ProviderError, providerErrorOf, type PostOwnerResult, type ProfileScraper, type ProviderRunStore, type ScrapeRequest, type ScrapeResult, type SpendGuard } from "./types";
 import { fetchYouTubeChannel } from "./youtube";
 
 type Options = {
@@ -246,11 +246,6 @@ export function postOwners(urls: string[], items: unknown): { url: string; owner
     const code = codeOf(url);
     return { url, owner: code ? (byCode.get(code) ?? null) : null };
   });
-}
-
-function providerErrorOf(err: unknown): ProviderError | null {
-  for (let e: unknown = err; e instanceof Error; e = e.cause) if (e instanceof ProviderError) return e;
-  return null;
 }
 
 /** `instrumented` wraps failures in PROVIDER_UNAVAILABLE; surface the ProviderError so the runner can read `retryable`. */

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { Logger, ProviderCallSink } from "@mushin/core";
 import { instrumented } from "../instrumented";
-import { ProviderError, type SpendGuard } from "../scrapers/types";
+import { ProviderError, providerErrorOf, type SpendGuard } from "../scrapers/types";
 import type { WebResult, WebSearch } from "./types";
 
 const SERPER_URL = "https://google.serper.dev/search";
@@ -10,11 +10,6 @@ export const SERPER_COST_USD = 0.001;
 
 const row = z.object({ title: z.string().catch(""), link: z.string().catch(""), snippet: z.string().catch("") });
 const reply = z.object({ organic: z.array(z.unknown()).catch([]) });
-
-function providerErrorOf(err: unknown): ProviderError | null {
-  for (let e: unknown = err; e instanceof Error; e = e.cause) if (e instanceof ProviderError) return e;
-  return null;
-}
 
 /**
  * Results per request. Serper's free tier refuses `site:` queries asking for more than 10 results ("Query pattern not

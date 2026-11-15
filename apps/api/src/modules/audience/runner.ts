@@ -1,6 +1,7 @@
 import { AppError, type Logger } from "@mushin/core";
 import type { Db, TenantTx } from "@mushin/db";
-import { ProviderError, type YouTubeAudienceSource } from "@mushin/integrations";
+import type { ProviderError } from "@mushin/integrations";
+import { providerErrorOf, type YouTubeAudienceSource } from "@mushin/integrations";
 import type { BillingService } from "../billing/index";
 import { buildEstimate, METHOD, selectCommenters } from "./method";
 import * as repo from "./repository";
@@ -24,11 +25,6 @@ const MESSAGES: Record<ProviderError["reason"] | "disabled" | "unavailable", str
   disabled: "Audience estimates are turned off on this MUSHIN deployment. Your credits were returned.",
   unavailable: "An audience estimate isn't available for this creator. Your credits were returned.",
 };
-
-function providerErrorOf(err: unknown): ProviderError | null {
-  for (let e: unknown = err; e instanceof Error; e = e.cause) if (e instanceof ProviderError) return e;
-  return null;
-}
 
 /**
  * Worker side: collect a bounded public sample, calculate the aggregate estimate, store it and settle the credits in one
