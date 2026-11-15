@@ -72,7 +72,11 @@ for (const r of rows) {
     const d = ownerNamed.has(r.handle.toLowerCase())
       ? { type: "INDIVIDUAL_CREATOR" as const, source: "staff", confidence: "high", evidence: "Named by the owner as a creator (owner-named manifest 2026-11-03)" }
       : classifyAccountType({ category: std?.kind === "ok" ? (std.profile.accountCategory ?? null) : null, bio: r.bio ?? "", handle: r.handle, displayName: r.display_name });
-    accountUpdates.set(r.creator_id, { id: r.creator_id, ...d });
+    // Only the owner-named staff decisions are written here. Everything else is left to the worker's reassessment
+    // (reassessCreators below), which keeps an AI decision the rules cannot replace and promotes under 100K (§2.3–2.4).
+    // Found 2026-11-15: writing the rules' type for every creator first erased all AI decisions on a rerun after the AI
+    // review, and flipped ~1,000 promoted creators back and forth on every run.
+    if (d.source === "staff") accountUpdates.set(r.creator_id, { id: r.creator_id, ...d });
     bump(accountTypes, d.type);
   }
   if (std?.kind === "ok" && (r.platform !== "youtube" || youtubeDerived)) {
