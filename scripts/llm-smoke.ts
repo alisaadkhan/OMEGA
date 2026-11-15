@@ -1,11 +1,11 @@
 /**
- * Manual smoke test of the hosted LLM providers (Gemini main, Ollama fallback). It makes ONE real, paid request per
- * provider with a tiny prompt that contains no creator data, and checks that each reply is JSON that matches a schema
- * (Gemini's structured-output behaviour through its OpenAI-compatible endpoint is confirmed only by this run).
+ * Manual smoke test of every model in the AI chain (Groq keys 1–5 with gpt-oss-120b and 20b, then OpenRouter, then Gemini
+ * on a paid key; packages/core/src/config.ts). It makes ONE real request per chain entry with a tiny prompt that contains
+ * no creator data, and checks that each reply is JSON that matches a schema.
  *
  *   node --env-file=.env --import tsx scripts/llm-smoke.ts --confirm
- * Needs GEMINI_API_KEY, GEMINI_MODEL, GEMINI_PRICE_IN_PER_MTOK, GEMINI_PRICE_OUT_PER_MTOK and GEMINI_BILLING=paid (and
- * OLLAMA_API_KEY to test the fallback). Only provider names, models, status and token counts are printed, never a key.
+ * Needs at least one of GROQ_API_KEY_1…5, OPENROUTER_API_KEY, or a paid Gemini key with its model and prices. Only provider
+ * names, key numbers, models, status and token counts are printed, never a key.
  */
 import { parseArgs } from "node:util";
 import { z } from "zod";
@@ -19,7 +19,7 @@ if (!values.confirm) {
 }
 const providers = loadLlmConfig(process.env);
 if (providers.length === 0) {
-  console.error("No LLM provider is configured (GEMINI_API_KEY with its model, prices and GEMINI_BILLING=paid; or OLLAMA_API_KEY).");
+  console.error("No LLM provider is configured (GROQ_API_KEY_1…5, OPENROUTER_API_KEY, or GEMINI_API_KEY with its model, prices and GEMINI_BILLING=paid).");
   process.exit(1);
 }
 const schema = z.object({ ok: z.literal(true), colour: z.enum(["red", "green", "blue"]) });
@@ -37,7 +37,7 @@ for (const p of providers) {
       timeoutMs: 30_000,
     });
     const call = sink.calls.at(-1);
-    console.log(JSON.stringify({ provider: p.name, model, valid: true, value, tokensIn: call?.tokensIn, tokensOut: call?.tokensOut, costUsd: call?.costUsd }));
+    console.log(JSON.stringify({ provider: p.name, key: p.slot ?? 1, model, valid: true, value, tokensIn: call?.tokensIn, tokensOut: call?.tokensOut, costUsd: call?.costUsd }));
   } catch (err) {
     failed++;
     console.log(JSON.stringify({ provider: p.name, model: p.model, valid: false, error: err instanceof Error ? err.message : String(err), attempts: sink.calls.map((c) => c.status) }));

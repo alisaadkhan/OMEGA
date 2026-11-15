@@ -74,9 +74,14 @@ npm run seed:creators    # optional: 8 demo creators for development (refused in
 ```
 
 The worker indexes creators after any change and reconciles the index nightly. AI features (plain-English search,
-creator summaries) use Gemini, falling back to Ollama Cloud; every call's cost is recorded in `platform.provider_calls`.
-Catalogue search itself never calls an AI: the AI reading of a query runs only when the user clicks "Suggest filters with AI".
-After configuring Gemini, run the one-request smoke test: `node --env-file=.env --import tsx scripts/llm-smoke.ts --confirm`.
+creator assessments and summaries) use a chain of models, each tried when the one before is rate-limited: Groq
+`openai/gpt-oss-120b` then `gpt-oss-20b` for each key `GROQ_API_KEY_1` … `GROQ_API_KEY_5` (`GROQ_API_KEY` is key 1's old
+name), then OpenRouter (`OPENROUTER_API_KEY`), then Gemini on a paid key only (`packages/core/src/config.ts`, `llmFrom`).
+Every call's cost is recorded in `platform.provider_calls`. Groq's free tier allows about 8,000 tokens a minute and
+200,000 a day per model and organisation: a second key adds capacity only from another organisation.
+Catalogue search itself never calls an AI: the AI reading of a query runs only when the user clicks "Suggest filters with AI",
+and its suggestions are applied only when the user accepts them.
+After configuring a key, run the one-request smoke test: `node --env-file=.env --import tsx scripts/llm-smoke.ts --confirm`.
 Set `LIVE_LLM_TESTS=1` to run the one live AI check (`packages/integrations/src/llm/llm.live.int.test.ts`).
 
 ## Creator data (sub-project 4A)
