@@ -40,7 +40,10 @@ const YT_PROFILE_EXPIRED = (p: string) => `(${p}.platform = 'youtube' and coales
 const YT_PRIMARY_EXPIRED = `(c.primary_platform = 'youtube' and exists (select 1 from gcp.creator_profiles y where y.creator_id = c.id and ${YT_PROFILE_EXPIRED("y")}))`;
 // A creator whose AI assessment is still pending has had no minor check: staging (no worker to finish it) never gets it
 // as a new creator until the assessment is complete (2026-11-15: 750 new channels were saved pending under rate limits).
-const KEEP = `c.status = 'active' and not c.is_minor and c.merged_into_id is null and c.assessment_status is distinct from 'pending' and not ${YT_PRIMARY_EXPIRED}`;
+// Likewise a new 100K+ account whose type the rules could not decide waits for the AI account check (owner directive
+// 2026-11-15 §2.2: every 100K+ account is checked, celebrities hide there).
+const UNREVIEWED_LARGE = `(coalesce(c.account_type, 'UNKNOWN') = 'UNKNOWN' and coalesce((select max(p.followers) from gcp.creator_profiles p where p.creator_id = c.id), 0) >= 100000)`;
+const KEEP = `c.status = 'active' and not c.is_minor and c.merged_into_id is null and c.assessment_status is distinct from 'pending' and not ${UNREVIEWED_LARGE} and not ${YT_PRIMARY_EXPIRED}`;
 const YT_CLEARED = JSON.stringify(Object.fromEntries(["followers", "following", "posts", "engagement_rate", "avg_likes", "avg_comments", "avg_views", "bio",
   "followers_updated_at", "engagement_updated_at", "median_views", "median_engagement_rate", "performance_views_sample", "performance_engagement_sample",
   "performance_format", "performance_from", "performance_to", "performance_at", "post_locations", "avatar_url", "avatar_key", "caption_country_evidence",
