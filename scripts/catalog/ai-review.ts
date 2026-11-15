@@ -10,6 +10,8 @@
  * --rereview-ai also re-asks earlier AI decisions, but only where Wikipedia now has an article for the name (no new
  * evidence, no new call) or a weaker model than gpt-oss-120b made them; a newer AI decision may replace an older AI one,
  * never a staff or rule decision. --models keeps only the chain entries whose model contains one of the given names.
+ * --wikipedia-only asks the model only where Wikipedia has an article for the name (the evidence a smaller model can use
+ * reliably when gpt-oss-120b's free daily token limit, 200K, is spent); the rest wait for a 120B pass.
  *
  * Writes only: account type (source "ai", never over a staff decision or a rule's type) and, when the niche is empty,
  * an estimated niche (source "post_estimated", posts_assessed 0: always shown as "AI estimate", whatever basis the model
@@ -30,7 +32,7 @@ import { createCreatorIndexer, standardize } from "../../apps/api/src/modules/cr
 import { createBudgetGate } from "./budget";
 
 const { values } = parseArgs({
-  options: { db: { type: "string" }, handles: { type: "string" }, "min-followers": { type: "string", default: "100000" }, cap: { type: "string", default: "15" }, apply: { type: "boolean", default: false }, "rereview-ai": { type: "boolean", default: false }, models: { type: "string" }, out: { type: "string" }, concurrency: { type: "string", default: "4" } },
+  options: { db: { type: "string" }, handles: { type: "string" }, "min-followers": { type: "string", default: "100000" }, cap: { type: "string", default: "15" }, apply: { type: "boolean", default: false }, "rereview-ai": { type: "boolean", default: false }, "wikipedia-only": { type: "boolean", default: false }, models: { type: "string" }, out: { type: "string" }, concurrency: { type: "string", default: "4" } },
 });
 const dbName = values.db ?? "";
 if (!/^mushin_catalog_[a-z0-9_]+$/.test(dbName) || /eval/.test(dbName)) throw new Error("--db must name a local operational catalogue (mushin_catalog_*)");
@@ -102,6 +104,11 @@ async function review(c: Creator): Promise<void> {
   const wikipedia = found ?? [];
   const r: Result = { id: c.id, handle: main.handle, platform: main.platform, followers: Number(c.followers), before: { type: c.account_type, niche: c.niche_main }, decision: null, postsRead, wikipedia: wikipedia.map((w) => `${w.title}: ${w.description}`), ...(found === null ? { wikipediaFailed: true as const } : {}) };
   if (found === null) logger.warn({ event: "wikipedia_lookup_failed", handle: main.handle }, "Wikipedia lookup failed three times");
+  if (values["wikipedia-only"] && wikipedia.length === 0) {
+    r.skipped = found === null ? "Wikipedia lookup failed; left for a later pass" : "no Wikipedia article; left for a 120B pass";
+    results.push(r);
+    return;
+  }
   if (c.account_type_source === "ai" && c.niche_main !== null && wikipedia.length === 0 && /gpt-oss-120b/.test(c.account_type_evidence ?? "")) {
     r.skipped = found === null ? "earlier AI decision kept: Wikipedia lookup failed" : "earlier AI decision kept: same model, no Wikipedia article for the name";
     results.push(r);
