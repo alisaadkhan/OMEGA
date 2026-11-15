@@ -166,13 +166,17 @@ function performanceColumns(i: SaveInput) {
 
 /**
  * 0075: account type from the platform category, bio and handle (owner master directive 2026-11-03, Part 5). On an
- * existing creator a staff decision is never replaced by a rule reading, and the rules' "no idea" (UNKNOWN) never
- * undoes the AI review's decision (owner directive 2026-11-15 §2.3, as reassessCreators does): on 2026-11-15 a YouTube
- * refresh turned 8 of 10 AI-reviewed channels back to UNKNOWN.
+ * existing creator the saved profile decides only when it is the creator's primary platform (as reassessCreators
+ * does), a staff decision is never replaced by a rule reading, and the rules' "no idea" (UNKNOWN) never undoes an
+ * earlier decision (owner directive 2026-11-15 §2.3); re-deciding from the primary profile is the reassessment's job.
+ * Found 2026-11-15/16: a YouTube refresh turned 8 of 10 AI-reviewed channels back to UNKNOWN, then 85 rule decisions,
+ * and an Instagram-primary actor's "Actor" category was overwritten from her YouTube channel.
  */
 function accountTypeColumns(p: SaveInput["profile"], existing: boolean) {
   const d = classifyAccountType({ category: p.accountCategory ?? null, bio: p.bio ?? "", handle: p.handle, displayName: p.displayName });
-  const keepIf = !existing ? null : d.type === "UNKNOWN" ? sql`${creators.accountTypeSource} in ('staff', 'ai')` : sql`${creators.accountTypeSource} = 'staff'`;
+  const keepIf = !existing
+    ? null
+    : sql`(${creators.primaryPlatform} <> ${p.platform} or ${creators.accountTypeSource} = 'staff'${d.type === "UNKNOWN" ? sql` or ${creators.accountType} is not null` : sql``})`;
   const keep = (col: unknown, value: unknown) => (keepIf ? sql`case when ${keepIf} then ${col} else ${value} end` : value);
   return {
     accountType: keep(creators.accountType, d.type) as string,

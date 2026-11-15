@@ -92,10 +92,19 @@ describe("scheduled YouTube refresh (20-day target, 30-day limit)", () => {
     await ownerQuery(`update gcp.creators set account_type = 'BRAND_ACCOUNT', account_type_source = 'staff', account_type_confidence = 'high', account_type_evidence = 'staff' where id = '${id}'`);
     await refreshDueYoutube({ db, refresh: pipeline.refreshKnown });
     expect(await typeOf()).toEqual({ t: "BRAND_ACCOUNT", s: "staff" });
-    // A rule-read type with no AI or staff decision behind it follows the new reading.
+    // The rules' "no idea" does not erase a rule decision either: re-deciding is the reassessment's job.
     await ownerQuery(`update gcp.creator_profiles set last_scraped_at = now() - interval '22 days' where creator_id = '${id}'`);
     await ownerQuery(`update gcp.creators set account_type = 'BRAND_ACCOUNT', account_type_source = 'rules', account_type_confidence = 'low', account_type_evidence = 'old bio' where id = '${id}'`);
     await refreshDueYoutube({ db, refresh: pipeline.refreshKnown });
-    expect((await typeOf())?.t).toBe("UNKNOWN");
+    expect(await typeOf()).toEqual({ t: "BRAND_ACCOUNT", s: "rules" });
+  });
+
+  it("RF-06 refreshing a creator's secondary profile never changes the account type (2026-11-16: an actor's Instagram category was overwritten from YouTube)", async () => {
+    const id = await storedChannel(22);
+    await ownerQuery(`update gcp.creators set primary_platform = 'instagram', account_type = 'CELEBRITY_PUBLIC_FIGURE', account_type_source = 'platform_category', account_type_confidence = 'high', account_type_evidence = 'Platform category: Actor' where id = '${id}'`);
+    const { pipeline } = setup();
+    expect(await refreshDueYoutube({ db, refresh: pipeline.refreshKnown })).toMatchObject({ refreshed: 1 });
+    const [c] = await ownerQuery<{ t: string; s: string }>(`select account_type t, account_type_source s from gcp.creators where id = '${id}'`);
+    expect(c).toEqual({ t: "CELEBRITY_PUBLIC_FIGURE", s: "platform_category" });
   });
 });
