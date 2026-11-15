@@ -90,10 +90,13 @@ const sharedObject = z.object({
   // Groq (owner added a key 2026-11-03): OpenAI-compatible, tried after Gemini and before Ollama. Prices are Groq's
   // published gpt-oss-120b on-demand rates (USD per million tokens, assumed from groq.com/pricing; override if changed).
   GROQ_API_KEY: z.string().min(1).optional(),
-  // Two Groq keys (owner directive 2026-11-15): key 1 (GROQ_API_KEY is its old name) answers first, key 2 when key 1 is
-  // rate-limited. Groq's limits are per organisation, so a second key adds capacity only from another organisation.
+  // Groq keys 1–5 (owner directive 2026-11-15): key 1 (GROQ_API_KEY is its old name) answers first, the next key when it
+  // is rate-limited. Groq's limits are per organisation, so another key adds capacity only from another organisation.
   GROQ_API_KEY_1: z.string().min(1).optional(),
   GROQ_API_KEY_2: z.string().min(1).optional(),
+  GROQ_API_KEY_3: z.string().min(1).optional(),
+  GROQ_API_KEY_4: z.string().min(1).optional(),
+  GROQ_API_KEY_5: z.string().min(1).optional(),
   GROQ_BASE_URL: z.url().optional(),
   GROQ_MODEL: z.string().min(1).optional(),
   GROQ_PRICE_IN_PER_MTOK: z.coerce.number().min(0).optional(),
@@ -122,7 +125,7 @@ const PADDLE_KEYS = ["PADDLE_API_KEY", "PADDLE_CLIENT_TOKEN", "PADDLE_WEBHOOK_SE
 const LLM_KEYS = {
   GEMINI_API_KEY: true, GEMINI_MODEL: true, GEMINI_BASE_URL: true, GEMINI_PRICE_IN_PER_MTOK: true, GEMINI_PRICE_OUT_PER_MTOK: true, GEMINI_BILLING: true, GEMINI_RPM: true,
   OLLAMA_API_KEY: true, OLLAMA_BASE_URL: true, OLLAMA_MODEL: true, OLLAMA_PRICE_IN_PER_MTOK: true, OLLAMA_PRICE_OUT_PER_MTOK: true,
-  GROQ_API_KEY: true, GROQ_API_KEY_1: true, GROQ_API_KEY_2: true, GROQ_BASE_URL: true, GROQ_MODEL: true, GROQ_PRICE_IN_PER_MTOK: true, GROQ_PRICE_OUT_PER_MTOK: true,
+  GROQ_API_KEY: true, GROQ_API_KEY_1: true, GROQ_API_KEY_2: true, GROQ_API_KEY_3: true, GROQ_API_KEY_4: true, GROQ_API_KEY_5: true, GROQ_BASE_URL: true, GROQ_MODEL: true, GROQ_PRICE_IN_PER_MTOK: true, GROQ_PRICE_OUT_PER_MTOK: true,
   OPENROUTER_API_KEY: true, OPENROUTER_BASE_URL: true, OPENROUTER_MODELS: true, OPENROUTER_PRICE_IN_PER_MTOK: true, OPENROUTER_PRICE_OUT_PER_MTOK: true,
   LLM_PROVIDER: true, LLM_MODEL: true, LLM_BASE_URL: true,
 } as const;
@@ -415,8 +418,8 @@ const OPENROUTER_PRICES: Record<string, [number, number]> = {
 
 function llmFrom(v: LlmValues): LlmProviderConfig[] {
   const out: LlmProviderConfig[] = [];
-  // Key 1's 120b and 20b, then key 2's (a rate limit on key 1 moves to key 2 at once), then OpenRouter.
-  const groqKeys = [...new Set([v.GROQ_API_KEY_1 ?? v.GROQ_API_KEY, v.GROQ_API_KEY_2].filter((k): k is string => !!k))];
+  // Key 1's 120b and 20b, then key 2's, key 3's… (a rate limit on one key moves to the next at once), then OpenRouter.
+  const groqKeys = [...new Set([v.GROQ_API_KEY_1 ?? v.GROQ_API_KEY, v.GROQ_API_KEY_2, v.GROQ_API_KEY_3, v.GROQ_API_KEY_4, v.GROQ_API_KEY_5].filter((k): k is string => !!k))];
   if (groqKeys.length) {
     const preferred = v.LLM_PROVIDER === "groq";
     const baseUrl = (v.GROQ_BASE_URL ?? (preferred ? v.LLM_BASE_URL : undefined) ?? "https://api.groq.com/openai/v1").replace(/\/+$/, "");

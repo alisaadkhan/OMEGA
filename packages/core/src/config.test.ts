@@ -247,6 +247,7 @@ describe("search and LLM settings", () => {
     ]);
     expect(loadApiConfig({ ...valid, GROQ_API_KEY: "g", GROQ_API_KEY_2: "g2" }).llm.map((p) => [p.apiKey, p.slot])).toEqual([["g", 1], ["g", 1], ["g2", 2], ["g2", 2]]);
     expect(loadApiConfig({ ...valid, GROQ_API_KEY_1: "g", GROQ_API_KEY_2: "g" }).llm.map((p) => [p.apiKey, p.slot])).toEqual([["g", undefined], ["g", undefined]]);
+    expect(loadApiConfig({ ...valid, GROQ_API_KEY_1: "a", GROQ_API_KEY_2: "b", GROQ_API_KEY_3: "c" }).llm.filter((p) => p.model === "openai/gpt-oss-120b").map((p) => [p.apiKey, p.slot])).toEqual([["a", 1], ["b", 2], ["c", 3]]);
     expect([loadApiConfig(valid).llmMonthlyBudgetUsd, loadApiConfig({ ...valid, LLM_MONTHLY_BUDGET_USD: "12.5" }).llmMonthlyBudgetUsd]).toEqual([5, 12.5]);
     // Production needs an explicit cap; 0 is a cap (every call refused), not "no cap".
     const production = { ...valid, NODE_ENV: "production", DATABASE_SSL_CA_FILE: caFile(), PADDLE_API_KEY: "p", PADDLE_CLIENT_TOKEN: "c", PADDLE_WEBHOOK_SECRET: "w", SUPABASE_SERVICE_ROLE_KEY: "service", ALERT_WEBHOOK_URL: "https://hooks.example.com/alerts", TRUSTED_PROXIES: "10.0.0.0/8" };
