@@ -15,6 +15,8 @@ export const meResponseSchema = z.object({
     email: z.string(),
     displayName: z.string().nullable(),
     avatarUrl: z.string().nullable(),
+    /** Account emails (trial, credits, payments, finished live searches); on unless the person turned them off. */
+    emailNotifications: z.boolean().default(true),
   }),
   workspace: z.object({
     id: z.uuid(),
@@ -26,7 +28,9 @@ export const meResponseSchema = z.object({
 });
 export type MeResponse = z.infer<typeof meResponseSchema>;
 
-export const updateMeSchema = z.object({ displayName: z.string().trim().min(1, "Enter your name").max(80) });
+export const updateMeSchema = z
+  .object({ displayName: z.string().trim().min(1, "Enter your name").max(80).optional(), emailNotifications: z.boolean().optional() })
+  .refine((v) => v.displayName !== undefined || v.emailNotifications !== undefined, "Nothing to change");
 /** Owners and admins only. */
 export const updateWorkspaceSchema = z.object({ name: z.string().trim().min(1, "Enter a workspace name").max(80) });
 export const workspaceMembersSchema = z.object({

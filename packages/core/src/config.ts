@@ -314,9 +314,21 @@ const workerSchema = sharedObject
     SERPER_MONTHLY_SEARCH_LIMIT: z.coerce.number().int().min(0).default(2500),
     SUPABASE_URL: z.url().optional(),
     SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
+    // Customer notification emails (trial, credits, payment, live search). Off: only logged. "test" sends nothing.
+    NOTIFY_EMAIL_MODE: z.enum(["off", "test", "resend"]).default("off"),
+    NOTIFY_EMAIL_FROM: z.string().min(3).max(200).optional(),
+    RESEND_API_KEY: z.string().min(1).optional(),
   })
   .superRefine((v, ctx) => {
     checkShared(v, ctx);
+    if (v.NOTIFY_EMAIL_MODE === "resend") {
+      for (const key of ["RESEND_API_KEY", "NOTIFY_EMAIL_FROM"] as const) {
+        if (!v[key]) ctx.addIssue({ code: "custom", path: [key], message: "required when NOTIFY_EMAIL_MODE=resend" });
+      }
+    }
+    if (v.NOTIFY_EMAIL_MODE === "test" && v.NODE_ENV === "production") {
+      ctx.addIssue({ code: "custom", path: ["NOTIFY_EMAIL_MODE"], message: "test mode delivers nothing and is for development only" });
+    }
     if (v.NODE_ENV !== "production") return;
     for (const key of ["APIFY_TOKEN", "YOUTUBE_API_KEY", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SERPER_API_KEY"] as const) {
       if (!v[key]) ctx.addIssue({ code: "custom", path: [key], message: "is required in production (creator data pipeline and live discovery)" });
@@ -598,6 +610,7 @@ export type WorkerConfig = {
   storage: StorageConfig;
   dataEncryptionKey: Buffer;
   audienceSources: "youtube"[];
+  notifyEmail: { mode: "off" } | { mode: "test"; from: string } | { mode: "resend"; from: string; apiKey: string };
 };
 
 export function loadWorkerConfig(env: Env): WorkerConfig {
@@ -650,5 +663,11 @@ export function loadWorkerConfig(env: Env): WorkerConfig {
       serperMonthlySearchLimit: v.SERPER_MONTHLY_SEARCH_LIMIT,
     },
     storage: v.SUPABASE_URL && v.SUPABASE_SERVICE_ROLE_KEY ? { url: v.SUPABASE_URL.replace(/\/+$/, ""), serviceKey: v.SUPABASE_SERVICE_ROLE_KEY } : null,
+    notifyEmail:
+      v.NOTIFY_EMAIL_MODE === "resend" && v.RESEND_API_KEY && v.NOTIFY_EMAIL_FROM
+        ? { mode: "resend", from: v.NOTIFY_EMAIL_FROM, apiKey: v.RESEND_API_KEY }
+        : v.NOTIFY_EMAIL_MODE === "test"
+          ? { mode: "test", from: v.NOTIFY_EMAIL_FROM ?? "MUSHIN test <notify@test.mushin.invalid>" }
+          : { mode: "off" },
   };
 }

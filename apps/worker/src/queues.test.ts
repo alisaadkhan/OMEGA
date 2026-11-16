@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { createLogger } from "@mushin/core";
 import { createDispatcher } from "./dispatcher";
 import { queueFor } from "./queues";
-import { billingHandlers, NOTIFY_EVENTS, notifyHandlers } from "./billing-handlers";
+import { billingHandlers } from "./billing-handlers";
+import { NOTIFY_EVENTS, notifyHandlers } from "./notify-handlers";
 import { SCHEDULES } from "./schedules";
 import { creatorHandlers } from "./creator-handlers";
 import { discoveryHandlers } from "./discovery-handlers";
@@ -55,7 +56,7 @@ describe("billing handlers", () => {
         return { processed: 0 };
       },
     });
-    const dispatch = createDispatcher({ ...handlers, ...notifyHandlers() }, createLogger({ level: "silent" }));
+    const dispatch = createDispatcher({ ...handlers, ...notifyHandlers({ provider: null, from: "", appUrl: "http://app.test", recipients: async () => [] }) }, createLogger({ level: "silent" }));
     await dispatch([{ id: "j1", data: job("billing.webhook_received", { webhookEventId: "w1" }) }]);
     await dispatch([{ id: "j2", data: job("billing.job", { job: "expire_lots" }) }]);
     await dispatch([{ id: "j3", data: job("notify.credits_low", {}) }]);

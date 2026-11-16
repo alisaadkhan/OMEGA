@@ -96,7 +96,7 @@ describe("GET /v1/me", () => {
     const res = await app.inject({ method: "GET", url: "/v1/me", headers: { authorization: token } });
     expect(res.statusCode).toBe(200);
     const body = res.json();
-    expect(body.user).toEqual({ id: sub, email: "sana@mushin.pk", displayName: "Sana Riaz", avatarUrl: null });
+    expect(body.user).toEqual({ id: sub, email: "sana@mushin.pk", displayName: "Sana Riaz", avatarUrl: null, emailNotifications: true });
     expect(body.workspace).toMatchObject({ name: "Sana Riaz's workspace", role: "owner" });
 
     expect((await app.inject({ method: "GET", url: "/v1/me" })).statusCode).toBe(401);
@@ -113,6 +113,10 @@ describe("GET /v1/me", () => {
     const auth = { authorization: `Bearer ${await iss.sign({ sub, email: "sana@mushin.pk", fullName: "Sana Riaz" })}` };
     expect((await app.inject({ method: "PATCH", url: "/v1/me", headers: auth, payload: { displayName: "Sana R." } })).json().user.displayName).toBe("Sana R.");
     expect((await app.inject({ method: "PATCH", url: "/v1/me", headers: auth, payload: { displayName: "" } })).statusCode).toBe(400);
+    // Account emails: off is kept with the name; an empty change is refused.
+    const off = (await app.inject({ method: "PATCH", url: "/v1/me", headers: auth, payload: { emailNotifications: false } })).json().user;
+    expect([off.emailNotifications, off.displayName]).toEqual([false, "Sana R."]);
+    expect((await app.inject({ method: "PATCH", url: "/v1/me", headers: auth, payload: {} })).statusCode).toBe(400);
     expect((await app.inject({ method: "PATCH", url: "/v1/workspace", headers: auth, payload: { name: "Heritage Foods" } })).json().workspace.name).toBe("Heritage Foods");
     const members = (await app.inject({ method: "GET", url: "/v1/workspace/members", headers: auth })).json() as { members: { id: string; role: string; name: string }[] };
     expect(members.members).toEqual([expect.objectContaining({ id: sub, role: "owner", name: "Sana R." })]);

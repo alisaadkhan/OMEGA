@@ -1,13 +1,15 @@
 import { createLogger, loadWorkerConfig } from "@mushin/core";
 import { createDatabase, createDbProviderCallSink, createDbProviderRunStore, createDbReservationLedger, llmSpendSince, providerPaused, recordAlertEvent, recordWorkerHeartbeat, UNVERIFIED_TLS_WARNING } from "@mushin/db";
-import { createApifyClient, createSharedSpendGuard, reconcileApifyRuns, createYouTubeAudienceSource, createLlm, pausableGuard, pausableLlm, createObjectStorage, RAW_PAYLOAD_BUCKET, createPayments, createProfileScraper, createSearchIndex, createSerperSearch, createYouTubeSearch } from "@mushin/integrations";
+import { createApifyClient, createSharedSpendGuard, reconcileApifyRuns, createYouTubeAudienceSource, createLlm, pausableGuard, pausableLlm, createObjectStorage, RAW_PAYLOAD_BUCKET, createPayments, createProfileScraper, createSearchIndex, createSerperSearch, createYouTubeSearch, MockEmailProvider, ResendEmailProvider } from "@mushin/integrations";
+import { sql } from "drizzle-orm";
 import { createAudienceRunner } from "../../api/src/modules/audience/index";
 import { createBillingService, noAccessCache } from "../../api/src/modules/billing/index";
 import { createContactChecker, createCreatorIndexer, createEnrichmentPipeline, createEraser, createSummaryWriter, getEnrichmentSettings, expireYoutubeApiData, lifecycleSweep, reassessNextBatch, refreshDueYoutube, systemMailResolver } from "../../api/src/modules/creators/index";
 import { createCachedSearch, createDiscoveryRunner, createLiveRunner } from "../../api/src/modules/discovery/index";
 import { createAttachments } from "../../api/src/modules/support/index";
 import { audienceHandlers } from "./audience-handlers";
-import { billingHandlers, notifyHandlers } from "./billing-handlers";
+import { billingHandlers } from "./billing-handlers";
+import { notifyHandlers } from "./notify-handlers";
 import { creatorHandlers } from "./creator-handlers";
 import { discoveryHandlers } from "./discovery-handlers";
 import { contactCheckHandlers, erasureHandlers } from "./erasure-handlers";
@@ -87,11 +89,26 @@ void indexer
   .then((r) => logger.info(r, "search projections reconciled at start-up"))
   .catch((err: unknown) => logger.error({ err }, "start-up search reconcile failed; the nightly reconcile will retry"));
 await pipeline.ensureBuckets().catch((err: unknown) => logger.error({ err }, "could not create the storage buckets"));
+// Customer notification emails: owners and admins of the workspace, unless they turned email notifications off.
+const notifyDeps = {
+  provider: config.notifyEmail.mode === "resend" ? new ResendEmailProvider({ apiKey: config.notifyEmail.apiKey }) : config.notifyEmail.mode === "test" ? new MockEmailProvider() : null,
+  from: config.notifyEmail.mode === "off" ? "" : config.notifyEmail.from,
+  appUrl: config.appUrl,
+  recipients: (workspaceId: string) =>
+    db.withSystem(async (tx) =>
+      (
+        await tx.execute<{ email: string; name: string | null }>(sql`
+          select u.email, u.display_name as name from wp.workspace_members m join wp.users u on u.id = m.user_id
+          where m.workspace_id = ${workspaceId} and m.role in ('owner', 'admin') and u.status = 'active' and u.deleted_at is null
+            and coalesce(u.preferences ->> 'emailNotifications', 'true') <> 'false'`)
+      ).map((r) => ({ email: r.email, name: r.name })),
+    ),
+};
 const worker = await startWorker({
   db,
   boss,
   logger,
-  handlers: { ...defaultHandlers(db, { reconcileProviderRuns, checkProviders: () => checkProviderStatus({ db, config }) }), ...billingHandlers(billing), ...notifyHandlers(), ...creatorHandlers({ indexer, summaries, expireYoutube: () => expireYoutubeApiData(db, pipeline.storage ? { storage: pipeline.storage } : {}),
+  handlers: { ...defaultHandlers(db, { reconcileProviderRuns, checkProviders: () => checkProviderStatus({ db, config }) }), ...billingHandlers(billing), ...notifyHandlers(notifyDeps), ...creatorHandlers({ indexer, summaries, expireYoutube: () => expireYoutubeApiData(db, pipeline.storage ? { storage: pipeline.storage } : {}),
       refreshYoutube: config.scraping.youtubeApiKey ? () => refreshDueYoutube({ db, refresh: pipeline.refreshKnown, onError: (err, url) => logger.warn({ err, url }, "YouTube refresh failed; retried tomorrow") }) : null,
       alert: (e) => db.withSystem((tx) => recordAlertEvent(tx, e)), sweep: () => lifecycleSweep({ db, apply: true, reproject: (ids) => indexer.sync(ids) }),
       reassessStep: () => reassessNextBatch({ db, youtubeDerived: config.sourcePolicy.youtubeDerivedMetrics, contacts: { encryptionKey: config.dataEncryptionKey, youtubeDescriptionContacts: config.enrichment.youtubeDescriptionContacts }, readPayload: async (key) => { const b = pipeline.storage ? await pipeline.storage.get(RAW_PAYLOAD_BUCKET, key) : null; return b ? JSON.parse(new TextDecoder().decode(b)) : null; } }) }), ...discoveryHandlers({ runner, liveRunner, searchCache, pipeline }), ...erasureHandlers({ eraser }),

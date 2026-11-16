@@ -14,7 +14,7 @@ export function registerIdentityRoutes(app: FastifyInstance, guards: Guards, ser
     const m = await service.getMe(ctx);
     if (!m) throw new AppError("NOT_FOUND", "Account not found");
     return {
-      user: { id: m.userId, email: m.email, displayName: m.displayName, avatarUrl: m.avatarUrl },
+      user: { id: m.userId, email: m.email, displayName: m.displayName, avatarUrl: m.avatarUrl, emailNotifications: m.preferences["emailNotifications"] !== false },
       workspace: { id: m.workspaceId, name: m.workspaceName, role: m.role },
       legal: { acceptedVersion: m.legalVersion, acceptedAt: m.legalAcceptedAt ? m.legalAcceptedAt.toISOString() : null, currentVersion: LEGAL_VERSION },
     };
@@ -30,11 +30,16 @@ export function registerIdentityRoutes(app: FastifyInstance, guards: Guards, ser
 
   app.get("/v1/me", { preHandler: guards.customer }, async (req, reply) => sendOk(reply, meResponseSchema, await me(tenantOf(req))));
 
-  // Settings › Profile: your own name (wp.users is self-only under RLS).
+  // Settings › Profile and Notifications: your own name and email preference (wp.users is self-only under RLS).
   app.patch("/v1/me", { preHandler: guards.customer }, async (req, reply) => {
     const ctx = tenantOf(req);
-    const { displayName } = parseInput(updateMeSchema, req.body);
-    await db.withTenant(tenant(ctx), (tx) => tx.execute(sql`update wp.users set display_name = ${displayName} where id = ${ctx.userId}`));
+    const { displayName, emailNotifications } = parseInput(updateMeSchema, req.body);
+    await db.withTenant(tenant(ctx), async (tx) => {
+      if (displayName !== undefined) await tx.execute(sql`update wp.users set display_name = ${displayName} where id = ${ctx.userId}`);
+      if (emailNotifications !== undefined) {
+        await tx.execute(sql`update wp.users set preferences = preferences || jsonb_build_object('emailNotifications', ${emailNotifications}::boolean) where id = ${ctx.userId}`);
+      }
+    });
     return sendOk(reply, meResponseSchema, await me(ctx));
   });
 

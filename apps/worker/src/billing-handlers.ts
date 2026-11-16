@@ -1,5 +1,5 @@
 import type { BillingJob, BillingService } from "../../api/src/modules/billing/index";
-import type { Handler, HandlerRegistry } from "./dispatcher";
+import type { HandlerRegistry } from "./dispatcher";
 
 const JOBS: readonly BillingJob[] = [
   "release_abandoned",
@@ -28,24 +28,4 @@ export function billingHandlers(billing: Pick<BillingService, "processStoredWebh
       logger.info({ job, ...result }, "billing job finished");
     },
   };
-}
-
-export const NOTIFY_EVENTS = [
-  "notify.credits_low",
-  "notify.credits_very_low",
-  "notify.trial_ending",
-  "notify.trial_expired",
-  "notify.subscription_canceled",
-  "notify.payment_failed",
-  "notify.discovery_job_finished",
-  "notify.removal_processed",
-] as const;
-
-/** Delivery (in-app notifications, emails) arrives in sub-project 7; until then the events are logged and acknowledged. */
-const logOnly: Handler = async (data, { logger }) => {
-  logger.info({ eventType: data.eventType, workspaceId: data.workspaceId }, "notification event received (delivery arrives in sub-project 7)");
-};
-
-export function notifyHandlers(): HandlerRegistry {
-  return Object.fromEntries(NOTIFY_EVENTS.map((eventType) => [eventType, logOnly]));
 }

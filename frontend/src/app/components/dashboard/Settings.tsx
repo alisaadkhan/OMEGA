@@ -431,12 +431,34 @@ function SecurityTab() {
 }
 
 function NotificationsTab() {
+  const me = useMe();
+  const qc = useQueryClient();
+  const toast = useToast();
+  const save = useMutation({
+    mutationFn: (on: boolean) => apiRequest("/v1/me", meResponseSchema, { method: "PATCH", body: { emailNotifications: on } }),
+    onSuccess: (data) => {
+      qc.setQueryData(["me"], data);
+      toast.success(data.user.emailNotifications ? "Account emails turned on" : "Account emails turned off");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not save"),
+  });
+  if (me.isPending) return <LoadingBlock lines={2} />;
+  if (me.isError) return <ErrorState body={me.error instanceof Error ? me.error.message : undefined} onRetry={() => void me.refetch()} />;
+  const on = save.isPending && save.variables !== undefined ? save.variables : me.data.user.emailNotifications;
   return (
     <section className={card}>
       <CardHeader title="Notifications" sub="Where MUSHIN tells you about your work." />
-      <p className="text-sm text-slate-600">
-        MUSHIN doesn't send notification emails yet. Finished Find New Creators runs, list and campaign changes and outreach appear in the bell and the Activity log.
-      </p>
+      <div className="flex items-start justify-between gap-4 rounded-xl bg-slate-50 p-4">
+        <div>
+          <p className={fieldLabel}>Account emails</p>
+          <p className="mt-1 text-xs text-slate-600">Low credits, trial ending, payment problems and finished live searches, sent to {me.data.user.email}. Owners and admins only.</p>
+        </div>
+        <button type="button" role="switch" aria-checked={on} aria-label="Account emails" disabled={save.isPending} onClick={() => save.mutate(!on)}
+          className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-60 ${on ? "bg-teal-600" : "bg-slate-300"}`}>
+          <motion.span layout transition={{ type: "spring", stiffness: 500, damping: 32 }} className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow ${on ? "right-0.5" : "left-0.5"}`} />
+        </button>
+      </div>
+      <p className="mt-4 text-xs text-slate-500">List and campaign changes and outreach appear in the bell and the Activity log.</p>
     </section>
   );
 }
