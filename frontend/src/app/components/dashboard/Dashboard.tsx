@@ -1,11 +1,15 @@
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { meResponseSchema } from "@mushin/contracts";
+import { apiRequest } from "../../api/client";
 import { LegalGate } from "./LegalGate";
 import { takeWorkspaceNotice } from "../../api/workspace";
 import { rememberCurrentView, takeReturnView } from "../../api/session";
 import { AnimatePresence, motion } from "motion/react";
 import { Sidebar, type DashView, DASH_VIEWS } from "./Sidebar";
 import { Topbar } from "./Topbar";
-import { Overview } from "./Overview";
+import { Home } from "./Home";
+import { WelcomeModal, Tour, hasOnboarded, markOnboarded } from "./Onboarding";
 import { SearchModule } from "./SearchModule";
 import { Billing } from "./Billing";
 import { BillingStatusBanner } from "./BillingStatusBanner";
@@ -39,6 +43,24 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
   const canManageAccess = user?.role === "owner" || user?.role === "admin";
   const credits = useCredits();
   const [omniCreator, setOmniCreator] = useState<Creator | null>(null);
+  const [openCampaignId, setOpenCampaignId] = useState<string | null>(null);
+  // First-run onboarding (owner design 2026-11-16): the welcome dialog once per user, then the optional tour.
+  const [welcome, setWelcome] = useState(false);
+  const [tour, setTour] = useState(false);
+  // Waits for the Terms acceptance dialog (LegalGate) so the two never overlap.
+  const me = useQuery({ queryKey: ["me"], queryFn: () => apiRequest("/v1/me", meResponseSchema), enabled: !!user });
+  const legalPending = !me.data || me.data.legal.acceptedVersion !== me.data.legal.currentVersion;
+  useEffect(() => {
+    if (user && !legalPending && !hasOnboarded(user.id)) setWelcome(true);
+  }, [user, legalPending]);
+  const closeWelcome = (startTour: boolean) => {
+    if (user) markOnboarded(user.id);
+    setWelcome(false);
+    if (startTour) {
+      navigate("overview");
+      setTimeout(() => setTour(true), 300);
+    }
+  };
   const [liveJobId, setLiveJobId] = useState<string | null>(null);
   // Below 768 px the navigation is a drawer opened from the top bar (a fixed 240 px sidebar left phones ~150 px).
   const [navOpen, setNavOpen] = useState(false);
@@ -59,9 +81,9 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
   }, []);
 
   return (
-    <div className="flex h-screen bg-slate-50/40">
+    <div className="flex h-screen bg-surface">
       <div className="hidden md:flex">
-        <Sidebar view={view} setView={navigate} />
+        <Sidebar view={view} setView={navigate} onExit={onExit} />
       </div>
       {navOpen && (
         <div className="fixed inset-0 z-50 flex md:hidden" role="dialog" aria-modal="true" aria-label="Navigation">
@@ -92,7 +114,7 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
               exit={{ opacity: 0, y: -4 }}
               transition={{ duration: 0.25, ease: "easeOut" }}
             >
-              {view === "overview" && <Overview credits={credits} setView={setView} />}
+              {view === "overview" && <Home setView={navigate} onTour={() => setTour(true)} onOpenCampaign={(id) => { setOpenCampaignId(id); setView("campaigns"); }} />}
               {view === "search" && <SearchModule liveJobId={liveJobId} onGoToCampaigns={() => setView("campaigns")} />}
               {view === "lists" && <Lists key={navKey} onOpenCreator={setOmniCreator} onGoToSearch={() => setView("search")} />}
               {view === "campaigns" && <Campaigns key={navKey} onOpenCreator={setOmniCreator} onGoToSearch={() => setView("search")} />}
@@ -106,6 +128,8 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
           <LeaveReview page={view} />
         </main>
       </div>
+      <WelcomeModal open={welcome} onStart={() => closeWelcome(true)} onSkip={() => closeWelcome(false)} />
+      <Tour open={tour} onClose={() => setTour(false)} />
       <CreatorProfilePanel creator={omniCreator} onClose={() => setOmniCreator(null)} onGoToCampaigns={() => { setOmniCreator(null); setView("campaigns"); }} />
     </div>
   );

@@ -1,7 +1,6 @@
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { useEffect, useId, useState, type ReactNode } from "react";
-import { ArrowRight, Eye, EyeOff, Info, Lock, Mail, MailCheck, RefreshCw } from "lucide-react";
-import { Logo } from "../landing/Logo";
+import { AlertTriangle, ArrowRight, CheckCircle2, Eye, EyeOff, Info, Lock, Mail, MailCheck, RefreshCw, Sparkles } from "lucide-react";
 
 export function AuthShell({
   title,
@@ -28,22 +27,26 @@ export function AuthShell({
           backgroundSize: "100% 100%, 32px 32px, 32px 32px",
         }}
       >
-        <div aria-hidden className="pointer-events-none absolute -top-32 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-cyan-200/30 blur-3xl" />
-        <div aria-hidden className="pointer-events-none absolute right-1/4 top-48 h-80 w-80 rounded-full bg-indigo-100/40 blur-3xl" />
-
+        {/* Three soft orbs drifting slowly (owner design 2026-11-16); "reduce motion" stops them. */}
+        <div aria-hidden className="pointer-events-none fixed inset-0 overflow-hidden">
+          <div className="animate-float-1 absolute -top-40 left-1/2 h-[540px] w-[540px] -translate-x-1/2 rounded-full bg-cyan-soft/25 blur-[100px]" />
+          <div className="animate-float-2 absolute -right-16 top-36 h-[420px] w-[420px] rounded-full bg-[#dae2fd]/40 blur-[90px]" />
+          <div className="animate-float-3 absolute -bottom-24 -left-20 h-[460px] w-[460px] rounded-full bg-cyan-pale/30 blur-[110px]" />
+        </div>
         <div className="relative mx-auto flex min-h-screen w-full max-w-[480px] flex-col justify-center px-4 py-10 sm:px-6">
           <motion.div
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-            className="overflow-hidden rounded-3xl bg-white px-6 pt-9 shadow-xl sm:px-10"
+            className="overflow-hidden rounded-3xl bg-white px-6 pt-9 shadow-2xl sm:px-10"
           >
             <div className="flex flex-col items-center text-center">
-              <Logo />
-              <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-600">
-                <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[#06B6D4]" />
-                For brands &amp; agencies
-              </span>
+              <motion.a href="#/" aria-label="MUSHIN home" initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 300, damping: 18, delay: 0.1 }} className="flex items-center gap-2">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-black text-white shadow-md">
+                  <Sparkles className="h-5 w-5 fill-white" aria-hidden />
+                </span>
+                <span className="text-2xl font-semibold tracking-tight text-black">MUSHIN</span>
+              </motion.a>
             </div>
 
             <AnimatePresence mode="wait" initial={false}>
@@ -159,12 +162,22 @@ export function FormField({
   );
 }
 
-/** Animated message under a form: rose for errors, cyan for success. */
+/** Animated message under a form: errors slide in and shake once, successes pop in with a tick. */
 export function AuthAlert({ kind, children }: { kind: "error" | "success" | "info"; children: ReactNode }) {
-  const cls = kind === "error" ? "border-rose-200 bg-rose-50 text-rose-700" : kind === "success" ? "border-cyan-200 bg-cyan-50 text-cyan-900" : "border-amber-200 bg-amber-50 text-amber-900";
+  const cls = kind === "error" ? "bg-danger-soft/70 text-danger-ink ring-1 ring-danger/15" : kind === "success" ? "bg-cyan-pale/40 text-teal-deep ring-1 ring-teal/15" : "bg-amber-50 text-amber-900 ring-1 ring-amber-200";
+  const Icon = kind === "error" ? AlertTriangle : kind === "success" ? CheckCircle2 : Info;
   return (
-    <motion.div role={kind === "error" ? "alert" : "status"} initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, ease: "easeOut" }} className={`rounded-xl border px-3.5 py-2.5 text-sm ${cls}`}>
-      {children}
+    <motion.div
+      role={kind === "error" ? "alert" : "status"}
+      initial={{ opacity: 0, y: -8, scale: 0.98 }}
+      animate={kind === "error" ? { opacity: 1, y: 0, scale: 1, x: [0, -6, 6, -4, 4, 0] } : { opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: kind === "error" ? 0.45 : 0.25, ease: "easeOut" }}
+      className={`flex items-start gap-2.5 rounded-xl px-3.5 py-2.5 text-[13px] leading-5 ${cls}`}
+    >
+      <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 500, damping: 15, delay: 0.05 }}>
+        <Icon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+      </motion.span>
+      <div className="min-w-0 flex-1">{children}</div>
     </motion.div>
   );
 }

@@ -4,6 +4,8 @@ import { meResponseSchema } from "@mushin/contracts";
 import { apiRequest } from "../../api/client";
 import { takeRememberedAcceptance } from "../../api/legal";
 import { useAuth } from "../../auth/AuthContext";
+import { motion } from "motion/react";
+import { Alert } from "../../ui/kit";
 
 /**
  * Audit UX-01: nobody uses MUSHIN without having accepted the current Terms and Privacy Policy, and the server records
@@ -33,22 +35,22 @@ export function LegalGate() {
   // has recorded it, so nobody reaches the app before the acceptance is stored.
   if (!needed || !legal || (accept.isPending && autoTried.current)) return null;
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 px-4">
-      <div role="dialog" aria-modal="true" aria-labelledby="legal-gate-title" className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-[60] flex items-center justify-center bg-navy/50 px-4 backdrop-blur-sm">
+      <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }} role="dialog" aria-modal="true" aria-labelledby="legal-gate-title" className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
         <h2 id="legal-gate-title" className="text-slate-900" style={{ fontSize: 18, fontWeight: 700 }}>Before you continue</h2>
         <p className="mt-2 text-sm text-slate-600">Please read and accept MUSHIN's Terms of Service and Privacy Policy (version {legal.currentVersion}, drafts pending legal review).</p>
         <label className="mt-4 flex items-start gap-2 text-sm text-slate-700">
           <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-1" />
           <span>
-            I accept the <a href="#/terms" target="_blank" rel="noreferrer" className="text-indigo-700 underline">Terms of Service</a> and the{" "}
-            <a href="#/privacy" target="_blank" rel="noreferrer" className="text-indigo-700 underline">Privacy Policy</a>.
+            I accept the <a href="#/terms" target="_blank" rel="noreferrer" className="text-teal underline">Terms of Service</a> and the{" "}
+            <a href="#/privacy" target="_blank" rel="noreferrer" className="text-teal underline">Privacy Policy</a>.
           </span>
         </label>
-        {accept.isError && <p className="mt-2 text-xs text-red-700" role="alert">{accept.error instanceof Error ? accept.error.message : "Could not record your acceptance."}</p>}
-        <button disabled={!agreed || accept.isPending} onClick={() => accept.mutate(legal.currentVersion)} className="mt-4 w-full rounded-md bg-slate-900 px-3 py-2 text-sm text-white disabled:opacity-50" style={{ fontWeight: 600 }}>
+        <div className="mt-3"><Alert tone="error">{accept.isError ? (accept.error instanceof Error ? accept.error.message : "Could not record your acceptance.") : null}</Alert></div>
+        <button disabled={!agreed || accept.isPending} onClick={() => accept.mutate(legal.currentVersion)} className="mt-4 w-full rounded-xl bg-ink px-3 py-2.5 text-sm text-white transition-all hover:bg-[#1d2742] active:scale-[0.98] disabled:opacity-50" style={{ fontWeight: 600 }}>
           {accept.isPending ? "Saving…" : "Accept and continue"}
         </button>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

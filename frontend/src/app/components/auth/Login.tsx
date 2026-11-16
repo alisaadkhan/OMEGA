@@ -18,6 +18,7 @@ export function Login({ onSuccess, goSignup, goForgot }: Props) {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
   const [touched, setTouched] = useState(false);
   // Read once: after a session expired on its own, say so (AUTH-08).
   const [expired] = useState(() => takeSessionExpired());
@@ -30,7 +31,9 @@ export function Login({ onSuccess, goSignup, goForgot }: Props) {
     setSubmitting(true);
     try {
       await login(email, password);
-      onSuccess();
+      // A short, visible confirmation before the dashboard opens (owner design 2026-11-16: success messages).
+      setDone(true);
+      setTimeout(onSuccess, 650);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign-in failed. Please try again.");
       setSubmitting(false);
@@ -95,11 +98,12 @@ export function Login({ onSuccess, goSignup, goForgot }: Props) {
         </StaggerItem>
 
         {error && <AuthAlert kind="error">{error}</AuthAlert>}
+        {done && <AuthAlert kind="success">Signed in. Opening your dashboard…</AuthAlert>}
         <StaggerItem index={3}>
           <motion.div whileTap={{ scale: 0.98 }}>
             <Button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || done}
               className="group relative h-12 w-full overflow-hidden rounded-full bg-[#131b2e] text-white shadow-md transition-all hover:-translate-y-px hover:bg-slate-800 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-cyan-400/50 disabled:opacity-50"
             >
               {submitting ? (

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Button } from "../ui/button";
-import { AuthShell, FormField, StaggerItem } from "./AuthShell";
+import { AuthAlert, AuthShell, FormField, StaggerItem } from "./AuthShell";
 import { useAuth } from "../../auth/AuthContext";
 
 type Props = { onDone: () => void; goForgot: () => void };
@@ -19,6 +19,7 @@ export function ResetPassword({ onDone, goForgot }: Props) {
   const [confirm, setConfirm] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,7 +29,8 @@ export function ResetPassword({ onDone, goForgot }: Props) {
     setSubmitting(true);
     try {
       await updatePassword(password);
-      onDone();
+      setDone(true);
+      setTimeout(onDone, 900);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not change the password. Please try again.");
       setSubmitting(false);
@@ -36,7 +38,7 @@ export function ResetPassword({ onDone, goForgot }: Props) {
   };
 
   const back = (
-    <button onClick={goForgot} className="inline-flex items-center gap-1 text-indigo-600 transition-colors hover:text-indigo-700" style={{ fontWeight: 500 }}>
+    <button onClick={goForgot} className="inline-flex items-center gap-1 text-teal transition-colors hover:text-teal-deep" style={{ fontWeight: 500 }}>
       <ArrowLeft className="h-3.5 w-3.5" />
       Request a new link
     </button>
@@ -66,9 +68,10 @@ export function ResetPassword({ onDone, goForgot }: Props) {
         <StaggerItem index={1}>
           <FormField label="Repeat the new password" type="password" value={confirm} onChange={setConfirm} autoComplete="new-password" />
         </StaggerItem>
-        {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
+        {error && <AuthAlert kind="error">{error}</AuthAlert>}
+        {done && <AuthAlert kind="success">Password changed. Opening your dashboard…</AuthAlert>}
         <StaggerItem index={2}>
-          <Button type="submit" disabled={submitting} className="group h-12 w-full rounded-full bg-slate-950 text-white shadow-sm hover:bg-slate-800">
+          <Button type="submit" disabled={submitting || done} className="group h-12 w-full rounded-full bg-slate-950 text-white shadow-sm hover:bg-slate-800">
             Save new password
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>

@@ -1,0 +1,55 @@
+/* MUSHIN redesign tokens (owner designs 2026-11-16). Names are new so nothing older changes colour. */
+@theme {
+  --font-display: "Plus Jakarta Sans", "Geist Sans", ui-sans-serif, system-ui, sans-serif;
+  --color-navy: #0a0f24;
+  --color-navy-2: #111836;
+  --color-navy-3: #151e42;
+  --color-shell: #0b1c30;
+  --color-ink: #131b2e;
+  --color-ink-soft: #45464d;
+  --color-faint: #76777d;
+  --color-line: #c6c6cd;
+  --color-on: #191c1e;
+  --color-surface: #f7f9fb;
+  --color-surface-low: #f2f4f6;
+  --color-surface-mid: #eceef0;
+  --color-surface-high: #e6e8ea;
+  --color-surface-top: #e0e3e5;
+  --color-teal: #00687a;
+  --color-teal-deep: #004e5c;
+  --color-cyan: #06b6d4;
+  --color-cyan-soft: #57dffe;
+  --color-cyan-pale: #acedff;
+  --color-cyan-dim: #4cd7f6;
+  --color-danger: #ba1a1a;
+  --color-danger-soft: #ffdad6;
+  --color-danger-ink: #93000a;
+  --color-steel: #7c839b;
+  --color-steel-2: #75859d;
+  --color-mist: #bec6e0;
+
+  --animate-float-1: float-1 18s ease-in-out infinite alternate;
+  --animate-float-2: float-2 22s ease-in-out infinite alternate;
+  --animate-float-3: float-3 16s ease-in-out infinite alternate;
+  --animate-shake: shake 0.42s cubic-bezier(.36,.07,.19,.97) both;
+  --animate-shimmer: shimmer 1.6s linear infinite;
+}
+
+@keyframes float-1 { 0% { transform: translate(0, 0) scale(1); } 50% { transform: translate(35px, -45px) scale(1.08); } 100% { transform: translate(-25px, 20px) scale(.95); } }
+@keyframes float-2 { 0% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-40px, 30px) scale(1.1); } 100% { transform: translate(30px, -25px) scale(.92); } }
+@keyframes float-3 { 0% { transform: translate(0, 0) scale(.95); } 50% { transform: translate(25px, 35px) scale(1.05); } 100% { transform: translate(-30px, -30px) scale(1); } }
+@keyframes shake { 10%, 90% { transform: translateX(-1px); } 20%, 80% { transform: translateX(2px); } 30%, 50%, 70% { transform: translateX(-4px); } 40%, 60% { transform: translateX(4px); } }
+@keyframes shimmer { 0% { background-position: -400px 0; } 100% { background-position: 400px 0; } }
+
+.grid-paper {
+  background-color: #fff;
+  background-image: radial-gradient(circle at 50% 40%, #fafafa 0%, #ffffff 100%), linear-gradient(to right, rgba(198,198,205,.12) 1px, transparent 1px), linear-gradient(to bottom, rgba(198,198,205,.12) 1px, transparent 1px);
+  background-size: 100% 100%, 32px 32px, 32px 32px;
+}
+.skeleton { background: linear-gradient(90deg, #eceef0 0px, #f7f9fb 120px, #eceef0 240px); background-size: 800px 100%; animation: var(--animate-shimmer); }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-float-1, .animate-float-2, .animate-float-3, .skeleton { animation: none !important; }
+}

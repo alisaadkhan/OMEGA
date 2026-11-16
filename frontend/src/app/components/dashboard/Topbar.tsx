@@ -34,9 +34,9 @@ const MENU: { id: DashView; label: string; icon: typeof Settings }[] = [
 const PAGE_LABEL: Record<DashView, string> = { overview: "Dashboard", search: "Search & Discovery", lists: "Shortlists", campaigns: "Campaigns", inbox: "Inbox", settings: "Settings", billing: "Credits & billing", activity: "Activity log", support: "Support" };
 
 const METER_STYLES = {
-  normal: { box: "border-slate-200 bg-white hover:bg-slate-50", icon: "text-emerald-600", value: "text-slate-900", title: "Credits" },
-  amber: { box: "border-amber-300 bg-amber-50 hover:bg-amber-100", icon: "text-amber-600", value: "text-amber-800", title: "Credits are running low" },
-  red: { box: "border-red-300 bg-red-50 hover:bg-red-100", icon: "text-red-600", value: "text-red-700", title: "Credits are very low" },
+  normal: { box: "bg-cyan-pale/40 hover:bg-cyan-pale/70", icon: "text-teal", value: "text-teal-deep", title: "Credits" },
+  amber: { box: "bg-amber-50 ring-1 ring-amber-300 hover:bg-amber-100", icon: "text-amber-600", value: "text-amber-800", title: "Credits are running low" },
+  red: { box: "bg-red-50 ring-1 ring-red-300 hover:bg-red-100", icon: "text-red-600", value: "text-red-700", title: "Credits are very low" },
 } as const;
 
 export function Topbar({ credits, view, setView, onExit, onOpenCreator, onViewResults, onOpenNav }: Props) {
@@ -55,7 +55,7 @@ export function Topbar({ credits, view, setView, onExit, onOpenCreator, onViewRe
   };
 
   return (
-    <div className="sticky top-0 z-30 flex h-16 items-center justify-between gap-2 border-b border-slate-200 bg-white/80 px-3 backdrop-blur-md sm:px-6">
+    <div className="sticky top-0 z-30 flex h-16 items-center justify-between gap-2 bg-surface/85 px-3 shadow-[0_1px_8px_rgba(0,0,0,0.04)] backdrop-blur-xl sm:px-8">
       <div className="flex min-w-0 items-center gap-2 md:hidden">
         <button onClick={onOpenNav} aria-label="Open navigation" className="rounded-md p-2 text-slate-700 hover:bg-slate-100">
           <Menu className="h-5 w-5" strokeWidth={1.75} />
@@ -74,12 +74,11 @@ export function Topbar({ credits, view, setView, onExit, onOpenCreator, onViewRe
           onClick={() => go("billing")}
           title={METER_STYLES[meter].title}
           aria-label={credits === null ? "Credits: balance not loaded" : `${METER_STYLES[meter].title}: ${credits} available`}
-          className={`hidden items-center gap-2 rounded-md border px-3 py-1.5 transition-colors sm:flex ${METER_STYLES[meter].box}`}
+          className={`hidden items-center gap-1.5 rounded-full px-3 py-1.5 transition-colors sm:flex ${METER_STYLES[meter].box}`}
         >
           <Coins className={`h-3.5 w-3.5 ${METER_STYLES[meter].icon}`} strokeWidth={2} />
-          <span className="text-xs text-slate-500">Credits</span>
-          <span className={`text-sm tabular-nums ${METER_STYLES[meter].value}`} style={{ fontWeight: 600 }}>
-            {credits === null ? <span className="text-slate-400" aria-hidden="true">—</span> : <AnimatedNumber value={credits} />}
+          <span className={`text-[11px] font-semibold uppercase tracking-[0.04em] tabular-nums ${METER_STYLES[meter].value}`}>
+            {credits === null ? <span className="text-slate-400" aria-hidden="true">—</span> : <AnimatedNumber value={credits} />} credits
           </span>
         </button>
         <NotificationCenter onSeeAll={() => setView("activity")} />
@@ -88,7 +87,7 @@ export function Topbar({ credits, view, setView, onExit, onOpenCreator, onViewRe
         <div className="relative pl-1">
           <button
             onClick={() => setOpen((v) => !v)}
-            className="flex items-center gap-2.5 rounded-full py-1 pl-1 pr-2 transition-colors hover:bg-slate-100"
+            className="flex items-center gap-2.5 rounded-full py-1 pl-1 pr-2 transition-colors hover:bg-surface-mid"
             aria-haspopup="menu"
             aria-label="Account menu"
             aria-expanded={open}
@@ -96,10 +95,14 @@ export function Topbar({ credits, view, setView, onExit, onOpenCreator, onViewRe
             {avatar ? (
               <img src={avatar} alt={name} className="h-9 w-9 rounded-full object-cover ring-2 ring-white shadow-sm" />
             ) : (
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-emerald-500 text-white" style={{ fontSize: "0.75rem", fontWeight: 600 }}>
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-ink to-teal text-white" style={{ fontSize: "0.75rem", fontWeight: 600 }}>
                 {initials}
               </div>
             )}
+            <span className="hidden min-w-0 flex-col text-left leading-tight xl:flex">
+              <span className="truncate text-xs font-semibold text-slate-900">{name}</span>
+              <span className="max-w-[160px] truncate text-[11px] text-slate-500">{email}</span>
+            </span>
             <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${open ? "rotate-180" : ""}`} strokeWidth={2} />
           </button>
 
@@ -119,7 +122,7 @@ export function Topbar({ credits, view, setView, onExit, onOpenCreator, onViewRe
                     {avatar ? (
                       <img src={avatar} alt={name} className="h-9 w-9 rounded-full object-cover" />
                     ) : (
-                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-emerald-500 text-white" style={{ fontSize: "0.75rem", fontWeight: 600 }}>
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-ink to-teal text-white" style={{ fontSize: "0.75rem", fontWeight: 600 }}>
                         {initials}
                       </div>
                     )}

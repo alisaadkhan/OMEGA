@@ -1,14 +1,8 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Navbar } from "./components/landing/Navbar";
-import { Hero } from "./components/landing/Hero";
-import { FeatureTabs } from "./components/landing/FeatureTabs";
-import { Features } from "./components/landing/Features";
-import { Metrics } from "./components/landing/Metrics";
-import { Pricing } from "./components/landing/Pricing";
-import { FAQ } from "./components/landing/FAQ";
-import { CTA } from "./components/landing/CTA";
-import { Footer } from "./components/landing/Footer";
+import { LandingHero, LandingNav } from "./components/landing/LandingTop";
+import { LandingFeatures } from "./components/landing/LandingFeatures";
+import { LandingPricing } from "./components/landing/LandingBottom";
 import { Login } from "./components/auth/Login";
 import { Signup } from "./components/auth/Signup";
 import { ForgotPassword } from "./components/auth/ForgotPassword";
@@ -129,17 +123,14 @@ function Shell() {
 
         {route === "landing" && (
           <motion.div key="landing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
-            <Navbar onPrimary={goPrimary} onLogin={() => setRoute("login")} />
-            <main>
-              <Hero onPrimary={goPrimary} onTrial={() => setRoute("free-trial")} />
-              <FeatureTabs />
-              <Features />
-              <Metrics />
-              <Pricing onPrimary={goPrimary} />
-              <FAQ />
-              <CTA onPrimary={goPrimary} onTrial={() => setRoute("free-trial")} />
-            </main>
-            <Footer />
+            <div className="bg-navy font-display">
+              <LandingNav signedIn={!!user} onPrimary={goPrimary} onLogin={() => setRoute("login")} />
+              <main>
+                <LandingHero onPrimary={goPrimary} />
+                <LandingFeatures />
+                <LandingPricing onPrimary={goPrimary} onTrial={() => setRoute("free-trial")} />
+              </main>
+            </div>
           </motion.div>
         )}
 
