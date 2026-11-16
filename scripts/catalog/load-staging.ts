@@ -67,9 +67,11 @@ let expiredAvatarKeys: string[] = [];
 const CHUNK = 500;
 class DryRun extends Error {}
 try {
-  await dst.begin(async (tx) => {
+  // One consistent snapshot of the local catalogue (2026-11-16: an assessment finishing mid-read let a profile through
+  // without its creator, and the foreign key aborted the sync).
+  await src.begin("isolation level repeatable read read only", (snap) => dst.begin(async (tx) => {
     for (const [table, query] of steps) {
-      const rows = (await src.unsafe(query)).map((x) => x["r"] as Record<string, unknown>);
+      const rows = (await snap.unsafe(query)).map((x) => x["r"] as Record<string, unknown>);
       // Generated columns (0081 pakistani_diaspora) are computed by the target, never inserted.
       const [schema, name] = table.split(".");
       const cols = (await tx.unsafe(`select string_agg(quote_ident(column_name), ', ' order by ordinal_position) c from information_schema.columns
@@ -82,11 +84,11 @@ try {
       counts[table] = { source: rows.length, inserted };
     }
     // Every local creator and profile, for the update rules (contacts and photo references are not read).
-    const creators = (await src.unsafe(`select to_jsonb(c) - 'avatar_url' - 'avatar_key' r from gcp.creators c`)).map((x) => x["r"]);
-    const profiles = (await src.unsafe(`select to_jsonb(p) - 'avatar_url' - 'avatar_key' r from gcp.creator_profiles p`)).map((x) => x["r"]);
+    const creators = (await snap.unsafe(`select to_jsonb(c) - 'avatar_url' - 'avatar_key' r from gcp.creators c`)).map((x) => x["r"]);
+    const profiles = (await snap.unsafe(`select to_jsonb(p) - 'avatar_url' - 'avatar_key' r from gcp.creator_profiles p`)).map((x) => x["r"]);
     ({ report, expiredAvatarKeys } = await syncExisting(tx, { creators, profiles }));
     if (!values.apply) throw new DryRun("dry run: rolled back");
-  });
+  }));
 } catch (err) {
   if (!(err instanceof DryRun)) throw err;
 }
