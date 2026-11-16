@@ -124,6 +124,8 @@ export function SearchModule({ liveJobId = null, onGoToCampaigns }: { liveJobId?
   const [extra, setExtra] = useState<Partial<SearchFilters>>({});
   const [suggested, setSuggested] = useState<ChipState | null>(null);
   /** What the AI reading took from the request: stated vs inferred per filter, topic words, and what is not a filter. */
+  // A purpose the applied AI reading named but no filter covers ("to promote a new phone"), repeated under the results.
+  const [purposes, setPurposes] = useState<string[]>([]);
   const [reading, setReading] = useState<Pick<InterpretResponse, "keywords" | "understood" | "followUp"> | null>(null);
   const search = useCreatorSearch(request);
   const interpret = useInterpret();
@@ -198,6 +200,7 @@ export function SearchModule({ liveJobId = null, onGoToCampaigns }: { liveJobId?
     setSuggested(null);
     setReading(null);
     setShowInterpret(false);
+    setPurposes([]);
   };
 
   /** The optional AI reading of the query (one LLM call), only on request. */
@@ -226,6 +229,7 @@ export function SearchModule({ liveJobId = null, onGoToCampaigns }: { liveJobId?
     const next = refine ? suggested : applySuggestion(uiFilters(), suggested);
     const text = refine && reading?.followUp ? reading.followUp.text : query;
     if (text !== query) setQuery(text);
+    setPurposes(reading?.understood.notFilters ?? []);
     setPlatform(next.platform);
     setCity(next.city);
     setNiche(next.niche);
@@ -754,6 +758,11 @@ export function SearchModule({ liveJobId = null, onGoToCampaigns }: { liveJobId?
             {search.data && request?.filters.platform === undefined && search.data.understood.filters.platform === undefined && (
               <p className="text-xs text-slate-500">{platformMixText(search.data.platformCounts)}</p>
             )}
+            {purposes.map((p) => (
+              <p key={p} className="text-xs text-amber-700" data-testid="purpose-note">
+                Not checked by the search: “{p}”. Open each profile and look at recent content before choosing.
+              </p>
+            ))}
             {search.data && !search.data.complete && (
               <p className="text-xs text-slate-600" data-testid="partial-note">
                 More creators matched than MUSHIN ranks at once: these are the best matches, not all of them. Add a filter or more words to narrow the search.
