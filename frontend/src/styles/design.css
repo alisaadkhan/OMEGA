@@ -1,6 +1,6 @@
 /* MUSHIN redesign tokens (owner designs 2026-11-16). Names are new so nothing older changes colour. */
 @theme {
-  --font-display: "Plus Jakarta Sans", "Geist Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Geist Sans", ui-sans-serif, system-ui, sans-serif;
   --color-navy: #0a0f24;
   --color-navy-2: #111836;
   --color-navy-3: #151e42;

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Archive, ArrowLeft, CheckCircle2, Clock3, Download, Eye, PauseCircle, PlayCircle, Save, Settings2, Trash2, Users, Wallet } from "lucide-react";
+import { Archive, ArrowLeft, ArrowRight, CheckCircle2, Clock3, Download, PauseCircle, XCircle, PlayCircle, Save, Settings2, Trash2, Users, Wallet } from "lucide-react";
 import { dataExportSchema, type CampaignDetail as Detail } from "@mushin/contracts";
 import { apiDownload, apiRequest } from "../../api/client";
 import { rupees, toMinor, useCampaign, useDeleteCampaign, useUpdateCampaign } from "../../api/campaigns";
@@ -30,6 +30,7 @@ export function CampaignDetail({ id, onBack, onOpenCreator, onGoToSearch }: { id
   const toast = useToast();
   const [tab, setTab] = useState<Tab>("overview");
   const [exporting, setExporting] = useState(false);
+  const [mailFor, setMailFor] = useState<string | null>(null);
   if (campaign.isPending) return <div className="space-y-4"><Skeleton className="h-20" /><Skeleton className="h-10" /><Skeleton className="h-72" /></div>;
   if (campaign.isError) return <ErrorState body={campaign.error instanceof Error ? campaign.error.message : undefined} onRetry={() => void campaign.refetch()} />;
   const c = campaign.data;
@@ -90,8 +91,8 @@ export function CampaignDetail({ id, onBack, onOpenCreator, onGoToSearch }: { id
           {tab === "creators" && <RosterTab c={c} onOpenCreator={onOpenCreator} onGoToSearch={onGoToSearch} />}
           {tab === "pipeline" && <PipelineTab c={c} onOpenCreator={onOpenCreator} onGoToSearch={onGoToSearch} />}
           {tab === "timeline" && <TimelineTab c={c} onOpenCreator={onOpenCreator} />}
-          {tab === "outreach" && <CampaignOutreachTab c={c} />}
-          {tab === "analytics" && <AnalyticsTab c={c} />}
+          {tab === "outreach" && <CampaignOutreachTab c={c} initialId={mailFor} />}
+          {tab === "analytics" && <AnalyticsTab c={c} onViewMail={(cid) => { setMailFor(cid); setTab("outreach"); }} />}
           {tab === "settings" && <SettingsTab c={c} onDeleted={onBack} />}
         </motion.div>
       </AnimatePresence>
@@ -132,106 +133,81 @@ function OverviewTab({ c }: { c: Detail }) {
     { label: "Creators", icon: Users, value: open.length, note: `${c.stageCounts.confirmed} confirmed` },
     { label: "Deliverables Due", icon: Clock3, value: due, note: "Content pending" },
     { label: "Posts Live", icon: CheckCircle2, value: posted, note: "Posted or completed" },
+    { label: "Declined", icon: XCircle, value: c.declinedCount, note: "Said no or dropped out" },
   ];
   return (
-    <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-12">
-        <motion.div className="lg:col-span-5" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}><BudgetCard c={c} /></motion.div>
-        <Stagger className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:col-span-7">
-          {tiles.map((t) => (
-            <StaggerItem key={t.label}>
-              <Card hover className="flex h-full flex-col justify-between p-5">
-                <div className="flex items-center justify-between"><span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-soft">{t.label}</span><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-low text-ink-soft"><t.icon className="h-[18px] w-[18px]" /></span></div>
-                <div className="mt-4"><div className="text-2xl font-semibold tabular-nums text-on"><CountUp value={t.value} /></div><div className="mt-1 flex items-center gap-1.5 text-xs text-teal"><span className="h-1.5 w-1.5 rounded-full bg-teal" />{t.note}</div></div>
-              </Card>
-            </StaggerItem>
-          ))}
-          <StaggerItem>
-            <Card className="flex h-full flex-col justify-between p-5 opacity-80">
-              <div className="flex items-center justify-between"><span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-soft">Total Views</span><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-low text-ink-soft"><Eye className="h-[18px] w-[18px]" /></span></div>
-              <div className="mt-4"><div className="text-2xl font-semibold text-faint">—</div><NotYet className="mt-1" label="Post tracking not available yet" /></div>
+    <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-12">
+      <motion.div className="lg:col-span-5" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}><BudgetCard c={c} /></motion.div>
+      <Stagger className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:col-span-7">
+        {tiles.map((t) => (
+          <StaggerItem key={t.label}>
+            <Card hover className="flex h-full flex-col justify-between p-5">
+              <div className="flex items-center justify-between"><span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-soft">{t.label}</span><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-low text-ink-soft"><t.icon className="h-[18px] w-[18px]" /></span></div>
+              <div className="mt-4"><div className="text-2xl font-semibold tabular-nums text-on"><CountUp value={t.value} /></div><div className="mt-1 flex items-center gap-1.5 text-xs text-teal"><span className="h-1.5 w-1.5 rounded-full bg-teal" />{t.note}</div></div>
             </Card>
           </StaggerItem>
-        </Stagger>
-      </div>
-      <PipelineSummary c={c} />
-      <ViewsPlaceholder title="Views Over Time" />
+        ))}
+      </Stagger>
     </div>
   );
 }
 
-function PipelineSummary({ c }: { c: Detail }) {
-  const total = Math.max(1, live(c).length);
-  const stages = ["identified", "contacted", "negotiating", "confirmed"] as const;
-  const tone = ["bg-line", "bg-cyan-soft", "bg-teal", "bg-ink"];
-  return (
-    <Card className="p-6">
-      <div className="mb-4 flex items-center justify-between"><h2 className="text-lg font-semibold text-on">Pipeline</h2><span className="text-xs text-ink-soft">{c.declinedCount} declined</span></div>
-      <div className="flex h-3 overflow-hidden rounded-full bg-surface-mid">
-        {stages.map((s, i) => <motion.div key={s} className={tone[i]} initial={{ width: 0 }} animate={{ width: `${((c.stageCounts[s] ?? 0) / total) * 100}%` }} transition={{ duration: 0.9, delay: i * 0.1, ease: EASE }} />)}
-      </div>
-      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {stages.map((s, i) => <div key={s} className="flex items-center gap-2 text-xs text-ink-soft"><span className={cn("h-2 w-2 rounded-full", tone[i])} />{STAGE_LABEL[s]} <span className="font-semibold tabular-nums text-on">{c.stageCounts[s] ?? 0}</span></div>)}
-      </div>
-    </Card>
-  );
-}
+const CONTENT = { none: "Not started", content_pending: "Content pending", posted: "Posted", completed: "Completed" } as const;
 
-function ViewsPlaceholder({ title }: { title: string }) {
-  return (
-    <Card className="flex flex-col p-6">
-      <div className="mb-4 flex items-center justify-between"><div><h2 className="text-lg font-semibold text-on">{title}</h2><span className="text-xs text-ink-soft">Views across creator deliverables</span></div><NotYet label="Coming later" /></div>
-      <div className="relative h-56 w-full overflow-hidden rounded-xl bg-surface-low">
-        <svg className="h-full w-full" viewBox="0 0 880 220" preserveAspectRatio="none" aria-hidden>
-          {[40, 90, 140, 190].map((y) => <line key={y} x1="0" x2="880" y1={y} y2={y} stroke="#e0e3e5" strokeDasharray="4 6" />)}
-          <motion.path d="M 0 200 C 120 196, 200 180, 300 160 S 500 110, 600 90 S 780 40, 880 30" fill="none" stroke="#c6c6cd" strokeWidth="2.5" strokeDasharray="6 6" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 1.6, ease: EASE }} />
-        </svg>
-        <div className="absolute inset-0 flex items-center justify-center"><span className="rounded-xl bg-white/90 px-4 py-2 text-center text-xs text-ink-soft shadow-sm">MUSHIN doesn't track post views yet, so there is no chart to show.</span></div>
-      </div>
-    </Card>
-  );
-}
-
-function AnalyticsTab({ c }: { c: Detail }) {
+/** Analytics (owner design 2026-11-16): spend and creators posted, then per-creator performance with a link to the mail. */
+function AnalyticsTab({ c, onViewMail }: { c: Detail; onViewMail: (creatorId: string) => void }) {
   const open = live(c);
-  const posted = open.filter((x) => x.contentStatus === "posted" || x.contentStatus === "completed").length;
-  const contacted = open.filter((x) => x.lastOutreach).length;
-  const replied = open.filter((x) => x.lastOutreach && ["replied", "agreed"].includes(x.lastOutreach.outcome)).length;
+  const isPosted = (x: Detail["creators"][number]) => x.contentStatus === "posted" || x.contentStatus === "completed";
+  const posted = open.filter(isPosted).length;
+  const pending = open.length - posted;
+  const onTrack = open.length > 0 && posted / open.length >= 0.5;
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <BudgetCard c={c} />
-        <Card className="flex flex-col justify-between p-6">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-soft">Creators Posted</span>
-          <div className="my-3 flex items-baseline gap-2"><span className="text-[32px] font-semibold tabular-nums text-on">{posted} of {open.length}</span></div>
-          <div className="flex items-center gap-1.5">{open.map((x, i) => <motion.span key={x.creator.id} initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ delay: i * 0.05 }} className={cn("h-2 flex-1 origin-left rounded-full", x.contentStatus === "posted" || x.contentStatus === "completed" ? "bg-ink" : "bg-surface-high")} />)}</div>
-        </Card>
-        <Card className="flex flex-col justify-between p-6">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-soft">Outreach Response</span>
-          <div className="my-3 flex items-baseline gap-2"><span className="text-[32px] font-semibold tabular-nums text-on">{contacted ? Math.round((replied / contacted) * 100) : 0}%</span><span className="text-xs text-ink-soft">{replied} of {contacted} contacted replied</span></div>
-          <Progress value={contacted ? (replied / contacted) * 100 : 0} bar="bg-teal" />
-        </Card>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+          <Card className="flex h-full flex-col justify-between p-6">
+            <div className="flex items-center justify-between"><span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-soft">Total Spend</span><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-low text-ink-soft"><Wallet className="h-[18px] w-[18px]" /></span></div>
+            <div className="my-3">
+              <div className="text-[32px] font-semibold tracking-tight tabular-nums text-on" title={rupees(c.agreedFeesMinor)}>{shortRupees(c.agreedFeesMinor)}</div>
+              <p className="mt-1 text-xs text-ink-soft">{c.budgetMinor ? `${Math.round((c.agreedFeesMinor / c.budgetMinor) * 100)}% of ${shortRupees(c.budgetMinor)} budget, in agreed fees` : "Agreed fees · no budget set"}</p>
+            </div>
+            <Progress value={c.budgetMinor ? (c.agreedFeesMinor / c.budgetMinor) * 100 : 0} bar="bg-ink" />
+          </Card>
+        </motion.div>
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.06 }}>
+          <Card className="flex h-full flex-col justify-between p-6">
+            <div className="flex items-center justify-between"><span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-soft">Creators Posted</span><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-low text-ink-soft"><Users className="h-[18px] w-[18px]" /></span></div>
+            <div className="my-3">
+              <div className="flex items-baseline gap-2"><span className="text-[32px] font-semibold tracking-tight tabular-nums text-on">{posted} of {open.length}</span>{open.length > 0 && <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", onTrack ? "bg-cyan-pale/50 text-[#001f26]" : "bg-amber-50 text-amber-800")}>{onTrack ? "On Track" : "Behind"}</span>}</div>
+              <p className="mt-1 text-xs text-ink-soft">{pending} pending submission{pending === 1 ? "" : "s"} verification</p>
+            </div>
+            <div className="flex items-center gap-1.5">{open.map((x, i) => <motion.span key={x.creator.id} initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ delay: 0.1 + i * 0.05, ease: EASE }} className={cn("h-2 flex-1 origin-left rounded-full", isPosted(x) ? "bg-ink" : "bg-surface-high")} />)}</div>
+          </Card>
+        </motion.div>
       </div>
-      <ViewsPlaceholder title="Daily Views" />
-      <Card className="p-6">
-        <h2 className="mb-4 text-lg font-semibold text-on">Creator Performance</h2>
+      <Card className="flex flex-col p-6">
+        <div className="mb-4 flex items-center justify-between">
+          <div><h2 className="text-lg font-semibold text-on">Creator Performance</h2><p className="text-xs text-ink-soft">Each creator's deliverables and conversation</p></div>
+          <span className="rounded-full bg-surface-mid px-2.5 py-1 text-[10px] font-semibold text-ink-soft">{posted} Posts Live</span>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left">
-            <thead><tr className="bg-surface-low/60 text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-soft"><th className="rounded-l-xl px-4 py-3">Creator</th><th className="px-4 py-3">Platform</th><th className="px-4 py-3">Stage</th><th className="px-4 py-3">Content</th><th className="rounded-r-xl px-4 py-3 text-right">Fee</th></tr></thead>
-            <tbody className="divide-y divide-surface-mid">
+            <thead><tr className="bg-surface-low/60 text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-soft"><th className="rounded-l-xl px-4 py-3">Creator</th><th className="px-4 py-3">Platform</th><th className="px-4 py-3">Deliverables Posted</th><th className="px-4 py-3">Total Views</th><th className="rounded-r-xl px-4 py-3 text-right">Action</th></tr></thead>
+            <motion.tbody initial="h" animate="s" variants={{ h: {}, s: { transition: { staggerChildren: 0.05 } } }} className="divide-y divide-surface-mid">
               {open.map((x) => (
-                <tr key={x.creator.id} className="transition-colors hover:bg-surface-low/40">
-                  <td className="px-4 py-3 text-[13px] font-semibold text-on">{x.creator.displayName}<span className="block text-xs font-normal text-ink-soft">@{x.creator.handle}</span></td>
-                  <td className="px-4 py-3 text-xs text-on">{PLATFORM_NAME[x.creator.platform]}</td>
-                  <td className="px-4 py-3 text-xs text-on">{STAGE_LABEL[x.stage]}</td>
-                  <td className="px-4 py-3 text-xs text-on">{{ none: "Not started", content_pending: "Pending", posted: "Posted", completed: "Completed" }[x.contentStatus]}</td>
-                  <td className="px-4 py-3 text-right text-[13px] font-semibold tabular-nums text-on">{rupees(x.feeMinor)}</td>
-                </tr>
+                <motion.tr key={x.creator.id} variants={{ h: { opacity: 0, y: 6 }, s: { opacity: 1, y: 0 } }} className="group transition-colors hover:bg-surface-low/40">
+                  <td className="px-4 py-4"><span className="text-[15px] font-semibold text-on">{x.creator.displayName}</span><span className="block text-xs text-ink-soft">@{x.creator.handle}</span></td>
+                  <td className="whitespace-nowrap px-4 py-4"><span className="rounded-lg bg-surface-mid px-2.5 py-1 text-[11px] font-medium text-on">{PLATFORM_NAME[x.creator.platform]}</span></td>
+                  <td className="px-4 py-4 text-[13px] text-on">{x.note ? <span className="line-clamp-1 max-w-xs">{x.note}</span> : null}<span className="block text-[11px] text-ink-soft">{CONTENT[x.contentStatus]}</span></td>
+                  <td className="whitespace-nowrap px-4 py-4 text-[13px] text-faint" title="Post views are not tracked yet">—</td>
+                  <td className="whitespace-nowrap px-4 py-4 text-right"><button onClick={() => onViewMail(x.creator.id)} className="inline-flex items-center gap-1 text-[13px] font-medium text-on transition-colors hover:text-teal">View Mail <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" /></button></td>
+                </motion.tr>
               ))}
               {open.length === 0 && <tr><td colSpan={5} className="px-4 py-6 text-center text-sm text-ink-soft">No creators in this campaign yet.</td></tr>}
-            </tbody>
+            </motion.tbody>
           </table>
         </div>
+        {open.length > 0 && <div className="mt-4 flex items-center gap-2 pt-2 text-xs text-ink-soft"><span className="h-2 w-2 rounded-full bg-teal" />Showing {posted} creator{posted === 1 ? "" : "s"} with posts live · {pending} pending deliverable verification</div>}
       </Card>
     </div>
   );

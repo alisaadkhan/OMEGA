@@ -12,12 +12,12 @@ import { OUTCOME_LABEL, OutreachPanel } from "./CampaignOutreach";
 const CHANNEL = { email: "Email", phone: "Phone call", whatsapp: "WhatsApp", instagram: "Instagram DM", tiktok: "TikTok DM", youtube: "YouTube", other: "Other" } as const;
 
 /** Outreach (owner design 2026-11-16): conversations on the left, the logged history on the right, write or log from here. */
-export function CampaignOutreachTab({ c }: { c: CampaignDetail }) {
+export function CampaignOutreachTab({ c, initialId = null }: { c: CampaignDetail; initialId?: string | null }) {
   const [filter, setFilter] = useState<"all" | "contacted" | "waiting">("all");
   const [find, setFind] = useState("");
   const members = [...c.creators].sort((a, b) => (b.lastOutreach?.occurredAt ?? b.addedAt).localeCompare(a.lastOutreach?.occurredAt ?? a.addedAt));
   const shown = members.filter((m) => (filter === "all" || (filter === "contacted" ? m.lastOutreach : !m.lastOutreach)) && `${m.creator.displayName} ${m.creator.handle}`.toLowerCase().includes(find.trim().toLowerCase()));
-  const [openId, setOpenId] = useState<string | null>(members[0]?.creator.id ?? null);
+  const [openId, setOpenId] = useState<string | null>(initialId ?? members[0]?.creator.id ?? null);
   const [writing, setWriting] = useState(false);
   const active = c.creators.find((m) => m.creator.id === openId) ?? null;
   const log = useOutreachLog(c.id, active?.creator.id ?? null);

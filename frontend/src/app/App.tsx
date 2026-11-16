@@ -104,7 +104,7 @@ function Shell() {
       className="min-h-screen bg-white text-slate-900 antialiased"
       style={{
         fontFamily:
-          "Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+          "'Geist Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
       }}
     >
       <ServiceStatusBanner />
