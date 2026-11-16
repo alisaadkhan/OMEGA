@@ -179,7 +179,7 @@ function TermsDrawer({ campaignId, m, onClose }: { campaignId: string; m: Member
             </section>
             <section>
               <span className={lbl}>Agreed Deliverable Fee</span>
-              <div className="relative"><span className="absolute inset-y-0 left-3.5 flex items-center text-xs font-bold text-faint">Rs.</span><input inputMode="numeric" value={form.fee} onChange={(e) => setForm({ ...form, fee: e.target.value })} placeholder="Not set" className={cn(fld, "pl-10 text-base font-semibold tabular-nums", feeBad && "ring-2 ring-danger/40")} /></div>
+              <div className="relative"><span className="absolute inset-y-0 left-3.5 flex items-center text-xs font-bold text-faint">Rs.</span><input aria-label="Fee in rupees" inputMode="numeric" value={form.fee} onChange={(e) => setForm({ ...form, fee: e.target.value })} placeholder="Not set" className={cn(fld, "pl-10 text-base font-semibold tabular-nums", feeBad && "ring-2 ring-danger/40")} /></div>
               <Segmented<Member["feeKind"]> value={form.feeKind} onChange={(v) => setForm({ ...form, feeKind: v })} className="mt-2" options={(["estimated", "quoted", "agreed"] as const).map((k) => ({ id: k, label: FEE_LABEL[k] }))} />
             </section>
             <section className="grid grid-cols-2 gap-3">
@@ -187,7 +187,7 @@ function TermsDrawer({ campaignId, m, onClose }: { campaignId: string; m: Member
               <label><span className={lbl}>Priority</span><select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value as Member["priority"] })} className={fld}>{Object.entries(PRIORITY_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
             </section>
             <label className="block"><span className={lbl}>Due Date</span><input type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} className={fld} /></label>
-            <label className="block"><span className={lbl}>Deliverables &amp; Notes</span><textarea rows={4} maxLength={2000} value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="e.g. 1 Reel + 2 Stories, swipe-up link" className={cn(fld, "resize-none")} /></label>
+            <label className="block"><span className={lbl}>Deliverables &amp; Notes</span><textarea aria-label="Deliverables and notes" rows={4} maxLength={2000} value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="e.g. 1 Reel + 2 Stories, swipe-up link" className={cn(fld, "resize-none")} /></label>
             <Alert tone="error">{feeBad ? "Enter the fee as a number of rupees." : error ? (error instanceof Error ? error.message : "Couldn't save.") : null}</Alert>
           </div>
           <footer className="flex shrink-0 items-center justify-between gap-3 border-t border-surface-mid bg-white p-4">

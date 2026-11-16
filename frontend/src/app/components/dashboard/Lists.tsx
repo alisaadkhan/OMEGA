@@ -214,7 +214,7 @@ function RosterCard({ l, onOpen, onRename, onDelete }: { l: ListSummary; onOpen:
           <span className="relative z-10 flex items-center gap-1">
             <button
               onClick={() => update.mutate({ id: l.id, patch: { favorite: !l.favorite } }, { onError: (e) => toast.error("Couldn't update the list", e instanceof Error ? e.message : undefined) })}
-              aria-label={l.favorite ? "Remove from favourites" : "Mark as favourite"}
+              aria-label={l.favorite ? `Remove ${l.name} from favourites` : `Mark ${l.name} as favourite`}
               aria-pressed={l.favorite}
               className="rounded-lg p-1.5 text-faint transition-colors hover:text-amber-500"
             >

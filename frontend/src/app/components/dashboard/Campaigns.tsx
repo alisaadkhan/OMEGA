@@ -136,7 +136,7 @@ export function CampaignModal({ open, initial, title, submitLabel, busy, error, 
                 <button key={p} type="button" onClick={() => setV((x) => ({ ...x, objective: p }))} className={cn("rounded-lg px-2.5 py-1.5 text-xs font-medium ring-1 transition-colors", v.objective === p ? "bg-cyan-pale/40 text-teal-deep ring-cyan-soft" : "bg-surface-low text-ink-soft ring-surface-top hover:bg-surface-mid")}>{p}</button>
               ))}
             </div>
-            <textarea rows={2} maxLength={1000} value={v.objective} onChange={set("objective")} placeholder="What should this campaign achieve?" className={cn(input, "resize-none")} />
+            <textarea aria-label="Objective" rows={2} maxLength={1000} value={v.objective} onChange={set("objective")} placeholder="What should this campaign achieve?" className={cn(input, "resize-none")} />
           </div>
           {error && <Alert tone="error">{error}</Alert>}
         </div>

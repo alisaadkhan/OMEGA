@@ -103,24 +103,27 @@ async function pageAs(who, viewport = { width: 1440, height: 950 }, { welcome = 
 }
 const shot = (p, n) => p.screenshot({ path: decodeURIComponent(new URL(`${n}.png`, shots).pathname).replace(/^\/([A-Z]:)/, "$1") }).catch(() => {});
 const mainText = async (p) => (await p.locator("main").innerText().catch(() => "")).replace(/\s+/g, " ");
+// Page headings that differ from the menu item (redesign 2026-11-16).
+const HEADING = { Settings: "Account Settings", "Credits & billing": "Credits & Billing" };
 const nav = async (p, name) => {
   // Account pages are in the profile menu, not the sidebar (owner direction 2026-11-03).
   if (["Settings", "Credits & billing", "Activity log", "Support"].includes(name)) {
     await p.getByRole("button", { name: "Account menu" }).click();
     await p.getByRole("menuitem", { name, exact: true }).click();
-    await p.getByRole("heading", { name, exact: true }).first().waitFor({ timeout: 15000 });
+    await p.getByRole("heading", { name: HEADING[name] ?? name, exact: true }).first().waitFor({ timeout: 15000 });
     return;
   }
   // Small screens keep the navigation in a drawer behind the top bar's menu button.
   const drawer = p.getByRole("button", { name: "Open navigation" });
   if (await drawer.isVisible().catch(() => false)) await drawer.click();
-  await p.getByRole("button", { name, exact: true }).first().click();
+  // The sidebar says "Search" for the Search & Discovery page (redesign 2026-11-16).
+  await p.getByRole("button", { name: name === "Search & Discovery" ? "Search" : name, exact: true }).first().click();
   await p.getByRole("heading", { name, exact: true }).first().waitFor({ timeout: 15000 });
 };
 const menu = async (p, item) => {
   await p.getByRole("button", { name: "Account menu" }).click();
   await p.getByRole("menuitem", { name: item }).click();
-  await p.getByRole("heading", { name: item === "Support" ? "Support" : item, exact: true }).first().waitFor({ timeout: 15000 });
+  await p.getByRole("heading", { name: HEADING[item] ?? item, exact: true }).first().waitFor({ timeout: 15000 });
 };
 async function search(p, text) {
   if (!(await p.getByPlaceholder(/Find Pakistani creators/).isVisible().catch(() => false))) await nav(p, "Search & Discovery");
@@ -195,9 +198,10 @@ if (phase === "main") {
   {
     const t = await pageAs(null);
     await t.goto("http://localhost:5173/#/");
-    await t.getByRole("button", { name: "Call us for a free 14-day trial" }).first().click();
+    // Redesign 2026-11-16: the closing call to action offers the trial ("Ask for…" when no business number is set).
+    await t.getByRole("button", { name: "Ask for a free 14-day trial" }).first().click();
     await t.getByRole("heading", { name: "Call us for a free 14-day trial" }).waitFor({ timeout: 15000 });
-    check("trial", "the landing page's main button opens the free-trial page", t.url().endsWith("#/free-trial"));
+    check("trial", "the landing page's trial button opens the free-trial page", t.url().endsWith("#/free-trial"));
     check("trial", "without a configured business number no phone number or call link is shown", (await t.locator('a[href^="tel:"]').count()) === 0);
     const form = t.getByRole("form", { name: "Request a call back" });
     await form.getByLabel("Your name").fill("E2E Caller");
@@ -248,23 +252,26 @@ if (phase === "main") {
   p = await pageAs("owner");
   await p.goto("http://localhost:5173/#/dashboard");
   await p.getByRole("heading", { name: /Welcome back, Olivia/ }).waitFor({ timeout: 30000 });
-  await p.getByRole("region", { name: "Shortlists" }).getByText("No lists yet").waitFor({ timeout: 20000 });
+  // Redesign 2026-11-16: Home's Running Projects card says "No campaigns yet"; the shortlist count is a metric tile.
+  await p.getByText("No campaigns yet").first().waitFor({ timeout: 20000 });
   await p.waitForTimeout(1500);
   await shot(p, "01-dashboard");
   let t = await mainText(p);
-  check("dashboard", "first visit: real trial balance and honest empty cards", (await api("owner", "GET", "/v1/billing/summary")).json.balance.available === Number(sql(`select trial_credits + testing_monthly_credits from platform.billing_settings`)) /* trial + this month's testing credits (0061) */ && /No lists yet/.test(t) && /No campaigns yet/.test(t) && !/\bSample\b|Illustrative/.test(t));
-  // F-7/F-8: badges follow the server (meter and status), never fixed text; a trial is never shown as "Inactive".
+  check("dashboard", "first visit: real trial balance and honest empty cards", (await api("owner", "GET", "/v1/billing/summary")).json.balance.available === Number(sql(`select trial_credits + testing_monthly_credits from platform.billing_settings`)) /* trial + this month's testing credits (0061) */ && /ACTIVE SHORTLISTS\s*0/i.test(t) && /No campaigns yet/.test(t) && !/\bSample\b|Illustrative/.test(t));
+  // F-7/F-8: the top bar's credit pill names the server's meter; the plan card names the trial, never "Inactive".
   const billSum = (await api("owner", "GET", "/v1/billing/summary")).json;
-  const creditBadgeText = (await p.getByTestId("credit-badge").innerText().catch(() => "")).trim();
-  const subBadgeText = (await p.getByTestId("subscription-badge").innerText().catch(() => "")).trim();
-  const meterLabel = { normal: "Healthy", amber: "Running low", red: "Very low" }[billSum.balance.meter];
-  check("dashboard", "credit and subscription badges match the server's meter and status", creditBadgeText === meterLabel && billSum.status === "trialing" && subBadgeText === "Trial" && !/Inactive/.test(t), `credit "${creditBadgeText}" (meter ${billSum.balance.meter}); subscription "${subBadgeText}" (${billSum.status})`);
+  const creditBadgeText = (await p.locator('[aria-label*=" available"]').first().getAttribute("aria-label").catch(() => "")) ?? "";
+  const meterLabel = { normal: "Credits", amber: "Credits are running low", red: "Credits are very low" }[billSum.balance.meter];
+  check("dashboard", "credit pill and plan card match the server's meter and status", creditBadgeText.startsWith(`${meterLabel}:`) && billSum.status === "trialing" && /Free trial/.test(t) && !/Inactive/.test(t), `credit "${creditBadgeText}" (meter ${billSum.balance.meter}); status ${billSum.status}`);
   check("dashboard", "page title and description name MUSHIN, not template text", /MUSHIN/.test(await p.title()) && !/High-End SaaS/.test(await p.title()), await p.title());
   await p.reload();
   await p.getByRole("heading", { name: /Welcome back/ }).waitFor({ timeout: 30000 });
   check("auth", "reload on a direct dashboard URL restores the session", p.url().includes("#/dashboard"));
+  // The one-time welcome dialog (redesign 2026-11-16) closes with "Go to dashboard"; it shows on the first visit only.
+  await p.getByRole("button", { name: "Go to dashboard" }).click({ timeout: 5000 }).catch(() => {});
   // The confirmation link, opened in the browser that signed up, goes straight into the dashboard with a welcome.
   await p.goto("http://localhost:5173/#/confirmed");
+  await p.waitForURL(/#\/dashboard/, { timeout: 15000 }).catch(() => {});
   await p.getByText("Welcome to MUSHIN").first().waitFor({ timeout: 15000 }).catch(() => {});
   check("auth", "the confirmation link lands in the dashboard with a welcome message", (await p.getByText("Welcome to MUSHIN").first().isVisible().catch(() => false)) && p.url().includes("#/dashboard"), p.url());
   for (const b of await p.getByRole("button", { name: "Dismiss" }).all()) await b.click().catch(() => {});
@@ -394,12 +401,15 @@ if (phase === "main") {
   await nav(p, "Shortlists");
   await p.getByRole("button", { name: /Food shortlist/ }).first().click();
   await p.getByText(`@${FX.main}`).first().waitFor();
-  await p.getByRole("button", { name: "Add note" }).first().click();
-  await p.getByLabel(/Note for/).fill("Shortlisted for Eid");
-  await p.keyboard.press("Enter");
-  await p.waitForTimeout(1200);
+  // Redesign 2026-11-16: the note opens in a side panel with an explicit Save Note button.
+  await p.getByRole("button", { name: /Add note/ }).first().click();
+  await p.getByLabel("Note", { exact: true }).fill("Shortlisted for Eid");
+  await p.getByRole("button", { name: "Save Note" }).click();
+  await p.getByText("Note saved").first().waitFor({ timeout: 10000 }).catch(() => {});
   check("lists", "note persists", sql(`select count(*) from wp.list_members where note = 'Shortlisted for Eid'`) === "1");
-  await p.getByRole("button", { name: "Mark as favourite" }).first().click();
+  // The star is on each shortlist card in the index, named after its list.
+  await nav(p, "Shortlists");
+  await p.getByRole("button", { name: "Mark Food shortlist as favourite" }).click();
   await p.waitForTimeout(1000);
   check("lists", "favourite persists", sql(`select favorite from wp.lists where name = 'Food shortlist'`) === "t");
   check("lists", "duplicate name refused by the API", (await api("owner", "POST", "/v1/lists", { name: "food shortlist" })).status === 409);
