@@ -10,6 +10,7 @@ import { useToast } from "../../lib/toast";
 import { ErrorState, LoadingBlock } from "./states";
 import { TicketAttachments } from "./TicketAttachments";
 import { TrialFeedback } from "./TrialFeedback";
+import { Alert, Segmented, Stagger, StaggerItem } from "../../ui/kit";
 
 // Categories of the master directive §6.1 (0083); "search" is shown for earlier requests only.
 const CATEGORY = { billing: "Billing & Credits", creator_data: "Creator Data Issue", discovery: "Live Discovery Issue", account: "Account & Team", feature_request: "Feature Request", data_removal: "Data removal", other: "Other", search: "Search" } as const;
@@ -40,22 +41,16 @@ export function Support() {
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <h1 className="text-[32px] font-bold leading-10 tracking-[-0.025em] text-slate-900">Support</h1>
-          <p className="mt-1 text-sm text-slate-500">Ask MUSHIN support about search, Find New Creators, billing or your account. Replies appear here.</p>
+          <p className="mt-1 text-sm text-slate-500">Direct communication line with the MUSHIN support team. Replies appear here.</p>
         </div>
         <button onClick={() => { setCreating(true); setOpenId(null); }} className="inline-flex items-center gap-2 self-start rounded-xl bg-[#57dffe] px-4 py-2.5 text-sm font-semibold text-[#001f26] shadow-sm transition-all hover:bg-[#4cd7f6] focus:outline-none focus:ring-2 focus:ring-cyan-400/60 active:scale-95">
-          <Plus className="h-4 w-4" /> New request
+          <Plus className="h-4 w-4" /> New Ticket
         </button>
       </div>
       <div className="flex min-h-[560px] flex-col overflow-hidden rounded-2xl bg-white shadow-sm md:flex-row">
         <section className="flex w-full flex-shrink-0 flex-col md:w-[360px]" aria-label="Your requests">
           <div className="space-y-3 p-4">
-            <div className="flex gap-1.5 rounded-xl bg-slate-100 p-1" role="group" aria-label="Filter requests">
-              {(["all", "open", "resolved"] as const).map((k) => (
-                <button key={k} onClick={() => setTab(k)} aria-pressed={tab === k} className={`flex-1 rounded-lg px-3 py-1.5 text-[11px] font-semibold capitalize transition-all focus:outline-none focus:ring-2 focus:ring-cyan-400/40 ${tab === k ? "bg-[#0A0F24] text-white" : "text-slate-600 hover:text-slate-900"}`}>
-                  {k}
-                </button>
-              ))}
-            </div>
+            <Segmented<"all" | "open" | "resolved"> dark value={tab} onChange={setTab} className="flex w-full [&>button]:flex-1" options={[{ id: "all", label: "All" }, { id: "open", label: "Open" }, { id: "resolved", label: "Resolved" }]} />
             <div className="relative">
               <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input value={find} onChange={(e) => setFind(e.target.value)} placeholder="Search requests…" aria-label="Search requests" className="w-full rounded-xl bg-slate-100 py-2 pl-9 pr-3 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-cyan-300" />
@@ -73,7 +68,7 @@ export function Support() {
                 <p className="mt-1 text-xs text-slate-500">{(list.data?.tickets.length ?? 0) === 0 ? "Start one with New request." : "Try another filter."}</p>
               </div>
             ) : (
-              <ul className="space-y-1">{tickets.map((t) => <TicketRow key={t.id} t={t} active={t.id === openId} onOpen={() => { setOpenId(t.id); setCreating(false); }} />)}</ul>
+              <Stagger className="space-y-1" gap={0.04}>{tickets.map((t) => <StaggerItem key={t.id}><TicketRow key={t.id} t={t} active={t.id === openId} onOpen={() => { setOpenId(t.id); setCreating(false); }} /></StaggerItem>)}</Stagger>
             )}
           </div>
         </section>
@@ -166,6 +161,7 @@ function NewTicket({ onCreated, onCancel }: { onCreated: (id: string) => void; o
         <textarea rows={6} maxLength={5000} value={v.body} onChange={(e) => setV({ ...v, body: e.target.value })} aria-invalid={missing.body || undefined} className={field(missing.body)} />
         {missing.body && <span className="mt-1 block text-[11px] font-normal text-rose-600 animate-in fade-in slide-in-from-top-1 duration-200">Tell us what happened.</span>}
       </label>
+      <Alert tone="error">{create.isError ? (create.error instanceof Error ? create.error.message : "Couldn't send the request.") : null}</Alert>
       <p className="text-[11px] text-slate-500">Don&apos;t include passwords or payment card details. Support staff see your account name and this conversation.</p>
       <div className="flex justify-end gap-2">
         <button type="button" onClick={onCancel} className="rounded-xl px-3.5 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-400/40">Cancel</button>
@@ -225,7 +221,8 @@ function TicketThread({ id }: { id: string }) {
             reply.mutate(text.trim(), { onSuccess: () => { setText(""); toast.success("Reply sent"); }, onError: (err) => toast.error("Couldn't send the reply", err instanceof Error ? err.message : undefined) });
           }}
         >
-          <div className="flex flex-col gap-2 rounded-2xl bg-slate-100 p-3">
+          <div className="mb-2"><Alert tone="error">{reply.isError ? (reply.error instanceof Error ? reply.error.message : "Couldn't send the reply.") : null}</Alert></div>
+          <div className="flex flex-col gap-2 rounded-2xl bg-slate-100 p-3 transition-shadow focus-within:shadow-md focus-within:ring-2 focus-within:ring-cyan/30">
             <textarea rows={3} maxLength={5000} value={text} onChange={(e) => setText(e.target.value)} aria-label="Reply" placeholder="Write a reply…" className="w-full resize-none bg-transparent px-1 text-[13px] text-slate-900 placeholder:text-slate-400 focus:outline-none" />
             <div className="flex justify-end">
               <button type="submit" disabled={!text.trim() || reply.isPending} className="inline-flex items-center gap-1.5 rounded-xl bg-[#0A0F24] px-5 py-2 text-[13px] font-semibold text-white shadow-sm transition-all hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-400/50 disabled:opacity-50">

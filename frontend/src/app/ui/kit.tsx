@@ -304,7 +304,7 @@ export function Toggle({ checked, onChange, label, disabled }: { checked: boolea
 }
 
 /** Segmented pill tabs with a sliding active background. */
-export function Segmented<T extends string>({ value, onChange, options, dark, className }: { value: T; onChange: (v: T) => void; options: { id: T; label: ReactNode }[]; dark?: boolean; className?: string }) {
+export function Segmented<const T extends string>({ value, onChange, options, dark, className }: { value: T; onChange: (v: T) => void; options: { id: T; label: ReactNode }[]; dark?: boolean; className?: string }) {
   const group = useId();
   return (
     <div role="tablist" className={cn("inline-flex items-center gap-1 rounded-xl bg-surface-low p-1", className)}>

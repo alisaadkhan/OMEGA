@@ -60,7 +60,7 @@ export function Settings({ onOpenSupport, onOpenBilling, initialTab = "profile" 
   const [tab, setTab] = useState<Tab>(initialTab);
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 rounded-2xl bg-slate-100/70 p-4 md:flex-row md:items-center md:justify-between">
+      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-4 rounded-2xl bg-slate-100/70 p-4 shadow-sm md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-3">
           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-cyan-100 text-cyan-800 shadow-sm">
             <BadgeCheck className="h-4 w-4" aria-hidden />
@@ -70,10 +70,10 @@ export function Settings({ onOpenSupport, onOpenBilling, initialTab = "profile" 
             <p className="text-xs text-slate-600">Your email is confirmed. Change your password or sign out of other devices under Password &amp; sessions.</p>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       <div>
-        <h1 className="text-[32px] font-bold leading-10 tracking-[-0.025em] text-slate-900">Settings</h1>
+        <h1 className="text-[32px] font-bold leading-10 tracking-[-0.025em] text-slate-900">Account Settings</h1>
         <p className="mt-1 text-sm text-slate-500">Manage your profile, security, team and account preferences.</p>
       </div>
 
@@ -87,13 +87,14 @@ export function Settings({ onOpenSupport, onOpenBilling, initialTab = "profile" 
                   key={t.id}
                   onClick={() => setTab(t.id)}
                   aria-current={on ? "page" : undefined}
-                  className={`flex shrink-0 items-center justify-between gap-3 rounded-xl px-4 py-3 text-left text-[13px] font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50 ${on ? "bg-[#0A0F24] text-white shadow-sm" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"}`}
+                  className={`relative flex shrink-0 items-center justify-between gap-3 rounded-xl px-4 py-3 text-left text-[13px] font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50 ${on ? "text-white" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"}`}
                 >
-                  <span className="flex items-center gap-3 whitespace-nowrap">
+                  {on && <motion.span layoutId="settings-tab" className="absolute inset-0 rounded-xl bg-black shadow-sm" transition={{ type: "spring", stiffness: 420, damping: 34 }} />}
+                  <span className="relative flex items-center gap-3 whitespace-nowrap">
                     <t.icon aria-hidden className={`h-[18px] w-[18px] ${on ? "text-cyan-300" : ""}`} strokeWidth={1.75} />
                     {t.label}
                   </span>
-                  <ChevronRight aria-hidden className={`hidden h-4 w-4 lg:block ${on ? "opacity-80" : "opacity-40"}`} />
+                  <ChevronRight aria-hidden className={`relative hidden h-4 w-4 lg:block ${on ? "opacity-80" : "opacity-40"}`} />
                 </button>
               );
             })}
