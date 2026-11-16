@@ -171,8 +171,8 @@ function CampaignHub({ onOpen }: { onOpen: (id: string) => void }) {
           <h1 className="text-[32px] font-bold leading-10 tracking-tight text-on">Campaigns</h1>
           <p className="mt-1 text-sm text-ink-soft">Track active campaigns, manage budgets, and coordinate with creators.</p>
         </motion.div>
-        <div className="flex items-center gap-3">
-          <div className="relative flex min-w-[260px] items-center">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative flex min-w-0 flex-1 items-center sm:min-w-[260px]">
             <Search className="pointer-events-none absolute left-3 h-[18px] w-[18px] text-faint" />
             <input value={find} onChange={(e) => setFind(e.target.value)} placeholder="Search campaigns..." aria-label="Search campaigns" className="w-full rounded-xl bg-white py-2 pl-9 pr-3 text-[13px] text-on shadow-sm focus:outline-none focus:ring-1 focus:ring-teal" />
           </div>
@@ -181,7 +181,9 @@ function CampaignHub({ onOpen }: { onOpen: (id: string) => void }) {
       </div>
 
       <div className="flex flex-col justify-between gap-3 rounded-2xl bg-white px-5 py-2 shadow-sm lg:flex-row lg:items-center">
-        <Segmented<Filter> dark value={filter} onChange={setFilter} className="bg-transparent" options={(["all", "active", "draft", "paused", "completed"] as const).map((s) => ({ id: s, label: `${s === "all" ? "All" : STATUS_LABEL[s]} (${count(s)})` }))} />
+        <div className="no-scrollbar -mx-1 overflow-x-auto px-1">
+        <Segmented<Filter> dark value={filter} onChange={setFilter} className="w-max bg-transparent" options={(["all", "active", "draft", "paused", "completed"] as const).map((s) => ({ id: s, label: `${s === "all" ? "All" : STATUS_LABEL[s]} (${count(s)})` }))} />
+        </div>
         <div className="flex flex-wrap items-center gap-3 self-end text-xs text-ink-soft lg:self-center">
           <span className="font-semibold text-on">Total Budget: {totalBudget ? shortRupees(totalBudget) : "—"}</span>
           <span className="text-surface-top">•</span>

@@ -193,7 +193,12 @@ export function Billing({ checkoutResult }: { checkoutResult?: "success" | "fail
               )}
             </div>
             <div className="mt-6 flex items-center justify-between pt-5">
-              <Button icon={PlusCircle} disabled={!canManage || busy} title={canManage ? undefined : "Only the account owner or an admin can buy credits"} onClick={() => setShowPlans(true)} className="bg-teal hover:bg-teal-deep">Buy Credits</Button>
+              {/* Members see why, not a dead button: only the owner or an admin can buy (the API refuses everyone else). */}
+              {canManage ? (
+                <Button icon={PlusCircle} disabled={busy} onClick={() => setShowPlans(true)} className="bg-teal hover:bg-teal-deep">Buy Credits</Button>
+              ) : (
+                <span className="text-xs text-ink-soft">Credits are bought by the account owner or an admin.</span>
+              )}
               <span className="text-right text-[11px] text-ink-soft">No expiration on purchased top-ups</span>
             </div>
           </Card>
@@ -222,7 +227,7 @@ export function Billing({ checkoutResult }: { checkoutResult?: "success" | "fail
                   <span className="font-semibold text-on">Testing credits: <span className="tabular-nums">{s.testingAllowance.remaining.toLocaleString("en-US")}</span> of <span className="tabular-nums">{s.testingAllowance.monthlyCredits.toLocaleString("en-US")}</span> left this month.</span> Unused testing credits do not carry over.
                 </div>
               )}
-              <div className="flex items-center justify-between gap-3 rounded-xl bg-surface-low p-3.5 opacity-70">
+              <div className="flex items-center justify-between gap-3 rounded-xl bg-surface-low p-3.5">
                 <div className="flex flex-col pr-2">
                   <span className="flex items-center gap-2 text-[13px] font-semibold text-on">Auto-refill <NotYet /></span>
                   <span className="text-xs text-ink-soft">Automatically add credits when your balance runs low.</span>

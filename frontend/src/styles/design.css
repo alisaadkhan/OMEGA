@@ -7,7 +7,7 @@
   --color-shell: #0b1c30;
   --color-ink: #131b2e;
   --color-ink-soft: #45464d;
-  --color-faint: #76777d;
+  --color-faint: #66676d; /* 5.6:1 on white: small text must reach WCAG AA (axe, 2026-11-16) */
   --color-line: #c6c6cd;
   --color-on: #191c1e;
   --color-surface: #f7f9fb;

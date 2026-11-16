@@ -98,7 +98,7 @@ export function Support() {
 function TicketRow({ t, active, onOpen }: { t: TicketSummary; active: boolean; onOpen: () => void }) {
   const done = DONE.has(t.status);
   return (
-    <li>
+    <div>
       <button onClick={onOpen} aria-current={active} className={`block w-full rounded-xl p-3.5 text-left transition-all focus:outline-none focus:ring-2 focus:ring-cyan-400/40 ${active ? "bg-slate-100" : "hover:bg-slate-50"}`}>
         <div className="flex items-start justify-between gap-2">
           <span className="flex min-w-0 items-center gap-2">
@@ -120,7 +120,7 @@ function TicketRow({ t, active, onOpen }: { t: TicketSummary; active: boolean; o
           <span>{t.lastAuthor === "staff" ? "Support replied" : "You wrote"}</span>
         </div>
       </button>
-    </li>
+    </div>
   );
 }
 

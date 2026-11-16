@@ -267,7 +267,7 @@ export function Pill({ children, tone = "neutral", dot, className }: { children:
 
 /** Label for UI the new design shows but the server does not support yet (owner 2026-11-16: keep the design, decide later). */
 export function NotYet({ label = "Not available yet", className }: { label?: string; className?: string }) {
-  return <span className={cn("inline-flex items-center rounded-full bg-surface-mid px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-faint", className)}>{label}</span>;
+  return <span className={cn("inline-flex items-center rounded-full bg-surface-mid px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-ink-soft", className)}>{label}</span>;
 }
 
 export function Avatar({ name, src, size = 36, className }: { name: string; src?: string | null; size?: number; className?: string }) {

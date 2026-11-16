@@ -87,7 +87,8 @@ process.on("uncaughtException", async (e) => { dbg("FATAL " + e.message); for (c
 async function pageAs(who, viewport = { width: 1440, height: 950 }, { welcome = false } = {}) {
   const ctx = await browser.newContext({ viewport, ...(viewport.width < 600 ? { isMobile: true, hasTouch: true } : {}) });
   if (who) await ctx.addInitScript(([k, v]) => localStorage.setItem(k, v), [`sb-${ref}-auth-token`, JSON.stringify(session(who))]);
-  if (who && !welcome) await ctx.addInitScript((k) => localStorage.setItem(k, "1"), `mushin.welcomeDismissed.${ids[who].sub}`);
+  // The one-time welcome counts as seen (old key, and the redesign's key since 2026-11-16) unless a test asks for it.
+  if (who && !welcome) await ctx.addInitScript(([a, b]) => { localStorage.setItem(a, "1"); localStorage.setItem(b, "1"); }, [`mushin.welcomeDismissed.${ids[who].sub}`, `mushin.onboarded.${ids[who].sub}`]);
   const p = await ctx.newPage();
   p.on("pageerror", (e) => consoleErrors.push(`${who}: ${e.message}`));
   p.on("console", (m) => { if (m.type() === "error" && !/Failed to load resource|status of 4\d\d|AuthApiError|Invalid Refresh Token|supabase\.co/.test(m.text())) consoleErrors.push(`${who}: ${m.text()}`); });
@@ -434,12 +435,13 @@ if (phase === "main") {
 
   // ── 5. Campaigns + outreach ──
   await nav(p, "Campaigns");
-  await p.getByRole("button", { name: "New campaign" }).first().click();
-  await p.getByLabel("Campaign name").fill("Eid food push");
-  await p.getByLabel("Budget (PKR)").fill("300000");
+  // Redesign 2026-11-16: "Create New Campaign" modal.
+  await p.getByRole("button", { name: "New Campaign" }).first().click();
+  await p.getByLabel("Campaign Name").fill("Eid food push");
+  await p.getByLabel("Total Budget").fill("300000");
   await p.getByLabel("Start date").fill("2026-11-01");
   await p.getByLabel("End date").fill("2026-11-30");
-  await p.getByRole("button", { name: "Create campaign" }).click();
+  await p.getByRole("button", { name: /Create Campaign/ }).click();
   await p.getByRole("heading", { name: "Eid food push" }).waitFor();
   const k = (await api("owner", "GET", "/v1/campaigns")).json.campaigns.find((c) => c.name === "Eid food push");
   // Add both list members from the list page bulk bar.
@@ -457,21 +459,30 @@ if (phase === "main") {
   await nav(p, "Campaigns");
   await p.getByRole("button", { name: /Eid food push/ }).first().click();
   await p.getByRole("heading", { name: "Eid food push" }).waitFor();
-  const card = (n) => p.locator("article", { hasText: n });
-  await card(FX.mainName).getByLabel("Stage").selectOption("negotiating");
-  await p.waitForTimeout(1000);
-  await card(FX.mainName).getByTitle("Edit fee").click();
-  await card(FX.mainName).getByLabel("Fee in rupees").fill("40000");
-  await card(FX.mainName).getByLabel("Fee in rupees").press("Enter");
-  await p.waitForTimeout(1000);
-  await card(FX.mainName).getByLabel("Stage").selectOption("confirmed");
-  await p.waitForTimeout(1000);
-  await card(FX.secondName).getByRole("button", { name: "Mark declined" }).click();
-  await p.waitForTimeout(1200);
+  // Redesign 2026-11-16: the Creators tab lists the roster; each row's pencil opens the "Edit creator terms" drawer.
+  await p.getByRole("tab", { name: /Creators/ }).click();
+  const saveTerms = async (name, edit) => {
+    await p.getByRole("button", { name: `Edit terms for ${name}` }).click();
+    const d = p.getByRole("dialog", { name: "Edit creator terms" });
+    await edit(d);
+    const saved = p.waitForResponse((r) => r.request().method() === "PATCH" && /\/v1\/campaigns\/[^/]+\/creators\//.test(r.url()), { timeout: 30000 });
+    await d.getByRole("button", { name: "Save Creator Terms" }).click();
+    await saved;
+    await p.waitForTimeout(600);
+  };
+  await saveTerms(FX.mainName, async (d) => {
+    await d.getByRole("button", { name: "Confirmed", exact: true }).click();
+    await d.getByLabel("Fee in rupees").fill("40000");
+    await d.getByRole("tab", { name: "Agreed" }).or(d.getByRole("button", { name: "Agreed", exact: true })).first().click();
+  });
+  await saveTerms(FX.secondName, async (d) => { await d.getByRole("button", { name: "Mark declined" }).click(); });
   let kd = (await api("owner", "GET", `/v1/campaigns/${k.id}`)).json;
   check("campaigns", "stage, fee (agreed) and declined outcome persist; totals exclude declined", kd.stageCounts.confirmed === 1 && kd.declinedCount === 1 && kd.agreedFeesMinor === 4_000_000);
   check("campaigns", "one person editing a campaign never gets a stale-version conflict (fee saved once)", campaignConflicts.length === 0, campaignConflicts.slice(0, 2).join(" | "));
-  await card(FX.mainName).getByRole("button", { name: "Outreach" }).click();
+  // Outreach tab: choose the conversation, then "New Outreach" opens the logging panel.
+  await p.getByRole("tab", { name: /Outreach/ }).click();
+  await p.getByRole("button", { name: new RegExp(FX.mainName) }).first().click();
+  await p.getByRole("button", { name: "New Outreach" }).click();
   const op = p.getByRole("dialog", { name: /Outreach for/ });
   await op.getByLabel("Channel").selectOption("email");
   await op.getByLabel("What happened").selectOption("agreed");
@@ -496,6 +507,8 @@ if (phase === "main") {
   await gate.getByRole("checkbox").check();
   await gate.getByRole("button", { name: "Accept and continue" }).click();
   await gate.waitFor({ state: "detached", timeout: 15000 });
+  // After the Terms, a first visit gets the one-time welcome dialog (redesign 2026-11-16); close it.
+  await outsiderPage.getByRole("button", { name: "Go to dashboard" }).click({ timeout: 8000 }).catch(() => {});
   const legalRecorded = sql(`select legal_version is not null from wp.users where id = '${ids.outsider.sub}'`) === "t";
   check("legal", "a person who has not accepted the Terms is asked first (button disabled until ticked), then recorded", gateBlocked && legalRecorded, `disabled before ticking: ${gateBlocked}; recorded: ${legalRecorded}`);
   // The outsider has already used this month's testing credits (0061), so the scenario is the 200-credit trial alone; the
@@ -572,20 +585,23 @@ if (phase === "main") {
   // Inner sections have no URLs of their own: return to the dashboard through the sidebar.
   await p.getByRole("button", { name: "Dashboard", exact: true }).first().click();
   await p.getByRole("heading", { name: /Welcome back/ }).waitFor({ timeout: 30000 });
-  await p.getByRole("region", { name: "Shortlists" }).getByText("Food shortlist").waitFor({ timeout: 15000 });
+  // Redesign 2026-11-16: Home names campaigns under Running Projects; shortlists are a count tile ("2 creators saved").
+  await p.getByText("Eid food push").first().waitFor({ timeout: 15000 });
+  await p.waitForTimeout(1200);
   t = await mainText(p);
   // The API counts days in Pakistan time (Asia/Karachi), so the range is computed there too.
   const pkDate = (ms) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(new Date(ms));
   const today = pkDate(Date.now());
   const from = pkDate(Date.now() - 29 * 86_400_000);
   const sum = (await api("owner", "GET", `/v1/analytics/summary?from=${from}&to=${today}`)).json;
-  check("dashboard", "dashboard cards equal API and database", t.includes("Food shortlist") && t.includes("Eid food push") && sum.outreach.total === 1 && sum.pipeline.byStage.confirmed === 1 && sum.lists.savedCreators === 2, `text has list ${t.includes("Food shortlist")} campaign ${t.includes("Eid food push")}; api outreach ${sum.outreach.total} confirmed ${sum.pipeline.byStage.confirmed} saved ${sum.lists.savedCreators}; range ${from}..${today}`);
+  const tile = /ACTIVE SHORTLISTS\s*1\b/i.test(t) && /\b2 creators saved/.test(t);
+  check("dashboard", "dashboard cards equal API and database", tile && t.includes("Eid food push") && sum.outreach.total === 1 && sum.pipeline.byStage.confirmed === 1 && sum.lists.savedCreators === 2, `shortlist tile ${tile} campaign ${t.includes("Eid food push")}; api outreach ${sum.outreach.total} confirmed ${sum.pipeline.byStage.confirmed} saved ${sum.lists.savedCreators}; range ${from}..${today}`);
   const feed = (await api("owner", "GET", "/v1/activity?limit=50")).json.events.map((e) => e.text).join(" | ");
   check("activity", "activity shows real actions only (feed and dashboard card)", feed.includes(`logged that ${FX.mainName} agreed`) && /created the campaign Eid food push/.test(feed) && /Find New Creators run/.test(t) && !/SSO group sync|auto top-up/.test(t));
 
   // ── 9. Support ──
   await menu(p, "Support");
-  await p.getByRole("button", { name: "New request" }).click();
+  await p.getByRole("button", { name: "New Ticket" }).click(); // redesign 2026-11-16
   await p.getByLabel("Subject").fill("Find New Creators failed");
   await p.getByLabel("Topic").selectOption({ label: "Live Discovery Issue" });
   await p.getByLabel("Priority").selectOption({ label: "High" });
@@ -772,7 +788,9 @@ if (phase === "main") {
   await pl.getByRole("button", { name: "Cancel" }).first().click().catch(() => {});
   await pl.getByRole("button", { name: /Starter slot 0/ }).first().click();
   await pl.getByRole("heading", { name: "Starter slot 0" }).waitFor();
-  await pl.getByRole("button", { name: "Archive" }).click();
+  // Redesign 2026-11-16: archiving is in the campaign's Settings tab (Danger Zone).
+  await pl.getByRole("tab", { name: "Settings" }).click();
+  await pl.getByRole("button", { name: "Archive Campaign" }).click();
   await pl.getByText("Archived", { exact: true }).first().waitFor({ timeout: 15000 });
   const afterArchive = await api("owner", "POST", "/v1/campaigns", { name: "After archiving" });
   check("plans", "Starter: archiving a campaign frees a slot and keeps the campaign", afterArchive.status === 201 && sql(`select status from wp.campaigns where workspace_id = '${ws}' and name = 'Starter slot 0'`) === "archived");
@@ -786,7 +804,10 @@ if (phase === "main") {
   await nav(pl, "Campaigns");
   await pl.getByRole("button", { name: /Eid food push/ }).first().click();
   await pl.getByRole("heading", { name: "Eid food push" }).waitFor();
-  await pl.getByRole("button", { name: /Outreach|Log outreach/ }).first().click();
+  // Redesign 2026-11-16: the Outreach tab, the creator's conversation, then New Outreach opens the panel.
+  await pl.getByRole("tab", { name: /Outreach/ }).click();
+  await pl.getByRole("button", { name: new RegExp(FX.mainName) }).first().click();
+  await pl.getByRole("button", { name: "New Outreach" }).click();
   await pl.getByText("Your plan does not include outreach emails").first().waitFor({ timeout: 15000 });
   check("plans", "Starter: outreach email is refused by the API and the panel says the plan does not include it", emailDenied?.error?.details?.reason === "plan_feature");
   await pl.keyboard.press("Escape");
@@ -826,7 +847,9 @@ if (phase === "main") {
   await nav(p, "Campaigns");
   await p.getByRole("button", { name: /Eid food push/ }).first().click();
   await p.getByRole("heading", { name: "Eid food push" }).waitFor();
-  check("restart", "campaign pipeline persists", /Rs 40,000 agreed/.test(await mainText(p)));
+  await p.getByText(/agreed of|agreed ·/).first().waitFor({ timeout: 15000 }).catch(() => {});
+  const pipeText = await mainText(p);
+  check("restart", "campaign pipeline persists", /Rs 40K agreed of/.test(pipeText), pipeText.slice(0, 300) /* redesign 2026-11-16: budget card "Rs 40K agreed of Rs 3L budget" */);
   check("restart", "catalog search answers after restart (index reconciled)", (await apiSearch("owner", "food")).json.total > 0 && sql(`select count(*) from wp.credit_reservations where status = 'held'`) === "0");
   // Accessibility (axe-core, WCAG 2.0–2.2 A/AA, serious and critical) on every customer page and the main dialogs at
   // desktop width: the sidebar pages, the profile-menu pages, a campaign's detail and a creator profile.

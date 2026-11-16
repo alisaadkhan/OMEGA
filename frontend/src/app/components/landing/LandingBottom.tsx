@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
-import { Check, CheckCircle2, Lock, Phone, Plus } from "lucide-react";
+import { Check, CheckCircle2, Lock, Phone, Plus, X } from "lucide-react";
 import { billingPlansSchema } from "@mushin/contracts";
 import { apiRequest } from "../../api/client";
 import { PLAN_COPY, planFeatures, rupees, type CatalogPlan, type PricingFacts } from "../../lib/plans";
@@ -53,7 +53,8 @@ export function LandingPricing({ onPrimary, onTrial }: { onPrimary: () => void; 
 function PlanCard({ plan, facts, index, onPrimary }: { plan: CatalogPlan; facts: PricingFacts; index: number; onPrimary: () => void }) {
   const copy = PLAN_COPY[plan.id];
   const hi = !!copy.highlight;
-  const feats = planFeatures(plan, facts).filter((f) => f.included);
+  // Every feature row, included or not, so plans compare honestly; data-* attributes let the E2E check the catalogue.
+  const feats = planFeatures(plan, facts);
   return (
     <motion.div
       initial={{ opacity: 0, y: 24 }}
@@ -61,21 +62,22 @@ function PlanCard({ plan, facts, index, onPrimary }: { plan: CatalogPlan; facts:
       viewport={{ once: true, margin: "-60px" }}
       transition={{ duration: 0.6, delay: index * 0.1, ease: EASE }}
       whileHover={{ y: -6 }}
+      data-plan={plan.id}
       className={cn("relative flex flex-col justify-between rounded-2xl bg-navy-2 p-8 shadow-xl transition-colors", hi ? "border border-cyan/80 shadow-[0_0_35px_rgba(6,182,212,0.15)] ring-1 ring-cyan/50" : "border border-white/10 hover:border-white/20")}
     >
       {hi && <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-cyan px-3.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-navy shadow">Most popular</div>}
       <div>
         <span className={cn("text-xs font-bold uppercase tracking-wider", hi ? "text-cyan-400" : "text-slate-400")}>{plan.name}</span>
         <div className="mt-4 flex items-baseline gap-1">
-          <span className="font-display text-3xl font-extrabold tabular-nums text-white">Rs. {pkr(rupees(plan.display.monthly.amountMinor))}</span>
+          <span className="font-display text-3xl font-extrabold tabular-nums text-white">Rs. <span data-role="price">{pkr(rupees(plan.display.monthly.amountMinor))}</span></span>
           <span className="text-xs font-medium text-slate-400">/ mo</span>
         </div>
-        <p className="mt-1 text-xs font-semibold text-cyan-400">{pkr(plan.monthlyCredits)} credits included</p>
+        <p className="mt-1 text-xs font-semibold text-cyan-400"><span data-role="credits">{pkr(plan.monthlyCredits)}</span> credits included</p>
         <p className={cn("mt-4 border-t border-white/10 pt-4 text-xs leading-relaxed sm:text-sm", hi ? "text-slate-300" : "text-slate-400")}>{copy.positioning}</p>
         <ul className="mt-6 flex flex-col gap-3 text-xs text-slate-300">
           {feats.map((f) => (
-            <li key={f.key} className="flex items-start gap-2.5">
-              {hi ? <CheckCircle2 className="h-4 w-4 shrink-0 text-cyan" /> : <Check className="h-4 w-4 shrink-0 text-cyan-400" />}
+            <li key={f.key} data-feature={f.key} data-value={f.value} data-status={f.status ?? (f.included ? "included" : "not_included")} className={cn("flex items-start gap-2.5", !f.included && "text-slate-400")}>
+              {!f.included ? <X aria-hidden className="h-4 w-4 shrink-0 text-slate-600" /> : hi ? <CheckCircle2 className="h-4 w-4 shrink-0 text-cyan" /> : <Check className="h-4 w-4 shrink-0 text-cyan-400" />}
               <span>
                 {f.label}
                 {f.value !== "Included" && <span className="text-slate-400"> · {f.value}</span>}

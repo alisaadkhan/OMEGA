@@ -23,6 +23,8 @@ import { SupportAccessBanner } from "./SupportAccessSettings";
 import { useAuth } from "../../auth/AuthContext";
 import { Inbox } from "./Inbox";
 import { useCredits } from "../../../app/lib/credits";
+import { useLists } from "../../api/lists";
+import { useCampaigns } from "../../api/campaigns";
 import { CreatorProfilePanel, type Creator } from "./CreatorProfilePanel";
 
 export function Dashboard({ onExit }: { onExit: () => void }) {
@@ -51,9 +53,14 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
   // Waits for the Terms acceptance dialog (LegalGate) so the two never overlap.
   const me = useQuery({ queryKey: ["me"], queryFn: () => apiRequest("/v1/me", meResponseSchema), enabled: !!user });
   const legalPending = !me.data || me.data.legal.acceptedVersion !== me.data.legal.currentVersion;
+  // Only while the workspace is still empty: an existing customer on a new device or browser is not "new" (the
+  // "seen" mark lives in this browser only).
+  const lists = useLists();
+  const campaigns = useCampaigns();
+  const emptyWorkspace = lists.data !== undefined && campaigns.data !== undefined && lists.data.lists.length === 0 && campaigns.data.campaigns.length === 0;
   useEffect(() => {
-    if (user && !legalPending && !hasOnboarded(user.id)) setWelcome(true);
-  }, [user, legalPending]);
+    if (user && !legalPending && emptyWorkspace && !hasOnboarded(user.id)) setWelcome(true);
+  }, [user, legalPending, emptyWorkspace]);
   const closeWelcome = (startTour: boolean) => {
     if (user) markOnboarded(user.id);
     setWelcome(false);

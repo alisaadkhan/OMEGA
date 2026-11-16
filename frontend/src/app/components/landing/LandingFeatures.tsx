@@ -134,9 +134,9 @@ function WorkflowTabs() {
   return (
     <div id="capabilities" className="mt-28 w-full border-t border-slate-200 pt-20">
       <SectionHead eyebrow="Core Workflow" title="A single, grounded platform." body="Every step of campaign delivery handled in one system." />
-      <div role="tablist" className="mx-auto mt-10 flex w-full max-w-xl items-center gap-1.5 rounded-full border border-slate-300/60 bg-slate-200/80 p-1.5 shadow-inner backdrop-blur-md sm:gap-2">
+      <div role="tablist" className="no-scrollbar mx-auto mt-10 flex w-full max-w-xl items-center gap-1.5 overflow-x-auto rounded-full border border-slate-300/60 bg-slate-200/80 p-1.5 shadow-inner backdrop-blur-md sm:gap-2">
         {TABS.map((x) => (
-          <button key={x.id} role="tab" aria-selected={tab === x.id} onClick={() => setTab(x.id)} className={cn("relative flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-2.5 text-xs font-semibold transition-colors sm:px-4 sm:text-sm", tab === x.id ? "text-white" : "text-slate-600 hover:text-slate-900")}>
+          <button key={x.id} role="tab" aria-selected={tab === x.id} onClick={() => setTab(x.id)} className={cn("relative flex shrink-0 items-center justify-center gap-1.5 rounded-full px-3 py-2.5 sm:flex-1 text-xs font-semibold transition-colors sm:px-4 sm:text-sm", tab === x.id ? "text-white" : "text-slate-600 hover:text-slate-900")}>
             {tab === x.id && <motion.span layoutId="wf-tab" className="absolute inset-0 rounded-full bg-navy shadow-md" transition={{ type: "spring", stiffness: 400, damping: 34 }} />}
             <x.icon className="relative h-[17px] w-[17px]" />
             <span className="relative">{x.label}</span>
@@ -178,7 +178,7 @@ function SearchMock() {
           <div className="mb-3 flex items-center justify-between border-b border-slate-200 pb-2.5 text-slate-500"><span className="text-[11px] font-bold uppercase tracking-wider text-slate-700">Filters</span><SlidersHorizontal className="h-3.5 w-3.5" /></div>
           {[["Platform", "Instagram"], ["Niche", "Bridal & Couture"], ["Followers", "100K - 1M"], ["Engagement", "ER > 5.0%"]].map(([k, v], i) => (
             <motion.div key={k} {...rowIn(i)} className="mb-2">
-              <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-400">{k}</span>
+              <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">{k}</span>
               <div className="flex items-center justify-between rounded-lg border border-cyan-200/70 bg-cyan-50 px-2.5 py-1.5 text-xs font-semibold text-teal">{v}<Check className="h-3 w-3" /></div>
             </motion.div>
           ))}

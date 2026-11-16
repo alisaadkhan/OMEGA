@@ -39,7 +39,8 @@ const serverErrors = [];
 async function pageAs(who, viewport = { width: 1440, height: 950 }, { welcome = false } = {}) {
   const ctx = await browser.newContext({ viewport });
   if (who) await ctx.addInitScript(([k, v]) => localStorage.setItem(k, v), [`sb-${ref}-auth-token`, JSON.stringify(session(who))]);
-  if (who && !welcome) await ctx.addInitScript((k) => localStorage.setItem(k, "1"), `mushin.welcomeDismissed.${ids[who].sub}`);
+  // The one-time welcome counts as seen (old key, and the redesign's key since 2026-11-16) unless a test asks for it.
+  if (who && !welcome) await ctx.addInitScript(([a, b]) => { localStorage.setItem(a, "1"); localStorage.setItem(b, "1"); }, [`mushin.welcomeDismissed.${ids[who].sub}`, `mushin.onboarded.${ids[who].sub}`]);
   const p = await ctx.newPage();
   p.on("pageerror", (e) => consoleErrors.push(`${who}: ${e.message}`));
   p.on("response", (r) => { if (r.status() >= 500 && r.url().includes(":4000")) serverErrors.push(`${r.status()} ${r.request().method()} ${r.url()}`); });
@@ -51,11 +52,20 @@ const nav = async (p, name) => {
   if (["Settings", "Credits & billing", "Activity log", "Support"].includes(name)) {
     await p.getByRole("button", { name: "Account menu" }).click();
     await p.getByRole("menuitem", { name, exact: true }).click();
-    await p.getByRole("heading", { name, exact: true }).first().waitFor({ timeout: 15000 });
+    // Headings that differ from the menu item (redesign 2026-11-16).
+    const heading = { Settings: "Account Settings", "Credits & billing": "Credits & Billing" }[name] ?? name;
+    await p.getByRole("heading", { name: heading, exact: true }).first().waitFor({ timeout: 15000 });
     return;
   }
-  await p.getByRole("button", { name, exact: true }).first().click();
-  await p.getByRole("heading", { name, exact: true }).first().waitFor({ timeout: 15000 });
+  // A click while the dashboard is still loading can be undone by its first render: wait until the page is settled.
+  await p.waitForLoadState("networkidle").catch(() => {});
+  // The sidebar says "Search" for the Search & Discovery page (redesign 2026-11-16).
+  await p.getByRole("button", { name: name === "Search & Discovery" ? "Search" : name, exact: true }).first().click();
+  // On a failure, print what the page showed so the cause is in the run log.
+  await p.getByRole("heading", { name, exact: true }).first().waitFor({ timeout: 15000 }).catch(async (e) => {
+    console.log(`NAV-DEBUG ${name}: ${p.url()} :: ${(await p.locator("body").innerText().catch(() => "")).replace(/\s+/g, " ").slice(0, 600)}`);
+    throw e;
+  });
 };
 const ws = (await api("owner", "GET", "/v1/me")).json?.workspace?.id;
 const otherWs = (await api("outsider", "GET", "/v1/me")).json?.workspace?.id;
@@ -85,7 +95,8 @@ check("SETUP-1", "campaign with the fixture creator exists", Boolean(campaignId)
   // isVisible() does not wait (its timeout is ignored): wait for the card, which appears once the workspace data loads.
   const shown = await card.waitFor({ state: "visible", timeout: 15000 }).then(() => true, () => false);
   check("WEL-1", "an empty workspace sees the welcome card, with no claim MUSHIN cannot back (no creator total, no bot detection)", shown && !/3.4M|bot|pod detection|ROI/i.test(await card.innerText().catch(() => "")));
-  if (shown) await card.getByRole("button", { name: /Skip for now/ }).click();
+  // Redesign 2026-11-16: the welcome dialog closes with "Go to dashboard" (or starts the tour).
+  if (shown) await card.getByRole("button", { name: /Go to dashboard/ }).click();
   await fresh.reload();
   await fresh.getByRole("heading", { name: /Welcome back/ }).waitFor({ timeout: 15000 });
   await fresh.waitForTimeout(1500);
@@ -184,7 +195,10 @@ check("SETUP-1", "campaign with the fixture creator exists", Boolean(campaignId)
   await nav(p, "Campaigns");
   await p.getByRole("button", { name: /Breakit campaign/ }).first().click();
   await p.getByRole("heading", { name: "Breakit campaign" }).waitFor();
-  await p.locator("article", { hasText: FX.mainName }).getByRole("button", { name: "Outreach" }).click();
+  // Redesign 2026-11-16: the Outreach tab, the creator's conversation, then New Outreach opens the composer.
+  await p.getByRole("tab", { name: /Outreach/ }).click();
+  await p.getByRole("button", { name: new RegExp(FX.mainName) }).first().click();
+  await p.getByRole("button", { name: "New Outreach" }).click();
   const op = p.getByRole("dialog", { name: /Outreach for/ });
   const usage = (await api("owner", "GET", "/v1/outreach/usage")).json;
   if (usage?.mode === "off" || usage?.limit === 0) {
