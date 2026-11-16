@@ -33,6 +33,7 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
   // (an open list or campaign goes back to the index; design gap G-17).
   const [navKey, setNavKey] = useState(0);
   const navigate = (v: DashView) => {
+    setOpenCampaignId(null);
     setView(v);
     setNavKey((k) => k + 1);
   };
@@ -117,7 +118,7 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
               {view === "overview" && <Home setView={navigate} onTour={() => setTour(true)} onOpenCampaign={(id) => { setOpenCampaignId(id); setView("campaigns"); }} />}
               {view === "search" && <SearchModule liveJobId={liveJobId} onGoToCampaigns={() => setView("campaigns")} />}
               {view === "lists" && <Lists key={navKey} onOpenCreator={setOmniCreator} onGoToSearch={() => setView("search")} />}
-              {view === "campaigns" && <Campaigns key={navKey} onOpenCreator={setOmniCreator} onGoToSearch={() => setView("search")} />}
+              {view === "campaigns" && <Campaigns key={navKey} initialId={openCampaignId} onOpenCreator={setOmniCreator} onGoToSearch={() => setView("search")} />}
               {view === "inbox" && <Inbox onGoToCampaigns={() => setView("campaigns")} />}
               {view === "settings" && <Settings key={settingsTab} initialTab={settingsTab} onOpenSupport={() => setView("support")} onOpenBilling={() => setView("billing")} />}
               {view === "billing" && <Billing checkoutResult={checkoutResult} />}

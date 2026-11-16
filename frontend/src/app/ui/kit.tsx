@@ -113,7 +113,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonHTMLAttributes<HTMLBut
         ref={ref}
         disabled={disabled || loading}
         className={cn(
-          "inline-flex select-none items-center justify-center font-medium transition-all duration-200 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/60 focus-visible:ring-offset-2",
+          "inline-flex select-none items-center justify-center whitespace-nowrap font-medium transition-all duration-200 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/60 focus-visible:ring-offset-2",
           pill ? "rounded-full" : "rounded-xl",
           sz,
           BTN[variant],
@@ -311,7 +311,7 @@ export function Segmented<const T extends string>({ value, onChange, options, da
       {options.map((o) => {
         const on = o.id === value;
         return (
-          <button key={o.id} role="tab" aria-selected={on} type="button" onClick={() => onChange(o.id)} className={cn("relative rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors", on ? (dark ? "text-white" : "text-on") : "text-ink-soft hover:text-on")}>
+          <button key={o.id} role="tab" aria-selected={on} type="button" onClick={() => onChange(o.id)} className={cn("relative whitespace-nowrap rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors", on ? (dark ? "text-white" : "text-on") : "text-ink-soft hover:text-on")}>
             {on && <motion.span layoutId={group} className={cn("absolute inset-0 rounded-lg shadow-sm", dark ? "bg-black" : "bg-white")} transition={{ type: "spring", stiffness: 420, damping: 34 }} />}
             <span className="relative z-10 inline-flex items-center gap-1.5">{o.label}</span>
           </button>
@@ -354,4 +354,14 @@ export function EmptyState({ icon: Icon, title, body, action }: { icon: LucideIc
       {action && <div className="mt-5">{action}</div>}
     </motion.div>
   );
+}
+
+/** Rupees from paisa in Pakistani short form: Rs 9.2L (lakh), Rs 1.5Cr (crore), Rs 85K. */
+export function shortRupees(minor: number | null): string {
+  if (minor === null) return "—";
+  const r = minor / 100;
+  if (r >= 1e7) return `Rs ${(r / 1e7).toFixed(r >= 1e8 ? 0 : 1)}Cr`;
+  if (r >= 1e5) return `Rs ${(r / 1e5).toFixed(1)}L`;
+  if (r >= 1e3) return `Rs ${Math.round(r / 1e3)}K`;
+  return `Rs ${Math.round(r)}`;
 }

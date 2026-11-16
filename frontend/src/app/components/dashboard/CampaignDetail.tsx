@@ -1,212 +1,302 @@
-import { useRef, useState } from "react";
-import { ineligibleText } from "../../lib/eligibility";
-import { ArrowLeft, CalendarClock, MessageSquareText, Pencil, Trash2, Undo2, UserMinus, Users, XCircle } from "lucide-react";
-import type { CampaignCreator, PipelineStage, UpdateCampaignCreator } from "@mushin/contracts";
-import { rupees, toMinor, useCampaign, useDeleteCampaign, useRemoveFromCampaign, useUpdateCampaign, useUpdateCampaignCreator } from "../../api/campaigns";
-import { toCreator } from "../../api/search-mapping";
+import { useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import { Archive, ArrowLeft, CheckCircle2, Clock3, Download, Eye, PauseCircle, PlayCircle, Save, Settings2, Trash2, Users, Wallet } from "lucide-react";
+import { dataExportSchema, type CampaignDetail as Detail } from "@mushin/contracts";
+import { apiDownload, apiRequest } from "../../api/client";
+import { rupees, toMinor, useCampaign, useDeleteCampaign, useUpdateCampaign } from "../../api/campaigns";
 import { relative } from "../../lib/time";
 import { useConfirm, useToast } from "../../lib/toast";
-import { CampaignForm, STAGE_LABEL, STATUS_LABEL, STATUS_TONE } from "./Campaigns";
-import { OutreachPanel, OUTCOME_LABEL } from "./CampaignOutreach";
+import { Alert, Button, Card, CountUp, EASE, NotYet, Progress, shortRupees, Skeleton, Stagger, StaggerItem, Toggle } from "../../ui/kit";
+import { cn } from "../ui/utils";
+import { CampaignModal, PLATFORM_NAME, STAGE_LABEL, STATUS_DOT, STATUS_LABEL, STATUS_TONE } from "./Campaigns";
+import { CampaignOutreachTab } from "./CampaignOutreachTab";
+import { PipelineTab, RosterTab, TimelineTab } from "./CampaignRoster";
 import type { Creator } from "./CreatorProfilePanel";
-import { EmptyState, ErrorState, LoadingBlock } from "./states";
+import { ErrorState } from "./states";
 
-const STAGES: PipelineStage[] = ["identified", "contacted", "negotiating", "confirmed"];
-const FEE_LABEL = { estimated: "Estimated", quoted: "Quoted", agreed: "Agreed" } as const;
-const CONTENT_LABEL = { none: "No content yet", content_pending: "Content pending", posted: "Posted", completed: "Completed" } as const;
+type Tab = "overview" | "creators" | "pipeline" | "timeline" | "outreach" | "analytics" | "settings";
+const TABS: { id: Tab; label: string }[] = [
+  { id: "overview", label: "Overview" },
+  { id: "creators", label: "Creators" },
+  { id: "pipeline", label: "Pipeline" },
+  { id: "timeline", label: "Timeline" },
+  { id: "outreach", label: "Outreach" },
+  { id: "analytics", label: "Analytics" },
+  { id: "settings", label: "Settings" },
+];
 
 export function CampaignDetail({ id, onBack, onOpenCreator, onGoToSearch }: { id: string; onBack: () => void; onOpenCreator: (c: Creator) => void; onGoToSearch: () => void }) {
   const campaign = useCampaign(id);
+  const toast = useToast();
+  const [tab, setTab] = useState<Tab>("overview");
+  const [exporting, setExporting] = useState(false);
+  if (campaign.isPending) return <div className="space-y-4"><Skeleton className="h-20" /><Skeleton className="h-10" /><Skeleton className="h-72" /></div>;
+  if (campaign.isError) return <ErrorState body={campaign.error instanceof Error ? campaign.error.message : undefined} onRetry={() => void campaign.refetch()} />;
+  const c = campaign.data;
+
+  async function onExport() {
+    setExporting(true);
+    try {
+      const ex = await apiRequest("/v1/exports", dataExportSchema, { method: "POST", body: { kind: "campaigns", scopeId: id } });
+      await apiDownload(`/v1/exports/${ex.id}/download`, `${c.name.replace(/[^\w-]+/g, "_")}.csv`);
+      toast.success("Summary downloaded");
+    } catch (e) {
+      toast.error("Couldn't export this campaign", e instanceof Error ? e.message : "Data export is included on plans that offer it.");
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col pb-16">
+      <div className="mb-6 flex flex-col gap-4">
+        <nav className="flex items-center gap-2 text-[11px] font-semibold text-ink-soft" aria-label="Breadcrumb">
+          <button onClick={onBack} className="group flex items-center gap-1 transition-colors hover:text-on"><ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" /> Campaigns</button>
+          <span className="text-line">/</span>
+          <span className="truncate font-semibold text-on">{c.name}</span>
+        </nav>
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="truncate text-[32px] font-semibold leading-10 tracking-tight text-on">{c.name}</h1>
+              <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold shadow-sm", STATUS_TONE[c.status])}>
+                <span className={cn("h-1.5 w-1.5 rounded-full", STATUS_DOT[c.status], c.status === "active" && "animate-pulse")} />{STATUS_LABEL[c.status]}
+              </span>
+            </div>
+            <p className="text-xs text-ink-soft">
+              {[c.platform ? PLATFORM_NAME[c.platform] : null, c.client || null, `Created ${relative(c.createdAt)}`, c.startDate || c.endDate ? `${c.startDate ?? "?"} → ${c.endDate ?? "?"}` : null].filter(Boolean).join(" · ")}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <Button variant="outline" icon={Download} loading={exporting} onClick={() => void onExport()}>Export Summary</Button>
+            <Button variant="outline" icon={Settings2} onClick={() => setTab("settings")} aria-label="Campaign settings" />
+          </div>
+        </div>
+      </div>
+
+      <div className="no-scrollbar mb-8 flex items-center gap-7 overflow-x-auto border-b border-surface-high" role="tablist">
+        {TABS.map((t) => (
+          <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)} className={cn("relative flex items-center gap-1.5 whitespace-nowrap pb-3 text-[13px] transition-colors", tab === t.id ? "font-semibold text-black" : "text-ink-soft hover:text-on")}>
+            {t.label}
+            {t.id === "creators" && <span className="rounded bg-surface-high px-1.5 text-[10px] font-semibold text-ink-soft">{c.creators.length}</span>}
+            {tab === t.id && <motion.span layoutId="cmp-tab" className="absolute bottom-[-1px] left-0 right-0 h-0.5 rounded-full bg-cyan-dim shadow-[0_0_8px_rgba(6,182,212,0.6)]" />}
+          </button>
+        ))}
+      </div>
+
+      <AnimatePresence mode="wait">
+        <motion.div key={tab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.25, ease: EASE }}>
+          {tab === "overview" && <OverviewTab c={c} />}
+          {tab === "creators" && <RosterTab c={c} onOpenCreator={onOpenCreator} onGoToSearch={onGoToSearch} />}
+          {tab === "pipeline" && <PipelineTab c={c} onOpenCreator={onOpenCreator} onGoToSearch={onGoToSearch} />}
+          {tab === "timeline" && <TimelineTab c={c} onOpenCreator={onOpenCreator} />}
+          {tab === "outreach" && <CampaignOutreachTab c={c} />}
+          {tab === "analytics" && <AnalyticsTab c={c} />}
+          {tab === "settings" && <SettingsTab c={c} onDeleted={onBack} />}
+        </motion.div>
+      </AnimatePresence>
+    </div>
+  );
+}
+
+const live = (c: Detail) => c.creators.filter((x) => x.outcome === "open");
+
+function BudgetCard({ c }: { c: Detail }) {
+  const pct = c.budgetMinor ? (c.agreedFeesMinor / c.budgetMinor) * 100 : 0;
+  return (
+    <Card className="flex h-full flex-col justify-between p-6">
+      <div>
+        <div className="mb-4 flex items-center justify-between">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-soft">Budget vs. Agreed Fees</span>
+          <Wallet className="h-5 w-5 text-teal" />
+        </div>
+        <div className="mt-2 flex flex-wrap items-baseline gap-2.5">
+          <span className="text-[32px] font-semibold tracking-tight tabular-nums text-on" title={rupees(c.agreedFeesMinor)}>{shortRupees(c.agreedFeesMinor)}</span>
+          <span className="text-[13px] text-ink-soft">{c.budgetMinor ? `agreed of ${shortRupees(c.budgetMinor)} budget` : "agreed · no budget set"}</span>
+        </div>
+        <Progress value={pct} className="my-5 h-3" bar="bg-ink" />
+      </div>
+      <div className="flex items-center justify-between pt-2 text-[13px] text-ink-soft">
+        <span className="font-semibold text-on">{c.budgetMinor ? `${Math.round(pct)}% committed` : "Set a budget in Settings"}</span>
+        {c.budgetMinor !== null && <span>{shortRupees(Math.max(0, c.budgetMinor - c.agreedFeesMinor))} remaining</span>}
+      </div>
+    </Card>
+  );
+}
+
+function OverviewTab({ c }: { c: Detail }) {
+  const open = live(c);
+  const due = open.filter((x) => x.contentStatus === "content_pending").length;
+  const posted = open.filter((x) => x.contentStatus === "posted" || x.contentStatus === "completed").length;
+  const tiles = [
+    { label: "Creators", icon: Users, value: open.length, note: `${c.stageCounts.confirmed} confirmed` },
+    { label: "Deliverables Due", icon: Clock3, value: due, note: "Content pending" },
+    { label: "Posts Live", icon: CheckCircle2, value: posted, note: "Posted or completed" },
+  ];
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-12">
+        <motion.div className="lg:col-span-5" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}><BudgetCard c={c} /></motion.div>
+        <Stagger className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:col-span-7">
+          {tiles.map((t) => (
+            <StaggerItem key={t.label}>
+              <Card hover className="flex h-full flex-col justify-between p-5">
+                <div className="flex items-center justify-between"><span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-soft">{t.label}</span><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-low text-ink-soft"><t.icon className="h-[18px] w-[18px]" /></span></div>
+                <div className="mt-4"><div className="text-2xl font-semibold tabular-nums text-on"><CountUp value={t.value} /></div><div className="mt-1 flex items-center gap-1.5 text-xs text-teal"><span className="h-1.5 w-1.5 rounded-full bg-teal" />{t.note}</div></div>
+              </Card>
+            </StaggerItem>
+          ))}
+          <StaggerItem>
+            <Card className="flex h-full flex-col justify-between p-5 opacity-80">
+              <div className="flex items-center justify-between"><span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-soft">Total Views</span><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-low text-ink-soft"><Eye className="h-[18px] w-[18px]" /></span></div>
+              <div className="mt-4"><div className="text-2xl font-semibold text-faint">—</div><NotYet className="mt-1" label="Post tracking not available yet" /></div>
+            </Card>
+          </StaggerItem>
+        </Stagger>
+      </div>
+      <PipelineSummary c={c} />
+      <ViewsPlaceholder title="Views Over Time" />
+    </div>
+  );
+}
+
+function PipelineSummary({ c }: { c: Detail }) {
+  const total = Math.max(1, live(c).length);
+  const stages = ["identified", "contacted", "negotiating", "confirmed"] as const;
+  const tone = ["bg-line", "bg-cyan-soft", "bg-teal", "bg-ink"];
+  return (
+    <Card className="p-6">
+      <div className="mb-4 flex items-center justify-between"><h2 className="text-lg font-semibold text-on">Pipeline</h2><span className="text-xs text-ink-soft">{c.declinedCount} declined</span></div>
+      <div className="flex h-3 overflow-hidden rounded-full bg-surface-mid">
+        {stages.map((s, i) => <motion.div key={s} className={tone[i]} initial={{ width: 0 }} animate={{ width: `${((c.stageCounts[s] ?? 0) / total) * 100}%` }} transition={{ duration: 0.9, delay: i * 0.1, ease: EASE }} />)}
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {stages.map((s, i) => <div key={s} className="flex items-center gap-2 text-xs text-ink-soft"><span className={cn("h-2 w-2 rounded-full", tone[i])} />{STAGE_LABEL[s]} <span className="font-semibold tabular-nums text-on">{c.stageCounts[s] ?? 0}</span></div>)}
+      </div>
+    </Card>
+  );
+}
+
+function ViewsPlaceholder({ title }: { title: string }) {
+  return (
+    <Card className="flex flex-col p-6">
+      <div className="mb-4 flex items-center justify-between"><div><h2 className="text-lg font-semibold text-on">{title}</h2><span className="text-xs text-ink-soft">Views across creator deliverables</span></div><NotYet label="Coming later" /></div>
+      <div className="relative h-56 w-full overflow-hidden rounded-xl bg-surface-low">
+        <svg className="h-full w-full" viewBox="0 0 880 220" preserveAspectRatio="none" aria-hidden>
+          {[40, 90, 140, 190].map((y) => <line key={y} x1="0" x2="880" y1={y} y2={y} stroke="#e0e3e5" strokeDasharray="4 6" />)}
+          <motion.path d="M 0 200 C 120 196, 200 180, 300 160 S 500 110, 600 90 S 780 40, 880 30" fill="none" stroke="#c6c6cd" strokeWidth="2.5" strokeDasharray="6 6" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 1.6, ease: EASE }} />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center"><span className="rounded-xl bg-white/90 px-4 py-2 text-center text-xs text-ink-soft shadow-sm">MUSHIN doesn't track post views yet, so there is no chart to show.</span></div>
+      </div>
+    </Card>
+  );
+}
+
+function AnalyticsTab({ c }: { c: Detail }) {
+  const open = live(c);
+  const posted = open.filter((x) => x.contentStatus === "posted" || x.contentStatus === "completed").length;
+  const contacted = open.filter((x) => x.lastOutreach).length;
+  const replied = open.filter((x) => x.lastOutreach && ["replied", "agreed"].includes(x.lastOutreach.outcome)).length;
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <BudgetCard c={c} />
+        <Card className="flex flex-col justify-between p-6">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-soft">Creators Posted</span>
+          <div className="my-3 flex items-baseline gap-2"><span className="text-[32px] font-semibold tabular-nums text-on">{posted} of {open.length}</span></div>
+          <div className="flex items-center gap-1.5">{open.map((x, i) => <motion.span key={x.creator.id} initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ delay: i * 0.05 }} className={cn("h-2 flex-1 origin-left rounded-full", x.contentStatus === "posted" || x.contentStatus === "completed" ? "bg-ink" : "bg-surface-high")} />)}</div>
+        </Card>
+        <Card className="flex flex-col justify-between p-6">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-soft">Outreach Response</span>
+          <div className="my-3 flex items-baseline gap-2"><span className="text-[32px] font-semibold tabular-nums text-on">{contacted ? Math.round((replied / contacted) * 100) : 0}%</span><span className="text-xs text-ink-soft">{replied} of {contacted} contacted replied</span></div>
+          <Progress value={contacted ? (replied / contacted) * 100 : 0} bar="bg-teal" />
+        </Card>
+      </div>
+      <ViewsPlaceholder title="Daily Views" />
+      <Card className="p-6">
+        <h2 className="mb-4 text-lg font-semibold text-on">Creator Performance</h2>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead><tr className="bg-surface-low/60 text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-soft"><th className="rounded-l-xl px-4 py-3">Creator</th><th className="px-4 py-3">Platform</th><th className="px-4 py-3">Stage</th><th className="px-4 py-3">Content</th><th className="rounded-r-xl px-4 py-3 text-right">Fee</th></tr></thead>
+            <tbody className="divide-y divide-surface-mid">
+              {open.map((x) => (
+                <tr key={x.creator.id} className="transition-colors hover:bg-surface-low/40">
+                  <td className="px-4 py-3 text-[13px] font-semibold text-on">{x.creator.displayName}<span className="block text-xs font-normal text-ink-soft">@{x.creator.handle}</span></td>
+                  <td className="px-4 py-3 text-xs text-on">{PLATFORM_NAME[x.creator.platform]}</td>
+                  <td className="px-4 py-3 text-xs text-on">{STAGE_LABEL[x.stage]}</td>
+                  <td className="px-4 py-3 text-xs text-on">{{ none: "Not started", content_pending: "Pending", posted: "Posted", completed: "Completed" }[x.contentStatus]}</td>
+                  <td className="px-4 py-3 text-right text-[13px] font-semibold tabular-nums text-on">{rupees(x.feeMinor)}</td>
+                </tr>
+              ))}
+              {open.length === 0 && <tr><td colSpan={5} className="px-4 py-6 text-center text-sm text-ink-soft">No creators in this campaign yet.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function SettingsTab({ c, onDeleted }: { c: Detail; onDeleted: () => void }) {
   const update = useUpdateCampaign();
   const del = useDeleteCampaign();
   const confirm = useConfirm();
   const toast = useToast();
   const [editing, setEditing] = useState(false);
-  const [outreachFor, setOutreachFor] = useState<CampaignCreator | null>(null);
-
-  if (campaign.isPending) return <LoadingBlock lines={6} />;
-  if (campaign.isError) return <ErrorState body={campaign.error instanceof Error ? campaign.error.message : undefined} onRetry={() => void campaign.refetch()} />;
-  const c = campaign.data;
-  const open = c.creators.filter((x) => x.outcome === "open");
-  const declined = c.creators.filter((x) => x.outcome === "declined");
-
+  const [name, setName] = useState(c.name);
+  const [budget, setBudget] = useState(c.budgetMinor === null ? "" : String(Math.round(c.budgetMinor / 100)));
+  const [saved, setSaved] = useState(false);
+  const budgetBad = budget.trim() !== "" && toMinor(budget) === null;
+  const dirty = name.trim() !== c.name || toMinor(budget) !== c.budgetMinor;
+  const err = (e: unknown) => (e instanceof Error ? e.message : undefined);
+  const save = () => update.mutate({ id: c.id, patch: { name: name.trim(), budgetMinor: toMinor(budget) } }, { onSuccess: () => { setSaved(true); setTimeout(() => setSaved(false), 2500); } });
+  const setStatus = (status: "paused" | "active" | "archived", msg: string) => update.mutate({ id: c.id, patch: { status } }, { onSuccess: () => toast.success(msg), onError: (e) => toast.error("Couldn't update the campaign", err(e)) });
   async function onDelete() {
     if (!(await confirm({ title: `Delete ${c.name}?`, body: "The campaign, its pipeline and its outreach log are deleted for everyone in your team. Creators stay in MUSHIN.", confirmLabel: "Delete campaign", cancelLabel: "Keep", destructive: true }))) return;
-    del.mutate(id, { onSuccess: () => { toast.success(`Deleted ${c.name}`); onBack(); }, onError: (err) => toast.error("Couldn't delete the campaign", err instanceof Error ? err.message : undefined) });
+    del.mutate(c.id, { onSuccess: () => { toast.success(`Deleted ${c.name}`); onDeleted(); }, onError: (e) => toast.error("Couldn't delete the campaign", err(e)) });
   }
-
+  const fieldCls = "w-full rounded-lg bg-surface-low px-3 py-2.5 text-sm text-on shadow-sm outline-none transition-all focus:bg-white focus:ring-2 focus:ring-teal/40";
   return (
-    <div className="space-y-5">
-      <button onClick={onBack} className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-800"><ArrowLeft className="h-3.5 w-3.5" /> All campaigns</button>
-      {editing ? (
-        <CampaignForm
-          initial={c}
-          submitLabel="Save changes"
-          busy={update.isPending}
-          onCancel={() => setEditing(false)}
-          onSubmit={(v) => update.mutate({ id, patch: v }, { onSuccess: () => setEditing(false), onError: (err) => toast.error("Couldn't save the campaign", err instanceof Error ? err.message : undefined) })}
-        />
-      ) : (
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h1 className="truncate text-[28px] font-semibold leading-9 tracking-[-0.025em] text-slate-900">{c.name}</h1>
-              <span className={`rounded-full px-2 py-0.5 text-[11px] ${STATUS_TONE[c.status]}`} style={{ fontWeight: 600 }}>{STATUS_LABEL[c.status]}</span>
-            </div>
-            <p className="mt-1 text-sm text-slate-500">
-              {c.client || "No client"} · {c.startDate ?? "no start date"} → {c.endDate ?? "no end date"} · {rupees(c.agreedFeesMinor)} agreed{c.budgetMinor !== null ? ` of ${rupees(c.budgetMinor)} budget` : ""}
-            </p>
-            {c.objective && <p className="mt-1 max-w-2xl text-sm text-slate-600">{c.objective}</p>}
+    <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-12">
+      <aside className="flex flex-col gap-1 rounded-xl bg-white p-2 shadow-sm lg:sticky lg:top-6 lg:col-span-3">
+        {[["General", "#cs-general"], ["Budget", "#cs-budget"], ["Notifications", "#cs-notify"], ["Danger Zone", "#cs-danger"]].map(([l, h]) => (
+          <a key={h} href={h} onClick={(e) => { e.preventDefault(); document.querySelector(h!)?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className={cn("rounded-lg px-3 py-2 text-[13px] transition-colors hover:bg-surface-low", l === "Danger Zone" ? "text-danger" : "text-ink-soft hover:text-on")}>{l}</a>
+        ))}
+      </aside>
+      <div className="flex flex-col gap-5 lg:col-span-9">
+        <Card className="flex flex-col gap-5 p-5" >
+          <div id="cs-general" className="flex scroll-mt-24 items-start justify-between border-b border-surface-high/60 pb-2"><div><h2 className="text-lg font-semibold text-on">General</h2><p className="mt-0.5 text-xs text-ink-soft">Campaign name and details.</p></div><Button variant="outline" size="sm" onClick={() => setEditing(true)}>Edit all details</Button></div>
+          <label className="flex flex-col gap-1 text-[13px] font-medium text-on">Campaign Name<input value={name} maxLength={120} onChange={(e) => setName(e.target.value)} className={fieldCls} /></label>
+          <div id="cs-budget" className="scroll-mt-24 border-t border-surface-high/60 pt-4">
+            <h2 className="text-lg font-semibold text-on">Budget</h2>
+            <p className="mt-0.5 text-xs text-ink-soft">Set the total spend limit for this campaign.</p>
+            <div className="relative mt-3 flex max-w-lg items-center"><span className="absolute left-3 text-lg font-semibold text-faint">Rs.</span><input inputMode="numeric" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="No budget" className={cn(fieldCls, "pl-12 text-xl font-semibold tabular-nums", budgetBad && "ring-2 ring-danger/50")} /></div>
           </div>
-          <div className="flex shrink-0 gap-1.5">
-            <button onClick={() => setEditing(true)} className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-50"><Pencil className="h-3.5 w-3.5" /> Edit</button>
-            {c.status === "archived" ? (
-              <button onClick={() => update.mutate({ id, patch: { status: "paused" } }, { onSuccess: () => toast.success(`Restored ${c.name}`), onError: (err) => toast.error("Couldn't restore the campaign", err instanceof Error ? err.message : undefined) })} className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-50">Restore</button>
-            ) : (
-              <button onClick={() => update.mutate({ id, patch: { status: "archived" } }, { onSuccess: () => toast.success(`Archived ${c.name}. It no longer counts towards your plan's campaign limit.`), onError: (err) => toast.error("Couldn't archive the campaign", err instanceof Error ? err.message : undefined) })} className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-50">Archive</button>
-            )}
-            <button onClick={() => void onDelete()} className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-white px-2.5 py-1.5 text-xs text-red-700 hover:bg-red-50"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
-          </div>
-        </div>
-      )}
-      <p className="text-[11px] text-slate-500">Tasks and reminders are not available yet. Log outreach you did yourself, or use Outreach on a creator to write an email (sending depends on your plan).</p>
-
-      {c.creators.length === 0 ? (
-        <EmptyState icon={<Users className="h-5 w-5" />} title="No creators in this campaign yet" body="Add creators from Search, a list or a creator's profile with Add to campaign." action={<button onClick={onGoToSearch} className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs text-white" style={{ fontWeight: 600 }}>Search creators</button>} />
-      ) : (
-        <div className="flex gap-3 overflow-x-auto pb-2">
-          {STAGES.map((s) => (
-            <Column key={s} title={STAGE_LABEL[s]} items={open.filter((x) => x.stage === s)} campaignId={id} onOutreach={setOutreachFor} onOpenCreator={onOpenCreator} />
+          <Alert tone="error">{budgetBad ? "Enter the budget as a number of rupees." : update.isError ? err(update.error) ?? "Couldn't save." : null}</Alert>
+          <Alert tone="success">{saved ? "Campaign settings saved." : null}</Alert>
+          <div className="flex justify-end"><Button icon={Save} disabled={!dirty || budgetBad || !name.trim()} loading={update.isPending} onClick={save}>Save Changes</Button></div>
+        </Card>
+        <Card className="flex flex-col gap-4 p-5">
+          <div id="cs-notify" className="scroll-mt-24 border-b border-surface-high/60 pb-2"><h2 className="flex items-center gap-2 text-lg font-semibold text-on">Notifications <NotYet /></h2><p className="mt-0.5 text-xs text-ink-soft">Email alerts for this campaign are not available yet.</p></div>
+          {["Email me when a creator is scheduled to post today.", "Email me when a creator opens my outreach message."].map((t) => (
+            <div key={t} className="flex items-center justify-between gap-3 rounded-xl bg-surface-low p-3 opacity-70"><span className="text-[13px] font-medium text-on">{t}</span><Toggle checked={false} onChange={() => undefined} label={t} disabled /></div>
           ))}
-          <Column title="Declined" items={declined} campaignId={id} onOutreach={setOutreachFor} onOpenCreator={onOpenCreator} muted />
-        </div>
-      )}
-      {outreachFor && <OutreachPanel campaignId={id} campaign={{ name: c.name, client: c.client }} member={outreachFor} onClose={() => setOutreachFor(null)} />}
+        </Card>
+        <section id="cs-danger" className="flex scroll-mt-24 flex-col gap-3 rounded-xl bg-danger-soft/20 p-5 shadow-sm">
+          <h2 className="text-lg font-semibold text-danger">Danger Zone</h2>
+          <p className="text-[13px] text-ink-soft">Pause tracking, archive the campaign from your active view (it then no longer counts towards your plan's campaign limit), or delete it.</p>
+          <div className="flex flex-wrap gap-2">
+            {c.status === "paused" ? <Button variant="outline" icon={PlayCircle} onClick={() => setStatus("active", `Resumed ${c.name}`)}>Resume Campaign</Button> : c.status !== "archived" && <Button variant="outline" icon={PauseCircle} onClick={() => setStatus("paused", `Paused ${c.name}`)}>Pause Campaign</Button>}
+            {c.status === "archived" ? <Button variant="outline" icon={Archive} onClick={() => setStatus("paused", `Restored ${c.name}`)}>Restore Campaign</Button> : <Button variant="outline" icon={Archive} onClick={() => setStatus("archived", `Archived ${c.name}`)} className="text-danger">Archive Campaign</Button>}
+            <Button variant="danger" icon={Trash2} loading={del.isPending} onClick={() => void onDelete()}>Delete Campaign</Button>
+          </div>
+        </section>
+      </div>
+      <CampaignModal key={editing ? "e" : "e0"} open={editing} initial={c} title="Edit campaign" submitLabel="Save changes" busy={update.isPending} error={editing && update.isError ? err(update.error) ?? null : null}
+        onClose={() => { setEditing(false); update.reset(); }}
+        onSubmit={(v) => update.mutate({ id: c.id, patch: v }, { onSuccess: () => { setEditing(false); setName(v.name); setBudget(v.budgetMinor === null ? "" : String(Math.round(v.budgetMinor / 100))); toast.success("Campaign updated"); } })} />
     </div>
   );
 }
 
-function Column({ title, items, campaignId, onOutreach, onOpenCreator, muted }: { title: string; items: CampaignCreator[]; campaignId: string; onOutreach: (m: CampaignCreator) => void; onOpenCreator: (c: Creator) => void; muted?: boolean }) {
-  return (
-    <section aria-label={`${title}: ${items.length}`} className={`w-60 shrink-0 rounded-xl border p-2.5 ${muted ? "border-slate-200 bg-slate-50/60" : "border-slate-200 bg-slate-50"}`}>
-      <div className="mb-2 flex items-center justify-between px-1 text-xs text-slate-600" style={{ fontWeight: 600 }}>
-        <span>{title}</span>
-        <span className="rounded-full bg-white px-1.5 text-[10px] text-slate-500">{items.length}</span>
-      </div>
-      <div className="space-y-2">
-        {items.length === 0 && <div className="px-1 py-3 text-center text-[11px] text-slate-500">None</div>}
-        {items.map((m) => <MemberCard key={m.creator.id} m={m} campaignId={campaignId} onOutreach={() => onOutreach(m)} onOpenCreator={onOpenCreator} />)}
-      </div>
-    </section>
-  );
-}
 
-function MemberCard({ m, campaignId, onOutreach, onOpenCreator }: { m: CampaignCreator; campaignId: string; onOutreach: () => void; onOpenCreator: (c: Creator) => void }) {
-  const save = useUpdateCampaignCreator();
-  const remove = useRemoveFromCampaign();
-  const confirm = useConfirm();
-  const toast = useToast();
-  const [fee, setFee] = useState<string | null>(null);
-  // The fee editor commits once. Enter blurs the field, and the browser fires blur again when the field is removed; a
-  // second save carried the same version and was refused (409), so a following stage change was lost (E2E f78-1).
-  const feeOpen = useRef(false);
-  const openFee = () => {
-    feeOpen.current = true;
-    setFee(m.feeMinor === null ? "" : String(Math.round(m.feeMinor / 100)));
-  };
-  const commitFee = (text: string) => {
-    if (!feeOpen.current) return;
-    feeOpen.current = false;
-    setFee(null);
-    const v = toMinor(text);
-    if (v !== m.feeMinor) change({ feeMinor: v });
-  };
-  const card = toCreator(m.creator);
-
-  function change(patch: Omit<UpdateCampaignCreator, "expectedVersion">) {
-    save.mutate({ id: campaignId, creatorId: m.creator.id, patch: { expectedVersion: m.version, ...patch } }, {
-      onError: (err) => {
-        // Checked by code, not class identity: a dev-server reload can load the error class twice.
-        if ((err as { code?: unknown }).code === "CONFLICT") toast.warning("Updated by someone else", "We loaded their change. Check it, then try again.");
-        else toast.error("Couldn't save the change", err instanceof Error ? err.message : undefined);
-      },
-    });
-  }
-  async function onRemove() {
-    if (!(await confirm({ title: `Remove ${m.creator.displayName} from the campaign?`, body: "Their stage, fee and outreach log in this campaign are deleted.", confirmLabel: "Remove", cancelLabel: "Keep", destructive: true }))) return;
-    remove.mutate({ id: campaignId, creatorId: m.creator.id }, { onError: (err) => toast.error("Couldn't remove the creator", err instanceof Error ? err.message : undefined) });
-  }
-  const select = "w-full rounded border border-slate-200 bg-white px-1 py-0.5 text-[11px] text-slate-700";
-
-  return (
-    <article className={`rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm ${save.isPending ? "opacity-70" : ""}`}>
-      <button onClick={() => onOpenCreator(card)} className="flex w-full items-center gap-2 text-left">
-        <img src={card.avatar} alt="" className="h-7 w-7 rounded-full object-cover" />
-        <span className="min-w-0">
-          <span className="block truncate text-xs text-slate-900" style={{ fontWeight: 600 }}>{m.creator.displayName}</span>
-          <span className="block truncate text-[11px] text-slate-500">@{m.creator.handle} · {m.creator.platform}</span>
-          {!m.creator.eligibility.eligible && (
-            <span className="block text-[11px] text-amber-800" data-testid="member-ineligible">{ineligibleText(m.creator.eligibility)} · kept in this campaign</span>
-          )}
-        </span>
-      </button>
-      <div className="mt-2 grid grid-cols-2 gap-1.5">
-        {m.outcome === "open" ? (
-          <select aria-label="Stage" value={m.stage} disabled={save.isPending} onChange={(e) => change({ stage: e.target.value as PipelineStage })} className={select}>
-            {STAGES.map((s) => <option key={s} value={s}>{STAGE_LABEL[s]}</option>)}
-          </select>
-        ) : (
-          <span className="rounded bg-slate-100 px-1 py-0.5 text-center text-[11px] text-slate-700">Declined at {STAGE_LABEL[m.stage]}</span>
-        )}
-        <select aria-label="Priority" value={m.priority} disabled={save.isPending} onChange={(e) => change({ priority: e.target.value as CampaignCreator["priority"] })} className={select}>
-          <option value="low">Low priority</option>
-          <option value="med">Medium priority</option>
-          <option value="high">High priority</option>
-        </select>
-        <select aria-label="Content status" value={m.contentStatus} disabled={save.isPending} onChange={(e) => change({ contentStatus: e.target.value as CampaignCreator["contentStatus"] })} className={`${select} col-span-2`}>
-          {Object.entries(CONTENT_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-        </select>
-      </div>
-      <div className="mt-1.5 flex flex-col items-start gap-1 text-[11px]">
-        {fee !== null ? (
-          <input
-            autoFocus
-            inputMode="numeric"
-            aria-label="Fee in rupees"
-            value={fee}
-            onChange={(e) => setFee(e.target.value)}
-            onBlur={() => commitFee(fee)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") commitFee(fee);
-              else if (e.key === "Escape") {
-                feeOpen.current = false;
-                setFee(null);
-              }
-            }}
-            className="w-24 rounded border border-indigo-300 px-1 py-0.5"
-          />
-        ) : (
-          <button onClick={openFee} className="text-left text-[11px] text-slate-700 hover:text-indigo-700" title="Edit fee">
-            {FEE_LABEL[m.feeKind]} fee: <span style={{ fontWeight: 600 }}>{rupees(m.feeMinor)}</span>
-          </button>
-        )}
-        <label className="inline-flex items-center gap-1 text-slate-500">
-          <CalendarClock className="h-3 w-3" />
-          <input type="date" aria-label="Due date" value={m.dueDate ?? ""} onChange={(e) => change({ dueDate: e.target.value || null })} className="w-[7.5rem] rounded border border-slate-200 px-1 py-0.5 text-[11px]" />
-        </label>
-      </div>
-      <p className="mt-1.5 text-[11px] text-slate-500">
-        {m.lastOutreach ? `${OUTCOME_LABEL[m.lastOutreach.outcome]} via ${m.lastOutreach.channel} · ${relative(m.lastOutreach.occurredAt)}` : "No outreach logged"}
-      </p>
-      <div className="mt-2 flex items-center gap-1 border-t border-slate-100 pt-2">
-        <button onClick={onOutreach} className="inline-flex flex-1 items-center justify-center gap-1 rounded-md bg-slate-900 px-2 py-1 text-[11px] text-white hover:bg-slate-800"><MessageSquareText className="h-3 w-3" /> Outreach</button>
-        {m.outcome === "open" ? (
-          <button onClick={() => change({ outcome: "declined" })} title="Mark declined" aria-label="Mark declined" className="rounded-md border border-slate-200 p-1 text-slate-500 hover:text-red-600"><XCircle className="h-3.5 w-3.5" /></button>
-        ) : (
-          <button onClick={() => change({ outcome: "open" })} title="Reopen" aria-label="Reopen" className="rounded-md border border-slate-200 p-1 text-slate-500 hover:text-emerald-600"><Undo2 className="h-3.5 w-3.5" /></button>
-        )}
-        <button onClick={() => void onRemove()} title="Remove from campaign" aria-label="Remove from campaign" className="rounded-md border border-slate-200 p-1 text-slate-500 hover:text-red-600"><UserMinus className="h-3.5 w-3.5" /></button>
-      </div>
-    </article>
-  );
-}
