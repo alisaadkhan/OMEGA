@@ -6,7 +6,8 @@
  * catalogue to staging with load-staging.ts (fresher data wins) and sync-avatars.ts. Owner approval 2026-11-15.
  * No Apify client is built, so nothing paid can run; AI calls (niche) go through the budget gate.
  *
- *   node --env-file=.env --import tsx scripts/catalog/youtube-refresh.ts --db mushin_catalog_v4 [--limit 20] [--concurrency 4] [--cap 2]
+ *   node --env-file=.env --import tsx scripts/catalog/youtube-refresh.ts --db mushin_catalog_v4 [--limit 20] [--concurrency 4] [--cap 2] [--qualified-only]
+ * --qualified-only (owner 2026-11-16): only creators search shows; the rest are not refreshed and expire at 30 days.
  */
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -20,7 +21,7 @@ import { createCreatorIndexer, createEnrichmentPipeline, getEnrichmentSettings, 
 import { createBudgetGate } from "./budget";
 import { fileStorage } from "./file-storage";
 
-const { values } = parseArgs({ options: { db: { type: "string" }, limit: { type: "string", default: "5000" }, concurrency: { type: "string", default: "4" }, cap: { type: "string", default: "2" } } });
+const { values } = parseArgs({ options: { db: { type: "string" }, limit: { type: "string", default: "5000" }, concurrency: { type: "string", default: "4" }, cap: { type: "string", default: "2" }, "qualified-only": { type: "boolean", default: false } } });
 const dbName = values.db ?? "";
 if (!/^mushin_catalog_[a-z0-9_]+$/.test(dbName) || /eval/.test(dbName)) throw new Error("--db must name a local operational catalogue (mushin_catalog_*)");
 const capUsd = Number(values.cap);
@@ -48,6 +49,7 @@ const due = await db.withSystem((tx) =>
   tx.execute<{ canonical_url: string }>(sql`
     select p.canonical_url from gcp.creator_profiles p join gcp.creators c on c.id = p.creator_id
     where p.platform = 'youtube' and c.status = 'active' and p.followers is not null
+      and (${!values["qualified-only"]} or exists (select 1 from gcp.creator_search_documents d where d.creator_id = c.id and d.eligible))
       and coalesce(p.last_scraped_at, p.created_at) <= now() - make_interval(days => ${REFRESH_AFTER_DAYS})
       and coalesce(p.last_scraped_at, p.created_at) > now() - interval '30 days'
     order by coalesce(p.last_scraped_at, p.created_at) limit ${Number(values.limit)}`),
