@@ -11,6 +11,9 @@ export JWT_AUDIENCE=authenticated
 export APIFY_TOKEN=
 export SERPER_API_KEY=
 export GROQ_API_KEY=
+# The AI chain also reads GROQ_API_KEY_1.._5 and OpenRouter (2026-11-15): blank them too, so no test calls a real model.
+export GROQ_API_KEY_1= GROQ_API_KEY_2= GROQ_API_KEY_3= GROQ_API_KEY_4= GROQ_API_KEY_5=
+export OPENROUTER_API_KEY=
 export OLLAMA_API_KEY=
 export GEMINI_API_KEY=
 # No YouTube Data API calls in any test run (owner decision 2026-10-26; the policy decision is pending).
@@ -28,6 +31,8 @@ if [ "$CATALOG_SEARCH_BACKEND" = "postgres" ] && [ -z "${E2E_KEEP_MEILI:-}" ]; t
 export RATE_LIMIT_MAX_REQUESTS=2000
 # Outreach email in test mode: a mock provider records sends; nothing is delivered (never allowed in production).
 export OUTREACH_EMAIL_MODE=test
+# Customer notification emails: recorded by the mock provider, never delivered.
+export NOTIFY_EMAIL_MODE=test
 # Supabase Auth admin lookups go to the auth stub (trusted email verification, audit SEC-03); a fixed test key, never a real one.
 export SUPABASE_URL=http://localhost:4999
 export SUPABASE_SERVICE_ROLE_KEY=e2e-service-key-not-a-secret

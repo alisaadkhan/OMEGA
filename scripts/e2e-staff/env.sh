@@ -14,6 +14,9 @@ export JWT_AUDIENCE=authenticated
 export APIFY_TOKEN=
 export SERPER_API_KEY=
 export GROQ_API_KEY=
+# The AI chain also reads GROQ_API_KEY_1.._5 and OpenRouter (2026-11-15): blank them too, so no test calls a real model.
+export GROQ_API_KEY_1= GROQ_API_KEY_2= GROQ_API_KEY_3= GROQ_API_KEY_4= GROQ_API_KEY_5=
+export OPENROUTER_API_KEY=
 export OLLAMA_API_KEY=
 export GEMINI_API_KEY=
 export AUDIENCE_SOURCES=
