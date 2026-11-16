@@ -124,7 +124,7 @@ export function SearchModule({ liveJobId = null, onGoToCampaigns }: { liveJobId?
   const [extra, setExtra] = useState<Partial<SearchFilters>>({});
   const [suggested, setSuggested] = useState<ChipState | null>(null);
   /** What the AI reading took from the request: stated vs inferred per filter, topic words, and what is not a filter. */
-  const [reading, setReading] = useState<Pick<InterpretResponse, "keywords" | "understood"> | null>(null);
+  const [reading, setReading] = useState<Pick<InterpretResponse, "keywords" | "understood" | "followUp"> | null>(null);
   const search = useCreatorSearch(request);
   const interpret = useInterpret();
   const saved = useSavedSearches();
@@ -201,12 +201,14 @@ export function SearchModule({ liveJobId = null, onGoToCampaigns }: { liveJobId?
   };
 
   /** The optional AI reading of the query (one LLM call), only on request. */
-  const suggestFilters = () => {
+  const suggestFilters = (alone = false) => {
     if (!query.trim()) return;
-    interpret.mutate(query.trim(), {
+    // After a search, new words are read as a follow-up to it (master prompt §13) unless the user asks otherwise.
+    const previous = !alone && request && request.text.trim() !== query.trim() ? { text: request.text, filters: request.filters } : undefined;
+    interpret.mutate({ text: query.trim(), ...(previous ? { previous } : {}) }, {
       onSuccess: (r) => {
         setSuggested(fromChips(r.chips));
-        setReading({ keywords: r.keywords, understood: r.understood });
+        setReading({ keywords: r.keywords, understood: r.understood, followUp: r.followUp });
         setShowInterpret(true);
       },
       onError: () => {
@@ -219,7 +221,11 @@ export function SearchModule({ liveJobId = null, onGoToCampaigns }: { liveJobId?
   /** The AI's reading is a suggestion: it changes the filters only when the user applies it (SRS REQ-02.02, REQ-03.06). */
   const applyInterpreted = () => {
     if (!suggested || searchCost === null) return;
-    const next = applySuggestion(uiFilters(), suggested);
+    // A refined follow-up is the whole search (current filters already combined on the server); otherwise it fills in.
+    const refine = reading?.followUp?.mode === "refine";
+    const next = refine ? suggested : applySuggestion(uiFilters(), suggested);
+    const text = refine && reading?.followUp ? reading.followUp.text : query;
+    if (text !== query) setQuery(text);
     setPlatform(next.platform);
     setCity(next.city);
     setNiche(next.niche);
@@ -228,7 +234,7 @@ export function SearchModule({ liveJobId = null, onGoToCampaigns }: { liveJobId?
     setVerifiedOnly(next.verifiedOnly);
     setExtra(next.extra);
     toast.info("Applied MUSHIN's reading of your search. Edit the chips anytime.");
-    submit(requestFor(query, { ...uiFilters(), ...next }, searchCost));
+    submit(requestFor(text, { ...uiFilters(), ...next }, searchCost));
   };
 
   const savePreset = () => {
@@ -399,7 +405,7 @@ export function SearchModule({ liveJobId = null, onGoToCampaigns }: { liveJobId?
       )}
 
       {query.trim() && !showInterpret && (
-        <button type="button" onClick={suggestFilters} disabled={interpret.isPending} className="inline-flex items-center gap-1.5 self-start rounded-md border border-indigo-100 bg-white px-2.5 py-1 text-[11px] text-indigo-700 hover:bg-indigo-50 disabled:opacity-50">
+        <button type="button" onClick={() => suggestFilters()} disabled={interpret.isPending} className="inline-flex items-center gap-1.5 self-start rounded-md border border-indigo-100 bg-white px-2.5 py-1 text-[11px] text-indigo-700 hover:bg-indigo-50 disabled:opacity-50">
           <Wand2 className="h-3 w-3" strokeWidth={2} />
           {interpret.isPending ? "Reading your search…" : "Suggest filters with AI"}
         </button>
@@ -426,6 +432,7 @@ export function SearchModule({ liveJobId = null, onGoToCampaigns }: { liveJobId?
                   <p className="mt-0.5 text-[11px] text-slate-500">
                     Review before running — these become editable filters, nothing is assumed silently.
                   </p>
+                  {reading?.followUp && <FollowUpNote f={reading.followUp} onAlone={() => suggestFilters(true)} />}
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {interpreted.platform && <InterpChip basis={basisOf(reading, "platform")}>Platform · {interpreted.platform}</InterpChip>}
                     {interpreted.city && <InterpChip basis={basisOf(reading, "creatorCity")}>City · {interpreted.city}</InterpChip>}
@@ -1343,9 +1350,11 @@ function FilterGroup({ label, icon: Icon, children }: { label: string; icon: any
 }
 
 /** "stated" when the request says it, "inferred" when the AI deduced it; null when the reading did not say. */
-function basisOf(reading: Pick<InterpretResponse, "understood"> | null, key: string): "stated" | "inferred" | null {
+type Basis = "stated" | "inferred" | "kept";
+function basisOf(reading: Pick<InterpretResponse, "understood"> | null, key: string): Basis | null {
   if (!reading) return null;
   const b = reading.understood.basis;
+  if (key === "niche" && b["niche"] === "kept") return "kept";
   if (key === "niche") {
     const niches = Object.entries(b).filter(([k]) => k.startsWith("niche:"));
     if (niches.length === 0) return null;
@@ -1354,15 +1363,35 @@ function basisOf(reading: Pick<InterpretResponse, "understood"> | null, key: str
   return b[key] ?? null;
 }
 
-function InterpChip({ children, basis = null }: { children: React.ReactNode; basis?: "stated" | "inferred" | null }) {
+/** What a follow-up did to the search on screen: refined it (kept / replaced / cleared) or started a new one. */
+function FollowUpNote({ f, onAlone }: { f: NonNullable<InterpretResponse["followUp"]>; onAlone: () => void }) {
+  const list = (xs: string[]) => xs.join(", ");
+  return (
+    <p className="mt-1.5 rounded-md bg-white/70 px-2 py-1.5 text-[11px] text-slate-600">
+      {f.mode === "refine" ? (
+        <>
+          <span style={{ fontWeight: 600 }}>Refining your search “{f.text}”.</span>
+          {f.kept.length > 0 && <> Kept: {list(f.kept)}.</>}
+          {f.replaced.length > 0 && <span className="text-amber-700"> Changed: {list(f.replaced)}.</span>}
+          {f.cleared.length > 0 && <> Removed: {list(f.cleared)}.</>}{" "}
+          <button type="button" onClick={onAlone} className="text-indigo-700 underline-offset-2 hover:underline">Search this on its own instead</button>
+        </>
+      ) : (
+        <><span style={{ fontWeight: 600 }}>New search.</span> Your earlier filters are not carried over.</>
+      )}
+    </p>
+  );
+}
+
+function InterpChip({ children, basis = null }: { children: React.ReactNode; basis?: Basis | null }) {
   return (
     <span
       className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-white px-2.5 py-1 text-[11px] capitalize text-indigo-700"
       style={{ fontWeight: 500 }}
-      title={basis === "stated" ? "Taken from your words" : basis === "inferred" ? "Inferred by the AI: check it before applying" : undefined}
+      title={basis === "stated" ? "Taken from your words" : basis === "inferred" ? "Inferred by the AI: check it before applying" : basis === "kept" ? "Kept from your current search" : undefined}
     >
       {children}
-      {basis && <span className={`normal-case ${basis === "stated" ? "text-indigo-400" : "text-amber-600"}`}>· {basis === "stated" ? "you said" : "inferred"}</span>}
+      {basis && <span className={`normal-case ${basis === "inferred" ? "text-amber-600" : "text-indigo-400"}`}>· {basis === "stated" ? "you said" : basis === "kept" ? "kept" : "inferred"}</span>}
     </span>
   );
 }

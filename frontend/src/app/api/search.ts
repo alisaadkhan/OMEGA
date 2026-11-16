@@ -37,7 +37,9 @@ export function useCreatorSearch(req: SearchRequest | null) {
 
 export function useInterpret() {
   return useMutation({
-    mutationFn: (text: string) => apiRequest("/v1/search/interpret", interpretResponseSchema, { method: "POST", body: { text } }),
+    // `previous`: the search on screen, so a follow-up ("only YouTube") refines it instead of starting over.
+    mutationFn: ({ text, previous }: { text: string; previous?: { text: string; filters: SearchFilters } }) =>
+      apiRequest("/v1/search/interpret", interpretResponseSchema, { method: "POST", body: previous ? { text, previous } : { text } }),
   });
 }
 

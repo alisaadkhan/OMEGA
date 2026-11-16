@@ -156,7 +156,7 @@ export function cleanInterpretation(raw: RawInterpretation, nicheLabels: readonl
   chips.niches = [...new Set((raw.niches ?? []).map((n) => byLower.get(n.trim().toLowerCase())).filter((n): n is string => Boolean(n)))].slice(0, 10);
   if (raw.verifiedOnly === true) chips.verifiedOnly = true;
   const keywords = [...new Set((raw.keywords ?? []).map((k) => k.trim()).filter((k) => k.length > 0 && k.length <= 40))].slice(0, 8);
-  return { chips, keywords, understood: { basis: {}, notFilters: [] } };
+  return { chips, keywords, understood: { basis: {}, notFilters: [] }, followUp: null };
 }
 
 // Any host-like word (name.tld, link shorteners), 9+ digits however they are separated, and "name at gmail dot com".

@@ -51,7 +51,7 @@ export function registerCreatorRoutes(
     const body = parseInput(interpretRequestSchema, req.body);
     const r = await limiter.limit("ai", ctx.userId);
     if (!r.allowed) throw rateLimitError(r.retryAfterSeconds);
-    return sendOk(reply, interpretResponseSchema, await service.interpret(ctx, body.text));
+    return sendOk(reply, interpretResponseSchema, await service.interpret(ctx, body.text, body.previous));
   });
 
   app.get("/v1/creators/lookup", read, async (req, reply) => {

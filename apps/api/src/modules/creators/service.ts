@@ -21,6 +21,7 @@ import { interpretOutputSchema, interpretSystemPrompt } from "./prompts";
 import * as repo from "./repository";
 import { cleanInterpretation, contactAvailability, fenced, freshnessOf, isContactable, isMinorProtected, maskBioContacts, meiliFilter, normalizeProfileUrl, refreshActionFor, sourceHash } from "./rules";
 import { explainInterpretation } from "./understood";
+import { combineFollowUp, type Previous } from "./follow-up";
 import { toCards } from "./ranking";
 import { suppressedUrls } from "./suppressions";
 import { contactRoutes, hasCollabRoute } from "./contact-routes";
@@ -192,7 +193,7 @@ export function createCreatorsService(deps: CreatorsDeps) {
     };
   }
 
-  async function interpret(ctx: TenantContext, text: string): Promise<InterpretResponse> {
+  async function interpret(ctx: TenantContext, text: string, previous?: Previous): Promise<InterpretResponse> {
     const { niches } = await config(ctx);
     const { value } = await deps.llm.complete({
       feature: "search_interpret",
@@ -203,7 +204,10 @@ export function createCreatorsService(deps: CreatorsDeps) {
       ctx: { workspaceId: ctx.workspaceId, requestId: ctx.requestId },
     });
     const cleaned = cleanInterpretation(value, niches);
-    return { ...cleaned, understood: explainInterpretation(text, cleaned) };
+    const reading = { ...cleaned, understood: explainInterpretation(text, cleaned), followUp: null };
+    if (!previous) return reading;
+    const combined = combineFollowUp({ text: previous.text, filters: searchFiltersShape.parse(previous.filters) }, reading, text);
+    return { ...reading, chips: combined.chips, understood: { ...reading.understood, basis: combined.basis }, followUp: combined.followUp };
   }
 
   /** Omnibar (SRS §3.1): a profile URL is matched exactly; anything else searches names and handles. */

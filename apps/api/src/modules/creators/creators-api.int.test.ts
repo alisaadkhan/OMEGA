@@ -82,6 +82,19 @@ describe("creators API", () => {
     expect(limited.headers["retry-after"]).toBeDefined();
   });
 
+  // Master prompt §13: a follow-up refines the search on screen; the mock AI reads only the new words.
+  it("reads a follow-up as a refinement of the current search and says what it kept", async () => {
+    const { app, auth } = await setup();
+    const previous = { text: "bridal creators", filters: { platform: "instagram", niches: ["Bridal"], hasContact: true } };
+    const r = (await app.inject({ method: "POST", url: "/v1/search/interpret", headers: auth, payload: { text: "in Lahore", previous } })).json();
+    expect(r.chips).toMatchObject({ platform: "instagram", niches: ["Bridal"], creatorCity: "Lahore", hasContact: true });
+    expect(r.followUp).toMatchObject({ mode: "refine", text: "bridal creators", kept: ["platform"] });
+    expect(r.understood.basis).toMatchObject({ platform: "kept", creatorCity: "stated" });
+    // Without a current search nothing is carried over.
+    expect((await app.inject({ method: "POST", url: "/v1/search/interpret", headers: auth, payload: { text: "in Lahore" } })).json()).toMatchObject({ followUp: null });
+    expect((await app.inject({ method: "POST", url: "/v1/search/interpret", headers: auth, payload: { text: "x", previous: { text: "y", filters: { followersMin: -1 } } } })).statusCode).toBe(400);
+  });
+
   it("validates filters, rate-limits interpretation and reports search outages as 503", async () => {
     const { app, auth } = await setup({ aiLimit: 2 });
     expect((await app.inject({ method: "POST", url: "/v1/search", headers: auth, payload: { filters: { followersMin: 10, followersMax: 1 }, confirmedCost: 50 } })).statusCode).toBe(400);

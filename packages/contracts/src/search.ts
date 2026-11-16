@@ -160,7 +160,11 @@ export const searchResponseSchema = z.object({
 });
 export type SearchResponse = z.output<typeof searchResponseSchema>;
 
-export const interpretRequestSchema = z.object({ text: z.string().trim().min(1).max(300) });
+export const interpretRequestSchema = z.object({
+  text: z.string().trim().min(1).max(300),
+  /** The search on screen when this is a follow-up ("only YouTube"): the reading refines it instead of starting over. */
+  previous: z.object({ text: z.string().trim().max(300), filters: searchFiltersShape }).optional(),
+});
 export const interpretResponseSchema = z.object({
   chips: searchFiltersShape,
   keywords: z.array(z.string()),
@@ -170,8 +174,16 @@ export const interpretResponseSchema = z.object({
    * niche:<label>); and parts of the request no filter covers (a campaign purpose).
    */
   understood: z
-    .object({ basis: z.record(z.string(), z.enum(["stated", "inferred"])), notFilters: z.array(z.string()) })
+    .object({ basis: z.record(z.string(), z.enum(["stated", "inferred", "kept"])), notFilters: z.array(z.string()) })
     .default({ basis: {}, notFilters: [] }),
+  /**
+   * For a follow-up: whether it refined the current search or started a new one, the combined search text, and which
+   * current filters were kept, replaced or cleared ("kept" in basis marks a filter carried over from the current search).
+   */
+  followUp: z
+    .object({ mode: z.enum(["refine", "new"]), text: z.string(), kept: z.array(z.string()), replaced: z.array(z.string()), cleared: z.array(z.string()) })
+    .nullable()
+    .default(null),
 });
 export type InterpretResponse = z.output<typeof interpretResponseSchema>;
 
