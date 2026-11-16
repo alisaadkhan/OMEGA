@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { motion } from "motion/react";
-import { ArrowUpRight, BarChart3, Check, CheckCircle2, Lock, Mail, Plus, Radio, RefreshCw, Search, XCircle } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { ArrowUpRight, BarChart3, FileText, Lock, Mail, Plus, PlusCircle, Radio, RefreshCw, Search, ShoppingBag, SlidersHorizontal, Zap } from "lucide-react";
+import { Alert, Button, Card, CountUp, EASE, NotYet, PageHeader, Pill, Progress, Segmented, Toggle } from "../../ui/kit";
+import { PlanPicker } from "./PlanPicker";
 import type { BillingInterval, CreditAction, PlanId } from "@mushin/contracts";
-import { AnimatedNumber } from "./AnimatedNumber";
 import { COPY } from "../../lib/copy";
-import { planFeatures } from "../../lib/plans";
 import { useConfirm } from "../../lib/toast";
 import { formatTrialDate } from "../../api/trial";
 import {
@@ -43,7 +43,7 @@ const KIND_LABEL = {
   release: "Reservation released",
 } as const;
 
-const formatMoney = (m: { amountMinor: number; currency: string }) =>
+export const formatMoney = (m: { amountMinor: number; currency: string }) =>
   m.currency === "PKR" ? `Rs. ${(m.amountMinor / 100).toLocaleString("en-PK")}` : `$${(m.amountMinor / 100).toFixed(2)}`;
 const formatDate = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
@@ -133,323 +133,206 @@ export function Billing({ checkoutResult }: { checkoutResult?: "success" | "fail
     }
   };
 
+  const allowance = s?.plan?.monthlyCredits ?? s?.testingAllowance?.monthlyCredits ?? 0;
+  const available = s?.balance.available ?? 0;
+  const used = allowance ? Math.max(0, allowance - Math.min(available, allowance)) : 0;
+  const pct = allowance ? (used / allowance) * 100 : 0;
+  const renews = s?.currentPeriodEnd ?? s?.testingAllowance?.renewsAt ?? s?.trialEndsAt ?? null;
+  const planLabel = s?.plan ? (s.complimentary ? `${s.plan.name} · Complimentary` : s.plan.name) : trialing ? "Free trial" : "No active plan";
+  const planPrice = s?.plan ? plans.data?.plans.find((x) => x.id === s.plan!.id) : undefined;
+
+  async function onCancel() {
+    const ok = await confirm({
+      title: "Cancel your subscription?",
+      body: `Your plan stays active until ${s?.currentPeriodEnd ? formatDate(s.currentPeriodEnd) : "the end of this billing period"}. After that, its monthly credits and features end; paid top-up credits never expire.`,
+      confirmLabel: "Cancel subscription",
+      cancelLabel: "Keep my plan",
+      destructive: true,
+    });
+    if (ok) cancel.mutate(undefined, { onSuccess: () => { setAwaiting({ kind: "cancel" }); setNotice("Your subscription will end at the close of this billing period."); } });
+  }
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
-        <div>
-          <h1 className="text-[32px] font-bold leading-10 tracking-[-0.025em] text-slate-900">Credits &amp; billing</h1>
-          <p className="mt-1 text-sm text-slate-500">Manage your plan and track your credit usage.</p>
-        </div>
-        <span className="inline-flex items-center gap-1.5 self-start rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-600">
-          <span className={`h-2 w-2 rounded-full ${s?.plan || trialing ? "bg-[#06B6D4]" : "bg-slate-400"}`} />
-          {s?.plan ? (s.complimentary ? "Complimentary access active" : "Billing cycle active") : trialing ? "Free trial active" : "No active plan"}
-        </span>
-      </div>
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 py-2">
+      <PageHeader
+        title="Credits & Billing"
+        subtitle="Manage your plan and track your credit usage."
+        actions={<Pill tone={s?.plan || trialing ? "cyan" : "neutral"} dot>{s?.plan ? (s.complimentary ? "Complimentary access active" : "Billing cycle active") : trialing ? "Free trial active" : "No active plan"}</Pill>}
+      />
 
-      {checkoutResult && (
-        <div
-          role="status"
-          className={`flex items-center gap-2 rounded-xl border px-4 py-3 text-sm ${checkoutResult === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-red-200 bg-red-50 text-red-800"}`}
-        >
-          {checkoutResult === "success" ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
-          {checkoutResult === "success"
-            ? activating
-              ? "Payment received. Activating your plan…"
-              : "Payment received. Your plan and credits update within a few seconds."
-            : "The payment did not go through. No credits were charged."}
-        </div>
-      )}
-      {(notice || error) && (
-        <div role={error ? "alert" : "status"} className={`rounded-xl border px-4 py-3 text-sm ${error ? "border-red-200 bg-red-50 text-red-800" : "border-indigo-100 bg-indigo-50 text-indigo-900"}`}>
-          {error
-            ? error.message
-            : confirming
-              ? awaiting?.kind === "cancel"
-                ? "Cancelling your subscription… confirming with the payment provider."
-                : "Upgrading your plan… confirming with the payment provider."
-              : notice}
-        </div>
-      )}
+      <Alert tone={checkoutResult === "failed" ? "error" : "success"}>
+        {checkoutResult === "success" ? (activating ? "Payment received. Activating your plan…" : "Payment received. Your plan and credits update within a few seconds.") : checkoutResult === "failed" ? "The payment did not go through. No credits were charged." : null}
+      </Alert>
+      <Alert tone="error">{error ? error.message : null}</Alert>
+      <Alert tone={confirming ? "info" : "success"} onClose={confirming ? undefined : () => setNotice(null)}>
+        {error ? null : confirming ? (awaiting?.kind === "cancel" ? "Cancelling your subscription… confirming with the payment provider." : "Upgrading your plan… confirming with the payment provider.") : notice}
+      </Alert>
 
-      {/* Monthly testing allowance (0061): what is left, when it renews, and what it pays for. */}
-      {s?.testingAllowance && (
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 text-sm text-slate-700" data-testid="testing-allowance">
-          <div className="font-semibold text-slate-900">
-            Testing credits: <span className="tabular-nums">{s.testingAllowance.remaining.toLocaleString("en-US")}</span> of{" "}
-            <span className="tabular-nums">{s.testingAllowance.monthlyCredits.toLocaleString("en-US")}</span> left this month
-          </div>
-          <p className="mt-1 text-xs text-slate-600">
-            Renews to {s.testingAllowance.monthlyCredits.toLocaleString("en-US")} on{" "}
-            {new Date(s.testingAllowance.renewsAt).toLocaleString("en-GB", { timeZone: "Asia/Karachi", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })} (Pakistan time). Unused testing credits do
-            not carry over.{!s.plan && !trialing ? " Without a plan they pay for catalogue searches and contact reveals." : ""}
-          </p>
-        </div>
-      )}
-
-      {/* Balance row */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <BalanceTile label="Available credits" value={s?.balance.available ?? 0} accent />
-        <BalanceTile
-          label="Reserved (held for running searches)"
-          value={s?.balance.reserved ?? 0}
-          sub={(s?.balance.reserved ?? 0) === 0 ? "Nothing running: no credits held" : "Released automatically if a job fails or stops"}
-        />
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.1 }}
-          className="rounded-xl border border-slate-200 bg-slate-900 p-6 text-white shadow-sm"
-        >
-          <div className="text-xs uppercase tracking-wider text-slate-400">Current plan</div>
-          <div className="mt-1 text-white" style={{ fontSize: "1.25rem", fontWeight: 600 }}>
-            {s?.plan ? (s.complimentary ? `${s.plan.name} — Complimentary` : `${s.plan.name} · ${s.interval === "year" ? "Yearly" : "Monthly"}`) : trialing ? "Free trial" : "No active plan"}
-          </div>
-          <div className="mt-3 text-xs text-slate-400">
-            {s?.plan && s.currentPeriodEnd
-              ? s.complimentary
-                ? `Complimentary access until ${formatDate(s.currentPeriodEnd)}. No payment is taken.`
-                : s.cancelAtPeriodEnd
-                ? `Ends on ${formatDate(s.currentPeriodEnd)}`
-                : `Renews on ${formatDate(s.currentPeriodEnd)}`
-              : trialing && s?.trialDaysLeft !== null && s?.trialDaysLeft !== undefined
-                ? `${s.trialDaysLeft} days of trial left${s.trialStartedAt && s.trialEndsAt ? ` · ${formatTrialDate(s.trialStartedAt)} to ${formatTrialDate(s.trialEndsAt)}` : ""}`
-                : s?.awaitingTrial
-                  ? "Free trial not active yet: our team activates it after a short call"
-                  : "Choose a plan to get monthly credits"}
-          </div>
-          {s?.scheduledChange && (
-            <div className="mt-2 text-xs text-amber-300">
-              Changes to {s.scheduledChange.planId} at the end of this period
-            </div>
-          )}
-          {canManage && !s?.complimentary && (
-            <div className="mt-6 grid gap-2">
-              <button
-                onClick={() => setShowPlans((v) => !v)}
-                className="w-full rounded-md bg-white px-3 py-2 text-sm text-slate-900 transition-all hover:-translate-y-px hover:shadow-md"
-              >
-                {hasPlan ? "Change plan" : "Choose a plan"}
-              </button>
-              {hasPlan && !s?.cancelAtPeriodEnd && (
-                <button
-                  disabled={busy}
-                  onClick={async () => {
-                    const ok = await confirm({
-                      title: "Cancel your subscription?",
-                      body: `Your plan stays active until ${s?.currentPeriodEnd ? new Date(s.currentPeriodEnd).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "the end of this billing period"}. After that, its monthly credits and features end; paid top-up credits never expire.`,
-                      confirmLabel: "Cancel subscription",
-                      cancelLabel: "Keep my plan",
-                      destructive: true,
-                    });
-                    if (ok) {
-                      cancel.mutate(undefined, {
-                        onSuccess: () => {
-                          setAwaiting({ kind: "cancel" });
-                          setNotice("Your subscription will end at the close of this billing period.");
-                        },
-                      });
-                    }
-                  }}
-                  className="w-full rounded-md border border-white/20 px-3 py-2 text-xs text-slate-300 hover:bg-white/10 disabled:opacity-50"
-                >
-                  Cancel subscription
-                </button>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ ease: EASE }}>
+          <Card className="relative flex h-full flex-col justify-between overflow-hidden p-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-soft">Current Balance</span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-cyan-soft px-2.5 py-1 text-[10px] font-semibold text-[#006172]"><Zap className="h-3 w-3" /> CREDITS</span>
+              </div>
+              <div className="flex items-baseline gap-3">
+                <span className="text-[44px] font-semibold leading-none tracking-tight tabular-nums text-on"><CountUp value={available} /></span>
+                <span className="text-[13px] text-ink-soft">available</span>
+              </div>
+              {(s?.balance.reserved ?? 0) > 0 && <p className="text-xs text-ink-soft"><CountUp value={s!.balance.reserved} /> credits held for running searches, released automatically if a job fails.</p>}
+              {allowance > 0 && (
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between text-[13px]">
+                    <span className="font-medium text-on">{Math.round(pct)}% utilized this cycle</span>
+                    <span className="tabular-nums text-ink-soft">{used.toLocaleString("en-PK")} / {allowance.toLocaleString("en-PK")} used</span>
+                  </div>
+                  <Progress value={pct} bar="bg-gradient-to-r from-ink to-teal" />
+                  {renews && <p className="pt-1 text-xs text-ink-soft">{s?.testingAllowance && !s.plan ? "Testing credits renew" : "Credits refresh"} on {formatDate(renews)}. Unused monthly credits do not roll over.</p>}
+                </div>
               )}
             </div>
-          )}
+            <div className="mt-6 flex items-center justify-between pt-5">
+              <Button icon={PlusCircle} disabled={!canManage || busy} title={canManage ? undefined : "Only the account owner or an admin can buy credits"} onClick={() => setShowPlans(true)} className="bg-teal hover:bg-teal-deep">Buy Credits</Button>
+              <span className="text-right text-[11px] text-ink-soft">No expiration on purchased top-ups</span>
+            </div>
+          </Card>
+        </motion.div>
+
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ ease: EASE, delay: 0.06 }}>
+          <Card className="flex h-full flex-col justify-between p-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-soft">Current Plan</span>
+                <Pill tone={s?.plan || trialing ? "dark" : "neutral"}>{s?.plan ? "Active Plan" : trialing ? "Trial" : "None"}</Pill>
+              </div>
+              <div className="flex flex-col justify-between gap-1 sm:flex-row sm:items-baseline">
+                <h2 className="text-2xl font-semibold text-on">{planLabel}</h2>
+                {planPrice && !s?.complimentary && <div className="text-lg font-semibold text-on">{formatMoney(s?.interval === "year" ? planPrice.display.yearlyPerMonth : planPrice.display.monthly)} <span className="text-xs font-normal text-ink-soft">/ month</span></div>}
+              </div>
+              <p className="text-xs leading-relaxed text-ink-soft">
+                {s?.plan && s.currentPeriodEnd
+                  ? s.complimentary ? `Complimentary access until ${formatDate(s.currentPeriodEnd)}. No payment is taken.` : `${s.plan.monthlyCredits.toLocaleString("en-PK")} monthly credits. ${s.cancelAtPeriodEnd ? "Ends" : "Renews"} on ${formatDate(s.currentPeriodEnd)}.`
+                  : trialing && s?.trialDaysLeft != null ? `${s.trialDaysLeft} days of trial left${s.trialStartedAt && s.trialEndsAt ? ` · ${formatTrialDate(s.trialStartedAt)} to ${formatTrialDate(s.trialEndsAt)}` : ""}.`
+                  : s?.awaitingTrial ? "Free trial not active yet: our team activates it after a short call." : "Choose a plan to get monthly credits."}
+              </p>
+              {s?.scheduledChange && <Alert tone="warning">Changes to {plans.data?.plans.find((x) => x.id === s.scheduledChange!.planId)?.name ?? s.scheduledChange.planId} at the end of this period.</Alert>}
+              {s?.testingAllowance && (
+                <div className="rounded-xl bg-surface-low p-3.5 text-xs text-ink-soft" data-testid="testing-allowance">
+                  <span className="font-semibold text-on">Testing credits: <span className="tabular-nums">{s.testingAllowance.remaining.toLocaleString("en-US")}</span> of <span className="tabular-nums">{s.testingAllowance.monthlyCredits.toLocaleString("en-US")}</span> left this month.</span> Unused testing credits do not carry over.
+                </div>
+              )}
+              <div className="flex items-center justify-between gap-3 rounded-xl bg-surface-low p-3.5 opacity-70">
+                <div className="flex flex-col pr-2">
+                  <span className="flex items-center gap-2 text-[13px] font-semibold text-on">Auto-refill <NotYet /></span>
+                  <span className="text-xs text-ink-soft">Automatically add credits when your balance runs low.</span>
+                </div>
+                <Toggle checked={false} onChange={() => undefined} label="Auto-refill" disabled />
+              </div>
+            </div>
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-2 pt-5">
+              {canManage && !s?.complimentary ? (
+                <div className="flex gap-2">
+                  <Button variant="soft" icon={SlidersHorizontal} onClick={() => setShowPlans(true)} disabled={busy}>{hasPlan ? "Change Plan" : "Choose a Plan"}</Button>
+                  {hasPlan && !s?.cancelAtPeriodEnd && <Button variant="ghost" disabled={busy} onClick={() => void onCancel()} className="text-danger">Cancel subscription</Button>}
+                </div>
+              ) : <span className="text-xs text-ink-soft">Plan changes are made by the account owner or an admin.</span>}
+              <span className="text-[10px] font-semibold tracking-wide text-ink-soft">Payments use the secure checkout; MUSHIN never stores cards.</span>
+            </div>
+          </Card>
         </motion.div>
       </div>
 
-      {/* Plans and top-ups */}
-      {canManage && showPlans && plans.data && (
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-6">
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Plans</div>
-            {annual && <div className="inline-flex rounded-md border border-slate-200 p-0.5 text-xs">
-              {(["month", "year"] as const).map((i) => (
-                <button key={i} onClick={() => setBillingInterval(i)} className={`rounded px-2.5 py-1 ${billingInterval === i ? "bg-slate-900 text-white" : "text-slate-600"}`}>
-                  {i === "month" ? "Monthly" : "Yearly"}
-                </button>
-              ))}
-            </div>}
-          </div>
-          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
-            {plans.data.plans.map((p) => {
-              const current = s?.plan?.id === p.id && s.interval === billingInterval;
-              const price = billingInterval === "month" ? p.display.monthly : p.display.yearlyPerMonth;
-              return (
-                <div key={p.id} className={`rounded-lg border p-4 ${current ? "border-indigo-300 bg-indigo-50/40" : "border-slate-200"}`}>
-                  <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>{p.name}</div>
-                  <div className="mt-1 text-slate-900" style={{ fontSize: 22, fontWeight: 600 }}>
-                    {formatMoney(price)}
-                    <span className="text-xs text-slate-500"> / month{billingInterval === "year" ? ", billed yearly" : ""}</span>
-                  </div>
-                  <div className="mt-1 text-xs text-slate-500">
-                    {p.monthlyCredits.toLocaleString()} credits / month · charged {formatMoney(billingInterval === "month" ? p.charge.monthly : p.charge.yearly)}
-                  </div>
-                  <ul className="mt-3 space-y-1 text-xs" aria-label={`What ${p.name} includes`}>
-                    {planFeatures(p, plans.data).map((f) => (
-                      <li key={f.key} className={`flex justify-between gap-2 ${f.included ? "text-slate-700" : "text-slate-500"}`}>
-                        <span>{f.label}</span>
-                        <span className="text-right" style={{ fontWeight: 600 }}>{f.value}{f.status === "coming_soon" ? " · coming soon" : f.status === "test_mode" ? " · test mode" : ""}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <button
-                    disabled={busy || current}
-                    onClick={() => choosePlan(p.id)}
-                    className="mt-4 w-full rounded-md bg-slate-900 px-3 py-2 text-xs text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-                    style={{ fontWeight: 600 }}
-                  >
-                    {current ? "Current plan" : hasPlan ? `Switch to ${p.name}` : `Choose ${p.name}`}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-          <div className="mt-6 text-sm text-slate-900" style={{ fontWeight: 600 }}>Credit top-ups</div>
-          <div className="mt-1 text-xs text-slate-500">
-            {trialing ? "Top-ups unlock once you choose a plan." : "Never expire. Spent after your monthly credits run out."}
-          </div>
-          <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
-            {plans.data.topupPacks.map((k) => (
-              <button
-                key={k.id}
-                disabled={busy || trialing}
-                onClick={() => checkout.mutate({ kind: "topup", packId: k.id })}
-                className="rounded-lg border border-slate-200 p-4 text-left hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>{k.credits.toLocaleString()} credits</div>
-                <div className="text-xs text-slate-500">
-                  {formatMoney(k.display)} · charged {formatMoney(k.charge)}
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      <PlanPicker
+        open={showPlans && canManage && !!plans.data}
+        onClose={() => setShowPlans(false)}
+        plans={plans.data}
+        currentPlanId={s?.plan?.id ?? null}
+        currentInterval={s?.interval ?? null}
+        hasPlan={hasPlan}
+        trialing={trialing}
+        annual={annual}
+        interval={billingInterval}
+        setInterval={setBillingInterval}
+        busy={busy}
+        onChoose={(id) => { setShowPlans(false); choosePlan(id); }}
+        onTopup={(packId) => checkout.mutate({ kind: "topup", packId })}
+      />
 
-      {/* Reservation model explainer */}
-      <div className="flex items-start gap-2.5 rounded-xl border border-indigo-100 bg-indigo-50/50 px-4 py-3 text-xs text-indigo-900">
-        <Lock className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-indigo-500" strokeWidth={2} />
-        <div style={{ lineHeight: 1.5 }}>
-          <span style={{ fontWeight: 600 }}>How live discovery is billed.</span> When you start a live search we reserve its credits up front.
-          If the search fails, the reserved credits are released back to your balance automatically.
-        </div>
+      <div className="flex items-start gap-2.5 rounded-xl bg-cyan-pale/25 px-4 py-3 text-xs text-teal-deep ring-1 ring-cyan-soft/30">
+        <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+        <span><span className="font-semibold">How live discovery is billed.</span> Starting a live search reserves its credits up front; if the search fails, they are released back to your balance automatically.</span>
       </div>
 
-      {/* Credit history (the ledger): every credit added, reserved, spent, released and expired. */}
-      {canManage && <TransactionHistory entries={ledger.data?.entries ?? null} />}
-
-      {/* Invoices */}
-      {canManage && (
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-6">
-          <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Invoices</div>
-          <div className="mt-4 space-y-3">
-            {(invoices.data?.invoices ?? []).map((i) => (
-              <div key={i.id} className="flex items-center justify-between border-b border-slate-100 pb-3 last:border-0">
-                <div>
-                  <div className="text-sm text-slate-900" style={{ fontWeight: 500 }}>{formatDate(i.createdAt)}</div>
-                  <div className="text-xs text-slate-500">{i.kind === "topup" ? "Credit top-up" : "Subscription"}</div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700">{i.status}</span>
-                  <span className="tabular-nums text-sm text-slate-900" style={{ fontWeight: 500 }}>{formatMoney(i.amount)}</span>
-                  {i.invoiceUrl ? (
-                    <a href={i.invoiceUrl} target="_blank" rel="noreferrer" className="text-slate-500 hover:text-slate-700" aria-label="Open invoice">
-                      <ArrowUpRight className="h-3.5 w-3.5" />
-                    </a>
-                  ) : null}
-                </div>
-              </div>
-            ))}
-            {invoices.data && invoices.data.invoices.length === 0 && <div className="text-sm text-slate-500">No payments yet.</div>}
-          </div>
-        </div>
-      )}
-
-      {/* Payment methods are held by the payment provider at checkout; MUSHIN never stores them (BILL-001/002). */}
-      <div className="rounded-2xl border border-slate-200/80 bg-white p-6">
-        <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Payment methods</div>
-        <p className="mt-1 text-xs text-slate-500" style={{ lineHeight: 1.55 }}>
-          You enter payment details on the secure checkout page when you subscribe or buy credits. MUSHIN doesn&apos;t store cards or wallet details, so there are no saved methods to manage here.
-        </p>
-      </div>
+      {canManage && <TransactionHistory entries={ledger.data?.entries ?? null} invoices={invoices.data?.invoices ?? []} />}
     </div>
   );
 }
 
 const USAGE_KINDS = new Set(["spend", "reserve", "release", "expire"]);
 
-function TransactionHistory({ entries }: { entries: NonNullable<ReturnType<typeof useLedger>["data"]>["entries"] | null }) {
-  const [filter, setFilter] = useState<"all" | "usage" | "purchases">("all");
+function TransactionHistory({ entries, invoices }: { entries: NonNullable<ReturnType<typeof useLedger>["data"]>["entries"] | null; invoices: NonNullable<ReturnType<typeof useInvoices>["data"]>["invoices"] }) {
+  const [filter, setFilter] = useState<"all" | "usage" | "purchases" | "invoices">("all");
   const rows = (entries ?? []).filter((e) => filter === "all" || (filter === "usage" ? USAGE_KINDS.has(e.kind) : !USAGE_KINDS.has(e.kind)));
   return (
-    <section className="space-y-4 rounded-2xl bg-white p-6 shadow-sm" aria-label="Credit history">
-      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+    <Card className="flex flex-col space-y-5 p-6">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">Credit history</h2>
-          <p className="mt-0.5 text-xs text-slate-500">Every credit added, reserved, spent, released and expired.</p>
+          <h2 className="text-lg font-semibold text-on">Transaction History</h2>
+          <p className="mt-0.5 text-xs text-ink-soft">Every credit added, reserved, spent, released and expired, and your payments.</p>
         </div>
-        <div className="inline-flex gap-1 rounded-xl bg-slate-100 p-1" role="group" aria-label="Filter transactions">
-          {(["all", "usage", "purchases"] as const).map((k) => (
-            <button key={k} onClick={() => setFilter(k)} aria-pressed={filter === k} className={`rounded-lg px-3 py-1.5 text-[13px] capitalize transition-all focus:outline-none focus:ring-2 focus:ring-cyan-400/40 ${filter === k ? "bg-white font-semibold text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"}`}>
-              {k === "purchases" ? "Credits added" : k}
-            </button>
-          ))}
-        </div>
+        <Segmented<"all" | "usage" | "purchases" | "invoices"> value={filter} onChange={setFilter} options={[{ id: "all", label: "All" }, { id: "usage", label: "Usage" }, { id: "purchases", label: "Credits added" }, { id: "invoices", label: "Invoices" }]} />
       </div>
-      <div className="-mx-6 overflow-x-auto px-6" tabIndex={0} role="region" aria-label="Credit history table">
-        <table className="w-full text-left">
-          <thead>
-            <tr className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500">
-              <th className="rounded-l-lg px-4 py-3 font-semibold">Date &amp; time</th>
-              <th className="px-4 py-3 font-semibold">Action</th>
-              <th className="rounded-r-lg px-4 py-3 text-right font-semibold">Amount</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50">
-            {entries === null ? (
-              <tr><td colSpan={3} className="px-4 py-6 text-center text-sm text-slate-500">Loading…</td></tr>
-            ) : rows.length === 0 ? (
-              <tr><td colSpan={3} className="px-4 py-6 text-center text-sm text-slate-500">{entries.length === 0 ? "No credit activity yet." : "Nothing in this view."}</td></tr>
-            ) : (
-              rows.map((e) => {
-                const meta = e.action ? ACTION_META[e.action as keyof typeof ACTION_META] : null;
-                const Icon = meta?.icon ?? Plus;
-                const signed = e.kind === "reserve" ? -e.amount : e.amount;
-                return (
-                  <tr key={e.id} className="transition-colors hover:bg-slate-50/70">
-                    <td className="whitespace-nowrap px-4 py-3.5 text-xs text-slate-500">{formatDate(e.createdAt)}</td>
-                    <td className="px-4 py-3.5">
-                      <div className="flex items-center gap-2">
-                        <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${meta?.tone ?? "bg-slate-100 text-slate-600"}`}><Icon className="h-3.5 w-3.5" strokeWidth={1.75} /></span>
-                        <span>
-                          <span className="block text-[13px] font-medium text-slate-900">{meta ? `${KIND_LABEL[e.kind]} · ${meta.label}` : KIND_LABEL[e.kind]}</span>
-                          {e.note && <span className="block max-w-md truncate text-[11px] text-slate-500">{e.note}</span>}
-                        </span>
-                      </div>
-                    </td>
-                    <td className={`whitespace-nowrap px-4 py-3.5 text-right text-[13px] font-semibold tabular-nums ${signed < 0 ? "text-rose-600" : "text-cyan-700"}`}>{signed > 0 ? `+${signed}` : signed} credits</td>
+      <AnimatePresence mode="wait">
+        <motion.div key={filter} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="-mx-6 overflow-x-auto px-6" tabIndex={0} role="region" aria-label="Transaction history table">
+          {filter === "invoices" ? (
+            <table className="w-full text-left">
+              <thead><tr className="bg-surface-low text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-soft"><th className="rounded-l-lg px-4 py-3">Date</th><th className="px-4 py-3">Purchase</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Amount</th><th className="rounded-r-lg px-4 py-3 text-center">Receipt</th></tr></thead>
+              <tbody className="divide-y divide-surface-low">
+                {invoices.length === 0 ? <tr><td colSpan={5} className="px-4 py-6 text-center text-sm text-ink-soft">No payments yet.</td></tr> : invoices.map((i) => (
+                  <tr key={i.id} className="transition-colors hover:bg-surface-low/60">
+                    <td className="whitespace-nowrap px-4 py-4 text-xs text-ink-soft">{formatDate(i.createdAt)}</td>
+                    <td className="px-4 py-4"><span className="flex items-center gap-2 text-[13px] font-medium text-on"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-soft text-[#006172]"><ShoppingBag className="h-3.5 w-3.5" /></span>{i.kind === "topup" ? "Credit top-up" : "Subscription"}</span></td>
+                    <td className="px-4 py-4"><Pill tone="cyan">{i.status}</Pill></td>
+                    <td className="whitespace-nowrap px-4 py-4 text-right text-[13px] font-semibold tabular-nums text-on">{formatMoney(i.amount)}</td>
+                    <td className="px-4 py-4 text-center">{i.invoiceUrl ? <a href={i.invoiceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg bg-surface-mid px-2.5 py-1 text-[11px] font-semibold text-ink-soft transition-colors hover:bg-surface-high hover:text-on"><FileText className="h-3.5 w-3.5" /> Invoice <ArrowUpRight className="h-3 w-3" /></a> : <span className="text-ink-soft">—</span>}</td>
                   </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
-}
-
-function BalanceTile({ label, value, sub, accent }: { label: string; value: number; sub?: string; accent?: boolean }) {
-  return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="rounded-2xl bg-white p-6 shadow-sm">
-      <div className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-500">{label}</div>
-      <div className={`mt-3 tabular-nums tracking-[-0.025em] ${accent ? "text-[40px] font-semibold leading-[44px] text-slate-900" : "text-[28px] font-semibold leading-9 text-slate-700"}`}>
-        <AnimatedNumber value={value} />
-      </div>
-      {sub && <div className="mt-1.5 text-[11px] text-slate-500" style={{ lineHeight: 1.5 }}>{sub}</div>}
-    </motion.div>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <table className="w-full text-left">
+              <thead><tr className="bg-surface-low text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-soft"><th className="rounded-l-lg px-4 py-3">Date &amp; Time</th><th className="px-4 py-3">Action</th><th className="rounded-r-lg px-4 py-3 text-right">Amount</th></tr></thead>
+              <tbody className="divide-y divide-surface-low">
+                {entries === null ? (
+                  <tr><td colSpan={3} className="px-4 py-6"><div className="skeleton h-8 rounded-lg" /></td></tr>
+                ) : rows.length === 0 ? (
+                  <tr><td colSpan={3} className="px-4 py-6 text-center text-sm text-ink-soft">{entries.length === 0 ? "No credit activity yet." : "Nothing in this view."}</td></tr>
+                ) : rows.map((e, k) => {
+                  const meta = e.action ? ACTION_META[e.action as keyof typeof ACTION_META] : null;
+                  const Icon = meta?.icon ?? Plus;
+                  const signed = e.kind === "reserve" ? -e.amount : e.amount;
+                  return (
+                    <motion.tr key={e.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(k, 12) * 0.03 }} className="transition-colors hover:bg-surface-low/60">
+                      <td className="whitespace-nowrap px-4 py-4 text-xs text-ink-soft">{new Date(e.createdAt).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</td>
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-2">
+                          <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${meta?.tone ?? "bg-surface-mid text-ink-soft"}`}><Icon className="h-3.5 w-3.5" /></span>
+                          <span>
+                            <span className="block text-[13px] font-medium text-on">{meta ? `${KIND_LABEL[e.kind]} · ${meta.label}` : KIND_LABEL[e.kind]}</span>
+                            {e.note && <span className="block max-w-md truncate text-[11px] text-ink-soft">{e.note}</span>}
+                          </span>
+                        </div>
+                      </td>
+                      <td className={`whitespace-nowrap px-4 py-4 text-right text-[13px] font-semibold tabular-nums ${signed < 0 ? "text-danger" : "text-teal"}`}>{signed > 0 ? `+${signed.toLocaleString("en-PK")}` : signed.toLocaleString("en-PK")} credits</td>
+                    </motion.tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </motion.div>
+      </AnimatePresence>
+    </Card>
   );
 }
