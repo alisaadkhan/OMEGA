@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Archive, ArrowLeft, ArrowRight, CheckCircle2, Clock3, Download, PauseCircle, XCircle, PlayCircle, Save, Settings2, Trash2, Users, Wallet } from "lucide-react";
-import { dataExportSchema, type CampaignDetail as Detail } from "@mushin/contracts";
-import { apiDownload, apiRequest } from "../../api/client";
+import { Archive, ArrowLeft, ArrowRight, CheckCircle2, Clock3, PauseCircle, XCircle, PlayCircle, Save, Settings2, Trash2, Users, Wallet } from "lucide-react";
+import type { CampaignDetail as Detail } from "@mushin/contracts";
 import { rupees, toMinor, useCampaign, useDeleteCampaign, useUpdateCampaign } from "../../api/campaigns";
 import { relative } from "../../lib/time";
 import { useConfirm, useToast } from "../../lib/toast";
@@ -29,24 +28,10 @@ export function CampaignDetail({ id, onBack, onOpenCreator, onGoToSearch }: { id
   const campaign = useCampaign(id);
   const toast = useToast();
   const [tab, setTab] = useState<Tab>("overview");
-  const [exporting, setExporting] = useState(false);
   const [mailFor, setMailFor] = useState<string | null>(null);
   if (campaign.isPending) return <div className="space-y-4"><Skeleton className="h-20" /><Skeleton className="h-10" /><Skeleton className="h-72" /></div>;
   if (campaign.isError) return <ErrorState body={campaign.error instanceof Error ? campaign.error.message : undefined} onRetry={() => void campaign.refetch()} />;
   const c = campaign.data;
-
-  async function onExport() {
-    setExporting(true);
-    try {
-      const ex = await apiRequest("/v1/exports", dataExportSchema, { method: "POST", body: { kind: "campaigns", scopeId: id } });
-      await apiDownload(`/v1/exports/${ex.id}/download`, `${c.name.replace(/[^\w-]+/g, "_")}.csv`);
-      toast.success("Summary downloaded");
-    } catch (e) {
-      toast.error("Couldn't export this campaign", e instanceof Error ? e.message : "Data export is included on plans that offer it.");
-    } finally {
-      setExporting(false);
-    }
-  }
 
   return (
     <div className="flex flex-col pb-16">
@@ -69,7 +54,6 @@ export function CampaignDetail({ id, onBack, onOpenCreator, onGoToSearch }: { id
             </p>
           </div>
           <div className="flex items-center gap-2 self-start sm:self-auto">
-            <Button variant="outline" icon={Download} loading={exporting} onClick={() => void onExport()}>Export Summary</Button>
             <Button variant="outline" icon={Settings2} onClick={() => setTab("settings")} aria-label="Campaign settings" />
           </div>
         </div>

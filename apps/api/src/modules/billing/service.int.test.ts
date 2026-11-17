@@ -301,7 +301,7 @@ describe("plan changes", () => {
     await flush();
     const s = await billing.summary(c);
     expect(s).toMatchObject({ status: "canceled", plan: null, balance: { available: 1000 } });
-    expect(s.lostAccess).toEqual(["monthly_credits", "outreach", "audience_details", "export"]);
+    expect(s.lostAccess).toEqual(["monthly_credits", "outreach", "audience_details"]);
     await expect(billing.reserve(c, { action: "find_new", confirmedCost: 50, refType: "test", refId: "1" })).resolves.toMatchObject({ amount: 50 });
   });
 });

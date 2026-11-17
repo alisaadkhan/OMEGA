@@ -46,7 +46,8 @@ describe("plan cards from the server catalogue", () => {
     expect(row(growth, "email")).toMatchObject({ value: "500 per billing period", status: "coming_soon" });
     expect(row(scale, "email", { ...off, outreachEmail: "test" })).toMatchObject({ value: "2,000 per billing period", status: "test_mode" });
     expect(row(scale, "email", { ...off, outreachEmail: "live" })?.status).toBeUndefined();
-    expect([row(starter, "export")?.value, row(growth, "export")?.value, row(scale, "export")?.value]).toEqual(["Not included", "Not included", "Included"]);
+    // Data export was removed from MUSHIN (owner, 17 Nov): no plan advertises it.
+    expect([row(starter, "export" as never), row(growth, "export" as never), row(scale, "export" as never)]).toEqual([undefined, undefined, undefined]);
     for (const p of [starter, growth, scale]) for (const k of ["existing", "new", "contact", "lists", "outreach_log"]) expect(row(p, k)?.included, `${p.id} ${k}`).toBe(true);
   });
 

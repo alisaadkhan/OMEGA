@@ -1,9 +1,7 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowLeft, Bookmark, Download, Edit3, Lock, MapPin, Megaphone, NotebookPen, Plus, Save, Search, Star, Trash2, TrendingUp, UserMinus, Users, X } from "lucide-react";
+import { ArrowLeft, Bookmark, Edit3, Lock, MapPin, Megaphone, NotebookPen, Plus, Save, Search, Star, Trash2, TrendingUp, UserMinus, Users, X } from "lucide-react";
 import type { ListMember } from "@mushin/contracts";
-import { dataExportSchema } from "@mushin/contracts";
-import { apiDownload, apiRequest } from "../../api/client";
 import { useDeleteList, useList, useRemoveFromList, useSetListNote, useUpdateList } from "../../api/lists";
 import { avatarFallback, formatCount, formatEr, toCreator } from "../../api/search-mapping";
 import { erLevel } from "../../api/levels";
@@ -33,7 +31,6 @@ export function ListDetail({ id, onBack, onOpenCreator, onGoToSearch }: { id: st
   const [minEr, setMinEr] = useState(false);
   const [noteFor, setNoteFor] = useState<ListMember | null>(null);
   const [campaignFor, setCampaignFor] = useState<DrawerCreator[] | null>(null);
-  const [exporting, setExporting] = useState(false);
 
   if (list.isPending) return <div className="space-y-4"><Skeleton className="h-16" /><Skeleton className="h-24" /><Skeleton className="h-80" /></div>;
   if (list.isError) return <ErrorState body={list.error instanceof Error ? list.error.message : undefined} onRetry={() => void list.refetch()} />;
@@ -58,18 +55,6 @@ export function ListDetail({ id, onBack, onOpenCreator, onGoToSearch }: { id: st
       onSuccess: (r) => { setSelected(new Set()); toast.success(`Removed ${r.removed} creator${r.removed === 1 ? "" : "s"} from ${l.name}`); },
       onError: (e) => toast.error("Couldn't remove creators", err(e)),
     });
-  }
-  async function onExport() {
-    setExporting(true);
-    try {
-      const ex = await apiRequest("/v1/exports", dataExportSchema, { method: "POST", body: { kind: "lists", scopeId: id } });
-      await apiDownload(`/v1/exports/${ex.id}/download`, `${l.name.replace(/[^\w-]+/g, "_")}.csv`);
-      toast.success("Export downloaded");
-    } catch (e) {
-      toast.error("Couldn't export this shortlist", err(e) ?? "Data export is included on plans that offer it.");
-    } finally {
-      setExporting(false);
-    }
   }
   const toggle = (cid: string) => setSelected((s) => { const n = new Set(s); if (n.has(cid)) n.delete(cid); else n.add(cid); return n; });
 
@@ -101,7 +86,6 @@ export function ListDetail({ id, onBack, onOpenCreator, onGoToSearch }: { id: st
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
-            <Button variant="outline" size="sm" icon={Download} loading={exporting} onClick={() => void onExport()}>Export CSV</Button>
             <Button variant="outline" size="sm" icon={Edit3} onClick={() => setEditing(true)}>Rename</Button>
             <Button variant="outline" size="sm" icon={Trash2} onClick={() => void onDelete()} className="text-danger">Delete</Button>
           </div>

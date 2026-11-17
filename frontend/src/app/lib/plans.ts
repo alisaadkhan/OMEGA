@@ -11,11 +11,11 @@ export type PlanId = CatalogPlan["id"];
 export const PLAN_COPY: Record<PlanId, { tagline: string; positioning: string; cta: string; highlight?: boolean }> = {
   explorer: { tagline: "For freelancers and solo brands", positioning: "Everything you need to start finding the right creators.", cta: "Start free trial" },
   growth: { tagline: "For active brands and agencies", positioning: "More credits, unlimited campaigns and outreach email.", cta: "Choose Growth", highlight: true },
-  scale: { tagline: "For agencies operating at volume", positioning: "The most credits, more outreach email and data export.", cta: "Choose Scale" },
+  scale: { tagline: "For agencies operating at volume", positioning: "The most credits and the most outreach email.", cta: "Choose Scale" },
 };
 
 export type PlanFeature = {
-  key: "existing" | "new" | "contact" | "lists" | "campaigns" | "audience" | "email" | "export" | "outreach_log";
+  key: "existing" | "new" | "contact" | "lists" | "campaigns" | "audience" | "email" | "outreach_log";
   label: string;
   /** What the plan gives; "Not included" when it does not. */
   value: string;
@@ -70,7 +70,6 @@ export function planFeatures(plan: CatalogPlan, facts: PricingFacts): PlanFeatur
           ? { status: "test_mode" as const, note: "Test mode: emails are recorded but not delivered." }
           : {}),
     },
-    { key: "export", label: "Data export", value: e.export ? "Included" : "Not included", included: e.export, ...(e.export ? { note: "CSV of your lists and campaigns, available for 24 hours." } : {}), ...(e.export && !availability.export ? { status: "coming_soon" as const } : {}) },
     { key: "outreach_log", label: "Outreach log", value: "Included", included: true, note: "Record outreach you do outside MUSHIN by hand." },
   ];
 }

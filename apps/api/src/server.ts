@@ -20,7 +20,6 @@ import { createAttachments, createSupportModule, createSupportService } from "./
 import { createAnalyticsModule, createAnalyticsService } from "./modules/analytics";
 import { createCampaignsModule, createCampaignsService } from "./modules/campaigns";
 import { createIdentityModule } from "./modules/identity";
-import { createExportsModule } from "./modules/exports";
 import { createImportsModule, createImportsService } from "./modules/imports";
 import { createListsModule, createListsService } from "./modules/lists";
 import { createOutreachModule } from "./modules/outreach";
@@ -161,7 +160,6 @@ const app = await buildApp({
     createImportsModule({ service: createImportsService({ db, encryptionKey: config.dataEncryptionKey }) }),
     createCampaignsModule({ db, service: createCampaignsService({ db, planLimits: billing.getAccess, sourcePolicy: config.sourcePolicy }) }),
     outreach.module,
-    createExportsModule({ db, billing, enabled: capabilities.export }),
     createAnalyticsModule({ service: createAnalyticsService({ db }) }),
     createActivityModule({ service: createActivityService({ db }) }),
     createSupportModule({ service: createSupportService({ db }), attachments: supportAttachments }),

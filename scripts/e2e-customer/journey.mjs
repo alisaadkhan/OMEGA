@@ -699,7 +699,6 @@ if (phase === "main") {
     if (key === "campaigns") return e.campaignLimit === null ? "Unlimited" : `Up to ${e.campaignLimit}`;
     if (key === "audience") return e.audienceViewsPerMonth === 0 ? "Not included" : "Included";
     if (key === "email") return e.outreachEmailsPerMonth === 0 ? "Not included" : e.outreachEmailsPerMonth === null ? "Unlimited" : `${fmt(e.outreachEmailsPerMonth)} per billing period`;
-    if (key === "export") return e.export ? "Included" : "Not included";
     return "Included";
   };
   const pageMismatches = [];
@@ -707,7 +706,8 @@ if (phase === "main") {
     const card = pub.locator(`[data-plan="${p.id}"]`);
     if ((await card.locator('[data-role="price"]').innerText()).trim() !== fmt(p.display.monthly.amountMinor / 100)) pageMismatches.push(`${p.id} price`);
     if ((await card.locator('[data-role="credits"]').innerText()).trim() !== fmt(p.monthlyCredits)) pageMismatches.push(`${p.id} credits`);
-    for (const key of ["existing", "new", "contact", "lists", "campaigns", "audience", "email", "export", "outreach_log"]) {
+    if ((await card.locator('[data-feature="export"]').count()) !== 0) pageMismatches.push(`${p.id} still advertises data export`);
+    for (const key of ["existing", "new", "contact", "lists", "campaigns", "audience", "email", "outreach_log"]) {
       const cell = card.locator(`[data-feature="${key}"]`);
       if ((await cell.getAttribute("data-value")) !== expectCell(p, key)) pageMismatches.push(`${p.id} ${key}`);
       const status = await cell.getAttribute("data-status");
@@ -751,10 +751,8 @@ if (phase === "main") {
   check("plans", "Starter: archiving a campaign frees a slot and keeps the campaign", afterArchive.status === 201 && sql(`select status from wp.campaigns where workspace_id = '${ws}' and name = 'Starter slot 0'`) === "archived");
   check("plans", "Starter: restoring an archived campaign while full is refused", (await api("owner", "PATCH", `/v1/campaigns/${sql(`select id from wp.campaigns where workspace_id = '${ws}' and name = 'Starter slot 0'`)}`, { status: "active" })).json?.error?.code === "ENTITLEMENT_REQUIRED");
 
-  // Starter: no data export and no outreach email, refused by the API and explained in the UI.
-  const exportDenied = (await api("owner", "POST", "/v1/exports", { kind: "lists" }, { "idempotency-key": `e2e-x1-${label}` })).json;
-  // Owner 2026-11-02: no export buttons in the customer UI; the API rule is still checked.
-  check("plans", "Starter: data export is refused by the API", exportDenied?.error?.details?.reason === "plan_feature");
+  // Data export was removed (owner, 17 Nov): the API has no export route on any plan.
+  check("plans", "data export no longer exists", (await api("owner", "POST", "/v1/exports", { kind: "lists" }, { "idempotency-key": `e2e-x1-${label}` })).status === 404);
   const emailDenied = (await api("owner", "POST", `/v1/campaigns/${k.id}/creators/${rw.id}/emails`, { contactId: rw.id, subject: "Hi", body: "Hello", confirm: true }, { "idempotency-key": `e2e-m1-${label}` })).json;
   await nav(pl, "Campaigns");
   await pl.getByRole("button", { name: /Eid food push/ }).first().click();
@@ -767,7 +765,7 @@ if (phase === "main") {
   check("plans", "Starter: outreach email is refused by the API and the panel says the plan does not include it", emailDenied?.error?.details?.reason === "plan_feature");
   await pl.keyboard.press("Escape");
 
-  // Upgrade to Scale (mock provider; effective now): export works, the email panel unlocks, nothing is deleted.
+  // Upgrade to Scale (mock provider; effective now): the email panel unlocks, nothing is deleted.
   const campaignsBefore = sql(`select count(*) from wp.campaigns where workspace_id = '${ws}'`);
   const change = await api("owner", "POST", "/v1/billing/subscription/change", { planId: "scale", interval: "month" }, { "idempotency-key": `e2e-up-${label}` });
   let plan = null;
@@ -776,8 +774,7 @@ if (phase === "main") {
   check("plans", "Scale: unlimited campaigns (a restore that was refused on Starter now works)", (await api("owner", "PATCH", `/v1/campaigns/${sql(`select id from wp.campaigns where workspace_id = '${ws}' and name = 'Starter slot 0'`)}`, { status: "paused" })).status === 200);
   await pl.reload();
   await pl.getByRole("heading", { name: /Welcome back, Olivia/ }).waitFor({ timeout: 30000 });
-  const scaleExport = await api("owner", "POST", "/v1/exports", { kind: "lists" }, { "idempotency-key": `e2e-x2-${label}` });
-  check("plans", "Scale: the lists export is allowed by the API (no button in the UI, owner 2026-11-02)", scaleExport.status === 201 || scaleExport.status === 202, scaleExport.status);
+  check("plans", "Scale: data export does not exist either", (await api("owner", "POST", "/v1/exports", { kind: "lists" }, { "idempotency-key": `e2e-x2-${label}` })).status === 404);
   const usage = (await api("owner", "GET", "/v1/outreach/usage")).json;
   check("plans", "Scale: 2,000 outreach emails per billing period, in test mode (nothing is delivered)", usage.limit === 2000 && usage.used === 0 && usage.mode === "test");
   await pl.context().close();

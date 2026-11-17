@@ -108,9 +108,8 @@ describe("access", () => {
       "monthly_credits",
       "outreach",
       "audience_details",
-      "export",
     ]);
-    expect(lostAccessFor("canceled", 500)).toEqual(["monthly_credits", "outreach", "audience_details", "export"]);
+    expect(lostAccessFor("canceled", 500)).toEqual(["monthly_credits", "outreach", "audience_details"]);
   });
 });
 
