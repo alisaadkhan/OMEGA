@@ -305,6 +305,7 @@ describe("scraping and storage settings (worker only)", () => {
     });
     expect(c.scraping).toEqual({
       apifyToken: "apify",
+      apifyTokens: ["apify"],
       instagramActor: "apify/instagram-profile-scraper",
       instagramBuild: "0.0.689",
       tiktokActor: "clockworks/tiktok-profile-scraper",

@@ -70,16 +70,23 @@ const payments = createPayments(config.payments, { sink, logger });
 const billing = createBillingService({ db, payments, cache: noAccessCache, logger });
 const llmRaw = createLlm(config.llm, { sink, logger, budget: { budgetUsd: Math.min(config.llmMonthlyBudgetUsd, capUsd), spentSince: (since) => llmSpendSince(db, since) } });
 const enrichment = await db.withSystem((tx) => getEnrichmentSettings(tx));
-const scraperRaw = createProfileScraper({
-  apify: config.scraping.apifyToken ? { token: config.scraping.apifyToken, instagramActor: config.scraping.instagramActor, ...(config.scraping.instagramBuild ? { instagramBuild: config.scraping.instagramBuild } : {}), tiktokActor: config.scraping.tiktokActor, ...(config.scraping.tiktokBuild ? { tiktokBuild: config.scraping.tiktokBuild } : {}) } : null,
+const apifyTokens = config.scraping.apifyTokens;
+// APIFY_MONTHLY_BUDGET_USD is per account: each account's own monthly allowance.
+const apifyGuard = createSharedSpendGuard({ ledger, provider: "apify", limit: config.scraping.apifyMonthlyBudgetUsd * Math.max(1, apifyTokens.length), perUnit: 0.05, label: "Apify budget (USD)" });
+// One scraper per Apify account (owner, 17 Nov: a second key); apifyRoomFor picks the account with room before each run.
+let apifyAccount = 0;
+const makeScraper = (token: string | null) => createProfileScraper({
+  apify: token ? { token, instagramActor: config.scraping.instagramActor, ...(config.scraping.instagramBuild ? { instagramBuild: config.scraping.instagramBuild } : {}), tiktokActor: config.scraping.tiktokActor, ...(config.scraping.tiktokBuild ? { tiktokBuild: config.scraping.tiktokBuild } : {}) } : null,
   youtubeApiKey: config.scraping.youtubeApiKey,
   tiktokVideos: enrichment.tiktokRecentVideos,
   youtubeVideos: enrichment.recentPosts,
-  spendGuard: createSharedSpendGuard({ ledger, provider: "apify", limit: config.scraping.apifyMonthlyBudgetUsd, perUnit: 0.05, label: "Apify budget (USD)" }),
+  spendGuard: apifyGuard,
   runs: createDbProviderRunStore(db),
   sink,
   logger,
 });
+const scrapers = (apifyTokens.length ? apifyTokens : [null]).map(makeScraper);
+const scraperRaw = (): ProfileScraper => scrapers[apifyAccount] ?? (scrapers[0] as ProfileScraper);
 const webRaw = createSerperSearch({ apiKey: config.scraping.serperApiKey, limit: createSharedSpendGuard({ ledger, provider: "serper", limit: config.scraping.serperMonthlySearchLimit, perUnit: 1, label: "Serper search limit" }), sink, logger });
 // Every paid request goes through the combined gate; YouTube (free quota) passes with a zero estimate.
 const llm: Llm = { complete: (req) => gated(COST.llmCall, () => llmRaw.complete(req)) };
@@ -92,18 +99,28 @@ const paidUnits = (platform: string, n: number) => (platform === "youtube" ? 0 :
 const APIFY_MARGIN_USD = 0.05;
 async function apifyRoomFor(estimateUsd: number): Promise<void> {
   if (estimateUsd <= 0) return;
-  const r = await fetch("https://api.apify.com/v2/users/me/limits", { headers: { Authorization: `Bearer ${process.env["APIFY_TOKEN"] ?? ""}` } }).catch(() => null);
-  const j = r?.ok ? ((await r.json()) as { data?: { current?: { monthlyUsageUsd?: number }; limits?: { maxMonthlyUsageUsd?: number } } }) : null;
-  const used = j?.data?.current?.monthlyUsageUsd;
-  const max = j?.data?.limits?.maxMonthlyUsageUsd;
-  if (used === undefined || max === undefined) throw new ProviderError(false, "spend_cap", `Apify account usage could not be read (${r ? `HTTP ${r.status}` : "no response"}): paid scrape refused`);
-  if (used + estimateUsd + APIFY_MARGIN_USD > max) throw new ProviderError(false, "spend_cap", `Apify account monthly limit: ${used.toFixed(2)} of ${max} used`);
+  const full: string[] = [];
+  // The current account first, then the next ones: a run starts only on an account whose own allowance it fits.
+  for (let i = apifyAccount; i < apifyTokens.length; i++) {
+    const r = await fetch("https://api.apify.com/v2/users/me/limits", { headers: { Authorization: `Bearer ${apifyTokens[i] ?? ""}` } }).catch(() => null);
+    const j = r?.ok ? ((await r.json()) as { data?: { current?: { monthlyUsageUsd?: number }; limits?: { maxMonthlyUsageUsd?: number } } }) : null;
+    const used = j?.data?.current?.monthlyUsageUsd;
+    const max = j?.data?.limits?.maxMonthlyUsageUsd;
+    if (used === undefined || max === undefined) throw new ProviderError(false, "spend_cap", `Apify account ${i + 1} usage could not be read (${r ? `HTTP ${r.status}` : "no response"}): paid scrape refused`);
+    if (used + estimateUsd + APIFY_MARGIN_USD <= max) {
+      if (i !== apifyAccount) logger.warn({ from: apifyAccount + 1, to: i + 1 }, "Apify account allowance used: switching account");
+      apifyAccount = i;
+      return;
+    }
+    full.push(`account ${i + 1}: ${used.toFixed(2)} of ${max} used`);
+  }
+  throw new ProviderError(false, "spend_cap", `Every Apify account is at its monthly limit (${full.join("; ") || "no account configured"})`);
 }
 const apifyGated = <T>(estimateUsd: number, call: () => Promise<T>): Promise<T> => apifyRoomFor(estimateUsd).then(() => gated(estimateUsd, call));
 const scraper: ProfileScraper = {
-  fetchProfile: (req) => apifyGated(paidUnits(req.platform, 1), () => scraperRaw.fetchProfile(req)),
-  fetchProfiles: (req) => apifyGated(paidUnits(req.platform, req.handles.length), () => scraperRaw.fetchProfiles(req)),
-  ...(scraperRaw.resolveInstagramPostOwners ? { resolveInstagramPostOwners: (req: Parameters<NonNullable<ProfileScraper["resolveInstagramPostOwners"]>>[0]) => apifyGated(req.urls.length * COST.apifyPerProfile, () => (scraperRaw.resolveInstagramPostOwners as NonNullable<ProfileScraper["resolveInstagramPostOwners"]>)(req)) } : {}),
+  fetchProfile: (req) => apifyGated(paidUnits(req.platform, 1), () => scraperRaw().fetchProfile(req)),
+  fetchProfiles: (req) => apifyGated(paidUnits(req.platform, req.handles.length), () => scraperRaw().fetchProfiles(req)),
+  ...(scraperRaw().resolveInstagramPostOwners ? { resolveInstagramPostOwners: (req: Parameters<NonNullable<ProfileScraper["resolveInstagramPostOwners"]>>[0]) => apifyGated(req.urls.length * COST.apifyPerProfile, () => (scraperRaw().resolveInstagramPostOwners as NonNullable<ProfileScraper["resolveInstagramPostOwners"]>)(req)) } : {}),
 };
 const web: WebSearch = { search: (q) => gated(COST.search, () => webRaw.search(q)) };
 const pipeline = createEnrichmentPipeline({ db, scraper, storage: fileStorage(join(repo, ".catalog-storage", dbName)), llm, encryptionKey: config.dataEncryptionKey, logger, attributePolicy: config.enrichment.attributePolicy, youtube: { contentEvidence: config.enrichment.youtubeContentEvidence, descriptionContacts: config.enrichment.youtubeDescriptionContacts }, semanticNiche: config.enrichment.semanticNiche });

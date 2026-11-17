@@ -42,6 +42,11 @@ export function apifyRunCost(run: ApifyRun, items: number): number {
 
 type ClientOptions = { token: string; fetch?: typeof fetch; sleep?: (ms: number) => Promise<void>; maxWaitMs?: number };
 
+/** Apify error types that mean "this account has used its allowance", not "this token is wrong". */
+const USAGE_LIMIT = /limit|usage|exceed|feature-disabled|insufficient|credit/i;
+const isUsageLimit = (err: unknown) => (err as { code?: unknown } | null)?.code === "usage_limit";
+const isNotFound = (err: unknown) => (err as { status?: unknown } | null)?.status === 404;
+
 export function createApifyClient(o: ClientOptions) {
   const doFetch = o.fetch ?? fetch;
   const sleep = o.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
@@ -60,8 +65,10 @@ export function createApifyClient(o: ClientOptions) {
       // Recorded as their own classes (observability review 2026-11-15): "build_not_found" raises its own alert, and a
       // refused token carries its status so the credentials alert fires (it counts http_401/http_403 only).
       if (type === "build-not-found") throw Object.assign(new ProviderError(false, "not_configured", "Apify: the pinned actor build no longer exists (re-pin APIFY_*_BUILD)"), { code: "build_not_found" });
+      if (type && USAGE_LIMIT.test(type)) throw Object.assign(new ProviderError(false, "provider", `Apify account limit reached (${type})`), { status: res.status, code: "usage_limit" });
       throw Object.assign(new ProviderError(false, "not_configured", `Apify refused the token (HTTP ${res.status})`), { status: res.status });
     }
+    if (res.status === 402) throw Object.assign(new ProviderError(false, "provider", "Apify account limit reached (HTTP 402)"), { status: 402, code: "usage_limit" });
     if (!res.ok) throw Object.assign(new ProviderError(res.status >= 500 || res.status === 429, "provider", `Apify answered HTTP ${res.status}`), { status: res.status });
     return (await res.json()) as T;
   }
@@ -123,4 +130,45 @@ export function createApifyClient(o: ClientOptions) {
   }
 
   return { runActor, inspectRun };
+}
+
+/**
+ * Several Apify accounts (APIFY_TOKEN, APIFY_TOKEN_2, …; owner 2026-11-17): a new run starts on the current account and,
+ * when Apify answers that the account's monthly allowance is used up, on the next one. A run belongs to the account that
+ * started it, so its polling and results stay on that account; resuming or inspecting a stored run asks each account
+ * until one knows it. Any other error is returned as before, without trying another account.
+ */
+export function createApifyPool(o: Omit<ClientOptions, "token"> & { tokens: string[] }) {
+  const clients = o.tokens.map((token) => createApifyClient({ ...o, token }));
+  if (clients.length === 0) throw new Error("createApifyPool needs at least one token");
+  let current = 0;
+  const firstThatKnows = async <T>(call: (c: ReturnType<typeof createApifyClient>) => Promise<T>): Promise<T> => {
+    let last: unknown;
+    for (const c of clients) {
+      try {
+        return await call(c);
+      } catch (err) {
+        if (!isNotFound(err)) throw err;
+        last = err;
+      }
+    }
+    throw last;
+  };
+  return {
+    async runActor(...args: Parameters<ReturnType<typeof createApifyClient>["runActor"]>) {
+      const [, , opts] = args;
+      if (opts?.resumeRunId) return firstThatKnows((c) => c.runActor(...args));
+      for (;;) {
+        const client = clients[current];
+        if (!client) throw new ProviderError(false, "provider", "Every configured Apify account has used its monthly allowance");
+        try {
+          return await client.runActor(...args);
+        } catch (err) {
+          if (!isUsageLimit(err)) throw err;
+          current += 1;
+        }
+      }
+    },
+    inspectRun: (runId: string, opts: { abort?: boolean } = {}) => firstThatKnows((c) => c.inspectRun(runId, opts)),
+  };
 }

@@ -273,6 +273,9 @@ export const workerSchema = sharedObject
     DIRECT_URL: postgresUrl,
     DATA_ENCRYPTION_KEY: encryptionKey,
     APIFY_TOKEN: z.string().min(1).optional(),
+    // More Apify accounts (owner, 17 Nov): a new run moves to the next account once one has used its monthly allowance.
+    APIFY_TOKEN_2: z.string().min(1).optional(),
+    APIFY_TOKEN_3: z.string().min(1).optional(),
     APIFY_INSTAGRAM_ACTOR_ID: z.string().min(1).default("apify/instagram-profile-scraper"),
     APIFY_INSTAGRAM_BUILD: z.string().min(1).optional(),
     APIFY_TIKTOK_ACTOR_ID: z.string().min(1).default("clockworks/tiktok-profile-scraper"),

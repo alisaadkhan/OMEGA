@@ -1,6 +1,6 @@
 import { createLogger, loadWorkerConfig } from "@mushin/core";
 import { createDatabase, createDbProviderCallSink, createDbProviderRunStore, createDbReservationLedger, llmSpendSince, providerPaused, recordAlertEvent, recordWorkerHeartbeat, UNVERIFIED_TLS_WARNING } from "@mushin/db";
-import { createApifyClient, createSharedSpendGuard, reconcileApifyRuns, createYouTubeAudienceSource, createLlm, pausableGuard, pausableLlm, createObjectStorage, RAW_PAYLOAD_BUCKET, createPayments, createProfileScraper, createSearchIndex, createSerperSearch, createYouTubeSearch, MockEmailProvider, ResendEmailProvider } from "@mushin/integrations";
+import { createApifyPool, createSharedSpendGuard, reconcileApifyRuns, createYouTubeAudienceSource, createLlm, pausableGuard, pausableLlm, createObjectStorage, RAW_PAYLOAD_BUCKET, createPayments, createProfileScraper, createSearchIndex, createSerperSearch, createYouTubeSearch, MockEmailProvider, ResendEmailProvider } from "@mushin/integrations";
 import { sql } from "drizzle-orm";
 import { createAudienceRunner } from "../../api/src/modules/audience/index";
 import { createBillingService, noAccessCache } from "../../api/src/modules/billing/index";
@@ -40,7 +40,7 @@ const reservations = createDbReservationLedger(db);
 const providerRuns = createDbProviderRunStore(db);
 const scraper = createProfileScraper({
   apify: config.scraping.apifyToken
-    ? { token: config.scraping.apifyToken, instagramActor: config.scraping.instagramActor, ...(config.scraping.instagramBuild ? { instagramBuild: config.scraping.instagramBuild } : {}), tiktokActor: config.scraping.tiktokActor, ...(config.scraping.tiktokBuild ? { tiktokBuild: config.scraping.tiktokBuild } : {}), ...(config.scraping.instagramPostActor ? { instagramPostActor: config.scraping.instagramPostActor } : {}), ...(config.scraping.instagramPostBuild ? { instagramPostBuild: config.scraping.instagramPostBuild } : {}) }
+    ? { token: config.scraping.apifyToken, moreTokens: config.scraping.apifyTokens.slice(1), instagramActor: config.scraping.instagramActor, ...(config.scraping.instagramBuild ? { instagramBuild: config.scraping.instagramBuild } : {}), tiktokActor: config.scraping.tiktokActor, ...(config.scraping.tiktokBuild ? { tiktokBuild: config.scraping.tiktokBuild } : {}), ...(config.scraping.instagramPostActor ? { instagramPostActor: config.scraping.instagramPostActor } : {}), ...(config.scraping.instagramPostBuild ? { instagramPostBuild: config.scraping.instagramPostBuild } : {}) }
     : null,
   youtubeApiKey: config.scraping.youtubeApiKey,
   tiktokVideos: enrichment.tiktokRecentVideos,
@@ -54,7 +54,7 @@ const scraper = createProfileScraper({
 });
 const reconcileProviderRuns = async () => {
   if (!config.scraping.apifyToken) return;
-  const tally = await reconcileApifyRuns({ runs: providerRuns, apify: createApifyClient({ token: config.scraping.apifyToken }), sink: createDbProviderCallSink(db), logger });
+  const tally = await reconcileApifyRuns({ runs: providerRuns, apify: createApifyPool({ tokens: config.scraping.apifyTokens }), sink: createDbProviderCallSink(db), logger });
   if (tally.settled + tally.aborted + tally.unknown > 0) logger.warn(tally, "reconciled Apify runs left open by an earlier failure");
 };
 if (!config.scraping.apifyToken) logger.warn("APIFY_TOKEN not set: Instagram and TikTok jobs will fail and refund");

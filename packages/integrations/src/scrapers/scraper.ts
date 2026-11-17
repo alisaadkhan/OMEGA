@@ -1,12 +1,12 @@
 import { createHash } from "node:crypto";
 import type { Logger, ProviderCallSink } from "@mushin/core";
 import { instrumented } from "../instrumented";
-import { createApifyClient } from "./apify";
+import { createApifyPool } from "./apify";
 import { ProviderError, providerErrorOf, type PostOwnerResult, type ProfileScraper, type ProviderRunStore, type ScrapeRequest, type ScrapeResult, type SpendGuard } from "./types";
 import { fetchYouTubeChannel } from "./youtube";
 
 type Options = {
-  apify: { token: string; instagramActor: string; tiktokActor: string; instagramBuild?: string; tiktokBuild?: string; instagramPostActor?: string; instagramPostBuild?: string } | null;
+  apify: { token: string; /** Further accounts for failover at the monthly limit (createApifyPool). */ moreTokens?: string[]; instagramActor: string; tiktokActor: string; instagramBuild?: string; tiktokBuild?: string; instagramPostActor?: string; instagramPostBuild?: string } | null;
   youtubeApiKey: string | null;
   tiktokVideos: number;
   youtubeVideos?: number;
@@ -76,8 +76,8 @@ export function splitByHandle(platform: "instagram" | "tiktok", items: unknown, 
 /** Job-level retries decide whether to try again (spec §5.2), so the adapter itself makes one attempt. */
 export function createProfileScraper(o: Options): ProfileScraper {
   const apify = o.apify
-    ? createApifyClient({
-        token: o.apify.token,
+    ? createApifyPool({
+        tokens: [o.apify.token, ...(o.apify.moreTokens ?? [])],
         ...(o.fetch ? { fetch: o.fetch } : {}),
         ...(o.sleep ? { sleep: o.sleep } : {}),
         ...(o.apifyMaxWaitMs !== undefined ? { maxWaitMs: o.apifyMaxWaitMs } : {}),
@@ -94,7 +94,7 @@ export function createProfileScraper(o: Options): ProfileScraper {
     }
   }
 
-  async function runApify(req: ScrapeRequest, actor: string, input: unknown, apify: ReturnType<typeof createApifyClient>, maxWaitMs?: number, build?: string, operation = `scrape_${req.platform}`): Promise<ScrapeResult> {
+  async function runApify(req: ScrapeRequest, actor: string, input: unknown, apify: ReturnType<typeof createApifyPool>, maxWaitMs?: number, build?: string, operation = `scrape_${req.platform}`): Promise<ScrapeResult> {
     // Audit SRCH-04: claim the run first, so a retry of this batch resumes the same paid run.
     const jobId = req.ctx?.jobId ?? null;
     const runKey = o.runs && jobId ? apifyRunKey(jobId, actor, input) : null;

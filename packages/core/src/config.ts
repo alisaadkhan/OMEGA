@@ -103,6 +103,8 @@ function searchFrom(v: SharedValues, key: string | undefined): SearchConfig {
 
 export type ScrapingConfig = {
   apifyToken: string | null;
+  /** Every configured Apify account, APIFY_TOKEN first; empty when none. */
+  apifyTokens: string[];
   instagramActor: string;
   instagramBuild: string | null;
   tiktokActor: string;
@@ -276,6 +278,7 @@ export function loadWorkerConfig(env: Env): WorkerConfig {
     audienceSources: [...new Set(v.AUDIENCE_SOURCES)],
     scraping: {
       apifyToken: v.APIFY_TOKEN ?? null,
+      apifyTokens: [...new Set([v.APIFY_TOKEN, v.APIFY_TOKEN_2, v.APIFY_TOKEN_3].filter((t): t is string => !!t))],
       instagramActor: v.APIFY_INSTAGRAM_ACTOR_ID,
       // Re-pinned 2026-11-14: the publishers removed 0.0.634 and 0.99.2065 (Apify answered 403 build-not-found). The new
       // builds were checked on live profiles (sajalaly; jannatmirza, ghanaaliraza, tastebykamal) through the full pipeline.
