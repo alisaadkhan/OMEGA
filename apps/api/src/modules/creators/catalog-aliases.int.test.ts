@@ -112,6 +112,16 @@ describe("catalogue search aliases (PostgreSQL)", () => {
     expect(await names("Sana Khan")).toEqual([]); // every word must meet the name
   });
 
+  it("finds a creator without an identified niche only by an exact name or handle search (owner, 17 Nov)", async () => {
+    const id = await addCreator(db, { displayName: "Nida Unclassified", niches: [], city: "Lahore", profiles: [{ handle: "nida.unclassified", bio: "Lahore food diaries" }] });
+    const docs = (await db.withSystem((tx) => repo.indexRows(tx, [id]))).filter(isIndexable).map(toDocument);
+    await db.withSystem((tx) => repo.upsertPostgresSearchDocuments(tx, docs));
+    expect(await names("Nida Unclassified")).toEqual(["Nida Unclassified"]);
+    expect(await names("@nida.unclassified")).toEqual(["Nida Unclassified"]);
+    expect(await names("Lahore food diaries")).not.toContain("Nida Unclassified");
+    expect(await names("Nida")).not.toContain("Nida Unclassified");
+  });
+
   it("finds a creator whose only mention of the topic and city is a joined-up handle (panel Q004)", async () => {
     const id = await addCreator(db, { displayName: "Zulekha", niches: ["Lifestyle"], city: null, profiles: [{ handle: "karachifoodadventure", bio: "Personal account" }] });
     const docs = (await db.withSystem((tx) => repo.indexRows(tx, [id]))).filter(isIndexable).map(toDocument);

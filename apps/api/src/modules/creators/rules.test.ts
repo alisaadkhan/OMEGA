@@ -110,6 +110,9 @@ describe("Meilisearch filter", () => {
     expect(floorFilter({ requireNiche: true, minEngagementRate: null })).toEqual(["niches IS NOT EMPTY"]);
     expect(floorFilter({ requireNiche: true, minEngagementRate: 1 })).toEqual(["niches IS NOT EMPTY", "NOT engagement_rate < 1"]);
     expect(floorFilter({ requireNiche: false, minEngagementRate: null })).toEqual([]);
+    // Owner 17 Nov: an exact name or handle search reaches a creator whose niche is not identified yet.
+    expect(floorFilter({ requireNiche: true, minEngagementRate: null }, "@Sana.Mullick")).toEqual(['(niches IS NOT EMPTY OR name_keys = "sanamullick")']);
+    expect(floorFilter({ requireNiche: true, minEngagementRate: null }, "ab")).toEqual(["niches IS NOT EMPTY"]);
   });
 });
 

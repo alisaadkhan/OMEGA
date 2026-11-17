@@ -80,20 +80,28 @@ export function fitLabel(score: number, t: LabelThresholds): CreatorCard["fitLab
  */
 export const SEARCH_FLOOR: { requireNiche: boolean; minEngagementRate: number | null } = { requireNiche: true, minEngagementRate: null };
 
-export function floorFilter(floor = SEARCH_FLOOR): string[] {
+/** Letters and digits only, lower case: "Fashion Club", "fashion.club" and "@FashionClub" compare equal. */
+export const nameKey = (s: string) => s.normalize("NFKC").toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+
+/**
+ * `text`: the search text. When it is exactly a creator's name or handle (owner, 17 Nov), that creator is found even
+ * before a niche is identified: a person looking up someone they know never reaches a dead end.
+ */
+export function floorFilter(floor = SEARCH_FLOOR, text = ""): string[] {
   const out: string[] = [];
-  if (floor.requireNiche) out.push("niches IS NOT EMPTY");
+  const key = nameKey(text);
+  if (floor.requireNiche) out.push(key.length >= 3 ? `(niches IS NOT EMPTY OR name_keys = ${JSON.stringify(key)})` : "niches IS NOT EMPTY");
   // NOT (x < floor) also keeps documents whose rate is null or missing.
   if (floor.minEngagementRate !== null) out.push(`NOT engagement_rate < ${floor.minEngagementRate}`);
   return out;
 }
 
 /** Meilisearch filter expressions (ANDed). Strings are JSON-quoted, which is Meilisearch's escaping too. */
-export function meiliFilter(f: SearchFilters, now: Date, freshCurrentDays: number): string[] {
+export function meiliFilter(f: SearchFilters, now: Date, freshCurrentDays: number, text = ""): string[] {
   const q = (v: string) => JSON.stringify(v);
   // Creator eligibility (elig-1) first: only eligible creators whose evidence still holds; documents without the field
   // (built before the policy) never match, so a stale index fails closed.
-  const out: string[] = ["eligible = true", `eligible_until > ${Math.floor(now.getTime() / 1000)}`, ...floorFilter()];
+  const out: string[] = ["eligible = true", `eligible_until > ${Math.floor(now.getTime() / 1000)}`, ...floorFilter(SEARCH_FLOOR, text)];
   // Only platforms where the creator qualifies (elig-1 is per profile; counts are never added across platforms).
   if (f.platform) out.push(`qualifying_platforms = ${q(f.platform)}`);
   if (f.creatorCountry) out.push(`country = ${q(f.creatorCountry)}`);

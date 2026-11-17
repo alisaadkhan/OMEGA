@@ -3,7 +3,7 @@ import type { CreatorDocument } from "@mushin/integrations";
 import { handleWords } from "./aliases";
 import { creatorEligibility } from "./eligibility";
 import type { IndexRow } from "./repository";
-import { isMinorProtected, maskBioContacts } from "./rules";
+import { isMinorProtected, maskBioContacts, nameKey } from "./rules";
 
 /** Only active creators that are not protected possible minors are searchable (spec §4.3). */
 export function isIndexable(r: IndexRow): boolean {
@@ -31,6 +31,7 @@ export function documentAt(r: IndexRow, now: Date): CreatorDocument {
     name_variants: r.nameVariants,
     primary_handle: r.primaryHandle,
     handles: [...new Set(r.profiles.map((p) => p.handle))],
+    name_keys: [...new Set([r.displayName, r.primaryHandle, ...r.profiles.map((p) => p.handle)].map(nameKey).filter((k) => k.length >= 3))],
     handle_words: [...new Set([r.primaryHandle, ...r.profiles.map((p) => p.handle)].flatMap(handleWords))],
     platforms: [...new Set(r.profiles.map((p) => p.platform))],
     primary_platform: r.primaryPlatform,

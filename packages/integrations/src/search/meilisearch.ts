@@ -20,6 +20,7 @@ const SETTINGS = {
     "eligible",
     "eligible_until",
     "qualifying_platforms",
+    "name_keys",
   ],
   sortableAttributes: ["followers", "engagement_rate", "authenticity_score"],
   typoTolerance: { enabled: true, minWordSizeForTypos: { oneTypo: 4, twoTypos: 8 } },

@@ -2,13 +2,11 @@ import type { CreatorCard, SearchFilters } from "@mushin/contracts";
 import type { SystemTx, TenantTx } from "@mushin/db";
 import * as repo from "./repository";
 import { hasCollabRoute } from "./contact-routes";
-import { contactAvailability, fitLabel, fitScore, freshnessOf, isContactable } from "./rules";
+import { contactAvailability, fitLabel, fitScore, freshnessOf, isContactable, nameKey } from "./rules";
 import { DEFAULT_SOURCE_POLICY, restrictsDerived, type SourcePolicy } from "./source-policy";
 
 type Tx = TenantTx | SystemTx;
 
-/** Letters and digits only, so "Fashion Club", "fashion.club" and "@FashionClub" compare equal. */
-const nameKey = (s: string) => s.normalize("NFKC").toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
 
 /**
  * A search for someone by name finds them first (SRS REQ-02.03, relevance to the query): 0 = name or handle is the search,

@@ -148,7 +148,7 @@ export function createCreatorsService(deps: CreatorsDeps) {
       () =>
         deps.index.search({
           text: q.text,
-          filter: meiliFilter(q.filters, t, settings.fresh.agingDays),
+          filter: meiliFilter(q.filters, t, settings.fresh.agingDays, q.text),
           limit: settings.candidatePool,
           ...(q.text ? {} : { sort: FILTER_ONLY_SORT }),
         }),

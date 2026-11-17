@@ -5,6 +5,8 @@ export type CreatorDocument = {
   name_variants: string[];
   primary_handle: string;
   handles: string[];
+  /** The name and handles as letters and digits only: lets an exact name search reach a creator without a niche. */
+  name_keys?: string[];
   /** Vocabulary words found inside joined-up handles ("karachifoodadventure" → karachi, food), searched like handles. */
   handle_words?: string[];
   platforms: string[];
