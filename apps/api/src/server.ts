@@ -11,10 +11,11 @@ import { searchReadiness } from "./http/health";
 import type { Guards, ReadinessCheck } from "./http/types";
 import { createAudienceModule, createAudienceService } from "./modules/audience";
 import { createBillingModule, createBillingService, noAccessCache } from "./modules/billing";
-import { createCreatorReviewsModule, createCreatorsModule, createCreatorsService, createPostgresCatalogSearch, createRemovalService } from "./modules/creators";
+import { createCreatorIndexer, createCreatorReviewsModule, createCreatorsModule, createCreatorsService, createPostgresCatalogSearch, createRemovalService, expireYoutubeApiData } from "./modules/creators";
 import { createDiscoveryModule, createDiscoveryService } from "./modules/discovery";
 import { createActivityModule, createActivityService } from "./modules/activity";
 import { createOpsModule } from "./modules/ops";
+import { createCronModule } from "./modules/cron";
 import { createAttachments, createSupportModule, createSupportService } from "./modules/support";
 import { createAnalyticsModule, createAnalyticsService } from "./modules/analytics";
 import { createCampaignsModule, createCampaignsService } from "./modules/campaigns";
@@ -166,6 +167,18 @@ const app = await buildApp({
     createSupportModule({ service: createSupportService({ db }), attachments: supportAttachments }),
     createTrialsModule({ service: createTrialService({ db, startTrial: billing.startTrial, onTrialStarted: (id) => accessCache.invalidate(id) }), limiter, requireStaff: staff.requireStaff }),
     createOpsModule({ db, requireStaff: staff.requireStaff }),
+    // Daily maintenance through Vercel Cron while production has no worker host (audit 2026-11-17).
+    ...(config.cronSecret ? [createCronModule({
+      secret: config.cronSecret,
+      logger,
+      runBillingJob: billing.runJob,
+      expireYoutube: () => {
+        const storage = createObjectStorage(config.storage, logger);
+        return expireYoutubeApiData(db, storage ? { storage } : {});
+      },
+      reindex: (ids) => createCreatorIndexer({ db, index: searchIndex, logger, sourcePolicy: config.sourcePolicy }).sync(ids),
+      workerAvailable,
+    })] : []),
     createInsightsModule({ db, requireStaff: staff.requireStaff }),
     createStaffOpsModule({ db, billing, attachments: supportAttachments, requireStaff: staff.requireStaff, createStaffAccount: staff.createStaffAccount, alerts: { notifier: alertNotifier, channel: config.alertWebhookUrl ? "webhook" : "log" } }),
     createAudienceModule({ service: createAudienceService({ db, billing, sources: config.audienceSources }), limiter }),

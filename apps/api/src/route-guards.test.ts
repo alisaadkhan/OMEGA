@@ -20,6 +20,7 @@ const PUBLIC = new Set([
   "POST /admin/v1/auth/logout",
   "POST /webhooks/paddle", // provider signature verified on the raw body
   "POST /webhooks/resend", // provider signature verified on the raw body
+  "GET /v1/internal/cron/daily", // CRON_SECRET bearer compared in constant time; 404 otherwise; registered only with the secret
   // Mock checkout pages: registered only with the mock payment provider, which config refuses in production
   // (PADDLE_API_KEY required). Reaching one needs the workspace id and the random checkout id.
   "GET /mock-paddle/checkout/:workspaceId/:id",

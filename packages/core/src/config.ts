@@ -201,6 +201,9 @@ const apiSchema = sharedObject
     // Supabase Auth admin access (service key): the trusted record of a user's confirmed email (audit SEC-03), used to
     // accept invitations. Required in production; without it invitations cannot be accepted (fail closed).
     SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
+    // Daily maintenance without a worker host (audit 2026-11-17): Vercel Cron calls GET /v1/internal/cron/daily with
+    // "Authorization: Bearer <CRON_SECRET>". Unset: the route does not exist.
+    CRON_SECRET: z.string().min(32).optional(),
     // Outreach email (owner decision 2026-10-16): off by default. "test" records sends through a mock provider and
     // delivers nothing (never in production). "resend" sends for real and needs every key below plus
     // OUTREACH_EMAIL_SENDS_AUTHORIZED=yes, which the owner sets only after authorising real sends.
@@ -552,6 +555,8 @@ export type ApiConfig = {
   trustedProxies: string[];
   /** Supabase Auth admin access for trusted email checks (audit SEC-03); null when not configured. */
   authAdmin: { url: string; serviceKey: string } | null;
+  /** Secret for the daily maintenance route (Vercel Cron); null = no route. */
+  cronSecret: string | null;
   /** Private file storage for support ticket attachments (0076); null when the service key is not set. */
   storage: StorageConfig;
 };
@@ -602,6 +607,7 @@ export function loadApiConfig(env: Env): ApiConfig {
           : { mode: "off" },
     alertWebhookUrl: v.ALERT_WEBHOOK_URL ?? null,
     trustedProxies: v.TRUSTED_PROXIES.split(",").map((s) => s.trim()).filter((s) => s && s !== "none"),
+    cronSecret: v.CRON_SECRET ?? null,
     authAdmin: v.SUPABASE_SERVICE_ROLE_KEY ? { url: v.SUPABASE_URL.replace(/\/+$/, ""), serviceKey: v.SUPABASE_SERVICE_ROLE_KEY } : null,
     storage: v.SUPABASE_SERVICE_ROLE_KEY ? { url: v.SUPABASE_URL.replace(/\/+$/, ""), serviceKey: v.SUPABASE_SERVICE_ROLE_KEY } : null,
   };
