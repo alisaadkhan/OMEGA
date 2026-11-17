@@ -5,6 +5,7 @@ import type { Db } from "@mushin/db";
 import type { SearchHit } from "@mushin/integrations";
 import { cityForms, expandQuery, normalizeQuery, type QueryGroup } from "./aliases";
 import type { PlanGroup } from "./understand-v2";
+import { SEARCH_FLOOR } from "./rules";
 import { CREATOR_VISIBLE } from "./visibility";
 
 /**
@@ -46,6 +47,9 @@ export function createPostgresCatalogSearch(db: Db): CatalogSearch {
       CREATOR_VISIBLE,
       sql`d.eligible and d.eligible_until_epoch > ${Math.floor(query.now.getTime() / 1000)}`,
     ];
+    // The same quality floor as the Meilisearch filter (rules.ts SEARCH_FLOOR).
+    if (SEARCH_FLOOR.requireNiche) conditions.push(sql`cardinality(d.niches) > 0`);
+    if (SEARCH_FLOOR.minEngagementRate !== null) conditions.push(sql`(d.engagement_rate is null or d.engagement_rate >= ${SEARCH_FLOOR.minEngagementRate})`);
     // Recognised niche and city words (English, Roman Urdu, Urdu script, city short forms) match any of their reviewed
     // forms; a city also matches the creator's own declared city. Without a recognised word the query is unchanged.
     const groups: (QueryGroup | PlanGroup)[] | null = query.plan?.length ? query.plan : expandQuery(text);

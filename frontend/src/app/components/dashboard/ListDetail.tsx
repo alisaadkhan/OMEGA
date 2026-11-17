@@ -6,6 +6,7 @@ import { dataExportSchema } from "@mushin/contracts";
 import { apiDownload, apiRequest } from "../../api/client";
 import { useDeleteList, useList, useRemoveFromList, useSetListNote, useUpdateList } from "../../api/lists";
 import { avatarFallback, formatCount, formatEr, toCreator } from "../../api/search-mapping";
+import { erLevel } from "../../api/levels";
 import { blockedReasonFor, ineligibleText } from "../../lib/eligibility";
 import { relative } from "../../lib/time";
 import { useConfirm, useToast } from "../../lib/toast";
@@ -181,7 +182,7 @@ export function ListDetail({ id, onBack, onOpenCreator, onGoToSearch }: { id: st
                       </td>
                       <td className="px-2 py-2"><span className="inline-flex items-center rounded bg-white px-2 py-0.5 text-[10px] font-semibold text-on shadow-sm ring-1 ring-surface-mid">{PLATFORM_LABEL[m.creator.platform]}</span></td>
                       <td className="px-2 py-2 text-right text-[15px] font-semibold tabular-nums">{formatCount(m.creator.followers)}</td>
-                      <td className="px-2 py-2 text-right">{m.creator.engagementRate === null ? <span className="text-ink-soft">—</span> : <span className="inline-block rounded bg-cyan-soft/40 px-1.5 py-0.5 text-[15px] font-semibold tabular-nums text-[#006172]">{formatEr(m.creator.engagementRate)}</span>}</td>
+                      <td className="px-2 py-2 text-right">{m.creator.engagementRate === null ? <span className="text-ink-soft">—</span> : <span className={`inline-block rounded px-1.5 py-0.5 text-[15px] font-semibold tabular-nums ${erLevel(m.creator.engagementRate).chip}`} title={`${erLevel(m.creator.engagementRate).word} engagement`}>{formatEr(m.creator.engagementRate)}</span>}</td>
                       <td className="px-3 py-2">
                         {m.note ? (
                           <div className="flex max-w-md items-center justify-between gap-2">

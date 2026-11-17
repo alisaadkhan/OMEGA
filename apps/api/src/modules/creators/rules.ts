@@ -71,12 +71,29 @@ export function fitLabel(score: number, t: LabelThresholds): CreatorCard["fitLab
   return "Needs review";
 }
 
+/**
+ * Search quality floor (owner, 16 Nov, started 17 Nov). Applied to every catalogue search on both backends, after
+ * eligibility: a creator whose niche is not identified is not shown; a creator whose engagement rate is known and below
+ * `minEngagementRate` (percent) is not shown. An unknown rate (YouTube, by policy; too few posts) never hides a creator.
+ * `minEngagementRate` is null (off) until the owner chooses the number. Nothing is deleted: the creators stay in the
+ * catalogue, and they come back once a niche is identified or the rate rises.
+ */
+export const SEARCH_FLOOR: { requireNiche: boolean; minEngagementRate: number | null } = { requireNiche: true, minEngagementRate: null };
+
+export function floorFilter(floor = SEARCH_FLOOR): string[] {
+  const out: string[] = [];
+  if (floor.requireNiche) out.push("niches IS NOT EMPTY");
+  // NOT (x < floor) also keeps documents whose rate is null or missing.
+  if (floor.minEngagementRate !== null) out.push(`NOT engagement_rate < ${floor.minEngagementRate}`);
+  return out;
+}
+
 /** Meilisearch filter expressions (ANDed). Strings are JSON-quoted, which is Meilisearch's escaping too. */
 export function meiliFilter(f: SearchFilters, now: Date, freshCurrentDays: number): string[] {
   const q = (v: string) => JSON.stringify(v);
   // Creator eligibility (elig-1) first: only eligible creators whose evidence still holds; documents without the field
   // (built before the policy) never match, so a stale index fails closed.
-  const out: string[] = ["eligible = true", `eligible_until > ${Math.floor(now.getTime() / 1000)}`];
+  const out: string[] = ["eligible = true", `eligible_until > ${Math.floor(now.getTime() / 1000)}`, ...floorFilter()];
   // Only platforms where the creator qualifies (elig-1 is per profile; counts are never added across platforms).
   if (f.platform) out.push(`qualifying_platforms = ${q(f.platform)}`);
   if (f.creatorCountry) out.push(`country = ${q(f.creatorCountry)}`);

@@ -67,7 +67,8 @@ export function toCards(rows: repo.CardRow[], req: { text: string; filters: Sear
     })
     // An unknown count cannot satisfy an explicit numeric follower filter.
     .filter((card) => (req.filters.followersMin === undefined && req.filters.followersMax === undefined) || card.followers !== null)
-    .sort((a, b) => (tier.get(a.id) ?? 2) - (tier.get(b.id) ?? 2) || b.fitScore - a.fitScore || (a.followers === null ? 1 : b.followers === null ? -1 : b.followers - a.followers) || a.id.localeCompare(b.id));
+    // Owner (16 Nov): creators a customer can reach (a contact on file) come first, after a by-name match.
+    .sort((a, b) => (tier.get(a.id) ?? 2) - (tier.get(b.id) ?? 2) || Number(b.hasContact) - Number(a.hasContact) || b.fitScore - a.fitScore || (a.followers === null ? 1 : b.followers === null ? -1 : b.followers - a.followers) || a.id.localeCompare(b.id));
 }
 
 /** Cards for a live run's creators: hidden creators are left out (card rows apply the visibility rule); the AI already judged relevance, so text counts as matched. */

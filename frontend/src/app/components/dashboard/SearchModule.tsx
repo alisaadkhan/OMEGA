@@ -51,6 +51,7 @@ import {
   platformMixText,
   formatEr,
 } from "../../api/search-mapping";
+import { erLevel, iqLevel } from "../../api/levels";
 import { NICHE_GROUPS, nicheGroupLabel } from "../../api/niche-groups";
 import { useToast } from "../../lib/toast";
 import { FindNewDialog } from "./FindNewDialog";
@@ -967,12 +968,7 @@ function PlatformIcon({ platform }: { platform: Creator["platform"] }) {
   );
 }
 
-function scoreBg(score: number) {
-  if (score >= 90) return "bg-emerald-100 text-emerald-700";
-  if (score >= 75) return "bg-indigo-100 text-indigo-700";
-  if (score >= 60) return "bg-amber-100 text-amber-800";
-  return "bg-red-100 text-red-700";
-}
+const scoreBg = (score: number) => iqLevel(score).chip;
 
 /* ─────────────────────── table view ─────────────────────── */
 
@@ -1032,7 +1028,7 @@ function ResultsTable({
                 </div>
               </td>
               <td className="py-3 text-right tabular-nums text-slate-700">{c.followers}</td>
-              <td className="py-3 text-right tabular-nums text-slate-700">{c.engagement === null ? "—" : formatEr(c.engagement)}</td>
+              <td className="py-3 text-right tabular-nums">{c.engagement === null ? <span className="text-slate-500">—</span> : <span className={`rounded px-1.5 py-0.5 font-semibold ${erLevel(c.engagement).chip}`} title={`${erLevel(c.engagement).word} engagement`}>{formatEr(c.engagement)}</span>}</td>
               <td className="py-3 text-right tabular-nums text-slate-700">{c.authenticity ?? "—"}</td>
               <td className="py-3 pr-4 text-right">
                 <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] ${scoreBg(c.score)}`} style={{ fontWeight: 600 }}>

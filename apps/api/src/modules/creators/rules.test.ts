@@ -10,6 +10,7 @@ import {
   isMinorProtected,
   isSafeSummary,
   maskContact,
+  floorFilter,
   meiliFilter,
   monthKey,
   normalizeProfileUrl,
@@ -85,7 +86,7 @@ describe("Meilisearch filter", () => {
       hasContact: true,
       freshOnly: true,
     });
-    const eligibility = ["eligible = true", `eligible_until > ${Math.floor(now.getTime() / 1000)}`];
+    const eligibility = ["eligible = true", `eligible_until > ${Math.floor(now.getTime() / 1000)}`, "niches IS NOT EMPTY"];
     expect(meiliFilter(f, now, 7)).toEqual([
       ...eligibility,
       'qualifying_platforms = "tiktok"',
@@ -103,6 +104,12 @@ describe("Meilisearch filter", () => {
     ]);
     // Eligibility (elig-1) is always applied, even with no filters.
     expect(meiliFilter(searchFiltersSchema.parse({}), now, 7)).toEqual(eligibility);
+  });
+
+  it("search quality floor (owner 16 Nov): no niche hides a creator; a known rate below the floor hides one, an unknown rate never does", () => {
+    expect(floorFilter({ requireNiche: true, minEngagementRate: null })).toEqual(["niches IS NOT EMPTY"]);
+    expect(floorFilter({ requireNiche: true, minEngagementRate: 1 })).toEqual(["niches IS NOT EMPTY", "NOT engagement_rate < 1"]);
+    expect(floorFilter({ requireNiche: false, minEngagementRate: null })).toEqual([]);
   });
 });
 

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion } from "motion/react";
 import { ArrowRight, BadgeCheck, Ban, Bookmark, Check, Clock, Instagram, Mail, MapPin, MessageCircle, Music2, Phone, Star, Youtube } from "lucide-react";
 import { CONTACT_AVAILABILITY_TEXT, initialsAvatar, matchSummary, formatEr } from "../../api/search-mapping";
+import { erLevel, iqLevel } from "../../api/levels";
 import { FreshnessBadge } from "./states";
 import type { Creator } from "./CreatorProfilePanel";
 import { ReviewCreatorButton } from "./ReviewCreatorButton";
@@ -76,8 +77,9 @@ export function SearchCreatorCard({
           </button>
           {creator.score > 0 && (
             <span className="absolute right-3 top-3 z-10 inline-flex items-center gap-1 rounded-full border border-white/20 bg-slate-900/60 px-2.5 py-1 text-xs font-semibold tracking-wide text-white shadow-sm backdrop-blur-md" title="MUSHIN IQ: how well this creator matches your search (0-100). It is a match score, not an authenticity rating.">
-              <Star aria-hidden className="h-3 w-3 fill-[#06B6D4] text-[#06B6D4]" />
+              <Star aria-hidden className={`h-3 w-3 ${iqLevel(creator.score).dot}`} />
               IQ {creator.score}
+              <span className="sr-only">({iqLevel(creator.score).word})</span>
             </span>
           )}
           <span className="absolute bottom-3 right-3 z-10 inline-flex items-center gap-1 rounded-full border border-white/20 bg-black/50 px-2 py-0.5 text-[10px] font-medium tracking-wide text-white backdrop-blur-md">
@@ -109,7 +111,10 @@ export function SearchCreatorCard({
               <div className="border-l border-slate-200/60 pl-3">
                 <dt className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Eng. rate</dt>
                 {creator.engagement !== null ? (
-                  <dd className="text-lg font-bold leading-none tabular-nums text-cyan-700">{formatEr(creator.engagement)}</dd>
+                  <dd className={`flex items-baseline gap-1.5 text-lg font-bold leading-none tabular-nums ${erLevel(creator.engagement).text}`}>
+                    {formatEr(creator.engagement)}
+                    <span className={`rounded px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${erLevel(creator.engagement).chip}`}>{erLevel(creator.engagement).word}</span>
+                  </dd>
                 ) : creator.engagementNote === "policy_restricted" ? (
                   <dd className="text-[11px] font-medium leading-tight text-slate-500" title="YouTube's API rules don't allow MUSHIN to calculate engagement for YouTube channels.">Not available for YouTube</dd>
                 ) : (
