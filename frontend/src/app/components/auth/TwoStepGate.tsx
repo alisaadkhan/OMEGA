@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ShieldCheck } from "lucide-react";
 import { supabase } from "../../lib/supabase";
-import { TWO_STEP_REQUIRED_EVENT } from "../../api/client";
+import { meResponseSchema } from "@mushin/contracts";
+import { apiRequest, TWO_STEP_REQUIRED_EVENT } from "../../api/client";
 
 /**
  * Two-step sign-in (owner, 17 Nov): a person with an authenticator app must enter its 6-digit code before the app opens.
@@ -46,6 +47,9 @@ export function TwoStepGate({ children }: { children: ReactNode }) {
       return;
     }
     setState("ok");
+    // The account has an authenticator: make sure the API enforces it too, even if it was set up outside MUSHIN
+    // (audit 2026-11-17, finding 3). The API reads the Auth server's own record; a failure here changes nothing.
+    await apiRequest("/v1/me/two-step/sync", meResponseSchema, { method: "POST" }).catch(() => undefined);
     void qc.invalidateQueries();
   }
 
