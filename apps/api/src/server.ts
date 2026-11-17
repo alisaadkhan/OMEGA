@@ -153,7 +153,7 @@ const app = await buildApp({
     platform.module,
     identity.module,
     staff.module,
-    createBillingModule({ service: billing, payments, appUrl: config.appUrl }),
+    createBillingModule({ service: billing, payments, appUrl: config.appUrl, paymentsOpen: config.paymentsOpen }),
     createCreatorsModule({ service: creators, limiter, removals, requireStaff: staff.requireStaff }),
     createCreatorReviewsModule({ db, limiter }),
     createDiscoveryModule({ service: createDiscoveryService({ db, billing, sourcePolicy: config.sourcePolicy, workerAvailable }), limiter }),

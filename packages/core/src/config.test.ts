@@ -230,6 +230,8 @@ describe("search and LLM settings", () => {
     // A free-tier key is accepted by the config but never used: it answered 429 to every call.
     expect(loadApiConfig({ ...valid, ...gemini, GEMINI_BILLING: "free_accepted" }).llm).toEqual([]);
     expect(() => loadApiConfig({ ...valid, ...gemini, GEMINI_BILLING: "free" })).toThrow(/GEMINI_BILLING/);
+    // Security audit 2026-11-17: the live Vercel deployment without Paddle sells nothing through the mock provider.
+    expect([loadApiConfig(valid).paymentsOpen, loadApiConfig({ ...valid, VERCEL_ENV: "production" }).paymentsOpen, loadApiConfig({ ...valid, VERCEL_ENV: "preview" }).paymentsOpen]).toEqual([true, false, true]);
     // YepAPI (owner, 17 Nov): after Groq, before OpenRouter; only priced models; never booked below $0.01 a call.
     const yep = loadApiConfig({ ...valid, GROQ_API_KEY: "g", OPENROUTER_API_KEY: "r", YEPAPI_API_KEY: "y", YEPAPI_MODELS: "openai/gpt-oss-120b,vendor/unpriced", LLM_PROVIDER: "groq" }).llm;
     expect(yep.map((p) => p.name)).toEqual(["groq", "groq", "yepapi", "openrouter", "openrouter"]);

@@ -17,8 +17,14 @@ import type { Guards } from "../../http/types";
 import { parseInput, sendOk } from "../../http/validate";
 import type { BillingService } from "./service";
 
-export function registerBillingRoutes(app: FastifyInstance, guards: Guards, service: BillingService, payments: Payments): void {
+/**
+ * `paymentsOpen` false (security audit 2026-11-17): a public deployment without a real payment provider sells nothing.
+ * Checkout and plan changes answer "not open yet" instead of reaching the mock provider, which would grant a paid plan
+ * without a payment.
+ */
+export function registerBillingRoutes(app: FastifyInstance, guards: Guards, service: BillingService, payments: Payments, paymentsOpen = true): void {
   const read = { preHandler: guards.customer };
+  const notOpen = () => new AppError("PROVIDER_UNAVAILABLE", "Paid plans and credit top-ups aren't open yet. Contact Support to upgrade.", { reason: "payments_not_open" });
   const write = { preHandler: [guards.customer, guards.idempotent] };
 
   app.get("/v1/billing/summary", read, async (req, reply) => sendOk(reply, billingSummarySchema, await service.summary(tenantOf(req))));
@@ -36,12 +42,14 @@ export function registerBillingRoutes(app: FastifyInstance, guards: Guards, serv
   app.get("/v1/billing/invoices", read, async (req, reply) => sendOk(reply, invoicesResponseSchema, await service.invoices(tenantOf(req))));
 
   app.post("/v1/billing/checkout", write, async (req, reply) => {
+    if (!paymentsOpen) throw notOpen();
     const body = parseInput(checkoutRequestSchema, req.body);
     if (!req.customer) throw new AppError("UNAUTHENTICATED", "Authentication required");
     const result = await service.startCheckout({ ...tenantOf(req), email: req.customer.email }, body);
     return sendOk(reply, checkoutResponseSchema, result, 201);
   });
   app.post("/v1/billing/subscription/change", write, async (req, reply) => {
+    if (!paymentsOpen) throw notOpen();
     const body = parseInput(planChangeRequestSchema, req.body);
     return sendOk(reply, planChangeResponseSchema, await service.requestPlanChange(tenantOf(req), body), 202);
   });

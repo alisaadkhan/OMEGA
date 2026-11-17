@@ -194,6 +194,8 @@ export const apiSchema = sharedObject
     // Daily maintenance without a worker host (audit 2026-11-17): Vercel Cron calls GET /v1/internal/cron/daily with
     // "Authorization: Bearer <CRON_SECRET>". Unset: the route does not exist.
     CRON_SECRET: z.string().min(32).optional(),
+    // Set by Vercel itself ("production" on the live deployment). Without Paddle there, payments stay closed (audit).
+    VERCEL_ENV: z.string().optional(),
     // Outreach email (owner decision 2026-10-16): off by default. "test" records sends through a mock provider and
     // delivers nothing (never in production). "resend" sends for real and needs every key below plus
     // OUTREACH_EMAIL_SENDS_AUTHORIZED=yes, which the owner sets only after authorising real sends.

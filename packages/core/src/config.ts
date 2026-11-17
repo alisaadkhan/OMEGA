@@ -144,6 +144,11 @@ export type ApiConfig = {
   trustedProxies: string[];
   /** Supabase Auth admin access for trusted email checks (audit SEC-03); null when not configured. */
   authAdmin: { url: string; serviceKey: string } | null;
+  /**
+   * Whether customers can buy (security audit 2026-11-17): false on the live Vercel deployment while only the mock payment
+   * provider is configured, so nobody can take a paid plan without paying.
+   */
+  paymentsOpen: boolean;
   /** Secret for the daily maintenance route (Vercel Cron); null = no route. */
   cronSecret: string | null;
   /** Private file storage for support ticket attachments (0076); null when the service key is not set. */
@@ -197,6 +202,7 @@ export function loadApiConfig(env: Env): ApiConfig {
     alertWebhookUrl: v.ALERT_WEBHOOK_URL ?? null,
     trustedProxies: v.TRUSTED_PROXIES.split(",").map((s) => s.trim()).filter((s) => s && s !== "none"),
     cronSecret: v.CRON_SECRET ?? null,
+    paymentsOpen: paymentsFrom(v).mode === "paddle" || v.VERCEL_ENV !== "production",
     authAdmin: v.SUPABASE_SERVICE_ROLE_KEY ? { url: v.SUPABASE_URL.replace(/\/+$/, ""), serviceKey: v.SUPABASE_SERVICE_ROLE_KEY } : null,
     storage: v.SUPABASE_SERVICE_ROLE_KEY ? { url: v.SUPABASE_URL.replace(/\/+$/, ""), serviceKey: v.SUPABASE_SERVICE_ROLE_KEY } : null,
   };

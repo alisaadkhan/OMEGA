@@ -12,12 +12,14 @@ export { MemoryAccessCache, noAccessCache } from "./access-cache";
 export type { Access, AccessCache } from "./access-cache";
 export type { BillingJob } from "./repository";
 
-export function createBillingModule(o: { service: BillingService; payments: Payments; appUrl: string }): AppModule {
+/** `paymentsOpen` false: no checkout, no plan changes and no mock checkout pages (public deployment without Paddle). */
+export function createBillingModule(o: { service: BillingService; payments: Payments; appUrl: string; paymentsOpen?: boolean }): AppModule {
   return {
     name: "billing",
     register(app, guards) {
-      registerBillingRoutes(app, guards, o.service, o.payments);
-      if (isMockPayments(o.payments)) registerMockPaddleRoutes(app, o.service, o.appUrl);
+      const open = o.paymentsOpen ?? true;
+      registerBillingRoutes(app, guards, o.service, o.payments, open);
+      if (open && isMockPayments(o.payments)) registerMockPaddleRoutes(app, o.service, o.appUrl);
     },
   };
 }
