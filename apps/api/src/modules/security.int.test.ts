@@ -82,13 +82,11 @@ describe("API security", () => {
     const a = await user("owner@brand.pk");
     const before = await ownerQuery<{ email: string; balance: string }>(`select u.email, (select coalesce(sum(remaining), 0) from wp.credit_lots l where l.workspace_id = '${a.workspaceId}')::text as balance from wp.users u where u.email = 'owner@brand.pk'`);
     const otherWs = randomUUID();
-    const r1 = await app.inject({ method: "PATCH", url: "/v1/workspace", headers: a.headers, payload: { name: "Renamed", id: otherWs, plan: "scale", credits: 999_999, ownerId: randomUUID() } });
-    const r2 = await app.inject({ method: "PATCH", url: "/v1/me", headers: a.headers, payload: { displayName: "New Name", email: "attacker@evil.test", role: "owner", id: randomUUID() } });
-    expect([r1.statusCode, r2.statusCode]).toEqual([200, 200]);
+    const r2 = await app.inject({ method: "PATCH", url: "/v1/me", headers: a.headers, payload: { displayName: "New Name", email: "attacker@evil.test", role: "owner", id: otherWs, plan: "scale", credits: 999_999 } });
+    expect(r2.statusCode).toBe(200);
     const after = await ownerQuery<{ email: string; balance: string }>(`select u.email, (select coalesce(sum(remaining), 0) from wp.credit_lots l where l.workspace_id = '${a.workspaceId}')::text as balance from wp.users u where u.display_name = 'New Name'`);
     expect(after).toEqual(before);
     expect((await ownerQuery<{ n: number }>(`select count(*)::int as n from wp.workspaces where id = '${otherWs}'`))[0]?.n).toBe(0);
-    expect((await ownerQuery<{ name: string }>(`select name from wp.workspaces where id = '${a.workspaceId}'`))[0]?.name).toBe("Renamed");
   });
 
   it("API5: a member cannot use owner/admin functions", async () => {
@@ -97,7 +95,7 @@ describe("API security", () => {
     await ownerQuery(`insert into wp.users (id, email, display_name) values ('${memberSub}', 'member@brand.pk', 'Member')`);
     await ownerQuery(`insert into wp.workspace_members (workspace_id, user_id, role) values ('${owner.workspaceId}', '${memberSub}', 'member')`);
     const member = { authorization: `Bearer ${await sign(memberSub, "member@brand.pk")}` };
-    expect((await app.inject({ method: "PATCH", url: "/v1/workspace", headers: member, payload: { name: "Member rename" } })).statusCode).toBe(403);
+    expect((await app.inject({ method: "GET", url: "/v1/workspace/export", headers: member })).statusCode).toBe(403);
   });
 
   it("treats injection-shaped input as data and never leaks internals in errors", async () => {

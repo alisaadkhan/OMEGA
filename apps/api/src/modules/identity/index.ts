@@ -4,8 +4,7 @@ import type { ResolveTenant } from "../../auth/customer-guard";
 import type { AppModule } from "../../http/types";
 import { createPrivacyService } from "./privacy";
 import { registerIdentityRoutes } from "./routes";
-import { createTeamService } from "./team";
-import { registerTeamRoutes } from "./team-routes";
+import { registerPrivacyRoutes } from "./privacy-routes";
 import { createIdentityService, type StartTestingAllowance, type StartTrial } from "./service";
 
 export type { StartTrial };
@@ -29,7 +28,6 @@ export function createIdentityModule(o: {
   onWorkspaceErased?: (workspaceId: string) => Promise<void>;
 }): { resolveTenant: ResolveTenant; module: AppModule } {
   const service = createIdentityService(o.db, o.autoTrial, o.testingAllowance ?? null, o.verifyEmail ?? null);
-  const team = createTeamService({ db: o.db, appUrl: o.appUrl ?? "http://localhost:5173", verifyEmail: o.verifyEmail ?? null });
   const privacy = createPrivacyService({
     db: o.db,
     deleteIdentity: o.deleteIdentity ?? null,
@@ -42,7 +40,7 @@ export function createIdentityModule(o: {
       name: "identity",
       register: (app, guards) => {
         registerIdentityRoutes(app, guards, service, o.db, o.twoStepStatus ?? null);
-        registerTeamRoutes(app, guards, team, privacy);
+        registerPrivacyRoutes(app, guards, privacy);
       },
     },
   };

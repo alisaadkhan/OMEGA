@@ -109,7 +109,7 @@ describe("GET /v1/me", () => {
     expect(accepted.json().legal).toMatchObject({ acceptedVersion: LEGAL_VERSION, currentVersion: LEGAL_VERSION, acceptedAt: expect.any(String) });
     expect((await ownerQuery<{ v: string }>(`select legal_version v from wp.users where id = '${sub}'`))[0]?.v).toBe(LEGAL_VERSION);
 
-    // Settings: your own name; renaming the workspace needs owner or admin; members of this workspace only.
+    // Settings: your own name.
     const auth = { authorization: `Bearer ${await iss.sign({ sub, email: "sana@mushin.pk", fullName: "Sana Riaz" })}` };
     expect((await app.inject({ method: "PATCH", url: "/v1/me", headers: auth, payload: { displayName: "Sana R." } })).json().user.displayName).toBe("Sana R.");
     expect((await app.inject({ method: "PATCH", url: "/v1/me", headers: auth, payload: { displayName: "" } })).statusCode).toBe(400);
@@ -117,11 +117,9 @@ describe("GET /v1/me", () => {
     const off = (await app.inject({ method: "PATCH", url: "/v1/me", headers: auth, payload: { emailNotifications: false } })).json().user;
     expect([off.emailNotifications, off.displayName]).toEqual([false, "Sana R."]);
     expect((await app.inject({ method: "PATCH", url: "/v1/me", headers: auth, payload: {} })).statusCode).toBe(400);
-    expect((await app.inject({ method: "PATCH", url: "/v1/workspace", headers: auth, payload: { name: "Heritage Foods" } })).json().workspace.name).toBe("Heritage Foods");
-    const members = (await app.inject({ method: "GET", url: "/v1/workspace/members", headers: auth })).json() as { members: { id: string; role: string; name: string }[] };
-    expect(members.members).toEqual([expect.objectContaining({ id: sub, role: "owner", name: "Sana R." })]);
-    await ownerQuery(`update wp.workspace_members set role = 'member' where user_id = '${sub}'`);
-    expect((await app.inject({ method: "PATCH", url: "/v1/workspace", headers: auth, payload: { name: "Hijack" } })).statusCode).toBe(403);
+    // No teams (owner, 17 Nov): the team rename and member list routes are gone.
+    expect((await app.inject({ method: "PATCH", url: "/v1/workspace", headers: auth, payload: { name: "Heritage Foods" } })).statusCode).toBe(404);
+    expect((await app.inject({ method: "GET", url: "/v1/workspace/members", headers: auth })).statusCode).toBe(404);
   });
 });
 

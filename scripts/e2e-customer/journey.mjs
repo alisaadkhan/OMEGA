@@ -623,7 +623,7 @@ if (phase === "main") {
   const mem = await pageAs("member");
   await mem.goto("http://localhost:5173/#/dashboard");
   await mem.getByRole("heading", { name: /Welcome back, Mona/ }).waitFor({ timeout: 30000 });
-  check("roles", "member cannot rename the account (API 403)", (await api("member", "PATCH", "/v1/workspace", { name: "Hijack" })).status === 403);
+  check("team", "team routes are gone (owner, 17 Nov)", (await api("member", "PATCH", "/v1/workspace", { name: "Hijack" })).status === 404 && (await api("owner", "POST", "/v1/workspace/invitations", { email: "x@y.pk", role: "member" })).status === 404);
   check("roles", "member cannot read the ledger or buy (API 403)", (await api("member", "GET", "/v1/billing/ledger?limit=5")).status === 403 && (await api("member", "POST", "/v1/billing/checkout", { kind: "topup", packId: "x" }, { "idempotency-key": `e2e-m-${label}` })).status === 403);
   await mem.goto("http://localhost:5173/#/dashboard");
   await nav(mem, "Credits & billing");

@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
-import { acceptLegalSchema, AVATAR_MAX_BYTES, LEGAL_VERSION, meResponseSchema, updateAvatarSchema, updateMeSchema, updateWorkspaceSchema, workspaceMembersSchema } from "@mushin/contracts";
+import { acceptLegalSchema, AVATAR_MAX_BYTES, LEGAL_VERSION, meResponseSchema, updateAvatarSchema, updateMeSchema } from "@mushin/contracts";
 import { AppError, type TenantContext } from "@mushin/core";
 import type { Db } from "@mushin/db";
 import { tenantOf } from "../../auth/customer-guard";
@@ -76,23 +76,6 @@ export function registerIdentityRoutes(app: FastifyInstance, guards: Guards, ser
     }
     await db.withTenant(tenant(ctx), (tx) => tx.execute(sql`update wp.users set mfa_enabled = ${on} where id = ${ctx.userId}`));
     return sendOk(reply, meResponseSchema, await me(ctx));
-  });
-
-  // Settings › Workspace: renaming is for owners and admins.
-  app.patch("/v1/workspace", { preHandler: guards.customer }, async (req, reply) => {
-    const ctx = tenantOf(req);
-    if (ctx.role !== "owner" && ctx.role !== "admin") throw new AppError("FORBIDDEN", "Only the team owner or an admin can rename the team.");
-    const { name } = parseInput(updateWorkspaceSchema, req.body);
-    await db.withTenant(tenant(ctx), (tx) => tx.execute(sql`update wp.workspaces set name = ${name} where id = ${ctx.workspaceId}`));
-    return sendOk(reply, meResponseSchema, await me(ctx));
-  });
-
-  app.get("/v1/workspace/members", { preHandler: guards.customer }, async (req, reply) => {
-    const ctx = tenantOf(req);
-    const rows = await db.withTenant(tenant(ctx), (tx) =>
-      tx.execute<{ id: string; display_name: string; email: string; role: "owner" | "admin" | "member"; joined_at: string }>(sql`select * from platform.workspace_people() order by joined_at`),
-    );
-    return sendOk(reply, workspaceMembersSchema, { members: rows.map((r) => ({ id: r.id, name: r.display_name, email: r.email, role: r.role, joinedAt: new Date(r.joined_at).toISOString() })) });
   });
 }
 

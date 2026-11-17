@@ -41,8 +41,3 @@ export const AVATAR_MAX_BYTES = 150_000;
 export const updateAvatarSchema = z.object({
   image: z.string().max(Math.ceil((AVATAR_MAX_BYTES * 4) / 3) + 64).regex(/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+=*$/, "Choose a PNG, JPEG or WebP image."),
 });
-/** Owners and admins only. */
-export const updateWorkspaceSchema = z.object({ name: z.string().trim().min(1, "Enter a workspace name").max(80) });
-export const workspaceMembersSchema = z.object({
-  members: z.array(z.object({ id: z.uuid(), name: z.string(), email: z.string(), role: workspaceRoleSchema, joinedAt: z.iso.datetime() })),
-});
