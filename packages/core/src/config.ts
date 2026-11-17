@@ -39,6 +39,18 @@ function parse<S extends z.ZodType>(schema: S, env: Env): z.output<S> {
   return result.data;
 }
 
+/**
+ * Proxies trusted for the client address (audit SEC-05). On Vercel (VERCEL_ENV set by the platform) every request comes
+ * through Vercel's edge, which overwrites X-Forwarded-For with the caller's address, so the header is trusted there when
+ * nothing else is configured; otherwise every visitor would share the edge's address and one rate-limit bucket
+ * (security audit 2026-11-17).
+ */
+export function trustedProxiesFrom(configured: string, vercelEnv: string | undefined): string[] {
+  const list = configured.split(",").map((s) => s.trim()).filter(Boolean);
+  if (list.length === 0 && vercelEnv) return ["0.0.0.0/0", "::/0"];
+  return list.filter((s) => s !== "none");
+}
+
 export type PaymentsConfig =
   | { mode: "mock"; webhookSecret: string; appUrl: string; publicApiUrl: string }
   | {
@@ -200,7 +212,7 @@ export function loadApiConfig(env: Env): ApiConfig {
           ? { mode: "test", from: v.OUTREACH_EMAIL_FROM ?? "MUSHIN test <outreach@test.mushin.invalid>", postalAddress: v.OUTREACH_POSTAL_ADDRESS ?? null }
           : { mode: "off" },
     alertWebhookUrl: v.ALERT_WEBHOOK_URL ?? null,
-    trustedProxies: v.TRUSTED_PROXIES.split(",").map((s) => s.trim()).filter((s) => s && s !== "none"),
+    trustedProxies: trustedProxiesFrom(v.TRUSTED_PROXIES, v.VERCEL_ENV),
     cronSecret: v.CRON_SECRET ?? null,
     paymentsOpen: paymentsFrom(v).mode === "paddle" || v.VERCEL_ENV !== "production",
     authAdmin: v.SUPABASE_SERVICE_ROLE_KEY ? { url: v.SUPABASE_URL.replace(/\/+$/, ""), serviceKey: v.SUPABASE_SERVICE_ROLE_KEY } : null,
