@@ -1,3 +1,4 @@
+/* global process, console, performance -- Node script */
 // Measures how the deployed site loads on a normal connection and on throttled mobile networks (real-world testing brief
 // §4, §9): time to the first contentful paint, to the page's main heading and to network idle, and the bytes
 // downloaded. Read-only: it opens public pages only.

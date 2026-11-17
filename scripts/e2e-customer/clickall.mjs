@@ -1,4 +1,4 @@
-/* global process, console, URL, setTimeout, document, localStorage, window -- Node script; document/localStorage run inside the browser page */
+/* global process, console, URL, document, localStorage, location -- Node script; document/localStorage run inside the browser page */
 /**
  * Every-button check (owner, 17 Nov: "test every button"). For each customer page it lists every visible, enabled
  * control, then clicks each one on a freshly loaded page and records what happened: a request to the API, a route change,
