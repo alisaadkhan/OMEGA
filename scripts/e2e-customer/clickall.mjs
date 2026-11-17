@@ -22,7 +22,7 @@ const session = { access_token: ids[who].token, token_type: "bearer", expires_in
   user: { id: ids[who].sub, aud: "authenticated", role: "authenticated", email: ids[who].email, user_metadata: { full_name: ids[who].name }, app_metadata: {}, email_confirmed_at: new Date().toISOString(), created_at: new Date().toISOString() } };
 
 /** How to reach each page from a fresh dashboard. */
-const SIDEBAR = { Dashboard: "Dashboard", Search: "Search", Shortlists: "Shortlists", Campaigns: "Campaigns", Inbox: "Inbox", Billing: "Credits & Billing", Settings: "Settings", Activity: "Activity Log", Support: "Support" };
+const SIDEBAR = { Dashboard: "Dashboard", Search: "Search", Shortlists: "Shortlists", Campaigns: "Campaigns", Inbox: "Inbox", Billing: "Credits & Billing", Settings: "Settings", Support: "Support" };
 const PAGES = [
   ...Object.keys(SIDEBAR).map((name) => ({ name, go: async (p) => openSidebar(p, SIDEBAR[name]) })),
   { name: "Campaign detail", go: async (p) => { await openSidebar(p, "Campaigns"); await p.getByText("Eid food push").first().click(); await p.waitForTimeout(1200); } },

@@ -4,7 +4,7 @@ import { AlertTriangle, ArrowRight, Bell, CheckCheck, MailCheck, RefreshCw } fro
 import { useRecentActivity } from "../../api/activity";
 import { useAuth } from "../../auth/AuthContext";
 import { useToast } from "../../lib/toast";
-import { ActivityRow } from "./ActivityLog";
+import { ActivityRow } from "./ActivityRow";
 import { Spinner } from "./states";
 
 /**

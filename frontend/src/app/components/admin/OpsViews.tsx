@@ -4,6 +4,7 @@ import { eligibilityCoverageSchema, providerUsageSchema, staffAuditListSchema, s
 import { adminRequest } from "../../admin/adminApi";
 import { ErrorState, LoadingBlock } from "../dashboard/states";
 import { JobActions } from "./OpsControls";
+import { WorkspaceActivity } from "./WorkspaceActivity";
 
 /** Staff operations views (canonical spec pages 20–23): instrumented values only, never a default "healthy". */
 const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" }) : "—");
@@ -150,21 +151,23 @@ export function OpsJobs({ canAct = false }: { canAct?: boolean }) {
 export function OpsWorkspaces() {
   const [q, setQ] = useState("");
   const [query, setQuery] = useState("");
+  const [activityOf, setActivityOf] = useState<{ id: string; name: string } | null>(null);
   const r = useQuery({ queryKey: ["admin", "workspaces", query], queryFn: () => adminRequest(`/admin/v1/ops/workspaces?q=${encodeURIComponent(query)}`, staffWorkspaceListSchema) });
   return (
     <div>
-      <Header title="Workspaces" sub="Look up a workspace by name, owner email or id. Support staff see masked emails; searches are recorded in the audit log." />
+      <Header title="Workspaces" sub="Look up a workspace by name, owner email or id, and open its activity (admins). Emails are masked; searches and activity views are recorded in the audit log." />
       <form className="mb-3 flex gap-2" onSubmit={(e) => { e.preventDefault(); setQuery(q.trim()); }}>
         <input value={q} onChange={(e) => setQ(e.target.value)} maxLength={120} placeholder="Name, email or workspace id" aria-label="Search workspaces" className="w-80 rounded-md border border-slate-200 px-2.5 py-1.5 text-sm" />
         <button type="submit" className="rounded-md bg-slate-900 px-3 py-1.5 text-xs text-white">Search</button>
       </form>
       {r.isPending ? <LoadingBlock lines={4} /> : r.isError ? <ErrorState body={errorBody(r.error)} onRetry={() => void r.refetch()} /> : r.data.workspaces.length === 0 ? <p className="text-sm text-slate-500">No workspaces match.</p> : (
-        <Table head={["Workspace", "Owner", "Members", "Subscription", "Jobs (30 days)", "Open tickets", "Created"]}>
+        <Table head={["Workspace", "Owner", "Members", "Subscription", "Jobs (30 days)", "Open tickets", "Created", ""]}>
           {r.data.workspaces.map((w) => (
-            <tr key={w.id}><td className="px-3 py-2"><div style={{ fontWeight: 600 }}>{w.name}</div><div className="text-[10px] text-slate-500">{w.id}</div></td><td className="px-3 py-2">{w.ownerEmail}</td><td className="px-3 py-2 tabular-nums">{w.members}</td><td className="px-3 py-2">{w.subscriptionStatus ?? "none"}</td><td className="px-3 py-2 tabular-nums">{w.jobs30d}</td><td className="px-3 py-2 tabular-nums">{w.openTickets}</td><td className="px-3 py-2 text-slate-500">{when(w.createdAt)}</td></tr>
+            <tr key={w.id}><td className="px-3 py-2"><div style={{ fontWeight: 600 }}>{w.name}</div><div className="text-[10px] text-slate-500">{w.id}</div></td><td className="px-3 py-2">{w.ownerEmail}</td><td className="px-3 py-2 tabular-nums">{w.members}</td><td className="px-3 py-2">{w.subscriptionStatus ?? "none"}</td><td className="px-3 py-2 tabular-nums">{w.jobs30d}</td><td className="px-3 py-2 tabular-nums">{w.openTickets}</td><td className="px-3 py-2 text-slate-500">{when(w.createdAt)}</td><td className="px-3 py-2"><button onClick={() => setActivityOf({ id: w.id, name: w.name })} className="rounded-md border border-slate-200 px-2 py-1 text-[11px] text-slate-700 hover:bg-slate-50" aria-label={`Activity of ${w.name}`}>Activity</button></td></tr>
           ))}
         </Table>
       )}
+      {activityOf && <WorkspaceActivity key={activityOf.id} workspace={activityOf} onClose={() => setActivityOf(null)} />}
     </div>
   );
 }

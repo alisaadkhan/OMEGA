@@ -15,7 +15,6 @@ import { Billing } from "./Billing";
 import { BillingStatusBanner } from "./BillingStatusBanner";
 import { Support } from "./Support";
 import { LeaveReview } from "./LeaveReview";
-import { ActivityLog } from "./ActivityLog";
 import { Lists } from "./Lists";
 import { Campaigns } from "./Campaigns";
 import { Settings, type SettingsTab } from "./Settings";
@@ -130,7 +129,6 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
               {view === "settings" && <Settings key={settingsTab} initialTab={settingsTab} onOpenSupport={() => setView("support")} onOpenBilling={() => setView("billing")} />}
               {view === "billing" && <Billing checkoutResult={checkoutResult} />}
               {view === "support" && <Support />}
-              {view === "activity" && <ActivityLog />}
             </motion.div>
           </AnimatePresence>
           <LeaveReview page={view} />

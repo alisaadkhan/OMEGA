@@ -155,3 +155,27 @@ describe("support tickets and staff operations", () => {
     expect(detail.cost.costPerNewCreatorUsd).toBeCloseTo(0.00321, 6);
   });
 });
+
+describe("a customer's activity history for admins (owner, 17 Nov: the Activity Log is admin-only)", () => {
+  it("shows one workspace's own actions to an admin, refuses support staff and customers, and audits each viewing", async () => {
+    const { app, customer, staffToken, hardwareKeyAdmin } = await setup();
+    const owner = await customer("ayesha@brand.pk");
+    const other = await customer("bilal@other.pk");
+    const ws = (await app.inject({ method: "GET", url: "/v1/me", headers: owner })).json().workspace.id as string;
+    const otherWs = (await app.inject({ method: "GET", url: "/v1/me", headers: other })).json().workspace.id as string;
+    await ownerQuery(`insert into wp.lists (workspace_id, name, created_by) select '${ws}', 'Eid shortlist', owner_user_id from wp.workspaces where id = '${ws}'`);
+    await ownerQuery(`insert into wp.lists (workspace_id, name, created_by) select '${otherWs}', 'Other list', owner_user_id from wp.workspaces where id = '${otherWs}'`);
+    const admin = await hardwareKeyAdmin();
+    const res = await app.inject({ method: "GET", url: `/admin/v1/ops/workspaces/${ws}/activity?limit=20`, headers: admin });
+    expect(res.statusCode).toBe(200);
+    const events = res.json().events as { kind: string; text: string; actor: { name: string } | null; at: string }[];
+    expect(events.map((e) => e.text)).toEqual(["created the list Eid shortlist"]);
+    expect(events[0]).toMatchObject({ kind: "list_created", actor: { name: expect.any(String) }, at: expect.any(String) });
+
+    expect((await app.inject({ method: "GET", url: `/admin/v1/ops/workspaces/${ws}/activity`, headers: await staffToken("support") })).statusCode).toBe(403);
+    expect((await app.inject({ method: "GET", url: `/admin/v1/ops/workspaces/${ws}/activity`, headers: owner })).statusCode).toBe(401);
+    expect((await app.inject({ method: "GET", url: `/admin/v1/ops/workspaces/${randomUUID()}/activity`, headers: admin })).statusCode).toBe(404);
+    const audit = (await app.inject({ method: "GET", url: "/admin/v1/audit", headers: admin })).json() as { events: { action: string }[] };
+    expect(audit.events.map((e) => e.action)).toContain("ops.workspace.activity.viewed");
+  });
+});

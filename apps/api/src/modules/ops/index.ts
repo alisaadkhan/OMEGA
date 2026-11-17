@@ -2,6 +2,8 @@ import { sql } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import {
+  activityFeedSchema,
+  activityQuerySchema,
   providerUsageQuerySchema,
   providerUsageSchema,
   staffAuditListSchema,
@@ -20,6 +22,7 @@ import { AppError } from "@mushin/core";
 import type { Db, SystemTx } from "@mushin/db";
 import type { AppModule, PreHandler } from "../../http/types";
 import { parseInput, sendOk } from "../../http/validate";
+import { createActivityService } from "../activity/index";
 import { recordStaffAudit, type StaffAction, type StaffPrincipal } from "../staff/index";
 
 const idParams = z.object({ id: z.uuid() });
@@ -36,6 +39,7 @@ export const maskEmail = (email: string) => {
  */
 export function createOpsModule(o: { db: Db; requireStaff: (action: StaffAction) => PreHandler; now?: () => Date }): AppModule {
   const now = o.now ?? (() => new Date());
+  const activity = createActivityService({ db: o.db });
   // The functions return JSON; it is validated against the response contract before it leaves the API.
   const json = async (fn: (tx: SystemTx) => Promise<{ v: unknown }[]>): Promise<unknown> => (await o.db.withSystem(fn))[0]?.v ?? null;
   const staffOf = (req: FastifyRequest): StaffPrincipal => {
@@ -107,6 +111,18 @@ export function createOpsModule(o: { db: Db; requireStaff: (action: StaffAction)
       if (q) await audit(req, "ops.workspaces.searched", { query: q, results: list.length });
       // The function already masks the owner email for every staff role.
       return sendOk(reply, staffWorkspaceListSchema, { workspaces: list });
+    });
+
+    // A customer's activity history (owner, 17 Nov), read as that workspace's owner through the same feed the customer
+    // app used, so RLS still keeps it to that one workspace. Admins only; every viewing is in the staff audit log.
+    app.get("/admin/v1/ops/workspaces/:id/activity", { preHandler: o.requireStaff("ops.activity.read") }, async (req, reply) => {
+      const { id } = parseInput(idParams, req.params);
+      const q = parseInput(activityQuerySchema, req.query);
+      // Row security shows a workspace only inside its own context, so the owner is read there.
+      const [w] = await o.db.withWorkspace(id, (tx) => tx.execute<{ owner: string }>(sql`select owner_user_id as owner from wp.workspaces where id = ${id} and status = 'active'`));
+      if (!w) throw new AppError("NOT_FOUND", "Workspace not found");
+      await audit(req, "ops.workspace.activity.viewed", { workspaceId: id });
+      return sendOk(reply, activityFeedSchema, await activity.feed({ requestId: req.id, userId: w.owner, workspaceId: id, role: "owner" }, q));
     });
 
     app.get("/admin/v1/support/tickets", { preHandler: o.requireStaff("support.tickets.read") }, async (req, reply) => {

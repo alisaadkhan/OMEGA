@@ -818,8 +818,10 @@ if (phase === "main") {
     const found = await axeFindings(p);
     check("a11y", `${name}: no serious or critical WCAG 2.2 A/AA issues (desktop)`, found.length === 0, found.join(" | "));
   }
-  for (const item of ["Activity", "Settings", "Credits & billing", "Support"]) {
-    await menu(p, item === "Activity" ? "Activity log" : item);
+  // The Activity Log is admin-only now (owner, 17 Nov): no customer page or sidebar entry.
+  check("activity", "the customer sidebar has no Activity Log", (await p.getByRole("navigation", { name: "Main" }).getByRole("button", { name: "Activity Log" }).count()) === 0);
+  for (const item of ["Settings", "Credits & billing", "Support"]) {
+    await menu(p, item);
     await p.waitForTimeout(400);
     const found = await axeFindings(p);
     check("a11y", `${item}: no serious or critical WCAG 2.2 A/AA issues (desktop)`, found.length === 0, found.join(" | "));

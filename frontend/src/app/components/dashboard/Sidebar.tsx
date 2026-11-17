@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { Bookmark, CreditCard, History, Inbox as InboxIcon, LayoutDashboard, LifeBuoy, LogOut, Megaphone, Radar, Search, Settings, Star, ArrowLeft } from "lucide-react";
+import { Bookmark, CreditCard, Inbox as InboxIcon, LayoutDashboard, LifeBuoy, LogOut, Megaphone, Radar, Search, Settings, Star, ArrowLeft } from "lucide-react";
 import { useBillingSummary } from "../../api/billing";
 import { useAuth } from "../../auth/AuthContext";
 import { OPEN_REVIEW_EVENT } from "./LeaveReview";
@@ -9,9 +9,9 @@ import { OPEN_REVIEW_EVENT } from "./LeaveReview";
  * active pill, and the current plan at the foot. Every account action lives here too (owner, 17 Nov: "remove every button
  * from profile and move it to side bar"): Leave a review, Back to website and Sign out. View ids are unchanged.
  */
-export type DashView = "overview" | "search" | "lists" | "campaigns" | "billing" | "settings" | "support" | "activity" | "inbox";
+export type DashView = "overview" | "search" | "lists" | "campaigns" | "billing" | "settings" | "support" | "inbox";
 
-export const DASH_VIEWS: readonly DashView[] = ["overview", "search", "lists", "campaigns", "billing", "settings", "support", "activity", "inbox"];
+export const DASH_VIEWS: readonly DashView[] = ["overview", "search", "lists", "campaigns", "billing", "settings", "support", "inbox"];
 
 const GROUPS: { title: string; items: { id: DashView; label: string; icon: typeof Search; tour?: string }[] }[] = [
   {
@@ -25,7 +25,7 @@ const GROUPS: { title: string; items: { id: DashView; label: string; icon: typeo
     ],
   },
   { title: "Account", items: [{ id: "billing", label: "Credits & Billing", icon: CreditCard }, { id: "settings", label: "Settings", icon: Settings }] },
-  { title: "Insights", items: [{ id: "activity", label: "Activity Log", icon: History }, { id: "support", label: "Support", icon: LifeBuoy }] },
+  { title: "Help", items: [{ id: "support", label: "Support", icon: LifeBuoy }] },
 ];
 
 type Props = { view: DashView; setView: (v: DashView) => void; onExit?: () => void };

@@ -10,7 +10,7 @@ import { rupees, useCampaigns } from "../../api/campaigns";
 import { useLists } from "../../api/lists";
 import { useAuth } from "../../auth/AuthContext";
 import { Button, Card, CountUp, EASE, Pill, Progress, Skeleton, Stagger, StaggerItem } from "../../ui/kit";
-import { ActivityRow } from "./ActivityLog";
+import { ActivityRow } from "./ActivityRow";
 import type { DashView } from "./Sidebar";
 
 const monthRange = () => {
@@ -125,7 +125,7 @@ export function Home({ setView, onOpenCampaign, onTour }: { setView: (v: DashVie
         </div>
 
         <div className="flex flex-col gap-4 lg:col-span-5">
-          <RecentActivity onSeeAll={() => setView("activity")} />
+          <RecentActivity />
           <PlanCard setView={setView} />
         </div>
       </section>
@@ -148,14 +148,13 @@ function Metric({ label, icon: Icon, value, sub, accent, loading }: { label: str
   );
 }
 
-function RecentActivity({ onSeeAll }: { onSeeAll: () => void }) {
+function RecentActivity() {
   const q = useRecentActivity(4);
   const events = q.data?.events ?? [];
   return (
     <Card className="flex flex-col gap-3 p-6 ring-1 ring-surface-top/70">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold tracking-tight text-[#0B112B]">Recent Activity</h3>
-        <button onClick={onSeeAll} className="text-xs font-medium text-ink-soft hover:text-[#0B112B]">Activity log →</button>
       </div>
       {q.isPending ? (
         <div className="space-y-3">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-10" />)}</div>

@@ -39,6 +39,8 @@ export const STAFF_PERMISSIONS = {
   "support.tickets.assign": ADMIN,
   "catalogue.review.decide": ADMIN,
   "staff.audit.read": ADMIN,
+  // A customer's activity history (owner, 17 Nov: the Activity Log is admin-only now), each viewing audited.
+  "ops.activity.read": ADMIN,
   "staff.list": ADMIN,
   "approvals.read": ADMIN,
   "approvals.request": ADMIN,

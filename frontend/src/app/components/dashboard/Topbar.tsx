@@ -19,7 +19,7 @@ type Props = {
   onOpenNav?: () => void;
 };
 
-const PAGE_LABEL: Record<DashView, string> = { overview: "Dashboard", search: "Search & Discovery", lists: "Shortlists", campaigns: "Campaigns", inbox: "Inbox", settings: "Settings", billing: "Credits & billing", activity: "Activity log", support: "Support" };
+const PAGE_LABEL: Record<DashView, string> = { overview: "Dashboard", search: "Search & Discovery", lists: "Shortlists", campaigns: "Campaigns", inbox: "Inbox", settings: "Settings", billing: "Credits & billing", support: "Support" };
 
 const METER_STYLES = {
   normal: { box: "bg-cyan-pale/40 hover:bg-cyan-pale/70", icon: "text-teal", value: "text-teal-deep", title: "Credits" },
@@ -65,7 +65,7 @@ export function Topbar({ credits, view, setView, onOpenCreator, onViewResults, o
             {credits === null ? <span className="text-slate-400" aria-hidden="true">—</span> : <AnimatedNumber value={credits} />} credits
           </span>
         </button>
-        <NotificationCenter onSeeAll={() => setView("activity")} />
+        <NotificationCenter />
 
         {/* Who is signed in. Display only: every account action is in the sidebar (owner, 17 Nov). */}
         <div className="flex items-center gap-2.5 pl-1">
