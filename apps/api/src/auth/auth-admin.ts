@@ -79,8 +79,14 @@ export function createSupabaseTwoStepStatus(o: { url: string; serviceKey: string
       throw new EmailCheckUnavailable("The sign-in service could not be reached.");
     }
     if (!res.ok) throw new EmailCheckUnavailable(`The sign-in service refused the check (${res.status}).`);
-    const body = (await res.json().catch(() => null)) as { factors?: unknown } | null;
-    const factors = Array.isArray(body?.factors) ? (body.factors as { factor_type?: unknown; status?: unknown }[]) : [];
-    return factors.some((f) => f.factor_type === "totp" && f.status === "verified");
+    // Fail closed: only a well-formed user record for this person counts. A garbled or partial answer must never read as
+    // "no authenticator" (that would switch two-step sign-in off); `factors` may be missing or null only on a real record.
+    const body = (await res.json().catch(() => null)) as { id?: unknown; factors?: unknown } | null;
+    if (!body || typeof body !== "object" || typeof body.id !== "string" || body.id.toLowerCase() !== userId.toLowerCase()) {
+      throw new EmailCheckUnavailable("The sign-in service gave an unreadable answer.");
+    }
+    if (body.factors !== undefined && body.factors !== null && !Array.isArray(body.factors)) throw new EmailCheckUnavailable("The sign-in service gave an unreadable answer.");
+    const factors = (body.factors ?? []) as { factor_type?: unknown; status?: unknown }[];
+    return factors.some((f) => f?.factor_type === "totp" && f?.status === "verified");
   };
 }
