@@ -23,6 +23,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
+import { createHash } from "node:crypto";
 import { searchFiltersSchema, type LiveRunSize } from "@mushin/contracts";
 import { createLogger, loadWorkerConfig, type TenantContext } from "@mushin/core";
 import { createDatabase, createDbProviderCallSink, createDbProviderRunStore, createDbReservationLedger, llmSpendSince } from "@mushin/db";
@@ -37,7 +38,7 @@ import { createCachedSearch, createDiscoveryRunner, createDiscoveryService, crea
 
 const { positionals, values } = parseArgs({
   allowPositionals: true,
-  options: { handles: { type: "string" }, "missing-avatars": { type: "boolean", default: false }, "min-refs": { type: "string", default: "2" }, manifest: { type: "string" }, db: { type: "string" }, cap: { type: "string", default: "20" }, platform: { type: "string" }, limit: { type: "string" }, niches: { type: "string" }, cities: { type: "string" }, size: { type: "string", default: "10" }, label: { type: "string", default: "main" } },
+  options: { handles: { type: "string" }, "missing-avatars": { type: "boolean", default: false }, "min-refs": { type: "string", default: "2" }, manifest: { type: "string" }, db: { type: "string" }, cap: { type: "string", default: "20" }, platform: { type: "string" }, limit: { type: "string" }, niches: { type: "string" }, cities: { type: "string" }, size: { type: "string", default: "10" }, label: { type: "string", default: "main" }, "llm-dump": { type: "string" }, "llm-answers": { type: "string" } },
 });
 const mode = positionals[0];
 if (mode !== "refresh" && mode !== "discover" && mode !== "reassess" && mode !== "seed" && mode !== "expand" && mode !== "reprocess") throw new Error("usage: build.ts <refresh|discover|reassess|seed|expand> --db <catalogue db> --cap <usd> [--manifest <seed.json>] [--limit n] [--min-refs n]");
@@ -89,7 +90,33 @@ const scrapers = (apifyTokens.length ? apifyTokens : [null]).map(makeScraper);
 const scraperRaw = (): ProfileScraper => scrapers[apifyAccount] ?? (scrapers[0] as ProfileScraper);
 const webRaw = createSerperSearch({ apiKey: config.scraping.serperApiKey, limit: createSharedSpendGuard({ ledger, provider: "serper", limit: config.scraping.serperMonthlySearchLimit, perUnit: 1, label: "Serper search limit" }), sink, logger });
 // Every paid request goes through the combined gate; YouTube (free quota) passes with a zero estimate.
-const llm: Llm = { complete: (req) => gated(COST.llmCall, () => llmRaw.complete(req)) };
+/**
+ * Operator assessment fallback (owner directive 18 Nov: "if the configured providers are unavailable, use your own
+ * assessment capabilities … through the existing approved assessment workflow"). --llm-dump <file> records every request
+ * the pipeline would send (feature, system prompt, input) and answers "unavailable", so nothing is saved; an operator
+ * answers them; --llm-answers <file> replays those answers by request hash through the same schema checks and save path,
+ * recorded under the model name "manual:<who>". A request without an answer stays pending. No provider is called.
+ */
+const requestKey = (feature: string, input: string) => createHash("sha256").update(`${feature}
+${input}`).digest("hex");
+const dumpFile = values["llm-dump"];
+const answersFile = values["llm-answers"];
+const answers = answersFile ? (JSON.parse(readFileSync(answersFile, "utf8")) as { model: string; answers: Record<string, unknown> }) : null;
+const dumped: { key: string; feature: string; system: string; input: string; creatorId: string | null }[] = [];
+const operatorLlm: Llm | null = dumpFile || answers
+  ? {
+      async complete(req) {
+        const key = requestKey(req.feature, req.input);
+        if (answers && key in answers.answers) return { value: req.schema.parse(answers.answers[key]), model: answers.model };
+        if (dumpFile) dumped.push({ key, feature: req.feature, system: req.system, input: req.input, creatorId: (req.ctx as { creatorId?: string } | undefined)?.creatorId ?? null });
+        throw new ProviderError(true, "provider", "operator answer not available yet");
+      },
+    }
+  : null;
+process.on("exit", () => {
+  if (dumpFile && dumped.length) writeFileSync(dumpFile, JSON.stringify(dumped, null, 1));
+});
+const llm: Llm = operatorLlm ?? { complete: (req) => gated(COST.llmCall, () => llmRaw.complete(req)) };
 const paidUnits = (platform: string, n: number) => (platform === "youtube" ? 0 : n * COST.apifyPerProfile);
 /**
  * The local ledger sees only this database's Apify runs; the account's monthly usage (other environments, storage) is
