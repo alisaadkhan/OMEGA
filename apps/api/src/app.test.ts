@@ -134,4 +134,11 @@ describe("client address (audit SEC-05)", () => {
     expect(direct.json().ip).toBe("203.0.113.9");
     await app.close();
   });
+
+  it("starts with the Vercel setting (every address trusted) and uses the edge's forwarded address", async () => {
+    const app = await ipApp(["0.0.0.0/0", "::/0"]);
+    const res = await app.inject({ method: "GET", url: "/v1/ip", remoteAddress: "169.254.40.155", headers: { "x-forwarded-for": "198.51.100.1" } });
+    expect(res.json().ip).toBe("198.51.100.1");
+    await app.close();
+  });
 });

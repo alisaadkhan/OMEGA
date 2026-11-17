@@ -33,12 +33,22 @@ export function stripPathPrefix(url: string, prefix: string): string {
   return url.startsWith(`${prefix}/`) ? url.slice(prefix.length) : url;
 }
 
+/**
+ * Fastify's trustProxy value. A list covering every address ("0.0.0.0/0", "::/0": Vercel, whose edge overwrites
+ * X-Forwarded-For) becomes `true`, because Fastify rejects /0 ranges at start-up (deploy 2026-11-17 failed on it).
+ */
+export function trustProxyOption(list: string[] | undefined): boolean | string[] {
+  if (!list || list.length === 0) return false;
+  if (list.some((p) => p === "0.0.0.0/0" || p === "::/0")) return true;
+  return list;
+}
+
 export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   // Widen to Fastify's logger type so the instance matches plain `FastifyInstance` everywhere else.
   const logger: FastifyBaseLogger = deps.logger;
   const app = Fastify({
     loggerInstance: logger,
-    trustProxy: deps.trustedProxies && deps.trustedProxies.length > 0 ? deps.trustedProxies : false,
+    trustProxy: trustProxyOption(deps.trustedProxies),
     genReqId: requestIdFrom,
     requestIdHeader: false,
     bodyLimit: 1_048_576,
