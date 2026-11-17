@@ -18,6 +18,8 @@ import { standardize, type StandardProfile } from "./standardize";
 export type BackfillOptions = {
   db: Db;
   apply: boolean;
+  /** Re-derive niches only; country, city and their evidence are left as stored. */
+  nichesOnly?: boolean;
   /** The archived response for a storage key, or null when the file is missing. */
   readPayload: (storageKey: string) => Promise<unknown | null>;
   usePostText: (platform: CreatorPlatform) => boolean;
@@ -128,9 +130,13 @@ export async function backfillAttributes(o: BackfillOptions): Promise<BackfillRe
           const d = deriveAttributes(source.profile, null, { usePostText: o.usePostText(c.platform) });
           const existing = await currentEvidence(tx, c.id);
           tally(stat("before", c.platform), c, existing.some((r) => r.attribute === "niche" && r.status === "conflicting"));
-          const placed = await placeAttributes(tx, c.id, d);
+          const placedAll = await placeAttributes(tx, c.id, d);
+          // --niches-only (17 Nov): niche fields alone; country, city and their evidence stay exactly as stored.
+          const placed = o.nichesOnly ? { ...placedAll, values: Object.fromEntries(Object.entries(placedAll.values).filter(([k]) => k.startsWith("niche"))) as typeof placedAll.values } : placedAll;
           const v = { ...c, ...placed.values } as typeof c;
-          const effective = [...(placed.keptNiches ? existing.filter((r) => r.attribute === "niche") : []), ...d.evidence.filter((r) => !(placed.keptNiches && r.attribute === "niche"))];
+          const effective = o.nichesOnly
+            ? [...existing.filter((r) => r.attribute !== "niche" || placed.keptNiches), ...d.evidence.filter((r) => r.attribute === "niche" && !placed.keptNiches)]
+            : [...(placed.keptNiches ? existing.filter((r) => r.attribute === "niche") : []), ...d.evidence.filter((r) => !(placed.keptNiches && r.attribute === "niche"))];
           tally(stat("after", c.platform), { niches: v.niches, nicheStatus: v.nicheStatus, country: v.country, countrySource: v.countrySource }, effective.some((r) => r.attribute === "niche" && r.status === "conflicting"));
           if (placed.keptNiches) report.keptEarlierNiches++;
           if (c.country && !v.country) report.countryCleared++;
@@ -144,8 +150,8 @@ export async function backfillAttributes(o: BackfillOptions): Promise<BackfillRe
           if (!o.apply) return;
           report.beforeImages.push({ creatorId: c.id, columns: Object.fromEntries(Object.keys(SNAPSHOT_COLS).map((k) => [k, c[k as keyof typeof c]])) as Snapshot, evidence: existing });
           await tx.update(creators).set(placed.values).where(eq(creators.id, c.id));
-          await replaceAttributeEvidence(tx, c.id, d, source.payloadId, { keepNiches: placed.keptNiches });
-          await refreshProfileCountries(tx, c.id, { source: "backfill" });
+          await replaceAttributeEvidence(tx, c.id, d, source.payloadId, { keepNiches: placed.keptNiches, onlyNiches: o.nichesOnly === true });
+          if (!o.nichesOnly) await refreshProfileCountries(tx, c.id, { source: "backfill" });
           await writeOutbox(tx, { eventType: "creator.changed", aggregateType: "creator", aggregateId: c.id, workspaceId: null, payload: { creatorId: c.id }, requestId: null });
         });
       } catch (err) {

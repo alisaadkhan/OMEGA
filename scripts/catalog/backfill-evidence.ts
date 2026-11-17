@@ -30,6 +30,8 @@ const { values } = parseArgs({
     batch: { type: "string" },
     limit: { type: "string" },
     "payloads-from": { type: "string" },
+    // Niche fields only (17 Nov): a re-derivation must not clear a country older data established.
+    "niches-only": { type: "boolean", default: false },
   },
 });
 const dbName = values.db ?? "";
@@ -64,6 +66,7 @@ const after = values.resume && existsSync(checkpointFile) ? (JSON.parse(readFile
 const report = await backfillAttributes({
   db,
   apply: values.apply,
+  nichesOnly: values["niches-only"],
   after,
   ...(values.batch ? { batchSize: Number(values.batch) } : {}),
   ...(values.limit ? { limit: Number(values.limit) } : {}),

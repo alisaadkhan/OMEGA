@@ -615,11 +615,12 @@ export async function bulkRefreshProfileCountries(tx: Tx, creatorIds: string[], 
 }
 
 /** Replaces a creator's evidence rows with this decision's; with `keepNiches` the earlier niche rows stay instead. */
-export async function replaceAttributeEvidence(tx: Tx, creatorId: string, d: AttributeDecision, payloadId: string | null, o: { keepNiches?: boolean } = {}): Promise<void> {
+/** `onlyNiches`: replace the niche evidence alone; country and city evidence stay as they are. */
+export async function replaceAttributeEvidence(tx: Tx, creatorId: string, d: AttributeDecision, payloadId: string | null, o: { keepNiches?: boolean; onlyNiches?: boolean } = {}): Promise<void> {
   await tx
     .delete(creatorAttributeEvidence)
-    .where(and(eq(creatorAttributeEvidence.creatorId, creatorId), ...(o.keepNiches ? [sql`${creatorAttributeEvidence.attribute} <> 'niche'`] : [])));
-  const rows = d.evidence.filter((r) => !(o.keepNiches && r.attribute === "niche"));
+    .where(and(eq(creatorAttributeEvidence.creatorId, creatorId), ...(o.keepNiches ? [sql`${creatorAttributeEvidence.attribute} <> 'niche'`] : []), ...(o.onlyNiches ? [sql`${creatorAttributeEvidence.attribute} = 'niche'`] : [])));
+  const rows = d.evidence.filter((r) => !(o.keepNiches && r.attribute === "niche") && !(o.onlyNiches && r.attribute !== "niche"));
   if (rows.length === 0) return;
   await tx.insert(creatorAttributeEvidence).values(
     rows.map((r) => ({ creatorId, attribute: r.attribute, value: truncate(r.value, 80), source: r.source, status: r.status, evidence: truncate(wholeChars(r.evidence), 300), payloadId })),

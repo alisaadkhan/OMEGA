@@ -191,9 +191,13 @@ export function fromChips(chips: InterpretResponse["chips"]): ChipState {
   };
 }
 
-/** An engagement rate for display: one decimal, and "<0.1%" for a real but tiny rate (never a misleading 0.0%). */
+/**
+ * An engagement rate for display, as stored (owner, 17 Nov: the shown percentage must match the stored one): two decimals
+ * below 1% ("0.02%", "0.43%"), one from 1% ("3.6%"), and "<0.01%" only for a real rate too small for two decimals.
+ */
 export function formatEr(n: number): string {
-  return n > 0 && n < 0.05 ? "<0.1%" : `${n.toFixed(1)}%`;
+  if (n > 0 && n < 0.005) return "<0.01%";
+  return n < 1 ? `${n.toFixed(2)}%` : `${n.toFixed(1)}%`;
 }
 
 export function formatCount(n: number | null): string {
