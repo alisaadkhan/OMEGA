@@ -57,7 +57,9 @@ export function registerBillingRoutes(app: FastifyInstance, guards: Guards, serv
     sendOk(reply, planChangeResponseSchema, await service.requestCancel(tenantOf(req)), 202),
   );
 
-  // Payment provider → MUSHIN. The signature covers the raw body, so this scope keeps JSON unparsed.
+  // Payment provider → MUSHIN. The signature covers the raw body, so this scope keeps JSON unparsed. With payments closed
+  // (no real provider on a public deployment) there is no webhook at all: no event can grant a plan or credits.
+  if (!paymentsOpen) return;
   void app.register(async (scope) => {
     scope.addContentTypeParser("application/json", { parseAs: "string" }, (_req, body, done) => done(null, body));
     scope.post("/webhooks/paddle", async (req, reply) => {

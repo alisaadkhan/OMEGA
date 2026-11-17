@@ -70,7 +70,7 @@ const capabilities = {
   outreachEmail: config.outreachEmail.mode === "off" ? ("off" as const) : config.outreachEmail.mode === "test" ? ("test" as const) : ("live" as const),
   export: true,
 };
-const billing = createBillingService({ db, payments, cache: accessCache, logger, capabilities });
+const billing = createBillingService({ db, payments, cache: accessCache, logger, capabilities, paymentsOpen: config.paymentsOpen });
 const emailProvider =
   config.outreachEmail.mode === "resend" ? new ResendEmailProvider({ apiKey: config.outreachEmail.apiKey }) : config.outreachEmail.mode === "test" ? new MockEmailProvider() : null;
 const outreach = createOutreachModule({

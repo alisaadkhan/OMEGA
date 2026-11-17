@@ -2,7 +2,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { ConfigError, loadApiConfig, loadWorkerConfig, readCaFile } from "./config";
+import { ConfigError, loadApiConfig, loadWorkerConfig, readCaFile, trustedProxiesFrom } from "./config";
 
 const KEY = Buffer.alloc(32, 7).toString("base64");
 const MOCK = "m".repeat(40);
@@ -173,6 +173,11 @@ describe("payments config", () => {
     expect(() => loadApiConfig({ ...valid, MOCK_PADDLE_WEBHOOK_SECRET: undefined })).toThrow(/MOCK_PADDLE_WEBHOOK_SECRET/);
   });
 
+  it("treats the live Vercel deployment as production, so its safety checks cannot be skipped", () => {
+    expect(() => loadApiConfig({ ...valid, VERCEL_ENV: "production" })).toThrow(ConfigError);
+    expect(loadApiConfig({ ...valid, VERCEL_ENV: "preview" }).nodeEnv).not.toBe("production");
+  });
+
   it("has the Supabase root certificate built in for serverless deployments", () => {
     const pem = readCaFile("builtin:supabase-root-2021") ?? "";
     expect([pem.startsWith("-----BEGIN CERTIFICATE-----"), pem.trim().endsWith("-----END CERTIFICATE-----")]).toEqual([true, true]);
@@ -239,9 +244,9 @@ describe("search and LLM settings", () => {
     expect(loadApiConfig({ ...valid, ...gemini, GEMINI_BILLING: "free_accepted" }).llm).toEqual([]);
     expect(() => loadApiConfig({ ...valid, ...gemini, GEMINI_BILLING: "free" })).toThrow(/GEMINI_BILLING/);
     // Security audit 2026-11-17: the live Vercel deployment without Paddle sells nothing through the mock provider.
-    expect([loadApiConfig(valid).paymentsOpen, loadApiConfig({ ...valid, VERCEL_ENV: "production" }).paymentsOpen, loadApiConfig({ ...valid, VERCEL_ENV: "preview" }).paymentsOpen]).toEqual([true, false, true]);
+    expect([loadApiConfig(valid).paymentsOpen, loadApiConfig({ ...valid, VERCEL_ENV: "production", DATABASE_SSL_CA_FILE: caFile(), LLM_MONTHLY_BUDGET_USD: "5", SUPABASE_SERVICE_ROLE_KEY: "service", ALERT_WEBHOOK_URL: "https://hooks.example.com/alerts", TRUSTED_PROXIES: "none" }).paymentsOpen, loadApiConfig({ ...valid, VERCEL_ENV: "preview" }).paymentsOpen]).toEqual([true, false, true]);
     // On Vercel the edge's X-Forwarded-For is trusted unless proxies are configured; elsewhere nothing is by default.
-    expect([loadApiConfig(valid).trustedProxies, loadApiConfig({ ...valid, VERCEL_ENV: "production" }).trustedProxies, loadApiConfig({ ...valid, VERCEL_ENV: "production", TRUSTED_PROXIES: "none" }).trustedProxies]).toEqual([[], ["0.0.0.0/0", "::/0"], []]);
+    expect([loadApiConfig(valid).trustedProxies, trustedProxiesFrom("", "production"), trustedProxiesFrom("none", "production")]).toEqual([[], ["0.0.0.0/0", "::/0"], []]);
     // YepAPI (owner, 17 Nov): after Groq, before OpenRouter; only priced models; never booked below $0.01 a call.
     const yep = loadApiConfig({ ...valid, GROQ_API_KEY: "g", OPENROUTER_API_KEY: "r", YEPAPI_API_KEY: "y", YEPAPI_MODELS: "openai/gpt-oss-120b,vendor/unpriced", LLM_PROVIDER: "groq" }).llm;
     expect(yep.map((p) => p.name)).toEqual(["groq", "groq", "yepapi", "openrouter", "openrouter"]);

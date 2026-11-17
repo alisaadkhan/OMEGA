@@ -24,7 +24,8 @@ import * as repo from "./repository";
 import { addMonths, classifyChange, daysLeft, decodeCursor, effectiveStatus, encodeCursor, karachiMonth, lostAccessFor, spendScope, TESTING_ACTIONS } from "./rules";
 
 /** `capabilities`: the server-wide switches (see capabilitiesSchema); omitted means everything gated stays off. */
-export type BillingDeps = { db: Db; payments: Payments; cache: AccessCache; logger: Logger; now?: () => Date; capabilities?: Capabilities };
+/** `paymentsOpen` false (public deployment without a real provider): nothing renews or is sold through the mock. */
+export type BillingDeps = { db: Db; payments: Payments; cache: AccessCache; logger: Logger; now?: () => Date; capabilities?: Capabilities; paymentsOpen?: boolean };
 const CAPABILITIES_OFF: Capabilities = { audienceDetails: false, outreachEmail: "off", export: false };
 export type Customer = TenantContext & { email: string };
 
@@ -742,7 +743,7 @@ export function createBillingService(deps: BillingDeps) {
   }
 
   async function runJob(job: repo.BillingJob): Promise<{ processed: number }> {
-    if (job === "mock_renewals" && !isMockPayments(deps.payments)) return { processed: 0 };
+    if (job === "mock_renewals" && (!isMockPayments(deps.payments) || deps.paymentsOpen === false)) return { processed: 0 };
     const workspaceIds = await deps.db.withSystem((tx) => repo.dueWorkspaces(tx, job, now()));
     let failed = 0;
     for (const workspaceId of workspaceIds) {

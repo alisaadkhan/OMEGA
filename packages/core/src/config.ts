@@ -31,6 +31,9 @@ export function readCaFile(path: string | undefined): string | null {
 function clean(env: Env): Env {
   const out: Env = {};
   for (const [k, v] of Object.entries(env)) out[k] = v === undefined || v.trim() === "" ? undefined : v.trim();
+  // The live Vercel deployment is production, whatever NODE_ENV says (security audit 2026-11-17): NODE_ENV there also
+  // decides whether build tools are installed, so the platform's own VERCEL_ENV turns the production checks on.
+  if (out["VERCEL_ENV"] === "production") out["NODE_ENV"] = "production";
   return out;
 }
 

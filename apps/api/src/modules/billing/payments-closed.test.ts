@@ -26,6 +26,8 @@ describe("payments closed on a public deployment without a payment provider", ()
     expect((await a.inject({ method: "POST", url: "/v1/billing/subscription/change", payload: { planId: "growth" } })).statusCode).toBe(503);
     const id = "33333333-3333-4333-8333-333333333333";
     expect((await a.inject({ method: "POST", url: `/mock-paddle/checkout/22222222-2222-4222-8222-222222222222/${id}/pay` })).statusCode).toBe(404);
+    // No webhook either: no signed event can grant a plan or credits while payments are closed.
+    expect((await a.inject({ method: "POST", url: "/webhooks/paddle", payload: "{}", headers: { "content-type": "application/json" } })).statusCode).toBe(404);
     expect(calls).toEqual([]);
   });
 
