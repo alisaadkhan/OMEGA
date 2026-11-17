@@ -27,8 +27,10 @@ const PAGES = [
   ...Object.keys(SIDEBAR).map((name) => ({ name, go: async (p) => openSidebar(p, SIDEBAR[name]) })),
   { name: "Campaign detail", go: async (p) => { await openSidebar(p, "Campaigns"); await p.getByText("Eid food push").first().click(); await p.waitForTimeout(1200); } },
   { name: "Shortlist detail", go: async (p) => { await openSidebar(p, "Shortlists"); await p.getByText("Food shortlist").first().click(); await p.waitForTimeout(1200); } },
-  ...["Password & sessions", "Support access", "Privacy & data", "Notifications"].map((tab) => ({ name: `Settings › ${tab}`, go: async (p) => { await openSidebar(p, "Settings"); await p.getByRole("button", { name: tab }).first().click(); await p.waitForTimeout(800); } })),
-];
+  // The tab is looked up inside the page body: the top bar's bell is also a button named "Notifications".
+  ...["Password & sessions", "Support access", "Privacy & data", "Notifications"].map((tab) => ({ name: `Settings › ${tab}`, go: async (p) => { await openSidebar(p, "Settings"); await p.getByRole("main").getByRole("button", { name: tab, exact: true }).first().click(); await p.waitForTimeout(800); } })),
+  { name: "Notification bell", go: async (p) => { await p.getByRole("button", { name: /^Notifications/ }).first().click(); await p.waitForTimeout(800); } },
+].filter((page) => !process.env.CLICKALL_PAGES || process.env.CLICKALL_PAGES.split(",").includes(page.name));
 /** Controls that would end the session or leave the app; their link or action is checked without following it. */
 const SKIP = /^(Sign out|Back to website)$/;
 
@@ -43,8 +45,10 @@ async function freshPage() {
   await ctx.addInitScript(([k, v, a, b]) => { localStorage.setItem(k, v); localStorage.setItem(a, "1"); localStorage.setItem(b, "1"); }, [`sb-${ref}-auth-token`, JSON.stringify(session), `mushin.welcomeDismissed.${ids[who].sub}`, `mushin.onboarded.${ids[who].sub}`]);
   const p = await ctx.newPage();
   const log = { api: [], errors: [], downloads: 0 };
-  p.on("request", (r) => { if (r.url().includes(":4000") && !r.url().includes("/health")) log.api.push(`${r.method()} ${new URL(r.url()).pathname}`); });
-  p.on("response", (r) => { if (r.url().includes(":4000") && r.status() >= 500) log.errors.push(`${r.status()} ${r.request().method()} ${new URL(r.url()).pathname}`); });
+  // The app reaches the API through Vite's /api proxy (localhost:5173/api/...), so match the path, not the API port.
+  const isApi = (u) => { const url = new URL(u); return url.pathname.startsWith("/api/") && !url.pathname.endsWith("/health"); };
+  p.on("request", (r) => { if (isApi(r.url())) log.api.push(`${r.method()} ${new URL(r.url()).pathname}`); });
+  p.on("response", (r) => { if (isApi(r.url()) && r.status() >= 500) log.errors.push(`${r.status()} ${r.request().method()} ${new URL(r.url()).pathname}`); });
   p.on("pageerror", (e) => log.errors.push(`page error: ${e.message.slice(0, 160)}`));
   p.on("download", () => { log.downloads += 1; });
   await p.goto(APP);
