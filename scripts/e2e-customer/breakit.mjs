@@ -385,7 +385,7 @@ check("SETUP-1", "campaign with the fixture creator exists", Boolean(campaignId)
     await p.goto("http://localhost:5173/#/signup");
     await p.getByLabel("Full name").fill("Sana Test");
     await p.getByLabel("Work email").fill(email);
-    await p.getByLabel("Password").fill("a-long-passphrase-2026");
+    await p.getByLabel("Password").fill("A-long-passphrase-2026");
     await p.getByRole("checkbox").check();
     await p.getByRole("button", { name: /Create account|Start/i }).first().click();
     await p.waitForTimeout(1500);
@@ -401,7 +401,7 @@ check("SETUP-1", "campaign with the fixture creator exists", Boolean(campaignId)
   check("AUTH-1", "a new address is asked to verify its email; an already-registered one gets 'already registered', never a false 'account created'", /Check your inbox at new@shanfoods\.pk\. We've sent a confirmation link/.test(fresh.text) && exists(hidden.text) && exists(errored.text), `${fresh.text.slice(0, 80)} | ${hidden.text.slice(0, 80)}`);
   check("AUTH-2", "the address is sent trimmed and lower-cased", fresh.sent[0] === "new@shanfoods.pk", fresh.sent.join(","));
   const weak = await outcome("weak", "weak@shanfoods.pk");
-  check("AUTH-3", "a weak password gets a plain message, not the provider's text", /stronger password/.test(weak.text) && !/at least 6 characters/.test(weak.text));
+  check("AUTH-3", "a weak password gets a plain message, not the provider's text", /uppercase and a lowercase letter/.test(weak.text) && !/at least 6 characters/.test(weak.text));
   const offline = await outcome("offline", "offline@shanfoods.pk");
   check("AUTH-4", "a lost connection never claims the account was or was not created", /can't tell whether your account was created/.test(offline.text) && !/Check your inbox at/.test(offline.text));
 }

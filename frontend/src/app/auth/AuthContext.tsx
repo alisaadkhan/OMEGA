@@ -1,3 +1,4 @@
+import { friendlyPasswordError } from "./password-rules";
 import { normalizeEmail, signupOutcome, type SignupOutcome } from "../api/signup-outcome";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Session } from "@supabase/auth-js";
@@ -56,6 +57,8 @@ function toAuthUser(session: Session, me: MeResponse | undefined): AuthUser {
 }
 
 function messageOf(error: { message: string; code?: string }): string {
+  const pw = friendlyPasswordError(error);
+  if (pw) return pw;
   if (error.code === "email_not_confirmed" || /email not confirmed/i.test(error.message)) return "Please verify your email first. Open the confirmation link we sent you, then sign in.";
   if (error.code === "invalid_credentials") return "That email and password don't match. Try again or reset your password.";
   return error.message || "Something went wrong. Please try again.";

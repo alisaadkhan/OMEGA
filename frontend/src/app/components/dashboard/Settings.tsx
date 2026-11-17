@@ -8,6 +8,8 @@ import { useBillingSummary } from "../../api/billing";
 import { useAuth } from "../../auth/AuthContext";
 import { supabase } from "../../lib/supabase";
 import { useToast } from "../../lib/toast";
+import { friendlyPasswordError, passwordMeetsRules } from "../../auth/password-rules";
+import { PasswordChecklist } from "../auth/PasswordChecklist";
 import { ErrorState, LoadingBlock } from "./states";
 import { SupportAccessSettings } from "./SupportAccessSettings";
 import { PrivacySection, TeamSection, WorkspaceSwitcher } from "./TeamSettings";
@@ -294,17 +296,6 @@ function WorkspaceTab() {
   );
 }
 
-/** Same four steps as sign-up: length 8+, 12+, a capital and a digit, a symbol. */
-function strengthOf(pw: string): { score: number; label: string } {
-  if (!pw) return { score: 0, label: "Minimum 8 characters" };
-  let score = 0;
-  if (pw.length >= 8) score++;
-  if (pw.length >= 12) score++;
-  if (/[A-Z]/.test(pw) && /\d/.test(pw)) score++;
-  if (/[^A-Za-z0-9]/.test(pw)) score++;
-  return { score: Math.max(score, 1), label: pw.length < 8 ? "Too short" : score <= 1 ? "Weak" : score === 2 ? "Fair" : "Strong" };
-}
-
 function SecurityTab() {
   const me = useMe();
   const { requestPasswordReset } = useAuth();
@@ -314,7 +305,6 @@ function SecurityTab() {
   const [wrongCurrent, setWrongCurrent] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const mismatch = pw.confirm !== "" && pw.next !== pw.confirm;
-  const strength = strengthOf(pw.next);
   const email = me.data?.user.email ?? null;
 
   /** The current password is checked first (a stolen open session alone cannot set a new password from this screen). */
@@ -331,7 +321,7 @@ function SecurityTab() {
     }
     const { error } = await supabase.auth.updateUser({ password: pw.next });
     setBusy(false);
-    if (error) toast.error("Couldn't change your password", error.message);
+    if (error) toast.error("Couldn't change your password", friendlyPasswordError(error) ?? error.message);
     else {
       setPw({ current: "", next: "", confirm: "" });
       toast.success("Password changed");
@@ -353,7 +343,7 @@ function SecurityTab() {
     if (error) toast.error("Couldn't sign out other sessions", error.message);
     else toast.success("Signed out on your other devices");
   }
-  const canSubmit = pw.current.length > 0 && pw.next.length >= 8 && !mismatch && pw.confirm !== "";
+  const canSubmit = pw.current.length > 0 && passwordMeetsRules(pw.next) && !mismatch && pw.confirm !== "";
   return (
     <section className={card}>
       <CardHeader title="Security" sub="Manage your password and where you are signed in." />
@@ -378,17 +368,10 @@ function SecurityTab() {
           </label>
           <label className="flex flex-col gap-1.5">
             <span className="flex items-center justify-between">
-              <span className={smallLabel}>New password (at least 8 characters)</span>
+              <span className={smallLabel}>New password</span>
             </span>
             <input type="password" autoComplete="new-password" value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} className={`${field} bg-white`} />
-            <span className="flex gap-1" aria-hidden>
-              {[1, 2, 3, 4].map((n) => (
-                <span key={n} className={`h-1 flex-1 rounded-full transition-colors ${n <= strength.score ? (strength.score >= 3 ? "bg-cyan-500" : strength.score === 2 ? "bg-amber-400" : "bg-rose-400") : "bg-slate-200"}`} />
-              ))}
-            </span>
-            <span className={`text-[11px] font-semibold ${strength.score >= 3 ? "text-cyan-700" : pw.next && pw.next.length < 8 ? "text-rose-600" : "text-slate-500"}`} aria-live="polite">
-              {strength.label}
-            </span>
+            <PasswordChecklist password={pw.next} />
           </label>
           <label className="flex flex-col gap-1.5">
             <span className={smallLabel}>Repeat new password</span>

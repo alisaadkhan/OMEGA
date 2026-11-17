@@ -9,6 +9,8 @@
  * accepting that the sign-up form reveals whether an address has an account. A session is only accepted for a
  * confirmed email; an unconfirmed one never reaches the dashboard.
  */
+import { PASSWORD_HINT, friendlyPasswordError } from "../auth/password-rules";
+
 export type SignupOutcome =
   | { kind: "signed_in" }
   | { kind: "check_email"; email: string }
@@ -27,7 +29,7 @@ type SignUpData = { session: unknown | null; user: { identities?: unknown[] | nu
 export const ALREADY_REGISTERED = "This email is already registered. Sign in instead, or reset your password if you've forgotten it.";
 
 const FRIENDLY: Record<string, string> = {
-  weak_password: "Choose a stronger password: at least 8 characters, not a common one.",
+  weak_password: PASSWORD_HINT,
   email_address_invalid: "Enter a valid email address.",
   validation_failed: "Check the email address and password, then try again.",
   over_email_send_rate_limit: "Too many sign-up emails were requested. Wait a few minutes, then try again.",
@@ -40,6 +42,7 @@ export function signupOutcome(email: string, data: SignUpData, error: AuthErrorL
   if (error) {
     if (error.code && EXISTING.has(error.code)) return { kind: "exists", message: ALREADY_REGISTERED };
     if (error.code && FRIENDLY[error.code]) return { kind: "error", message: FRIENDLY[error.code] as string };
+    if (friendlyPasswordError(error)) return { kind: "error", message: PASSWORD_HINT };
     if (error.status === 429) return { kind: "error", message: FRIENDLY["over_request_rate_limit"] as string };
     // No answer from the sign-up service: the account may or may not have been created. Never claim either.
     if (error.name === "AuthRetryableFetchError" || error.status === 0 || /fetch|network|timed? ?out/i.test(error.message ?? "")) {

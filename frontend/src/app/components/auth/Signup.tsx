@@ -7,23 +7,14 @@ import { Button } from "../ui/button";
 import { AuthAlert, AuthShell, CheckEmailState, FormField, StaggerItem } from "./AuthShell";
 import { useAuth } from "../../auth/AuthContext";
 import { checkEmailText } from "../../api/signup-outcome";
+import { PASSWORD_HINT, passwordMeetsRules } from "../../auth/password-rules";
+import { PasswordChecklist } from "./PasswordChecklist";
 
 type Props = {
   onSuccess: () => void;
   goLogin: () => void;
   goForgot: () => void;
 };
-
-/** Four-step strength: length 8+, 12+, a capital and a digit, a symbol. Shown as a bar and a word. */
-function strengthOf(pw: string): { score: number; label: string } {
-  if (!pw) return { score: 0, label: "Minimum 8 characters" };
-  let score = 0;
-  if (pw.length >= 8) score++;
-  if (pw.length >= 12) score++;
-  if (/[A-Z]/.test(pw) && /\d/.test(pw)) score++;
-  if (/[^A-Za-z0-9]/.test(pw)) score++;
-  return { score: Math.max(score, 1), label: pw.length < 8 ? "Too short" : score <= 1 ? "Weak" : score === 2 ? "Fair" : "Strong" };
-}
 
 export function Signup({ onSuccess, goLogin, goForgot }: Props) {
   const { signup, resendConfirmation } = useAuth();
@@ -37,16 +28,15 @@ export function Signup({ onSuccess, goLogin, goForgot }: Props) {
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [exists, setExists] = useState(false);
   const [touched, setTouched] = useState(false);
-  const missing = { name: touched && !name.trim(), email: touched && !email.trim(), password: touched && password.length < 8, agreed: touched && !agreed };
-  const strength = strengthOf(password);
+  const missing = { name: touched && !name.trim(), email: touched && !email.trim(), password: touched && !passwordMeetsRules(password), agreed: touched && !agreed };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setExists(false);
     setTouched(true);
-    if (!name.trim() || !email.trim() || password.length < 8) {
-      setError("Fill in the highlighted fields to continue.");
+    if (!name.trim() || !email.trim() || !passwordMeetsRules(password)) {
+      setError(name.trim() && email.trim() ? PASSWORD_HINT : "Fill in the highlighted fields to continue.");
       return;
     }
     if (!agreed) {
@@ -110,21 +100,9 @@ export function Signup({ onSuccess, goLogin, goForgot }: Props) {
             onChange={setPassword}
             placeholder="At least 8 characters"
             autoComplete="new-password"
-            error={missing.password ? "Use at least 8 characters." : null}
-            aside={<span className={`text-[10px] font-semibold uppercase tracking-wider ${strength.score >= 3 ? "text-cyan-700" : password && password.length < 8 ? "text-rose-600" : "text-slate-500"}`} aria-live="polite">{strength.label}</span>}
+            error={missing.password ? "This password doesn't meet the rules below yet." : null}
           />
-          <div className="mt-2 flex h-1 w-full gap-1" aria-hidden>
-            {[1, 2, 3, 4].map((i) => (
-              <motion.span
-                key={i}
-                initial={false}
-                animate={{ opacity: 1 }}
-                className={`h-full flex-1 rounded-full transition-colors duration-300 ${
-                  strength.score >= i && password ? (password.length < 8 ? "bg-rose-500" : strength.score >= 3 ? "bg-[#06B6D4]" : "bg-amber-400") : "bg-slate-200"
-                }`}
-              />
-            ))}
-          </div>
+          <PasswordChecklist password={password} showErrors={touched} />
         </StaggerItem>
 
         <StaggerItem index={3}>

@@ -27,7 +27,7 @@ describe("sign-up outcomes (duplicate-email bug)", () => {
   });
 
   it("maps provider errors to plain messages, never raw provider text", () => {
-    expect(signupOutcome("a@b.pk", null, { code: "weak_password", status: 422, message: "Password should be at least 6 characters." })).toMatchObject({ kind: "error", message: expect.stringContaining("stronger password") });
+    expect(signupOutcome("a@b.pk", null, { code: "weak_password", status: 422, message: "Password should be at least 6 characters." })).toMatchObject({ kind: "error", message: expect.stringContaining("uppercase and a lowercase letter") });
     expect(signupOutcome("a@b.pk", null, { code: "over_email_send_rate_limit", status: 429, message: "email rate limit exceeded" })).toMatchObject({ kind: "error", message: expect.stringContaining("Too many") });
     expect(signupOutcome("a@b.pk", null, { status: 500, message: "Database error saving new user: duplicate key" })).toEqual({ kind: "error", message: "Sign-up failed. Please try again." });
   });

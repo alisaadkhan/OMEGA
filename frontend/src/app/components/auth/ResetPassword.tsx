@@ -3,11 +3,10 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Button } from "../ui/button";
 import { AuthAlert, AuthShell, FormField, StaggerItem } from "./AuthShell";
 import { useAuth } from "../../auth/AuthContext";
+import { PASSWORD_HINT, passwordMeetsRules } from "../../auth/password-rules";
+import { PasswordChecklist } from "./PasswordChecklist";
 
 type Props = { onDone: () => void; goForgot: () => void };
-
-/** Matches the hosted Auth policy; the Auth server enforces its own minimum as well. */
-export const MIN_PASSWORD_LENGTH = 8;
 
 /**
  * Set a new password after following a recovery email (audit UX-02). The link signs the person in through the PKCE code
@@ -20,11 +19,13 @@ export function ResetPassword({ onDone, goForgot }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [tried, setTried] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (password.length < MIN_PASSWORD_LENGTH) return setError(`Use at least ${MIN_PASSWORD_LENGTH} characters.`);
+    setTried(true);
+    if (!passwordMeetsRules(password)) return setError(PASSWORD_HINT);
     if (password !== confirm) return setError("The two passwords do not match.");
     setSubmitting(true);
     try {
@@ -64,6 +65,7 @@ export function ResetPassword({ onDone, goForgot }: Props) {
       <form onSubmit={submit} className="space-y-4">
         <StaggerItem index={0}>
           <FormField label="New password" type="password" value={password} onChange={setPassword} autoFocus autoComplete="new-password" />
+          <PasswordChecklist password={password} showErrors={tried} />
         </StaggerItem>
         <StaggerItem index={1}>
           <FormField label="Repeat the new password" type="password" value={confirm} onChange={setConfirm} autoComplete="new-password" />
