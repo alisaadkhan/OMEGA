@@ -1,10 +1,13 @@
 import { motion } from "motion/react";
-import { Bookmark, CreditCard, History, Inbox as InboxIcon, LayoutDashboard, LifeBuoy, Megaphone, Radar, Search, Settings, ArrowLeft } from "lucide-react";
+import { Bookmark, CreditCard, History, Inbox as InboxIcon, LayoutDashboard, LifeBuoy, LogOut, Megaphone, Radar, Search, Settings, Star, ArrowLeft } from "lucide-react";
 import { useBillingSummary } from "../../api/billing";
+import { useAuth } from "../../auth/AuthContext";
+import { OPEN_REVIEW_EVENT } from "./LeaveReview";
 
 /**
  * Primary navigation (owner design 2026-11-16): dark navy panel with Discover, Account and Insights groups, an animated
- * active pill, and the current plan at the foot. View ids are unchanged.
+ * active pill, and the current plan at the foot. Every account action lives here too (owner, 17 Nov: "remove every button
+ * from profile and move it to side bar"): Leave a review, Back to website and Sign out. View ids are unchanged.
  */
 export type DashView = "overview" | "search" | "lists" | "campaigns" | "billing" | "settings" | "support" | "activity" | "inbox";
 
@@ -29,6 +32,8 @@ type Props = { view: DashView; setView: (v: DashView) => void; onExit?: () => vo
 
 export function Sidebar({ view, setView, onExit }: Props) {
   const plan = useBillingSummary().data;
+  const { logout } = useAuth();
+  const foot = "flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-steel transition-colors hover:bg-ink hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/60";
   return (
     <aside className="flex h-full w-64 flex-shrink-0 flex-col justify-between bg-shell text-white shadow-[0_1px_8px_rgba(0,0,0,0.08)]">
       <div className="flex min-h-0 flex-col">
@@ -77,11 +82,17 @@ export function Sidebar({ view, setView, onExit }: Props) {
             <span className="h-2 w-2 rounded-full bg-cyan-soft shadow-[0_0_8px_#57dffe]" />
           </button>
         )}
+        <button onClick={() => window.dispatchEvent(new Event(OPEN_REVIEW_EVENT))} className={foot}>
+          <Star className="h-4 w-4" /> Leave a review
+        </button>
         {onExit && (
-          <button onClick={onExit} className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-steel transition-colors hover:text-white">
+          <button onClick={onExit} className={foot}>
             <ArrowLeft className="h-4 w-4" /> Back to website
           </button>
         )}
+        <button onClick={() => { void logout(); onExit?.(); }} className={foot}>
+          <LogOut className="h-4 w-4" /> Sign out
+        </button>
       </div>
     </aside>
   );

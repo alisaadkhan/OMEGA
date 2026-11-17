@@ -458,6 +458,9 @@ describe("delivery persistence (P)", () => {
     const committedAt = Date.now();
     const before = (await api.search(c.headers, "food lahore", {})).json() as { results: { id: string }[] };
     const pending = await owner<{ id: string; aggregate_id: string }>(`select id, aggregate_id from platform.outbox where event_type = 'creator.changed' and published_at is null`);
+    // Search shows only creators with an identified niche (owner, 16 Nov). Without the AI the delivered creators have none
+    // yet, so the test gives them one before indexing: what is measured here is the outbox-to-index step.
+    await owner(`update gcp.creators set niches = '{Food}' where id in (${results.map((r) => `'${r.id}'`).join(",") || "null"})`);
     const { indexer } = await import("./harness");
     await indexer.sync([...new Set(pending.map((p) => p.aggregate_id))]);
     const indexedAt = Date.now();

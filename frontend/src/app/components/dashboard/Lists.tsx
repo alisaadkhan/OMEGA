@@ -93,7 +93,7 @@ function ListIndex({ onOpen, onGoToSearch }: { onOpen: (id: string) => void; onG
   const err = (e: unknown) => (e instanceof Error ? e.message : "Something went wrong. Try again.");
 
   async function onDelete(l: ListSummary) {
-    const ok = await confirm({ title: `Delete "${l.name}"?`, body: "The shortlist and its notes are removed for your whole team. Creators stay in MUSHIN.", confirmLabel: "Delete shortlist", destructive: true });
+    const ok = await confirm({ title: `Delete "${l.name}"?`, body: "The shortlist and its notes are removed. Creators stay in MUSHIN.", confirmLabel: "Delete shortlist", destructive: true });
     if (ok) remove.mutate(l.id, { onSuccess: () => toast.success(`Deleted ${l.name}`), onError: (e) => toast.error("Couldn't delete the shortlist", err(e)) });
   }
 

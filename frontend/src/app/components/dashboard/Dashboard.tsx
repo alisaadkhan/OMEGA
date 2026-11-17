@@ -97,12 +97,12 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
         <div className="fixed inset-0 z-50 flex md:hidden" role="dialog" aria-modal="true" aria-label="Navigation">
           <div className="absolute inset-0 bg-slate-900/30" onClick={() => setNavOpen(false)} />
           <div className="relative flex h-full shadow-xl">
-            <Sidebar view={view} setView={(v) => { navigate(v); setNavOpen(false); }} />
+            <Sidebar view={view} setView={(v) => { navigate(v); setNavOpen(false); }} onExit={onExit} />
           </div>
         </div>
       )}
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar credits={credits} onOpenNav={() => setNavOpen(true)} view={view} setView={setView} onExit={onExit} onOpenCreator={setOmniCreator}
+        <Topbar credits={credits} onOpenNav={() => setNavOpen(true)} view={view} setView={setView} onOpenCreator={setOmniCreator}
           onViewResults={(id) => {
             setLiveJobId(id);
             setView("search");
@@ -126,7 +126,7 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
               {view === "search" && <SearchModule liveJobId={liveJobId} onGoToCampaigns={() => setView("campaigns")} />}
               {view === "lists" && <Lists key={navKey} onOpenCreator={setOmniCreator} onGoToSearch={() => setView("search")} />}
               {view === "campaigns" && <Campaigns key={navKey} initialId={openCampaignId} onOpenCreator={setOmniCreator} onGoToSearch={() => setView("search")} />}
-              {view === "inbox" && <Inbox onGoToCampaigns={() => setView("campaigns")} />}
+              {view === "inbox" && <Inbox onOpenCampaign={(id) => { setOpenCampaignId(id); setView("campaigns"); }} />}
               {view === "settings" && <Settings key={settingsTab} initialTab={settingsTab} onOpenSupport={() => setView("support")} onOpenBilling={() => setView("billing")} />}
               {view === "billing" && <Billing checkoutResult={checkoutResult} />}
               {view === "support" && <Support />}

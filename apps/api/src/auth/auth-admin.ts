@@ -58,3 +58,29 @@ export function createSupabaseIdentityDeletion(o: { url: string; serviceKey: str
     }
   };
 }
+
+/**
+ * Whether the person has a verified authenticator (two-step sign-in, 0091), from the Auth server's own record. Throws
+ * when the check could not be made, so the caller never changes the stored state on a guess.
+ */
+export type TwoStepStatus = (userId: string) => Promise<boolean>;
+
+export function createSupabaseTwoStepStatus(o: { url: string; serviceKey: string; timeoutMs?: number; fetch?: typeof fetch }): TwoStepStatus {
+  const base = o.url.replace(/\/+$/, "");
+  return async (userId) => {
+    if (!/^[0-9a-f-]{36}$/i.test(userId)) throw new EmailCheckUnavailable("Not a user id.");
+    let res: Response;
+    try {
+      res = await (o.fetch ?? fetch)(`${base}/auth/v1/admin/users/${userId}`, {
+        headers: { apikey: o.serviceKey, authorization: `Bearer ${o.serviceKey}` },
+        signal: AbortSignal.timeout(o.timeoutMs ?? 5_000),
+      });
+    } catch {
+      throw new EmailCheckUnavailable("The sign-in service could not be reached.");
+    }
+    if (!res.ok) throw new EmailCheckUnavailable(`The sign-in service refused the check (${res.status}).`);
+    const body = (await res.json().catch(() => null)) as { factors?: unknown } | null;
+    const factors = Array.isArray(body?.factors) ? (body.factors as { factor_type?: unknown; status?: unknown }[]) : [];
+    return factors.some((f) => f.factor_type === "totp" && f.status === "verified");
+  };
+}

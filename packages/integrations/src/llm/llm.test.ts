@@ -24,6 +24,13 @@ function llm(providers: LlmProviderConfig[], respond: (url: string, body: Record
 }
 
 describe("OpenAiCompatibleLlm", () => {
+  it("never books a call below the provider's minimum charge (YepAPI: $0.01 a call)", async () => {
+    const yep: LlmProviderConfig = { name: "yepapi", baseUrl: "https://yep.test/v1/ai", apiKey: "y", model: "openai/gpt-oss-120b", priceInPerMTok: 0.22, priceOutPerMTok: 0.89, minCostPerCallUsd: 0.01 };
+    const { client, sink, bodies } = llm([yep], () => reply('{"ok":true}'));
+    await client.complete({ feature: "search_interpret", system: "s", input: "i", schema });
+    expect(bodies[0]?.url).toBe("https://yep.test/v1/ai/chat/completions");
+    expect(sink.calls[0]).toMatchObject({ provider: "yepapi", costUsd: 0.01, status: "ok" });
+  });
   it("asks for JSON with enough tokens for a reasoning model and records the cost", async () => {
     const { client, sink, bodies } = llm([gemini], () => reply('{"ok":true}'));
     const out = await client.complete({ feature: "search_interpret", system: "s", input: "i", schema, ctx: { workspaceId: "w" } });

@@ -10,6 +10,8 @@ export type TestClaims = {
   issuer?: string;
   audience?: string;
   expiresIn?: string;
+  /** Authenticator assurance level (two-step sign-in); omitted unless a test sets it. */
+  aal?: "aal1" | "aal2";
 };
 
 export async function createTestIssuer() {
@@ -23,6 +25,7 @@ export async function createTestIssuer() {
   async function sign(claims: TestClaims = {}): Promise<string> {
     const body: Record<string, unknown> = { role: "authenticated" };
     if (claims.email !== null) body["email"] = claims.email ?? "ahmed@mushin.pk";
+    if (claims.aal) body["aal"] = claims.aal;
     body["user_metadata"] = { ...(claims.fullName ? { full_name: claims.fullName } : {}), email_verified: claims.emailVerified ?? true };
     return new SignJWT(body)
       .setProtectedHeader({ alg: "ES256", kid })

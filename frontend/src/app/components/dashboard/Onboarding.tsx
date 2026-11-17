@@ -78,7 +78,7 @@ type Step = { title: string; body: string; target: string; placement: "bottom" |
 const STEPS: Step[] = [
   { title: "Your Command Center", body: "Credits used, shortlists, running and paused campaigns, at a single glance.", target: "[data-tour='metrics']", placement: "bottom" },
   { title: "Precision Discovery", body: "Search Pakistan-based creators by niche, city or keywords, then narrow with platform, follower and engagement filters.", target: "[data-tour='search']", placement: "bottom" },
-  { title: "Curate Your Talent", body: "Group creators into shortlists for seasonal pitches, regional drops or team review.", target: "[data-tour='shortlists']", placement: "right" },
+  { title: "Curate Your Talent", body: "Group creators into shortlists for seasonal pitches, regional drops or a client review.", target: "[data-tour='shortlists']", placement: "right" },
   { title: "Turn Lists into Action", body: "Create campaigns, move creators through stages, agree fees and log every conversation.", target: "[data-tour='campaigns']", placement: "right" },
 ];
 

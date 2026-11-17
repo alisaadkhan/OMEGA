@@ -3,6 +3,7 @@
  * relay and creator handlers, delivering events in-process (instead of pg-boss) so failures can be injected exactly.
  */
 import { randomUUID } from "node:crypto";
+import { sql } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { resetTables } from "@mushin/db/testing";
 import { FixtureWebSearch } from "@mushin/integrations";
@@ -32,13 +33,20 @@ const doc = (id: string) => owner<{ followers: number; eligible: boolean; eligib
 const pendingFor = (id: string) => owner<{ id: string; attempts: number; published_at: string | null }>(`select id, attempts, published_at::text from platform.outbox where event_type = 'creator.changed' and aggregate_id = '${id}'`);
 
 /** A creator saved the way production saves one (enrichment pipeline → creator + outbox row in one transaction). */
-async function saveThroughPipeline(api: Awaited<ReturnType<typeof buildApi>>, workspaceId: string, handle: string, bio = "Food vlogger in Lahore") {
+async function saveThroughPipeline(api: Awaited<ReturnType<typeof buildApi>>, workspaceId: string, handle: string, bio = "Food vlogger in Lahore", niche?: string) {
   const { igProfile } = await import("./harness");
   const job = { jobId: randomUUID(), workspaceId, platform: "instagram" as const, handle, canonicalUrl: `https://instagram.com/${handle}`, requestId: null };
   const raw = igProfile(handle, bio);
   const payloadId = await api.pipeline.archive(job, "apify", raw);
   let id = "";
-  await api.pipeline.processProfile(job, payloadId, raw, { onSaved: async (_tx, s) => void (id = s.creatorId) });
+  await api.pipeline.processProfile(job, payloadId, raw, {
+    onSaved: async (tx, s) => {
+      id = s.creatorId;
+      // Search shows only creators with an identified niche (owner, 16 Nov); without the AI no niche is found here, so a
+      // test that searches for the creator sets one in the same save.
+      if (niche) await tx.execute(sql`update gcp.creators set niches = array[${niche}]::text[] where id = ${s.creatorId}`);
+    },
+  });
   return id;
 }
 
@@ -177,7 +185,7 @@ describe("outbox and search projection (IDX)", () => {
       for (let i = 0; i < 10; i++) {
         const word = `zzidx${i}word`;
         const committedAt = Date.now();
-        await saveThroughPipeline(api, u.workspaceId, `idx_delay_${i}`, `Food vlogger based in Lahore, Pakistan ${word}`);
+        await saveThroughPipeline(api, u.workspaceId, `idx_delay_${i}`, `Food vlogger based in Lahore, Pakistan ${word}`, "Food");
         let found = false;
         while (!found && Date.now() - committedAt < 15_000) {
           const res = (await api.search(u.headers, word)).json() as { results?: unknown[] };

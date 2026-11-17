@@ -230,6 +230,10 @@ describe("search and LLM settings", () => {
     // A free-tier key is accepted by the config but never used: it answered 429 to every call.
     expect(loadApiConfig({ ...valid, ...gemini, GEMINI_BILLING: "free_accepted" }).llm).toEqual([]);
     expect(() => loadApiConfig({ ...valid, ...gemini, GEMINI_BILLING: "free" })).toThrow(/GEMINI_BILLING/);
+    // YepAPI (owner, 17 Nov): after Groq, before OpenRouter; only priced models; never booked below $0.01 a call.
+    const yep = loadApiConfig({ ...valid, GROQ_API_KEY: "g", OPENROUTER_API_KEY: "r", YEPAPI_API_KEY: "y", YEPAPI_MODELS: "openai/gpt-oss-120b,vendor/unpriced", LLM_PROVIDER: "groq" }).llm;
+    expect(yep.map((p) => p.name)).toEqual(["groq", "groq", "yepapi", "openrouter", "openrouter"]);
+    expect(yep.find((p) => p.name === "yepapi")).toMatchObject({ baseUrl: "https://api.yepapi.com/v1/ai", model: "openai/gpt-oss-120b", minCostPerCallUsd: 0.01 });
     // LLM_PROVIDER moves a provider's models to the front; LLM_MODEL / GROQ_MODEL choose the first Groq model.
     expect(loadApiConfig({ ...valid, ...gemini, GROQ_API_KEY: "g", OPENROUTER_API_KEY: "r", LLM_PROVIDER: "openrouter" }).llm.map((p) => p.name)).toEqual(["openrouter", "openrouter", "groq", "groq", "gemini"]);
     expect(loadApiConfig({ ...valid, GROQ_API_KEY: "g", LLM_PROVIDER: "groq", LLM_MODEL: "openai/gpt-oss-20b" }).llm.map((p) => p.model)).toEqual(["openai/gpt-oss-20b"]);

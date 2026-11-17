@@ -37,7 +37,7 @@ beforeEach(async () => {
   await add("urduBio", { displayName: "Kashif Bites", niches: ["Food"], city: null, profiles: [{ bio: "Lahore based home cook" }] });
   await add("saraStyle", { displayName: "Sara Styles", niches: ["Fashion"], city: "Karachi", profiles: [{ bio: "Outfits and style" }] });
   await add("techTariq", { displayName: "Tariq Reviews", niches: ["Technology"], city: "Islamabad", profiles: [{ bio: "Gadgets and phones" }] });
-  await add("sanaMullick", { displayName: "Sana Mullick | Blogger", niches: [], city: null, profiles: [{ bio: "Daily life" }] });
+  await add("sanaMullick", { displayName: "Sana Mullick | Blogger", niches: ["Lifestyle"], city: null, profiles: [{ bio: "Daily life" }] });
   const docs = (await db.withSystem((tx) => repo.indexRows(tx, Object.values(ids)))).filter(isIndexable).map(toDocument);
   await db.withSystem((tx) => repo.upsertPostgresSearchDocuments(tx, docs));
 });
@@ -113,15 +113,15 @@ describe("catalogue search aliases (PostgreSQL)", () => {
   });
 
   it("finds a creator whose only mention of the topic and city is a joined-up handle (panel Q004)", async () => {
-    const id = await addCreator(db, { displayName: "Zulekha", niches: [], city: null, profiles: [{ handle: "karachifoodadventure", bio: "Personal account" }] });
+    const id = await addCreator(db, { displayName: "Zulekha", niches: ["Lifestyle"], city: null, profiles: [{ handle: "karachifoodadventure", bio: "Personal account" }] });
     const docs = (await db.withSystem((tx) => repo.indexRows(tx, [id]))).filter(isIndexable).map(toDocument);
     await db.withSystem((tx) => repo.upsertPostgresSearchDocuments(tx, docs));
     expect(await names("Karachi ke food vloggers")).toEqual(["Zulekha"]);
   });
 
   it("matches a multi-word form only as that phrase, not as its words anywhere in the text", async () => {
-    const routine = await addCreator(db, { displayName: "Routine Rida", niches: [], city: null, profiles: [{ bio: "My skin care routine" }] });
-    const apart = await addCreator(db, { displayName: "Hair Hina", niches: [], city: null, profiles: [{ bio: "Hair care tips and glowing skin" }] });
+    const routine = await addCreator(db, { displayName: "Routine Rida", niches: ["Lifestyle"], city: null, profiles: [{ bio: "My skin care routine" }] });
+    const apart = await addCreator(db, { displayName: "Hair Hina", niches: ["Lifestyle"], city: null, profiles: [{ bio: "Hair care tips and glowing skin" }] });
     const docs = (await db.withSystem((tx) => repo.indexRows(tx, [routine, apart]))).filter(isIndexable).map(toDocument);
     await db.withSystem((tx) => repo.upsertPostgresSearchDocuments(tx, docs));
     expect(await names("skin care")).toEqual(["Routine Rida"]);

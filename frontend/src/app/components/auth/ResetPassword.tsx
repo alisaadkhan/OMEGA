@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Button } from "../ui/button";
 import { AuthAlert, AuthShell, FormField, StaggerItem } from "./AuthShell";
+import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../auth/AuthContext";
 import { PASSWORD_HINT, passwordMeetsRules } from "../../auth/password-rules";
 import { PasswordChecklist } from "./PasswordChecklist";
@@ -20,6 +21,9 @@ export function ResetPassword({ onDone, goForgot }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [tried, setTried] = useState(false);
+  // Two-step sign-in: the sign-in service changes a password only from a session that passed the code step.
+  const [code, setCode] = useState("");
+  const [needsCode, setNeedsCode] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,6 +33,20 @@ export function ResetPassword({ onDone, goForgot }: Props) {
     if (password !== confirm) return setError("The two passwords do not match.");
     setSubmitting(true);
     try {
+      const aal = (await supabase.auth.mfa.getAuthenticatorAssuranceLevel()).data;
+      if (aal && aal.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
+        if (!/^\d{6}$/.test(code)) {
+          setNeedsCode(true);
+          setSubmitting(false);
+          return setError("Two-step sign-in is on for this account: enter the code from your authenticator app.");
+        }
+        const totp = (await supabase.auth.mfa.listFactors()).data?.totp[0];
+        const verified = totp ? await supabase.auth.mfa.challengeAndVerify({ factorId: totp.id, code }) : null;
+        if (!verified || verified.error) {
+          setSubmitting(false);
+          return setError("That authenticator code is not right, or it has expired.");
+        }
+      }
       await updatePassword(password);
       setDone(true);
       setTimeout(onDone, 900);
@@ -70,6 +88,9 @@ export function ResetPassword({ onDone, goForgot }: Props) {
         <StaggerItem index={1}>
           <FormField label="Repeat the new password" type="password" value={confirm} onChange={setConfirm} autoComplete="new-password" />
         </StaggerItem>
+        {needsCode && (
+          <FormField label="Authenticator code" value={code} onChange={(v) => setCode(v.replace(/\D/g, "").slice(0, 6))} autoComplete="one-time-code" />
+        )}
         {error && <AuthAlert kind="error">{error}</AuthAlert>}
         {done && <AuthAlert kind="success">Password changed. Opening your dashboard…</AuthAlert>}
         <StaggerItem index={2}>

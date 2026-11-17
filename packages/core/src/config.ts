@@ -109,9 +109,14 @@ const sharedObject = z.object({
   OPENROUTER_MODELS: z.string().min(1).default("openai/gpt-oss-120b,google/gemini-2.5-flash"),
   OPENROUTER_PRICE_IN_PER_MTOK: z.coerce.number().min(0).optional(),
   OPENROUTER_PRICE_OUT_PER_MTOK: z.coerce.number().min(0).optional(),
+  // YepAPI (owner, 17 Nov): OpenAI-compatible gateway (docs.yepapi.com/ai-models/chat-completions), tried after Groq and
+  // before OpenRouter. Paid: at least $0.01 per call plus per-token rates, so spend is recorded as the larger of the two.
+  YEPAPI_API_KEY: z.string().min(1).optional(),
+  YEPAPI_BASE_URL: z.url().default("https://api.yepapi.com/v1/ai"),
+  YEPAPI_MODELS: z.string().min(1).default("openai/gpt-oss-120b"),
   // The preferred provider (owner .env 2026-11-04: LLM_PROVIDER=groq). It is tried first; LLM_MODEL / LLM_BASE_URL apply
   // to it when its own GROQ_/GEMINI_/OLLAMA_ variable is not set. Groq's model defaults to openai/gpt-oss-120b.
-  LLM_PROVIDER: z.enum(["gemini", "groq", "ollama", "openrouter"]).optional(),
+  LLM_PROVIDER: z.enum(["gemini", "groq", "ollama", "openrouter", "yepapi"]).optional(),
   LLM_MODEL: z.string().min(1).optional(),
   LLM_BASE_URL: z.url().optional(),
   // Monthly cap on hosted-LLM spend across Gemini and Ollama (USD). Required in production (owner decision 2026-10-14);
@@ -126,6 +131,7 @@ const LLM_KEYS = {
   GEMINI_API_KEY: true, GEMINI_MODEL: true, GEMINI_BASE_URL: true, GEMINI_PRICE_IN_PER_MTOK: true, GEMINI_PRICE_OUT_PER_MTOK: true, GEMINI_BILLING: true, GEMINI_RPM: true,
   OLLAMA_API_KEY: true, OLLAMA_BASE_URL: true, OLLAMA_MODEL: true, OLLAMA_PRICE_IN_PER_MTOK: true, OLLAMA_PRICE_OUT_PER_MTOK: true,
   GROQ_API_KEY: true, GROQ_API_KEY_1: true, GROQ_API_KEY_2: true, GROQ_API_KEY_3: true, GROQ_API_KEY_4: true, GROQ_API_KEY_5: true, GROQ_BASE_URL: true, GROQ_MODEL: true, GROQ_PRICE_IN_PER_MTOK: true, GROQ_PRICE_OUT_PER_MTOK: true,
+  YEPAPI_API_KEY: true, YEPAPI_BASE_URL: true, YEPAPI_MODELS: true,
   OPENROUTER_API_KEY: true, OPENROUTER_BASE_URL: true, OPENROUTER_MODELS: true, OPENROUTER_PRICE_IN_PER_MTOK: true, OPENROUTER_PRICE_OUT_PER_MTOK: true,
   LLM_PROVIDER: true, LLM_MODEL: true, LLM_BASE_URL: true,
 } as const;
@@ -396,7 +402,7 @@ export type EnrichmentPolicy = { attributePolicy: "evidence" | "legacy"; youtube
 
 export type SearchConfig = { host: string; apiKey: string; indexPrefix: string } | null;
 export type LlmProviderConfig = {
-  name: "gemini" | "groq" | "openrouter";
+  name: "gemini" | "groq" | "openrouter" | "yepapi";
   baseUrl: string;
   apiKey: string;
   model: string;
@@ -406,6 +412,8 @@ export type LlmProviderConfig = {
   slot?: number;
   /** Requests per minute MUSHIN sends at most (Gemini free tier: 10, owner master directive §4.4); undefined = no limit. */
   requestsPerMinute?: number;
+  /** The provider's minimum charge per successful call in USD (YepAPI: 0.01); spend is never booked below it. */
+  minCostPerCallUsd?: number;
 };
 
 function searchFrom(v: SharedValues, key: string | undefined): SearchConfig {
@@ -427,6 +435,8 @@ const OPENROUTER_PRICES: Record<string, [number, number]> = {
   "meta-llama/llama-3.3-70b-instruct": [0.71, 0.71],
   "google/gemini-2.5-flash": [0.3, 2.5],
 };
+/** YepAPI's listed per-token rates (docs.yepapi.com/llms.txt, read 2026-11-17); a model not listed here is left out. */
+const YEPAPI_PRICES: Record<string, [number, number]> = { "openai/gpt-oss-120b": [0.22, 0.89], "meta-llama/llama-4-scout": [0.15, 0.44], "google/gemini-2.5-flash": [0.44, 3.69] };
 
 function llmFrom(v: LlmValues): LlmProviderConfig[] {
   const out: LlmProviderConfig[] = [];
@@ -444,6 +454,14 @@ function llmFrom(v: LlmValues): LlmProviderConfig[] {
         out.push({ name: "groq", baseUrl, apiKey, model, priceInPerMTok: pin, priceOutPerMTok: pout, ...(groqKeys.length > 1 ? { slot: i + 1 } : {}) });
       }
     });
+  }
+  if (v.YEPAPI_API_KEY) {
+    const baseUrl = v.YEPAPI_BASE_URL.replace(/\/+$/, "");
+    for (const model of [...new Set(v.YEPAPI_MODELS.split(",").map((m) => m.trim()).filter(Boolean))]) {
+      const listed = YEPAPI_PRICES[model];
+      if (!listed) continue;
+      out.push({ name: "yepapi", baseUrl, apiKey: v.YEPAPI_API_KEY, model, priceInPerMTok: listed[0], priceOutPerMTok: listed[1], minCostPerCallUsd: 0.01 });
+    }
   }
   if (v.OPENROUTER_API_KEY) {
     const baseUrl = v.OPENROUTER_BASE_URL.replace(/\/+$/, "");

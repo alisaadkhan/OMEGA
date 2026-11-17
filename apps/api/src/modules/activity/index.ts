@@ -43,6 +43,13 @@ export function createActivityService(deps: { db: Db }) {
           select 'r:' || r.creator_id, 'contact_revealed', r.created_at, r.revealed_by, cr.display_name, null, null, 'creator', cr.id
             from wp.contact_reveals r join gcp.creators cr on cr.id = r.creator_id where r.workspace_id = ${ws}
           union all
+          -- Post-day reminders (0091), for campaigns that asked for them: a creator due to post today, or overdue and not
+          -- posted, while the campaign and the creator's place in it are still live. Dated at the start of the due day.
+          select 'pd:' || m.campaign_id || ':' || m.creator_id || ':' || m.due_date, 'post_due', (m.due_date::timestamp at time zone 'Asia/Karachi'), null, cr.display_name, k.name, m.due_date::text, 'campaign', k.id
+            from wp.campaign_creators m join wp.campaigns k on k.id = m.campaign_id join gcp.creators cr on cr.id = m.creator_id
+            where m.workspace_id = ${ws} and k.notify_post_due and k.status in ('draft', 'active') and m.outcome = 'open'
+              and m.due_date is not null and m.due_date <= (now() at time zone 'Asia/Karachi')::date and m.content_status not in ('posted', 'completed')
+          union all
           -- A complimentary plan (owner grant) is announced once, from the subscription itself: no payment exists for it.
           select 'cp:' || s.workspace_id, 'complimentary_plan', s.current_period_start, null, p.name, to_char(s.current_period_end at time zone 'Asia/Karachi', 'FMDD Mon YYYY'), null, null, null
             from wp.subscriptions s join platform.plans p on p.id = s.plan_id
@@ -55,6 +62,7 @@ export function createActivityService(deps: { db: Db }) {
     const people = new Map(
       (await deps.db.withTenant({ userId: ctx.userId, workspaceId: ws }, (tx) => tx.execute<{ id: string; display_name: string }>(sql`select id, display_name from platform.workspace_people()`))).map((p) => [p.id, p.display_name]),
     );
+    const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Karachi" });
     const text = (r: (typeof rows)[number]): string => {
       switch (r.kind) {
         case "list_created": return `created the list ${r.a}`;
@@ -67,6 +75,7 @@ export function createActivityService(deps: { db: Db }) {
         }
         case "live_run_finished": return `finished a Find New Creators run for "${r.a ?? ""}": ${r.b} found, ${r.c} new`;
         case "contact_revealed": return `revealed contact details for ${r.a}`;
+        case "post_due": return r.c === today ? `${r.a} is due to post today (${r.b})` : `${r.a} was due to post on ${r.c} and is not marked posted yet (${r.b})`;
         case "complimentary_plan": return `Congratulations! You've received complimentary ${r.a} access until ${r.b}. Enjoy your ${r.a} benefits!`;
       }
     };

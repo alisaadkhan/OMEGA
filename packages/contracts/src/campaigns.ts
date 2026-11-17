@@ -39,7 +39,7 @@ export const createCampaignSchema = z
   .refine(datesInOrder, datesMessage);
 export type CreateCampaign = z.input<typeof createCampaignSchema>;
 export const updateCampaignSchema = z
-  .object(campaignFields)
+  .object({ ...campaignFields, notifyPostDue: z.boolean() })
   .partial()
   .refine((v) => Object.values(v).some((x) => x !== undefined), "Nothing to change")
   .refine(datesInOrder, datesMessage);
@@ -65,6 +65,8 @@ export const campaignSummarySchema = z.object({
   agreedFeesMinor: z.number().int().nonnegative(),
   /** Only when asked with `?creatorId=`: whether that creator is in this campaign. */
   containsCreator: z.boolean().optional(),
+  /** Post-day reminders: creators due to post today appear in the bell and the Activity log (0091). */
+  notifyPostDue: z.boolean().default(false),
   createdAt: iso,
   updatedAt: iso,
 });
@@ -129,3 +131,23 @@ export const logOutreachSchema = z.object({
 });
 export type LogOutreach = z.input<typeof logOutreachSchema>;
 export const outreachLogSchema = z.object({ events: z.array(outreachEventSchema) });
+
+/**
+ * Inbox (owner, 17 Nov): one conversation per creator per campaign, built from the outreach your account logged (and
+ * emails sent through MUSHIN, which are logged too). MUSHIN does not read your mailbox; replies are what you log.
+ */
+export const inboxFilterSchema = z.enum(["all", "waiting", "replied", "agreed", "declined"]);
+export const inboxQuerySchema = z.object({ filter: inboxFilterSchema.default("all") });
+export const inboxThreadSchema = z.object({
+  campaign: z.object({ id: z.uuid(), name: z.string() }),
+  creator: z.object({ id: z.uuid(), name: z.string(), handle: z.string(), platform: z.enum(["instagram", "tiktok", "youtube"]) }),
+  stage: pipelineStageSchema,
+  last: outreachEventSchema,
+  events: z.number().int().positive(),
+});
+export const inboxSchema = z.object({
+  threads: z.array(inboxThreadSchema),
+  counts: z.record(inboxFilterSchema, z.number().int().nonnegative()),
+});
+export type InboxThread = z.output<typeof inboxThreadSchema>;
+export type InboxFilter = z.output<typeof inboxFilterSchema>;

@@ -1,5 +1,5 @@
 import type { Db } from "@mushin/db";
-import type { DeleteIdentity, VerifyEmail } from "../../auth/auth-admin";
+import type { DeleteIdentity, TwoStepStatus, VerifyEmail } from "../../auth/auth-admin";
 import type { ResolveTenant } from "../../auth/customer-guard";
 import type { AppModule } from "../../http/types";
 import { createPrivacyService } from "./privacy";
@@ -23,6 +23,7 @@ export function createIdentityModule(o: {
   testingAllowance?: StartTestingAllowance | null;
   appUrl?: string;
   verifyEmail?: VerifyEmail | null;
+  twoStepStatus?: TwoStepStatus | null;
   deleteIdentity?: DeleteIdentity | null;
   onIdentityDeleteFailed?: (userId: string) => void;
   onWorkspaceErased?: (workspaceId: string) => Promise<void>;
@@ -40,7 +41,7 @@ export function createIdentityModule(o: {
     module: {
       name: "identity",
       register: (app, guards) => {
-        registerIdentityRoutes(app, guards, service, o.db);
+        registerIdentityRoutes(app, guards, service, o.db, o.twoStepStatus ?? null);
         registerTeamRoutes(app, guards, team, privacy);
       },
     },

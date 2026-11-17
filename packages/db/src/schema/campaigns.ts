@@ -1,4 +1,4 @@
-import { bigint, date, integer, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, bigint, date, integer, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { wp } from "./identity";
 
 const ts = (name: string) => timestamp(name, { withTimezone: true, mode: "date" });
@@ -17,6 +17,8 @@ export const campaigns = wp.table("campaigns", {
   currency: text("currency").notNull().default("PKR"),
   startDate: day("start_date"),
   endDate: day("end_date"),
+  /** Post-day reminders in the bell and Activity log (0091). */
+  notifyPostDue: boolean("notify_post_due").notNull().default(false),
   createdBy: uuid("created_by").notNull(),
   /** Set exactly while status is archived (0038). */
   archivedAt: ts("archived_at"),

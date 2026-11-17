@@ -89,7 +89,7 @@ export function ListDetail({ id, onBack, onOpenCreator, onGoToSearch }: { id: st
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="truncate text-[28px] font-semibold leading-10 tracking-[-0.025em] text-on sm:text-[32px]">{l.name}</h1>
-                <span className="inline-flex items-center gap-1 rounded bg-surface-mid px-1.5 py-0.5 text-[10px] font-semibold text-ink-soft"><Lock className="h-3 w-3 text-faint" /> Team Private</span>
+                <span className="inline-flex items-center gap-1 rounded bg-surface-mid px-1.5 py-0.5 text-[10px] font-semibold text-ink-soft"><Lock className="h-3 w-3 text-faint" /> Private</span>
                 {l.favorite && <Star className="h-4 w-4 fill-amber-400 text-amber-500" />}
               </div>
               <div className="flex flex-wrap items-center gap-2 text-xs text-ink-soft">

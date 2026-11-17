@@ -7,7 +7,7 @@ import { SendEmailSection } from "./SendEmail";
 import { ErrorState, Spinner } from "./states";
 
 export const OUTCOME_LABEL = { attempted: "Reached out", replied: "Replied", no_response: "No response", declined: "Declined", agreed: "Agreed" } as const;
-const CHANNEL_LABEL = { email: "Email", phone: "Phone call", whatsapp: "WhatsApp", instagram: "Instagram DM", tiktok: "TikTok DM", youtube: "YouTube", other: "Other" } as const;
+export const CHANNEL_LABEL = { email: "Email", phone: "Phone call", whatsapp: "WhatsApp", instagram: "Instagram DM", tiktok: "TikTok DM", youtube: "YouTube", other: "Other" } as const;
 
 /** Manual outreach (canonical spec page 11): templates to copy or open in your own email app, and a log of what happened. */
 const TEMPLATES = [

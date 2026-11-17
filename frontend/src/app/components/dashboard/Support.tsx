@@ -13,7 +13,7 @@ import { TrialFeedback } from "./TrialFeedback";
 import { Alert, Segmented, Stagger, StaggerItem } from "../../ui/kit";
 
 // Categories of the master directive §6.1 (0083); "search" is shown for earlier requests only.
-const CATEGORY = { billing: "Billing & Credits", creator_data: "Creator Data Issue", discovery: "Live Discovery Issue", account: "Account & Team", feature_request: "Feature Request", data_removal: "Data removal", other: "Other", search: "Search" } as const;
+const CATEGORY = { billing: "Billing & Credits", creator_data: "Creator Data Issue", discovery: "Live Discovery Issue", account: "Account", feature_request: "Feature Request", data_removal: "Data removal", other: "Other", search: "Search" } as const;
 const NEW_CATEGORIES = ["billing", "creator_data", "discovery", "account", "feature_request", "data_removal", "other"] as const;
 const PRIORITY = { low: "Low", medium: "Medium", high: "High", urgent: "Urgent" } as const;
 export const TICKET_STATUS = { open: "Open", in_progress: "In progress", waiting_on_customer: "Waiting for you", resolved: "Resolved", closed: "Closed" } as const;

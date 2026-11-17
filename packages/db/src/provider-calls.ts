@@ -32,7 +32,7 @@ export async function providerSpendSince(db: Db, provider: string, since: Date):
  * Hosted-LLM providers counted against the monthly LLM budget. Gemini is the main provider and Ollama the fallback;
  * Groq (replaced 2026-10-26) stays in the sum so its spend earlier in the month still counts.
  */
-export const LLM_BUDGET_PROVIDERS = ["gemini", "ollama", "groq", "openrouter"] as const;
+export const LLM_BUDGET_PROVIDERS = ["gemini", "ollama", "groq", "openrouter", "yepapi"] as const;
 
 /** Recorded hosted-LLM spend since a moment, across LLM_BUDGET_PROVIDERS (each provider stays distinguishable in the rows). */
 export async function llmSpendSince(db: Db, since: Date): Promise<number> {

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Activity, Bookmark, Gift, Megaphone, MessageSquareText, Radio, ShieldCheck } from "lucide-react";
+import { Activity, Bookmark, CalendarClock, Gift, Megaphone, MessageSquareText, Radio, ShieldCheck } from "lucide-react";
 import type { ActivityEvent } from "@mushin/contracts";
 import { useActivityFeed } from "../../api/activity";
 import { EmptyState, ErrorState, LoadingBlock } from "./states";
@@ -13,6 +13,7 @@ const ICON: Record<ActivityEvent["kind"], typeof Activity> = {
   outreach_logged: MessageSquareText,
   live_run_finished: Radio,
   contact_revealed: ShieldCheck,
+  post_due: CalendarClock,
 };
 
 export const when = (iso: string) => new Date(iso).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
@@ -23,7 +24,7 @@ export function ActivityRow({ e }: { e: ActivityEvent }) {
     <li className="flex items-start gap-3 px-4 py-3">
       <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600"><Icon className="h-3.5 w-3.5" /></span>
       <div className="min-w-0 flex-1 text-sm text-slate-700">
-        {e.kind === "complimentary_plan" ? (
+        {e.kind === "complimentary_plan" || e.kind === "post_due" ? (
           <span className="text-slate-900">{e.text}</span>
         ) : (
           <>
@@ -47,6 +48,7 @@ const KIND_FILTERS: { value: ActivityEvent["kind"] | ""; label: string }[] = [
   { value: "outreach_logged", label: "Outreach logged" },
   { value: "live_run_finished", label: "Find New Creators runs" },
   { value: "contact_revealed", label: "Contacts revealed" },
+  { value: "post_due", label: "Post-day reminders" },
 ];
 
 export function ActivityLog() {

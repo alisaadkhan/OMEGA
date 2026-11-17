@@ -48,10 +48,12 @@ async function pageAs(who, viewport = { width: 1440, height: 950 }, { welcome = 
 }
 const shot = (p, n) => p.screenshot({ path: decodeURIComponent(new URL(`${n}.png`, shots).pathname).replace(/^\/([A-Z]:)/, "$1") }).catch(() => {});
 const nav = async (p, name) => {
-  // Account pages are in the profile menu, not the sidebar (owner direction 2026-11-03).
+  // Account pages are in the sidebar (owner, 17 Nov: no buttons in the profile area); sidebar labels differ in case.
   if (["Settings", "Credits & billing", "Activity log", "Support"].includes(name)) {
-    await p.getByRole("button", { name: "Account menu" }).click();
-    await p.getByRole("menuitem", { name, exact: true }).click();
+    const drawer = p.getByRole("button", { name: "Open navigation" });
+    if (await drawer.isVisible().catch(() => false)) await drawer.click();
+    const label = { "Credits & billing": "Credits & Billing", "Activity log": "Activity Log" }[name] ?? name;
+    await p.getByRole("navigation", { name: "Main" }).getByRole("button", { name: label, exact: true }).click();
     // Headings that differ from the menu item (redesign 2026-11-16).
     const heading = { Settings: "Account Settings", "Credits & billing": "Credits & Billing" }[name] ?? name;
     await p.getByRole("heading", { name: heading, exact: true }).first().waitFor({ timeout: 15000 });
@@ -177,8 +179,7 @@ check("SETUP-1", "campaign with the fixture creator exists", Boolean(campaignId)
   const p = await pageAs("owner");
   await p.goto("http://localhost:5173/#/dashboard");
   await nav(p, "Search & Discovery");
-  await p.getByRole("button", { name: "Account menu" }).click();
-  await p.getByRole("menuitem", { name: "Leave a review" }).click({ timeout: 15000 });
+  await p.getByRole("button", { name: "Leave a review" }).first().click({ timeout: 15000 });
   await p.getByRole("radio", { name: "4 out of 5" }).click();
   await p.getByLabel("Anything to add? (optional)").fill("Breakit review");
   await p.getByRole("button", { name: "Send review" }).click();

@@ -13,7 +13,8 @@ declare module "fastify" {
 }
 
 /** `workspaceId`: the workspace the client asked for (X-Workspace-Id); honoured only if the user is a member. */
-export type ResolveTenant = (identity: CustomerIdentity, requestId: string, workspaceId?: string) => Promise<TenantContext>;
+/** `twoStepExempt`: the one route that mirrors two-step state from the Auth server (it must work before the second step). */
+export type ResolveTenant = (identity: CustomerIdentity, requestId: string, workspaceId?: string, opts?: { twoStepExempt?: boolean }) => Promise<TenantContext>;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function createCustomerGuard(o: {
@@ -32,7 +33,8 @@ export function createCustomerGuard(o: {
     if (asked !== undefined && (typeof asked !== "string" || !UUID.test(asked))) {
       throw new AppError("VALIDATION_FAILED", "X-Workspace-Id must be a workspace id", { field: "x-workspace-id" });
     }
-    req.tenant = await o.resolveTenant(identity, req.id, asked?.toLowerCase());
+    const exempt = (req.routeOptions.config as { twoStepExempt?: boolean } | undefined)?.twoStepExempt === true;
+    req.tenant = await o.resolveTenant(identity, req.id, asked?.toLowerCase(), exempt ? { twoStepExempt: true } : undefined);
     // The workspace this request acted in, so the client can confirm it is the one on screen (audit SEC-04).
     void reply.header("x-workspace-id", req.tenant.workspaceId);
   };

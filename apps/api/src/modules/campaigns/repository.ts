@@ -56,6 +56,7 @@ export async function summaries(tx: TenantTx, workspaceId: string, o: { campaign
     currency: r["currency"] as string,
     startDate: (r["start_date"] as string | null) ?? null,
     endDate: (r["end_date"] as string | null) ?? null,
+    notifyPostDue: r["notify_post_due"] === true,
     createdBy: r["created_by"] as string,
     archivedAt: r["archived_at"] ? new Date(r["archived_at"] as string) : null,
     createdAt: new Date(r["created_at"] as string),

@@ -1,6 +1,4 @@
-import { useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
-import { Coins, CreditCard, Activity, Settings, LifeBuoy, LogOut, ChevronDown, ChevronLeft, Menu, Star } from "lucide-react";
+import { Coins, Menu } from "lucide-react";
 import { AnimatedNumber } from "./AnimatedNumber";
 import { useAuth } from "../../auth/AuthContext";
 import { useBillingSummary } from "../../api/billing";
@@ -9,28 +7,18 @@ import type { DashView } from "./Sidebar";
 import { Logo } from "../landing/Logo";
 import type { Creator } from "./CreatorProfilePanel";
 import { JobTray } from "./JobTray";
-import { OPEN_REVIEW_EVENT } from "./LeaveReview";
 import { accountInitials, accountLabel } from "../../lib/billing-status";
-import { WorkspaceMenuItems } from "./TeamSettings";
 
 type Props = {
   credits: number | null;
   view: DashView;
   setView: (v: DashView) => void;
-  onExit: () => void;
   onOpenCreator: (c: Creator) => void;
   onViewResults: (jobId: string) => void;
   /** Opens the navigation drawer on small screens. */
   onOpenNav?: () => void;
 };
 
-/** The account pages live here, not in the sidebar (owner direction 2026-11-03). */
-const MENU: { id: DashView; label: string; icon: typeof Settings }[] = [
-  { id: "settings", label: "Settings", icon: Settings },
-  { id: "billing", label: "Credits & billing", icon: CreditCard },
-  { id: "activity", label: "Activity log", icon: Activity },
-  { id: "support", label: "Support", icon: LifeBuoy },
-];
 const PAGE_LABEL: Record<DashView, string> = { overview: "Dashboard", search: "Search & Discovery", lists: "Shortlists", campaigns: "Campaigns", inbox: "Inbox", settings: "Settings", billing: "Credits & billing", activity: "Activity log", support: "Support" };
 
 const METER_STYLES = {
@@ -39,20 +27,16 @@ const METER_STYLES = {
   red: { box: "bg-red-50 ring-1 ring-red-300 hover:bg-red-100", icon: "text-red-600", value: "text-red-700", title: "Credits are very low" },
 } as const;
 
-export function Topbar({ credits, view, setView, onExit, onOpenCreator, onViewResults, onOpenNav }: Props) {
-  const { user, logout } = useAuth();
+export function Topbar({ credits, view, setView, onOpenCreator, onViewResults, onOpenNav }: Props) {
+  const { user } = useAuth();
   // Never an invented person: the account's own name, else its email (finding: a placeholder name was shown).
   const name = accountLabel(user);
   const email = user?.email ?? "";
   const initials = user?.initials ?? accountInitials(name);
   const avatar = user?.avatar;
-  const [open, setOpen] = useState(false);
   const meter = useBillingSummary().data?.balance.meter ?? "normal";
 
-  const go = (v: DashView) => {
-    setView(v);
-    setOpen(false);
-  };
+  const go = (v: DashView) => setView(v);
 
   return (
     <div className="sticky top-0 z-30 flex h-16 items-center justify-between gap-2 bg-surface/85 px-3 shadow-[0_1px_8px_rgba(0,0,0,0.04)] backdrop-blur-xl sm:px-8">
@@ -83,123 +67,20 @@ export function Topbar({ credits, view, setView, onExit, onOpenCreator, onViewRe
         </button>
         <NotificationCenter onSeeAll={() => setView("activity")} />
 
-        {/* Profile menu: Settings, Credits & billing, Activity log, Support, Leave a review, Back to site, Sign out. */}
-        <div className="relative pl-1">
-          <button
-            onClick={() => setOpen((v) => !v)}
-            className="flex items-center gap-2.5 rounded-full py-1 pl-1 pr-2 transition-colors hover:bg-surface-mid"
-            aria-haspopup="menu"
-            aria-label="Account menu"
-            aria-expanded={open}
-          >
-            {avatar ? (
-              <img src={avatar} alt={name} className="h-9 w-9 rounded-full object-cover ring-2 ring-white shadow-sm" />
-            ) : (
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-ink to-teal text-white" style={{ fontSize: "0.75rem", fontWeight: 600 }}>
-                {initials}
-              </div>
-            )}
-            <span className="hidden min-w-0 flex-col text-left leading-tight xl:flex">
-              <span className="truncate text-xs font-semibold text-slate-900">{name}</span>
-              <span className="max-w-[160px] truncate text-[11px] text-slate-500">{email}</span>
-            </span>
-            <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${open ? "rotate-180" : ""}`} strokeWidth={2} />
-          </button>
-
-          <AnimatePresence>
-            {open && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-                <motion.div
-                  initial={{ opacity: 0, y: -6, scale: 0.98 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -4, scale: 0.98 }}
-                  transition={{ duration: 0.15 }}
-                  role="menu"
-                  className="absolute right-0 top-12 z-50 w-60 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xl"
-                >
-                  <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-3">
-                    {avatar ? (
-                      <img src={avatar} alt={name} className="h-9 w-9 rounded-full object-cover" />
-                    ) : (
-                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-ink to-teal text-white" style={{ fontSize: "0.75rem", fontWeight: 600 }}>
-                        {initials}
-                      </div>
-                    )}
-                    <div className="min-w-0">
-                      <div className="truncate text-sm text-slate-900" style={{ fontWeight: 600 }}>{name}</div>
-                      <div className="truncate text-xs text-slate-500">{email}</div>
-                    </div>
-                  </div>
-
-                  <div className="py-1">
-                    {MENU.map((m) => {
-                      const active = view === m.id;
-                      return (
-                        <button
-                          key={m.id}
-                          onClick={() => go(m.id)}
-                          role="menuitem"
-                          className={`flex w-full items-center gap-2.5 px-4 py-2 text-left text-sm transition-colors ${
-                            active ? "bg-slate-50 text-slate-900" : "text-slate-700 hover:bg-slate-50"
-                          }`}
-                          style={{ fontWeight: 500 }}
-                        >
-                          <m.icon className={`h-4 w-4 ${active ? "text-slate-900" : "text-slate-500"}`} strokeWidth={1.75} />
-                          {m.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <div className="border-t border-slate-100 py-1">
-                    <button
-                      onClick={() => {
-                        setOpen(false);
-                        window.dispatchEvent(new Event(OPEN_REVIEW_EVENT));
-                      }}
-                      role="menuitem"
-                      className="flex w-full items-center gap-2.5 px-4 py-2 text-left text-sm text-slate-700 transition-colors hover:bg-slate-50"
-                      style={{ fontWeight: 500 }}
-                    >
-                      <Star className="h-4 w-4 text-slate-500" strokeWidth={1.75} />
-                      Leave a review
-                    </button>
-                    <button
-                      onClick={() => {
-                        setOpen(false);
-                        onExit();
-                      }}
-                      role="menuitem"
-                      className="flex w-full items-center gap-2.5 px-4 py-2 text-left text-sm text-slate-700 transition-colors hover:bg-slate-50"
-                      style={{ fontWeight: 500 }}
-                    >
-                      <ChevronLeft className="h-4 w-4 text-slate-500" strokeWidth={1.75} />
-                      Back to site
-                    </button>
-                  </div>
-
-                  <WorkspaceMenuItems onPicked={() => setOpen(false)} />
-
-                  <div className="border-t border-slate-100 py-1">
-                    <button
-                      onClick={() => {
-                        setOpen(false);
-                        void logout();
-                        onExit();
-                      }}
-                      role="menuitem"
-                      className="flex w-full items-center gap-2.5 px-4 py-2 text-left text-sm text-slate-700 transition-colors hover:bg-slate-50"
-                      style={{ fontWeight: 500 }}
-                    >
-                      <LogOut className="h-4 w-4 text-slate-500" strokeWidth={1.75} />
-                      Sign out
-                    </button>
-                  </div>
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>
+        {/* Who is signed in. Display only: every account action is in the sidebar (owner, 17 Nov). */}
+        <div className="flex items-center gap-2.5 pl-1">
+          <span className="sr-only xl:hidden">Signed in as {name}</span>
+          {avatar ? (
+            <img src={avatar} alt="" className="h-9 w-9 rounded-full object-cover ring-2 ring-white shadow-sm" />
+          ) : (
+            <div aria-hidden className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-ink to-teal text-white" style={{ fontSize: "0.75rem", fontWeight: 600 }}>
+              {initials}
+            </div>
+          )}
+          <span className="hidden min-w-0 flex-col text-left leading-tight xl:flex">
+            <span className="truncate text-xs font-semibold text-slate-900">{name}</span>
+            <span className="max-w-[160px] truncate text-[11px] text-slate-500">{email}</span>
+          </span>
         </div>
       </div>
     </div>

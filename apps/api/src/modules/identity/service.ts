@@ -56,10 +56,14 @@ export function createIdentityService(db: Db, autoTrial: StartTrial | null, test
     return record.email;
   }
 
-  async function resolveTenant(identity: CustomerIdentity, requestId: string, requested?: string): Promise<TenantContext> {
+  async function resolveTenant(identity: CustomerIdentity, requestId: string, requested?: string, opts?: { twoStepExempt?: boolean }): Promise<TenantContext> {
     const { existing, access } = await db.withUser(identity.userId, async (tx) => ({ existing: await repo.findMembership(tx, identity.userId, requested), access: await repo.userAccess(tx, identity.userId) }));
     // A deleted account stays deleted: signing in again does not bring it (or a fresh workspace) back.
     if (access?.status === "deleted") throw new AppError("FORBIDDEN", "This account was deleted.", { reason: "account_deleted" });
+    // Two-step sign-in (0091): a session that has not passed the second step gets nothing for a person who turned it on.
+    if (access?.mfaEnabled && identity.aal !== "aal2" && !opts?.twoStepExempt) {
+      throw new AppError("FORBIDDEN", "Enter the code from your authenticator app to finish signing in.", { reason: "two_step_required" });
+    }
     const newlyConfirmed = await confirmEmail(identity, access?.emailConfirmedFor ?? null);
     if (newlyConfirmed && access) await db.withUser(identity.userId, (tx) => repo.recordEmailConfirmed(tx, identity.userId, newlyConfirmed));
     if (existing) return { requestId, userId: identity.userId, ...existing };

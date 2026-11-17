@@ -19,9 +19,11 @@ describe("customer token verifier", () => {
     const { iss, verify } = await setup();
     const sub = randomUUID();
     const identity = await verify(await iss.sign({ sub, email: "Ahmed@Mushin.PK", fullName: "Ahmed Raza" }));
-    expect(identity).toEqual({ userId: sub, email: "ahmed@mushin.pk", fullName: "Ahmed Raza" });
+    expect(identity).toEqual({ userId: sub, email: "ahmed@mushin.pk", fullName: "Ahmed Raza", aal: "aal1" });
+    // Two-step sign-in (0091): the Auth server's signed aal claim is read; anything but "aal2" counts as the first step.
+    expect((await verify(await iss.sign({ sub, email: "a@b.pk", aal: "aal2" }))).aal).toBe("aal2");
     // Audit SEC-03: user-editable user_metadata.email_verified is not read at all; nothing in the identity can claim it.
-    expect(Object.keys(await verify(await iss.sign({ sub, email: "a@mushin.pk", emailVerified: true })))).toEqual(["userId", "email", "fullName"]);
+    expect(Object.keys(await verify(await iss.sign({ sub, email: "a@mushin.pk", emailVerified: true })))).toEqual(["userId", "email", "fullName", "aal"]);
   });
 
   it.each([

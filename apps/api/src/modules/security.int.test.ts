@@ -39,7 +39,7 @@ beforeAll(async () => {
       platform.module,
       identity.module,
       createListsModule({ service: createListsService({ db }) }),
-      createCampaignsModule({ service: createCampaignsService({ db, planLimits: async () => ({ entitlements: { campaignLimit: null } }) }) }),
+      createCampaignsModule({ db, service: createCampaignsService({ db, planLimits: async () => ({ entitlements: { campaignLimit: null } }) }) }),
     ],
   });
 });

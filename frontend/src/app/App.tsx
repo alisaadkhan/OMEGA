@@ -13,17 +13,18 @@ import { AdminLogin } from "./components/admin/AdminLogin";
 import { FreeTrial } from "./components/public/FreeTrial";
 import { RemoveMyData } from "./components/public/RemoveMyData";
 import { LegalPage, type LegalDoc } from "./components/public/LegalPage";
-import { InviteAccept, inviteTokenFromHash } from "./components/auth/InviteAccept";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 import { AdminAuthProvider, useAdminAuth } from "./admin/AdminAuthContext";
 import { ToastProvider, ConfirmProvider } from "./lib/toast";
+
+import { TwoStepGate } from "./components/auth/TwoStepGate";
 
 // Loaded on demand (audit UX-04): visitors to the landing page do not download the dashboard or the staff console.
 const Dashboard = lazy(() => import("./components/dashboard/Dashboard").then((m) => ({ default: m.Dashboard })));
 const AdminApp = lazy(() => import("./components/admin/AdminApp").then((m) => ({ default: m.AdminApp })));
 const Loading = () => <div className="flex min-h-screen items-center justify-center text-sm text-slate-500" role="status">Loading…</div>;
 
-type Route = "landing" | "dashboard" | "login" | "signup" | "forgot" | "reset-password" | "confirmed" | "not-found" | "admin-login" | "admin" | "remove-my-data" | "free-trial" | "invite" | LegalDoc;
+type Route = "landing" | "dashboard" | "login" | "signup" | "forgot" | "reset-password" | "confirmed" | "not-found" | "admin-login" | "admin" | "remove-my-data" | "free-trial" | LegalDoc;
 const LEGAL_DOCS: readonly LegalDoc[] = ["terms", "privacy", "refunds", "creator-data"];
 
 /**
@@ -47,7 +48,6 @@ function useHashRoute(initial: Route): [Route, (r: Route) => void] {
     if (h === "remove-my-data") return "remove-my-data";
     if (h === "free-trial") return "free-trial";
     if ((LEGAL_DOCS as readonly string[]).includes(h)) return h as LegalDoc;
-    if (h.startsWith("invite/")) return "invite";
     // The home page, and Supabase's own link fragments (handled by lib/supabase.ts), are not unknown routes.
     if (h === "" || /^(access_token|error|error_code|error_description|type)=/.test(h)) return initial;
     return "not-found";
@@ -80,13 +80,7 @@ function Shell() {
   const [route, setRoute] = useHashRoute("landing");
 
   const goPrimary = () => setRoute(user ? "dashboard" : "signup");
-  // After signing in or up, a pending invitation link takes precedence over the dashboard.
-  const afterAuth = () => {
-    const pending = inviteTokenFromHash();
-    if (pending) window.location.hash = `/invite/${pending}`;
-    else setRoute("dashboard");
-  };
-  const inviteToken = route === "invite" ? inviteTokenFromHash() : null;
+  const afterAuth = () => setRoute("dashboard");
 
   // Guard admin route — if not signed in as admin, bounce to admin-login
   useEffect(() => {
@@ -155,14 +149,8 @@ function Shell() {
         {route === "dashboard" && (
           <motion.div key="dashboard" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
             <Suspense fallback={<Loading />}>
-              <Dashboard onExit={() => setRoute("landing")} />
+              <TwoStepGate><Dashboard onExit={() => setRoute("landing")} /></TwoStepGate>
             </Suspense>
-          </motion.div>
-        )}
-
-        {route === "invite" && inviteToken && (
-          <motion.div key="invite" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
-            <InviteAccept token={inviteToken} goLogin={() => setRoute("login")} goSignup={() => setRoute("signup")} onJoined={() => { setRoute("dashboard"); window.location.reload(); }} />
           </motion.div>
         )}
 

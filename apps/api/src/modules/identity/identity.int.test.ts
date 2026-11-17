@@ -96,7 +96,7 @@ describe("GET /v1/me", () => {
     const res = await app.inject({ method: "GET", url: "/v1/me", headers: { authorization: token } });
     expect(res.statusCode).toBe(200);
     const body = res.json();
-    expect(body.user).toEqual({ id: sub, email: "sana@mushin.pk", displayName: "Sana Riaz", avatarUrl: null, emailNotifications: true });
+    expect(body.user).toEqual({ id: sub, email: "sana@mushin.pk", displayName: "Sana Riaz", avatarUrl: null, emailNotifications: true, twoStepEnabled: false });
     expect(body.workspace).toMatchObject({ name: "Sana Riaz's workspace", role: "owner" });
 
     expect((await app.inject({ method: "GET", url: "/v1/me" })).statusCode).toBe(401);

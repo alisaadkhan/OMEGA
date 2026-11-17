@@ -44,6 +44,9 @@ export async function apiRequest<S extends z.ZodType>(
  * Audit SEC-04: a request must act in the workspace this tab shows. A refused workspace is forgotten and the app
  * reloads into the person's own workspace with a notice; a response from any other workspace is treated as an error.
  */
+/** Dispatched on window when the API asks for the second sign-in step. */
+export const TWO_STEP_REQUIRED_EVENT = "mushin:two-step-required";
+
 async function guardWorkspace(res: Response, selected: string | null): Promise<void> {
   if (res.status === 403) {
     const body = (await res.clone().json().catch(() => null)) as { error?: { details?: { reason?: string } } } | null;
@@ -51,6 +54,11 @@ async function guardWorkspace(res: Response, selected: string | null): Promise<v
       dropInaccessibleWorkspace();
       window.location.reload();
       throw new ApiError("FORBIDDEN", "You no longer have access to that workspace.", 403, res.headers.get("x-request-id"));
+    }
+    // Two-step sign-in (0091): the session has not passed the second step; the app shows the code screen.
+    if (body?.error?.details?.reason === "two_step_required") {
+      window.dispatchEvent(new Event(TWO_STEP_REQUIRED_EVENT));
+      throw new ApiError("FORBIDDEN", "Enter the code from your authenticator app to finish signing in.", 403, res.headers.get("x-request-id"));
     }
     // Mandatory email verification (0089): the API serves nothing before the Auth server confirms the address.
     if (body?.error?.details?.reason === "email_not_verified") {

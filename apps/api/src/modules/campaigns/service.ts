@@ -40,6 +40,7 @@ function toSummary(r: repo.SummaryRow): CampaignSummary {
     declinedCount: r.declinedCount,
     agreedFeesMinor: r.agreedFeesMinor,
     ...(r.containsCreator === null ? {} : { containsCreator: r.containsCreator }),
+    notifyPostDue: r.notifyPostDue,
     createdAt: r.createdAt.toISOString(),
     updatedAt: r.updatedAt.toISOString(),
   };

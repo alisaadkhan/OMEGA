@@ -6,7 +6,7 @@ import { apiDownload, apiRequest } from "../../api/client";
 import { rupees, toMinor, useCampaign, useDeleteCampaign, useUpdateCampaign } from "../../api/campaigns";
 import { relative } from "../../lib/time";
 import { useConfirm, useToast } from "../../lib/toast";
-import { Alert, Button, Card, CountUp, EASE, NotYet, Progress, shortRupees, Skeleton, Stagger, StaggerItem, Toggle } from "../../ui/kit";
+import { Alert, Button, Card, CountUp, EASE, Progress, shortRupees, Skeleton, Stagger, StaggerItem, Toggle } from "../../ui/kit";
 import { cn } from "../ui/utils";
 import { CampaignModal, PLATFORM_NAME, STAGE_LABEL, STATUS_DOT, STATUS_LABEL, STATUS_TONE } from "./Campaigns";
 import { CampaignOutreachTab } from "./CampaignOutreachTab";
@@ -228,7 +228,7 @@ function SettingsTab({ c, onDeleted }: { c: Detail; onDeleted: () => void }) {
   const save = () => update.mutate({ id: c.id, patch: { name: name.trim(), budgetMinor: toMinor(budget) } }, { onSuccess: () => { setSaved(true); setTimeout(() => setSaved(false), 2500); } });
   const setStatus = (status: "paused" | "active" | "archived", msg: string) => update.mutate({ id: c.id, patch: { status } }, { onSuccess: () => toast.success(msg), onError: (e) => toast.error("Couldn't update the campaign", err(e)) });
   async function onDelete() {
-    if (!(await confirm({ title: `Delete ${c.name}?`, body: "The campaign, its pipeline and its outreach log are deleted for everyone in your team. Creators stay in MUSHIN.", confirmLabel: "Delete campaign", cancelLabel: "Keep", destructive: true }))) return;
+    if (!(await confirm({ title: `Delete ${c.name}?`, body: "The campaign, its pipeline and its outreach log are deleted. Creators stay in MUSHIN.", confirmLabel: "Delete campaign", cancelLabel: "Keep", destructive: true }))) return;
     del.mutate(c.id, { onSuccess: () => { toast.success(`Deleted ${c.name}`); onDeleted(); }, onError: (e) => toast.error("Couldn't delete the campaign", err(e)) });
   }
   const fieldCls = "w-full rounded-lg bg-surface-low px-3 py-2.5 text-sm text-on shadow-sm outline-none transition-all focus:bg-white focus:ring-2 focus:ring-teal/40";
@@ -253,10 +253,12 @@ function SettingsTab({ c, onDeleted }: { c: Detail; onDeleted: () => void }) {
           <div className="flex justify-end"><Button icon={Save} disabled={!dirty || budgetBad || !name.trim()} loading={update.isPending} onClick={save}>Save Changes</Button></div>
         </Card>
         <Card className="flex flex-col gap-4 p-5">
-          <div id="cs-notify" className="scroll-mt-24 border-b border-surface-high/60 pb-2"><h2 className="flex items-center gap-2 text-lg font-semibold text-on">Notifications <NotYet /></h2><p className="mt-0.5 text-xs text-ink-soft">Email alerts for this campaign are not available yet.</p></div>
-          {["Email me when a creator is scheduled to post today.", "Email me when a creator opens my outreach message."].map((t) => (
-            <div key={t} className="flex items-center justify-between gap-3 rounded-xl bg-surface-low p-3 opacity-70"><span className="text-[13px] font-medium text-on">{t}</span><Toggle checked={false} onChange={() => undefined} label={t} disabled /></div>
-          ))}
+          <div id="cs-notify" className="scroll-mt-24 border-b border-surface-high/60 pb-2"><h2 className="text-lg font-semibold text-on">Notifications</h2><p className="mt-0.5 text-xs text-ink-soft">Reminders appear in the bell and the Activity log.</p></div>
+          <div className="flex items-center justify-between gap-3 rounded-xl bg-surface-low p-3">
+            <span className="flex flex-col"><span className="text-[13px] font-medium text-on">Remind me when a creator is due to post</span><span className="text-xs text-ink-soft">On the due date set for each creator, until their content is marked posted.</span></span>
+            <Toggle checked={c.notifyPostDue} disabled={update.isPending} label="Remind me when a creator is due to post"
+              onChange={(on) => update.mutate({ id: c.id, patch: { notifyPostDue: on } }, { onSuccess: () => toast.success(on ? "Post-day reminders on" : "Post-day reminders off"), onError: (e) => toast.error("Couldn't change the reminder", err(e)) })} />
+          </div>
         </Card>
         <section id="cs-danger" className="flex scroll-mt-24 flex-col gap-3 rounded-xl bg-danger-soft/20 p-5 shadow-sm">
           <h2 className="text-lg font-semibold text-danger">Danger Zone</h2>

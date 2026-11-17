@@ -1,4 +1,4 @@
-import { jsonb, pgSchema, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, jsonb, pgSchema, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 export const wp = pgSchema("wp");
 const ts = (name: string) => timestamp(name, { withTimezone: true, mode: "date" });
@@ -21,6 +21,8 @@ export const users = wp.table("users", {
   /** When the Auth server confirmed this person's email, and for which address (0089, email verification gate). */
   emailConfirmedAt: ts("email_confirmed_at"),
   emailConfirmedFor: text("email_confirmed_for"),
+  /** Two-step sign-in is on (0091): mirrored from the Auth server's verified factors, never set from the client. */
+  mfaEnabled: boolean("mfa_enabled").notNull().default(false),
   createdAt: ts("created_at").notNull().defaultNow(),
   updatedAt: ts("updated_at").notNull().defaultNow(),
 });

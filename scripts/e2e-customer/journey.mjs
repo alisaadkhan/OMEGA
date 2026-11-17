@@ -107,10 +107,12 @@ const mainText = async (p) => (await p.locator("main").innerText().catch(() => "
 // Page headings that differ from the menu item (redesign 2026-11-16).
 const HEADING = { Settings: "Account Settings", "Credits & billing": "Credits & Billing" };
 const nav = async (p, name) => {
-  // Account pages are in the profile menu, not the sidebar (owner direction 2026-11-03).
+  // Account pages are in the sidebar (owner, 17 Nov: no buttons in the profile area); sidebar labels differ in case.
   if (["Settings", "Credits & billing", "Activity log", "Support"].includes(name)) {
-    await p.getByRole("button", { name: "Account menu" }).click();
-    await p.getByRole("menuitem", { name, exact: true }).click();
+    const drawer = p.getByRole("button", { name: "Open navigation" });
+    if (await drawer.isVisible().catch(() => false)) await drawer.click();
+    const label = { "Credits & billing": "Credits & Billing", "Activity log": "Activity Log" }[name] ?? name;
+    await p.getByRole("navigation", { name: "Main" }).getByRole("button", { name: label, exact: true }).click();
     await p.getByRole("heading", { name: HEADING[name] ?? name, exact: true }).first().waitFor({ timeout: 15000 });
     return;
   }
@@ -121,11 +123,7 @@ const nav = async (p, name) => {
   await p.getByRole("button", { name: name === "Search & Discovery" ? "Search" : name, exact: true }).first().click();
   await p.getByRole("heading", { name, exact: true }).first().waitFor({ timeout: 15000 });
 };
-const menu = async (p, item) => {
-  await p.getByRole("button", { name: "Account menu" }).click();
-  await p.getByRole("menuitem", { name: item }).click();
-  await p.getByRole("heading", { name: HEADING[item] ?? item, exact: true }).first().waitFor({ timeout: 15000 });
-};
+const menu = (p, item) => nav(p, item);
 async function search(p, text) {
   if (!(await p.getByPlaceholder(/Find Pakistani creators/).isVisible().catch(() => false))) await nav(p, "Search & Discovery");
   await p.waitForFunction(() => { const b = [...document.querySelectorAll("button")].find((x) => /Search Existing Creators/.test(x.textContent ?? "")); return !!b && !b.disabled; }, null, { timeout: 15000 });
@@ -286,13 +284,15 @@ if (phase === "main") {
   await p.getByRole("button", { name: "Save profile" }).click();
   await p.waitForTimeout(1000);
   check("settings", "profile name persists in the database", sql(`select display_name from wp.users where id = '${ids.owner.sub}'`) === "Olivia Owner QA");
-  await p.getByRole("button", { name: "Team", exact: true }).click();
-  await p.getByLabel("Team name").fill(`E2E Brand ${label}`);
-  await p.getByRole("button", { name: "Save name" }).click();
-  await p.waitForTimeout(1000);
-  check("settings", "workspace rename persists", sql(`select name from wp.workspaces where id = '${ws}'`) === `E2E Brand ${label}`);
-  const team = await p.getByRole("region", { name: "Team" }).innerText();
-  check("settings", "team lists owner, admin and member with roles", /Olivia Owner QA[\s\S]*owner/i.test(team) && team.includes("Adam Admin") && team.includes("Mona Member"));
+  check("settings", "there is no Team tab, team name or job title, timezone or bio (owner, 17 Nov)", (await p.getByRole("button", { name: "Team", exact: true }).count()) === 0 && !/Job title|Timezone|\bBio\b/.test(await mainText(p)));
+  // Profile photo: a real PNG is cropped and saved on the person's own record, shown in the header, then removed.
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR4nGP8z8DAwMDAxMDAwMDAAAANHQEDasKb6QAAAABJRU5ErkJggg==", "base64");
+  await p.getByLabel("Choose a profile photo").setInputFiles({ name: "me.png", mimeType: "image/png", buffer: png });
+  await p.getByRole("button", { name: "Remove" }).first().waitFor({ timeout: 15000 });
+  check("settings", "profile photo upload is stored as a small JPEG on the person's record", /^data:image\/jpeg;base64,/.test(sql(`select avatar_url from wp.users where id = '${ids.owner.sub}'`)));
+  await p.getByRole("button", { name: "Remove" }).first().click();
+  await p.getByRole("button", { name: "Upload photo" }).waitFor({ timeout: 15000 });
+  check("settings", "profile photo can be removed", sql(`select coalesce(avatar_url, '') from wp.users where id = '${ids.owner.sub}'`) === "");
   await shot(p, "02-settings");
 
   // ── 3. Brain 1 catalog search (Meilisearch backend, LLM unavailable) ──
@@ -616,9 +616,6 @@ if (phase === "main") {
   const adm = await pageAs("admin");
   await adm.goto("http://localhost:5173/#/dashboard");
   await adm.getByRole("heading", { name: /Welcome back, Adam/ }).waitFor({ timeout: 30000 });
-  await menu(adm, "Settings");
-  await adm.getByRole("button", { name: "Team", exact: true }).click();
-  check("roles", "admin can rename the workspace (UI enabled, API 200)", !(await adm.getByLabel("Team name").isDisabled()) && (await api("admin", "PATCH", "/v1/workspace", { name: `E2E Brand ${label}` })).status === 200);
   check("roles", "admin sees the shared lists and campaigns", (await api("admin", "GET", "/v1/lists")).json.lists.some((l) => l.name === "Food shortlist") && (await api("admin", "GET", "/v1/campaigns")).json.campaigns.length === 1);
   check("roles", "admin may view the ledger (documented owner/admin)", (await api("admin", "GET", "/v1/billing/ledger?limit=5")).status === 200);
   await adm.context().close();
@@ -626,9 +623,7 @@ if (phase === "main") {
   const mem = await pageAs("member");
   await mem.goto("http://localhost:5173/#/dashboard");
   await mem.getByRole("heading", { name: /Welcome back, Mona/ }).waitFor({ timeout: 30000 });
-  await menu(mem, "Settings");
-  await mem.getByRole("button", { name: "Team", exact: true }).click();
-  check("roles", "member cannot rename: UI disabled and API 403", (await mem.getByLabel("Team name").isDisabled()) && (await api("member", "PATCH", "/v1/workspace", { name: "Hijack" })).status === 403);
+  check("roles", "member cannot rename the account (API 403)", (await api("member", "PATCH", "/v1/workspace", { name: "Hijack" })).status === 403);
   check("roles", "member cannot read the ledger or buy (API 403)", (await api("member", "GET", "/v1/billing/ledger?limit=5")).status === 403 && (await api("member", "POST", "/v1/billing/checkout", { kind: "topup", packId: "x" }, { "idempotency-key": `e2e-m-${label}` })).status === 403);
   await mem.goto("http://localhost:5173/#/dashboard");
   await nav(mem, "Credits & billing");
@@ -649,55 +644,16 @@ if (phase === "main") {
   check("isolation", "another workspace's activity, lists and analytics are empty", (await api("outsider", "GET", "/v1/activity")).json.events.length === 0 && (await api("outsider", "GET", "/v1/lists")).json.lists.length === 0);
   check("isolation", "the catalog itself stays globally searchable", (await apiSearch("outsider", "food")).json.total === apiFood.total);
 
-  // ── 10b. Team: an invitation link joins only the invited, confirmed email; removal; export; account deletion ──
+  // ── 10b. No teams (owner, 17 Nov): no invitation page; export and account deletion ──
   const own = await pageAs("owner");
   await own.goto("http://localhost:5173/#/dashboard");
   await own.getByRole("heading", { name: /Welcome back, Olivia/ }).waitFor({ timeout: 30000 });
   await menu(own, "Settings");
-  const teamTab = async () => { await own.getByRole("button", { name: "Team", exact: true }).click(); await own.getByLabel("Invite by email").waitFor({ timeout: 15000 }); };
-  await teamTab();
-  await own.getByLabel("Invite by email").fill(ids.invitee.email);
-  await own.getByRole("button", { name: "Create invitation" }).click();
-  const linkBox = own.getByRole("status").filter({ hasText: "Send this link to" });
-  await linkBox.waitFor({ timeout: 15000 });
-  const token = ((await linkBox.locator(".font-mono").innerText()).trim().split("/#/invite/")[1] ?? "");
-  check("team", "owner creates an invitation link in Settings (shown once; no email is sent)", /^[A-Za-z0-9_-]{40,}$/.test(token) && sql(`select count(*) from wp.workspace_invitations where workspace_id = '${ws}' and email = '${ids.invitee.email}' and status = 'pending'`) === "1");
-  check("a11y", "Settings › Team with an open invitation: no serious or critical WCAG 2.2 A/AA issues", (await axeFindings(own)).length === 0, (await axeFindings(own)).join(" | "));
-  const inviteUrl = `http://localhost:5173/#/invite/${token}`;
-
   const stranger = await pageAs("outsider");
-  await stranger.goto(inviteUrl);
-  await stranger.getByText(`Only ${ids.invitee.email} can accept this invitation`).waitFor({ timeout: 30000 });
-  const forced = await api("outsider", "POST", "/v1/invitations/accept", { token });
-  check("team", "someone else opening the link cannot join (the page says why; the API refuses)", forced.status === 403 && forced.json?.error?.details?.reason === "invitation_invalid" && sql(`select count(*) from wp.workspace_members where workspace_id = '${ws}' and user_id = '${ids.outsider.sub}'`) === "0", `${forced.status}`);
+  await stranger.goto("http://localhost:5173/#/invite/abc");
+  await stranger.waitForTimeout(1500);
+  check("team", "there is no invitation page any more", !(await stranger.getByRole("button", { name: /^Join / }).isVisible().catch(() => false)));
   await stranger.context().close();
-
-  const inv = await pageAs("invitee");
-  await inv.goto(inviteUrl);
-  const join = inv.getByRole("button", { name: /^Join / });
-  await join.waitFor({ timeout: 30000 });
-  check("a11y", "Invitation page: no serious or critical WCAG 2.2 A/AA issues", (await axeFindings(inv)).length === 0, (await axeFindings(inv)).join(" | "));
-  await join.click();
-  await inv.getByRole("heading", { name: /Welcome back/ }).waitFor({ timeout: 30000 });
-  await menu(inv, "Settings");
-  await inv.getByRole("button", { name: "Team", exact: true }).click();
-  await inv.getByLabel("Current team").waitFor({ timeout: 15000 });
-  const wsName = sql(`select name from wp.workspaces where id = '${ws}'`);
-  check("team", "the invited person joins as a member and works in the owner's workspace (switcher offers both)",
-    sql(`select role from wp.workspace_members where workspace_id = '${ws}' and user_id = '${ids.invitee.sub}'`) === "member" && (await inv.getByLabel("Team name").inputValue()) === wsName && (await inv.getByLabel("Current team").locator("option").count()) === 2 && (await inv.getByLabel("Team name").isDisabled()),
-    wsName);
-  check("team", "the used link cannot be used again", (await api("invitee", "POST", "/v1/invitations/accept", { token })).status === 403);
-
-  await own.reload();
-  await own.getByRole("heading", { name: /Welcome back, Olivia/ }).waitFor({ timeout: 30000 }).catch(() => {});
-  await menu(own, "Settings");
-  await teamTab();
-  await own.getByRole("listitem").filter({ hasText: ids.invitee.email }).getByRole("button", { name: "Remove" }).click();
-  await own.getByRole("alertdialog").getByRole("button", { name: "Remove" }).click();
-  for (let i = 0; i < 30 && sql(`select count(*) from wp.workspace_members where workspace_id = '${ws}' and user_id = '${ids.invitee.sub}'`) !== "0"; i++) await own.waitForTimeout(300);
-  const stale = await api("invitee", "GET", "/v1/me", undefined, { "x-workspace-id": ws });
-  check("team", "the owner removes the new member in Settings; they lose access at once (403, never redirected: audit SEC-04)", sql(`select count(*) from wp.workspace_members where workspace_id = '${ws}' and user_id = '${ids.invitee.sub}'`) === "0" && stale.status === 403 && stale.json?.error?.details?.reason === "workspace_access_denied", `${stale.status}`);
-
   await own.getByRole("button", { name: "Support access" }).click();
   await own.waitForTimeout(600);
   check("a11y", "Settings › Support access: no serious or critical WCAG 2.2 A/AA issues", (await axeFindings(own)).length === 0, (await axeFindings(own)).join(" | "));
@@ -712,10 +668,9 @@ if (phase === "main") {
     `${download.suggestedFilename()} lists ${exported.tables?.lists?.length} members ${exported.tables?.members?.length}`);
   await own.context().close();
 
-  await inv.reload();
+  const inv = await pageAs("invitee");
+  await inv.goto("http://localhost:5173/#/dashboard");
   await inv.getByRole("heading", { name: /Welcome back/ }).waitFor({ timeout: 30000 });
-  // The tab still had the owner's workspace selected: the API refused it, the app forgot it and says so.
-  check("team", "a removed member's open tab is told it lost access and lands in their own workspace", await inv.getByText(/You no longer have access to the workspace you were working in/).first().waitFor({ timeout: 15000 }).then(() => true, () => false));
   await menu(inv, "Settings");
   await inv.getByRole("button", { name: "Privacy & data" }).click();
   await inv.getByLabel(/Type your email/).fill(ids.invitee.email);
@@ -827,9 +782,9 @@ if (phase === "main") {
   check("plans", "Scale: 2,000 outreach emails per billing period, in test mode (nothing is delivered)", usage.limit === 2000 && usage.used === 0 && usage.mode === "test");
   await pl.context().close();
 
-  // ── 11. Sign out ──
-  await p.getByRole("button", { name: "Account menu" }).click();
-  await p.getByRole("menuitem", { name: /Sign out|Log out/ }).click().catch(() => {});
+  // ── 11. Sign out (sidebar) ──
+  check("profile", "the profile area has no menu or buttons (owner, 17 Nov)", (await p.getByRole("button", { name: "Account menu" }).count()) === 0);
+  await p.getByRole("navigation", { name: "Main" }).locator("xpath=ancestor::aside").getByRole("button", { name: "Sign out" }).click().catch(() => {});
   await p.waitForTimeout(2500);
   await p.goto("http://localhost:5173/#/dashboard");
   await p.waitForTimeout(2500);
@@ -864,11 +819,7 @@ if (phase === "main") {
     check("a11y", `${name}: no serious or critical WCAG 2.2 A/AA issues (desktop)`, found.length === 0, found.join(" | "));
   }
   for (const item of ["Activity", "Settings", "Credits & billing", "Support"]) {
-    if (item === "Activity") {
-      await p.getByRole("button", { name: "Account menu" }).click();
-      await p.getByRole("menuitem", { name: "Activity log" }).click();
-      await p.getByRole("heading", { name: "Activity log" }).waitFor({ timeout: 15000 });
-    } else await menu(p, item);
+    await menu(p, item === "Activity" ? "Activity log" : item);
     await p.waitForTimeout(400);
     const found = await axeFindings(p);
     check("a11y", `${item}: no serious or critical WCAG 2.2 A/AA issues (desktop)`, found.length === 0, found.join(" | "));

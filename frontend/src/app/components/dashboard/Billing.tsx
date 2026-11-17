@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowUpRight, BarChart3, FileText, Lock, Mail, Plus, PlusCircle, Radio, RefreshCw, Search, ShoppingBag, SlidersHorizontal, Zap } from "lucide-react";
-import { Alert, Button, Card, CountUp, EASE, NotYet, PageHeader, Pill, Progress, Segmented, Toggle } from "../../ui/kit";
+import { Alert, Button, Card, CountUp, EASE, PageHeader, Pill, Progress, Segmented } from "../../ui/kit";
 import { PlanPicker } from "./PlanPicker";
 import type { BillingInterval, CreditAction, PlanId } from "@mushin/contracts";
 import { COPY } from "../../lib/copy";
@@ -227,13 +227,6 @@ export function Billing({ checkoutResult }: { checkoutResult?: "success" | "fail
                   <span className="font-semibold text-on">Testing credits: <span className="tabular-nums">{s.testingAllowance.remaining.toLocaleString("en-US")}</span> of <span className="tabular-nums">{s.testingAllowance.monthlyCredits.toLocaleString("en-US")}</span> left this month.</span> Unused testing credits do not carry over.
                 </div>
               )}
-              <div className="flex items-center justify-between gap-3 rounded-xl bg-surface-low p-3.5">
-                <div className="flex flex-col pr-2">
-                  <span className="flex items-center gap-2 text-[13px] font-semibold text-on">Auto-refill <NotYet /></span>
-                  <span className="text-xs text-ink-soft">Automatically add credits when your balance runs low.</span>
-                </div>
-                <Toggle checked={false} onChange={() => undefined} label="Auto-refill" disabled />
-              </div>
             </div>
             <div className="mt-6 flex flex-wrap items-center justify-between gap-2 pt-5">
               {canManage && !s?.complimentary ? (

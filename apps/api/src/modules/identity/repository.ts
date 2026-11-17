@@ -23,8 +23,8 @@ export async function lockUser(tx: TenantTx, userId: string): Promise<void> {
 }
 
 /** The person's account status and the address the Auth server confirmed (0089); null before their first workspace. */
-export async function userAccess(tx: UserTx, userId: string): Promise<{ status: string; emailConfirmedFor: string | null } | null> {
-  const [r] = await tx.select({ status: users.status, emailConfirmedFor: users.emailConfirmedFor }).from(users).where(eq(users.id, userId));
+export async function userAccess(tx: UserTx, userId: string): Promise<{ status: string; emailConfirmedFor: string | null; mfaEnabled: boolean } | null> {
+  const [r] = await tx.select({ status: users.status, emailConfirmedFor: users.emailConfirmedFor, mfaEnabled: users.mfaEnabled }).from(users).where(eq(users.id, userId));
   return r ?? null;
 }
 
@@ -89,6 +89,7 @@ export async function getMe(tx: TenantTx, ids: { userId: string; workspaceId: st
       email: users.email,
       displayName: users.displayName,
       avatarUrl: users.avatarUrl,
+      mfaEnabled: users.mfaEnabled,
       preferences: users.preferences,
       legalVersion: users.legalVersion,
       legalAcceptedAt: users.legalAcceptedAt,

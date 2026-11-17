@@ -236,7 +236,7 @@ export class OpenAiCompatibleLlm implements Llm {
           model: p.model,
           tokensIn: r.tokensIn,
           tokensOut: r.tokensOut,
-          costUsd: (r.tokensIn * p.priceInPerMTok + r.tokensOut * p.priceOutPerMTok) / 1_000_000,
+          costUsd: Math.max(p.minCostPerCallUsd ?? 0, (r.tokensIn * p.priceInPerMTok + r.tokensOut * p.priceOutPerMTok) / 1_000_000),
         }),
         // A 4xx other than 429 means our request is wrong; repeating it would not help. A 429 is retried on the same
         // model only when no other model can answer: otherwise the next one in the chain answers at once.
