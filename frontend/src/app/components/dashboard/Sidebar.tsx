@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { Bookmark, CreditCard, Inbox as InboxIcon, LayoutDashboard, LifeBuoy, LogOut, Megaphone, Radar, Search, Settings, Star, ArrowLeft } from "lucide-react";
+import { Bookmark, CreditCard, Inbox as InboxIcon, LayoutDashboard, LifeBuoy, LogOut, Megaphone, Search, Settings, Star, ArrowLeft } from "lucide-react";
 import { useBillingSummary } from "../../api/billing";
 import { useAuth } from "../../auth/AuthContext";
 import { OPEN_REVIEW_EVENT } from "./LeaveReview";
@@ -39,13 +39,8 @@ export function Sidebar({ view, setView, onExit }: Props) {
       <div className="flex min-h-0 flex-col">
         <div className="px-6 pb-6 pt-6">
           <a href="#/dashboard" onClick={(e) => { e.preventDefault(); setView("overview"); }} className="flex items-center gap-2">
-            <motion.span whileHover={{ rotate: 90 }} transition={{ type: "spring", stiffness: 300 }} className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal text-white shadow-[0_0_8px_rgba(6,182,212,0.35)]">
-              <Radar className="h-5 w-5" />
-            </motion.span>
-            <span className="flex flex-col leading-none">
-              <span className="text-lg font-bold tracking-tight">MUSHIN</span>
-              <span className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-cyan-soft">Creator Intelligence</span>
-            </span>
+            <img src="/mushin-logo-64.png" width={32} height={32} alt="" className="h-8 w-8 shrink-0 object-contain" draggable={false} />
+            <span className="text-lg font-bold tracking-tight">MUSHIN</span>
           </a>
         </div>
         <nav aria-label="Main" className="flex flex-col gap-4 overflow-y-auto px-4">
