@@ -26,6 +26,8 @@ stop
 # A failed start stops what it started, so a later run is not blocked by an orphaned API on :4000 (acceptance 2026-10-20).
 start main || { stop; exit 1; }
 cd "$H" && node journey.mjs "$LABEL" main
+# Every-button check instead of the rest of the run (owner, 17 Nov): E2E_CLICKALL=1.
+if [ "${E2E_CLICKALL:-}" = 1 ]; then cd "$H" && node clickall.mjs "$LABEL"; stop; exit 0; fi
 # Break-it pass (2026-10-26): new workflows, lost responses, double clicks, cross-workspace ids, concurrent spending.
 cd "$H" && node breakit.mjs "$LABEL"
 stop; start restart || { stop; exit 1; }

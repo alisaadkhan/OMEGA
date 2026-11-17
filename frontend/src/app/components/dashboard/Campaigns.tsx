@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowRight, CalendarDays, Megaphone, Plus, Search, UserPlus } from "lucide-react";
 import type { CampaignSummary, CreateCampaign } from "@mushin/contracts";
 import { rupees, toMinor, useCampaigns, useCreateCampaign } from "../../api/campaigns";
 import { useToast } from "../../lib/toast";
-import { Alert, Button, EASE, EmptyState, Modal, Progress, Segmented, shortRupees, Skeleton, Stagger, StaggerItem } from "../../ui/kit";
+import { Alert, Avatar, Button, EASE, EmptyState, Modal, Progress, Segmented, shortRupees, Skeleton, Stagger, StaggerItem } from "../../ui/kit";
 import { cn } from "../ui/utils";
 import { CampaignDetail } from "./CampaignDetail";
 import type { Creator } from "./CreatorProfilePanel";
@@ -158,6 +158,17 @@ function CampaignHub({ onOpen }: { onOpen: (id: string) => void }) {
   const [creating, setCreating] = useState(false);
   const [filter, setFilter] = useState<Filter>("all");
   const [find, setFind] = useState("");
+  const findRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        findRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   const all = (campaigns.data?.campaigns ?? []).filter((c) => c.status !== "archived");
   const count = (s: Filter) => (s === "all" ? all.length : all.filter((c) => c.status === s).length);
   const shown = all.filter((c) => (filter === "all" || c.status === filter) && `${c.name} ${c.client}`.toLowerCase().includes(find.trim().toLowerCase()));
@@ -174,7 +185,8 @@ function CampaignHub({ onOpen }: { onOpen: (id: string) => void }) {
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative flex min-w-0 flex-1 items-center sm:min-w-[260px]">
             <Search className="pointer-events-none absolute left-3 h-[18px] w-[18px] text-faint" />
-            <input value={find} onChange={(e) => setFind(e.target.value)} placeholder="Search campaigns..." aria-label="Search campaigns" className="w-full rounded-xl bg-white py-2 pl-9 pr-3 text-[13px] text-on shadow-sm focus:outline-none focus:ring-1 focus:ring-teal" />
+            <input ref={findRef} value={find} onChange={(e) => setFind(e.target.value)} placeholder="Search campaigns..." aria-label="Search campaigns" aria-keyshortcuts="Control+K Meta+K" className="w-full rounded-xl bg-white py-2 pl-9 pr-12 text-[13px] text-on shadow-sm focus:outline-none focus:ring-1 focus:ring-teal" />
+            <kbd aria-hidden className="pointer-events-none absolute right-2.5 rounded bg-surface-mid px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-ink-soft">{/Mac/i.test(navigator.platform) ? "⌘K" : "Ctrl K"}</kbd>
           </div>
           <Button variant="dark" icon={Plus} onClick={() => setCreating(true)}>New Campaign</Button>
         </div>
@@ -243,18 +255,30 @@ function CampaignCard({ c, onOpen }: { c: CampaignSummary; onOpen: () => void })
         </div>
         <div className="mt-5 flex items-center justify-between">
           {people === 0 ? (
-            <span className="flex items-center gap-1.5 text-xs text-ink-soft"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-mid text-faint"><UserPlus className="h-4 w-4" /></span>No creators added</span>
+            <>
+              <span className="flex items-center gap-1.5 text-xs text-ink-soft"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-mid text-faint"><UserPlus className="h-4 w-4" /></span>No creators added</span>
+              <span aria-hidden className="text-[11px] font-semibold text-teal group-hover:underline">+ Add</span>
+            </>
           ) : (
-            <span className="flex items-center gap-1 text-xs text-ink-soft">{c.stageCounts.confirmed} confirmed · {c.stageCounts.negotiating} negotiating</span>
+            <>
+              <span className="flex items-center -space-x-2" aria-label={`${people} creator${people === 1 ? "" : "s"}: ${c.preview.map((p) => p.displayName).join(", ")}`}>
+                {c.preview.map((p) => <Avatar key={p.id} name={p.displayName} src={p.avatarUrl} size={32} className="shadow-sm ring-2 ring-white" />)}
+                {people > c.preview.length && <span className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-mid text-[10px] font-bold text-ink-soft shadow-sm ring-2 ring-white">+{people - c.preview.length}</span>}
+              </span>
+              <span className="text-[11px] font-semibold text-ink-soft">{people} Creator{people === 1 ? "" : "s"}</span>
+            </>
           )}
-          <span className="text-[11px] font-semibold text-ink-soft">{people} Creator{people === 1 ? "" : "s"}</span>
         </div>
       </div>
       <div className="mt-6 flex flex-col gap-1.5">
         <Progress value={pct} bar={c.status === "paused" ? "bg-faint" : "bg-black"} />
         <div className="flex items-center justify-between text-[11px] font-semibold">
           <span className={c.budgetMinor ? "text-on" : "text-faint"}>{c.budgetMinor ? `${Math.round(pct)}% committed` : "No budget set"}</span>
-          <span className="flex items-center gap-1 text-ink-soft"><CalendarDays className="h-3 w-3" />{c.startDate ?? "No start"} → {c.endDate ?? "No end"}</span>
+          {c.budgetMinor ? (
+            <span className="text-ink-soft" title="Budget minus agreed creator fees">{shortRupees(Math.max(0, c.budgetMinor - c.agreedFeesMinor))} remaining</span>
+          ) : (
+            <span className="flex items-center gap-1 text-ink-soft"><CalendarDays className="h-3 w-3" />{c.startDate ?? "No start"} → {c.endDate ?? "No end"}</span>
+          )}
         </div>
       </div>
     </div>

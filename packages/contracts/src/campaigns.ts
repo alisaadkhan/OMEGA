@@ -67,6 +67,8 @@ export const campaignSummarySchema = z.object({
   containsCreator: z.boolean().optional(),
   /** Post-day reminders: creators due to post today appear in the bell and the Activity log (0091). */
   notifyPostDue: z.boolean().default(false),
+  /** The three most recently added visible creators, for the card's photo stack. */
+  preview: z.array(z.object({ id: z.uuid(), displayName: z.string(), avatarUrl: z.string().nullable() })).default([]),
   createdAt: iso,
   updatedAt: iso,
 });

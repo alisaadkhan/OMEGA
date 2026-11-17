@@ -14,6 +14,7 @@ export type SummaryRow = CampaignRow & {
   declinedCount: number;
   agreedFeesMinor: number;
   containsCreator: boolean | null;
+  preview: { id: string; displayName: string; avatarUrl: string | null }[];
 };
 
 /** Same visibility rule as search: hidden creators are not counted or shown (they come back if unhidden). */
@@ -27,7 +28,10 @@ export async function summaries(tx: TenantTx, workspaceId: string, o: { campaign
       coalesce(s.identified, 0)::int as identified, coalesce(s.contacted, 0)::int as contacted,
       coalesce(s.negotiating, 0)::int as negotiating, coalesce(s.confirmed, 0)::int as confirmed,
       coalesce(s.declined, 0)::int as "declinedCount", coalesce(s.agreed_fees, 0)::bigint as "agreedFeesMinor",
-      ${o.creatorId ? sql`exists (select 1 from wp.campaign_creators x where x.campaign_id = k.id and x.creator_id = ${o.creatorId})` : sql`null`} as "containsCreator"
+      ${o.creatorId ? sql`exists (select 1 from wp.campaign_creators x where x.campaign_id = k.id and x.creator_id = ${o.creatorId})` : sql`null`} as "containsCreator",
+      coalesce((select json_agg(json_build_object('id', p.id, 'displayName', p.display_name, 'avatarUrl', p.avatar_url))
+        from (select c.id, c.display_name, c.avatar_url from wp.campaign_creators m join gcp.creators c on c.id = m.creator_id
+              where m.campaign_id = k.id and ${VISIBLE} order by m.added_at desc limit 3) p), '[]'::json) as preview
     from wp.campaigns k
     left join lateral (
       select count(*) as creator_count,
@@ -69,6 +73,7 @@ export async function summaries(tx: TenantTx, workspaceId: string, o: { campaign
     declinedCount: Number(r["declinedCount"]),
     agreedFeesMinor: Number(r["agreedFeesMinor"]),
     containsCreator: (r["containsCreator"] as boolean | null) ?? null,
+    preview: (r["preview"] as SummaryRow["preview"] | null) ?? [],
   }));
 }
 

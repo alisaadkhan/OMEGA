@@ -32,6 +32,8 @@ describe("Inbox (owner, 17 Nov)", () => {
     const a = await addCreator(db, { displayName: "Ali Eats" });
     const b = await addCreator(db, { displayName: "Bilal Bites" });
     await campaigns.addCreators(c, k.id, [a, b]);
+    // The campaign card's photo stack: the creators added, newest first, at most three.
+    expect((await campaigns.index(c)).campaigns[0]?.preview.map((p) => p.displayName).sort()).toEqual(["Ali Eats", "Bilal Bites"]);
     await campaigns.logOutreach(c, k.id, a, { channel: "email", outcome: "attempted", note: "Sent brief", occurredAt: "2026-10-01T10:00:00.000Z" });
     await campaigns.logOutreach(c, k.id, a, { channel: "whatsapp", outcome: "replied", note: "Interested" });
     await campaigns.logOutreach(c, k.id, b, { channel: "instagram", outcome: "attempted", note: "" });
