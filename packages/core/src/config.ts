@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import type { z } from "zod";
 import { apiSchema, checkGemini, LLM_KEYS, sharedObject, workerSchema, type SharedValues } from "./config-schema";
 import { llmFrom, type LlmProviderConfig } from "./llm-config";
+import { SUPABASE_ROOT_2021_PEM } from "./supabase-ca";
 
 export type { LlmValues } from "./config-schema";
 
@@ -18,6 +19,8 @@ export class ConfigError extends Error {
 /** Reads the database CA certificate (PEM). Returns null when no path is configured. */
 export function readCaFile(path: string | undefined): string | null {
   if (!path) return null;
+  // A file path is not bundled with a serverless function; the Supabase root is built in (security audit 2026-11-17).
+  if (path === "builtin:supabase-root-2021") return SUPABASE_ROOT_2021_PEM;
   try {
     return readFileSync(path, "utf8");
   } catch {
@@ -214,7 +217,7 @@ export function loadApiConfig(env: Env): ApiConfig {
     alertWebhookUrl: v.ALERT_WEBHOOK_URL ?? null,
     trustedProxies: trustedProxiesFrom(v.TRUSTED_PROXIES, v.VERCEL_ENV),
     cronSecret: v.CRON_SECRET ?? null,
-    paymentsOpen: paymentsFrom(v).mode === "paddle" || v.VERCEL_ENV !== "production",
+    paymentsOpen: paymentsFrom(v).mode === "paddle" || (v.VERCEL_ENV !== "production" && v.NODE_ENV !== "production"),
     authAdmin: v.SUPABASE_SERVICE_ROLE_KEY ? { url: v.SUPABASE_URL.replace(/\/+$/, ""), serviceKey: v.SUPABASE_SERVICE_ROLE_KEY } : null,
     storage: v.SUPABASE_SERVICE_ROLE_KEY ? { url: v.SUPABASE_URL.replace(/\/+$/, ""), serviceKey: v.SUPABASE_SERVICE_ROLE_KEY } : null,
   };

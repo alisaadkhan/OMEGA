@@ -153,9 +153,9 @@ function checkShared(v: SharedValues, ctx: z.RefinementCtx) {
     }
   }
   if (missingPaddle.length === PADDLE_KEYS.length) {
-    if (v.NODE_ENV === "production") {
-      ctx.addIssue({ code: "custom", path: ["PADDLE_API_KEY"], message: "is required in production: the mock payment provider is for development only" });
-    } else if (!v.MOCK_PADDLE_WEBHOOK_SECRET) {
+    // Production without Paddle (owner, 17 Nov: no payment provider yet) runs with payments closed: checkout, plan
+    // changes and the mock checkout pages are off (config.paymentsOpen), so nothing can be bought without paying.
+    if (!v.MOCK_PADDLE_WEBHOOK_SECRET) {
       ctx.addIssue({ code: "custom", path: ["MOCK_PADDLE_WEBHOOK_SECRET"], message: "is required while Paddle keys are not set (run npm run env:secrets)" });
     }
   }

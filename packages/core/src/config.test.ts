@@ -2,7 +2,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { ConfigError, loadApiConfig, loadWorkerConfig } from "./config";
+import { ConfigError, loadApiConfig, loadWorkerConfig, readCaFile } from "./config";
 
 const KEY = Buffer.alloc(32, 7).toString("base64");
 const MOCK = "m".repeat(40);
@@ -173,8 +173,16 @@ describe("payments config", () => {
     expect(() => loadApiConfig({ ...valid, MOCK_PADDLE_WEBHOOK_SECRET: undefined })).toThrow(/MOCK_PADDLE_WEBHOOK_SECRET/);
   });
 
-  it("refuses the mock provider in production", () => {
-    expect(() => loadApiConfig({ ...valid, NODE_ENV: "production", DATABASE_SSL_CA_FILE: caFile() })).toThrow(/PADDLE_API_KEY/);
+  it("has the Supabase root certificate built in for serverless deployments", () => {
+    const pem = readCaFile("builtin:supabase-root-2021") ?? "";
+    expect([pem.startsWith("-----BEGIN CERTIFICATE-----"), pem.trim().endsWith("-----END CERTIFICATE-----")]).toEqual([true, true]);
+  });
+
+  it("runs production without Paddle with payments closed (owner, 17 Nov), never selling through the mock provider", () => {
+    const prod = { ...valid, NODE_ENV: "production", DATABASE_SSL_CA_FILE: caFile(), LLM_MONTHLY_BUDGET_USD: "5", SUPABASE_SERVICE_ROLE_KEY: "service", ALERT_WEBHOOK_URL: "https://hooks.example.com/alerts", TRUSTED_PROXIES: "none" };
+    const c = loadApiConfig(prod);
+    expect([c.payments.mode, c.paymentsOpen]).toEqual(["mock", false]);
+    expect(loadApiConfig({ ...prod, PADDLE_API_KEY: "p", PADDLE_CLIENT_TOKEN: "c", PADDLE_WEBHOOK_SECRET: "w" }).paymentsOpen).toBe(true);
   });
 
   it("gives the worker payment settings", () => {
