@@ -89,10 +89,17 @@ export function mentions(text: string, form: string): boolean {
 // Contact boilerplate ("for business inquiries email…") says how to reach the creator, not what they make.
 const CONTACT_BOILERPLATE = /\b(?:for\s+)?business\s+(?:inquir\w*|enquir\w*|e ?mail\w*|contact\w*|quer\w*|purpose\w*|collab\w*|deal\w*|only|related|partnership\w*|promotion\w*|sponsor\w*)\b|\bfor\s+business\b/gu;
 
+/**
+ * Everyday phrases that contain a niche word without naming the creator's subject (18 Nov audit): "the beauty of
+ * Pakistan / village life / every community" made three food and travel vloggers Beauty creators, and "can travel for
+ * work" made a model a Travel creator. Applied to normalized text (lower case, punctuation removed).
+ */
+const NOT_A_NICHE = /\b(?:the\s+)?beauty\s+of\b|\b(?:can|could|will|happy\s+to|available\s+to|open\s+to|willing\s+to)\s+travel\b|\btravel\s+for\s+(?:work|shoots?|events?|collabs?|collaborations?|projects?)\b|\bavailable\s+for\s+travel\b/gu;
+
 /** Labels a normalized text names, each with the distinct forms that named it. */
 function labelsIn(raw: string, opts: { strongOnly: boolean }): Map<string, string[]> {
   const out = new Map<string, string[]>();
-  const text = raw.replace(CONTACT_BOILERPLATE, " ");
+  const text = raw.replace(CONTACT_BOILERPLATE, " ").replace(NOT_A_NICHE, " ");
   if (!text.trim()) return out;
   for (const c of NICHES_V2) {
     if (!c.niche) continue;

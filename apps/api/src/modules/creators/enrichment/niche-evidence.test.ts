@@ -19,6 +19,19 @@ describe("one niche taxonomy", () => {
 });
 
 describe("niche classification: bio first", () => {
+  it("does not read everyday phrases as a niche (18 Nov audit)", () => {
+    // "the beauty of Pakistan" is a travel vlogger's subject, not makeup or skincare.
+    const travel = niche({ bio: "I love to travel and discover various cultures and food. I want to show the world the beauty of Pakistan" });
+    expect(travel.niches).not.toContain("Beauty");
+    expect(travel.niches).toContain("Travel");
+    expect(niche({ bio: "I share the beauty of pure village life and traditional outdoor cooking" }).niches).not.toContain("Beauty");
+    // "can travel for work" says where a model works, not what she makes.
+    expect(niche({ bio: "theatre actor | model | digital creator 📍khi, but can travel for work" }).niches).not.toContain("Travel");
+    // The real subjects still count.
+    expect(niche({ bio: "Beauty and skincare tips, makeup tutorials" }).main).toBe("Beauty");
+    expect(niche({ bio: "Travel vlogs from the northern areas" }).main).toBe("Travel");
+  });
+
   it("classifies from a clear bio without needing posts", () => {
     expect(niche({ bio: "Math lessons, exam preparation and study tips" })).toMatchObject({ status: "classified", main: "Education & How-to" });
     expect(niche({ bio: "Home cooking recipes and baking" })).toMatchObject({ status: "classified", main: "Food" });
