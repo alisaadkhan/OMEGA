@@ -9,7 +9,10 @@ import { createListsService } from "../lists/index";
 import { createCreatorIndexer } from "./indexer";
 import { createPostgresCatalogSearch } from "./postgres-search";
 import { createCreatorsService } from "./service";
-import { addCreator, TEST_KEY } from "./test-fixtures";
+import { addCreator as addFixture, TEST_KEY, fixtureEmail } from "./test-fixtures";
+
+// Customer search shows only creators with a usable email (owner, 18 Nov): fixtures here have one unless a case sets contacts.
+const addCreator: typeof addFixture = (d, o = {}) => addFixture(d, { contacts: fixtureEmail(), ...o });
 
 // Pakistan-only catalogue (elig-2, 0060, owner instruction 2026-10-27) through the real API services and PostgreSQL:
 // every customer path (search, filters, lookup by link, profile by id, lists, campaigns) refuses profiles that are not

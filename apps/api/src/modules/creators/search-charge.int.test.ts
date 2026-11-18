@@ -11,7 +11,10 @@ import { isIndexable, toDocument } from "./projection";
 import * as repo from "./repository";
 import { SEARCH_CHARGE_WINDOW_MS } from "./search-charge";
 import { createCreatorsService } from "./service";
-import { addCreator, TEST_KEY } from "./test-fixtures";
+import { addCreator as addFixture, TEST_KEY, fixtureEmail } from "./test-fixtures";
+
+// Customer search shows only creators with a usable email (owner, 18 Nov): fixtures here have one unless a case sets contacts.
+const addCreator: typeof addFixture = (d, o = {}) => addFixture(d, { contacts: fixtureEmail(), ...o });
 
 // Owner pricing 2026-10-14: a standalone catalogue search costs 50 credits once per logical search.
 const db = createTestDatabase();

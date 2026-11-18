@@ -21,6 +21,8 @@ export type CreatorDocument = {
   verified: boolean;
   authenticity_score: number | null;
   has_contact: boolean;
+  /** At least one email not shown to be invalid (customer catalogue rule, 18 Nov). */
+  has_email: boolean;
   audience_countries: string[];
   followers_updated_epoch: number | null;
   updated_epoch: number;

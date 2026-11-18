@@ -46,6 +46,7 @@ export function documentAt(r: IndexRow, now: Date): CreatorDocument {
     verified: r.verified,
     authenticity_score: r.authenticityScore,
     has_contact: r.hasContact,
+    has_email: r.hasEmail,
     // No source currently supplies creator audience analytics; omit legacy LLM-derived demographic guesses.
     audience_countries: [],
     followers_updated_epoch: followersAt,

@@ -22,8 +22,15 @@ function nameTier(text: string, name: string, handle: string): number {
 }
 
 /** Brain 1's cards and order (spec D2 of sub-project 3); live results use the same scoring (sub-project 4B D5). */
-export function toCards(rows: repo.CardRow[], req: { text: string; filters: SearchFilters }, settings: repo.SearchSettings, now: Date, relevance: Map<string, number>, policy: SourcePolicy = DEFAULT_SOURCE_POLICY): CreatorCard[] {
+/**
+ * The relevance tier (0–10) of a topic-aware score (postgres-search relevanceSql: 0.95 × tier + 0.05 × word rank), so a
+ * creator whose niche and content both say the subject is never ranked below one that only mentions it.
+ */
+export const relevanceTier = (score: number): number => Math.floor((score / 0.95) * 10 + 1e-6);
+
+export function toCards(rows: repo.CardRow[], req: { text: string; filters: SearchFilters }, settings: repo.SearchSettings, now: Date, relevance: Map<string, number>, policy: SourcePolicy = DEFAULT_SOURCE_POLICY, o: { byRelevance?: boolean } = {}): CreatorCard[] {
   const tier = new Map(rows.map((r) => [r.id, nameTier(req.text, r.displayName, r.primaryHandle)]));
+  const rel = (id: string) => (o.byRelevance ? relevanceTier(relevance.get(id) ?? 0) : 0);
   return rows
     .map((r) => {
       const followersFreshness = freshnessOf(r.followersUpdatedAt, now, settings.fresh);
@@ -65,8 +72,9 @@ export function toCards(rows: repo.CardRow[], req: { text: string; filters: Sear
     })
     // An unknown count cannot satisfy an explicit numeric follower filter.
     .filter((card) => (req.filters.followersMin === undefined && req.filters.followersMax === undefined) || card.followers !== null)
-    // Owner (16 Nov): creators a customer can reach (a contact on file) come first, after a by-name match.
-    .sort((a, b) => (tier.get(a.id) ?? 2) - (tier.get(b.id) ?? 2) || Number(b.hasContact) - Number(a.hasContact) || b.fitScore - a.fitScore || (a.followers === null ? 1 : b.followers === null ? -1 : b.followers - a.followers) || a.id.localeCompare(b.id));
+    // A by-name match first; then (topic searches, 18 Nov) how relevant the creator is: relevance is never traded for
+    // reach or engagement; then (owner, 16 Nov) creators a customer can reach.
+    .sort((a, b) => (tier.get(a.id) ?? 2) - (tier.get(b.id) ?? 2) || rel(b.id) - rel(a.id) || Number(b.hasContact) - Number(a.hasContact) || b.fitScore - a.fitScore || (a.followers === null ? 1 : b.followers === null ? -1 : b.followers - a.followers) || a.id.localeCompare(b.id));
 }
 
 /** Cards for a live run's creators: hidden creators are left out (card rows apply the visibility rule); the AI already judged relevance, so text counts as matched. */

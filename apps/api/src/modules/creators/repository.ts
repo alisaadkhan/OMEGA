@@ -91,7 +91,9 @@ export async function cardRows(tx: Tx, ids: string[]): Promise<CardRow[]> {
   if (ids.length === 0) return [];
   const rows = await tx.execute<Omit<CardRow, "followersUpdatedAt" | "eligibility"> & { followersUpdatedAt: string | Date | null }>(sql`
     select c.id, c.display_name as "displayName", c.primary_handle as "primaryHandle", c.primary_platform as "primaryPlatform",
-      c.avatar_url as "avatarUrl", c.city, c.country, c.niches, c.niche_source as "nicheSource", c.niche_posts_assessed as "nichePostsAssessed", c.tags, c.verified,
+      c.avatar_url as "avatarUrl", c.city, c.country, c.niches, c.niche_source as "nicheSource", c.niche_posts_assessed as "nichePostsAssessed", c.tags,
+      -- Blue tick (18 Nov): only a platform's own verified flag on one of the creator's profiles (never a MUSHIN assessment).
+      exists (select 1 from gcp.creator_profiles vp where vp.creator_id = c.id and vp.verified) as verified,
       c.authenticity_score as "authenticityScore", c.fake_follower_pct as "fakeFollowerPct",
       case when p.platform = 'youtube' and p.followers = 0 then null else p.followers end as followers,
       p.engagement_rate as "engagementRate", p.followers_updated_at as "followersUpdatedAt",
@@ -378,6 +380,7 @@ export type IndexRow = {
   verified: boolean;
   authenticityScore: number | null;
   hasContact: boolean;
+  hasEmail: boolean;
   profiles: { platform: Platform; handle: string; canonicalUrl: string; followers: number | null; engagementRate: number | null; bio: string | null; followersUpdatedAt: string | null; lastPostAt: string | null; availability?: EligibilityProfile["availability"]; country?: EligibilityProfile["country"] }[];
   audience: AudienceRow | null;
   updatedEpoch: number;
@@ -395,10 +398,13 @@ export async function indexRows(tx: SystemTx, ids: string[]): Promise<IndexRow[]
   return tx.execute<IndexRow>(sql`
     select c.id, c.status, c.is_minor as "isMinor", c.minor_override_by_staff_id as "minorOverrideByStaffId", ((c.organisation_category is not null or (c.account_type in ('CELEBRITY_PUBLIC_FIGURE', 'COMPANY_CORPORATE', 'BRAND_ACCOUNT', 'BUSINESS_STORE', 'MEDIA_PUBLICATION', 'FAN_PAGE_AGGREGATOR') and c.account_type_confidence in ('high', 'medium'))) and c.organisation_override_by_staff_id is null) as organisation,
       c.display_name as "displayName", c.name_variants as "nameVariants", c.primary_handle as "primaryHandle",
-      c.primary_platform as "primaryPlatform", c.city, c.country, c.niches, c.tags, c.verified,
+      c.primary_platform as "primaryPlatform", c.city, c.country, c.niches, c.tags,
+      -- Blue tick (18 Nov): only a platform's own verified flag on one of the creator's profiles (never a MUSHIN assessment).
+      exists (select 1 from gcp.creator_profiles vp where vp.creator_id = c.id and vp.verified) as verified,
       c.authenticity_score as "authenticityScore",
       -- A contact shown not to work is not a way to reach the creator (the "has contact" filter).
       exists (select 1 from gcp.creator_contacts k where k.creator_id = c.id and k.status <> 'invalid') as "hasContact",
+      exists (select 1 from gcp.creator_contacts k where k.creator_id = c.id and k.kind = 'email' and k.status <> 'invalid') as "hasEmail",
       coalesce((
         select jsonb_agg(jsonb_build_object('platform', p.platform, 'handle', p.handle, 'canonicalUrl', p.canonical_url, 'lastPostAt', p.last_post_at,
           'followers', case when p.platform = 'youtube' and p.followers = 0 then null else p.followers end,

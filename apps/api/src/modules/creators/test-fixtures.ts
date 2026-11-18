@@ -37,8 +37,12 @@ export function addCreator(db: Db, over: Parameters<typeof fixtureCreator>[0] = 
 }
 
 /** A fixture creator indexed as the worker would index it, so eligibility (elig-1) is evaluated (50,000 fresh followers by default). */
+/** A usable email for a fixture creator: customer search shows only creators with one (owner, 18 Nov). */
+export const fixtureEmail = (tag = randomUUID().slice(0, 8)): NonNullable<NewCreator["contacts"]> => [{ kind: "email", value: `${tag}@fixture.invalid`, trust: "unverified", source: "bio" }];
+
+/** Searchable by customers: it has a usable email unless the case sets its own contacts (`contacts: []` for none). */
 export async function addIndexedCreator(db: Db, over: Parameters<typeof fixtureCreator>[0] = {}): Promise<string> {
-  const id = await addCreator(db, over);
+  const id = await addCreator(db, { contacts: fixtureEmail(), ...over });
   await createCreatorIndexer({ db, index: null, logger: createLogger({ level: "silent" }) }).sync([id]);
   return id;
 }

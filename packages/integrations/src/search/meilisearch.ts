@@ -16,6 +16,7 @@ const SETTINGS = {
     "verified",
     "authenticity_score",
     "has_contact",
+    "has_email",
     "followers_updated_epoch",
     "eligible",
     "eligible_until",

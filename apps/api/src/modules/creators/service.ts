@@ -30,6 +30,8 @@ import { assertCanPayCatalogSearch, chargeCatalogSearch } from "./search-charge"
 import { decodeCursor, encodeCursor } from "./cursor";
 import { understandQuery } from "./understand";
 import { understandQueryV2 } from "./understand-v2";
+import { relevancePlan } from "./relevance";
+import { hasUsableEmail } from "./visibility";
 import { matchReasons } from "./match-reasons";
 import { countryLocked, creatorEligibility, ELIGIBILITY_VERSION, type EligibilityProfile } from "./eligibility";
 import { DEFAULT_SOURCE_POLICY, restrictsDerived, type SourcePolicy } from "./source-policy";
@@ -140,6 +142,8 @@ export function createCreatorsService(deps: CreatorsDeps) {
     const parsed = searchFiltersSchema.safeParse(merged);
     if (!parsed.success) throw new AppError("VALIDATION_FAILED", "The search asks for an impossible range (the minimum is above the maximum). Adjust it and search again.", { reason: "conflicting_range" });
     const q = { ...req, text: understood.text, filters: parsed.data };
+    // What the text is about, read from the user's own topic words for both profiles (v2 rewrites "pubg" to "gaming").
+    const relevance = relevancePlan(v2 ? understandQuery(req.text).text : understood.text);
     // A search the workspace cannot pay for is refused before it runs, whatever it would find (no zero-credit oracle).
     await assertCanPayCatalogSearch({ db: deps.db, billing: deps.billing, now }, ctx, req);
     // Without text, Meilisearch returns matches in storage order; sorting by the fit score's strongest signals keeps the
@@ -148,15 +152,16 @@ export function createCreatorsService(deps: CreatorsDeps) {
       () =>
         deps.index.search({
           text: q.text,
-          filter: meiliFilter(q.filters, t, settings.fresh.agingDays, q.text),
+          filter: [...meiliFilter(q.filters, t, settings.fresh.agingDays, q.text), "has_email = true"],
           limit: settings.candidatePool,
           ...(q.text ? {} : { sort: FILTER_ONLY_SORT }),
         }),
-      (s) => s.search({ text: q.text, boost: understood.optional, filters: q.filters, freshCurrentDays: settings.fresh.agingDays, now: t, limit: settings.candidatePool, ...(v2?.groups.length ? { plan: v2.groups } : {}) }, tenant(ctx)),
+      (s) => s.search({ text: q.text, boost: understood.optional, filters: q.filters, freshCurrentDays: settings.fresh.agingDays, now: t, limit: settings.candidatePool, requireEmail: true, relevance, ...(v2?.groups.length ? { plan: v2.groups } : {}) }, tenant(ctx)),
     );
-    const relevance = new Map(hits.map((h) => [h.id, h.rankingScore]));
+    const scores = new Map(hits.map((h) => [h.id, h.rankingScore]));
     const rows = await deps.db.withTenant(tenant(ctx), (tx) => repo.cardRows(tx, hits.map((h) => h.id)));
-    const cards = toCards(rows, q, settings, t, relevance, policy);
+    // Customer catalogue: only creators with a usable email (also enforced by both indexes; kept here as the last check).
+    const cards = toCards(rows.filter((r) => hasUsableEmail(r.contactStates)), q, settings, t, scores, policy, { byRelevance: relevance !== null });
     const start = decodeCursor(req, req.cursor, settings.pageSize);
     // Paid only once the search has answered with at least one eligible creator (owner decision 2026-10-28: a search
     // that finds none costs nothing); refused (no results returned) when the price or balance does not allow it.

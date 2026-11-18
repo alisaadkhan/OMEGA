@@ -80,7 +80,9 @@ export async function synthetic(s: Synthetic, o: { index?: boolean } = {}): Prom
     niches: s.niches ?? [],
     tags: [],
     ...(s.isMinor ? { isMinor: true } : {}),
-    ...(s.contacts ? { contacts: s.contacts } : {}),
+    // The customer catalogue shows only creators with a usable email (owner, 18 Nov): synthetic creators have one unless a
+    // case sets its own contacts (`contacts: []` for a creator without any).
+    contacts: s.contacts ?? [{ kind: "email", value: `${handle}@synthetic.invalid`, trust: "unverified", source: "bio" }],
     profiles: [
       { platform, handle, followers: s.followers === undefined ? 50_000 : s.followers, engagementRate: s.engagement === undefined ? 4 : s.engagement, bio: s.bio ?? "", ...(s.updatedAt ? { updatedAt: s.updatedAt } : {}) },
       ...(s.extraProfiles ?? []).map((p) => ({ platform: "tiktok" as const, handle: `${handle}_tt`, followers: 40_000, engagementRate: 4, bio: s.bio ?? "", ...p })),

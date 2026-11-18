@@ -185,7 +185,7 @@ describe("outbox and search projection (IDX)", () => {
       for (let i = 0; i < 10; i++) {
         const word = `zzidx${i}word`;
         const committedAt = Date.now();
-        await saveThroughPipeline(api, u.workspaceId, `idx_delay_${i}`, `Food vlogger based in Lahore, Pakistan ${word}`, "Food");
+        await saveThroughPipeline(api, u.workspaceId, `idx_delay_${i}`, `Food vlogger based in Lahore, Pakistan ${word} | collabs: idx${i}@synthetic-mail.com`, "Food");
         let found = false;
         while (!found && Date.now() - committedAt < 15_000) {
           const res = (await api.search(u.headers, word)).json() as { results?: unknown[] };

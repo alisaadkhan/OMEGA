@@ -6,7 +6,48 @@ import type { SearchHit } from "@mushin/integrations";
 import { cityForms, expandQuery, normalizeQuery, type QueryGroup } from "./aliases";
 import type { PlanGroup } from "./understand-v2";
 import { nameKey as exactNameKey, SEARCH_FLOOR } from "./rules";
-import { CREATOR_VISIBLE } from "./visibility";
+import { CREATOR_VISIBLE, HAS_USABLE_EMAIL } from "./visibility";
+import type { RelevanceGroup, RelevancePlan } from "./relevance";
+
+/** Any form of a group as a tsquery (multi-word forms as phrases). */
+const formsQuery = (forms: string[]) => sql.join(forms.map((form) => sql`phraseto_tsquery('simple', ${form})`), sql` || `);
+/** The creator's own words: name (A), handles and name variants (B), niche labels and content tags (C); not the bio (D). */
+const ownWords = (q: SQL) => sql`ts_filter(d.search_vector, '{a,b,c}') @@ (${q})`;
+const labelsArray = (labels: string[]) => sql`array[${sql.join(labels.map((l) => sql`${l}`), sql`, `)}]::text[]`;
+
+/**
+ * Match condition and relevance (0–1) of one relevance group. The relevance tiers put creators whose stored niche and
+ * own content both say the subject first, then the stored niche alone, then content evidence without the niche.
+ */
+export function relevanceSql(g: RelevanceGroup): { match: SQL; score: SQL } {
+  const q = formsQuery(g.forms);
+  const anywhere = sql`d.search_vector @@ (${q})`;
+  if (g.kind === "topic") {
+    const parent = labelsArray([g.parent]);
+    const hasParent = sql`d.niches && ${parent}`;
+    const mainParent = sql`d.niches[1] = ${g.parent}`;
+    return {
+      // Named in the creator's own words, or in the bio of a creator who has the parent niche.
+      match: sql`(${anywhere} and (${ownWords(q)} or ${hasParent}))`,
+      score: sql`case when ${mainParent} and ${ownWords(q)} then 1.0 when ${mainParent} then 0.9 when ${hasParent} and ${ownWords(q)} then 0.8 when ${hasParent} then 0.7 else 0.5 end`,
+    };
+  }
+  if (g.kind === "niche") {
+    const labels = labelsArray(g.labels);
+    const hasNiche = sql`d.niches && ${labels}`;
+    const mainNiche = sql`d.niches[1] = any(${labels})`;
+    // The stored (evidence-based, reviewed) niche decides: a tag such as "#best gaming phone" on a phone reviewer or
+    // "earn money playing games" on a freelancing channel does not make a gaming creator (probe 18 Nov).
+    return {
+      match: hasNiche,
+      score: sql`case when ${mainNiche} and ${anywhere} then 1.0 when ${mainNiche} then 0.9 when ${anywhere} then 0.8 else 0.7 end`,
+    };
+  }
+  if (g.kind === "city") {
+    return { match: sql`(${anywhere} or lower(d.city) in (${sql.join(g.forms.map((form) => sql`${form}`), sql`, `)}))`, score: sql`1.0` };
+  }
+  return { match: anywhere, score: sql`least(ts_rank_cd(d.search_vector, ${q}) * 8, 1)` };
+}
 
 /**
  * Consonant skeleton of a name word, so spelling variants of the same name meet: Malik / Malek / Mullick → "mlk",
@@ -34,6 +75,13 @@ export type CatalogSearchQuery = {
   boost?: string[];
   /** SEARCH_PROFILE=v2: the required term groups from understandQueryV2 (absent = v1 behaviour, unchanged). */
   plan?: PlanGroup[];
+  /**
+   * Topic-aware relevance (relevance.ts, 18 Nov). When present it decides what matches and how well, for both search
+   * profiles; null or absent keeps the plain behaviour (name and handle searches).
+   */
+  relevance?: RelevancePlan | null;
+  /** Customer catalogue (owner, 18 Nov): only creators with a usable email. Name lookups and internal tools pass false. */
+  requireEmail?: boolean;
 };
 export type CatalogSearch = { search(query: CatalogSearchQuery, ctx: Pick<TenantContext, "userId" | "workspaceId">): Promise<{ hits: SearchHit[]; total: number }> };
 
@@ -59,6 +107,7 @@ export function createPostgresCatalogSearch(db: Db): CatalogSearch {
       );
     }
     if (SEARCH_FLOOR.minEngagementRate !== null) conditions.push(sql`(d.engagement_rate is null or d.engagement_rate >= ${SEARCH_FLOOR.minEngagementRate})`);
+    if (query.requireEmail) conditions.push(HAS_USABLE_EMAIL);
     // Recognised niche and city words (English, Roman Urdu, Urdu script, city short forms) match any of their reviewed
     // forms; a city also matches the creator's own declared city. Without a recognised word the query is unchanged.
     const groups: (QueryGroup | PlanGroup)[] | null = query.plan?.length ? query.plan : expandQuery(text);
@@ -115,8 +164,19 @@ export function createPostgresCatalogSearch(db: Db): CatalogSearch {
         return { hits: rows.map((r) => ({ id: r.id, rankingScore: 0 })), total: Number(rows[0]?.exactTotal ?? 0) };
       }
 
-      // 1. Whole words through full-text search.
       const byScore = sql`"rankingScore" desc, d.updated_epoch desc`;
+      // Topic-aware relevance: every group must match; the weakest group decides the tier, and how often the query's
+      // words occur only orders creators within a tier (5%). No typo or name-variant widening: a topic search that finds
+      // nothing relevant shows nothing rather than near-misses.
+      if (query.relevance) {
+        const parts = query.relevance.groups.map(relevanceSql);
+        const allForms = query.relevance.groups.flatMap((g) => g.forms);
+        const rankQ = sql.join([formsQuery(allForms), ...(query.boost ?? []).concat(query.relevance.boost).map((w) => sql`plainto_tsquery('simple', ${w})`)], sql` || `);
+        const tier = parts.length === 1 ? (parts[0] as { score: SQL }).score : sql`least(${sql.join(parts.map((p) => p.score), sql`, `)})`;
+        const rows = await run(sql.join(parts.map((p) => p.match), sql` and `), sql`(0.95 * ${tier} + 0.05 * least(ts_rank_cd(d.search_vector, ${rankQ}) * 8, 1))`, byScore, limit);
+        return { hits: rows.map((r) => ({ id: r.id, rankingScore: Number(r.rankingScore) })), total: Number(rows[0]?.exactTotal ?? 0) };
+      }
+      // 1. Whole words through full-text search.
       // A creator matched only through the city field still scores on the words it did match.
       const words = await run(wordMatch, sql`least(ts_rank_cd(d.search_vector, ${rankQuery}) * 8, 1)`, byScore, limit);
       let total = Number(words[0]?.exactTotal ?? 0);

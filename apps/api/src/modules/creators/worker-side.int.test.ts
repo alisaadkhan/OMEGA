@@ -4,7 +4,10 @@ import { createTestDatabase, ownerQuery, resetTables } from "@mushin/db/testing"
 import { MockLlm, testSearchIndex, type SearchIndex } from "@mushin/integrations";
 import { createCreatorIndexer } from "./indexer";
 import { createSummaryWriter } from "./summaries";
-import { addCreator } from "./test-fixtures";
+import { addCreator as addFixture, fixtureEmail } from "./test-fixtures";
+
+// Customer search shows only creators with a usable email (owner, 18 Nov): fixtures here have one unless a case sets contacts.
+const addCreator: typeof addFixture = (d, o = {}) => addFixture(d, { contacts: fixtureEmail(), ...o });
 
 const db = createTestDatabase();
 const index = testSearchIndex();
@@ -87,6 +90,7 @@ function leftoverDoc(id: string) {
     verified: false,
     authenticity_score: null,
     has_contact: false,
+    has_email: false,
     audience_countries: [],
     followers_updated_epoch: null,
     updated_epoch: 1,

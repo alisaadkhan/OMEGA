@@ -205,12 +205,21 @@ describe("Brain 1 catalogue search (B1)", () => {
     expect(r.keys).toContain("F13");
   });
 
-  it("B1-18 contact availability is shown without the contact value; the has-contact filter uses it", async () => {
+  it("B1-18 contact availability is shown without the contact value; creators without a usable email are not in customer search (18 Nov)", async () => {
     const u = await newUser();
-    const r = await query(u.headers, "food lahore", { hasContact: true });
-    evidence("B1-18", { results: r.keys, card: (r.body["results"] as Record<string, unknown>[])[0] });
-    expect(r.keys).toEqual(["F14"]);
+    const phoneOnly = await synthetic({ name: "Phone Only Food", handle: "syn_phone_only", niches: ["Food"], bio: "Food reviews", contacts: [{ kind: "phone", value: "+923001234567", trust: "unverified", source: "bio" }] });
+    const none = await synthetic({ name: "No Contact Food", handle: "syn_no_contact", niches: ["Food"], bio: "Food reviews", contacts: [] });
+    const r = await query(u.headers, "food lahore");
+    const f14 = (r.body["results"] as Record<string, unknown>[]).find((c) => c["handle"] === "syn_f14");
+    evidence("B1-18", { results: r.keys, card: f14 });
+    expect(r.keys).toContain("F14");
+    expect(f14).toMatchObject({ hasContact: true, contactAvailability: expect.stringMatching(/^email_/) });
     expect(JSON.stringify(r.body)).not.toContain("f14@synthetic.invalid");
+    const ids = (r.body["results"] as Record<string, unknown>[]).map((c) => c["id"]);
+    expect(ids).not.toContain(phoneOnly);
+    expect(ids).not.toContain(none);
+    // Hidden, not deleted.
+    expect(await owner<{ n: number }>(`select count(*)::int n from gcp.creators where id in ('${phoneOnly}', '${none}') and status = 'active'`)).toEqual([{ n: 2 }]);
   });
 
   it("B1-19 a signed-out request is refused before any search runs", async () => {

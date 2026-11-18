@@ -461,6 +461,9 @@ describe("delivery persistence (P)", () => {
     // Search shows only creators with an identified niche (owner, 16 Nov). Without the AI the delivered creators have none
     // yet, so the test gives them one before indexing: what is measured here is the outbox-to-index step.
     await owner(`update gcp.creators set niches = '{Food}' where id in (${results.map((r) => `'${r.id}'`).join(",") || "null"})`);
+    // Likewise customer search shows only creators with a usable email (owner, 18 Nov); the fixture bios have none.
+    await owner(`insert into gcp.creator_contacts (creator_id, kind, value_encrypted, value_hash, masked, trust, source)
+      select id, 'email', 'x', md5(id::text), 'p***@x.invalid', 'unverified', 'bio' from gcp.creators where id in (${results.map((r) => `'${r.id}'`).join(",") || "null"})`);
     const { indexer } = await import("./harness");
     await indexer.sync([...new Set(pending.map((p) => p.aggregate_id))]);
     const indexedAt = Date.now();

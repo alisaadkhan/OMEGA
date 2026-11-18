@@ -8,7 +8,10 @@ import { isIndexable, toDocument } from "./projection";
 import * as repo from "./repository";
 import { createCreatorsService } from "./service";
 import { createPostgresCatalogSearch } from "./postgres-search";
-import { addCreator, TEST_KEY } from "./test-fixtures";
+import { addCreator as addFixture, TEST_KEY, fixtureEmail } from "./test-fixtures";
+
+// Customer search shows only creators with a usable email (owner, 18 Nov): fixtures here have one unless a case sets contacts.
+const addCreator: typeof addFixture = (d, o = {}) => addFixture(d, { contacts: fixtureEmail(), ...o });
 import { rankCards } from "./ranking";
 import { suppress } from "./suppressions";
 
@@ -69,7 +72,7 @@ describe("search", () => {
     expect(out.results.map((r) => r.id)).toEqual([best, ok]);
     expect(nativeOut.results.map((r) => r.id)).toEqual(out.results.map((r) => r.id));
     expect(out.results[0]?.fitScore).toBeGreaterThan(out.results[1]?.fitScore ?? 100);
-    expect(out.results[0]).toMatchObject({ displayName: "Sana Bridal", followersFreshness: "current", authenticityScore: null, hasContact: false });
+    expect(out.results[0]).toMatchObject({ displayName: "Sana Bridal", followersFreshness: "current", authenticityScore: null, hasContact: true }); // every searchable creator has a usable email (18 Nov)
     expect(out.fewResults).toBe(true);
   });
 
@@ -162,9 +165,13 @@ describe("search", () => {
           select c.id, c.primary_platform, c.primary_handle,
             case c.primary_platform when 'instagram' then 'https://instagram.com/' else 'https://' || c.primary_platform || '.com/@' end || c.primary_handle,
             -- Counts within 25 days: every fixture is eligible, YouTube ones included (30-day YouTube API data limit).
-            10000 + (random() * 900000)::int, round((random() * 10)::numeric, 2)::float8, now() - (random() * 25 || ' days')::interval,
+            -- Never exactly 0 (0082: a zero rate is stored as unknown); the old expression failed now and then.
+            10000 + (random() * 900000)::int, greatest(0.01, round((random() * 10)::numeric, 2))::float8, now() - (random() * 25 || ' days')::interval,
             'PK', 'creator_confirmed', 'pakistan', 'high', now()
-          from gcp.creators c;`);
+          from gcp.creators c;
+        -- Customer search shows only creators with a usable email (owner, 18 Nov); the timing includes that check.
+        insert into gcp.creator_contacts (creator_id, kind, value_encrypted, value_hash, masked, trust, source)
+          select c.id, 'email', 'x', md5(c.id::text), 'p***@x.invalid', 'unverified', 'bio' from gcp.creators c;`);
       const ids = (await ownerQuery<{ id: string }>(`select id from gcp.creators`)).map((r) => r.id);
       await indexAll(ids);
       const c = await customer();

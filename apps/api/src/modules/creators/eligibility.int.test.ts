@@ -7,7 +7,10 @@ import { createBillingService, MemoryAccessCache } from "../billing/index";
 import { createCreatorIndexer } from "./indexer";
 import { createPostgresCatalogSearch } from "./postgres-search";
 import { createCreatorsService } from "./service";
-import { addCreator, TEST_KEY } from "./test-fixtures";
+import { addCreator as addFixture, TEST_KEY, fixtureEmail } from "./test-fixtures";
+
+// Customer search shows only creators with a usable email (owner, 18 Nov): fixtures here have one unless a case sets contacts.
+const addCreator: typeof addFixture = (d, o = {}) => addFixture(d, { contacts: fixtureEmail(), ...o });
 import { createCampaignsService } from "../campaigns/index";
 import { createListsService } from "../lists/index";
 

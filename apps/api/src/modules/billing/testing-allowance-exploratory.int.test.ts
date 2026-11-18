@@ -9,7 +9,7 @@ import { createLogger, type TenantContext } from "@mushin/core";
 import { createTestDatabase, ownerQuery, resetTables } from "@mushin/db/testing";
 import { MockLlm, MockPayments, UnavailableSearchIndex } from "@mushin/integrations";
 import { createCreatorIndexer, createCreatorsService, createPostgresCatalogSearch } from "../creators/index";
-import { addCreator, TEST_KEY } from "../creators/test-fixtures";
+import { addCreator, fixtureEmail, TEST_KEY } from "../creators/test-fixtures";
 import { createIdentityService } from "../identity/index";
 import { MemoryAccessCache } from "./access-cache";
 import { createBillingService } from "./service";
@@ -56,7 +56,7 @@ describe("exploratory: testing credits in real user paths (EX)", () => {
   });
 
   it("EX-02 a catalogue search with results is paid from testing credits; Find New Creators is still refused with a clear reason", async () => {
-    const id = await addCreator(db, { displayName: "Search Me", niches: ["Food"] });
+    const id = await addCreator(db, { displayName: "Search Me", niches: ["Food"], contacts: fixtureEmail() });
     await indexer.sync([id]);
     const c = await account();
     expect(await creators.search(c, req("Search Me"))).toMatchObject({ charged: true, creditsCharged: 50 });
@@ -68,7 +68,7 @@ describe("exploratory: testing credits in real user paths (EX)", () => {
   it("EX-03 testing and purchased credits together: the testing credits (expiring first) are spent first, purchased ones stay", async () => {
     const c = await account();
     await db.withWorkspace(c.workspaceId, (tx) => billing.engine.grant(tx, c.workspaceId, { source: "topup", amount: 100, expiresAt: null, sourceRef: "ex-topup", note: "t" }));
-    const id = await addCreator(db, { displayName: "Spend Order", niches: ["Food"] });
+    const id = await addCreator(db, { displayName: "Spend Order", niches: ["Food"], contacts: fixtureEmail() });
     await indexer.sync([id]);
     await creators.search(c, req("Spend Order"));
     const lots = await ownerQuery<{ source: string; remaining: number }>(`select source, remaining from wp.credit_lots where workspace_id = '${c.workspaceId}' order by source`);
@@ -76,7 +76,7 @@ describe("exploratory: testing credits in real user paths (EX)", () => {
   });
 
   it("EX-04 a search answered just before 00:00 PKT is charged to the old month's lot; just after, the new lot pays", async () => {
-    const id = await addCreator(db, { displayName: "Midnight", niches: ["Food"] });
+    const id = await addCreator(db, { displayName: "Midnight", niches: ["Food"], contacts: fixtureEmail() });
     await indexer.sync([id]);
     const c = await account();
     clock = new Date("2026-10-31T18:59:30Z");

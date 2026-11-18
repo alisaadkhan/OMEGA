@@ -9,7 +9,10 @@ import { createPostgresCatalogSearch } from "./postgres-search";
 import { createCreatorsService } from "./service";
 import { expireYoutubeApiData } from "./retention";
 import { applyDocumentPolicy, restrictsDerived } from "./source-policy";
-import { addCreator, TEST_KEY } from "./test-fixtures";
+import { addCreator as addFixture, TEST_KEY, fixtureEmail } from "./test-fixtures";
+
+// Customer search shows only creators with a usable email (owner, 18 Nov): fixtures here have one unless a case sets contacts.
+const addCreator: typeof addFixture = (d, o = {}) => addFixture(d, { contacts: fixtureEmail(), ...o });
 
 // DATA-004: MUSHIN-derived metrics from YouTube API data stay off until the owner confirms policy eligibility.
 const db = createTestDatabase();
@@ -115,7 +118,7 @@ describe("YouTube derived-metrics policy", () => {
   });
 
   it("clears YouTube description contacts of a merged creator whose primary platform is Instagram (0087)", async () => {
-    const both = await addCreator(db, { displayName: "Merged", primaryPlatform: "instagram", snapshot, profiles: [{ platform: "instagram", handle: "mergedig", followers: 30_000 }, { platform: "youtube", handle: "mergedyt", followers: 20_000 }] });
+    const both = await addCreator(db, { displayName: "Merged", primaryPlatform: "instagram", contacts: [], snapshot, profiles: [{ platform: "instagram", handle: "mergedig", followers: 30_000 }, { platform: "youtube", handle: "mergedyt", followers: 20_000 }] });
     await ownerQuery(`update gcp.creator_profiles set last_scraped_at = now() - interval '31 days' where creator_id = '${both}' and platform = 'youtube';
       insert into gcp.creator_contacts (creator_id, kind, value_encrypted, value_hash, masked, trust, source) values
         ('${both}', 'email', 'x', 'h-yt', 'y***@x.pk', 'unverified', 'video_description'), ('${both}', 'email', 'x', 'h-ig', 'i***@x.pk', 'unverified', 'bio')`);
