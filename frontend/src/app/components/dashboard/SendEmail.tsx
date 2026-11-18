@@ -166,7 +166,8 @@ export function SendEmailSection({ campaignId, creatorId, creatorName }: { campa
             <li key={e.id} className="rounded-md border border-slate-100 px-2 py-1.5">
               <div className="text-slate-800" style={{ fontWeight: 600 }}>{e.subject}</div>
               <div className="text-slate-500">To {e.recipient} · {new Date(e.createdAt).toLocaleString("en-GB")} · {e.sentBy.name}{e.mode === "test" ? " · test mode" : ""}</div>
-              <div className="text-slate-700">{EMAIL_STATUS_LABEL[e.status]}</div>
+              {/* A send with no recorded answer after 15 minutes may or may not have gone out: never claim either way. */}
+              <div className="text-slate-700">{e.status === "requested" && Date.now() - new Date(e.createdAt).getTime() > 15 * 60_000 ? "Not confirmed: the email service never answered. Check with the creator before sending again." : EMAIL_STATUS_LABEL[e.status]}</div>
             </li>
           ))}
         </ul>
