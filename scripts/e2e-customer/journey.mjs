@@ -361,7 +361,8 @@ if (phase === "main") {
   const spendsBeforeEmpty = searchSpends(ws);
   // Chat (owner, 18 Nov): a card whose creator has an email offers Chat; it opens the outreach email panel.
   {
-    const withEmail = apiFood.results.filter((r) => /^email_(and_phone|unverified|verified)$/.test(r.contactAvailability)).length;
+    // Counted on the cards shown: each card states its contact availability (checked above against the API).
+    const withEmail = await p.getByText(/^(Email & mobile available|Email available · (Unverified|Verified))$/).count();
     const chats = p.getByRole("button", { name: /^Chat with / });
     check("search", "Chat shows only on creators with an email", (await chats.count()) === withEmail, `${await chats.count()} buttons / ${withEmail} with email`);
     if (withEmail > 0) {
