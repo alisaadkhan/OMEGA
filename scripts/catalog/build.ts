@@ -38,7 +38,7 @@ import { createCachedSearch, createDiscoveryRunner, createDiscoveryService, crea
 
 const { positionals, values } = parseArgs({
   allowPositionals: true,
-  options: { handles: { type: "string" }, "missing-avatars": { type: "boolean", default: false }, "min-refs": { type: "string", default: "2" }, manifest: { type: "string" }, db: { type: "string" }, cap: { type: "string", default: "20" }, platform: { type: "string" }, limit: { type: "string" }, niches: { type: "string" }, cities: { type: "string" }, size: { type: "string", default: "10" }, label: { type: "string", default: "main" }, "llm-dump": { type: "string" }, "llm-answers": { type: "string" } },
+  options: { handles: { type: "string" }, "missing-avatars": { type: "boolean", default: false }, "min-refs": { type: "string", default: "2" }, manifest: { type: "string" }, db: { type: "string" }, cap: { type: "string", default: "20" }, platform: { type: "string" }, limit: { type: "string" }, niches: { type: "string" }, cities: { type: "string" }, size: { type: "string", default: "10" }, label: { type: "string", default: "main" }, "llm-dump": { type: "string" }, "llm-answers": { type: "string" }, "include-locked": { type: "boolean", default: false } },
 });
 const mode = positionals[0];
 if (mode !== "refresh" && mode !== "discover" && mode !== "reassess" && mode !== "seed" && mode !== "expand" && mode !== "reprocess") throw new Error("usage: build.ts <refresh|discover|reassess|seed|expand> --db <catalogue db> --cap <usd> [--manifest <seed.json>] [--limit n] [--min-refs n]");
@@ -351,6 +351,20 @@ if (mode === "reassess") {
   const onlyMissing = values["missing-avatars"] ? sql`and p.platform = c.primary_platform and c.avatar_url is null and exists (select 1 from gcp.creator_search_documents d where d.creator_id = c.id and d.eligible)` : sql``;
   const rows = await db.withSystem((tx) => tx.execute<{ id: string }>(sql`select p.creator_id as id from gcp.creator_profiles p join gcp.creators c on c.id = p.creator_id where c.status = 'active' and p.platform = ${platform} ${onlyMissing} ${onlyHandles} order by p.followers desc nulls last limit ${limit}`));
   logger.info({ creators: rows.length, platform }, "refresh start");
+  // --include-locked (owner directive 18 Nov, "re-scrape all creators"): creators whose every profile fails the Pakistan
+  // rule only for a country reason (unknown, stale, conflicting or not Pakistan) are refused by the customer refresh
+  // path unless the workspace holds them (BUG-32). The internal build workspace holds them in its own list first, so the
+  // same refresh path re-fetches them and their country is re-decided from fresh data. No customer workspace is touched.
+  if (values["include-locked"] && rows.length > 0) {
+    await db.withTenant({ userId: ctx.userId, workspaceId: ctx.workspaceId }, async (tx) => {
+      const [list] = await tx.execute<{ id: string }>(sql`select id from wp.lists where workspace_id = ${ctx.workspaceId} and name = 'Catalogue refresh: location unconfirmed' limit 1`);
+      const listId = list?.id ?? (await tx.execute<{ id: string }>(sql`insert into wp.lists (workspace_id, name, description, created_by) values (${ctx.workspaceId}, 'Catalogue refresh: location unconfirmed', 'Internal: lets the catalogue build refresh creators whose location is not confirmed', ${ctx.userId}) returning id`))[0]?.id;
+      if (!listId) throw new Error("could not create the internal refresh list");
+      const ids = JSON.stringify(rows.map((r) => r.id));
+      await tx.execute(sql`insert into wp.list_members (list_id, workspace_id, creator_id, added_by) select ${listId}, ${ctx.workspaceId}, x::uuid, ${ctx.userId} from jsonb_array_elements_text(${ids}::jsonb) x
+        where not exists (select 1 from wp.list_members m where m.list_id = ${listId} and m.creator_id = x::uuid)`);
+    });
+  }
   for (const [i, r] of rows.entries()) {
     if ((await spentUsd()) >= capUsd - JOB_HEADROOM_USD) {
       logger.warn({ spent: await spentUsd(), capUsd }, "spend cap reached: stopping");
