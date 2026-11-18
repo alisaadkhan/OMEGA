@@ -13,6 +13,11 @@ export type CronDeps = {
   /** Clears YouTube API data older than 30 days (YouTube API rules) and returns the creators changed. */
   expireYoutube: () => Promise<string[]>;
   reindex: (creatorIds: string[]) => Promise<void>;
+  /**
+   * One alert check (staffops alert-notifier tick). On Vercel the per-minute alert loop never starts (no long-lived
+   * process), so without this production would never send an alert; the cron runs it once a day at least.
+   */
+  checkAlerts?: () => Promise<unknown>;
   /** True while a worker process is running the schedules itself: the cron then does nothing. */
   workerAvailable: () => Promise<boolean>;
 };
@@ -54,8 +59,17 @@ export function createCronModule(d: CronDeps): AppModule {
           youtubeExpired = "failed";
           d.logger.error({ err, entryPoint: "cron" }, "daily cron: YouTube retention failed");
         }
-        d.logger.info({ entryPoint: "cron", billing, youtubeExpired }, "daily cron finished");
-        return reply.send({ billing, youtubeExpired });
+        let alerts: "sent" | "none" | "failed" | "off" = "off";
+        if (d.checkAlerts) {
+          try {
+            alerts = (await d.checkAlerts()) ? "sent" : "none";
+          } catch (err) {
+            alerts = "failed";
+            d.logger.error({ err, entryPoint: "cron" }, "daily cron: alert check failed");
+          }
+        }
+        d.logger.info({ entryPoint: "cron", billing, youtubeExpired, alerts }, "daily cron finished");
+        return reply.send({ billing, youtubeExpired, alerts });
       });
     },
   };

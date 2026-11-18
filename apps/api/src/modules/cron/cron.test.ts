@@ -32,8 +32,20 @@ describe("daily maintenance route (audit 2026-11-17)", () => {
     const { app, calls } = await appWith({ runBillingJob: async (job) => { if (job === "expire_lots") throw new Error("x"); return { processed: 2 }; } });
     const res = await app.inject({ method: "GET", url: "/v1/internal/cron/daily", headers: { authorization: `Bearer ${secret}` } });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toMatchObject({ billing: { expire_lots: "failed", monthly_grants: 2, release_abandoned: 2 }, youtubeExpired: 1 });
+    expect(res.json()).toMatchObject({ billing: { expire_lots: "failed", monthly_grants: 2, release_abandoned: 2 }, youtubeExpired: 1, alerts: "off" });
     expect(calls).toEqual(["youtube", "reindex:c1"]);
+  });
+
+  it("runs the alert check (Vercel has no per-minute alert loop) and reports a failure without failing the run", async () => {
+    let checks = 0;
+    const sent = await appWith({ checkAlerts: async () => { checks += 1; return { alerts: [] }; } });
+    const ok = await sent.app.inject({ method: "GET", url: "/v1/internal/cron/daily", headers: { authorization: `Bearer ${secret}` } });
+    expect(ok.json()).toMatchObject({ alerts: "sent" });
+    const broken = await appWith({ checkAlerts: async () => { throw new Error("webhook down"); } });
+    const res = await broken.app.inject({ method: "GET", url: "/v1/internal/cron/daily", headers: { authorization: `Bearer ${secret}` } });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ alerts: "failed", youtubeExpired: 1 });
+    expect(checks).toBe(1);
   });
 
   it("does nothing while a worker runs the schedules", async () => {

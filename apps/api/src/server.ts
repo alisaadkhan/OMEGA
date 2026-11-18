@@ -175,6 +175,7 @@ const app = await buildApp({
         return expireYoutubeApiData(db, storage ? { storage } : {});
       },
       reindex: (ids) => createCreatorIndexer({ db, index: searchIndex, logger, sourcePolicy: config.sourcePolicy }).sync(ids),
+      checkAlerts: () => alertNotifier.tick(),
       workerAvailable,
     })] : []),
     createInsightsModule({ db, requireStaff: staff.requireStaff }),
