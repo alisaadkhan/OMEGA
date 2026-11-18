@@ -14,6 +14,7 @@ import type { Creator } from "./CreatorProfilePanel";
 import { ListFormModal } from "./Lists";
 import type { DrawerCreator } from "./ShortlistDrawer";
 import { ErrorState } from "./states";
+import { VerifiedBadge } from "./VerifiedBadge";
 
 const PLATFORM_LABEL = { instagram: "Instagram", tiktok: "TikTok", youtube: "YouTube" } as const;
 
@@ -155,7 +156,7 @@ export function ListDetail({ id, onBack, onOpenCreator, onGoToSearch }: { id: st
                         <button onClick={() => onOpenCreator(c)} className="flex items-center gap-2 rounded text-left focus:outline-none focus:ring-2 focus:ring-cyan/40">
                           <img src={c.avatar} alt="" onError={avatarFallback(m.creator.displayName)} className="h-10 w-10 shrink-0 rounded-full bg-surface-high object-cover shadow-sm" />
                           <span className="flex min-w-0 flex-col">
-                            <span className="truncate text-[15px] font-semibold text-on">{m.creator.displayName}</span>
+                            <span className="flex min-w-0 items-center gap-1"><span className="truncate text-[15px] font-semibold text-on">{m.creator.displayName}</span>{m.creator.verified && <VerifiedBadge platform={m.creator.platform} size="sm" />}</span>
                             <span className="flex items-center gap-1.5 text-[10px] font-semibold tracking-wide text-ink-soft">
                               @{m.creator.handle}
                               {m.creator.city && <><span className="h-0.5 w-0.5 rounded-full bg-faint" /><span className="flex items-center gap-0.5"><MapPin className="h-2.5 w-2.5" />{m.creator.city}</span></>}
@@ -256,7 +257,7 @@ function NotePanel({ listId, listName, member, onClose }: { listId: string; list
               <div className="flex items-center gap-2">
                 <img src={c.avatar} alt="" onError={avatarFallback(member.creator.displayName)} className="h-9 w-9 rounded-full object-cover" />
                 <span className="flex flex-col">
-                  <span className="text-[15px] font-semibold leading-tight">{member.creator.displayName}</span>
+                  <span className="flex items-center gap-1 text-[15px] font-semibold leading-tight">{member.creator.displayName}{member.creator.verified && <VerifiedBadge platform={member.creator.platform} size="sm" />}</span>
                   <span className="text-[10px] font-semibold tracking-wide text-steel">{listName} • @{member.creator.handle}</span>
                 </span>
               </div>

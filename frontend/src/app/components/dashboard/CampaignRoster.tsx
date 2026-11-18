@@ -11,6 +11,7 @@ import { Alert, Button, Drawer, EASE, EmptyState, Segmented } from "../../ui/kit
 import { cn } from "../ui/utils";
 import { PLATFORM_NAME, STAGE_LABEL } from "./Campaigns";
 import type { Creator } from "./CreatorProfilePanel";
+import { VerifiedBadge } from "./VerifiedBadge";
 
 const STAGES: PipelineStage[] = ["identified", "contacted", "negotiating", "confirmed"];
 const STAGE_DOT: Record<PipelineStage, string> = { identified: "bg-faint", contacted: "bg-cyan-soft", negotiating: "bg-teal", confirmed: "bg-ink" };
@@ -40,7 +41,7 @@ function Who({ m, onOpen }: { m: Member; onOpen: () => void }) {
     <button onClick={onOpen} className="flex items-center gap-3 rounded text-left focus:outline-none focus:ring-2 focus:ring-cyan/40">
       <img src={card.avatar} alt="" onError={avatarFallback(m.creator.displayName)} className="h-10 w-10 shrink-0 rounded-full bg-surface-high object-cover shadow-sm" />
       <span className="flex min-w-0 flex-col">
-        <span className="truncate text-[13px] font-semibold text-on">{m.creator.displayName}</span>
+        <span className="flex min-w-0 items-center gap-1"><span className="truncate text-[13px] font-semibold text-on">{m.creator.displayName}</span>{m.creator.verified && <VerifiedBadge platform={m.creator.platform} size="sm" />}</span>
         <span className="flex items-center gap-1.5 text-[10px] font-semibold tracking-wide text-ink-soft">
           @{m.creator.handle}
           {m.creator.city && <><span>•</span><span className="flex items-center gap-0.5"><MapPin className="h-3 w-3" />{m.creator.city}</span></>}

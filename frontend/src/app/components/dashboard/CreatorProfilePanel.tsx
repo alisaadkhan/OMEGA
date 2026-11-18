@@ -13,6 +13,7 @@ import { relative } from "../../lib/time";
 import { useConfirm, useToast } from "../../lib/toast";
 import { CampaignDrawer } from "./CampaignDrawer";
 import { ShortlistDrawer, type DrawerCreator } from "./ShortlistDrawer";
+import { VerifiedBadge } from "./VerifiedBadge";
 
 export type Creator = {
   /** Set on catalogue search cards: why the creator matched the query (CAT-005). */
@@ -188,16 +189,11 @@ export function CreatorProfilePanel({ creator, onClose, onGoToCampaigns }: { cre
                       <div className="h-11 w-11 rounded-full bg-gradient-to-br from-[#06B6D4] to-[#0B112B] p-0.5 shadow-sm">
                         <img src={p?.avatarUrl ?? creator.avatar} alt="" onError={avatarFallback(p?.displayName ?? creator.name)} className="h-full w-full rounded-full bg-white object-cover" />
                       </div>
-                      {verified && (
-                        <div className="absolute -bottom-0.5 -right-0.5 rounded-full bg-white p-0.5 shadow-sm">
-                          <div className="flex h-3 w-3 items-center justify-center rounded-full bg-[#06B6D4]"><Check aria-hidden className="h-2 w-2 text-white" strokeWidth={4} /></div>
-                        </div>
-                      )}
                     </div>
                     <div className="flex min-w-0 flex-col">
                       <div className="flex flex-wrap items-center gap-1.5">
                         <h2 id="modal-creator-name" className="truncate text-base font-bold tracking-tight text-slate-900">{p?.displayName ?? creator.name}</h2>
-                        {verified && <ShieldCheck aria-label="Verified" className="h-3.5 w-3.5 shrink-0 text-[#06B6D4]" />}
+                        {verified && <VerifiedBadge platform={primary?.platform ?? creator.platform} />}
                         <a href={primary?.url ?? PLATFORM_URL[creator.platform](creator.handle)}target="_blank" rel="noreferrer" className="text-xs font-medium text-slate-500 hover:text-cyan-700">@{primary?.handle ?? creator.handle}</a>
                       </div>
                       <div className="flex items-center gap-1 text-xs text-slate-500">

@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { motion } from "motion/react";
-import { ArrowRight, BadgeCheck, Ban, Bookmark, Check, Clock, Instagram, Mail, MapPin, MessageCircle, Music2, Phone, Star, Youtube } from "lucide-react";
+import { ArrowRight, Ban, Bookmark, Check, Clock, Instagram, Mail, MapPin, MessageCircle, Music2, Phone, Star, Youtube } from "lucide-react";
 import { CONTACT_AVAILABILITY_TEXT, initialsAvatar, matchSummary, formatEr } from "../../api/search-mapping";
 import { erLevel, iqLevel } from "../../api/levels";
 import { FreshnessBadge } from "./states";
 import type { Creator } from "./CreatorProfilePanel";
 import { ReviewCreatorButton } from "./ReviewCreatorButton";
+import { VerifiedBadge } from "./VerifiedBadge";
 
 const PLATFORM = {
   instagram: { Icon: Instagram, label: "Instagram", color: "text-rose-300" },
@@ -95,7 +96,7 @@ export function SearchCreatorCard({
           <button type="button" onClick={onOpen} className="block w-full rounded-lg text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#06B6D4]">
             <span className="flex min-w-0 items-center gap-1.5">
               <span className="truncate text-base font-bold tracking-tight text-slate-900 transition-colors group-hover:text-teal-700">{creator.name}</span>
-              {creator.verified && <BadgeCheck aria-label="Verified" className="h-4 w-4 shrink-0 text-[#06B6D4]" />}
+              {creator.verified && <VerifiedBadge platform={creator.platform} />}
             </span>
             <span className="mb-2 block text-xs font-medium text-slate-500">@{creator.handle}</span>
             <span className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
