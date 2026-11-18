@@ -208,17 +208,17 @@ export function CreatorProfilePanel({ creator, onClose, onGoToCampaigns }: { cre
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-0.5">
                     {creator.score > 0 && (
-                      <div className="flex items-center gap-1 rounded-full bg-[#57dffe]/20 px-2.5 py-1 text-[#006172]" title="MUSHIN IQ: how well this creator matches your search.">
+                      <div className="flex items-center gap-1 rounded-full bg-cyan-50 px-2.5 py-1 text-[#006172]" title="MUSHIN IQ: how well this creator matches your search.">
                         <Star aria-hidden className="h-3.5 w-3.5 fill-[#06B6D4] text-[#06B6D4]" />
                         <span className="text-sm font-bold tracking-tight">{creator.score} IQ</span>
                       </div>
                     )}
-                    <div className="flex items-center gap-1 text-[10px] text-slate-400">
+                    <div className="flex items-center gap-1 text-[10px] text-slate-500">
                       <span>{refreshing ? jobStatusText(refreshing) : `Last updated ${p ? relative(p.lastScrapedAt) : "…"}`}</span>
                       {p && !refreshing && (
                         <>
                           <span>•</span>
-                          <button onClick={() => void onRefresh()} disabled={start.isPending || refreshLocked !== null} title={refreshTitle} className="text-[#06B6D4] hover:underline disabled:cursor-not-allowed disabled:opacity-50">↻ Refresh</button>
+                          <button onClick={() => void onRefresh()} disabled={start.isPending || refreshLocked !== null} title={refreshTitle} className="text-cyan-700 hover:underline disabled:cursor-not-allowed disabled:opacity-50">↻ Refresh</button>
                         </>
                       )}
                     </div>
@@ -245,7 +245,7 @@ export function CreatorProfilePanel({ creator, onClose, onGoToCampaigns }: { cre
                         <Crosshair aria-hidden className="h-3.5 w-3.5 shrink-0 text-[#06B6D4]" />
                         <span className="text-[11px]">{LOCATION_TEXT[primary?.location ?? "UNKNOWN"](location)}</span>
                       </div>
-                      <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wider text-slate-400">Evidence</span>
+                      <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wider text-slate-500">Evidence</span>
                     </div>
 
                     {!p.minorProtected && (
@@ -294,10 +294,10 @@ function Tile({ label, value, note, accent = false, valueIcon = false, icon: Ico
     <div className="flex flex-col justify-between rounded-xl bg-slate-50 px-3.5 py-2">
       <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{label}</div>
       <div className="my-0.5 flex items-baseline gap-1.5">
-        <span className={`text-[18px] font-bold tabular-nums ${accent ? "text-[#06B6D4]" : "text-slate-900"}`}>{value}</span>
+        <span className={`text-[18px] font-bold tabular-nums ${accent ? "text-cyan-700" : "text-slate-900"}`}>{value}</span>
         {valueIcon && <ShieldCheck aria-hidden className="h-3.5 w-3.5 shrink-0 text-[#06B6D4]" />}
       </div>
-      <div className={`flex items-center gap-1 text-xs ${Icon ? "font-medium text-[#06B6D4]" : "text-slate-500"}`}>
+      <div className={`flex items-center gap-1 text-xs ${Icon ? "font-medium text-cyan-700" : "text-slate-500"}`}>
         {Icon && <Icon aria-hidden className="h-3.5 w-3.5" />}
         <span>{note}</span>
       </div>
