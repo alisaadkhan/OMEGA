@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { and, desc, eq, gte, ne, sql } from "drizzle-orm";
+import { and, desc, eq, gte, lt, ne, not, sql } from "drizzle-orm";
 import type { OutreachCompose, OutreachDraft, OutreachEmail, OutreachPreview, OutreachUsage, SendOutreachEmail } from "@mushin/contracts";
 import { AppError, decryptSecret, sha256Hex, type Logger, type TenantContext } from "@mushin/core";
 import { outreachEmails, type Db, type SystemTx, type TenantTx } from "@mushin/db";
@@ -31,6 +31,11 @@ export type OutreachDeps = {
 export const SENDS_PER_USER_PER_HOUR = 30;
 const RANK: Record<OutreachEmail["status"], number> = { requested: 0, failed: 0, accepted: 1, delivered: 2, bounced: 3, complained: 3 };
 const HOUR = 3_600_000;
+/**
+ * A send still "requested" after this long never got the provider's answer (the function was stopped between writing
+ * the row and recording the result, e.g. a serverless timeout). It is shown as not sent and no longer uses the allowance.
+ */
+export const STALE_REQUEST_MS = 15 * 60_000;
 
 export function createOutreachEmailService(deps: OutreachDeps) {
   const now = deps.now ?? (() => new Date());
@@ -48,7 +53,14 @@ export function createOutreachEmailService(deps: OutreachDeps) {
     const [r] = await tx
       .select({ n: sql<number>`count(*)::int` })
       .from(outreachEmails)
-      .where(and(eq(outreachEmails.workspaceId, workspaceId), gte(outreachEmails.periodStart, periodStart), ne(outreachEmails.status, "failed")));
+      .where(
+        and(
+          eq(outreachEmails.workspaceId, workspaceId),
+          gte(outreachEmails.periodStart, periodStart),
+          ne(outreachEmails.status, "failed"),
+          not(and(eq(outreachEmails.status, "requested"), lt(outreachEmails.createdAt, new Date(now().getTime() - STALE_REQUEST_MS)))!),
+        ),
+      );
     return r?.n ?? 0;
   }
 
@@ -61,6 +73,8 @@ export function createOutreachEmailService(deps: OutreachDeps) {
   }
 
   function toApi(r: typeof outreachEmails.$inferSelect & { sentByName: string }): OutreachEmail {
+    const stale = r.status === "requested" && now().getTime() - r.createdAt.getTime() > STALE_REQUEST_MS;
+    if (stale) return { ...toApi({ ...r, status: "failed", failureReason: r.failureReason ?? "no_provider_answer" }) };
     return {
       id: r.id,
       campaignId: r.campaignId,
@@ -120,10 +134,10 @@ export function createOutreachEmailService(deps: OutreachDeps) {
       const [suppressed] = await tx.execute<{ reason: string }>(sql`select reason from platform.email_suppressions where recipient_hash = ${contact.hash}`);
       if (suppressed) throw new AppError("CONFLICT", "This address cannot be emailed through MUSHIN (it bounced, complained or unsubscribed).", { reason: "recipient_suppressed" });
 
+      // Counted under the workspace lock, so sends fired at the same moment cannot all pass the hourly limit together.
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`outreach:${ctx.workspaceId}`}, 0))`);
       const [recent] = await tx.select({ n: sql<number>`count(*)::int` }).from(outreachEmails).where(and(eq(outreachEmails.requestedBy, ctx.userId), gte(outreachEmails.createdAt, new Date(t.getTime() - HOUR))));
       if ((recent?.n ?? 0) >= SENDS_PER_USER_PER_HOUR) throw new AppError("RATE_LIMITED", `You can send up to ${SENDS_PER_USER_PER_HOUR} emails an hour. Try again later.`, { retryAfterSeconds: 600 });
-
-      await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`outreach:${ctx.workspaceId}`}, 0))`);
       const period = await deps.billing.engine.allowancePeriod(tx, ctx.workspaceId);
       const used = await usedIn(tx, ctx.workspaceId, period);
       if (limit !== null && used >= limit) {

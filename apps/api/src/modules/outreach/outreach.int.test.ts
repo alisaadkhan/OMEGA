@@ -6,7 +6,7 @@ import { MockEmailProvider, signEmailWebhook, WebhookSignatureError } from "@mus
 import { createCreditEngine } from "../billing/index";
 import { createCampaignsService } from "../campaigns/index";
 import { addIndexedCreator, TEST_KEY } from "../creators/test-fixtures";
-import { createOutreachEmailService, SENDS_PER_USER_PER_HOUR } from "./service";
+import { createOutreachEmailService, SENDS_PER_USER_PER_HOUR, STALE_REQUEST_MS } from "./service";
 
 /** Outreach email (owner decision 2026-10-16): mock provider only; nothing is delivered. */
 const db = createTestDatabase();
@@ -115,6 +115,25 @@ describe("outreach email: sending and the allowance", () => {
     const s = await setup();
     for (let i = 0; i < SENDS_PER_USER_PER_HOUR; i += 1) await service().send(s.ctx, s.campaignId, s.creatorId, email(s.contactId), key());
     await expect(service().send(s.ctx, s.campaignId, s.creatorId, email(s.contactId), key())).rejects.toMatchObject({ code: "RATE_LIMITED" });
+  });
+
+  it("holds the hourly limit under concurrent sends (counted under the workspace lock)", async () => {
+    limit = null;
+    const s = await setup();
+    for (let i = 0; i < SENDS_PER_USER_PER_HOUR - 2; i += 1) await service().send(s.ctx, s.campaignId, s.creatorId, email(s.contactId), key());
+    const burst = await Promise.allSettled(Array.from({ length: 6 }, () => service().send(s.ctx, s.campaignId, s.creatorId, email(s.contactId), key())));
+    expect(burst.filter((r) => r.status === "fulfilled")).toHaveLength(2);
+  });
+
+  it(`a send left "requested" for ${STALE_REQUEST_MS / 60_000} minutes shows as not sent and frees its allowance slot`, async () => {
+    limit = 1;
+    const s = await setup();
+    const sent = await service().send(s.ctx, s.campaignId, s.creatorId, email(s.contactId), key());
+    // The function was stopped after writing the row and before recording the provider's answer.
+    await ownerQuery(`update wp.outreach_emails set status = 'requested', provider_message_id = null, created_at = now() - interval '20 minutes' where id = '${sent.id}'`);
+    expect((await service().usage(s.ctx)).used).toBe(0);
+    expect((await service().list(s.ctx, s.campaignId))[0]).toMatchObject({ id: sent.id, status: "failed", failureReason: "no_provider_answer" });
+    expect(await service().send(s.ctx, s.campaignId, s.creatorId, email(s.contactId), key())).toMatchObject({ status: "accepted" });
   });
 });
 
