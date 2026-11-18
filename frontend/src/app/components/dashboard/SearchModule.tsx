@@ -58,6 +58,7 @@ import { FindNewDialog } from "./FindNewDialog";
 import { SearchCreatorCard } from "./SearchCreatorCard";
 import { ShortlistDrawer, type DrawerCreator } from "./ShortlistDrawer";
 import { CampaignDrawer } from "./CampaignDrawer";
+import { ChatDrawer } from "./ChatDrawer";
 import { useCancelJob, useDiscoveryJob, useLiveResults } from "../../api/discovery";
 import { liveFoundText } from "../../api/discovery-mapping";
 
@@ -105,6 +106,7 @@ export function SearchModule({ liveJobId = null, onGoToCampaigns }: { liveJobId?
   const [profileId, setProfileId] = useState<string | null>(null);
   const [shortlistFor, setShortlistFor] = useState<DrawerCreator[] | null>(null);
   const [campaignFor, setCampaignFor] = useState<DrawerCreator[] | null>(null);
+  const [chatWith, setChatWith] = useState<DrawerCreator | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [linkCreator, setLinkCreator] = useState<Creator | null>(null);
   const [mode, setMode] = useState<"fast" | "live">("fast");
@@ -711,7 +713,7 @@ export function SearchModule({ liveJobId = null, onGoToCampaigns }: { liveJobId?
                 >
                   {c.discovery.isNew ? "New" : "Already in MUSHIN"}
                 </span>
-                <SearchCreatorCard creator={c} index={i} selected={selected.has(c.id)} onSelect={() => toggleSelect(c.id)} onOpen={() => setProfileId(c.id)} onShortlist={() => setShortlistFor([asDrawer(c)])} sourceMode="live_discovery" />
+                <SearchCreatorCard creator={c} index={i} selected={selected.has(c.id)} onSelect={() => toggleSelect(c.id)} onOpen={() => setProfileId(c.id)} onShortlist={() => setShortlistFor([asDrawer(c)])} onChat={() => setChatWith(asDrawer(c))} sourceMode="live_discovery" />
                 {c.discovery.campaignFit && <p className="px-1 text-[11px] text-indigo-700">Fit based on {c.discovery.campaignFit.sampleSize} recent posts · {Math.round(c.discovery.campaignFit.confidence * 100)}% evidence confidence</p>}
                 {c.discovery.campaignFit && c.discovery.campaignFit.evidence.length > 0 && (
                   <details className="px-1 text-[11px] text-slate-600">
@@ -850,6 +852,7 @@ export function SearchModule({ liveJobId = null, onGoToCampaigns }: { liveJobId?
                     onSelect={() => toggleSelect(c.id)}
                     onOpen={() => setProfileId(c.id)}
                     onShortlist={() => setShortlistFor([asDrawer(c)])}
+                    onChat={() => setChatWith(asDrawer(c))}
                   />
                 ))}
               </div>
@@ -907,6 +910,7 @@ export function SearchModule({ liveJobId = null, onGoToCampaigns }: { liveJobId?
 
       <ShortlistDrawer open={shortlistFor !== null} creators={shortlistFor ?? []} onClose={() => setShortlistFor(null)} />
       <CampaignDrawer open={campaignFor !== null} creators={campaignFor ?? []} onClose={() => setCampaignFor(null)} onGoToCampaigns={onGoToCampaigns} />
+      <ChatDrawer creator={chatWith} onClose={() => setChatWith(null)} onAddToCampaign={() => { const c = chatWith; setChatWith(null); if (c) setCampaignFor([c]); }} />
 
       {/* Creator profile panel (Vol 4B) */}
       <CreatorProfilePanel

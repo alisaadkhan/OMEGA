@@ -15,7 +15,6 @@ import { Alert, Segmented, Stagger, StaggerItem } from "../../ui/kit";
 // Categories of the master directive §6.1 (0083); "search" is shown for earlier requests only.
 const CATEGORY = { billing: "Billing & Credits", creator_data: "Creator Data Issue", discovery: "Live Discovery Issue", account: "Account", feature_request: "Feature Request", data_removal: "Data removal", other: "Other", search: "Search" } as const;
 const NEW_CATEGORIES = ["billing", "creator_data", "discovery", "account", "feature_request", "data_removal", "other"] as const;
-const PRIORITY = { low: "Low", medium: "Medium", high: "High", urgent: "Urgent" } as const;
 export const TICKET_STATUS = { open: "Open", in_progress: "In progress", waiting_on_customer: "Waiting for you", resolved: "Resolved", closed: "Closed" } as const;
 const TONE = { open: "bg-cyan-50 text-cyan-800", in_progress: "bg-indigo-50 text-indigo-700", waiting_on_customer: "bg-amber-50 text-amber-800", resolved: "bg-emerald-50 text-emerald-700", closed: "bg-slate-100 text-slate-600" } as const;
 const DONE = new Set(["resolved", "closed"]);
@@ -113,8 +112,6 @@ function TicketRow({ t, active, onOpen }: { t: TicketSummary; active: boolean; o
         <div className="mt-2 flex items-center gap-2 pl-4 text-[10px] text-slate-500">
           <span>{CATEGORY[t.category]}</span>
           <span>•</span>
-          <span>{PRIORITY[t.priority]} priority</span>
-          <span>•</span>
           <span className={`rounded-full px-2 py-0.5 font-semibold ${TONE[t.status]}`}>{TICKET_STATUS[t.status]}</span>
           <span>•</span>
           <span>{t.lastAuthor === "staff" ? "Support replied" : "You wrote"}</span>
@@ -125,7 +122,7 @@ function TicketRow({ t, active, onOpen }: { t: TicketSummary; active: boolean; o
 }
 
 function NewTicket({ onCreated, onCancel }: { onCreated: (id: string) => void; onCancel: () => void }) {
-  const [v, setV] = useState<CreateTicket>({ subject: "", category: "creator_data", priority: "medium", body: "" });
+  const [v, setV] = useState<CreateTicket>({ subject: "", category: "creator_data", body: "" });
   const [touched, setTouched] = useState(false);
   const create = useTicketMutation((body: CreateTicket) => apiRequest("/v1/support/tickets", ticketDetailSchema, { method: "POST", body }));
   const toast = useToast();
@@ -150,11 +147,6 @@ function NewTicket({ onCreated, onCancel }: { onCreated: (id: string) => void; o
       <label className="block text-xs font-semibold text-slate-700">Topic
         <select value={v.category} onChange={(e) => setV({ ...v, category: e.target.value as CreateTicket["category"] })} className={field(false)}>
           {NEW_CATEGORIES.map((k) => <option key={k} value={k}>{CATEGORY[k]}</option>)}
-        </select>
-      </label>
-      <label className="block text-xs font-semibold text-slate-700">Priority
-        <select value={v.priority ?? "medium"} onChange={(e) => setV({ ...v, priority: e.target.value as NonNullable<CreateTicket["priority"]> })} className={field(false)}>
-          {Object.entries(PRIORITY).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
         </select>
       </label>
       <label className="block text-xs font-semibold text-slate-700">What happened?

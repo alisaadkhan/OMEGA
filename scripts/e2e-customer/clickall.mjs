@@ -32,7 +32,7 @@ const PAGES = [
   { name: "Notification bell", go: async (p) => { await p.getByRole("button", { name: /^Notifications/ }).first().click(); await p.waitForTimeout(800); } },
 ].filter((page) => !process.env.CLICKALL_PAGES || process.env.CLICKALL_PAGES.split(",").includes(page.name));
 /** Controls that would end the session or leave the app; their link or action is checked without following it. */
-const SKIP = /^(Sign out|Back to website)$/;
+const SKIP = /^Sign out$/;
 
 async function openSidebar(p, label) {
   await p.getByRole("navigation", { name: "Main" }).getByRole("button", { name: label, exact: true }).click();

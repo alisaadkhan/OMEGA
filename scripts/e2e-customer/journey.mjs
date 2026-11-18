@@ -359,24 +359,37 @@ if (phase === "main") {
   check("search", "platform filter applied (API and UI)", yt.results.every((r) => r.platform === "youtube") && handles(t).every((h) => yt.results.some((r) => `@${r.handle}` === h)));
   await p.getByRole("button", { name: "All Platforms", exact: true }).first().click().catch(() => {});
   const spendsBeforeEmpty = searchSpends(ws);
+  // Chat (owner, 18 Nov): a card whose creator has an email offers Chat; it opens the outreach email panel.
+  {
+    const withEmail = apiFood.results.filter((r) => /^email_(and_phone|unverified|verified)$/.test(r.contactAvailability)).length;
+    const chats = p.getByRole("button", { name: /^Chat with / });
+    check("search", "Chat shows only on creators with an email", (await chats.count()) === withEmail, `${await chats.count()} buttons / ${withEmail} with email`);
+    if (withEmail > 0) {
+      await chats.first().click();
+      const drawer = p.getByRole("dialog", { name: /^Chat with / });
+      await drawer.waitFor({ timeout: 10000 });
+      check("search", "Chat opens the outreach email panel (campaign composer or add to a campaign first)", /Add to Campaign|Sent from the campaign|Campaign/.test(await drawer.innerText()));
+      await p.keyboard.press("Escape");
+    }
+  }
   t = await search(p, "zzqx nothing matches this");
   check("search", "empty result is explained, says it was free and offers live discovery", /No creators match/.test(t) && /this search cost nothing/.test(t) && /Find new creators/i.test(t));
   // Owner decision D-05 (2026-10-28): a search that finds no eligible creator costs nothing.
   check("pricing", "a zero-result search is free: no ledger spend", searchSpends(ws) === spendsBeforeEmpty, `spends ${spendsBeforeEmpty}→${searchSpends(ws)}`);
   check("search", "malformed input is rejected by the API", (await apiSearch("owner", "x".repeat(400))).status === 400);
-  // Owner plan 2026-11-14 (Phase 2): a two-platform creator opens on its main platform; the tabs switch every number.
+  // View details (owner design, 18 Nov): a two-platform creator opens on its main platform (no platform tabs in the design).
   const twin = await openProfile(p, "fxmultanmusic");
-  await twin.getByRole("tablist", { name: "Platform profiles" }).waitFor({ timeout: 15000 });
+  await twin.getByText("On Instagram").waitFor({ timeout: 15000 });
   const twinMain = await twin.innerText();
-  await twin.getByRole("tab", { name: /TikTok/ }).click();
-  const twinTt = await twin.innerText();
-  check("profile", "a two-platform creator opens on its main platform, the tabs switch the numbers, contacts say email & mobile and the collab line", /Instagram · @fxmultanmusic \(main\)/.test(twinMain) && twinMain.includes("120K") && twinTt.includes("45K") && twinTt.includes("On TikTok") && twinMain.includes(LABELS.email_and_phone) && /Collab route/.test(twinMain), `${twinMain.includes("120K")}/${twinTt.includes("45K")}/${twinMain.includes(LABELS.email_and_phone)}`);
+  check("profile", "a two-platform creator opens on its main platform with its own numbers", twinMain.includes("120K") && twinMain.includes("On Instagram") && (await twin.getByRole("tablist").count()) === 0, twinMain.slice(0, 120));
   await closeAll(p);
   const panel = await openProfile(p, FX.main);
   const rw = (await apiSearch("owner", FX.main)).json.results[0];
   const prof = (await api("owner", "GET", `/v1/creators/${rw.id}`)).json;
   check("profile", "profile shows the stored creator, no contact values", (await panel.innerText()).includes(prof.displayName) && prof.contacts.every((c) => c.value === null));
-  check("profile", "profile states contact availability and each contact source and check state", (await panel.innerText()).includes(LABELS[prof.contactAvailability]) && prof.contacts.every((c) => c.source && c.firstSeenAt && c.status), prof.contactAvailability);
+  // View details (owner design, 18 Nov) shows the masked contact itself, not an availability label.
+  { const txt = await panel.innerText(); const shown = prof.contacts.length ? prof.contacts.some((c) => txt.includes(c.masked)) : txt.includes("No email or mobile listed");
+    check("profile", "profile shows the masked direct contact; each contact keeps its source and check state", shown && prof.contacts.every((c) => c.source && c.firstSeenAt && c.status), prof.contactAvailability); }
   await shot(p, "03-profile");
 
   // ── 4. Lists ──
@@ -569,7 +582,7 @@ if (phase === "main") {
     const withContact = (await apiSearch("owner", FX.second)).json.results[0];
     const before = (await api("owner", "GET", "/v1/billing/summary")).json.balance.available;
     const rp = await openProfile(p, FX.second);
-    await rp.getByRole("button", { name: /Reveal contact details/ }).click();
+    await rp.getByRole("button", { name: /^Unlock contact for \d+ credits$/ }).click();
     await p.getByRole("button", { name: /^Reveal for \d+ credits$/ }).click();
     await p.waitForTimeout(1500);
     const after = (await api("owner", "GET", "/v1/billing/summary")).json.balance.available;
@@ -604,13 +617,13 @@ if (phase === "main") {
   await p.getByRole("button", { name: "New Ticket" }).click(); // redesign 2026-11-16
   await p.getByLabel("Subject").fill("Find New Creators failed");
   await p.getByLabel("Topic").selectOption({ label: "Live Discovery Issue" });
-  await p.getByLabel("Priority").selectOption({ label: "High" });
   await p.getByLabel("What happened?").fill("The run said provider unavailable.");
   await p.getByRole("button", { name: "Send request" }).click();
   await p.getByRole("region", { name: "Find New Creators failed" }).waitFor();
   check("support", "request stored for the workspace", sql(`select count(*) from wp.support_tickets where workspace_id = '${ws}'`) === "1");
-  // Master directive §6.1 (0083): the customer's category and priority are stored as chosen.
-  check("support", "the chosen category and priority are stored", sql(`select category || '|' || priority from wp.support_tickets where workspace_id = '${ws}'`) === "discovery|high");
+  // Customers no longer choose a priority (owner, 18 Nov): the category is stored as chosen, priority is the default.
+  check("support", "the chosen category is stored; priority is the default", sql(`select category || '|' || priority from wp.support_tickets where workspace_id = '${ws}'`) === "discovery|medium");
+  check("support", "the request form has no priority field", (await p.getByLabel("Priority").count()) === 0);
 
   // ── 10. Roles (UI where it matters; every restriction also checked directly against the API) ──
   const adm = await pageAs("admin");

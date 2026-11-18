@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { Bookmark, CreditCard, Inbox as InboxIcon, LayoutDashboard, LifeBuoy, LogOut, Megaphone, Search, Settings, Star, ArrowLeft } from "lucide-react";
+import { Bookmark, CreditCard, Inbox as InboxIcon, LayoutDashboard, LifeBuoy, LogOut, Megaphone, Search, Settings, Star } from "lucide-react";
 import { useBillingSummary } from "../../api/billing";
 import { useAuth } from "../../auth/AuthContext";
 import { OPEN_REVIEW_EVENT } from "./LeaveReview";
@@ -7,7 +7,7 @@ import { OPEN_REVIEW_EVENT } from "./LeaveReview";
 /**
  * Primary navigation (owner design 2026-11-16): dark navy panel with Discover, Account and Insights groups, an animated
  * active pill, and the current plan at the foot. Every account action lives here too (owner, 17 Nov: "remove every button
- * from profile and move it to side bar"): Leave a review, Back to website and Sign out. View ids are unchanged.
+ * from profile and move it to side bar"): Leave a review and Sign out (Back to website removed 18 Nov). View ids are unchanged.
  */
 export type DashView = "overview" | "search" | "lists" | "campaigns" | "billing" | "settings" | "support" | "inbox";
 
@@ -80,11 +80,6 @@ export function Sidebar({ view, setView, onExit }: Props) {
         <button onClick={() => window.dispatchEvent(new Event(OPEN_REVIEW_EVENT))} className={foot}>
           <Star className="h-4 w-4" /> Leave a review
         </button>
-        {onExit && (
-          <button onClick={onExit} className={foot}>
-            <ArrowLeft className="h-4 w-4" /> Back to website
-          </button>
-        )}
         <button onClick={() => { void logout(); onExit?.(); }} className={foot}>
           <LogOut className="h-4 w-4" /> Sign out
         </button>

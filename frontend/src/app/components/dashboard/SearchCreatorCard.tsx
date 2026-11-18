@@ -25,6 +25,7 @@ export function SearchCreatorCard({
   onSelect,
   onOpen,
   onShortlist,
+  onChat,
   sourceMode = "db_search",
 }: {
   creator: Creator;
@@ -33,6 +34,8 @@ export function SearchCreatorCard({
   onSelect: () => void;
   onOpen: () => void;
   onShortlist: () => void;
+  /** Email the creator through outreach (owner, 18 Nov); shown only when the creator has an email address. */
+  onChat?: () => void;
   /** Where the card is shown, recorded with a review (owner directive 2026-11-15 §3). */
   sourceMode?: "db_search" | "live_discovery";
 }) {
@@ -148,6 +151,11 @@ export function SearchCreatorCard({
               <button onClick={onShortlist} title="Save to shortlist" aria-label={`Save ${creator.name} to a shortlist`} className="rounded-xl border border-slate-200/70 p-2.5 text-slate-400 transition-colors hover:bg-slate-50 hover:text-[#06B6D4] focus:outline-none focus:ring-2 focus:ring-[#06B6D4]/50 disabled:opacity-50">
                 <Bookmark aria-hidden className="h-4 w-4" />
               </button>
+              {onChat && (contact === "email_and_phone" || contact === "email_unverified" || contact === "email_verified") && (
+                <button onClick={onChat} title="Chat: email this creator" aria-label={`Chat with ${creator.name}`} className="rounded-xl border border-slate-200/70 p-2.5 text-slate-400 transition-colors hover:bg-slate-50 hover:text-[#06B6D4] focus:outline-none focus:ring-2 focus:ring-[#06B6D4]/50">
+                  <MessageCircle aria-hidden className="h-4 w-4" />
+                </button>
+              )}
               <ReviewCreatorButton creatorId={creator.id} creatorName={creator.name} platform={creator.platform} sourceMode={sourceMode} compact />
             </div>
           </div>
