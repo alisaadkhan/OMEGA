@@ -58,7 +58,7 @@ const serverErrors = [];
 const pageErrors = [];
 const coverageCards = {};
 const ADMIN_ONLY = ["Subscriptions", "Data Sources", "Data Removals", "Approvals", "Staff Team", "Activity & Security"];
-const EVERYONE = ["Overview", "Users", "Tickets", "Live Scans", "Catalogue", "Creator Checks", "Reported Profiles", "Trials & Stats", "Customer Access", "Settings"];
+const EVERYONE = ["Overview", "Users", "Tickets", "Live Scans", "Creator Checks", "Reported Profiles", "Trials & Stats", "Customer Access", "Settings"];
 const nav = (p) => p.getByRole("navigation", { name: "Staff portal" });
 
 // Staff portal (owner, 22 Nov): staff sign in only at /_omega_; the old #/staff and #/admin links show not found.

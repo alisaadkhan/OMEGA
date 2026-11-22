@@ -50,6 +50,8 @@ import { createApprovals } from "./approvals";
 import type { Attachments } from "../support/index";
 import { catalogueSearchQuerySchema, catalogueSearchSchema, clearMinorSchema, clearOrganisationSchema, createCatalogueReview, reviewListSchema, reviewQuerySchema, setCountrySchema } from "./catalogue-review";
 import { createCreatorFlags } from "./creator-flags";
+import { createCreatorEditor } from "./creator-editor";
+import { registerCreatorEditorRoutes } from "./creator-editor-routes";
 
 const idParams = z.object({ id: z.uuid() });
 const meta = (req: FastifyRequest) => ({ ip: req.ip ?? null, requestId: req.id });
@@ -68,12 +70,19 @@ export function createStaffOpsModule(o: {
   createStaffAccount: (input: { email: string; name: string; role: "support" }) => Promise<{ id: string; password: string; totpSecret: string; totpUri: string }>;
   /** Alert delivery (audit OPS-03); its channel is "webhook" when ALERT_WEBHOOK_URL is set, otherwise the log. */
   alerts?: { notifier: Pick<AlertNotifier, "sendTest">; channel: "webhook" | "log" };
+  /**
+   * Creator changes reach search at once (owner, 22 Nov: no worker runs in production): `reindex` re-projects the
+   * creators into search, `remove` erases one through the removal process. Without them the outbox carries the change.
+   */
+  creators?: { reindex: (ids: string[]) => Promise<unknown>; remove: (creatorId: string, staff: StaffPrincipal, reason: string, m: { ip: string | null; requestId: string | null }) => Promise<unknown> };
   now?: () => Date;
 }): AppModule {
   const deps = { db: o.db, ...(o.now ? { now: o.now } : {}) };
   const approvals = createApprovals({ ...deps, billing: o.billing });
   const review = createCatalogueReview({ db: o.db });
   const flags = createCreatorFlags({ db: o.db });
+  const reindex = (ids: string[]) => (o.creators ? o.creators.reindex(ids) : Promise.resolve());
+  const editor = o.creators ? createCreatorEditor({ db: o.db, ...o.creators }) : null;
   const actions = createStaffActions(deps);
   const access = createSupportAccess(deps);
   const staffOf = (req: FastifyRequest): StaffPrincipal => {
@@ -198,12 +207,16 @@ export function createStaffOpsModule(o: {
     app.post("/admin/v1/catalogue/creators/:id/country", { preHandler: r("catalogue.review.decide") }, async (req, reply) => {
       const { id } = parseInput(idParams, req.params);
       const out = await review.setCountry(staffOf(req), id, parseInput(setCountrySchema, req.body), meta(req));
+      await reindex([id]);
       return sendOk(reply, z.object({ changed: z.array(z.object({ platform: z.string(), from: z.string(), to: z.string() })) }), out);
     });
     app.post("/admin/v1/catalogue/creators/:id/organisation-override", { preHandler: r("catalogue.review.decide") }, async (req, reply) => {
       const { id } = parseInput(idParams, req.params);
-      return sendOk(reply, z.object({ cleared: z.literal(true) }), await review.clearOrganisation(staffOf(req), id, parseInput(clearOrganisationSchema, req.body), meta(req)));
+      const out = await review.clearOrganisation(staffOf(req), id, parseInput(clearOrganisationSchema, req.body), meta(req));
+      await reindex([id]);
+      return sendOk(reply, z.object({ cleared: z.literal(true) }), out);
     });
+    if (editor) registerCreatorEditorRoutes(app, { editor, r, staffOf, meta });
     // Customer flags on creator profiles (owner directive 2026-11-15 §3, 0090).
     app.get("/admin/v1/catalogue/flags", { preHandler: r("catalogue.review.read") }, async (req, reply) =>
       sendOk(reply, creatorFlagListSchema, await flags.list(parseInput(creatorFlagQuerySchema, req.query))),
@@ -211,11 +224,14 @@ export function createStaffOpsModule(o: {
     app.post("/admin/v1/catalogue/flags/:id/decision", { preHandler: r("catalogue.review.decide") }, async (req, reply) => {
       const { id } = parseInput(idParams, req.params);
       const out = await flags.decide(staffOf(req), id, parseInput(creatorFlagDecisionSchema, req.body), meta(req));
+      await reindex([out.creatorId]);
       return sendOk(reply, z.object({ status: z.enum(["resolved", "dismissed"]), creatorId: z.uuid() }), out);
     });
     app.post("/admin/v1/catalogue/creators/:id/minor-override", { preHandler: r("catalogue.review.decide") }, async (req, reply) => {
       const { id } = parseInput(idParams, req.params);
-      return sendOk(reply, z.object({ cleared: z.literal(true) }), await review.clearMinor(staffOf(req), id, parseInput(clearMinorSchema, req.body), meta(req)));
+      const out = await review.clearMinor(staffOf(req), id, parseInput(clearMinorSchema, req.body), meta(req));
+      await reindex([id]);
+      return sendOk(reply, z.object({ cleared: z.literal(true) }), out);
     });
 
     app.get("/admin/v1/approvals", { preHandler: r("approvals.read") }, async (req, reply) => {

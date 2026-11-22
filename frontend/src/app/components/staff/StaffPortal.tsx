@@ -6,7 +6,6 @@ import { useAdminAuth } from "../../admin/AdminAuthContext";
 import { AuditSearch, ProviderControls } from "../admin/OpsControls";
 import { OpsJobs, OpsProviders } from "../admin/OpsViews";
 import { RemovalRequests } from "../admin/RemovalRequests";
-import { CatalogueReview } from "../admin/CatalogueReview";
 import { CreatorFlags } from "../admin/CreatorFlags";
 import { Approvals, StaffDirectory } from "../admin/StaffAdmin";
 import { StaffSecurity } from "../admin/StaffSecurity";
@@ -15,7 +14,7 @@ import { SupportQueue } from "../admin/SupportQueue";
 import { TrialRequests } from "../admin/TrialRequests";
 import { ProductReviews, UsageInsights } from "../admin/Insights";
 import { ALL_VIEWS, viewFromHash, type StaffView } from "./nav";
-import { CreatorsPage } from "./CreatorsPage";
+import { CreatorChecksPage } from "./CreatorChecksPage";
 import { IntegrationsCard } from "./IntegrationsCard";
 import { OverviewPage } from "./OverviewPage";
 import { SettingsPage } from "./SettingsPage";
@@ -82,8 +81,7 @@ export function StaffPortal() {
           <div className="mt-6"><ProviderControls /></div>
         </>
       )}
-      {current === "catalogue" && <CreatorsPage canDecide={isAdmin} />}
-      {current === "checks" && <CatalogueReview canDecide={isAdmin} />}
+      {current === "checks" && <CreatorChecksPage canEdit={isAdmin} />}
       {current === "reports" && <CreatorFlags canDecide={isAdmin} />}
       {current === "removals" && <RemovalRequests />}
       {current === "approvals" && <Approvals me={admin.id} role={role} />}

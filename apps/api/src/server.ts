@@ -11,7 +11,7 @@ import { searchReadiness } from "./http/health";
 import type { Guards, ReadinessCheck } from "./http/types";
 import { createAudienceModule, createAudienceService } from "./modules/audience";
 import { createBillingModule, createBillingService, noAccessCache } from "./modules/billing";
-import { createCreatorIndexer, createCreatorReviewsModule, createCreatorsModule, createCreatorsService, createPostgresCatalogSearch, createRemovalService, expireYoutubeApiData } from "./modules/creators";
+import { createCreatorIndexer, createCreatorReviewsModule, createCreatorsModule, createCreatorsService, createEraser, createPostgresCatalogSearch, createRemovalService, expireYoutubeApiData } from "./modules/creators";
 import { createDiscoveryModule, createDiscoveryService } from "./modules/discovery";
 import { createActivityModule, createActivityService } from "./modules/activity";
 import { createOpsModule } from "./modules/ops";
@@ -122,6 +122,23 @@ const identity = createIdentityModule({
 });
 const staff = createStaffModule({ db, tokens: createStaffTokens(config.staffJwtSecret), encryptionKey: config.dataEncryptionKey, webauthn: config.webauthn });
 const removals = createRemovalService({ db, encryptionKey: config.dataEncryptionKey, audit: recordStaffAudit });
+// Staff creator changes reach search at once, and a staff removal is erased at once (no worker runs in production).
+// Best effort: the change is already saved and its outbox event carries it if this fails (a search index outage must not
+// turn a saved staff change into an error). Postgres search documents are written before Meilisearch.
+const reindexCreators = async (ids: string[]) => {
+  try {
+    await createCreatorIndexer({ db, index: searchIndex, logger, sourcePolicy: config.sourcePolicy }).sync(ids);
+  } catch (err) {
+    logger.error({ err, creatorIds: ids }, "staff creator change saved; re-projecting it into search failed");
+  }
+};
+const staffCreators = {
+  reindex: reindexCreators,
+  remove: async (creatorId: string, staffMember: { staffId: string }, reason: string, m: { ip: string | null; requestId: string | null }) => {
+    const requestId = await removals.staffRemove(creatorId, staffMember, reason, m);
+    await createEraser({ db, storage: createObjectStorage(config.storage, logger), logger }).erase(requestId);
+  },
+};
 const platform = createPlatformModule({ db, ttlHours: config.idempotencyTtlHours });
 // Audit OPS-03: alerts reach the team's webhook (logged only when none is configured, i.e. development).
 // Support ticket attachments (0076): private bucket, signed URLs; unavailable (routes answer 503) without storage keys.
@@ -179,7 +196,7 @@ const app = await buildApp({
       workerAvailable,
     })] : []),
     createInsightsModule({ db, requireStaff: staff.requireStaff }),
-    createStaffOpsModule({ db, billing, attachments: supportAttachments, requireStaff: staff.requireStaff, createStaffAccount: staff.createStaffAccount, alerts: { notifier: alertNotifier, channel: config.alertWebhookUrl ? "webhook" : "log" } }),
+    createStaffOpsModule({ db, billing, creators: staffCreators, attachments: supportAttachments, requireStaff: staff.requireStaff, createStaffAccount: staff.createStaffAccount, alerts: { notifier: alertNotifier, channel: config.alertWebhookUrl ? "webhook" : "log" } }),
     createAudienceModule({ service: createAudienceService({ db, billing, sources: config.audienceSources }), limiter }),
   ],
   readiness,

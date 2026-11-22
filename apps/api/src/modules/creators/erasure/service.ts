@@ -85,7 +85,24 @@ export function createRemovalService(deps: { db: Db; encryptionKey: Buffer; audi
     });
   }
 
-  return { submit, list, approve, reject };
+  /**
+   * Staff removal from the console (owner, 22 Nov): recorded as an already-approved removal request carrying the staff
+   * member's reason (there is no outside requester), hidden at once, then erased like any approved request.
+   */
+  async function staffRemove(creatorId: string, actor: Pick<StaffPrincipal, "staffId">, reason: string, meta: Meta): Promise<string> {
+    return deps.db.withSystem(async (tx) => {
+      const urls = (await repo.profileUrls(tx, creatorId)).map((p) => p.canonicalUrl);
+      const note = cleanText(reason, 500) || null;
+      const id = await repo.insertRequest(tx, { urls, creatorId, emailEncrypted: encryptSecret("staff-removal@mushin.internal", deps.encryptionKey), reason: note });
+      await repo.hideCreator(tx, creatorId);
+      await repo.finishRequest(tx, id, "processed", actor.staffId, note);
+      await writeOutbox(tx, { eventType: "erasure.creator_requested", aggregateType: "removal_request", aggregateId: id, workspaceId: null, payload: { removalRequestId: id }, requestId: meta.requestId });
+      await deps.audit(tx, { staffId: actor.staffId, action: "creators.removal.staff_removed", metadata: { removalRequestId: id, creatorId, reason: note }, ip: meta.ip, requestId: meta.requestId });
+      return id;
+    });
+  }
+
+  return { submit, list, approve, reject, staffRemove };
 }
 
 export type RemovalService = ReturnType<typeof createRemovalService>;

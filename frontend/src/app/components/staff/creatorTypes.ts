@@ -1,0 +1,86 @@
+import { z } from "zod";
+
+/** The staff creator list (GET /admin/v1/catalogue/all), mirrored from the API's staffCreatorListSchema. */
+export const profileSchema = z.object({
+  platform: z.string(),
+  handle: z.string(),
+  url: z.string(),
+  followers: z.number().nullable(),
+  countryStatus: z.string().nullable(),
+  country: z.string().nullable(),
+  countrySource: z.string().nullable(),
+  bio: z.string().nullable(),
+  verified: z.boolean().nullable(),
+});
+export const staffCreatorSchema = z.object({
+  id: z.string(),
+  displayName: z.string(),
+  avatarUrl: z.string().nullable(),
+  city: z.string().nullable(),
+  country: z.string().nullable(),
+  publicCountry: z.string().nullable(),
+  publicCountrySource: z.string().nullable(),
+  status: z.string(),
+  hiddenReason: z.string().nullable(),
+  isMinor: z.boolean(),
+  minorReason: z.string().nullable(),
+  organisationCategory: z.string().nullable(),
+  accountType: z.string().nullable(),
+  nicheMain: z.string().nullable(),
+  niches: z.array(z.string()),
+  assessmentStatus: z.string().nullable(),
+  eligible: z.boolean(),
+  hiddenBecause: z.array(z.string()),
+  reports: z.number(),
+  reportReasons: z.array(z.string()),
+  profiles: z.array(profileSchema),
+});
+export type StaffCreator = z.infer<typeof staffCreatorSchema>;
+export const FILTERS = ["all", "reported", "country", "organisation", "minor", "assessment", "hidden"] as const;
+export type Filter = (typeof FILTERS)[number];
+export const staffCreatorListSchema = z.object({ items: z.array(staffCreatorSchema), total: z.number(), counts: z.record(z.enum(FILTERS), z.number()) });
+
+export const FILTER_LABEL: Record<Filter, string> = { all: "All", reported: "Reported", country: "Location", organisation: "Brand", minor: "Age", assessment: "Assessment", hidden: "Hidden" };
+
+/** The canonical niche taxonomy (API creators/terminology NICHE_TAXONOMY). */
+export const NICHES = ["Bridal", "Fashion", "Beauty", "Tech", "Food", "Travel", "Comedy", "Finance", "Wellness", "Lifestyle", "Education & How-to", "Gaming", "History", "Literature", "Agriculture", "Business & Ecommerce", "Automotive", "Religion", "Music", "News & Commentary", "Sports", "Entertainment", "Real Estate"] as const;
+
+export const ACCOUNT_TYPES: { id: string; label: string }[] = [
+  { id: "INDIVIDUAL_CREATOR", label: "Individual creator (a person)" },
+  { id: "CELEBRITY_PUBLIC_FIGURE", label: "Celebrity / public figure" },
+  { id: "BRAND_ACCOUNT", label: "Brand" },
+  { id: "BUSINESS_STORE", label: "Business / store" },
+  { id: "COMPANY_CORPORATE", label: "Company" },
+  { id: "MEDIA_PUBLICATION", label: "Media / publisher" },
+  { id: "FAN_PAGE_AGGREGATOR", label: "Fan page / aggregator" },
+  { id: "UNKNOWN", label: "Not decided" },
+];
+
+export const REPORT_REASON: Record<string, string> = {
+  not_individual_creator: "Not an individual creator",
+  wrong_location: "Wrong location",
+  wrong_niche: "Wrong niche",
+  broken_profile: "Broken profile",
+  other: "Other",
+};
+
+/** Why a creator is not in customer search, in plain words. */
+export const HIDDEN: Record<string, string> = {
+  below_follower_minimum: "under 10,000 followers",
+  followers_unknown: "follower count unknown",
+  followers_stale: "follower count older than 90 days",
+  inactive: "no post in 90 days",
+  invalid_profile_url: "not an own profile link",
+  profile_not_found: "profile not found",
+  profile_private: "private profile",
+  no_profile: "no profile",
+  minor_protected: "possible minor",
+  account_not_individual_creator: "not an individual creator",
+  creator_not_active: "hidden or removed",
+  country_unknown: "country unknown",
+  country_conflicting: "conflicting country",
+  country_not_pakistan: "not in Pakistan",
+  country_stale: "country evidence out of date",
+};
+
+export const fmtFollowers = (n: number | null) => (n === null ? "—" : n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1_000 ? `${Math.round(n / 1_000)}K` : String(n));

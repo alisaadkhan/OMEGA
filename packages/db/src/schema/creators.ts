@@ -68,7 +68,11 @@ export const creators = gcp.table("creators", {
   accountTypeConfidence: text("account_type_confidence"),
   accountTypeEvidence: text("account_type_evidence"),
   accountTypeAssessedAt: ts("account_type_assessed_at"),
-  status: text("status", { enum: ["active", "merged", "removal_requested", "erased"] }).notNull().default("active"),
+  status: text("status", { enum: ["active", "merged", "removal_requested", "erased", "hidden"] }).notNull().default("active"),
+  /** Hidden by staff (0095): kept, but out of every customer view; who, why and when. */
+  hiddenByStaffId: uuid("hidden_by_staff_id"),
+  hiddenReason: text("hidden_reason"),
+  hiddenAt: timestamp("hidden_at", { withTimezone: true, mode: "date" }),
   mergedIntoId: uuid("merged_into_id"),
   lastEnrichedAt: ts("last_enriched_at"),
   minorReason: text("minor_reason"),
