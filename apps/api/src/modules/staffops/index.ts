@@ -48,7 +48,7 @@ import { createStaffActions } from "./actions";
 import type { AlertNotifier } from "./alert-notifier";
 import { createApprovals } from "./approvals";
 import type { Attachments } from "../support/index";
-import { clearMinorSchema, clearOrganisationSchema, createCatalogueReview, reviewListSchema, reviewQuerySchema, setCountrySchema } from "./catalogue-review";
+import { catalogueSearchQuerySchema, catalogueSearchSchema, clearMinorSchema, clearOrganisationSchema, createCatalogueReview, reviewListSchema, reviewQuerySchema, setCountrySchema } from "./catalogue-review";
 import { createCreatorFlags } from "./creator-flags";
 
 const idParams = z.object({ id: z.uuid() });
@@ -191,6 +191,9 @@ export function createStaffOpsModule(o: {
     // Catalogue review (owner directive 2026-11-03): unknown or conflicting countries, possible minors, pending assessments.
     app.get("/admin/v1/catalogue/review", { preHandler: r("catalogue.review.read") }, async (req, reply) =>
       sendOk(reply, reviewListSchema, await review.list(parseInput(reviewQuerySchema, req.query))),
+    );
+    app.get("/admin/v1/catalogue/creators", { preHandler: r("catalogue.review.read") }, async (req, reply) =>
+      sendOk(reply, catalogueSearchSchema, await review.search(parseInput(catalogueSearchQuerySchema, req.query))),
     );
     app.post("/admin/v1/catalogue/creators/:id/country", { preHandler: r("catalogue.review.decide") }, async (req, reply) => {
       const { id } = parseInput(idParams, req.params);

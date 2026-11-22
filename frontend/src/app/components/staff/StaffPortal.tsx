@@ -1,4 +1,7 @@
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { staffJobListSchema, staffOverviewSchema, staffAlertsSchema, staffTicketListSchema, staffWorkspaceListSchema } from "@mushin/contracts";
+import { adminRequest } from "../../admin/adminApi";
 import { useAdminAuth } from "../../admin/AdminAuthContext";
 import { AuditSearch, ProviderControls } from "../admin/OpsControls";
 import { OpsJobs, OpsProviders } from "../admin/OpsViews";
@@ -12,6 +15,7 @@ import { SupportQueue } from "../admin/SupportQueue";
 import { TrialRequests } from "../admin/TrialRequests";
 import { ProductReviews, UsageInsights } from "../admin/Insights";
 import { ALL_VIEWS, viewFromHash, type StaffView } from "./nav";
+import { CreatorsPage } from "./CreatorsPage";
 import { OverviewPage } from "./OverviewPage";
 import { SettingsPage } from "./SettingsPage";
 import { StaffLogin } from "./StaffLogin";
@@ -27,6 +31,21 @@ export function StaffPortal() {
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
+  const qc = useQueryClient();
+  // Pages open instantly after their first load: staff data stays fresh for a minute and in memory for 15, and the main
+  // pages load in the background right after sign-in (every call crosses Pakistan to the Seoul servers, ~0.4 s each).
+  useEffect(() => {
+    qc.setQueryDefaults(["admin"], { staleTime: 60_000, gcTime: 15 * 60_000 });
+  }, [qc]);
+  useEffect(() => {
+    if (!admin) return;
+    const pre = (queryKey: unknown[], path: string, schema: Parameters<typeof adminRequest>[1]) => void qc.prefetchQuery({ queryKey, queryFn: () => adminRequest(path, schema) });
+    pre(["admin", "overview"], "/admin/v1/ops/overview", staffOverviewSchema);
+    pre(["admin", "alerts"], "/admin/v1/ops/alerts", staffAlertsSchema);
+    pre(["admin", "workspaces", ""], "/admin/v1/ops/workspaces?q=", staffWorkspaceListSchema);
+    pre(["admin", "jobs", ""], "/admin/v1/ops/jobs?limit=100", staffJobListSchema);
+    pre(["admin", "tickets", "open"], "/admin/v1/support/tickets?status=open", staffTicketListSchema);
+  }, [admin, qc]);
   useEffect(() => {
     document.title = admin ? "MUSHIN — Staff Console" : "MUSHIN — Staff Sign In";
   }, [admin]);
@@ -61,6 +80,7 @@ export function StaffPortal() {
           <div className="mt-6"><ProviderControls /></div>
         </>
       )}
+      {current === "catalogue" && <CreatorsPage canDecide={isAdmin} />}
       {current === "checks" && <CatalogueReview canDecide={isAdmin} />}
       {current === "reports" && <CreatorFlags canDecide={isAdmin} />}
       {current === "removals" && <RemovalRequests />}

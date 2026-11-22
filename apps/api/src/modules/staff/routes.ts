@@ -67,9 +67,11 @@ export function createRequireStaff(
       const token = bearerToken(req);
       if (!token) throw new AppError("UNAUTHENTICATED", "Admin authentication required");
       const principal = await tokens.verifyAccess(token);
-      if (!(await isActive(principal.staffId, principal.role))) throw new AppError("UNAUTHENTICATED", "Your staff access has changed. Please sign in again.");
+      // Both checks run at once (one round trip instead of two on every staff request, 22 Nov).
+      const [active, stepped] = await Promise.all([isActive(principal.staffId, principal.role), principal.stepUpId ? hasStepUp(principal.staffId, principal.stepUpId) : Promise.resolve(false)]);
+      if (!active) throw new AppError("UNAUTHENTICATED", "Your staff access has changed. Please sign in again.");
       // The hardware-key factor comes only from a live step-up row on the server (audit SEC-02), never from the token.
-      if (principal.stepUpId && (await hasStepUp(principal.staffId, principal.stepUpId))) principal.factors = [...principal.factors, "hwk"];
+      if (stepped) principal.factors = [...principal.factors, "hwk"];
       if (!can(principal.role, action)) throw new AppError("FORBIDDEN", "You do not have permission to do this");
       if (HARDWARE_KEY_ACTIONS.has(action) && !principal.factors.includes("hwk")) {
         throw new AppError("FORBIDDEN", "This action needs your security key. Confirm with it, then try again.", { reason: "hardware_key_required" });

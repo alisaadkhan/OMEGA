@@ -13,6 +13,7 @@ export const REVIEW_MIN_FOLLOWERS = 5_000;
 export const reviewKindSchema = z.enum(["country", "minor", "organisation", "assessment"]);
 export type ReviewKind = z.infer<typeof reviewKindSchema>;
 
+export const catalogueSearchQuerySchema = z.object({ q: z.string().trim().max(80).default(""), offset: z.coerce.number().int().min(0).max(100_000).default(0) });
 export const reviewQuerySchema = z.object({ kind: reviewKindSchema.default("country"), offset: z.coerce.number().int().min(0).max(100_000).default(0) });
 
 const profileSchema = z.object({
@@ -40,6 +41,9 @@ export const reviewItemSchema = z.object({
   profiles: z.array(profileSchema),
 });
 export const reviewListSchema = z.object({ items: z.array(reviewItemSchema), total: z.number().int(), counts: z.record(reviewKindSchema, z.number().int()) });
+/** The whole catalogue for staff (owner, 22 Nov): each creator, plus whether customers can find them and why not. */
+export const catalogueItemSchema = reviewItemSchema.extend({ eligible: z.boolean(), hiddenBecause: z.array(z.string()) });
+export const catalogueSearchSchema = z.object({ items: z.array(catalogueItemSchema), total: z.number().int() });
 
 /** Evidence is required: a country is never set from a name, a face or a language (owner rule), only from a source. */
 export const setCountrySchema = z.object({
@@ -59,6 +63,14 @@ const KIND_WHERE: Record<ReviewKind, ReturnType<typeof sql>> = {
 };
 
 const PAGE = 50;
+
+/** One creator as staff see it: identity, flags and every profile (shared by the review queues and the catalogue search). */
+const ITEM_COLUMNS = sql.raw(`c.id, c.display_name as "displayName", c.avatar_url as "avatarUrl", c.city, c.country,
+            c.public_country as "publicCountry", c.public_country_source as "publicCountrySource",
+            c.is_minor as "isMinor", c.minor_reason as "minorReason", coalesce(c.organisation_category, case when c.account_type in ('CELEBRITY_PUBLIC_FIGURE', 'COMPANY_CORPORATE', 'BRAND_ACCOUNT', 'BUSINESS_STORE', 'MEDIA_PUBLICATION', 'FAN_PAGE_AGGREGATOR') then initcap(replace(lower(c.account_type), '_', ' ')) end) as "organisationCategory", c.assessment_status as "assessmentStatus",
+            coalesce((select jsonb_agg(jsonb_build_object('platform', p.platform, 'handle', p.handle, 'url', p.canonical_url, 'followers', p.followers,
+              'countryStatus', p.country_status, 'country', p.country, 'countrySource', p.country_source, 'bio', left(p.bio, 400)) order by p.followers desc nulls last)
+              from gcp.creator_profiles p where p.creator_id = c.id), '[]'::jsonb) as profiles`);
 
 /**
  * Catalogue review for staff (owner directive 2026-11-03, addendum item 4): creators with a sizeable profile whose country
@@ -86,18 +98,33 @@ export function createCatalogueReview(deps: { db: Db }) {
     async list(q: z.infer<typeof reviewQuerySchema>): Promise<z.infer<typeof reviewListSchema>> {
       return deps.db.withSystem(async (tx) => {
         const items = await tx.execute<z.infer<typeof reviewItemSchema>>(sql`
-          select c.id, c.display_name as "displayName", c.avatar_url as "avatarUrl", c.city, c.country,
-            c.public_country as "publicCountry", c.public_country_source as "publicCountrySource",
-            c.is_minor as "isMinor", c.minor_reason as "minorReason", coalesce(c.organisation_category, case when c.account_type in ('CELEBRITY_PUBLIC_FIGURE', 'COMPANY_CORPORATE', 'BRAND_ACCOUNT', 'BUSINESS_STORE', 'MEDIA_PUBLICATION', 'FAN_PAGE_AGGREGATOR') then initcap(replace(lower(c.account_type), '_', ' ')) end) as "organisationCategory", c.assessment_status as "assessmentStatus",
-            coalesce((select jsonb_agg(jsonb_build_object('platform', p.platform, 'handle', p.handle, 'url', p.canonical_url, 'followers', p.followers,
-              'countryStatus', p.country_status, 'country', p.country, 'countrySource', p.country_source, 'bio', left(p.bio, 400)) order by p.followers desc nulls last)
-              from gcp.creator_profiles p where p.creator_id = c.id), '[]'::jsonb) as profiles
+          select ${ITEM_COLUMNS}
           from gcp.creators c
           where c.status = 'active' and ${KIND_WHERE[q.kind]}
           order by (select max(p.followers) from gcp.creator_profiles p where p.creator_id = c.id) desc nulls last, c.id
           limit ${PAGE} offset ${q.offset}`);
         const n = await counts(tx);
         return { items: [...items], total: n[q.kind], counts: n };
+      });
+    },
+
+    /**
+     * Any active creator by name or handle (owner, 22 Nov: the whole catalogue from the staff console), largest first,
+     * with whether customers can find them in search.
+     */
+    async search(q: z.infer<typeof catalogueSearchQuerySchema>): Promise<z.infer<typeof catalogueSearchSchema>> {
+      // A typed % or _ is matched literally, not as a wildcard.
+      const term = q.q.replace(/^@/, "").replace(/[%_\\]/g, (m) => `\\${m}`);
+      const match = term ? sql`(c.display_name ilike ${`%${term}%`} or exists (select 1 from gcp.creator_profiles p where p.creator_id = c.id and p.handle ilike ${`%${term}%`}))` : sql`true`;
+      return deps.db.withSystem(async (tx) => {
+        const items = await tx.execute<z.infer<typeof catalogueItemSchema>>(sql`
+          select ${ITEM_COLUMNS}, coalesce(d.eligible, false) as eligible, coalesce(d.eligibility_reasons, '{}') as "hiddenBecause"
+          from gcp.creators c left join gcp.creator_search_documents d on d.creator_id = c.id
+          where c.status = 'active' and ${match}
+          order by (select max(p.followers) from gcp.creator_profiles p where p.creator_id = c.id) desc nulls last, c.id
+          limit ${PAGE} offset ${q.offset}`);
+        const [n] = await tx.execute<{ n: number }>(sql`select count(*)::int n from gcp.creators c where c.status = 'active' and ${match}`);
+        return { items: [...items], total: n?.n ?? 0 };
       });
     },
 

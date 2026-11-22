@@ -1,17 +1,13 @@
 import { useState, type FormEvent } from "react";
 import { AlertCircle, ArrowLeft, ArrowRight, Clock, Eye, EyeOff, Info, KeyRound, Lock, Mail, ShieldCheck } from "lucide-react";
 import { useAdminAuth } from "../../admin/AdminAuthContext";
+import { LogoMark } from "../landing/Logo";
 
 /**
  * Staff sign-in at /_omega_ (owner design, 22 Nov). One form: work email, password and the 6-digit authenticator code.
  * The server checks the password first, then the code; after 5 wrong attempts it pauses sign-in for 15 minutes and
  * answers the same way for every failure, so the page shows its message rather than guessing the cause.
  */
-const MARK = (
-  <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-    <path d="M4 17V8l4.5 5L12 7l3.5 6L20 8v9" />
-  </svg>
-);
 const field =
   "w-full rounded-2xl border border-slate-200 bg-[#F8FAFC] py-2.5 pl-10 pr-4 text-sm font-medium text-slate-900 placeholder:text-slate-400 transition-all focus:border-[#06B6D4] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#06B6D4]/20";
 
@@ -89,10 +85,7 @@ export function StaffLogin({ onSuccess }: { onSuccess: () => void }) {
           {view === "signin" ? (
             <section>
               <div className="text-center">
-                <div className="relative mx-auto inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#0A0F24] text-[#06B6D4] shadow-md">
-                  {MARK}
-                  <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-[#06B6D4] ring-2 ring-white" />
-                </div>
+                <div className="mx-auto inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-[#0A0F24] shadow-md"><LogoMark size={40} /></div>
                 <div className="mt-3 text-xl font-extrabold tracking-wide text-slate-900">MUSHIN</div>
                 <div className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-cyan-200/80 bg-cyan-50 px-3 py-1 text-[11px] font-bold text-cyan-700">
                   <span className="h-1.5 w-1.5 rounded-full bg-[#06B6D4]" /> Staff Only

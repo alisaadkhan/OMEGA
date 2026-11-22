@@ -7,7 +7,7 @@ import { useToast } from "../../lib/toast";
 
 type Kind = "country" | "minor" | "organisation" | "assessment";
 
-const itemSchema = z.object({
+export const itemSchema = z.object({
   id: z.string(),
   displayName: z.string(),
   avatarUrl: z.string().nullable(),
@@ -105,13 +105,15 @@ export function CatalogueReview({ canDecide }: { canDecide: boolean }) {
   );
 }
 
-function ReviewCard({ item, kind, canDecide }: { item: Item; kind: Kind; canDecide: boolean }) {
+/** One creator with the staff fixes that apply; kind "any" (the Creators page) offers whichever fixes fit this creator. */
+export function ReviewCard({ item, kind, canDecide, extra }: { item: Item; kind: Kind | "any"; canDecide: boolean; extra?: React.ReactNode }) {
+  const clearKind: "minor" | "organisation" | null = kind === "minor" || kind === "organisation" ? kind : kind === "any" ? (item.isMinor ? "minor" : item.organisationCategory ? "organisation" : null) : null;
   const qc = useQueryClient();
   const toast = useToast();
   const [country, setCountry] = useState("PK");
   const [evidence, setEvidence] = useState("");
   const [reason, setReason] = useState("");
-  const done = () => void qc.invalidateQueries({ queryKey: ["admin", "catalogue-review"] });
+  const done = () => { void qc.invalidateQueries({ queryKey: ["admin", "catalogue-review"] }); void qc.invalidateQueries({ queryKey: ["admin", "catalogue"] }); };
   const setCountryMut = useMutation({
     mutationFn: () => adminRequest(`/admin/v1/catalogue/creators/${item.id}/country`, z.object({ changed: z.array(z.object({ platform: z.string(), to: z.string() })) }), { method: "POST", body: { country, evidence } }),
     onSuccess: (r) => {
@@ -121,9 +123,9 @@ function ReviewCard({ item, kind, canDecide }: { item: Item; kind: Kind; canDeci
     onError: (e) => toast.error("Couldn't set the country", e instanceof Error ? e.message : undefined),
   });
   const clearMinor = useMutation({
-    mutationFn: () => adminRequest(`/admin/v1/catalogue/creators/${item.id}/${kind === "organisation" ? "organisation-override" : "minor-override"}`, z.object({ cleared: z.literal(true) }), { method: "POST", body: { reason } }),
+    mutationFn: () => adminRequest(`/admin/v1/catalogue/creators/${item.id}/${clearKind === "organisation" ? "organisation-override" : "minor-override"}`, z.object({ cleared: z.literal(true) }), { method: "POST", body: { reason } }),
     onSuccess: () => {
-      toast.success(kind === "organisation" ? `${item.displayName} is back in search` : `Cleared the minor flag for ${item.displayName}`);
+      toast.success(clearKind === "organisation" ? `${item.displayName} is back in search` : `Cleared the minor flag for ${item.displayName}`);
       done();
     },
     onError: (e) => toast.error("Couldn't clear the flag", e instanceof Error ? e.message : undefined),
@@ -144,6 +146,7 @@ function ReviewCard({ item, kind, canDecide }: { item: Item; kind: Kind; canDeci
             {item.organisationCategory && <span className="rounded bg-slate-100 px-1.5 py-0.5 text-slate-700">Organisation: {item.organisationCategory}</span>}
             {kind === "assessment" && <span className="rounded bg-slate-100 px-1.5 py-0.5 text-slate-600">{item.assessmentStatus === "insufficient_data" ? "Too little data" : item.assessmentStatus ?? "Not assessed"}</span>}
           </div>
+          {extra}
           <ul className="mt-2 space-y-2">
             {item.profiles.map((p) => (
               <li key={`${p.platform}:${p.handle}`} className="rounded-lg bg-slate-50 px-3 py-2">
@@ -158,7 +161,7 @@ function ReviewCard({ item, kind, canDecide }: { item: Item; kind: Kind; canDeci
               </li>
             ))}
           </ul>
-          {canDecide && (kind === "country" || kind === "assessment") && (
+          {canDecide && (kind === "country" || kind === "assessment" || kind === "any") && (
             <form
               className="mt-3 flex flex-wrap items-center gap-2"
               onSubmit={(e) => {
@@ -176,7 +179,7 @@ function ReviewCard({ item, kind, canDecide }: { item: Item; kind: Kind; canDeci
               <span id={`ev-hint-${item.id}`} className="w-full text-[11px] text-slate-500">Never from a name, a face or a language: only from a source you can point to. A country other than PK hides the creator from search.</span>
             </form>
           )}
-          {canDecide && (kind === "minor" || kind === "organisation") && (
+          {canDecide && clearKind && (
             <form
               className="mt-3 flex flex-wrap items-center gap-2"
               onSubmit={(e) => {
@@ -185,9 +188,9 @@ function ReviewCard({ item, kind, canDecide }: { item: Item; kind: Kind; canDeci
               }}
             >
               <label className="sr-only" htmlFor={`mr-${item.id}`}>Reason</label>
-              <input id={`mr-${item.id}`} value={reason} onChange={(e) => setReason(e.target.value)} placeholder={kind === "organisation" ? "Why this account is a person (source)" : "Why this creator is an adult (source)"} className="min-w-[240px] flex-1 rounded-md border border-slate-200 px-2 py-1.5" />
+              <input id={`mr-${item.id}`} value={reason} onChange={(e) => setReason(e.target.value)} placeholder={clearKind === "organisation" ? "Why this account is a person (source)" : "Why this creator is an adult (source)"} className="min-w-[240px] flex-1 rounded-md border border-slate-200 px-2 py-1.5" />
               <button type="submit" disabled={!reasonOk || clearMinor.isPending} className="rounded-md bg-slate-900 px-3 py-1.5 text-white hover:bg-slate-800 disabled:opacity-50">
-                {clearMinor.isPending ? "Saving…" : kind === "organisation" ? "It's a person" : "Clear minor flag"}
+                {clearMinor.isPending ? "Saving…" : clearKind === "organisation" ? "It's a person" : "Clear minor flag"}
               </button>
             </form>
           )}

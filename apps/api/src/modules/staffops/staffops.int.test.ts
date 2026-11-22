@@ -184,6 +184,20 @@ describe("catalogue review", () => {
     expect((await call("POST", `/admin/v1/catalogue/creators/${randomUUID()}/country`, admin.h, body)).statusCode).toBe(404);
   });
 
+  it("searches the whole catalogue by name or handle, largest first, saying whether customers can find each creator (owner, 22 Nov)", async () => {
+    const { call, signIn } = await setup();
+    const big = await addCreator(db, { displayName: "Ayesha Bakes", profiles: [{ followers: 90_000, bio: "Cakes in Lahore" }] });
+    const small = await addCreator(db, { displayName: "Ayesha Small", profiles: [{ followers: 12_000, bio: "Home baking" }] });
+    await addCreator(db, { displayName: "Someone Else", profiles: [{ followers: 50_000, bio: "Cars" }] });
+    const support = await signIn("support");
+    const r = (await call("GET", "/admin/v1/catalogue/creators?q=ayesha", support.h)).json() as { items: { id: string; eligible: boolean; hiddenBecause: string[] }[]; total: number };
+    expect(r.items.map((i) => i.id)).toEqual([big, small]);
+    expect(r.total).toBe(2);
+    expect(r.items[0]).toMatchObject({ eligible: expect.any(Boolean), hiddenBecause: expect.any(Array) });
+    expect(((await call("GET", "/admin/v1/catalogue/creators?q=%25", support.h)).json() as { total: number }).total).toBe(0);
+    expect(((await call("GET", "/admin/v1/catalogue/creators", support.h)).json() as { total: number }).total).toBe(3);
+  });
+
   it("restores a person wrongly marked as an organisation (0072), audited", async () => {
     const { call, signIn } = await setup();
     const id = await addCreator(db, { displayName: "Marked Organisation" });

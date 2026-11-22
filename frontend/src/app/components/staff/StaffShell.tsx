@@ -5,14 +5,10 @@ import { staffAlertsSchema } from "@mushin/contracts";
 import type { AdminUser } from "../../admin/AdminAuthContext";
 import { adminRequest } from "../../admin/adminApi";
 import { StepUpProvider, useStepUp } from "../admin/staff-ui";
+import { LogoMark } from "../landing/Logo";
 import { NAV, useNavBadges, type StaffView } from "./nav";
 
 const ROLE_LABEL = { super_admin: "Super Admin", admin: "Admin", support: "Support" } as const;
-const MARK = (
-  <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4 text-cyan-400" aria-hidden>
-    <path d="M3 19V7L8 12L12 8L16 12L21 7V19" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
 
 /** Security-key state for privileged actions: confirmed for 5 minutes, or one click to confirm. Support never needs it. */
 function KeyPill() {
@@ -112,7 +108,7 @@ export function StaffShell({ admin, view, onView, onSignOut, children }: { admin
           <div className="flex min-h-0 flex-1 flex-col">
             <div className="flex h-14 shrink-0 items-center justify-between border-b border-slate-800/90 bg-[#070b14] px-4">
               <div className="flex items-center gap-2.5">
-                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-400 to-indigo-950 p-0.5"><div className="flex h-full w-full items-center justify-center rounded-[6px] bg-[#0A0F24]">{MARK}</div></div>
+                <LogoMark size={28} />
                 <span className="text-sm font-extrabold tracking-wider text-white">MUSHIN</span>
               </div>
               <span className="rounded-full border border-cyan-500/30 bg-cyan-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-cyan-300">{ROLE_LABEL[admin.role]}</span>
