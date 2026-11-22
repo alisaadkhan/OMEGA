@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { LiveEstimate, LiveRunSize, LiveSearch } from "@mushin/contracts";
+import { validateLiveBrief, type LiveEstimate, type LiveRunSize, type LiveSearch } from "@mushin/contracts";
 import { useBillingPlans, useBillingSummary } from "../../api/billing";
 import { liveDiscoveryRule } from "../../lib/plans";
 import { useCreateLiveEstimate, useStartJob } from "../../api/discovery";
@@ -7,6 +7,23 @@ import { livePlatformsText, liveSummary } from "../../api/discovery-mapping";
 import { useToast } from "../../lib/toast";
 
 const SIZES: LiveRunSize[] = [5, 10, 15];
+
+/**
+ * Live search pays to search the platforms, so a letter or a vague word is not enough (owner, 22 Nov): the customer is
+ * asked to explain the campaign first, with what is missing named. The same rule (validateLiveBrief) runs on the server.
+ */
+export function liveBriefProblem(search: LiveSearch): string | null {
+  const v = validateLiveBrief(search);
+  if (v.ok) return null;
+  const needs = v.missingRequirements.includes("topic") && v.missingRequirements.includes("location_or_language")
+    ? "what kind of creators you need and where"
+    : v.missingRequirements.includes("topic")
+      ? "what kind of creators you need (their topic)"
+      : v.missingRequirements.includes("location_or_language")
+        ? "where your audience is (a city, a country or a language)"
+        : "a little more about the creators you need";
+  return `Explain your campaign to the AI first: say ${needs}. For example: "food bloggers in Lahore" or "Urdu tech reviewers in Pakistan".`;
+}
 
 /** SRS §4.2.2, REQ-02.06: Find New Creators shows its maximum cost and starts only on confirmation. */
 export function FindNewDialog({ open, onOpenChange, search, onStarted }: { open: boolean; onOpenChange: (o: boolean) => void; search: LiveSearch; onStarted: (jobId: string) => void }) {
@@ -21,8 +38,9 @@ export function FindNewDialog({ open, onOpenChange, search, onStarted }: { open:
   const [quote, setQuote] = useState<{ key: string; value: LiveEstimate } | null>(null);
   const [quoteError, setQuoteError] = useState<unknown>(null);
   const [quotePending, setQuotePending] = useState(false);
+  const briefProblem = liveBriefProblem(search);
   useEffect(() => {
-    if (!open) {
+    if (!open || briefProblem) {
       quoteRequest.current += 1;
       setQuote(null);
       setQuoteError(null);
@@ -92,17 +110,18 @@ export function FindNewDialog({ open, onOpenChange, search, onStarted }: { open:
         </div>
         <div className="mt-4 space-y-1 rounded-lg border border-slate-200 bg-slate-50/60 p-3 text-xs text-slate-600">
           <div className="flex justify-between"><span>Creators MUSHIN already knows</span><span>no per-creator charge</span></div>
-          <div className="flex justify-between border-t border-slate-200 pt-1 text-slate-900" style={{ fontWeight: 600 }}><span>Server quote · up to {size} new creators</span><span>{estimate.isPending ? "Preparing…" : `${max ?? "—"} credits`}</span></div>
+          <div className="flex justify-between border-t border-slate-200 pt-1 text-slate-900" style={{ fontWeight: 600 }}><span>Server quote · up to {size} new creators</span><span>{briefProblem ? "—" : estimate.isPending ? "Preparing…" : `${max ?? "—"} credits`}</span></div>
           {currentQuote && <p className="pt-1 text-[11px] text-slate-500">Quote expires {new Date(currentQuote.expiresAt).toLocaleTimeString()}.</p>}
           <p className="pt-1 text-[11px] text-slate-500" data-testid="live-charging-rule">{pricing.data ? liveDiscoveryRule(pricing.data) : "The final charge is settled when the run finishes, never above this quote; unused credits come back."} Unused credits come back when the run finishes.</p>
           {currentQuote?.minimumCredits !== undefined && <p className="pt-1 text-[11px] text-slate-500">With TikTok included, a search that finds creators costs at least {currentQuote.minimumCredits} credits.</p>}
         </div>
-        {quoteError !== null && <p className="mt-2 text-xs text-red-600">{quoteError instanceof Error ? quoteError.message : "Add a specific creator topic and a city, country or language to continue."}</p>}
+        {briefProblem && <p role="alert" className="mt-2 text-xs text-red-600">{briefProblem}</p>}
+        {!briefProblem && quoteError !== null && <p className="mt-2 text-xs text-red-600">{quoteError instanceof Error ? quoteError.message : "Add a specific creator topic and a city, country or language to continue."}</p>}
         {max !== null && available < max && <p className="mt-2 text-xs text-red-600">You have {available} credits. Choose a smaller number or top up.</p>}
         <div className="mt-4 flex justify-end gap-2">
           <button onClick={() => onOpenChange(false)} className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50" style={{ fontWeight: 500 }}>Cancel</button>
-          <button onClick={confirm} disabled={max === null || quotePending || available < (max ?? 0) || start.isPending} className="rounded-md bg-slate-900 px-3 py-1.5 text-xs text-white hover:bg-slate-800 disabled:opacity-50" style={{ fontWeight: 500 }}>
-            {start.isPending ? "Starting…" : quotePending ? "Preparing quote…" : `Confirm · at most ${max ?? "—"} credits`}
+          <button onClick={confirm} disabled={briefProblem !== null || max === null || quotePending || available < (max ?? 0) || start.isPending} className="rounded-md bg-slate-900 px-3 py-1.5 text-xs text-white hover:bg-slate-800 disabled:opacity-50" style={{ fontWeight: 500 }}>
+            {briefProblem ? "Explain your campaign first" : start.isPending ? "Starting…" : quotePending ? "Preparing quote…" : `Confirm · at most ${max ?? "—"} credits`}
           </button>
         </div>
       </div>

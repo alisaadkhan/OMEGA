@@ -130,7 +130,12 @@ export function createCreatorsService(deps: CreatorsDeps) {
     // What the text asks for: topic words to match, role words for ranking, and clearly stated platform, follower or
     // engagement ranges as filters (explicit filters win). Billing and cursors stay bound to the request as sent.
     const v2 = deps.searchProfile === "v2" ? understandQueryV2(req.text) : null;
-    const understood = v2 ? { text: v2.text, optional: v2.boost, filters: v2.filters } : understandQuery(req.text);
+    const read = v2 ? { text: v2.text, optional: v2.boost, filters: v2.filters } : understandQuery(req.text);
+    // A lone letter or short word the reader drops as filler ("a", "i", "the") is still what the user typed: search it
+    // as the start of a name rather than showing everyone (owner, 22 Nov). A stated platform or range keeps its meaning.
+    const raw = req.text.trim();
+    const typedOnly = !read.text && raw.length > 0 && raw.length <= 3 && /^[\p{L}\p{N}]+$/u.test(raw) && Object.values(read.filters).every((v) => v === undefined);
+    const understood = typedOnly ? { ...read, text: raw.toLowerCase() } : read;
     const merged = {
       ...req.filters,
       platform: req.filters.platform ?? understood.filters.platform,

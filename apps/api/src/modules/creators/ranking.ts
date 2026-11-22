@@ -14,6 +14,12 @@ type Tx = TenantTx | SystemTx;
  * 1 = starts with a search of two or more words, 2 = everyone else. One-word topic searches ("fashion") keep fit order.
  */
 function nameTier(text: string, name: string, handle: string): number {
+  // A few typed letters (owner, 22 Nov): creators whose name or handle starts with them come first.
+  const typed = text.trim().toLowerCase();
+  if (typed && typed.length <= 3 && !/\s/.test(typed)) {
+    const words = [...name.toLowerCase().split(/[^\p{L}\p{N}]+/u), handle.toLowerCase().replace(/^@/, "")];
+    return words.some((w) => w && w.startsWith(typed)) ? 1 : 2;
+  }
   const q = nameKey(text);
   if (!q) return 2;
   const keys = [nameKey(name), nameKey(handle)];

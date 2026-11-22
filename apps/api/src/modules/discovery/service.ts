@@ -131,7 +131,7 @@ export function createDiscoveryService(deps: DiscoveryDeps) {
   async function createEstimate(ctx: TenantContext, body: CreateLiveEstimate): Promise<LiveEstimate> {
     const validation = validateLiveBrief(body.search);
     if (!validation.ok) {
-      throw new AppError("QUERY_TOO_BROAD", "Add a creator topic and a city, country or language before starting live discovery.", {
+      throw new AppError("QUERY_TOO_BROAD", "Explain your campaign to the AI first: say what kind of creators you need and where (a city, a country or a language). For example: \"food bloggers in Lahore\".", {
         missingRequirements: validation.missingRequirements,
         specificity: validation.specificity,
       });
@@ -190,7 +190,7 @@ export function createDiscoveryService(deps: DiscoveryDeps) {
         const search: LiveSearch = { text: estimate.search.text, filters: searchFiltersSchema.parse(estimate.search.filters) };
         const validation = validateLiveBrief(search);
         if (!validation.ok) {
-          throw new AppError("QUERY_TOO_BROAD", "Add a creator topic and a city, country or language before starting live discovery.", {
+          throw new AppError("QUERY_TOO_BROAD", "Explain your campaign to the AI first: say what kind of creators you need and where (a city, a country or a language). For example: \"food bloggers in Lahore\".", {
             missingRequirements: validation.missingRequirements,
             specificity: validation.specificity,
           });

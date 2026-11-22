@@ -173,11 +173,28 @@ export function createPostgresCatalogSearch(db: Db): CatalogSearch {
         const rows = await run(sql.join(parts.map((p) => p.match), sql` and `), sql`(0.95 * ${tier} + 0.05 * least(ts_rank_cd(d.search_vector, ${rankQ}) * 8, 1))`, byScore, limit);
         return { hits: rows.map((r) => ({ id: r.id, rankingScore: Number(r.rankingScore) })), total: Number(rows[0]?.exactTotal ?? 0) };
       }
+      // 0. Partial words (owner, 22 Nov: "if a user enters a single letter or whatever, show results according to what
+      //    they type"). Each typed word as the start of a word: "a" → names and handles starting with "a"; "pub" → "pubg".
+      //    One or two letters look at names and handles only (as a word in a bio, "a" or "s" means nothing); longer
+      //    partial words look everywhere, but only when no whole word matched, so "food" is not widened to "foodie".
+      const typed = normalizeQuery(text).split(" ").filter(Boolean);
+      const prefixable = typed.length > 0 && typed.length <= 4 && typed.every((w) => /^[\p{L}\p{N}]+$/u.test(w));
+      const prefixQ = prefixable ? sql`to_tsquery('simple', ${typed.map((w) => `${w}:*`).join(" & ")})` : null;
+      const startsName = sql`(lower(c.display_name) like ${`${typed.join(" ")}%`} or exists (select 1 from unnest(d.handles) h where lower(h) like ${`${typed.join("")}%`}))`;
+      const prefixScore = sql`(case when ${startsName} then 0.3 else 0.2 end)`;
+      if (prefixQ && typed.length === 1 && (typed[0] as string).length <= 2) {
+        const rows = await run(sql`ts_filter(d.search_vector, '{a,b}') @@ ${prefixQ}`, prefixScore, byScore, limit);
+        return { hits: rows.map((r) => ({ id: r.id, rankingScore: Number(r.rankingScore) })), total: Number(rows[0]?.exactTotal ?? 0) };
+      }
       // 1. Whole words through full-text search.
       // A creator matched only through the city field still scores on the words it did match.
       const words = await run(wordMatch, sql`least(ts_rank_cd(d.search_vector, ${rankQuery}) * 8, 1)`, byScore, limit);
       let total = Number(words[0]?.exactTotal ?? 0);
       let rows: Row[] = words;
+      if (total === 0 && prefixQ) {
+        rows = await run(sql`d.search_vector @@ ${prefixQ}`, prefixScore, byScore, limit);
+        total = Number(rows[0]?.exactTotal ?? 0);
+      }
       // 2. A typo or partial word ("Ayesah", "Siddiq") through trigram word similarity, which compares the query with the
       //    closest part of the text rather than the whole document. Only while whole words leave room in the pool: on a
       //    common word (thousands of matches) rechecking similarity across them cost ~1 s at 100k creators.
