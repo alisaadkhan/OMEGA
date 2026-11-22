@@ -43,6 +43,9 @@ function hasPhrase(text: string, phrases: string[]): boolean {
 }
 
 /** The same deterministic gate is called for estimates and again when the estimate is consumed. */
+/** A live search is described in at least this many words (owner, 22 Nov): a letter or a single word is not a campaign. */
+export const LIVE_BRIEF_MIN_WORDS = 3;
+
 export function validateLiveBrief(search: LiveSearch): { ok: boolean; specificity: number; missingRequirements: string[] } {
   const text = search.text;
   const words = normalizedWords(text);
@@ -67,6 +70,7 @@ export function validateLiveBrief(search: LiveSearch): { ok: boolean; specificit
   else if (search.filters.followersMin !== undefined || search.filters.followersMax !== undefined) specificity += 0.25;
 
   const missingRequirements: string[] = [];
+  if (words.length < LIVE_BRIEF_MIN_WORDS) missingRequirements.push("too_short");
   if (!topic) missingRequirements.push("topic");
   if (!city && !country && !language) missingRequirements.push("location_or_language");
   if (topic && (city || country || language) && specificity < 2.5) missingRequirements.push("specificity");

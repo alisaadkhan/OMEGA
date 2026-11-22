@@ -320,6 +320,7 @@ const INVALID_TEXT: Record<string, string> = {
   no_such_domain: "the email's domain does not exist",
   null_mx: "the domain says it accepts no email",
   no_mail_host: "the domain has no mail server",
+  bounced: "an email sent to it bounced",
   malformed_or_reserved: "it is not a valid address",
 };
 

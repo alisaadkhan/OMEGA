@@ -62,8 +62,12 @@ describe("live discovery contracts", () => {
 
   it("rejects empty and generic briefs and requires a topic plus location or language", () => {
     const mk = (text: string, filters: Record<string, unknown> = {}) => ({ text, filters: searchFiltersSchema.parse(filters) });
-    expect(validateLiveBrief(mk("")).missingRequirements).toEqual(["topic", "location_or_language"]);
+    expect(validateLiveBrief(mk("")).missingRequirements).toEqual(["too_short", "topic", "location_or_language"]);
     expect(validateLiveBrief(mk("best creators and influencers")).missingRequirements).toEqual(["topic", "location_or_language"]);
+    // At least 3 words (owner, 22 Nov), even when a niche filter and a city are chosen.
+    expect(validateLiveBrief(mk("a")).missingRequirements).toContain("too_short");
+    expect(validateLiveBrief(mk("Lahore food", { niches: ["Food"] })).missingRequirements).toEqual(["too_short"]);
+    expect(validateLiveBrief(mk("food bloggers Lahore")).ok).toBe(true);
     expect(validateLiveBrief(mk("bridal makeup creators")).missingRequirements).toEqual(["location_or_language"]);
     expect(validateLiveBrief(mk("creators in Lahore")).missingRequirements).toEqual(["topic"]);
     expect(validateLiveBrief(mk("bridal makeup creators in Lahore")).ok).toBe(true);

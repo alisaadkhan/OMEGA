@@ -20,12 +20,16 @@ export function whatsappNumber(url: string): string | null {
   return digits ? normPhone(digits) : null;
 }
 
-const normPhone = (v: string): string | null => {
+export const normPhone = (v: string): string | null => {
   const digits = v.replace(/[^\d+]/g, "");
   const n = digits.replace(/^\+/, "");
   if (n.length < 10 || n.length > 13) return null;
   // Pakistani mobile written locally (03xx…) becomes +92…
   if (/^03\d{9}$/.test(n)) return `+92${n.slice(1)}`;
+  // A number written without "+" that starts with one 0 is a Pakistani national number (landline or UAN: 021-111…).
+  if (!digits.startsWith("+") && /^0[1-9]\d{8,10}$/.test(n)) return `+92${n.slice(1)}`;
+  // Otherwise a leading 0 is a national prefix of an unknown country: not a usable international number.
+  if (n.startsWith("0")) return null;
   return digits.startsWith("+") ? digits : `+${n}`;
 };
 

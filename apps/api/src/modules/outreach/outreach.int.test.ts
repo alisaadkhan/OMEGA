@@ -146,7 +146,13 @@ describe("outreach email: provider webhooks, suppression and unsubscribe", () =>
     expect(await webhook(service(), "msg_2", "email.bounced", msg)).toBe("applied");
     expect(await webhook(service(), "msg_3", "email.delivered", msg)).toBe("applied"); // late, out of order
     expect((await service().list(s.ctx, s.campaignId))[0]?.status).toBe("bounced");
+    // The bounce also marks the creator's email invalid (owner, 22 Nov), so search stops counting it as usable.
+    const [contact] = await ownerQuery<{ status: string; check_detail: string }>(`select status, check_detail from gcp.creator_contacts where id = '${s.contactId}'`);
+    expect(contact).toEqual({ status: "invalid", check_detail: "bounced" });
     expect(await webhook(service(), "msg_4", "email.opened", msg)).toBe("ignored");
+    // Refused as an invalid address first; the suppression stays for every workspace (checked below by hash).
+    await expect(service().send(s.ctx, s.campaignId, s.creatorId, email(s.contactId), key())).rejects.toMatchObject({ details: { reason: "contact_invalid" } });
+    await ownerQuery(`update gcp.creator_contacts set status = 'unverified', check_detail = null where id = '${s.contactId}'`);
     await expect(service().send(s.ctx, s.campaignId, s.creatorId, email(s.contactId), key())).rejects.toMatchObject({ details: { reason: "recipient_suppressed" } });
   });
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { validateLiveBrief, type LiveEstimate, type LiveRunSize, type LiveSearch } from "@mushin/contracts";
+import { LIVE_BRIEF_MIN_WORDS, validateLiveBrief, type LiveEstimate, type LiveRunSize, type LiveSearch } from "@mushin/contracts";
 import { useBillingPlans, useBillingSummary } from "../../api/billing";
 import { liveDiscoveryRule } from "../../lib/plans";
 import { useCreateLiveEstimate, useStartJob } from "../../api/discovery";
@@ -15,6 +15,11 @@ const SIZES: LiveRunSize[] = [5, 10, 15];
 export function liveBriefProblem(search: LiveSearch): string | null {
   const v = validateLiveBrief(search);
   if (v.ok) return null;
+  const short = v.missingRequirements.includes("too_short");
+  const rest = v.missingRequirements.filter((r) => r !== "too_short");
+  if (short && rest.length === 0) {
+    return `Explain your campaign to the AI in at least ${LIVE_BRIEF_MIN_WORDS} words: what kind of creators you need and where. For example: "food bloggers in Lahore".`;
+  }
   const needs = v.missingRequirements.includes("topic") && v.missingRequirements.includes("location_or_language")
     ? "what kind of creators you need and where"
     : v.missingRequirements.includes("topic")

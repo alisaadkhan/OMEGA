@@ -59,7 +59,8 @@ const reconcileProviderRuns = async () => {
 };
 if (!config.scraping.apifyToken) logger.warn("APIFY_TOKEN not set: Instagram and TikTok jobs will fail and refund");
 if (!config.scraping.youtubeApiKey) logger.warn("YouTube API calls are off (YOUTUBE_API_CALLS) or YOUTUBE_API_KEY is not set: YouTube jobs fail as not configured and are refunded");
-const pipeline = createEnrichmentPipeline({ db, scraper, storage: createObjectStorage(config.storage, logger), llm, encryptionKey: config.dataEncryptionKey, logger, attributePolicy: config.enrichment.attributePolicy, youtube: { contentEvidence: config.enrichment.youtubeContentEvidence, descriptionContacts: config.enrichment.youtubeDescriptionContacts, derivedMetrics: config.sourcePolicy.youtubeDerivedMetrics }, semanticNiche: config.enrichment.semanticNiche });
+const contactChecker = createContactChecker({ db, encryptionKey: config.dataEncryptionKey, resolver: systemMailResolver(), logger });
+const pipeline = createEnrichmentPipeline({ db, scraper, storage: createObjectStorage(config.storage, logger), llm, encryptionKey: config.dataEncryptionKey, logger, attributePolicy: config.enrichment.attributePolicy, youtube: { contentEvidence: config.enrichment.youtubeContentEvidence, descriptionContacts: config.enrichment.youtubeDescriptionContacts, derivedMetrics: config.sourcePolicy.youtubeDerivedMetrics }, semanticNiche: config.enrichment.semanticNiche, contactChecker });
 const runner = createDiscoveryRunner({ db, billing, pipeline, logger });
 const web = createSerperSearch({
   apiKey: config.scraping.serperApiKey,
@@ -79,7 +80,6 @@ const audienceRunner = createAudienceRunner({
 });
 if (config.audienceSources.length === 0) logger.info("AUDIENCE_SOURCES not set: audience estimates are off");
 const eraser = createEraser({ db, storage: pipeline.storage, logger });
-const contactChecker = createContactChecker({ db, encryptionKey: config.dataEncryptionKey, resolver: systemMailResolver(), logger });
 // PostgreSQL search is the default. When configured, Meilisearch is dual-written for rollback during the cutover.
 await indexer.ensureSettings().catch((err: unknown) => logger.error({ err }, "could not apply rollback search index settings"));
 // A newly enabled, emptied or restored Meilisearch would otherwise answer "no creators" until the nightly reconcile:

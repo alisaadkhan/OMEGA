@@ -58,6 +58,11 @@ type Deps = {
   youtube?: { contentEvidence: boolean; descriptionContacts: boolean; derivedMetrics?: boolean };
   /** Semantic (AI) niche reading for evidence the rules cannot read clearly (NICHE_SEMANTIC; default on when set). */
   semanticNiche?: boolean;
+  /**
+   * Checks every newly found email at once (format, domain and mail server; nothing is sent; owner, 22 Nov): a creator
+   * is never offered for outreach on an address that cannot receive mail. Unset (tests): emails stay unchecked.
+   */
+  contactChecker?: { check(creatorId: string, workspaceId: string | null): Promise<unknown> };
 };
 
 function topTags(p: StandardProfile): string[] {
@@ -236,6 +241,10 @@ export function createEnrichmentPipeline(deps: Deps) {
           return result;
         });
     await deps.db.withSystem((tx) => recordAvailability(tx, { canonicalUrl: job.canonicalUrl, observed: "found", source: "enrichment", reason: "The provider returned the profile", now: now() }));
+    if (deps.contactChecker && out.kind === "saved") {
+      // Best effort: a failed lookup leaves the email unchecked for the next attempt and never fails the saved profile.
+      await deps.contactChecker.check(out.creatorId, o.system ? null : job.workspaceId).catch((err: unknown) => deps.logger.warn({ err, creatorId: out.creatorId }, "new contact emails not checked"));
+    }
     return out;
   }
 

@@ -2,7 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { and, desc, eq, gte, ne, sql } from "drizzle-orm";
 import type { OutreachCompose, OutreachDraft, OutreachEmail, OutreachPreview, OutreachUsage, SendOutreachEmail } from "@mushin/contracts";
 import { AppError, decryptSecret, sha256Hex, type Logger, type TenantContext } from "@mushin/core";
-import { outreachEmails, type Db, type SystemTx, type TenantTx } from "@mushin/db";
+import { outreachEmails, writeOutbox, type Db, type SystemTx, type TenantTx } from "@mushin/db";
 import { parseEmailEvent, verifyEmailWebhook, type EmailProvider } from "@mushin/integrations";
 import type { BillingService } from "../billing/index";
 import { composeContext, draftText, renderEmail, resolveRecipient, senderAddress } from "./compose";
@@ -274,15 +274,28 @@ export function createOutreachEmailService(deps: OutreachDeps) {
       return fresh ? "ignored" : "duplicate";
     }
     // Recording the delivery and applying it happen in one transaction: an event is never marked seen but not applied.
-    return deps.db.withWorkspace(workspaceId, async (tx) => {
+    let bouncedHash: string | null = null;
+    const outcome = await deps.db.withWorkspace(workspaceId, async (tx) => {
       const [fresh] = await record(tx, event.type);
       if (!fresh) return "duplicate" as const;
       const [e] = await tx.execute<{ id: string; status: OutreachEmail["status"]; recipient_hash: string }>(sql`select id, status, recipient_hash from wp.outreach_emails where provider_message_id = ${event.messageId} for update`);
       if (!e) return "ignored" as const;
       if (RANK[event.status] > RANK[e.status]) await tx.execute(sql`update wp.outreach_emails set status = ${event.status}, status_at = now() where id = ${e.id}`);
       if (event.status === "bounced" || event.status === "complained") await tx.execute(sql`select platform.suppress_email(${e.recipient_hash}, ${event.status})`);
+      if (event.status === "bounced") bouncedHash = e.recipient_hash;
       return "applied" as const;
     });
+    // A bounce proves the address cannot receive mail (owner, 22 Nov): every creator holding it is marked invalid, so
+    // search stops counting it as a usable email. A complaint only suppresses: the address works, the person said no.
+    if (bouncedHash) {
+      const hash: string = bouncedHash;
+      await deps.db.withSystem(async (tx) => {
+        const hit = await tx.execute<{ creator_id: string }>(sql`update gcp.creator_contacts set status = 'invalid', checked_at = now(), check_detail = 'bounced'
+          where kind = 'email' and value_hash = ${hash} and status <> 'invalid' returning creator_id`);
+        for (const r of hit) await writeOutbox(tx, { eventType: "creator.changed", aggregateType: "creator", aggregateId: r.creator_id, workspaceId: null, payload: { creatorId: r.creator_id }, requestId: null });
+      });
+    }
+    return outcome;
   }
 
   return { mode, usage, list, draft, preview, send, unsubscribe, handleWebhook, unsubscribeUrl };
