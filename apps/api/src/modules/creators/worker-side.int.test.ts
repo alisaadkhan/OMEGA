@@ -91,6 +91,7 @@ function leftoverDoc(id: string) {
     authenticity_score: null,
     has_contact: false,
     has_email: false,
+    has_phone: false,
     audience_countries: [],
     followers_updated_epoch: null,
     updated_epoch: 1,

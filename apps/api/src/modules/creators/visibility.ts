@@ -13,3 +13,5 @@ export const CREATOR_VISIBLE = sql`c.status = 'active' and not (c.is_minor and c
  * sender, suppression and sending rules are checked when an email is sent.
  */
 export const hasUsableEmail = (states: readonly { kind: string; status: string }[]): boolean => states.some((k) => k.kind === "email" && k.status !== "invalid");
+/** The same for a phone number. */
+export const hasUsablePhone = (states: readonly { kind: string; status: string }[]): boolean => states.some((k) => k.kind === "phone" && k.status !== "invalid");

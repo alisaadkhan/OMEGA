@@ -4,7 +4,7 @@ import * as repo from "./repository";
 import { hasCollabRoute } from "./contact-routes";
 import { contactAvailability, fitLabel, fitScore, freshnessOf, isContactable, nameKey } from "./rules";
 import { DEFAULT_SOURCE_POLICY, restrictsDerived, type SourcePolicy } from "./source-policy";
-import { hasUsableEmail } from "./visibility";
+import { hasUsableEmail, hasUsablePhone } from "./visibility";
 
 type Tx = TenantTx | SystemTx;
 
@@ -70,6 +70,8 @@ export function toCards(rows: repo.CardRow[], req: { text: string; filters: Sear
         authenticityScore,
         fakeFollowerPct: restricted ? null : r.fakeFollowerPct,
         hasContact: isContactable(contactAvailability(r.contactStates)),
+        hasEmail: hasUsableEmail(r.contactStates),
+        hasPhone: hasUsablePhone(r.contactStates),
         // Same state as the profile: card rows never include a possible minor (VISIBLE).
         contactAvailability: contactAvailability(r.contactStates, { collabRoute: hasCollabRoute(r.bios ?? []) }),
         followersFreshness,

@@ -25,6 +25,7 @@ const doc = (id: string, over: Partial<CreatorDocument>): CreatorDocument => ({
   authenticity_score: null,
   has_contact: false,
   has_email: false,
+  has_phone: false,
   audience_countries: [],
   followers_updated_epoch: 1_790_000_000,
   updated_epoch: 1,

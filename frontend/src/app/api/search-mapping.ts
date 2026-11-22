@@ -307,7 +307,15 @@ export function uiContactState(status: string): ContactTrust {
   return "unverified"; // unverified, or domain checked: the inbox itself is still unproven
 }
 
-const SOURCE_TEXT: Record<string, string> = { business_field: "From the profile's business email field", bio: "Written in the creator's bio" };
+const SOURCE_TEXT: Record<string, string> = {
+  business_field: "From the profile's business contact field",
+  bio: "Written in the creator's bio",
+  video_description: "Written under the creator's recent videos",
+  post_caption: "Written in the creator's recent posts",
+  whatsapp_link: "From the WhatsApp link on the creator's profile",
+  linked_profile: "From the creator's own profile on another platform, linked from this one",
+  bio_link_page: "From the website or link page in the creator's bio",
+};
 const INVALID_TEXT: Record<string, string> = {
   no_such_domain: "the email's domain does not exist",
   null_mx: "the domain says it accepts no email",

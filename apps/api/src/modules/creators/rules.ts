@@ -116,6 +116,8 @@ export function meiliFilter(f: SearchFilters, now: Date, freshCurrentDays: numbe
   if (f.verifiedOnly) out.push("verified = true");
   if (f.minAuthenticity !== undefined) out.push(`authenticity_score >= ${f.minAuthenticity}`);
   if (f.hasContact) out.push("has_contact = true");
+  if (f.hasEmail) out.push("has_email = true");
+  if (f.hasPhone) out.push("has_phone = true");
   if (f.freshOnly) out.push(`followers_updated_epoch >= ${Math.floor(now.getTime() / 1000) - freshCurrentDays * 86_400}`);
   return out;
 }

@@ -44,7 +44,7 @@ export function useOutreachLog(campaignId: string, creatorId: string | null) {
 
 function useCampaignMutation<V, R>(fn: (v: V) => Promise<R>) {
   const qc = useQueryClient();
-  return useMutation({ mutationFn: fn, onSettled: () => { void qc.invalidateQueries({ queryKey: ["campaigns"] }); void qc.invalidateQueries({ queryKey: ["inbox"] }); } });
+  return useMutation({ mutationFn: fn, onSettled: () => { void qc.invalidateQueries({ queryKey: ["campaigns"] }); } });
 }
 
 export const useCreateCampaign = () => useCampaignMutation((body: CreateCampaign) => apiRequest("/v1/campaigns", campaignSummarySchema, { method: "POST", body }));
@@ -63,7 +63,7 @@ export function useUpdateCampaignCreator() {
     mutationFn: ({ id, creatorId, patch }: { id: string; creatorId: string; patch: UpdateCampaignCreator }) =>
       apiRequest(`/v1/campaigns/${id}/creators/${creatorId}`, z.object({ version: z.number() }), { method: "PATCH", body: patch }),
     onSuccess: ({ version }, { id, creatorId, patch }) => qc.setQueryData<CampaignDetail>(["campaigns", "detail", id], (d) => applyCreatorUpdate(d, creatorId, patch, version)),
-    onSettled: () => { void qc.invalidateQueries({ queryKey: ["campaigns"] }); void qc.invalidateQueries({ queryKey: ["inbox"] }); },
+    onSettled: () => { void qc.invalidateQueries({ queryKey: ["campaigns"] }); },
   });
 }
 export const useLogOutreach = () =>

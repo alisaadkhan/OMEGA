@@ -34,6 +34,9 @@ export const searchFiltersShape = z.object({
   verifiedOnly: z.boolean().default(false),
   minAuthenticity: z.number().int().min(0).max(100).optional(),
   hasContact: z.boolean().default(false),
+  /** Only creators with an email / a phone number not shown to be invalid (owner, 22 Nov). The values stay server-side. */
+  hasEmail: z.boolean().optional(),
+  hasPhone: z.boolean().optional(),
   freshOnly: z.boolean().default(false),
 });
 
@@ -107,6 +110,9 @@ export const creatorCardSchema = z.object({
   authenticityScore: z.number().int().nullable(),
   fakeFollowerPct: z.number().nullable(),
   hasContact: z.boolean(),
+  /** Whether an email / a phone number not shown to be invalid is on file; never the value itself. */
+  hasEmail: z.boolean().optional(),
+  hasPhone: z.boolean().optional(),
   contactAvailability: contactAvailabilitySchema,
   followersFreshness: freshnessSchema,
   fitScore: z.number().int().min(0).max(100),

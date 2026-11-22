@@ -20,7 +20,6 @@ import { Campaigns } from "./Campaigns";
 import { Settings, type SettingsTab } from "./Settings";
 import { SupportAccessBanner } from "./SupportAccessSettings";
 import { useAuth } from "../../auth/AuthContext";
-import { Inbox } from "./Inbox";
 import { useCredits } from "../../../app/lib/credits";
 import { useLists } from "../../api/lists";
 import { useCampaigns } from "../../api/campaigns";
@@ -125,7 +124,6 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
               {view === "search" && <SearchModule liveJobId={liveJobId} onGoToCampaigns={() => setView("campaigns")} />}
               {view === "lists" && <Lists key={navKey} onOpenCreator={setOmniCreator} onGoToSearch={() => setView("search")} />}
               {view === "campaigns" && <Campaigns key={navKey} initialId={openCampaignId} onOpenCreator={setOmniCreator} onGoToSearch={() => setView("search")} />}
-              {view === "inbox" && <Inbox onOpenCampaign={(id) => { setOpenCampaignId(id); setView("campaigns"); }} />}
               {view === "settings" && <Settings key={settingsTab} initialTab={settingsTab} onOpenSupport={() => setView("support")} onOpenBilling={() => setView("billing")} />}
               {view === "billing" && <Billing checkoutResult={checkoutResult} />}
               {view === "support" && <Support />}

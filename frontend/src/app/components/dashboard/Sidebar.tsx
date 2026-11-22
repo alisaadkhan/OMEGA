@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { Bookmark, CreditCard, Inbox as InboxIcon, LayoutDashboard, LifeBuoy, LogOut, Megaphone, Search, Settings, Star } from "lucide-react";
+import { Bookmark, CreditCard, LayoutDashboard, LifeBuoy, LogOut, Megaphone, Search, Settings, Star } from "lucide-react";
 import { useBillingSummary } from "../../api/billing";
 import { useAuth } from "../../auth/AuthContext";
 import { OPEN_REVIEW_EVENT } from "./LeaveReview";
@@ -7,11 +7,11 @@ import { OPEN_REVIEW_EVENT } from "./LeaveReview";
 /**
  * Primary navigation (owner design 2026-11-16): dark navy panel with Discover, Account and Insights groups, an animated
  * active pill, and the current plan at the foot. Every account action lives here too (owner, 17 Nov: "remove every button
- * from profile and move it to side bar"): Leave a review and Sign out (Back to website removed 18 Nov). View ids are unchanged.
+ * from profile and move it to side bar"): Leave a review and Sign out (Back to website removed 18 Nov). View ids are unchanged; the Inbox page was removed (owner, 22 Nov).
  */
-export type DashView = "overview" | "search" | "lists" | "campaigns" | "billing" | "settings" | "support" | "inbox";
+export type DashView = "overview" | "search" | "lists" | "campaigns" | "billing" | "settings" | "support";
 
-export const DASH_VIEWS: readonly DashView[] = ["overview", "search", "lists", "campaigns", "billing", "settings", "support", "inbox"];
+export const DASH_VIEWS: readonly DashView[] = ["overview", "search", "lists", "campaigns", "billing", "settings", "support"];
 
 const GROUPS: { title: string; items: { id: DashView; label: string; icon: typeof Search; tour?: string }[] }[] = [
   {
@@ -21,7 +21,6 @@ const GROUPS: { title: string; items: { id: DashView; label: string; icon: typeo
       { id: "search", label: "Search", icon: Search },
       { id: "lists", label: "Shortlists", icon: Bookmark, tour: "shortlists" },
       { id: "campaigns", label: "Campaigns", icon: Megaphone, tour: "campaigns" },
-      { id: "inbox", label: "Inbox", icon: InboxIcon },
     ],
   },
   { title: "Account", items: [{ id: "billing", label: "Credits & Billing", icon: CreditCard }, { id: "settings", label: "Settings", icon: Settings }] },

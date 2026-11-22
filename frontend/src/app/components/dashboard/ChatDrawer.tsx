@@ -7,7 +7,7 @@ import { Spinner } from "./states";
 
 /**
  * "Chat" on a creator (owner, 18 Nov): email the creator through outreach. Every email belongs to a campaign so it is
- * logged in that campaign's outreach and the Inbox, uses the campaign's brand, and counts against the plan's email
+ * logged in that campaign's outreach, uses the campaign's brand, and counts against the plan's email
  * allowance; the composer is the same confirmed single send as in a campaign. A creator in no campaign yet is added
  * to one first.
  */
@@ -59,7 +59,7 @@ export function ChatDrawer({ creator, onClose, onAddToCampaign }: { creator: { i
                 </div>
               ) : chosen === null ? (
                 <div className="space-y-3 rounded-xl bg-slate-50 p-4 text-sm text-slate-700">
-                  <p>Emails to creators are sent from a campaign, so the conversation is kept with that campaign and in your Inbox. Add {creator.name} to a campaign to start.</p>
+                  <p>Emails to creators are sent from a campaign, so the conversation is kept with that campaign. Add {creator.name} to a campaign to start.</p>
                   <button onClick={onAddToCampaign} className="inline-flex items-center gap-1.5 rounded-xl bg-[#0B112B] px-4 py-2 text-xs font-semibold text-white hover:bg-[#0F172A]">
                     <Plus aria-hidden className="h-3.5 w-3.5 text-[#57dffe]" /> Add to Campaign
                   </button>

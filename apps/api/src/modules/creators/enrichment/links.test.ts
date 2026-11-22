@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractContacts, extractLinks } from "./links";
+import { extractContacts, extractLinks, whatsappNumber } from "./links";
 import type { StandardProfile, StandardPost } from "./standardize";
 
 const post = (caption: string, description = ""): StandardPost => ({ postedAt: new Date("2026-11-01"), likes: 1, comments: 1, views: 1, isVideo: true, isPinned: false, caption, hashtags: [], description });
@@ -32,6 +32,25 @@ describe("contacts from video descriptions", () => {
     const desc = "Follow me: https://instagram.com/techali";
     const p = profile({ recentPosts: [post("a", desc), post("b", desc), post("c", desc), post("d", "collab https://instagram.com/friend"), post("e")] });
     expect(extractLinks(p, "https://youtube.com/@techali")).toEqual([{ platform: "instagram", url: "https://instagram.com/techali", source: "video_description" }]);
+  });
+});
+
+describe("WhatsApp links (owner, 22 Nov)", () => {
+  it("reads the number in a wa.me or api.whatsapp.com link, Pakistani local form included", () => {
+    expect(whatsappNumber("https://wa.me/923001234567")).toBe("+923001234567");
+    expect(whatsappNumber("wa.me/+923001234567?text=Hi")).toBe("+923001234567");
+    expect(whatsappNumber("https://api.whatsapp.com/send?phone=923001234567&text=hello")).toBe("+923001234567");
+    expect(whatsappNumber("https://wa.me/03001234567")).toBe("+923001234567");
+    expect(whatsappNumber("https://wa.me/message/ABCDEF123")).toBeNull();
+    expect(whatsappNumber("https://example.com/wa.me/923001234567")).toBeNull();
+  });
+
+  it("stores a profile's WhatsApp link as a likely phone contact, next to a bio email", () => {
+    const p = profile({ platform: "instagram", bio: "Collabs: me@studio.pk", websiteUrls: ["https://wa.me/923001234567"] });
+    expect(extractContacts(p)).toEqual([
+      expect.objectContaining({ kind: "phone", value: "+923001234567", trust: "likely", source: "whatsapp_link" }),
+      expect.objectContaining({ kind: "email", value: "me@studio.pk", source: "bio" }),
+    ]);
   });
 });
 

@@ -381,6 +381,7 @@ export type IndexRow = {
   authenticityScore: number | null;
   hasContact: boolean;
   hasEmail: boolean;
+  hasPhone: boolean;
   profiles: { platform: Platform; handle: string; canonicalUrl: string; followers: number | null; engagementRate: number | null; bio: string | null; followersUpdatedAt: string | null; lastPostAt: string | null; availability?: EligibilityProfile["availability"]; country?: EligibilityProfile["country"] }[];
   audience: AudienceRow | null;
   updatedEpoch: number;
@@ -405,6 +406,7 @@ export async function indexRows(tx: SystemTx, ids: string[]): Promise<IndexRow[]
       -- A contact shown not to work is not a way to reach the creator (the "has contact" filter).
       exists (select 1 from gcp.creator_contacts k where k.creator_id = c.id and k.status <> 'invalid') as "hasContact",
       exists (select 1 from gcp.creator_contacts k where k.creator_id = c.id and k.kind = 'email' and k.status <> 'invalid') as "hasEmail",
+      exists (select 1 from gcp.creator_contacts k where k.creator_id = c.id and k.kind = 'phone' and k.status <> 'invalid') as "hasPhone",
       coalesce((
         select jsonb_agg(jsonb_build_object('platform', p.platform, 'handle', p.handle, 'canonicalUrl', p.canonical_url, 'lastPostAt', p.last_post_at,
           'followers', case when p.platform = 'youtube' and p.followers = 0 then null else p.followers end,

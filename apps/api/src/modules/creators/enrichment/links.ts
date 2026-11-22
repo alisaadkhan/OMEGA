@@ -2,13 +2,23 @@ import { isUsableEmail } from "../email-check";
 import { normalizeProfileUrl } from "../rules";
 import type { StandardProfile } from "./standardize";
 
-export type ExtractedContact = { kind: "email" | "phone"; value: string; trust: "likely" | "unverified"; source: "business_field" | "bio" | "video_description" | "post_caption" };
+export type ExtractedContact = { kind: "email" | "phone"; value: string; trust: "likely" | "unverified"; source: ContactSource };
+/** whatsapp_link: a wa.me / api.whatsapp.com link the creator set; linked_profile: the creator's own profile on another
+ * platform, linked from this one; bio_link_page: the creator's own website or link page (owner, 22 Nov). */
+export type ContactSource = "business_field" | "bio" | "video_description" | "post_caption" | "whatsapp_link" | "linked_profile" | "bio_link_page";
 export type ExtractedLink = { platform: "instagram" | "tiktok" | "youtube" | "website"; url: string; source: "bio" | "profile_link" | "video_description" | "post_caption" };
 
 const EMAIL_RE = /[a-z0-9._%+-]{1,64}@[a-z0-9.-]{1,190}\.[a-z]{2,}/gi;
 // A phone number: optional +, then 10–13 digits with common separators; long plain numbers like follower counts have commas.
 const PHONE_RE = /(?:\+|\b)\d(?:[\s().-]?\d){9,12}\b/g;
 const URL_RE = /https?:\/\/[^\s<>"')]+/gi;
+
+/** The number in a WhatsApp click-to-chat link (wa.me/923001234567, api.whatsapp.com/send?phone=…), or null. */
+export function whatsappNumber(url: string): string | null {
+  const m = /^(?:https?:\/\/)?(?:www\.)?(?:wa\.me\/\+?(\d{10,13})|(?:api|web)\.whatsapp\.com\/send\/?\?(?:[^#]*&)?phone=\+?(\d{10,13}))/i.exec(url.trim());
+  const digits = m?.[1] ?? m?.[2];
+  return digits ? normPhone(digits) : null;
+}
 
 const normPhone = (v: string): string | null => {
   const digits = v.replace(/[^\d+]/g, "");
@@ -36,6 +46,11 @@ export function extractContacts(p: StandardProfile): ExtractedContact[] {
   if (p.businessEmail && isUsableEmail(p.businessEmail)) add({ kind: "email", value: p.businessEmail.toLowerCase(), trust: "likely", source: "business_field" });
   const bizPhone = p.businessPhone ? normPhone(p.businessPhone) : null;
   if (bizPhone) add({ kind: "phone", value: bizPhone, trust: "likely", source: "business_field" });
+  // A WhatsApp link the creator set on the profile (bio link or a link in the bio) is their own business number.
+  for (const u of [...p.websiteUrls, ...(p.bio.match(URL_RE) ?? [])]) {
+    const wa = whatsappNumber(u);
+    if (wa) add({ kind: "phone", value: wa, trust: "likely", source: "whatsapp_link" });
+  }
   for (const m of (p.bio.match(EMAIL_RE) ?? []).filter(isUsableEmail)) add({ kind: "email", value: m.toLowerCase(), trust: "unverified", source: "bio" });
   for (const m of p.bio.match(PHONE_RE) ?? []) {
     const phone = normPhone(m);

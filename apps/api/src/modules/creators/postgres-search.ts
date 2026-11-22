@@ -140,6 +140,8 @@ export function createPostgresCatalogSearch(db: Db): CatalogSearch {
     if (f.verifiedOnly) conditions.push(sql`d.verified`);
     if (f.minAuthenticity !== undefined) conditions.push(sql`d.authenticity_score >= ${f.minAuthenticity}`);
     if (f.hasContact) conditions.push(sql`d.has_contact`);
+    if (f.hasEmail) conditions.push(sql`exists (select 1 from gcp.creator_contacts k where k.creator_id = c.id and k.kind = 'email' and k.status <> 'invalid')`);
+    if (f.hasPhone) conditions.push(sql`exists (select 1 from gcp.creator_contacts k where k.creator_id = c.id and k.kind = 'phone' and k.status <> 'invalid')`);
     if (f.freshOnly) conditions.push(sql`d.followers_updated_epoch >= ${Math.floor(query.now.getTime() / 1000) - query.freshCurrentDays * 86_400}`);
 
     type Row = { id: string; rankingScore: number; updatedEpoch: number | string; exactTotal: number | string };

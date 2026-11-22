@@ -19,7 +19,7 @@ type Props = {
   onOpenNav?: () => void;
 };
 
-const PAGE_LABEL: Record<DashView, string> = { overview: "Dashboard", search: "Search & Discovery", lists: "Shortlists", campaigns: "Campaigns", inbox: "Inbox", settings: "Settings", billing: "Credits & billing", support: "Support" };
+const PAGE_LABEL: Record<DashView, string> = { overview: "Dashboard", search: "Search & Discovery", lists: "Shortlists", campaigns: "Campaigns", settings: "Settings", billing: "Credits & billing", support: "Support" };
 
 const METER_STYLES = {
   normal: { box: "bg-cyan-pale/40 hover:bg-cyan-pale/70", icon: "text-teal", value: "text-teal-deep", title: "Credits" },
