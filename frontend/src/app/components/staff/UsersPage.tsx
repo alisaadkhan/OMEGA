@@ -32,7 +32,7 @@ export function UsersPage({ role }: { role: AdminRole }) {
     <div className="space-y-6">
       <PageHeader eyebrow="Customers" title="Users" sub="Brand and agency accounts registered on MUSHIN. Searches and account views are recorded in the audit log." />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <Kpi label="Customer accounts" value={overview.data ? fmtNum(overview.data.workspaces) : "—"} icon={<Building2 className="h-4 w-4" />} tone="cyan" hint="Active brand and agency workspaces" />
+        <Kpi label="Customer accounts" value={overview.data ? fmtNum(overview.data.workspaces) : "—"} icon={<Building2 className="h-4 w-4" />} tone="cyan" hint="Active brand and agency accounts" />
         <Kpi label="People signed up" value={overview.data ? fmtNum(overview.data.users) : "—"} icon={<UsersIcon className="h-4 w-4" />} hint="Active customer users" />
         <Kpi label="Open tickets" value={overview.data ? fmtNum(overview.data.openTickets) : "—"} icon={<LifeBuoy className="h-4 w-4" />} tone="amber" hint="Waiting on MUSHIN or the customer" />
       </div>

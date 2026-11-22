@@ -12,7 +12,7 @@ const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString("en-GB"
 const ACTION_LABEL: Record<Approval["action"], string> = { "credits.grant": "Credit correction", "staff.role.change": "Staff role change", "staff.suspend": "Staff suspension" };
 const describe = (a: Approval) => {
   const p = a.payload as Record<string, unknown>;
-  if (a.action === "credits.grant") return `${String(p["amount"])} credits to workspace ${a.targetId.slice(0, 8)}…, expiring after ${String(p["expiresInDays"])} days`;
+  if (a.action === "credits.grant") return `${String(p["amount"])} credits to account ${a.targetId.slice(0, 8)}…, expiring after ${String(p["expiresInDays"])} days`;
   if (a.action === "staff.role.change") return `Make staff ${a.targetId.slice(0, 8)}… ${String(p["role"])}`;
   return `${p["suspended"] ? "Suspend" : "Reinstate"} staff ${a.targetId.slice(0, 8)}…`;
 };
@@ -83,10 +83,10 @@ function CreditCorrectionForm() {
     <details className="mb-4 rounded-2xl border border-slate-200/80 bg-white p-3 text-xs">
       <summary className="cursor-pointer text-sm text-slate-900" style={{ fontWeight: 600 }}>Request a credit correction</summary>
       <div className="mt-2 flex flex-wrap items-end gap-2">
-        <label className="text-slate-600">Workspace id<input value={workspaceId} onChange={(e) => setWorkspaceId(e.target.value)} className="mt-0.5 block w-80 rounded-md border border-slate-200 px-2 py-1" /></label>
+        <label className="text-slate-600">Account id<input value={workspaceId} onChange={(e) => setWorkspaceId(e.target.value)} className="mt-0.5 block w-80 rounded-md border border-slate-200 px-2 py-1" /></label>
         <label className="text-slate-600">Credits<input type="number" min={1} max={100000} value={amount} onChange={(e) => setAmount(Number(e.target.value))} className="mt-0.5 block w-24 rounded-md border border-slate-200 px-2 py-1" /></label>
         <label className="text-slate-600">Expire after (days)<input type="number" min={1} max={365} value={days} onChange={(e) => setDays(Number(e.target.value))} className="mt-0.5 block w-24 rounded-md border border-slate-200 px-2 py-1" /></label>
-        <ReasonAction label="Request" confirmLabel="Send for approval" disabled={!valid} disabledReason="Enter a workspace id, 1–100,000 credits and 1–365 days" onSubmit={async (reason) => {
+        <ReasonAction label="Request" confirmLabel="Send for approval" disabled={!valid} disabledReason="Enter an account id, 1–100,000 credits and 1–365 days" onSubmit={async (reason) => {
           const body: ApprovalRequest = { action: "credits.grant", payload: { workspaceId: workspaceId.trim(), amount, expiresInDays: days }, reason };
           await adminRequest("/admin/v1/approvals", approvalSchema, { method: "POST", body });
           void qc.invalidateQueries({ queryKey: ["admin", "approvals"] });

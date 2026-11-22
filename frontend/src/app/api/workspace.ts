@@ -27,7 +27,7 @@ export function selectWorkspace(id: string | null): void {
 export function dropInaccessibleWorkspace(): void {
   selectWorkspace(null);
   try {
-    sessionStorage.setItem(NOTICE, "You no longer have access to the workspace you were working in. You are now in your own workspace.");
+    sessionStorage.setItem(NOTICE, "You no longer have access to the account you were working in. You are now in your own account.");
   } catch {
     // The reload still lands in the default workspace.
   }

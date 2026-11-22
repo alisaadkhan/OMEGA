@@ -145,15 +145,15 @@ export function createTrialService(deps: {
       const who = await candidate(body.accountEmail);
       if (!who) throw new AppError("NOT_FOUND", "No MUSHIN account uses that email. Ask the person to sign up first, then approve.", { reason: "no_account" });
       const owned = body.workspaceId ? who.workspaces.filter((w) => w.id === body.workspaceId) : who.workspaces;
-      if (owned.length === 0) throw new AppError("NOT_FOUND", "That account owns no active workspace with this id.", { reason: "no_workspace" });
-      if (owned.length > 1) throw new AppError("CONFLICT", "This account owns several workspaces. Choose one.", { reason: "choose_workspace", workspaceIds: owned.map((w) => w.id) });
+      if (owned.length === 0) throw new AppError("NOT_FOUND", "No active MUSHIN account with this id belongs to that person.", { reason: "no_workspace" });
+      if (owned.length > 1) throw new AppError("CONFLICT", "This person owns several accounts. Choose one.", { reason: "choose_workspace", workspaceIds: owned.map((w) => w.id) });
       const ws = owned[0] as TrialCandidate["workspaces"][number];
 
       // Recovery: an earlier attempt started this trial (after the request arrived) but stopped before marking the
       // request. The grant is the source of truth, so only the request is completed.
       const resumed = who.trialGrantedAt && ws.subscriptionCreatedAt && new Date(ws.subscriptionCreatedAt) >= request.createdAt;
       if (!resumed) {
-        if (ws.subscriptionCreatedAt) throw new AppError("CONFLICT", "This workspace already has a trial or a plan.", { reason: "workspace_has_subscription" });
+        if (ws.subscriptionCreatedAt) throw new AppError("CONFLICT", "This account already has a trial or a plan.", { reason: "workspace_has_subscription" });
         if (who.trialGrantedAt) throw new AppError("CONFLICT", "This person already had a free trial.", { reason: "trial_already_granted" });
         await deps.db.withTenant({ userId: who.userId, workspaceId: ws.id }, async (tx) => {
           // Atomic once-per-person claim: of two concurrent approvals only one passes.

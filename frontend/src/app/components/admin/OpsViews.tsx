@@ -34,7 +34,7 @@ export function OpsOverview() {
       {q.isPending ? <LoadingBlock lines={4} /> : q.isError ? <ErrorState body={errorBody(q.error)} onRetry={() => void q.refetch()} /> : (
         <>
           <dl className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            {([["Workspaces", q.data.workspaces], ["Active users", q.data.users], ["Open tickets", q.data.openTickets], ["Pending removals", q.data.pendingRemovals], ["Open jobs", q.data.openJobs], ["Stuck jobs (>30 min)", q.data.stuckJobs]] as const).map(([l, v]) => (
+            {([["Accounts", q.data.workspaces], ["Active users", q.data.users], ["Open tickets", q.data.openTickets], ["Pending removals", q.data.pendingRemovals], ["Open jobs", q.data.openJobs], ["Stuck jobs (>30 min)", q.data.stuckJobs]] as const).map(([l, v]) => (
               <div key={l} className="rounded-2xl border border-slate-200/80 bg-white p-3"><dt className="text-[11px] text-slate-500">{l}</dt><dd className="mt-0.5 tabular-nums text-slate-900" style={{ fontSize: 22, fontWeight: 700 }}>{v}</dd></div>
             ))}
           </dl>
@@ -111,12 +111,12 @@ export function OpsJobs({ canAct = false }: { canAct?: boolean }) {
   const detail = useQuery({ queryKey: ["admin", "job", openId], queryFn: () => adminRequest(`/admin/v1/ops/jobs/${openId ?? ""}`, staffJobDetailSchema), enabled: openId !== null });
   return (
     <div>
-      <Header title="Live Scans" sub="Discovery, add-by-link and refresh jobs across workspaces. Opening a job's funnel is recorded in the audit log." />
+      <Header title="Live Scans" sub="Discovery, add-by-link and refresh jobs across accounts. Opening a job's funnel is recorded in the audit log." />
       <div className="mb-3 flex gap-1 text-xs" role="group" aria-label="Filter jobs">
         {(["", "open", "failed", "stuck"] as const).map((s) => <button key={s} onClick={() => setStatus(s)} aria-pressed={status === s} className={`rounded-md px-2.5 py-1 ${status === s ? "bg-slate-900 text-white" : "border border-slate-200 text-slate-700"}`}>{s || "All"}</button>)}
       </div>
       {q.isPending ? <LoadingBlock lines={5} /> : q.isError ? <ErrorState body={errorBody(q.error)} onRetry={() => void q.refetch()} /> : q.data.jobs.length === 0 ? <p className="text-sm text-slate-500">No jobs match.</p> : (
-        <Table head={["Created", "Workspace", "Kind", "Status", "Brief / handle", "Found (new)", "Charged / max", "Error", "", ...(canAct ? ["Actions"] : [])]}>
+        <Table head={["Created", "Account", "Kind", "Status", "Brief / handle", "Found (new)", "Charged / max", "Error", "", ...(canAct ? ["Actions"] : [])]}>
           {q.data.jobs.map((j) => (
             <tr key={j.id} className={openId === j.id ? "bg-indigo-50/50" : ""}>
               <td className="px-3 py-2 text-slate-500">{when(j.createdAt)}</td>
@@ -155,13 +155,13 @@ export function OpsWorkspaces() {
   const r = useQuery({ queryKey: ["admin", "workspaces", query], queryFn: () => adminRequest(`/admin/v1/ops/workspaces?q=${encodeURIComponent(query)}`, staffWorkspaceListSchema) });
   return (
     <div>
-      <Header title="Workspaces" sub="Look up a workspace by name, owner email or id, and open its activity (admins). Emails are masked; searches and activity views are recorded in the audit log." />
+      <Header title="Accounts" sub="Look up an account by name, owner email or id, and open its activity (admins). Emails are masked; searches and activity views are recorded in the audit log." />
       <form className="mb-3 flex gap-2" onSubmit={(e) => { e.preventDefault(); setQuery(q.trim()); }}>
-        <input value={q} onChange={(e) => setQ(e.target.value)} maxLength={120} placeholder="Name, email or workspace id" aria-label="Search workspaces" className="w-80 rounded-md border border-slate-200 px-2.5 py-1.5 text-sm" />
+        <input value={q} onChange={(e) => setQ(e.target.value)} maxLength={120} placeholder="Name, email or account id" aria-label="Search accounts" className="w-80 rounded-md border border-slate-200 px-2.5 py-1.5 text-sm" />
         <button type="submit" className="rounded-md bg-slate-900 px-3 py-1.5 text-xs text-white">Search</button>
       </form>
-      {r.isPending ? <LoadingBlock lines={4} /> : r.isError ? <ErrorState body={errorBody(r.error)} onRetry={() => void r.refetch()} /> : r.data.workspaces.length === 0 ? <p className="text-sm text-slate-500">No workspaces match.</p> : (
-        <Table head={["Workspace", "Owner", "Members", "Subscription", "Jobs (30 days)", "Open tickets", "Created", ""]}>
+      {r.isPending ? <LoadingBlock lines={4} /> : r.isError ? <ErrorState body={errorBody(r.error)} onRetry={() => void r.refetch()} /> : r.data.workspaces.length === 0 ? <p className="text-sm text-slate-500">No accounts match.</p> : (
+        <Table head={["Account", "Owner", "Members", "Subscription", "Jobs (30 days)", "Open tickets", "Created", ""]}>
           {r.data.workspaces.map((w) => (
             <tr key={w.id}><td className="px-3 py-2"><div style={{ fontWeight: 600 }}>{w.name}</div><div className="text-[10px] text-slate-500">{w.id}</div></td><td className="px-3 py-2">{w.ownerEmail}</td><td className="px-3 py-2 tabular-nums">{w.members}</td><td className="px-3 py-2">{w.subscriptionStatus ?? "none"}</td><td className="px-3 py-2 tabular-nums">{w.jobs30d}</td><td className="px-3 py-2 tabular-nums">{w.openTickets}</td><td className="px-3 py-2 text-slate-500">{when(w.createdAt)}</td><td className="px-3 py-2"><button onClick={() => setActivityOf({ id: w.id, name: w.name })} className="rounded-md border border-slate-200 px-2 py-1 text-[11px] text-slate-700 hover:bg-slate-50" aria-label={`Activity of ${w.name}`}>Activity</button></td></tr>
           ))}

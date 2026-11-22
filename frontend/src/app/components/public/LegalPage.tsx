@@ -27,14 +27,14 @@ const BODIES: Record<LegalDoc, React.ReactNode> = {
       <S title="What MUSHIN is">
         <p>MUSHIN helps brands and agencies in Pakistan find creators, keep shortlists and run campaigns. You search MUSHIN's catalogue of public creator profiles, ask MUSHIN to find new creators on the web, and organise your work in lists and campaigns.</p>
       </S>
-      <S title="Your account and workspace">
-        <p>You need an account with a confirmed email address. Your work lives in a workspace; its owner can invite others as admins or members. Each person is responsible for what they do in the workspace, and the owner controls billing, roles and deletion.</p>
+      <S title="Your account">
+        <p>You need an account with a confirmed email address. Your work (lists, campaigns, notes and outreach records) belongs to your account. You are responsible for what is done in your account, and you control its billing and deletion.</p>
       </S>
       <S title="Credits and plans">
         <p>Searches, Live Discovery runs, contact reveals and data refreshes use credits. You always see the price before you confirm. Plans, their monthly credits and what each includes are listed on the pricing page; the rules for credits are in <a className="text-indigo-700 underline" href="#/refunds">Credits and refunds</a>.</p>
       </S>
       <S title="Acceptable use">
-        <p>Use creator contact details only to propose genuine collaborations. Do not send bulk or unsolicited messages, resell MUSHIN data, or try to reach other workspaces' data. MUSHIN may suspend accounts that do.</p>
+        <p>Use creator contact details only to propose genuine collaborations. Do not send bulk or unsolicited messages, resell MUSHIN data, or try to reach other accounts' data. MUSHIN may suspend accounts that do.</p>
       </S>
       <S title="What MUSHIN does not promise">
         <p>Creator data comes from public sources and can be incomplete or out of date; MUSHIN labels what it knows, how old it is and what is unverified, and never invents metrics. Search quality is still being independently evaluated.</p>
@@ -44,16 +44,16 @@ const BODIES: Record<LegalDoc, React.ReactNode> = {
   privacy: (
     <>
       <S title="What we keep about you">
-        <p>Your name, email address and the workspaces you belong to; what you create in a workspace (lists, campaigns, notes, outreach records, support requests); your credit and payment history; and security logs (sign-ins, requests) for protection against abuse.</p>
+        <p>Your name, email address and the accounts you belong to; what you create in an account (lists, campaigns, notes, outreach records, support requests); your credit and payment history; and security logs (sign-ins, requests) for protection against abuse.</p>
       </S>
       <S title="Who processes it for us">
         <p>Supabase (database and sign-in), Paddle (payments, when enabled), and the providers MUSHIN uses to collect public creator data: Apify, Serper (web search), the YouTube Data API, and Groq and OpenRouter (AI reading of public profiles). An email provider is used only once outreach email is switched on.</p>
       </S>
       <S title="Your rights">
-        <p>In Settings › Privacy & data you can download your workspace's data, delete a workspace you own, or delete your account. Billing records are kept for accounting after a deletion; the retention period has not been set yet and will be stated here.</p>
+        <p>In Settings › Privacy & data you can download your account's data or delete your account. Billing records are kept for accounting after a deletion; the retention period has not been set yet and will be stated here.</p>
       </S>
       <S title="Security">
-        <p>Each workspace's data is separated in the database itself. Creator contact details are stored encrypted and shown only to workspaces that reveal them.</p>
+        <p>Each account's data is separated in the database itself. Creator contact details are stored encrypted and shown only to accounts that reveal them.</p>
       </S>
     </>
   ),

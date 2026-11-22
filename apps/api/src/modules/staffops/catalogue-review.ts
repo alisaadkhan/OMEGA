@@ -14,7 +14,7 @@ export const reviewKindSchema = z.enum(["country", "minor", "organisation", "ass
 export type ReviewKind = z.infer<typeof reviewKindSchema>;
 
 export const catalogueSearchQuerySchema = z.object({ q: z.string().trim().max(80).default(""), offset: z.coerce.number().int().min(0).max(100_000).default(0) });
-export const reviewQuerySchema = z.object({ kind: reviewKindSchema.default("country"), offset: z.coerce.number().int().min(0).max(100_000).default(0) });
+export const reviewQuerySchema = z.object({ kind: reviewKindSchema.default("country"), q: z.string().trim().max(80).default(""), offset: z.coerce.number().int().min(0).max(100_000).default(0) });
 
 const profileSchema = z.object({
   platform: z.string(),
@@ -64,6 +64,12 @@ const KIND_WHERE: Record<ReviewKind, ReturnType<typeof sql>> = {
 
 const PAGE = 50;
 
+/** Creators whose name or any handle contains the text; a typed % or _ is matched literally, not as a wildcard. */
+function nameOrHandle(text: string) {
+  const term = text.replace(/^@/, "").replace(/[%_\\]/g, (m) => `\\${m}`);
+  return term ? sql`(c.display_name ilike ${`%${term}%`} or exists (select 1 from gcp.creator_profiles p where p.creator_id = c.id and p.handle ilike ${`%${term}%`}))` : sql`true`;
+}
+
 /** One creator as staff see it: identity, flags and every profile (shared by the review queues and the catalogue search). */
 const ITEM_COLUMNS = sql.raw(`c.id, c.display_name as "displayName", c.avatar_url as "avatarUrl", c.city, c.country,
             c.public_country as "publicCountry", c.public_country_source as "publicCountrySource",
@@ -100,11 +106,15 @@ export function createCatalogueReview(deps: { db: Db }) {
         const items = await tx.execute<z.infer<typeof reviewItemSchema>>(sql`
           select ${ITEM_COLUMNS}
           from gcp.creators c
-          where c.status = 'active' and ${KIND_WHERE[q.kind]}
+          where c.status = 'active' and ${KIND_WHERE[q.kind]} and ${nameOrHandle(q.q)}
           order by (select max(p.followers) from gcp.creator_profiles p where p.creator_id = c.id) desc nulls last, c.id
           limit ${PAGE} offset ${q.offset}`);
         const n = await counts(tx);
-        return { items: [...items], total: n[q.kind], counts: n };
+        // With a search, the total is the matches in this queue; the tab counts stay the whole queues.
+        const total = q.q
+          ? ((await tx.execute<{ n: number }>(sql`select count(*)::int n from gcp.creators c where c.status = 'active' and ${KIND_WHERE[q.kind]} and ${nameOrHandle(q.q)}`))[0]?.n ?? 0)
+          : n[q.kind];
+        return { items: [...items], total, counts: n };
       });
     },
 
@@ -113,9 +123,7 @@ export function createCatalogueReview(deps: { db: Db }) {
      * with whether customers can find them in search.
      */
     async search(q: z.infer<typeof catalogueSearchQuerySchema>): Promise<z.infer<typeof catalogueSearchSchema>> {
-      // A typed % or _ is matched literally, not as a wildcard.
-      const term = q.q.replace(/^@/, "").replace(/[%_\\]/g, (m) => `\\${m}`);
-      const match = term ? sql`(c.display_name ilike ${`%${term}%`} or exists (select 1 from gcp.creator_profiles p where p.creator_id = c.id and p.handle ilike ${`%${term}%`}))` : sql`true`;
+      const match = nameOrHandle(q.q);
       return deps.db.withSystem(async (tx) => {
         const items = await tx.execute<z.infer<typeof catalogueItemSchema>>(sql`
           select ${ITEM_COLUMNS}, coalesce(d.eligible, false) as eligible, coalesce(d.eligibility_reasons, '{}') as "hiddenBecause"

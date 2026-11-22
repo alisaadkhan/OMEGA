@@ -113,7 +113,7 @@ export function StaffShell({ admin, view, onView, onSignOut, children }: { admin
               </div>
               <span className="rounded-full border border-cyan-500/30 bg-cyan-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-cyan-300">{ROLE_LABEL[admin.role]}</span>
             </div>
-            <nav aria-label="Staff portal" className="flex-1 space-y-4 overflow-y-auto px-2.5 py-3">
+            <nav aria-label="Staff portal" className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-2.5 py-3 [scrollbar-color:#334155_transparent] [scrollbar-width:thin]">
               {groups.map((g) => (
                 <div key={g.group}>
                   <div className="mb-1.5 px-2.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400">{g.group}</div>

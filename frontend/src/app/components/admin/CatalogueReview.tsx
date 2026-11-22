@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { ExternalLink } from "lucide-react";
 import { adminRequest } from "../../admin/adminApi";
@@ -58,10 +58,17 @@ const STATUS_STYLE: Record<string, string> = {
 export function CatalogueReview({ canDecide }: { canDecide: boolean }) {
   const [kind, setKind] = useState<Kind>("country");
   const [pages, setPages] = useState(1);
+  const [text, setText] = useState("");
+  const [q, setQ] = useState("");
+  useEffect(() => {
+    const t = window.setTimeout(() => { setQ(text.trim()); setPages(1); }, 350);
+    return () => window.clearTimeout(t);
+  }, [text]);
   const list = useQuery({
-    queryKey: ["admin", "catalogue-review", kind, pages],
+    queryKey: ["admin", "catalogue-review", kind, pages, q],
+    placeholderData: keepPreviousData,
     queryFn: async () => {
-      const all = await Promise.all(Array.from({ length: pages }, (_, i) => adminRequest(`/admin/v1/catalogue/review?kind=${kind}&offset=${i * 50}`, listSchema)));
+      const all = await Promise.all(Array.from({ length: pages }, (_, i) => adminRequest(`/admin/v1/catalogue/review?kind=${kind}&offset=${i * 50}&q=${encodeURIComponent(q)}`, listSchema)));
       return { ...all[all.length - 1]!, items: all.flatMap((p) => p.items) };
     },
   });
@@ -89,7 +96,8 @@ export function CatalogueReview({ canDecide }: { canDecide: boolean }) {
           ))}
         </div>
       </div>
-      <p className="text-xs text-slate-500">{tab.hint}</p>
+      <input value={text} onChange={(e) => setText(e.target.value)} maxLength={80} placeholder="Search this queue by name or @handle…" aria-label="Search creator checks" className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-[12.5px] text-slate-800 placeholder:text-slate-400 focus:border-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-600/15" />
+      <p className="text-xs text-slate-500">{tab.hint}{q && list.data ? ` ${list.data.total.toLocaleString()} match “${q}”.` : ""}</p>
       {list.isPending && <p className="text-xs text-slate-500">Loading…</p>}
       {list.isError && <p className="text-xs text-rose-700">{list.error instanceof Error ? list.error.message : "Couldn't load the review queue."}</p>}
       {list.data?.items.length === 0 && <p className="rounded-lg border border-dashed border-slate-200 bg-white p-6 text-center text-xs text-slate-500">Nothing to review here.</p>}

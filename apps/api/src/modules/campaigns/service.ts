@@ -125,7 +125,7 @@ export function createCampaignsService(deps: CampaignsDeps) {
     if (used >= limit) {
       throw new AppError(
         "ENTITLEMENT_REQUIRED",
-        limit === 0 ? "Your workspace needs an active plan to create campaigns." : `Your plan includes up to ${limit} campaigns that are not archived. Archive one or upgrade to add another.`,
+        limit === 0 ? "Your account needs an active plan to create campaigns." : `Your plan includes up to ${limit} campaigns that are not archived. Archive one or upgrade to add another.`,
         { reason: "plan_limit", key: "campaigns", limit, used },
       );
     }

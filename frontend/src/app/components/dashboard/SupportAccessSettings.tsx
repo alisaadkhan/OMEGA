@@ -70,7 +70,7 @@ export function SupportAccessBanner({ canManage, onOpen }: { canManage: boolean;
   if (!live && waiting === 0) return null;
   return (
     <div className={`flex flex-wrap items-center gap-2 px-4 py-2 text-xs ${live ? "bg-violet-700 text-white" : "bg-amber-50 text-amber-900"}`} role="status">
-      {live ? <span><span style={{ fontWeight: 600 }}>{live.staffName}</span> from MUSHIN support can view this workspace (read-only) until {when(live.expiresAt)}.</span> : <span>MUSHIN support asked to view this workspace ({waiting} request{waiting > 1 ? "s" : ""}).</span>}
+      {live ? <span><span style={{ fontWeight: 600 }}>{live.staffName}</span> from MUSHIN support can view this account (read-only) until {when(live.expiresAt)}.</span> : <span>MUSHIN support asked to view this account ({waiting} request{waiting > 1 ? "s" : ""}).</span>}
       <button onClick={onOpen} className={`ml-auto rounded-md px-2.5 py-1 ${live ? "bg-white/15 hover:bg-white/25" : "border border-amber-300 hover:bg-amber-100"}`} style={{ fontWeight: 600 }}>{live ? "Manage access" : "Review request"}</button>
     </div>
   );

@@ -38,7 +38,7 @@ export function TrialRequests({ role }: { role: AdminRole }) {
   async function onApprove(r: TrialRequest) {
     const accountEmail = (emails[r.id] ?? r.email ?? "").trim();
     if (!accountEmail) return toast.error("Enter the email the person signed up with");
-    const ok = await confirm({ title: `Start a 14-day trial for ${accountEmail}?`, body: "Their own workspace gets 2,500 trial credits for 14 days. Nothing is charged when it ends. A person can have one free trial.", confirmLabel: "Approve trial", cancelLabel: "Cancel" });
+    const ok = await confirm({ title: `Start a 14-day trial for ${accountEmail}?`, body: "Their own account gets 2,500 trial credits for 14 days. Nothing is charged when it ends. A person can have one free trial.", confirmLabel: "Approve trial", cancelLabel: "Cancel" });
     if (!ok) return;
     approve.mutate(
       { id: r.id, accountEmail, note: notes[r.id]?.trim() || undefined },
@@ -123,7 +123,7 @@ export function TrialRequests({ role }: { role: AdminRole }) {
       {owner && tab === "feedback" && (
         <>
           <div className="flex items-center justify-between">
-            <p className="text-xs text-slate-500">Answers from trial workspaces, newest first. Only real customer answers are stored here.</p>
+            <p className="text-xs text-slate-500">Answers from trial accounts, newest first. Only real customer answers are stored here.</p>
             <button onClick={downloadCsv} disabled={!feedback.data?.feedback.length} className="rounded-md bg-white px-2.5 py-1 text-xs ring-1 ring-slate-200 hover:bg-slate-50 disabled:opacity-50">Download CSV</button>
           </div>
           {feedback.isError && <p className="text-xs text-red-600">{feedback.error instanceof Error ? feedback.error.message : "Couldn't load feedback."}</p>}

@@ -52,7 +52,7 @@ async function guardWorkspace(res: Response, selected: string | null): Promise<v
     if (body?.error?.details?.reason === "workspace_access_denied") {
       dropInaccessibleWorkspace();
       window.location.reload();
-      throw new ApiError("FORBIDDEN", "You no longer have access to that workspace.", 403, res.headers.get("x-request-id"));
+      throw new ApiError("FORBIDDEN", "You no longer have access to that account.", 403, res.headers.get("x-request-id"));
     }
     // Two-step sign-in (0091): the session has not passed the second step; the app shows the code screen.
     if (body?.error?.details?.reason === "two_step_required") {
@@ -68,6 +68,6 @@ async function guardWorkspace(res: Response, selected: string | null): Promise<v
   }
   const actedIn = res.headers.get("x-workspace-id");
   if (selected && actedIn && actedIn !== selected) {
-    throw new ApiError("CONFLICT", "This request reached a different workspace than the one on screen. Reload the page.", res.status, res.headers.get("x-request-id"));
+    throw new ApiError("CONFLICT", "This request reached a different account than the one on screen. Reload the page.", res.status, res.headers.get("x-request-id"));
   }
 }

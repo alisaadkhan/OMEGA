@@ -48,7 +48,7 @@ export function createApprovals(deps: { db: Db; billing: Pick<BillingService, "e
       const p = approvalPayloadSchemas["credits.grant"].parse(payload);
       // Workspace rows are visible only inside that workspace's context (row-level security).
       const [w] = await deps.db.withWorkspace(p.workspaceId, (wtx) => wtx.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.id, p.workspaceId)));
-      if (!w) throw new AppError("NOT_FOUND", "Workspace not found");
+      if (!w) throw new AppError("NOT_FOUND", "Account not found");
       return { targetType: "workspace", targetId: p.workspaceId };
     }
     const p = action === "staff.role.change" ? approvalPayloadSchemas["staff.role.change"].parse(payload) : approvalPayloadSchemas["staff.suspend"].parse(payload);

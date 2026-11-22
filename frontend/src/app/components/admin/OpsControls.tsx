@@ -120,14 +120,14 @@ export function AuditSearch() {
       <Header title="Activity & Security" sub="Every staff sign-in and action, newest first. The history is append-only; nothing here can edit it." />
       <form className="mb-3 flex flex-wrap items-end gap-2 text-xs" onSubmit={(e) => { e.preventDefault(); setBefore(null); setFilters({ action: action.trim(), workspaceId: /^[0-9a-f-]{36}$/i.test(workspaceId.trim()) ? workspaceId.trim() : "" }); }}>
         <label className="text-slate-600">Action starts with<input value={action} onChange={(e) => setAction(e.target.value)} placeholder="e.g. approvals. or support.access" maxLength={80} className="mt-0.5 block w-64 rounded-md border border-slate-200 px-2 py-1" /></label>
-        <label className="text-slate-600">Workspace id<input value={workspaceId} onChange={(e) => setWorkspaceId(e.target.value)} className="mt-0.5 block w-80 rounded-md border border-slate-200 px-2 py-1" /></label>
+        <label className="text-slate-600">Account id<input value={workspaceId} onChange={(e) => setWorkspaceId(e.target.value)} className="mt-0.5 block w-80 rounded-md border border-slate-200 px-2 py-1" /></label>
         <button type="submit" className="rounded-md bg-slate-900 px-3 py-1.5 text-white">Filter</button>
       </form>
       {q.isPending ? <LoadingBlock lines={5} /> : q.isError ? <ErrorState body={errText(q.error)} onRetry={() => void q.refetch()} /> : q.data.events.length === 0 ? <p className="text-sm text-slate-500">No events match.</p> : (
         <>
           <div className="overflow-x-auto rounded-2xl border border-slate-200/80 bg-white">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500"><tr>{["When", "Staff", "Action", "Workspace", "Details", "IP"].map((h) => <th key={h} className="px-3 py-2">{h}</th>)}</tr></thead>
+              <thead className="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500"><tr>{["When", "Staff", "Action", "Account", "Details", "IP"].map((h) => <th key={h} className="px-3 py-2">{h}</th>)}</tr></thead>
               <tbody className="divide-y divide-slate-100">
                 {q.data.events.map((e) => (
                   <tr key={e.id}><td className="px-3 py-2 text-slate-500">{when(e.createdAt)}</td><td className="px-3 py-2">{e.staffName ?? "—"}{e.staffRole ? ` (${e.staffRole})` : ""}</td><td className="px-3 py-2" style={{ fontWeight: 600 }}>{e.action}</td><td className="px-3 py-2 text-slate-500">{e.workspaceId ? `${e.workspaceId.slice(0, 8)}…` : ""}</td><td className="max-w-[24rem] truncate px-3 py-2 text-slate-600" title={JSON.stringify(e.metadata)}>{JSON.stringify(e.metadata)}</td><td className="px-3 py-2 text-slate-500">{e.ip ?? ""}</td></tr>

@@ -26,6 +26,7 @@ import { createActivityService } from "../activity/index";
 import { recordStaffAudit, type StaffAction, type StaffPrincipal } from "../staff/index";
 import type { BillingService } from "../billing/index";
 import { registerAccountRoutes } from "./accounts";
+import { registerIntegrationRoutes } from "./integrations";
 
 const idParams = z.object({ id: z.uuid() });
 
@@ -53,6 +54,7 @@ export function createOpsModule(o: { db: Db; requireStaff: (action: StaffAction)
 
   function register(app: FastifyInstance) {
     if (o.billing) registerAccountRoutes(app, { db: o.db, requireStaff: o.requireStaff, billing: o.billing, now });
+    registerIntegrationRoutes(app, { requireStaff: o.requireStaff });
     app.get("/admin/v1/ops/overview", { preHandler: o.requireStaff("ops.overview.read") }, async (_req, reply) =>
       sendOk(reply, staffOverviewSchema, staffOverviewSchema.parse(await json((tx) => tx.execute(sql`select platform.staff_overview() v`)))),
     );
@@ -123,7 +125,7 @@ export function createOpsModule(o: { db: Db; requireStaff: (action: StaffAction)
       const q = parseInput(activityQuerySchema, req.query);
       // Row security shows a workspace only inside its own context, so the owner is read there.
       const [w] = await o.db.withWorkspace(id, (tx) => tx.execute<{ owner: string }>(sql`select owner_user_id as owner from wp.workspaces where id = ${id} and status = 'active'`));
-      if (!w) throw new AppError("NOT_FOUND", "Workspace not found");
+      if (!w) throw new AppError("NOT_FOUND", "Account not found");
       await audit(req, "ops.workspace.activity.viewed", { workspaceId: id });
       return sendOk(reply, activityFeedSchema, await activity.feed({ requestId: req.id, userId: w.owner, workspaceId: id, role: "owner" }, q));
     });

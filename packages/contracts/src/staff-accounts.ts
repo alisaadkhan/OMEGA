@@ -41,3 +41,18 @@ export const staffSubscriptionsSchema = z.object({
   at: iso,
 });
 export type StaffSubscriptions = z.infer<typeof staffSubscriptionsSchema>;
+
+/** Every outside service MUSHIN can use, with backups, and whether this server has it set (never the key itself). */
+export const staffIntegrationsSchema = z.object({
+  integrations: z.array(
+    z.object({
+      key: z.string(),
+      group: z.enum(["AI", "Creator data", "Search", "Email", "Payments", "Platform"]),
+      name: z.string(),
+      purpose: z.string(),
+      role: z.enum(["primary", "backup"]),
+      configured: z.boolean(),
+    }),
+  ),
+});
+export type StaffIntegrations = z.infer<typeof staffIntegrationsSchema>;

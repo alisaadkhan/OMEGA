@@ -13,7 +13,7 @@ const EXPORT_TABLES = [
 /** Stated to the customer after a deletion; the retention period itself is an open owner decision. */
 const RETAINED = [
   "Billing records (subscription, payments, credit lots and ledger) are kept for accounting until MUSHIN's retention period ends.",
-  "MUSHIN's internal staff audit log keeps a record of staff actions that involved this workspace.",
+  "MUSHIN's internal staff audit log keeps a record of staff actions that involved this account.",
 ];
 
 /**
@@ -70,7 +70,7 @@ export function createPrivacyService(deps: {
           truncated,
           notes: [
             ...(truncated.length > 0 ? [`These tables hold more than ${rowLimit.toLocaleString("en-US")} rows and are cut at that number: ${truncated.join(", ")}. Ask Support for a complete copy.`] : []),
-            "Creator profiles are MUSHIN's public catalogue and are referenced by id; they are not part of your workspace data.",
+            "Creator profiles are MUSHIN's public catalogue and are referenced by id; they are not part of your account data.",
             "Contact details you revealed are not included: they belong to the creators. You can still see them in the app.",
           ],
         };
@@ -87,7 +87,7 @@ export function createPrivacyService(deps: {
       if (ctx.role === "owner") await assertDeletable(ctx);
       const [r] = await deps.db.withSystem((tx) => tx.execute<{ v: { deleted: boolean; reason?: string; erasedWorkspaces?: string[] } }>(sql`select platform.delete_account(${ctx.userId}) v`));
       if (!r?.v.deleted) {
-        throw new AppError("CONFLICT", r?.v.reason === "subscription_active" ? "A workspace you own still has a paid subscription. Cancel it first (Billing)." : "Your account is shared with other people. Contact Support to delete it.", { reason: r?.v.reason ?? "refused" });
+        throw new AppError("CONFLICT", r?.v.reason === "subscription_active" ? "Your account still has a paid subscription. Cancel it first (Billing)." : "Your account is shared with other people. Contact Support to delete it.", { reason: r?.v.reason ?? "refused" });
       }
       for (const id of r.v.erasedWorkspaces ?? []) await deps.onWorkspaceErased?.(id);
       const identityGone = deps.deleteIdentity ? await deps.deleteIdentity(ctx.userId) : false;

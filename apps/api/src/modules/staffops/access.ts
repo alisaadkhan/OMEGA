@@ -31,7 +31,7 @@ export function createSupportAccess(deps: { db: Db; now?: () => Date }) {
     async request(p: StaffPrincipal, workspaceId: string, purpose: string, meta: Meta): Promise<SupportAccess> {
       return deps.db.withSystem(async (tx) => {
         const [w] = await deps.db.withWorkspace(workspaceId, (wtx) => wtx.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.id, workspaceId)));
-        if (!w) throw new AppError("NOT_FOUND", "Workspace not found");
+        if (!w) throw new AppError("NOT_FOUND", "Account not found");
         const open = (await tx.select().from(supportAccessRequests).where(and(eq(supportAccessRequests.workspaceId, workspaceId), eq(supportAccessRequests.staffId, p.staffId), inArray(supportAccessRequests.status, ["requested", "granted"])))).map(effective).find((r) => r.status === "requested" || r.status === "granted");
         if (open) return toApi(open);
         const [s] = await tx.select({ name: staffUsers.name }).from(staffUsers).where(eq(staffUsers.id, p.staffId));

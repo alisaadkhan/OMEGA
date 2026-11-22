@@ -36,14 +36,14 @@ export function Sidebar({ view, setView, onExit }: Props) {
   const foot = "flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-steel transition-colors hover:bg-ink hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/60";
   return (
     <aside className="flex h-full w-64 flex-shrink-0 flex-col justify-between bg-shell text-white shadow-[0_1px_8px_rgba(0,0,0,0.08)]">
-      <div className="flex min-h-0 flex-col">
-        <div className="px-6 pb-6 pt-6">
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="shrink-0 px-6 pb-6 pt-6">
           <a href="#/dashboard" onClick={(e) => { e.preventDefault(); setView("overview"); }} className="flex items-center gap-2">
             <img src="/mushin-logo-64.png" width={32} height={32} alt="" className="h-8 w-8 shrink-0 object-contain" draggable={false} />
             <span className="text-lg font-bold tracking-tight">MUSHIN</span>
           </a>
         </div>
-        <nav aria-label="Main" className="flex flex-col gap-4 overflow-y-auto px-4">
+        <nav aria-label="Main" className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain px-4 pb-4 [scrollbar-color:#334155_transparent] [scrollbar-width:thin]">
           {GROUPS.map((g) => (
             <div key={g.title} className="flex flex-col gap-1">
               <span className="px-3 text-[10px] font-semibold uppercase tracking-wider text-steel-2">{g.title}</span>

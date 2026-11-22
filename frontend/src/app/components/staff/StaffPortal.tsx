@@ -16,6 +16,7 @@ import { TrialRequests } from "../admin/TrialRequests";
 import { ProductReviews, UsageInsights } from "../admin/Insights";
 import { ALL_VIEWS, viewFromHash, type StaffView } from "./nav";
 import { CreatorsPage } from "./CreatorsPage";
+import { IntegrationsCard } from "./IntegrationsCard";
 import { OverviewPage } from "./OverviewPage";
 import { SettingsPage } from "./SettingsPage";
 import { StaffLogin } from "./StaffLogin";
@@ -77,6 +78,7 @@ export function StaffPortal() {
       {current === "sources" && (
         <>
           <OpsProviders />
+          <IntegrationsCard />
           <div className="mt-6"><ProviderControls /></div>
         </>
       )}

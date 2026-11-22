@@ -67,7 +67,7 @@ export function renderEmail(o: { c: ComposeContext; recipient: Recipient; subjec
     `To stop receiving emails sent through MUSHIN: ${o.unsubscribeUrl}`,
   ].join("\n");
   const warnings: string[] = [];
-  if (o.recipient.status === "user_provided") warnings.push("You entered this address: MUSHIN has not checked it, and it is kept for your workspace only.");
+  if (o.recipient.status === "user_provided") warnings.push("You entered this address: MUSHIN has not checked it, and it is kept for your account only.");
   else if (o.recipient.status !== "verified") warnings.push(o.recipient.status === "domain_ok" ? "The address's domain accepts email, but the inbox itself is not confirmed." : "This address was found publicly and has not been checked: it may not reach the creator.");
   if (!o.postalAddress) warnings.push("No postal address is configured; real sending is refused until one is set.");
   return {

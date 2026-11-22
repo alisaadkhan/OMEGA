@@ -30,7 +30,7 @@ export function WorkspaceActivity({ workspace, onClose }: { workspace: { id: str
         <button onClick={onClose} aria-label="Close activity" className="rounded p-1 text-slate-500 hover:bg-slate-100"><X className="h-4 w-4" /></button>
       </div>
       {feed.isPending ? <div className="p-4"><LoadingBlock lines={4} /></div> : feed.isError ? <div className="p-4"><ErrorState body={feed.error instanceof Error ? feed.error.message : undefined} onRetry={() => void feed.refetch()} /></div> : events.length === 0 ? (
-        <p className="p-4 text-sm text-slate-500">No activity recorded for this workspace.</p>
+        <p className="p-4 text-sm text-slate-500">No activity recorded for this account.</p>
       ) : (
         <>
           <ol className="divide-y divide-slate-100">{events.map((e) => <ActivityRow key={e.id} e={e} />)}</ol>
