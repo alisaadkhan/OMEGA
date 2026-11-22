@@ -54,12 +54,19 @@ grant execute on function platform.staff_workspace_history(uuid) to mushin_worke
 
 -- Suspending a customer account (owner, 22 Nov): every person in it is refused at sign-in until staff restore it.
 -- People already deleted stay deleted. Returns how many people changed.
+-- Which account's suspension a person is under, so restoring one account never lifts a suspension made through
+-- another account the same person belongs to (security review, 22 Nov).
+alter table wp.users add column if not exists suspended_by_workspace uuid references wp.workspaces (id) on delete set null;
+
 create or replace function platform.staff_set_account_suspended(p_workspace uuid, p_suspended boolean) returns integer
   language sql volatile security definer set search_path = pg_catalog as $$
   with changed as (
-    update wp.users u set status = case when p_suspended then 'suspended' else 'active' end, updated_at = now()
+    update wp.users u
+      set status = case when p_suspended then 'suspended' else 'active' end,
+          suspended_by_workspace = case when p_suspended then p_workspace else null end,
+          updated_at = now()
     where u.id in (select m.user_id from wp.workspace_members m where m.workspace_id = p_workspace)
-      and u.status = case when p_suspended then 'active' else 'suspended' end
+      and (case when p_suspended then u.status = 'active' else u.status = 'suspended' and u.suspended_by_workspace = p_workspace end)
     returning u.id)
   select count(*)::integer from changed
 $$;

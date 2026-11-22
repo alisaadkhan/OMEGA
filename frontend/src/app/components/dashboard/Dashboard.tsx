@@ -120,7 +120,7 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
               exit={{ opacity: 0, y: -4 }}
               transition={{ duration: 0.25, ease: "easeOut" }}
             >
-              {view === "overview" && <Home setView={navigate} onTour={() => setTour(true)} onOpenCampaign={(id) => { setOpenCampaignId(id); setView("campaigns"); }} />}
+              {view === "overview" && <Home setView={navigate} onOpenCreator={setOmniCreator} onTour={() => setTour(true)} onOpenCampaign={(id) => { setOpenCampaignId(id); setView("campaigns"); }} />}
               {view === "search" && <SearchModule liveJobId={liveJobId} onGoToCampaigns={() => setView("campaigns")} />}
               {view === "lists" && <Lists key={navKey} onOpenCreator={setOmniCreator} onGoToSearch={() => setView("search")} />}
               {view === "campaigns" && <Campaigns key={navKey} initialId={openCampaignId} onOpenCreator={setOmniCreator} onGoToSearch={() => setView("search")} />}

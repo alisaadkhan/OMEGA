@@ -15,6 +15,7 @@ import { createCreatorIndexer, createCreatorReviewsModule, createCreatorsModule,
 import { createDiscoveryModule, createDiscoveryService } from "./modules/discovery";
 import { createActivityModule, createActivityService } from "./modules/activity";
 import { createOpsModule } from "./modules/ops";
+import { createFeaturedModule } from "./modules/featured";
 import { createCronModule } from "./modules/cron";
 import { createAttachments, createSupportModule, createSupportService } from "./modules/support";
 import { createAnalyticsModule, createAnalyticsService } from "./modules/analytics";
@@ -196,6 +197,7 @@ const app = await buildApp({
       workerAvailable,
     })] : []),
     createInsightsModule({ db, requireStaff: staff.requireStaff }),
+    createFeaturedModule({ db }),
     createStaffOpsModule({ db, billing, creators: staffCreators, attachments: supportAttachments, requireStaff: staff.requireStaff, createStaffAccount: staff.createStaffAccount, alerts: { notifier: alertNotifier, channel: config.alertWebhookUrl ? "webhook" : "log" } }),
     createAudienceModule({ service: createAudienceService({ db, billing, sources: config.audienceSources }), limiter }),
   ],

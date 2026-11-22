@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Bookmark, Check, Crosshair, Eye, Lock, MapPin, Plus, ShieldCheck, Star, TrendingUp } from "lucide-react";
+import { Bookmark, Check, Crosshair, Eye, Lock, Mail, MapPin, Plus, ShieldCheck, Star, TrendingUp } from "lucide-react";
 import { useBillingSummary } from "../../api/billing";
 import { useActiveJobs, useStartJob } from "../../api/discovery";
 import { isOpenJob, jobStatusText } from "../../api/discovery-mapping";
@@ -12,6 +12,7 @@ import { providerActionsLockedText } from "../../lib/provider-actions";
 import { relative } from "../../lib/time";
 import { useConfirm, useToast } from "../../lib/toast";
 import { CampaignDrawer } from "./CampaignDrawer";
+import { ChatDrawer } from "./ChatDrawer";
 import { ShortlistDrawer, type DrawerCreator } from "./ShortlistDrawer";
 import { VerifiedBadge } from "./VerifiedBadge";
 
@@ -104,6 +105,7 @@ export function CreatorProfilePanel({ creator, onClose, onGoToCampaigns }: { cre
   const refreshLocked = providerActionsLockedText(useBillingSummary().data);
   const [shortlistFor, setShortlistFor] = useState<DrawerCreator[] | null>(null);
   const [campaignFor, setCampaignFor] = useState<DrawerCreator[] | null>(null);
+  const [reachOut, setReachOut] = useState(false);
   const p = profile.data;
   const primary = p?.profiles.find((x) => x.platform === p.platform) ?? p?.profiles[0];
   const shownPlatform = primary?.platform ?? creator?.platform ?? "instagram";
@@ -265,6 +267,12 @@ export function CreatorProfilePanel({ creator, onClose, onGoToCampaigns }: { cre
                     )}
 
                     <div className="flex items-center gap-2 pt-0.5">
+                      {/* Reach out (owner, 22 Nov): only for creators MUSHIN holds an email for; sends through a campaign. */}
+                      {(email || ["email_and_phone", "email_unverified", "email_verified"].includes(creator.contactAvailability ?? (creator.hasContact ? "email_unverified" : "none"))) && (
+                        <button onClick={() => setReachOut(true)} disabled={blocked !== null} title={blocked ?? undefined} className="flex items-center justify-center gap-1.5 rounded-xl border border-cyan-200 bg-cyan-50 px-3.5 py-2 text-xs font-semibold text-cyan-800 shadow-sm transition-colors hover:bg-cyan-100 disabled:cursor-not-allowed disabled:opacity-50">
+                          <Mail aria-hidden className="h-3.5 w-3.5" /> <span>Reach out</span>
+                        </button>
+                      )}
                       <button onClick={() => setShortlistFor([asDrawer(creator)])} disabled={blocked !== null} title={blocked ?? undefined} className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200/80 bg-white px-3.5 py-2 text-xs text-slate-900 shadow-sm transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">
                         <Bookmark aria-hidden className="h-3.5 w-3.5 text-slate-500" /> <span>Save to Shortlist</span>
                       </button>
@@ -280,6 +288,7 @@ export function CreatorProfilePanel({ creator, onClose, onGoToCampaigns }: { cre
         )}
       </AnimatePresence>
       <ShortlistDrawer open={shortlistFor !== null} creators={shortlistFor ?? []} onClose={() => setShortlistFor(null)} />
+      <ChatDrawer creator={reachOut && creator ? { id: creator.id, name: creator.name } : null} onClose={() => setReachOut(false)} onAddToCampaign={() => { setReachOut(false); if (creator) setCampaignFor([asDrawer(creator)]); }} />
       <CampaignDrawer open={campaignFor !== null} creators={campaignFor ?? []} onClose={() => setCampaignFor(null)} onGoToCampaigns={onGoToCampaigns} />
     </>
   );

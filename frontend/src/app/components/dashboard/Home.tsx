@@ -11,6 +11,8 @@ import { useLists } from "../../api/lists";
 import { useAuth } from "../../auth/AuthContext";
 import { Button, Card, CountUp, EASE, Pill, Progress, Skeleton, Stagger, StaggerItem } from "../../ui/kit";
 import { ActivityRow } from "./ActivityRow";
+import type { Creator } from "./CreatorProfilePanel";
+import { FeaturedCreators } from "./FeaturedCreators";
 import type { DashView } from "./Sidebar";
 
 const monthRange = () => {
@@ -20,7 +22,7 @@ const monthRange = () => {
 };
 
 /** Dashboard home (owner design 2026-11-16): greeting, quick actions, four metrics, running projects, activity, plan. */
-export function Home({ setView, onOpenCampaign, onTour }: { setView: (v: DashView) => void; onOpenCampaign: (id: string) => void; onTour: () => void }) {
+export function Home({ setView, onOpenCampaign, onTour, onOpenCreator }: { setView: (v: DashView) => void; onOpenCampaign: (id: string) => void; onTour: () => void; onOpenCreator: (c: Creator) => void }) {
   const { user, status } = useAuth();
   const summary = useBillingSummary().data;
   const campaigns = useCampaigns();
@@ -82,6 +84,8 @@ export function Home({ setView, onOpenCampaign, onTour }: { setView: (v: DashVie
         </div>
         <Button type="submit" variant="primary" icon={ArrowRight}>Search</Button>
       </motion.form>
+
+      <FeaturedCreators onOpenCreator={onOpenCreator} />
 
       <section className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12">
         <div className="flex flex-col gap-4 lg:col-span-7">

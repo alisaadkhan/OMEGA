@@ -23,6 +23,8 @@ export const users = wp.table("users", {
   emailConfirmedFor: text("email_confirmed_for"),
   /** Two-step sign-in is on (0091): mirrored from the Auth server's verified factors, never set from the client. */
   mfaEnabled: boolean("mfa_enabled").notNull().default(false),
+  /** The account whose staff suspension this person is under (0095); restoring that account lifts it. */
+  suspendedByWorkspace: uuid("suspended_by_workspace"),
   createdAt: ts("created_at").notNull().defaultNow(),
   updatedAt: ts("updated_at").notNull().defaultNow(),
 });
