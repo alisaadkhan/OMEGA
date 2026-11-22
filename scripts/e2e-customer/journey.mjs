@@ -240,12 +240,12 @@ if (phase === "main") {
   // The dashboard greets by name ("Welcome back, Olivia"); the login page's title is "Welcome back".
   check("auth", "an unconfirmed session cannot open the dashboard (sent to login)", /#\/login/.test(unvPage.url()) && !(await unvPage.getByRole("heading", { name: /Welcome back,/ }).isVisible().catch(() => false)), unvPage.url());
   await unvPage.context().close();
-  // Two portals (owner directive 2026-11-15 §2): the customer login links to the Staff Portal.
+  // Staff sign in only at /_omega_ (owner, 22 Nov): the customer login and site no longer link to any staff page.
   const loginPage = await pageAs(null);
   await loginPage.goto("http://localhost:5173/#/login");
-  const staffLink = loginPage.getByRole("link", { name: "Sign in to the Staff Portal" });
-  await staffLink.waitFor({ timeout: 15000 }).catch(() => {});
-  check("portals", "the customer login links to the Staff Portal (#/staff/login)", (await staffLink.getAttribute("href").catch(() => null)) === "#/staff/login");
+  await loginPage.getByRole("button", { name: /^Sign in$/ }).first().waitFor({ timeout: 15000 }).catch(() => {});
+  const staffLinks = await loginPage.locator('a[href*="staff"], a[href*="admin"], a[href*="_omega_"]').count();
+  check("portals", "the customer login has no link to the staff portal", staffLinks === 0, String(staffLinks));
   await loginPage.context().close();
 
   p = await pageAs("owner");

@@ -102,6 +102,7 @@ export const staffWorkspaceSchema = z.object({
   jobs30d: count,
   openTickets: count,
 });
+export type StaffWorkspace = z.infer<typeof staffWorkspaceSchema>;
 export const staffWorkspaceListSchema = z.object({ workspaces: z.array(staffWorkspaceSchema) });
 export const staffWorkspaceQuerySchema = z.object({ q: z.string().trim().max(120).default("") });
 

@@ -41,6 +41,9 @@ export const STAFF_PERMISSIONS = {
   "staff.audit.read": ADMIN,
   // A customer's activity history (owner, 17 Nov: the Activity Log is admin-only now), each viewing audited.
   "ops.activity.read": ADMIN,
+  // One account's plan, credits and members, and subscription totals (owner, 22 Nov: staff Users and Subscriptions pages).
+  "ops.account.read": ADMIN,
+  "ops.subscriptions.read": ADMIN,
   "staff.list": ADMIN,
   "approvals.read": ADMIN,
   "approvals.request": ADMIN,
@@ -53,6 +56,8 @@ export const STAFF_PERMISSIONS = {
   // Staff performance oversight (plan Phase 11).
   "support.performance.read": SUPER,
   "staff.manage": SUPER,
+  // A complimentary plan for an account (owner, 22 Nov: "assign plan" on the Users page), with the hardware key.
+  "billing.plan.grant": SUPER,
   // Owner decision 2026-10-19: only the platform owners approve, reject or look up trials, and read trial feedback.
   "trials.decide": SUPER,
   "trials.feedback.read": SUPER,

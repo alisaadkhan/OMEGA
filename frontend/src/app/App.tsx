@@ -9,36 +9,34 @@ import { ForgotPassword } from "./components/auth/ForgotPassword";
 import { ResetPassword } from "./components/auth/ResetPassword";
 import { EmailConfirmed } from "./components/auth/EmailConfirmed";
 import { AppErrorBoundary, NotFound, ServiceStatusBanner } from "./components/public/StatusScreens";
-import { AdminLogin } from "./components/admin/AdminLogin";
 import { FreeTrial } from "./components/public/FreeTrial";
 import { RemoveMyData } from "./components/public/RemoveMyData";
 import { LegalPage, type LegalDoc } from "./components/public/LegalPage";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
-import { AdminAuthProvider, useAdminAuth } from "./admin/AdminAuthContext";
+import { AdminAuthProvider } from "./admin/AdminAuthContext";
+import { isStaffPath } from "./components/staff/path";
 import { ToastProvider, ConfirmProvider } from "./lib/toast";
 
 import { TwoStepGate } from "./components/auth/TwoStepGate";
 
 // Loaded on demand (audit UX-04): visitors to the landing page do not download the dashboard or the staff console.
 const Dashboard = lazy(() => import("./components/dashboard/Dashboard").then((m) => ({ default: m.Dashboard })));
-const AdminApp = lazy(() => import("./components/admin/AdminApp").then((m) => ({ default: m.AdminApp })));
+const StaffPortal = lazy(() => import("./components/staff/StaffPortal").then((m) => ({ default: m.StaffPortal })));
 const Loading = () => <div className="flex min-h-screen items-center justify-center text-sm text-slate-500" role="status">Loading…</div>;
 
-type Route = "landing" | "dashboard" | "login" | "signup" | "forgot" | "reset-password" | "confirmed" | "not-found" | "admin-login" | "admin" | "remove-my-data" | "free-trial" | LegalDoc;
+type Route = "landing" | "dashboard" | "login" | "signup" | "forgot" | "reset-password" | "confirmed" | "not-found" | "remove-my-data" | "free-trial" | LegalDoc;
 const LEGAL_DOCS: readonly LegalDoc[] = ["terms", "privacy", "refunds", "creator-data"];
 
 /**
  * Simple hash-based router. Reads `#/path` from the URL so
- * mushin.io/#/admin/login opens the admin login page independently
+ * mushin.io/#/login opens the customer sign-in page independently
  * of the user dashboard.
  */
 function useHashRoute(initial: Route): [Route, (r: Route) => void] {
   const parse = (): Route => {
     if (typeof window === "undefined") return initial;
     const h = window.location.hash.replace(/^#\/?/, "");
-    // Staff Portal (owner directive 2026-11-15 §2): #/staff/login and #/staff are the same portal as #/admin.
-    if (h.startsWith("admin/login") || h.startsWith("staff/login")) return "admin-login";
-    if (h.startsWith("admin") || h === "staff" || h.startsWith("staff/")) return "admin";
+    // Staff sign in only at /_omega_ (owner, 22 Nov); the old #/admin and #/staff links are unknown routes now.
     if (h === "login") return "login";
     if (h === "signup") return "signup";
     if (h === "forgot") return "forgot";
@@ -64,8 +62,6 @@ function useHashRoute(initial: Route): [Route, (r: Route) => void] {
     if (typeof window !== "undefined") {
       const path =
         r === "landing" ? "" :
-        r === "admin-login" ? "admin/login" :
-        r === "admin" ? "admin" :
         r;
       window.location.hash = path ? `/${path}` : "";
     }
@@ -76,17 +72,11 @@ function useHashRoute(initial: Route): [Route, (r: Route) => void] {
 
 function Shell() {
   const { user, status } = useAuth();
-  const { admin, status: adminStatus, signOut: adminSignOut } = useAdminAuth();
   const [route, setRoute] = useHashRoute("landing");
 
   const goPrimary = () => setRoute(user ? "dashboard" : "signup");
   const afterAuth = () => setRoute("dashboard");
 
-  // Guard admin route — if not signed in as admin, bounce to admin-login
-  useEffect(() => {
-    // Wait for the session check (refresh cookie) before sending staff to sign in.
-    if (route === "admin" && adminStatus === "signedOut") setRoute("admin-login");
-  }, [route, adminStatus, setRoute]);
 
   // Session-problem handling: the dashboard needs a signed-in user.
   useEffect(() => {
@@ -182,33 +172,30 @@ function Shell() {
           </motion.div>
         )}
 
-        {route === "admin-login" && (
-          <motion.div key="admin-login" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
-            <AdminLogin onSuccess={() => setRoute("admin")} onExit={() => setRoute("landing")} />
-          </motion.div>
-        )}
-
-        {route === "admin" && admin && (
-          <motion.div key="admin" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
-            <Suspense fallback={<Loading />}>
-              <AdminApp
-                onSignOut={() => {
-                  void adminSignOut().then(() => setRoute("admin-login"));
-                }}
-                onExit={() => setRoute("landing")}
-              />
-            </Suspense>
-          </motion.div>
-        )}
       </AnimatePresence>
     </div>
   );
 }
 
 export default function App() {
+  // The staff portal is its own app at /_omega_: no customer session, no customer pages.
+  if (typeof window !== "undefined" && isStaffPath(window.location.pathname)) {
+    return (
+      <AdminAuthProvider>
+        <ToastProvider>
+          <ConfirmProvider>
+            <AppErrorBoundary>
+              <Suspense fallback={<div className="min-h-screen bg-[#0A0F24]" role="status" aria-label="Loading" />}>
+                <StaffPortal />
+              </Suspense>
+            </AppErrorBoundary>
+          </ConfirmProvider>
+        </ToastProvider>
+      </AdminAuthProvider>
+    );
+  }
   return (
     <AuthProvider>
-      <AdminAuthProvider>
         <ToastProvider>
           <ConfirmProvider>
             <AppErrorBoundary>
@@ -216,7 +203,6 @@ export default function App() {
             </AppErrorBoundary>
           </ConfirmProvider>
         </ToastProvider>
-      </AdminAuthProvider>
     </AuthProvider>
   );
 }

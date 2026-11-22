@@ -14,6 +14,7 @@ export * from "./activity";
 export * from "./support";
 export * from "./staff-ops";
 export * from "./staff-admin";
+export * from "./staff-accounts";
 export * from "./privacy";
 export * from "./outreach-email";
 export * from "./trials";

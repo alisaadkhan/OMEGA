@@ -30,7 +30,7 @@ export function RemovalRequests() {
   return (
     <div className="space-y-4 p-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-slate-900" style={{ fontSize: 16, fontWeight: 600 }}>Removal requests</h2>
+        <h1 className="text-[26px] font-extrabold leading-tight tracking-tight text-slate-900">Data Removals</h1>
         <div className="flex gap-1">
           {(["received", "processed", "rejected"] as const).map((s) => (
             <button key={s} onClick={() => setStatus(s)} className={`rounded-md px-2.5 py-1 text-xs ${status === s ? "bg-slate-900 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200"}`}>

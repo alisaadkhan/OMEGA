@@ -28,7 +28,7 @@ export function CreatorFlags({ canDecide }: { canDecide: boolean }) {
   const counts = list.data?.counts;
   return (
     <section className="space-y-4">
-      <Header title="Creator flags" sub="Profiles customers reported as wrong. Fix the creator in Catalogue review, then resolve; or exclude it here, or dismiss the report." />
+      <Header title="Reported Profiles" sub="Profiles customers reported as wrong. Fix the creator in Catalogue review, then resolve; or exclude it here, or dismiss the report." />
       <div role="tablist" aria-label="Flag status" className="flex gap-2">
         {(["pending", "resolved", "dismissed"] as const).map((s) => (
           <button key={s} role="tab" aria-selected={status === s} onClick={() => setStatus(s)} className={`rounded-full px-3 py-1 text-xs font-medium ${status === s ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}>

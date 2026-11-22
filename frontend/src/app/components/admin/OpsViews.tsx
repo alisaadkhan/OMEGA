@@ -10,9 +10,9 @@ import { WorkspaceActivity } from "./WorkspaceActivity";
 const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" }) : "—");
 export function Header({ title, sub }: { title: string; sub: string }) {
   return (
-    <div className="mb-4">
-      <h1 className="text-slate-900" style={{ fontSize: 22, fontWeight: 700 }}>{title}</h1>
-      <p className="mt-0.5 text-sm text-slate-500">{sub}</p>
+    <div className="mb-6">
+      <h1 className="text-[26px] font-extrabold leading-tight tracking-tight text-slate-900">{title}</h1>
+      <p className="mt-1 text-[13px] text-slate-500">{sub}</p>
     </div>
   );
 }
@@ -68,7 +68,7 @@ const REASONS: Record<string, string> = {
 };
 
 /** How much of the catalogue customers can see under the creator minimum. Counts only, never creator data. */
-function EligibilityCoverageCard() {
+export function EligibilityCoverageCard() {
   const q = useQuery({ queryKey: ["admin", "eligibility"], queryFn: () => adminRequest("/admin/v1/ops/eligibility", eligibilityCoverageSchema) });
   return (
     <section className="mt-4 rounded-2xl border border-slate-200/80 bg-white p-4 text-xs" aria-label="Creator eligibility coverage">
@@ -111,7 +111,7 @@ export function OpsJobs({ canAct = false }: { canAct?: boolean }) {
   const detail = useQuery({ queryKey: ["admin", "job", openId], queryFn: () => adminRequest(`/admin/v1/ops/jobs/${openId ?? ""}`, staffJobDetailSchema), enabled: openId !== null });
   return (
     <div>
-      <Header title="Jobs" sub="Discovery, add-by-link and refresh jobs across workspaces. Opening a job's funnel is recorded in the audit log." />
+      <Header title="Live Scans" sub="Discovery, add-by-link and refresh jobs across workspaces. Opening a job's funnel is recorded in the audit log." />
       <div className="mb-3 flex gap-1 text-xs" role="group" aria-label="Filter jobs">
         {(["", "open", "failed", "stuck"] as const).map((s) => <button key={s} onClick={() => setStatus(s)} aria-pressed={status === s} className={`rounded-md px-2.5 py-1 ${status === s ? "bg-slate-900 text-white" : "border border-slate-200 text-slate-700"}`}>{s || "All"}</button>)}
       </div>
@@ -177,7 +177,7 @@ export function OpsProviders() {
   const q = useQuery({ queryKey: ["admin", "providers", hours], queryFn: () => adminRequest(`/admin/v1/ops/providers?hours=${hours}`, providerUsageSchema) });
   return (
     <div>
-      <Header title="Providers" sub="Calls MUSHIN recorded to each external provider, and spend against each cap as the worker last checked it. A provider that does not report its balance shows Not reported." />
+      <Header title="Data Sources" sub="Calls MUSHIN recorded to each external provider, and spend against each cap as the worker last checked it. A provider that does not report its balance shows Not reported." />
       <div className="mb-3 flex gap-1 text-xs" role="group" aria-label="Window">{[24, 168, 720].map((h) => <button key={h} onClick={() => setHours(h)} aria-pressed={hours === h} className={`rounded-md px-2.5 py-1 ${hours === h ? "bg-slate-900 text-white" : "border border-slate-200 text-slate-700"}`}>{h === 24 ? "24 hours" : h === 168 ? "7 days" : "30 days"}</button>)}</div>
       {q.isPending ? <LoadingBlock lines={4} /> : q.isError ? <ErrorState body={errorBody(q.error)} onRetry={() => void q.refetch()} /> : q.data.providers.length === 0 ? <p className="text-sm text-slate-500">No provider calls recorded in this window. That says nothing about the provider's health.</p> : (
         <Table head={["Provider", "Calls", "Errors", "Error rate", "p95 latency", "Recorded cost (USD)", "Last call", "Last error"]}>

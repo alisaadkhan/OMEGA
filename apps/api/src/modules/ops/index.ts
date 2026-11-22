@@ -24,6 +24,8 @@ import type { AppModule, PreHandler } from "../../http/types";
 import { parseInput, sendOk } from "../../http/validate";
 import { createActivityService } from "../activity/index";
 import { recordStaffAudit, type StaffAction, type StaffPrincipal } from "../staff/index";
+import type { BillingService } from "../billing/index";
+import { registerAccountRoutes } from "./accounts";
 
 const idParams = z.object({ id: z.uuid() });
 
@@ -37,7 +39,7 @@ export const maskEmail = (email: string) => {
  * Staff operations (canonical spec pages 20–23). Reads go through the platform.staff_* security-definer functions,
  * which return redacted projections across workspaces; views of one workspace's data and every write are audited.
  */
-export function createOpsModule(o: { db: Db; requireStaff: (action: StaffAction) => PreHandler; now?: () => Date }): AppModule {
+export function createOpsModule(o: { db: Db; requireStaff: (action: StaffAction) => PreHandler; billing?: Pick<BillingService, "engine" | "grantComplimentaryPlan">; now?: () => Date }): AppModule {
   const now = o.now ?? (() => new Date());
   const activity = createActivityService({ db: o.db });
   // The functions return JSON; it is validated against the response contract before it leaves the API.
@@ -50,6 +52,7 @@ export function createOpsModule(o: { db: Db; requireStaff: (action: StaffAction)
     o.db.withSystem((tx) => recordStaffAudit(tx, { staffId: staffOf(req).staffId, action, metadata, ip: req.ip, requestId: req.id }));
 
   function register(app: FastifyInstance) {
+    if (o.billing) registerAccountRoutes(app, { db: o.db, requireStaff: o.requireStaff, billing: o.billing, now });
     app.get("/admin/v1/ops/overview", { preHandler: o.requireStaff("ops.overview.read") }, async (_req, reply) =>
       sendOk(reply, staffOverviewSchema, staffOverviewSchema.parse(await json((tx) => tx.execute(sql`select platform.staff_overview() v`)))),
     );

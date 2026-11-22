@@ -61,7 +61,7 @@ export function TrialRequests({ role }: { role: AdminRole }) {
   return (
     <div className="space-y-4 p-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-slate-900" style={{ fontSize: 16, fontWeight: 600 }}>Trial requests</h2>
+        <h1 className="text-[26px] font-extrabold leading-tight tracking-tight text-slate-900">Trials &amp; Stats</h1>
         {owner && (
           <div className="flex gap-1">
             {(["requests", "feedback"] as const).map((t) => (

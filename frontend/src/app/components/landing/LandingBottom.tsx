@@ -166,7 +166,7 @@ function LandingCta({ onTrial, onPrimary }: { onTrial: () => void; onPrimary: ()
 function LandingFooter() {
   const cols: { t: string; l: { label: string; href?: string; id?: string; strong?: boolean }[] }[] = [
     { t: "Product", l: [{ label: "Search & Discovery", id: "discovery" }, { label: "Evidence & Signals", id: "capabilities" }, { label: "Campaigns", id: "capabilities" }, { label: "Pricing", id: "pricing" }] },
-    { t: "Account", l: [{ label: "Client Sign In", href: "#/login" }, { label: "Create an account", href: "#/signup" }, { label: "Free trial", href: "#/free-trial" }, { label: "Staff", href: "#/admin/login" }] },
+    { t: "Account", l: [{ label: "Client Sign In", href: "#/login" }, { label: "Create an account", href: "#/signup" }, { label: "Free trial", href: "#/free-trial" }] },
     { t: "Creators", l: [{ label: "Creator Data Notice", href: "#/creator-data" }, { label: "Remove my data", href: "#/remove-my-data", strong: true }, { label: "Terms of Service", href: "#/terms" }, { label: "Privacy Policy", href: "#/privacy" }] },
   ];
   return (

@@ -1,5 +1,5 @@
 /* global process, console, document, URL, setTimeout, fetch -- Node script driving a browser */
-// Staff console smoke (local only, mushin_e2e_team): password + authenticator sign-in through the UI for a Super Admin
+// Staff portal smoke at /_omega_ (local only, mushin_e2e_team): password + authenticator sign-in through the UI for a Super Admin
 // and a Support account, every console section each role is offered, role limits in the UI and the API, axe-core
 // (WCAG 2.2 A/AA, serious and critical) on each section, and no 5xx. Security keys (WebAuthn step-up) are not
 // exercised here: they need a real or virtual authenticator.  Usage: node journey.mjs <label>
@@ -57,18 +57,24 @@ const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH 
 const serverErrors = [];
 const pageErrors = [];
 const coverageCards = {};
-const ADMIN_ONLY = ["Providers", "Removal requests", "Approvals", "Staff", "Audit log"];
-const EVERYONE = ["Overview", "Jobs", "Workspaces", "Workspace access", "Support queue", "Catalogue review", "Creator flags", "Security"];
+const ADMIN_ONLY = ["Subscriptions", "Data Sources", "Data Removals", "Approvals", "Staff Team", "Activity & Security"];
+const EVERYONE = ["Overview", "Users", "Tickets", "Live Scans", "Creator Checks", "Reported Profiles", "Trials & Stats", "Customer Access", "Settings"];
+const nav = (p) => p.getByRole("navigation", { name: "Staff portal" });
 
-// Staff Portal (owner directive 2026-11-15 §2): #/staff/login is the same portal as #/admin/login, says it is staff only
-// and sends customers to their own login.
+// Staff portal (owner, 22 Nov): staff sign in only at /_omega_; the old #/staff and #/admin links show not found.
 {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 950 } });
   const p = await ctx.newPage();
-  await p.goto(`${APP}/#/staff/login`);
-  await p.getByLabel("Staff email").waitFor({ timeout: 30000 });
-  check("portals", "#/staff/login opens the Staff Portal, marked staff only, with a link to the customer login",
-    (await p.getByText(/staff access only/i).first().isVisible()) && (await p.getByRole("link", { name: "customer login" }).getAttribute("href")) === "#/login");
+  await p.goto(`${APP}/_omega_`);
+  await p.getByRole("heading", { name: "Staff Sign In" }).waitFor({ timeout: 30000 });
+  check("portals", "/_omega_ opens the staff sign-in, marked staff only", await p.getByText("Staff Only", { exact: true }).isVisible());
+  const oldLinks = [];
+  for (const h of ["#/staff/login", "#/admin/login", "#/admin"]) {
+    await p.goto(`${APP}/${h}`);
+    await p.waitForTimeout(1500);
+    if (await p.getByLabel("Work Email").isVisible().catch(() => false)) oldLinks.push(h);
+  }
+  check("portals", "the old #/staff and #/admin links no longer open a staff sign-in", oldLinks.length === 0, oldLinks.join(", "));
   await ctx.close();
 }
 
@@ -77,50 +83,57 @@ for (const who of ["super1", "support"]) {
   const p = await ctx.newPage();
   p.on("response", (r) => { if (r.status() >= 500) serverErrors.push(`${who} ${r.status()} ${r.url()}`); });
   p.on("pageerror", (e) => pageErrors.push(`${who}: ${e.message}`));
-  await p.goto(`${APP}/#/admin/login`);
-  await p.getByLabel("Staff email").waitFor({ timeout: 30000 });
+  await p.goto(`${APP}/_omega_`);
+  await p.getByLabel("Work Email").waitFor({ timeout: 30000 });
   if (who === "super1") { const f = await axeFindings(p); check("a11y", "Staff sign-in page: no serious or critical WCAG 2.2 A/AA issues", f.length === 0, f.join(" | ")); }
   await nextStep();
-  await p.getByLabel("Staff email").fill(staff[who].email);
-  await p.getByLabel("Password").fill(staff[who].password);
-  await p.getByRole("button", { name: /sign in|continue/i }).click();
-  const codeField = p.getByLabel("6-digit code from your authenticator app");
-  await codeField.waitFor({ timeout: 20000 });
-  await codeField.fill(await generate({ secret: staff[who].totpSecret }));
-  await p.getByRole("button", { name: /verify|sign in|continue/i }).click();
-  await p.getByText("MUSHIN · OPS").waitFor({ timeout: 30000 });
+  await p.getByLabel("Work Email").fill(staff[who].email);
+  await p.getByLabel("Password", { exact: true }).fill(staff[who].password);
+  await p.getByLabel("6-Digit Authenticator Code").fill(await generate({ secret: staff[who].totpSecret }));
+  await p.getByRole("button", { name: "Sign In", exact: true }).click();
+  await nav(p).waitFor({ timeout: 30000 });
   const role = staff[who].role === "super_admin" ? "Super Admin" : "Support";
   check("staff", `${role} signs in with password and authenticator code`, await p.getByText(role, { exact: true }).first().isVisible());
   // Each role lands on its own workspace (owner directive 2026-11-15 §2): Support on the support queue, admins on the overview.
-  const landing = who === "support" ? "Support queue" : "Overview";
+  const landing = who === "support" ? "Tickets" : "Overview";
   await p.getByRole("heading", { name: landing, level: 1 }).waitFor({ timeout: 20000 }).catch(() => {});
   check("portals", `${role} lands on ${landing} after signing in`, await p.getByRole("heading", { name: landing, level: 1 }).isVisible().catch(() => false));
-  if (who === "support") await p.getByRole("button", { name: "Overview", exact: true }).first().click();
+  if (who === "support") await nav(p).getByRole("button", { name: "Overview", exact: true }).click();
   const card = p.getByRole("region", { name: "Creator eligibility coverage" });
   await card.getByText(/creators in the search catalogue qualify/).waitFor({ timeout: 20000 }).catch(() => {});
   coverageCards[who] = (await card.innerText().catch(() => "")).replace(/\s+/g, " ");
 
   if (who === "super1") {
     // Admin sections need a security key. Chrome's virtual authenticator stands in for a hardware key (WebAuthn).
-    const open = async (name) => { await p.getByRole("button", { name, exact: true }).first().click(); await p.waitForTimeout(1000); };
-    await open("Staff");
-    check("security", "without a security key, admin sections ask for one and show no data", await p.getByText("Admin actions need a security key. Register one first.").first().isVisible() && !(await p.getByText(staff.support.email).isVisible().catch(() => false)));
+    const open = async (name) => { await nav(p).getByRole("button", { name, exact: true }).click(); await p.waitForTimeout(1000); };
+    await open("Staff Team");
+    check("security", "without a security key, admin sections ask for one and show no data", await p.getByRole("button", { name: "Security key needed" }).isVisible() && !(await p.getByText(staff.support.email).isVisible().catch(() => false)));
     const cdp = await ctx.newCDPSession(p);
     await cdp.send("WebAuthn.enable");
     await cdp.send("WebAuthn.addVirtualAuthenticator", { options: { protocol: "ctap2", transport: "usb", hasResidentKey: true, hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true } });
-    await open("Security");
+    await open("Settings");
     await p.getByLabel("Enrolment code").fill(staff.super1.enrolmentCode); // issued with the account, out of band (audit SEC-07)
     await p.getByLabel("Name").fill("E2E virtual key");
     await p.getByRole("button", { name: "Add security key" }).click();
     await p.getByText("E2E virtual key").first().waitFor({ timeout: 20000 });
-    check("security", "a Super Admin registers a security key in Security", true);
-    await p.getByRole("button", { name: "Confirm with security key" }).first().click();
-    await p.getByText("Admin actions need your security key.").first().waitFor({ state: "hidden", timeout: 20000 }).catch(() => {});
-    await open("Staff");
+    check("security", "a Super Admin registers a security key in Settings", true);
+    await p.getByRole("button", { name: "Confirm security key" }).click();
+    await p.getByText("Security key confirmed", { exact: true }).waitFor({ timeout: 20000 }).catch(() => {});
+    await open("Staff Team");
     await p.getByText(staff.support.email).first().waitFor({ timeout: 20000 }).catch(() => {});
     check("security", "after confirming with the key, the staff directory lists every staff account", (await Promise.all(["super1", "super2", "admin", "support"].map((k) => p.getByText(staff[k].email).first().isVisible().catch(() => false)))).every(Boolean));
     // Creator flags (owner directive 2026-11-15 §3): the seeded customer flag is listed and dismissed in one step.
-    await open("Creator flags");
+    // Users (owner, 22 Nov): the seeded customer account opens with its plan, credits and people.
+    await open("Users");
+    await p.locator("tbody tr").first().click();
+    const drawer = p.getByRole("dialog");
+    await drawer.getByText("Credit history").waitFor({ timeout: 20000 }).catch(() => {});
+    const drawerText = (await drawer.innerText().catch(() => "")).replace(/\s+/g, " ");
+    check("users", "a Super Admin opens an account: plan, credits, credit history, people, add credits and assign plan", ["Plan", "Credits", "Credit history", "People", "Add credits", "Assign plan"].every((t) => drawerText.toUpperCase().includes(t.toUpperCase())), drawerText.slice(0, 200));
+    await drawer.getByRole("button", { name: "Close" }).click();
+    await open("Subscriptions");
+    check("users", "Subscriptions shows the plan distribution from the database", await p.getByRole("region", { name: "Plan distribution" }).isVisible().catch(() => false));
+    await open("Reported Profiles");
     const flag = p.getByRole("listitem", { name: "Flag on E2E Flagged Shop" });
     await flag.waitFor({ timeout: 20000 }).catch(() => {});
     const flagText = (await flag.innerText().catch(() => "")).replace(/\s+/g, " ");
@@ -129,7 +142,7 @@ for (const who of ["super1", "support"]) {
     await flag.getByRole("button", { name: "Dismiss", exact: true }).click();
     await p.getByText("Flag dismissed").first().waitFor({ timeout: 20000 }).catch(() => {});
     check("flags", "a Super Admin dismisses the flag with a note (after the security-key confirmation)", await p.getByText("Flag dismissed").first().isVisible().catch(() => false));
-    await open("Audit log");
+    await open("Activity & Security");
     await p.getByLabel("Action starts with").fill("staff.super_admin");
     await p.getByRole("button", { name: "Filter" }).click();
     const rows = p.locator("tbody tr").filter({ hasText: "staff.super_admin.bootstrapped" });
@@ -138,11 +151,11 @@ for (const who of ["super1", "support"]) {
     check("audit", "the audit log shows both Super Admin bootstraps with operator and reason", (await rows.count()) === 2 && auditText.includes("Staff E2E: first platform owner") && auditText.includes("Staff E2E: second owner for co-sign"), auditText.slice(0, 200));
   }
   const offered = [];
-  for (const name of [...EVERYONE, ...ADMIN_ONLY]) if (await p.getByRole("button", { name, exact: true }).first().isVisible().catch(() => false)) offered.push(name);
+  for (const name of [...EVERYONE, ...ADMIN_ONLY]) if (await nav(p).getByRole("button", { name, exact: true }).isVisible().catch(() => false)) offered.push(name);
   const expected = who === "support" ? EVERYONE : [...EVERYONE, ...ADMIN_ONLY];
   check("staff", `${role} is offered exactly the sections of the role`, expected.every((n) => offered.includes(n)) && offered.length === expected.length, offered.join(", "));
   for (const name of offered) {
-    await p.getByRole("button", { name, exact: true }).first().click();
+    await nav(p).getByRole("button", { name, exact: true }).click();
     await p.waitForTimeout(1200);
     // A toast caught mid-fade is reported at partial opacity; scan the settled page.
     for (const b of await p.getByRole("button", { name: "Dismiss" }).all()) await b.click().catch(() => {});
@@ -156,7 +169,8 @@ for (const who of ["super1", "support"]) {
     const unreachable = [];
     const issues = [];
     for (const name of offered) {
-      const b = p.getByRole("button", { name, exact: true }).first();
+      await p.getByRole("button", { name: "Open menu" }).click().catch(() => {});
+      const b = nav(p).getByRole("button", { name, exact: true });
       if (!(await b.isVisible().catch(() => false))) { unreachable.push(name); continue; }
       await b.click();
       await p.waitForTimeout(1000);

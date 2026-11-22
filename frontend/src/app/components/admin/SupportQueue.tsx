@@ -24,7 +24,7 @@ export function SupportQueue({ me, canAssignOthers, role }: { me: string; canAss
   const list = useQuery({ queryKey: ["admin", "tickets", status], queryFn: () => adminRequest(`/admin/v1/support/tickets${status ? `?status=${status}` : ""}`, staffTicketListSchema) });
   return (
     <div>
-      <Header title="Support queue" sub="Customer requests, urgent first, then most recent. Replies are signed with your staff name." />
+      <Header title="Tickets" sub="Customer requests, urgent first, then most recent. Replies are signed with your staff name." />
       <div className="mb-3 flex gap-1 text-xs" role="group" aria-label="Filter tickets">
         {(["open", "in_progress", "waiting_on_customer", "resolved", "closed", ""] as const).map((s) => (
           <button key={s} onClick={() => setStatus(s)} aria-pressed={status === s} className={`rounded-md px-2.5 py-1 ${status === s ? "bg-slate-900 text-white" : "border border-slate-200 text-slate-700"}`}>{s ? STATUS[s] : "All"}</button>

@@ -164,7 +164,7 @@ const app = await buildApp({
     createActivityModule({ service: createActivityService({ db }) }),
     createSupportModule({ service: createSupportService({ db }), attachments: supportAttachments }),
     createTrialsModule({ service: createTrialService({ db, startTrial: billing.startTrial, onTrialStarted: (id) => accessCache.invalidate(id) }), limiter, requireStaff: staff.requireStaff }),
-    createOpsModule({ db, requireStaff: staff.requireStaff }),
+    createOpsModule({ db, requireStaff: staff.requireStaff, billing }),
     // Daily maintenance through Vercel Cron while production has no worker host (audit 2026-11-17).
     ...(config.cronSecret ? [createCronModule({
       secret: config.cronSecret,

@@ -117,7 +117,7 @@ export function AuditSearch() {
   const q = useQuery({ queryKey: ["admin", "audit-search", params.toString()], queryFn: () => adminRequest(`/admin/v1/audit/search?${params.toString()}`, staffAuditListSchema) });
   return (
     <div>
-      <Header title="Audit log" sub="Staff sign-ins and actions, newest first. The history is append-only; nothing here can edit it." />
+      <Header title="Activity & Security" sub="Every staff sign-in and action, newest first. The history is append-only; nothing here can edit it." />
       <form className="mb-3 flex flex-wrap items-end gap-2 text-xs" onSubmit={(e) => { e.preventDefault(); setBefore(null); setFilters({ action: action.trim(), workspaceId: /^[0-9a-f-]{36}$/i.test(workspaceId.trim()) ? workspaceId.trim() : "" }); }}>
         <label className="text-slate-600">Action starts with<input value={action} onChange={(e) => setAction(e.target.value)} placeholder="e.g. approvals. or support.access" maxLength={80} className="mt-0.5 block w-64 rounded-md border border-slate-200 px-2 py-1" /></label>
         <label className="text-slate-600">Workspace id<input value={workspaceId} onChange={(e) => setWorkspaceId(e.target.value)} className="mt-0.5 block w-80 rounded-md border border-slate-200 px-2 py-1" /></label>

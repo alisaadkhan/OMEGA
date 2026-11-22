@@ -31,7 +31,7 @@ export function SupportAccessStaff({ initialWorkspaceId }: { initialWorkspaceId?
   if (viewing) return <AccessView id={viewing} onClose={() => { setViewing(null); void qc.invalidateQueries({ queryKey: ["admin", "access"] }); }} />;
   return (
     <div>
-      <Header title="Workspace access" sub="Read-only access to a customer's workspace, only with their consent, for at most 60 minutes. You cannot change, buy, export or send anything during it." />
+      <Header title="Customer Access" sub="Read-only access to a customer's workspace, only with their consent, for at most 60 minutes. You cannot change, buy, export or send anything during it." />
       <form className="mb-4 rounded-2xl border border-slate-200/80 bg-white p-3 text-xs" onSubmit={(e) => { e.preventDefault(); ask.mutate(); }}>
         <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Ask for access</div>
         <div className="mt-2 flex flex-wrap items-end gap-2">

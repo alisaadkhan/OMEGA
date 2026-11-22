@@ -70,7 +70,7 @@ export function CatalogueReview({ canDecide }: { canDecide: boolean }) {
   return (
     <div className="space-y-4 p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-slate-900" style={{ fontSize: 16, fontWeight: 600 }}>Catalogue review</h2>
+        <h1 className="text-[26px] font-extrabold leading-tight tracking-tight text-slate-900">Creator Checks</h1>
         <div className="flex flex-wrap gap-1" role="tablist" aria-label="Review queue">
           {TABS.map((t) => (
             <button

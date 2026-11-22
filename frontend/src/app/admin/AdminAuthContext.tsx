@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { staffLoginResponseSchema, staffSessionResponseSchema } from "@mushin/contracts";
 import { adminRequest, adminToken, refreshAdminSession, setAdminToken } from "./adminApi";
 import { z } from "zod";
+import { isStaffPath } from "../components/staff/path";
 
 export type AdminRole = "support" | "admin" | "super_admin";
 export type AdminUser = { id: string; name: string; email: string; role: AdminRole };
@@ -22,12 +23,12 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const [admin, setAdmin] = useState<AdminUser | null>(null);
   const [status, setStatus] = useState<Ctx["status"]>("loading");
 
-  // The staff session is restored only once a staff route is opened: customer pages and the public site never send
+  // The staff session is restored only on the staff portal (/_omega_): customer pages and the public site never send
   // a staff refresh request (it failed with 401 on every customer page load and counted against the IP rate limit).
   useEffect(() => {
     let started = false;
     const restore = () => {
-      if (started || !window.location.hash.startsWith("#/admin")) return;
+      if (started || !isStaffPath(window.location.pathname)) return;
       started = true;
       void refreshAdminSession()
         .then((s) => {

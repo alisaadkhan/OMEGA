@@ -3,6 +3,7 @@ import path from 'path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { headersFile } from './security-headers'
+import { mkdirSync, readFileSync, writeFileSync } from 'fs'
 
 function figmaAssetResolver() {
   return {
@@ -28,6 +29,25 @@ function securityHeadersFile(supabaseUrl: string | undefined) {
   }
 }
 
+/**
+ * The staff portal lives at /_omega_ (owner, 22 Nov). The host serves files, not app routes, so the built page is also
+ * written to dist/_omega_/index.html; the app reads the path and opens the staff portal.
+ */
+function staffPortalPage() {
+  let outDir = 'dist'
+  return {
+    name: 'mushin-staff-portal-page',
+    apply: 'build' as const,
+    configResolved(c: { build: { outDir: string }; root: string }) {
+      outDir = path.resolve(c.root, c.build.outDir)
+    },
+    closeBundle() {
+      mkdirSync(path.join(outDir, '_omega_'), { recursive: true })
+      writeFileSync(path.join(outDir, '_omega_', 'index.html'), readFileSync(path.join(outDir, 'index.html')))
+    },
+  }
+}
+
 export default defineConfig(({ mode }) => {
   const rootEnv = loadEnv(mode, path.resolve(__dirname, '..'), '')
   const apiPort = rootEnv.PORT || '4000'
@@ -40,6 +60,7 @@ export default defineConfig(({ mode }) => {
       react(),
       tailwindcss(),
       securityHeadersFile(rootEnv.VITE_SUPABASE_URL),
+      staffPortalPage(),
     ],
     resolve: {
       alias: {

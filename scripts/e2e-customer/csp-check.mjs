@@ -43,7 +43,7 @@ const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH 
 try {
   const head = await fetch("http://127.0.0.1:4610/");
   check("the page is served with the policy and no-cache", Boolean(head.headers.get("content-security-policy")?.includes("frame-ancestors 'none'")) && head.headers.get("cache-control") === "no-cache");
-  const pages = [["landing", "/"], ["sign in", "/#/login"], ["sign up", "/#/signup"], ["terms", "/#/terms"], ["reset password", "/#/reset-password"], ["staff sign-in", "/#/admin/login"]];
+  const pages = [["landing", "/"], ["sign in", "/#/login"], ["sign up", "/#/signup"], ["terms", "/#/terms"], ["reset password", "/#/reset-password"], ["staff sign-in", "/_omega_"]];
   for (const [name, path] of pages) {
     const page = await browser.newPage();
     const violations = [];

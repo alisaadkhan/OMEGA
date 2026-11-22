@@ -123,7 +123,7 @@ export function StaffDirectory({ me, role }: { me: string; role: AdminRole }) {
   const superAdmin = role === "super_admin";
   return (
     <div>
-      <Header title="Staff" sub="Staff accounts and their access. Super Admin accounts are created and recovered only through the owner's bootstrap process, never from this console." />
+      <Header title="Staff Team" sub="Staff accounts and their access. Super Admin accounts are created and recovered only through the owner's bootstrap process, never from this console." />
       {q.isPending ? <LoadingBlock lines={4} /> : q.isError ? <ErrorState body={errText(q.error)} onRetry={() => void q.refetch()} /> : (
         <div className="overflow-x-auto rounded-2xl border border-slate-200/80 bg-white">
           <table className="w-full text-left text-xs">
