@@ -30,6 +30,7 @@ describe("featured creators on the customer home page (owner, 22 Nov)", () => {
     await addIndexedCreator(db, { displayName: "Huge Low ER", niches: ["Comedy"], profiles: [{ followers: 5_000_000, engagementRate: 0.6 }] });
     await addIndexedCreator(db, { displayName: "Strong Food", niches: ["Food"], profiles: [{ followers: 40_000, engagementRate: 9 }] });
     await addIndexedCreator(db, { displayName: "Odd ER", niches: ["Food"], profiles: [{ followers: 40_000, engagementRate: 45 }] });
+    await addIndexedCreator(db, { displayName: "Possible Minor", niches: ["Gaming"], isMinor: true, profiles: [{ followers: 40_000, engagementRate: 12 }] });
     for (const er of [8, 7, 6]) await addIndexedCreator(db, { displayName: `Bridal ${er}`, niches: ["Bridal"], profiles: [{ followers: 30_000, engagementRate: er }] });
 
     expect((await app.inject({ method: "GET", url: "/v1/creators/featured" })).statusCode).toBe(401);
@@ -39,6 +40,7 @@ describe("featured creators on the customer home page (owner, 22 Nov)", () => {
     const names = (res.json() as { creators: { id: string; displayName: string }[] }).creators.map((c) => c.displayName);
     expect(names[0]).toBe("Strong Food");
     expect(names).not.toContain("Odd ER");
+    expect(names).not.toContain("Possible Minor");
     expect(names.filter((n) => n.startsWith("Bridal"))).toEqual(["Bridal 8", "Bridal 7"]);
     expect(names.indexOf("Huge Low ER")).toBe(names.length - 1);
   });

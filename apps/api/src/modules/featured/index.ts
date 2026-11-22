@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { Db } from "@mushin/db";
 import type { AppModule } from "../../http/types";
 import { sendOk } from "../../http/validate";
+import { CREATOR_VISIBLE } from "../creators/visibility";
 
 export const featuredCreatorSchema = z.object({
   id: z.uuid(),
@@ -40,7 +41,7 @@ export function createFeaturedModule(o: { db: Db; now?: () => Date }): AppModule
                 d.engagement_rate * coalesce(d.authenticity_score, 70) / 100.0 quality,
                 row_number() over (partition by coalesce(d.niches[1], '') order by d.engagement_rate * coalesce(d.authenticity_score, 70) desc) rn
               from gcp.creator_search_documents d join gcp.creators c on c.id = d.creator_id
-              where d.eligible and d.eligible_until_epoch > ${at} and c.status = 'active'
+              where d.eligible and d.eligible_until_epoch > ${at} and ${CREATOR_VISIBLE}
                 and d.engagement_rate between 0.5 and 20 and d.followers >= 10000 and d.platforms[1] in ('instagram', 'tiktok', 'youtube')) t
             where rn <= 2 order by quality desc limit 12`),
         );
