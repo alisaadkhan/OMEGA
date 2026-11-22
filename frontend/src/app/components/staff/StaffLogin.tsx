@@ -44,24 +44,27 @@ export function StaffLogin({ onSuccess }: { onSuccess: () => void }) {
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [challenge, setChallenge] = useState<{ token: string; email: string; password: string } | null>(null);
+  // Set when the password was right and this person has two-factor on: the next step asks for the code.
+  const [challenge, setChallenge] = useState<string | null>(null);
   const paused = error !== null && /too many attempts/i.test(error);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setError("Enter your staff work email.");
-    if (!password) return setError("Enter your password.");
-    if (!/^\d{6}$/.test(code)) return setError("Enter the 6-digit code from your authenticator app.");
+    if (!challenge) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setError("Enter your staff work email.");
+      if (!password) return setError("Enter your password.");
+    } else if (!/^\d{6}$/.test(code)) return setError("Enter the 6-digit code from your authenticator app.");
     setError(null);
     setBusy(true);
     try {
-      // A password already accepted in this attempt is not checked again when only the code was wrong.
-      let token = challenge && challenge.email === email.trim() && challenge.password === password ? challenge.token : null;
-      if (!token) {
-        token = await startLogin(email.trim(), password);
-        setChallenge({ token, email: email.trim(), password });
+      if (!challenge) {
+        const token = await startLogin(email.trim(), password);
+        if (token === null) return onSuccess();
+        setChallenge(token);
+        setPassword("");
+        return;
       }
-      await completeLogin(token, code);
+      await completeLogin(challenge, code);
       onSuccess();
     } catch (err) {
       setCode("");
@@ -95,10 +98,12 @@ export function StaffLogin({ onSuccess }: { onSuccess: () => void }) {
                   <span className="h-1.5 w-1.5 rounded-full bg-[#06B6D4]" /> Staff Only
                 </div>
                 <h1 className="mt-3 text-[22px] font-extrabold tracking-tight text-slate-900">Staff Sign In</h1>
-                <p className="mt-1 text-xs text-slate-500">Sign in with your staff email, password, and 6-digit code.</p>
+                <p className="mt-1 text-xs text-slate-500">{challenge ? "Enter the 6-digit code from your authenticator app." : "Sign in with your staff email and password."}</p>
               </div>
 
               <form onSubmit={(e) => void submit(e)} noValidate className="mt-6 space-y-4">
+                {!challenge ? (
+                  <>
                 <div>
                   <label htmlFor="staff-email" className="mb-1.5 block text-xs font-bold text-slate-700">Work Email</label>
                   <div className="relative">
@@ -119,7 +124,9 @@ export function StaffLogin({ onSuccess }: { onSuccess: () => void }) {
                     </button>
                   </div>
                 </div>
-                <div>
+                  </>
+                ) : (
+                  <div>
                   <label htmlFor="staff-code" className="mb-1.5 block text-xs font-bold text-slate-700">6-Digit Authenticator Code</label>
                   <div className="relative">
                     <ShieldCheck className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -127,6 +134,7 @@ export function StaffLogin({ onSuccess }: { onSuccess: () => void }) {
                       id="staff-code"
                       inputMode="numeric"
                       autoComplete="one-time-code"
+                      autoFocus
                       maxLength={6}
                       value={code}
                       onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
@@ -135,9 +143,13 @@ export function StaffLogin({ onSuccess }: { onSuccess: () => void }) {
                     />
                   </div>
                 </div>
+                )}
                 <button type="submit" disabled={busy || paused} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#06B6D4] px-5 py-3 text-sm font-extrabold text-[#0A0F24] shadow-sm transition-all hover:bg-cyan-500 active:scale-[0.99] disabled:opacity-50">
-                  {busy ? "Signing in…" : <>Sign In <ArrowRight className="h-4 w-4" /></>}
+                  {busy ? "Signing in…" : challenge ? <>Verify Code <ArrowRight className="h-4 w-4" /></> : <>Sign In <ArrowRight className="h-4 w-4" /></>}
                 </button>
+                {challenge && (
+                  <button type="button" onClick={() => { setChallenge(null); setCode(""); setError(null); }} className="w-full text-center text-xs font-semibold text-slate-500 hover:text-slate-900">Use another account</button>
+                )}
                 <p className="flex items-start gap-2 pt-1 text-[11.5px] text-slate-500">
                   <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" /> 5 wrong password attempts will pause sign-in for 15 minutes.
                 </p>
@@ -151,7 +163,7 @@ export function StaffLogin({ onSuccess }: { onSuccess: () => void }) {
               </div>
               {/* No staff reset email exists (staff passwords and codes are issued by a Super Admin), so nothing is "sent". */}
               <p className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs leading-relaxed text-slate-700">
-                Staff passwords are not reset by email. Ask a Super Admin to issue you a new temporary password and authenticator code; you then sign in here with them.
+                Staff passwords are not reset by email. Ask a Super Admin to reset your staff account; you then sign in here with the new temporary password.
               </p>
               <div className="mt-6 border-t border-slate-100 pt-5 text-center">
                 <button type="button" onClick={() => setView("signin")} className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900">

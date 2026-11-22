@@ -10,7 +10,8 @@ export type AdminUser = { id: string; name: string; email: string; role: AdminRo
 type Ctx = {
   admin: AdminUser | null;
   status: "loading" | "signedIn" | "signedOut";
-  startLogin: (email: string, password: string) => Promise<string>;
+  /** Returns the code challenge when two-factor is on; null when the password alone signed in. */
+  startLogin: (email: string, password: string) => Promise<string | null>;
   completeLogin: (challengeToken: string, code: string) => Promise<void>;
   signOut: () => Promise<void>;
   token: () => string | null;
@@ -54,7 +55,11 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     status,
     async startLogin(email, password) {
       const r = await adminRequest("/admin/v1/auth/login", staffLoginResponseSchema, { method: "POST", body: { email, password } });
-      return r.challengeToken;
+      if ("challengeToken" in r) return r.challengeToken;
+      setAdminToken(r.accessToken);
+      setAdmin(r.staff);
+      setStatus("signedIn");
+      return null;
     },
     async completeLogin(challengeToken, code) {
       const s = await adminRequest("/admin/v1/auth/totp", staffSessionResponseSchema, { method: "POST", body: { challengeToken, code } });

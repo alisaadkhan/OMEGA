@@ -89,8 +89,11 @@ for (const who of ["super1", "support"]) {
   await nextStep();
   await p.getByLabel("Work Email").fill(staff[who].email);
   await p.getByLabel("Password", { exact: true }).fill(staff[who].password);
-  await p.getByLabel("6-Digit Authenticator Code").fill(await generate({ secret: staff[who].totpSecret }));
   await p.getByRole("button", { name: "Sign In", exact: true }).click();
+  // Seeded accounts have two-factor on, so the code is asked for in a second step (0094).
+  await p.getByLabel("6-Digit Authenticator Code").waitFor({ timeout: 20000 });
+  await p.getByLabel("6-Digit Authenticator Code").fill(await generate({ secret: staff[who].totpSecret }));
+  await p.getByRole("button", { name: "Verify Code", exact: true }).click();
   await nav(p).waitFor({ timeout: 30000 });
   const role = staff[who].role === "super_admin" ? "Super Admin" : "Support";
   check("staff", `${role} signs in with password and authenticator code`, await p.getByText(role, { exact: true }).first().isVisible());
@@ -117,6 +120,7 @@ for (const who of ["super1", "support"]) {
     await p.getByRole("button", { name: "Add security key" }).click();
     await p.getByText("E2E virtual key").first().waitFor({ timeout: 20000 });
     check("security", "a Super Admin registers a security key in Settings", true);
+    check("security", "Settings shows two-factor sign-in as on, with a way to turn it off", await p.getByRole("region", { name: "Two-factor sign-in" }).getByText("On", { exact: true }).isVisible().catch(() => false) && await p.getByRole("button", { name: "Turn off" }).isVisible().catch(() => false));
     await p.getByRole("button", { name: "Confirm security key" }).click();
     await p.getByText("Security key confirmed", { exact: true }).waitFor({ timeout: 20000 }).catch(() => {});
     await open("Staff Team");

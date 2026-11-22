@@ -50,9 +50,10 @@ export function createStaffService(o: { db: Db; tokens: StaffTokens; encryptionK
     return refreshToken;
   }
 
+  // The session states the authenticator code as a factor only when the person signs in with one (0094).
   async function toSession(staff: repo.StaffRow, refreshToken: string): Promise<StaffSession> {
     return {
-      accessToken: await o.tokens.signAccess({ staffId: staff.id, role: staff.role }),
+      accessToken: await o.tokens.signAccess({ staffId: staff.id, role: staff.role, factors: staff.totpEnabled ? ["otp"] : [] }),
       expiresInSeconds: ACCESS_TTL_SECONDS,
       refreshToken,
       staff: profileOf(staff),
@@ -64,13 +65,13 @@ export function createStaffService(o: { db: Db; tokens: StaffTokens; encryptionK
      * Admin and Super Admin accounts also get a one-time enrolment code for their first security key (audit SEC-07),
      * returned once with the password and TOTP secret for the operator to hand over out of band.
      */
-    async createStaffAccount(input: { email: string; name: string; role: StaffRole; issuedBy?: string }) {
+    async createStaffAccount(input: { email: string; name: string; role: StaffRole; issuedBy?: string; twoFactor?: boolean }) {
       const password = randomToken(18);
       const totpSecret = newTotpSecret();
       const email = input.email.trim().toLowerCase();
       const passwordHash = await hashPassword(password);
       const { id, enrolmentCode } = await o.db.withSystem(async (tx) => {
-        const id = await repo.insertStaff(tx, { email, name: input.name.trim(), role: input.role, passwordHash, totpSecretEncrypted: encryptSecret(totpSecret, o.encryptionKey) });
+        const id = await repo.insertStaff(tx, { email, name: input.name.trim(), role: input.role, passwordHash, totpSecretEncrypted: encryptSecret(totpSecret, o.encryptionKey), totpEnabled: input.twoFactor ?? true });
         const enrolmentCode = input.role === "support" ? null : (await issueEnrolmentCode(tx, id, { issuedBy: input.issuedBy ?? "account creation", reason: "new staff account", now: now() })).code;
         return { id, enrolmentCode };
       });
@@ -88,7 +89,8 @@ export function createStaffService(o: { db: Db; tokens: StaffTokens; encryptionK
       });
     },
 
-    async login(input: { email: string; password: string }, meta: RequestMeta): Promise<{ challengeToken: string }> {
+    /** Password first; with two-factor on, a short-lived challenge for the code, otherwise the session itself (0094). */
+    async login(input: { email: string; password: string }, meta: RequestMeta): Promise<{ kind: "challenge"; challengeToken: string } | { kind: "session"; session: StaffSession }> {
       // Charge the attempt in one short statement first; hash with no lock or connection held (no pool exhaustion).
       const charged = await o.db.withSystem((tx) => repo.chargeLoginAttempt(tx, input.email, MAX_FAILURES, LOCK_MINUTES));
       if (!charged) {
@@ -108,7 +110,16 @@ export function createStaffService(o: { db: Db; tokens: StaffTokens; encryptionK
         throw invalidCredentials();
       }
       await o.db.withSystem((tx) => repo.refundLoginAttempt(tx, charged.id, MAX_FAILURES));
-      return { challengeToken: await o.tokens.signChallenge(charged.id) };
+      if (charged.totpEnabled) return { kind: "challenge", challengeToken: await o.tokens.signChallenge(charged.id) };
+      const done = await o.db.withSystem(async (tx) => {
+        const staff = await repo.findStaffByIdForUpdate(tx, charged.id);
+        if (!staff || staff.status !== "active") return null;
+        await repo.recordSuccessfulLogin(tx, staff.id);
+        await repo.audit(tx, { staffId: staff.id, action: "staff.login.succeeded", metadata: { twoFactor: false }, ip: meta.ip, requestId: meta.requestId });
+        return { staff, refreshToken: await insertNewSession(tx, staff.id, randomUUID(), meta) };
+      });
+      if (!done) throw invalidCredentials();
+      return { kind: "session", session: await toSession(done.staff, done.refreshToken) };
     },
 
     async completeTotp(input: { challengeToken: string; code: string }, meta: RequestMeta): Promise<StaffSession> {
@@ -140,15 +151,72 @@ export function createStaffService(o: { db: Db; tokens: StaffTokens; encryptionK
      * exists, another is created only with `recovery` (a lost-access recovery), and every run is audited with the
      * operator and reason.
      */
-    async bootstrapSuperAdmin(input: { email: string; name: string; operator: string; reason: string; recovery: boolean }) {
+    async bootstrapSuperAdmin(input: { email: string; name: string; operator: string; reason: string; recovery: boolean; twoFactor?: boolean }) {
       if (input.operator.trim().length < 2 || input.reason.trim().length < 12) throw new Error("operator (2+ characters) and reason (12+ characters) are required");
       const active = await o.db.withSystem((tx) => repo.countActiveSuperAdmins(tx));
       if (active > 0 && !input.recovery) throw new Error(`${active} active Super Admin(s) already exist; use --recovery only to restore lost access`);
-      const acct = await this.createStaffAccount({ email: input.email, name: input.name, role: "super_admin" });
+      const acct = await this.createStaffAccount({ email: input.email, name: input.name, role: "super_admin", twoFactor: input.twoFactor });
       await o.db.withSystem((tx) =>
         repo.audit(tx, { staffId: null, action: "staff.super_admin.bootstrapped", targetType: "staff", targetId: acct.id, metadata: { operator: input.operator.trim(), reason: input.reason.trim(), recovery: input.recovery, existingActive: active }, ip: null, requestId: null }),
       );
       return acct;
+    },
+
+    /** Whether two-factor sign-in is on, and whether a new authenticator is half set up. */
+    async twoFactorStatus(staffId: string): Promise<{ enabled: boolean; pending: boolean }> {
+      const staff = await o.db.withSystem((tx) => repo.findStaffById(tx, staffId));
+      if (!staff || staff.status !== "active") throw invalidSession();
+      return { enabled: staff.totpEnabled, pending: staff.totpPendingEncrypted !== null };
+    },
+
+    /** A new authenticator secret, kept aside until a code from it is entered (the active one keeps working until then). */
+    async startTwoFactorSetup(staffId: string, meta: RequestMeta): Promise<{ secret: string; uri: string }> {
+      const secret = newTotpSecret();
+      const email = await o.db.withSystem(async (tx) => {
+        const staff = await repo.findStaffByIdForUpdate(tx, staffId);
+        if (!staff || staff.status !== "active") throw invalidSession();
+        await repo.setTwoFactor(tx, staffId, { totpPendingEncrypted: encryptSecret(secret, o.encryptionKey) });
+        await repo.audit(tx, { staffId, action: "staff.two_factor.setup_started", ip: meta.ip, requestId: meta.requestId });
+        return staff.email;
+      });
+      return { secret, uri: totpUri(email, secret) };
+    },
+
+    /** Turns two-factor on with the secret being set up, proven by a current code from it. */
+    async enableTwoFactor(staffId: string, code: string, meta: RequestMeta): Promise<void> {
+      const ok = await o.db.withSystem(async (tx) => {
+        const staff = await repo.findStaffByIdForUpdate(tx, staffId);
+        if (!staff || staff.status !== "active" || !staff.totpPendingEncrypted) return false;
+        const step = await matchTotp(decryptSecret(staff.totpPendingEncrypted, o.encryptionKey), code, null);
+        if (step === null) {
+          await repo.audit(tx, { staffId, action: "staff.two_factor.enable_failed", ip: meta.ip, requestId: meta.requestId });
+          return false;
+        }
+        await repo.setTwoFactor(tx, staffId, { totpEnabled: true, totpSecretEncrypted: staff.totpPendingEncrypted, totpPendingEncrypted: null });
+        await repo.claimTotpStep(tx, staffId, step);
+        await repo.audit(tx, { staffId, action: "staff.two_factor.enabled", ip: meta.ip, requestId: meta.requestId });
+        return true;
+      });
+      if (!ok) throw new AppError("VALIDATION_FAILED", "That code does not match the authenticator being set up. Scan the code again and enter the newest 6 digits.");
+    },
+
+    /** Turns two-factor off; while it is on, a current code from the active authenticator is required. */
+    async disableTwoFactor(staffId: string, code: string, meta: RequestMeta): Promise<void> {
+      const ok = await o.db.withSystem(async (tx) => {
+        const staff = await repo.findStaffByIdForUpdate(tx, staffId);
+        if (!staff || staff.status !== "active") return false;
+        if (staff.totpEnabled) {
+          const step = await matchTotp(decryptSecret(staff.totpSecretEncrypted, o.encryptionKey), code, staff.lastTotpStep);
+          if (step === null || !(await repo.claimTotpStep(tx, staffId, step))) {
+            await recordFailure(tx, staffId, "bad_totp_disable", meta);
+            return false;
+          }
+        }
+        await repo.setTwoFactor(tx, staffId, { totpEnabled: false, totpPendingEncrypted: null });
+        await repo.audit(tx, { staffId, action: "staff.two_factor.disabled", ip: meta.ip, requestId: meta.requestId });
+        return true;
+      });
+      if (!ok) throw invalidCode();
     },
 
     /** The staff account still exists, is active and still has this role (tokens carry the role they were issued with). */

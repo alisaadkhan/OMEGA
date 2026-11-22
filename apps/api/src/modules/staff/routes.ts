@@ -2,10 +2,14 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
   staffLoginRequestSchema,
   staffLoginResponseSchema,
+  staffTwoFactorCodeSchema,
+  staffTwoFactorSetupSchema,
+  staffTwoFactorStatusSchema,
   staffMeResponseSchema,
   staffSessionResponseSchema,
   staffTotpRequestSchema,
 } from "@mushin/contracts";
+import { z } from "zod";
 import { AppError } from "@mushin/core";
 import { bearerToken } from "../../http/bearer";
 import type { PreHandler } from "../../http/types";
@@ -79,7 +83,11 @@ export function registerStaffRoutes(app: FastifyInstance, service: StaffService,
 
   app.post("/admin/v1/auth/login", async (req, reply) => {
     const body = parseInput(staffLoginRequestSchema, req.body);
-    return sendOk(reply, staffLoginResponseSchema, await service.login(body, metaOf(req)));
+    const r = await service.login(body, metaOf(req));
+    if (r.kind === "challenge") return sendOk(reply, staffLoginResponseSchema, { challengeToken: r.challengeToken });
+    // Two-factor off for this person (0094): the password alone starts the session.
+    setRefreshCookie(reply, r.session.refreshToken);
+    return sendOk(reply, staffLoginResponseSchema, { accessToken: r.session.accessToken, expiresInSeconds: r.session.expiresInSeconds, staff: r.session.staff });
   });
 
   app.post("/admin/v1/auth/totp", async (req, reply) => {
@@ -109,6 +117,28 @@ export function registerStaffRoutes(app: FastifyInstance, service: StaffService,
     await service.logout(req.cookies[REFRESH_COOKIE], metaOf(req));
     void reply.clearCookie(REFRESH_COOKIE, { path: cookiePathFor(reply.request), httpOnly: true, secure: true, sameSite: "strict" });
     return reply.status(204).send();
+  });
+
+  // Two-factor sign-in in Settings (owner, 22 Nov): each person sees, sets up, turns on or off their own.
+  const self = (req: FastifyRequest) => {
+    if (!req.staff) throw new AppError("UNAUTHENTICATED", "Admin authentication required");
+    return req.staff.staffId;
+  };
+  app.get("/admin/v1/security/two-factor", { preHandler: requireStaff("staff.two_factor.manage") }, async (req, reply) =>
+    sendOk(reply, staffTwoFactorStatusSchema, await service.twoFactorStatus(self(req))),
+  );
+  app.post("/admin/v1/security/two-factor/setup", { preHandler: requireStaff("staff.two_factor.manage") }, async (req, reply) =>
+    sendOk(reply, staffTwoFactorSetupSchema, await service.startTwoFactorSetup(self(req), metaOf(req))),
+  );
+  app.post("/admin/v1/security/two-factor/enable", { preHandler: requireStaff("staff.two_factor.manage") }, async (req, reply) => {
+    const { code } = parseInput(staffTwoFactorCodeSchema, req.body);
+    await service.enableTwoFactor(self(req), code, metaOf(req));
+    return sendOk(reply, staffTwoFactorStatusSchema, await service.twoFactorStatus(self(req)));
+  });
+  app.post("/admin/v1/security/two-factor/disable", { preHandler: requireStaff("staff.two_factor.manage") }, async (req, reply) => {
+    const { code } = parseInput(z.object({ code: z.string().max(6).default("") }), req.body);
+    await service.disableTwoFactor(self(req), code, metaOf(req));
+    return sendOk(reply, staffTwoFactorStatusSchema, await service.twoFactorStatus(self(req)));
   });
 
   app.get("/admin/v1/me", { preHandler: requireStaff("staff.me.read") }, async (req, reply) => {

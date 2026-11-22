@@ -6,7 +6,6 @@ export const staffLoginRequestSchema = z.object({
   email: z.string().trim().toLowerCase().min(3).max(254),
   password: z.string().min(1).max(200),
 });
-export const staffLoginResponseSchema = z.object({ challengeToken: z.string() });
 
 export const staffTotpRequestSchema = z.object({
   challengeToken: z.string().min(1).max(2000),
@@ -42,3 +41,11 @@ export const webauthnOptionsResponseSchema = z.object({ options: z.record(z.stri
 /** `enrolmentCode`: required for the first key (audit SEC-07), the one-time code issued with the account. */
 export const webauthnRegisterRequestSchema = z.object({ response: z.record(z.string(), z.unknown()), nickname: z.string().trim().min(1).max(60), enrolmentCode: z.string().trim().min(8).max(64).optional() });
 export const webauthnStepUpRequestSchema = z.object({ response: z.record(z.string(), z.unknown()) });
+
+/** Sign-in answer (0094): a challenge for the authenticator code when two-factor is on, otherwise the session. */
+export const staffLoginResponseSchema = z.union([z.object({ challengeToken: z.string() }), staffSessionResponseSchema]);
+
+/** Two-factor sign-in, managed by each staff member in Settings (owner, 22 Nov). */
+export const staffTwoFactorStatusSchema = z.object({ enabled: z.boolean(), pending: z.boolean() });
+export const staffTwoFactorSetupSchema = z.object({ secret: z.string(), uri: z.string() });
+export const staffTwoFactorCodeSchema = z.object({ code: z.string().regex(/^\d{6}$/, "must be a 6-digit code") });

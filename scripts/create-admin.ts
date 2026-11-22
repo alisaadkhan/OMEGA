@@ -20,6 +20,8 @@ const { values } = parseArgs({
     recovery: { type: "boolean", default: false },
     operator: { type: "string" },
     reason: { type: "string" },
+    // Two-factor sign-in starts off (owner, 22 Nov): the person turns it on in Settings. This flag turns it on now.
+    "two-factor": { type: "boolean", default: false },
   },
 });
 
@@ -35,14 +37,17 @@ if (!config.databaseCaPem) console.warn(UNVERIFIED_TLS_WARNING);
 const db = createDatabase(config.databaseUrl, { max: 1, applicationName: "mushin-create-admin", caPem: config.databaseCaPem });
 try {
   const staff = createStaffModule({ db, tokens: createStaffTokens(config.staffJwtSecret), encryptionKey: config.dataEncryptionKey, webauthn: config.webauthn });
+  const twoFactor = values["two-factor"];
   const acct = superAdmin
-    ? await staff.bootstrapSuperAdmin({ email: values.email, name: values.name, operator: values.operator ?? "", reason: values.reason ?? "", recovery: values.recovery })
-    : await staff.createStaffAccount({ email: values.email, name: values.name, role: values.role as "admin" | "support" });
+    ? await staff.bootstrapSuperAdmin({ email: values.email, name: values.name, operator: values.operator ?? "", reason: values.reason ?? "", recovery: values.recovery, twoFactor })
+    : await staff.createStaffAccount({ email: values.email, name: values.name, role: values.role as "admin" | "support", twoFactor });
   console.log(`\nCreated ${values.role} ${values.email}`);
   console.log(`Temporary password (shown once): ${acct.password}`);
-  console.log("\nScan this QR code with Google Authenticator, Microsoft Authenticator or 1Password:\n");
-  qrcode.generate(acct.totpUri, { small: true });
-  console.log(`If you cannot scan it, enter this key manually: ${acct.totpSecret}\n`);
+  if (twoFactor) {
+    console.log("\nScan this QR code with Google Authenticator, Microsoft Authenticator or 1Password:\n");
+    qrcode.generate(acct.totpUri, { small: true });
+    console.log(`If you cannot scan it, enter this key manually: ${acct.totpSecret}\n`);
+  } else console.log("Two-factor sign-in is off: sign in with this password, then turn it on in Settings > Two-factor sign-in.\n");
   // Audit SEC-07: hand this over separately from the password (in person or another channel); valid for 72 hours, once.
   if (acct.enrolmentCode) console.log(`Security key enrolment code (one use, 72 hours; give it separately): ${acct.enrolmentCode}\n`);
 } finally {

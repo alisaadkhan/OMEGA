@@ -12,6 +12,8 @@ const SUPER = ["super_admin"] as const;
 export const STAFF_PERMISSIONS = {
   "staff.me.read": ALL,
   "staff.security.read": ALL,
+  // Turning one's own two-factor sign-in on or off and setting it up (owner, 22 Nov).
+  "staff.two_factor.manage": ALL,
   // Support: tickets, redacted lookups, read-only diagnostics and consented, read-only workspace access.
   "ops.overview.read": ALL,
   "ops.alerts.read": ALL,

@@ -21,7 +21,7 @@ export async function findStaffByIdForUpdate(tx: SystemTx, id: string): Promise<
 
 export async function insertStaff(
   tx: SystemTx,
-  s: { email: string; name: string; passwordHash: string; totpSecretEncrypted: string; role: StaffRole },
+  s: { email: string; name: string; passwordHash: string; totpSecretEncrypted: string; role: StaffRole; totpEnabled?: boolean },
 ): Promise<string> {
   const rows = await tx.insert(staffUsers).values(s).returning({ id: staffUsers.id });
   const id = rows[0]?.id;
@@ -52,15 +52,15 @@ export async function chargeLoginAttempt(
   email: string,
   maxFailures: number,
   lockMinutes: number,
-): Promise<{ id: string; passwordHash: string } | null> {
-  const rows = await tx.execute<{ id: string; password_hash: string }>(sql`
+): Promise<{ id: string; passwordHash: string; totpEnabled: boolean } | null> {
+  const rows = await tx.execute<{ id: string; password_hash: string; totp_enabled: boolean }>(sql`
     update staff.staff_users set
       failed_login_count = ${nextFailureCount},
       locked_until = case when ${nextFailureCount} >= ${maxFailures} then now() + make_interval(mins => ${lockMinutes}) else null end
     where lower(email) = ${email.toLowerCase()} and status = 'active' and (locked_until is null or locked_until <= now())
-    returning id, password_hash`);
+    returning id, password_hash, totp_enabled`);
   const row = rows[0];
-  return row ? { id: row.id, passwordHash: row.password_hash } : null;
+  return row ? { id: row.id, passwordHash: row.password_hash, totpEnabled: row.totp_enabled } : null;
 }
 
 /** Undoes the charge of a sign-in attempt whose password was correct (and lifts a lock that charge caused). */
@@ -123,4 +123,9 @@ export async function liveStepUp(tx: SystemTx, staffId: string, stepUpId: string
     select 1 as ok from staff.step_ups s join staff.webauthn_credentials k on k.id = s.credential_id
     where s.id = ${stepUpId} and s.staff_id = ${staffId} and s.revoked_at is null and s.expires_at > ${now.toISOString()}::timestamptz and k.revoked_at is null`);
   return rows.length === 1;
+}
+
+/** Two-factor setting (0094): turn it on with a proven secret, turn it off, or park a secret being set up. */
+export async function setTwoFactor(tx: SystemTx, id: string, patch: { totpEnabled?: boolean; totpSecretEncrypted?: string; totpPendingEncrypted?: string | null }): Promise<void> {
+  await tx.update(staffUsers).set({ ...patch, updatedAt: new Date() }).where(eq(staffUsers.id, id));
 }
