@@ -394,9 +394,17 @@ if (phase === "main") {
   await shot(p, "03-profile");
 
   // ── 4. Lists ──
-  // The shortlist side panel: create a list inline (it is ticked), then save.
-  await panel.getByRole("button", { name: "Save to Shortlist" }).click();
-  const saveMenu = p.getByRole("dialog", { name: "Save to shortlist" });
+  // Saving to a shortlist is done by selecting creators in the results (owner, 22 Nov): the profile has no save button.
+  check("lists", "the creator profile has no Save to Shortlist button", (await panel.getByRole("button", { name: "Save to Shortlist" }).count()) === 0);
+  await closeAll(p);
+  const saveSelected = async (handle) => {
+    await search(p, handle);
+    await p.getByText(`@${handle}`).first().waitFor();
+    await p.getByRole("checkbox", { name: /^Select / }).first().click();
+    await p.getByRole("button", { name: "Add to List" }).click();
+    return p.getByRole("dialog", { name: "Save to shortlist" });
+  };
+  const saveMenu = await saveSelected(FX.main);
   await saveMenu.getByRole("button", { name: "Create New Shortlist" }).click();
   await saveMenu.getByLabel("New shortlist name").fill("Food shortlist");
   await saveMenu.getByRole("button", { name: "Create", exact: true }).click();
@@ -404,15 +412,14 @@ if (phase === "main") {
   await saveMenu.getByRole("button", { name: "Save to Selected Shortlists" }).click();
   await p.waitForTimeout(1500);
   await closeAll(p);
-  const fb = await openProfile(p, FX.second);
-  await fb.getByRole("button", { name: "Save to Shortlist" }).click();
-  const saveMenu2 = p.getByRole("dialog", { name: "Save to shortlist" });
+  if (await p.getByRole("button", { name: "Clear selection" }).isVisible().catch(() => false)) await p.getByRole("button", { name: "Clear selection" }).click();
+  const saveMenu2 = await saveSelected(FX.second);
   await saveMenu2.getByRole("checkbox", { name: /Food shortlist/ }).click();
   await saveMenu2.getByRole("button", { name: "Save to Selected Shortlists" }).click();
   await p.waitForTimeout(1500);
   await closeAll(p);
   let list = (await api("owner", "GET", "/v1/lists")).json.lists.find((l) => l.name === "Food shortlist");
-  check("lists", "two creators saved from profiles", list?.count === 2);
+  check("lists", "two creators saved by selecting them in the results", list?.count === 2);
   await nav(p, "Shortlists");
   await p.getByRole("button", { name: /Food shortlist/ }).first().click();
   await p.getByText(`@${FX.main}`).first().waitFor();
@@ -592,6 +599,16 @@ if (phase === "main") {
     const again = await api("owner", "POST", `/v1/creators/${withContact.id}/reveal`, { confirmedCost: 5 }, { "idempotency-key": `e2e-reveal-again-${label}` });
     check("profile", "revealing again is free (already revealed)", again.json?.charged === false && (await api("owner", "GET", "/v1/billing/summary")).json.balance.available === after, `${again.status} charged=${again.json?.charged}`);
     await closeAll(p);
+    // Reach out (owner, 22 Nov): opens the campaign's Outreach page with this creator; with no campaign, adding comes first.
+    {
+      const joined = (await api("owner", "GET", `/v1/campaigns?creatorId=${withContact.id}`)).json.campaigns.filter((c) => c.containsCreator && !c.archivedAt);
+      const ro = await openProfile(p, FX.second);
+      await ro.getByRole("button", { name: "Reach out" }).click();
+      await p.waitForTimeout(1500);
+      if (joined.length) check("reach-out", "Reach out opens the campaign Outreach tab", (await p.getByRole("tab", { name: "Outreach", selected: true }).count()) === 1);
+      else check("reach-out", "Reach out on a creator in no campaign asks to add them to one first", await p.getByText("Add to a campaign first").isVisible().catch(() => false));
+      await closeAll(p);
+    }
   }
   await shot(p, "05-billing");
 

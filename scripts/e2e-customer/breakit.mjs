@@ -156,8 +156,9 @@ check("SETUP-1", "campaign with the fixture creator exists", Boolean(campaignId)
   const p = await pageAs("owner");
   await p.goto("http://localhost:5173/#/dashboard");
   await nav(p, "Search & Discovery");
-  const note = p.getByTestId("search-fee-note");
-  check("FEE-1", "before searching, the page says a search costs its price when it finds creators and nothing when it finds none", /costs \d+ credits when it finds creators; a search that finds none is free/.test(await note.innerText({ timeout: 15000 }).catch(() => "")));
+  await p.getByPlaceholder(/Find Pakistani creators/).waitFor({ timeout: 15000 });
+  // Owner, 22 Nov: the search page no longer carries the fee note (the price is confirmed when a search is charged).
+  check("FEE-1", "the search page has no fee note", (await p.getByTestId("search-fee-note").count()) === 0);
   await p.context().close();
   const summary = await api("outsider", "GET", "/v1/billing/summary");
   const ta = summary.json?.testingAllowance;
@@ -314,8 +315,8 @@ check("SETUP-1", "campaign with the fixture creator exists", Boolean(campaignId)
   await input.press("Enter");
   await p.waitForTimeout(2500);
   check("SRCH-1", "a catalogue search makes no AI call", interpretCalls.length === 0, interpretCalls.length);
-  const suggest = p.getByRole("button", { name: "Suggest filters with AI" });
-  check("SRCH-2", "the AI reading is offered as a button", await suggest.isVisible());
+  // Owner, 22 Nov: no "Suggest filters with AI" button on the search page.
+  check("SRCH-2", "the search page offers no AI filter suggestion", (await p.getByRole("button", { name: "Suggest filters with AI" }).count()) === 0);
   const filters = p.getByRole("button", { name: /Filters/ }).first();
   if (await filters.isVisible().catch(() => false)) {
     await filters.click();

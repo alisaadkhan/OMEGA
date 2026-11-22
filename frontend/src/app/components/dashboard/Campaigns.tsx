@@ -14,14 +14,14 @@ import { ErrorState } from "./states";
  * Campaigns (owner design 2026-11-16): a hub of campaign cards and, per campaign, tabs for overview, creators,
  * pipeline, timeline, outreach, analytics and settings. Every figure comes from the campaign's own records.
  */
-export function Campaigns({ onOpenCreator, onGoToSearch, initialId = null }: { onOpenCreator: (c: Creator) => void; onGoToSearch: () => void; initialId?: string | null }) {
+export function Campaigns({ onOpenCreator, onGoToSearch, initialId = null, initialMailFor = null }: { onOpenCreator: (c: Creator) => void; onGoToSearch: () => void; initialId?: string | null; initialMailFor?: string | null }) {
   const [openId, setOpenId] = useState<string | null>(initialId);
   useEffect(() => setOpenId(initialId), [initialId]);
   return (
     <AnimatePresence mode="wait">
       {openId ? (
         <motion.div key="detail" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.3, ease: EASE }}>
-          <CampaignDetail id={openId} onBack={() => setOpenId(null)} onOpenCreator={onOpenCreator} onGoToSearch={onGoToSearch} />
+          <CampaignDetail key={`${openId}:${openId === initialId ? (initialMailFor ?? "") : ""}`} id={openId} initialMailFor={openId === initialId ? initialMailFor : null} onBack={() => setOpenId(null)} onOpenCreator={onOpenCreator} onGoToSearch={onGoToSearch} />
         </motion.div>
       ) : (
         <motion.div key="hub" initial={{ opacity: 0, x: -24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 24 }} transition={{ duration: 0.3, ease: EASE }}>

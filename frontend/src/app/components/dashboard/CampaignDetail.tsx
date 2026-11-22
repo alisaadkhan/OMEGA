@@ -24,11 +24,11 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "settings", label: "Settings" },
 ];
 
-export function CampaignDetail({ id, onBack, onOpenCreator, onGoToSearch }: { id: string; onBack: () => void; onOpenCreator: (c: Creator) => void; onGoToSearch: () => void }) {
+export function CampaignDetail({ id, onBack, onOpenCreator, onGoToSearch, initialMailFor = null }: { id: string; onBack: () => void; onOpenCreator: (c: Creator) => void; onGoToSearch: () => void; initialMailFor?: string | null }) {
   const campaign = useCampaign(id);
   const toast = useToast();
-  const [tab, setTab] = useState<Tab>("overview");
-  const [mailFor, setMailFor] = useState<string | null>(null);
+  const [tab, setTab] = useState<Tab>(initialMailFor ? "outreach" : "overview");
+  const [mailFor, setMailFor] = useState<string | null>(initialMailFor);
   if (campaign.isPending) return <div className="space-y-4"><Skeleton className="h-20" /><Skeleton className="h-10" /><Skeleton className="h-72" /></div>;
   if (campaign.isError) return <ErrorState body={campaign.error instanceof Error ? campaign.error.message : undefined} onRetry={() => void campaign.refetch()} />;
   const c = campaign.data;

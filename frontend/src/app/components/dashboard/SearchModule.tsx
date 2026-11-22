@@ -404,20 +404,6 @@ export function SearchModule({ liveJobId = null, onGoToCampaigns }: { liveJobId?
         </p>
       )}
 
-      {/* The fee before the click: a search that finds no eligible creator is free (owner decision 2026-10-28). */}
-      {searchCost !== null && (
-        <p className="text-xs text-slate-600" data-testid="search-fee-note">
-          Each new search costs {searchCost} credits when it finds creators; a search that finds none is free. Repeating the same search, changing page or sorting within 30 minutes is free.
-        </p>
-      )}
-
-      {query.trim() && !showInterpret && (
-        <button type="button" onClick={() => suggestFilters()} disabled={interpret.isPending} className="inline-flex items-center gap-1.5 self-start rounded-md border border-indigo-100 bg-white px-2.5 py-1 text-[11px] text-indigo-700 hover:bg-indigo-50 disabled:opacity-50">
-          <Wand2 className="h-3 w-3" strokeWidth={2} />
-          {interpret.isPending ? "Reading your search…" : "Suggest filters with AI"}
-        </button>
-      )}
-
       {/* AI interpretation (§7.2) — transparent, editable reading of the query */}
       <AnimatePresence>
         {showInterpret && (Object.keys(interpreted).length > 0 || (suggested !== null && extraChips(suggested.extra).length > 0)) && (

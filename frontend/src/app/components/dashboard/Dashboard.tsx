@@ -24,6 +24,7 @@ import { useCredits } from "../../../app/lib/credits";
 import { useLists } from "../../api/lists";
 import { useCampaigns } from "../../api/campaigns";
 import { CreatorProfilePanel, type Creator } from "./CreatorProfilePanel";
+import { REACH_OUT_EVENT, type ReachOut } from "../../lib/reach-out";
 
 export function Dashboard({ onExit }: { onExit: () => void }) {
   // After a session expired, signing in again reopens the page that was open (AUTH-08).
@@ -34,6 +35,7 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
   const [navKey, setNavKey] = useState(0);
   const navigate = (v: DashView) => {
     setOpenCampaignId(null);
+    setMailFor(null);
     setView(v);
     setNavKey((k) => k + 1);
   };
@@ -45,6 +47,19 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
   const credits = useCredits();
   const [omniCreator, setOmniCreator] = useState<Creator | null>(null);
   const [openCampaignId, setOpenCampaignId] = useState<string | null>(null);
+  const [mailFor, setMailFor] = useState<string | null>(null);
+  // Reach out on any creator profile opens that campaign's Outreach page with the creator selected (owner, 22 Nov).
+  useEffect(() => {
+    const on = (e: Event) => {
+      const { campaignId, creatorId } = (e as CustomEvent<ReachOut>).detail;
+      setOmniCreator(null);
+      setOpenCampaignId(campaignId);
+      setMailFor(creatorId);
+      setView("campaigns");
+    };
+    window.addEventListener(REACH_OUT_EVENT, on);
+    return () => window.removeEventListener(REACH_OUT_EVENT, on);
+  }, []);
   // First-run onboarding (owner design 2026-11-16): the welcome dialog once per user, then the optional tour.
   const [welcome, setWelcome] = useState(false);
   const [tour, setTour] = useState(false);
@@ -123,7 +138,7 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
               {view === "overview" && <Home setView={navigate} onOpenCreator={setOmniCreator} onTour={() => setTour(true)} onOpenCampaign={(id) => { setOpenCampaignId(id); setView("campaigns"); }} />}
               {view === "search" && <SearchModule liveJobId={liveJobId} onGoToCampaigns={() => setView("campaigns")} />}
               {view === "lists" && <Lists key={navKey} onOpenCreator={setOmniCreator} onGoToSearch={() => setView("search")} />}
-              {view === "campaigns" && <Campaigns key={navKey} initialId={openCampaignId} onOpenCreator={setOmniCreator} onGoToSearch={() => setView("search")} />}
+              {view === "campaigns" && <Campaigns key={navKey} initialId={openCampaignId} initialMailFor={mailFor} onOpenCreator={setOmniCreator} onGoToSearch={() => setView("search")} />}
               {view === "settings" && <Settings key={settingsTab} initialTab={settingsTab} onOpenSupport={() => setView("support")} onOpenBilling={() => setView("billing")} />}
               {view === "billing" && <Billing checkoutResult={checkoutResult} />}
               {view === "support" && <Support />}

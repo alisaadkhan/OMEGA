@@ -19,7 +19,6 @@ type Props = {
   onOpenNav?: () => void;
 };
 
-const PAGE_LABEL: Record<DashView, string> = { overview: "Dashboard", search: "Search & Discovery", lists: "Shortlists", campaigns: "Campaigns", settings: "Settings", billing: "Credits & billing", support: "Support" };
 
 const METER_STYLES = {
   normal: { box: "bg-cyan-pale/40 hover:bg-cyan-pale/70", icon: "text-teal", value: "text-teal-deep", title: "Credits" },
@@ -46,11 +45,7 @@ export function Topbar({ credits, view, setView, onOpenCreator, onViewResults, o
         </button>
         <span className="sm:hidden"><Logo /></span>
       </div>
-      <div className="hidden min-w-0 items-center gap-2 text-[13px] text-slate-500 md:flex">
-        <span>MUSHIN</span>
-        <span className="text-slate-300">/</span>
-        <span className="truncate font-semibold text-slate-900">{PAGE_LABEL[view]}</span>
-      </div>
+      <div className="hidden md:block" />
 
       <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
         <JobTray onOpenCreator={onOpenCreator} onViewResults={onViewResults} />
