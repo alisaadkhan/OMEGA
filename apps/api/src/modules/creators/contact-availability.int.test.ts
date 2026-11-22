@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { sql } from "drizzle-orm";
 import { searchFiltersSchema } from "@mushin/contracts";
 import { createLogger, type TenantContext } from "@mushin/core";
 import { createTestDatabase, createTestWorkspace, ownerQuery, resetTables } from "@mushin/db/testing";
@@ -60,17 +59,16 @@ describe("contact availability on cards and profiles", () => {
     await setStatus(badEmail, "invalid");
     await indexer.sync([withEmail, phoneOnly, badEmail, nothing]);
 
-    // Customer search shows only creators with a usable email (owner, 18 Nov): a phone alone, an address shown not to
-    // work, or no contact keeps a creator out of search, never out of the catalogue.
+    // Every qualifying creator is shown; a creator with a usable email comes first (owner, 22 Nov).
     const search = await creators.search(c, { text: "", filters: searchFiltersSchema.parse({}), confirmedCost: 50 });
-    expect(search.results.map((r) => r.displayName)).toEqual(["Has Email"]);
-    expect(search.total).toBe(1);
-    expect(search.results[0]).toMatchObject({ contactAvailability: "email_unverified", hasContact: true });
+    expect(search.results[0]?.displayName).toBe("Has Email");
+    expect(search.total).toBe(4);
+    const byName = new Map(search.results.map((r) => [r.displayName, r]));
+    expect(byName.get("Has Email")).toMatchObject({ contactAvailability: "email_unverified", hasContact: true });
+    expect(byName.get("Phone Only")).toMatchObject({ contactAvailability: "phone_unverified", hasContact: true });
+    expect(byName.get("Bad Email")).toMatchObject({ contactAvailability: "email_invalid", hasContact: false });
+    expect(byName.get("No Contact")).toMatchObject({ contactAvailability: "none", hasContact: false });
     expect(JSON.stringify(search)).not.toContain("collabs@sana.pk");
-    // The hidden records are intact: still stored, still active, their contacts unchanged.
-    const kept = await db.withSystem((tx) => tx.execute<{ n: number }>(sql`select count(*)::int n from gcp.creators where id in (${phoneOnly}::uuid, ${badEmail}::uuid, ${nothing}::uuid) and status = 'active'`));
-    expect(kept[0]?.n).toBe(3);
-    expect((await creators.profile(c, badEmail)).contactAvailability).toBe("email_invalid");
 
     const p = await creators.profile(c, withEmail);
     expect(p.contactAvailability).toBe("email_unverified");

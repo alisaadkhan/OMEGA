@@ -4,6 +4,7 @@ import * as repo from "./repository";
 import { hasCollabRoute } from "./contact-routes";
 import { contactAvailability, fitLabel, fitScore, freshnessOf, isContactable, nameKey } from "./rules";
 import { DEFAULT_SOURCE_POLICY, restrictsDerived, type SourcePolicy } from "./source-policy";
+import { hasUsableEmail } from "./visibility";
 
 type Tx = TenantTx | SystemTx;
 
@@ -28,9 +29,10 @@ function nameTier(text: string, name: string, handle: string): number {
  */
 export const relevanceTier = (score: number): number => Math.floor((score / 0.95) * 10 + 1e-6);
 
-export function toCards(rows: repo.CardRow[], req: { text: string; filters: SearchFilters }, settings: repo.SearchSettings, now: Date, relevance: Map<string, number>, policy: SourcePolicy = DEFAULT_SOURCE_POLICY, o: { byRelevance?: boolean } = {}): CreatorCard[] {
+export function toCards(rows: repo.CardRow[], req: { text: string; filters: SearchFilters }, settings: repo.SearchSettings, now: Date, relevance: Map<string, number>, policy: SourcePolicy = DEFAULT_SOURCE_POLICY, o: { byRelevance?: boolean; emailFirst?: boolean } = {}): CreatorCard[] {
   const tier = new Map(rows.map((r) => [r.id, nameTier(req.text, r.displayName, r.primaryHandle)]));
   const rel = (id: string) => (o.byRelevance ? relevanceTier(relevance.get(id) ?? 0) : 0);
+  const email = new Map(rows.map((r) => [r.id, o.emailFirst ? hasUsableEmail(r.contactStates) : false]));
   return rows
     .map((r) => {
       const followersFreshness = freshnessOf(r.followersUpdatedAt, now, settings.fresh);
@@ -73,8 +75,8 @@ export function toCards(rows: repo.CardRow[], req: { text: string; filters: Sear
     // An unknown count cannot satisfy an explicit numeric follower filter.
     .filter((card) => (req.filters.followersMin === undefined && req.filters.followersMax === undefined) || card.followers !== null)
     // A by-name match first; then (topic searches, 18 Nov) how relevant the creator is: relevance is never traded for
-    // reach or engagement; then (owner, 16 Nov) creators a customer can reach.
-    .sort((a, b) => (tier.get(a.id) ?? 2) - (tier.get(b.id) ?? 2) || rel(b.id) - rel(a.id) || Number(b.hasContact) - Number(a.hasContact) || b.fitScore - a.fitScore || (a.followers === null ? 1 : b.followers === null ? -1 : b.followers - a.followers) || a.id.localeCompare(b.id));
+    // reach or engagement; then creators with a usable email (owner, 22 Nov); then (owner, 16 Nov) any contact.
+    .sort((a, b) => (tier.get(a.id) ?? 2) - (tier.get(b.id) ?? 2) || rel(b.id) - rel(a.id) || Number(email.get(b.id) ?? false) - Number(email.get(a.id) ?? false) || Number(b.hasContact) - Number(a.hasContact) || b.fitScore - a.fitScore || (a.followers === null ? 1 : b.followers === null ? -1 : b.followers - a.followers) || a.id.localeCompare(b.id));
 }
 
 /** Cards for a live run's creators: hidden creators are left out (card rows apply the visibility rule); the AI already judged relevance, so text counts as matched. */

@@ -6,7 +6,7 @@ import type { SearchHit } from "@mushin/integrations";
 import { cityForms, expandQuery, normalizeQuery, type QueryGroup } from "./aliases";
 import type { PlanGroup } from "./understand-v2";
 import { nameKey as exactNameKey, SEARCH_FLOOR } from "./rules";
-import { CREATOR_VISIBLE, HAS_USABLE_EMAIL } from "./visibility";
+import { CREATOR_VISIBLE } from "./visibility";
 import type { RelevanceGroup, RelevancePlan } from "./relevance";
 
 /** Any form of a group as a tsquery (multi-word forms as phrases). */
@@ -80,8 +80,6 @@ export type CatalogSearchQuery = {
    * profiles; null or absent keeps the plain behaviour (name and handle searches).
    */
   relevance?: RelevancePlan | null;
-  /** Customer catalogue (owner, 18 Nov): only creators with a usable email. Name lookups and internal tools pass false. */
-  requireEmail?: boolean;
 };
 export type CatalogSearch = { search(query: CatalogSearchQuery, ctx: Pick<TenantContext, "userId" | "workspaceId">): Promise<{ hits: SearchHit[]; total: number }> };
 
@@ -107,7 +105,6 @@ export function createPostgresCatalogSearch(db: Db): CatalogSearch {
       );
     }
     if (SEARCH_FLOOR.minEngagementRate !== null) conditions.push(sql`(d.engagement_rate is null or d.engagement_rate >= ${SEARCH_FLOOR.minEngagementRate})`);
-    if (query.requireEmail) conditions.push(HAS_USABLE_EMAIL);
     // Recognised niche and city words (English, Roman Urdu, Urdu script, city short forms) match any of their reviewed
     // forms; a city also matches the creator's own declared city. Without a recognised word the query is unchanged.
     const groups: (QueryGroup | PlanGroup)[] | null = query.plan?.length ? query.plan : expandQuery(text);

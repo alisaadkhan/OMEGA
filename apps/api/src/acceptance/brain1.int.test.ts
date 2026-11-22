@@ -205,7 +205,7 @@ describe("Brain 1 catalogue search (B1)", () => {
     expect(r.keys).toContain("F13");
   });
 
-  it("B1-18 contact availability is shown without the contact value; creators without a usable email are not in customer search (18 Nov)", async () => {
+  it("B1-18 contact availability is shown without the contact value; creators with a usable email come first (22 Nov)", async () => {
     const u = await newUser();
     const phoneOnly = await synthetic({ name: "Phone Only Food", handle: "syn_phone_only", niches: ["Food"], bio: "Food reviews", contacts: [{ kind: "phone", value: "+923001234567", trust: "unverified", source: "bio" }] });
     const none = await synthetic({ name: "No Contact Food", handle: "syn_no_contact", niches: ["Food"], bio: "Food reviews", contacts: [] });
@@ -215,11 +215,15 @@ describe("Brain 1 catalogue search (B1)", () => {
     expect(r.keys).toContain("F14");
     expect(f14).toMatchObject({ hasContact: true, contactAvailability: expect.stringMatching(/^email_/) });
     expect(JSON.stringify(r.body)).not.toContain("f14@synthetic.invalid");
+    // Creators without an email are still shown, after every creator with one.
     const ids = (r.body["results"] as Record<string, unknown>[]).map((c) => c["id"]);
-    expect(ids).not.toContain(phoneOnly);
-    expect(ids).not.toContain(none);
-    // Hidden, not deleted.
-    expect(await owner<{ n: number }>(`select count(*)::int n from gcp.creators where id in ('${phoneOnly}', '${none}') and status = 'active'`)).toEqual([{ n: 2 }]);
+    expect(ids).toEqual(expect.arrayContaining([phoneOnly, none]));
+    // Same niche, city and bio as F14 (equally relevant): F14, which has an email, ranks above both.
+    const f14Id = f14?.["id"];
+    expect(ids.indexOf(phoneOnly)).toBeGreaterThan(ids.indexOf(f14Id));
+    expect(ids.indexOf(none)).toBeGreaterThan(ids.indexOf(f14Id));
+    // The shared catalogue's exact-set cases below must not see these two.
+    await owner(`delete from gcp.creator_search_documents where creator_id in ('${phoneOnly}', '${none}'); delete from gcp.creators where id in ('${phoneOnly}', '${none}')`);
   });
 
   it("B1-19 a signed-out request is refused before any search runs", async () => {

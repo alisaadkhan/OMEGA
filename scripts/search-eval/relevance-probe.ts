@@ -3,8 +3,8 @@
  * against a local catalogue and prints the returned creators with their niches and the evidence they matched on, so
  * results are inspected rather than counted. Read-only.
  *
- *   node --import tsx scripts/search-eval/relevance-probe.ts --db mushin_catalog_v4 [--old | --any-contact] pubg health "pubg mobile"
- * --old: the previous matching (no relevance plan, no email rule); --any-contact: the new matching without the email rule.
+ *   node --import tsx scripts/search-eval/relevance-probe.ts --db mushin_catalog_v4 [--old] pubg health "pubg mobile"
+ * --old: the previous matching (no relevance plan).
  */
 import { parseArgs } from "node:util";
 import { sql } from "drizzle-orm";
@@ -14,7 +14,7 @@ import { createPostgresCatalogSearch } from "../../apps/api/src/modules/creators
 import { understandQuery } from "../../apps/api/src/modules/creators/understand";
 import { relevancePlan } from "../../apps/api/src/modules/creators/relevance";
 
-const { values, positionals } = parseArgs({ allowPositionals: true, options: { db: { type: "string", default: "mushin_catalog_v4" }, old: { type: "boolean", default: false }, top: { type: "string", default: "15" }, json: { type: "boolean", default: false }, "any-contact": { type: "boolean", default: false } } });
+const { values, positionals } = parseArgs({ allowPositionals: true, options: { db: { type: "string", default: "mushin_catalog_v4" }, old: { type: "boolean", default: false }, top: { type: "string", default: "15" }, json: { type: "boolean", default: false } } });
 if (!/^mushin_catalog_[a-z0-9_]+$/.test(values.db ?? "")) throw new Error("--db must name a local catalogue");
 const db = createDatabase(`postgres://postgres@127.0.0.1:54330/${values.db}`, { max: 2, applicationName: "relevance-probe" });
 // Read-only probe: the tenant wrapper is the system one (no workspace needed for reading the projection).
@@ -24,7 +24,7 @@ const out: Record<string, unknown> = {};
 for (const raw of positionals) {
   const u = understandQuery(raw);
   const relevance = values.old ? null : relevancePlan(u.text);
-  const { hits, total } = await search.search({ text: u.text, boost: u.optional, filters: searchFiltersShape.parse({}), freshCurrentDays: 30, now: new Date(), limit: 200, relevance, requireEmail: !values.old && !values["any-contact"] }, { userId: "probe", workspaceId: "probe" });
+  const { hits, total } = await search.search({ text: u.text, boost: u.optional, filters: searchFiltersShape.parse({}), freshCurrentDays: 30, now: new Date(), limit: 200, relevance }, { userId: "probe", workspaceId: "probe" });
   const ids = hits.slice(0, Number(values.top)).map((h) => h.id);
   const rows = ids.length
     ? await db.withSystem((tx) => tx.execute<{ id: string; name: string; niches: string[]; tags: string[]; bio: string }>(sql`select creator_id id, display_name name, niches, tags, left(regexp_replace(bio, '[[:space:]]+', ' ', 'g'), 90) bio from gcp.creator_search_documents where creator_id in (${sql.join(ids.map((i) => sql`${i}::uuid`), sql`, `)})`))
