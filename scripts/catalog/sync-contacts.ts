@@ -41,7 +41,9 @@ if (!localKey || !liveKey) throw new Error("DATA_ENCRYPTION_KEY (or LOCAL_/LIVE_
 const caPem = readCaFile(process.env["DATABASE_SSL_CA_FILE"]);
 const isLocal = u.hostname === "127.0.0.1" || u.hostname === "localhost";
 const src = postgres(`postgres://postgres@127.0.0.1:54330/${dbName}`, { max: 1, onnotice: () => {} });
-const dst = postgres(target, { max: 1, onnotice: () => {}, ssl: isLocal ? false : caPem ? { ca: caPem, rejectUnauthorized: true } : { rejectUnauthorized: false } });
+// Contacts are personal data: the live connection must verify the server's certificate (no unverified fallback).
+if (!isLocal && !caPem) throw new Error("DATABASE_SSL_CA_FILE is required to copy contacts to the live database");
+const dst = postgres(target, { max: 1, onnotice: () => {}, ssl: isLocal ? false : { ca: caPem as string, rejectUnauthorized: true } });
 
 type Contact = {
   id: string; creator_id: string; kind: string; value_encrypted: string; value_hash: string; masked: string; trust: string; source: string;
