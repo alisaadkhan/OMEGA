@@ -46,6 +46,8 @@ export const STAFF_PERMISSIONS = {
   // One account's plan, credits and members, and subscription totals (owner, 22 Nov: staff Users and Subscriptions pages).
   "ops.account.read": ADMIN,
   "ops.subscriptions.read": ADMIN,
+  // Suspending or restoring a customer account (owner, 22 Nov), with a reason and the hardware key.
+  "ops.account.suspend": ADMIN,
   "staff.list": ADMIN,
   "approvals.read": ADMIN,
   "approvals.request": ADMIN,
@@ -60,6 +62,8 @@ export const STAFF_PERMISSIONS = {
   "staff.manage": SUPER,
   // A complimentary plan for an account (owner, 22 Nov: "assign plan" on the Users page), with the hardware key.
   "billing.plan.grant": SUPER,
+  // Plan credits, shown prices and action credit costs (owner, 22 Nov).
+  "billing.pricing.manage": SUPER,
   // Owner decision 2026-10-19: only the platform owners approve, reject or look up trials, and read trial feedback.
   "trials.decide": SUPER,
   "trials.feedback.read": SUPER,

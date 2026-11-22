@@ -4,6 +4,7 @@ import { CreditCard, Gift, Layers, Receipt } from "lucide-react";
 import { staffSubscriptionsSchema } from "@mushin/contracts";
 import { adminRequest } from "../../admin/adminApi";
 import { ErrorState, LoadingBlock } from "../dashboard/states";
+import { PricingCard } from "./PricingCard";
 import { Badge, Card, CardTitle, DataTable, Empty, Kpi, PageHeader, SearchInput, errText, fmtNum, fmtWhen } from "./kit";
 
 const money = (minor: number, currency: string) => `${currency === "PKR" ? "Rs." : currency} ${fmtNum(Math.round(minor / 100))}`;
@@ -13,7 +14,7 @@ const money = (minor: number, currency: string) => `${currency === "PKR" ? "Rs."
  * provider recorded. Revenue is shown only from recorded payments: there is no estimate, and no manual invoice entry,
  * because billing records come from the payment provider alone.
  */
-export function SubscriptionsPage() {
+export function SubscriptionsPage({ canEditPricing }: { canEditPricing: boolean }) {
   const q = useQuery({ queryKey: ["admin", "subscriptions"], queryFn: () => adminRequest("/admin/v1/ops/subscriptions", staffSubscriptionsSchema), refetchInterval: 60_000 });
   const [text, setText] = useState("");
   if (q.isPending) return <LoadingBlock lines={6} />;
@@ -60,6 +61,7 @@ export function SubscriptionsPage() {
           ))}
         </div>
       </Card>
+      <PricingCard canEdit={canEditPricing} />
       <Card label="Payments">
         <CardTitle title="Recent payments" sub="Recorded by the payment provider, newest first (the last 100)" right={<div className="w-56"><SearchInput value={text} onChange={setText} placeholder="Filter by account…" label="Filter payments by account" /></div>} />
         {d.payments.length === 0 ? <Empty title="No payments recorded yet" body="Payments appear here once the payment provider is live and a customer pays." /> : (

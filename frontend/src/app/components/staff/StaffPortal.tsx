@@ -15,6 +15,7 @@ import { TrialRequests } from "../admin/TrialRequests";
 import { ProductReviews, UsageInsights } from "../admin/Insights";
 import { ALL_VIEWS, viewFromHash, type StaffView } from "./nav";
 import { CreatorChecksPage } from "./CreatorChecksPage";
+import { HealthPage } from "./HealthPage";
 import { IntegrationsCard } from "./IntegrationsCard";
 import { OverviewPage } from "./OverviewPage";
 import { SettingsPage } from "./SettingsPage";
@@ -70,8 +71,9 @@ export function StaffPortal() {
   return (
     <StaffShell admin={admin} view={current} onView={go} onSignOut={() => void signOut()}>
       {current === "overview" && <OverviewPage canTest={isAdmin} />}
+      {current === "health" && <HealthPage canTest={isAdmin} />}
       {current === "users" && <UsersPage role={role} />}
-      {current === "subscriptions" && <SubscriptionsPage />}
+      {current === "subscriptions" && <SubscriptionsPage canEditPricing={role === "super_admin"} />}
       {current === "tickets" && <SupportQueue me={admin.id} canAssignOthers={isAdmin} role={role} />}
       {current === "scans" && <OpsJobs canAct={isAdmin} />}
       {current === "sources" && (

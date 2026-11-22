@@ -25,6 +25,19 @@ export const staffAccountSchema = z.object({
   /** Newest first, at most 25 rows of the workspace's credit ledger (holds and releases left out). */
   ledger: z.array(z.object({ id: z.uuid(), kind: z.string(), action: z.string().nullable(), amount: z.number().int(), note: z.string().nullable(), byStaff: z.boolean(), createdAt: iso })),
   members: z.array(z.object({ name: z.string().nullable(), email: z.string(), role: z.string(), joinedAt: iso })),
+  /** Everything the account did (owner, 22 Nov: "a user's entire history"). Search text is never stored, only counts. */
+  history: z.object({
+    lists: z.array(z.object({ id: z.uuid(), name: z.string(), creators: count, createdAt: iso })),
+    campaigns: z.array(z.object({ id: z.uuid(), name: z.string(), status: z.string(), creators: count, createdAt: iso })),
+    searches: z.object({ total: count, last30Days: count, charged: count, recent: z.array(z.object({ at: iso, results: count, charged: z.boolean(), filters: count, hadText: z.boolean() })) }),
+    savedSearches: z.array(z.object({ name: z.string(), queryText: z.string(), createdAt: iso })),
+    jobs: z.array(z.object({ id: z.uuid(), kind: z.string(), status: z.string(), brief: z.string().nullable(), handle: z.string().nullable(), creditsCharged: count, createdAt: iso })),
+    payments: z.array(z.object({ kind: z.string(), amountMinor: z.number().int(), currency: z.string(), status: z.string(), refundedMinor: z.number().int(), createdAt: iso })),
+    revealedContacts: count,
+    emailsSent: count,
+    /** Staff suspended this account: its people are refused at sign-in. */
+    suspended: z.boolean(),
+  }),
 });
 export type StaffAccount = z.infer<typeof staffAccountSchema>;
 
@@ -56,3 +69,25 @@ export const staffIntegrationsSchema = z.object({
   ),
 });
 export type StaffIntegrations = z.infer<typeof staffIntegrationsSchema>;
+
+export const staffSuspendSchema = z.object({ reason: z.string().trim().min(12).max(1000) });
+export const staffSuspendResultSchema = z.object({ suspended: z.boolean(), people: count });
+
+/** Plan terms and credit costs (owner, 22 Nov). The provider's charge is shown, not edited. */
+export const staffPricingSchema = z.object({
+  plans: z.array(
+    z.object({
+      id: z.enum(["explorer", "growth", "scale"]),
+      name: z.string(),
+      monthlyCredits: count,
+      displayCurrency: z.string(),
+      displayMonthlyMinor: count,
+      chargeCurrency: z.string(),
+      chargeMonthlyMinor: count,
+    }),
+  ),
+  actions: z.array(z.object({ action: z.string(), credits: count, updatedAt: iso })),
+});
+export type StaffPricing = z.infer<typeof staffPricingSchema>;
+export const staffPlanTermsSchema = z.object({ monthlyCredits: z.number().int().min(0).max(1_000_000), displayMonthlyMinor: z.number().int().min(0).max(1_000_000_000), reason: z.string().trim().min(12).max(1000) });
+export const staffActionCostSchema = z.object({ credits: z.number().int().min(0).max(100_000), reason: z.string().trim().min(12).max(1000) });

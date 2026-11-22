@@ -1,13 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
-import { BarChart3, CheckCircle2, CreditCard, Database, Eye, Flag, LayoutGrid, LifeBuoy, Radar, Settings, Shield, ShieldCheck, Trash2, UserCog, Users, type LucideIcon } from "lucide-react";
+import { Activity, BarChart3, CheckCircle2, CreditCard, Database, Eye, Flag, LayoutGrid, LifeBuoy, Radar, Settings, Shield, ShieldCheck, Trash2, UserCog, Users, type LucideIcon } from "lucide-react";
 import { creatorFlagListSchema, staffAlertsSchema, staffOverviewSchema } from "@mushin/contracts";
 import type { AdminRole } from "../../admin/AdminAuthContext";
 import { adminRequest } from "../../admin/adminApi";
 
 /** Staff portal sections (owner design, 22 Nov). The server enforces every permission again; this only hides links. */
 export type StaffView =
-  | "overview" | "users" | "subscriptions" | "tickets" | "scans" | "sources"
+  | "overview" | "health" | "users" | "subscriptions" | "tickets" | "scans" | "sources"
   | "checks" | "reports" | "removals"
   | "approvals" | "staff" | "trials" | "activity" | "access" | "settings";
 
@@ -21,6 +21,7 @@ export const NAV: { group: string; items: NavItem[] }[] = [
     group: "System",
     items: [
       { id: "overview", label: "Overview", icon: LayoutGrid, roles: ALL },
+      { id: "health", label: "System Health", icon: Activity, roles: ALL },
       { id: "users", label: "Users", icon: Users, roles: ALL },
       { id: "subscriptions", label: "Subscriptions", icon: CreditCard, roles: ADMINS },
       { id: "tickets", label: "Tickets", icon: LifeBuoy, roles: ALL, badge: "tickets" },

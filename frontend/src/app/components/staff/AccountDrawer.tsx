@@ -1,11 +1,12 @@
 import { useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { activityFeedSchema, approvalSchema, staffAccountSchema, staffPlanGrantResultSchema, type StaffWorkspace } from "@mushin/contracts";
+import { activityFeedSchema, approvalSchema, staffAccountSchema, staffPlanGrantResultSchema, staffSuspendResultSchema, type StaffWorkspace } from "@mushin/contracts";
 import type { AdminRole } from "../../admin/AdminAuthContext";
 import { adminRequest } from "../../admin/adminApi";
 import { useToast } from "../../lib/toast";
 import { ErrorState, LoadingBlock } from "../dashboard/states";
 import { needsKey, useStepUp } from "../admin/staff-ui";
+import { AccountHistory } from "./AccountHistory";
 import { Badge, Drawer, errText, fmtAgo, fmtNum, fmtWhen } from "./kit";
 
 const PLANS = [
@@ -106,6 +107,34 @@ function AddCredits({ workspaceId, role, onDone }: { workspaceId: string; role: 
   );
 }
 
+function SuspendAccount({ workspaceId, suspended, onDone }: { workspaceId: string; suspended: boolean; onDone: () => void }) {
+  const keyed = useKeyed();
+  const toast = useToast();
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const r = await keyed(() => adminRequest(`/admin/v1/ops/workspaces/${workspaceId}/${suspended ? "restore" : "suspend"}`, staffSuspendResultSchema, { method: "POST", body: { reason: reason.trim() } }));
+      toast.success(r.suspended ? "Account suspended" : "Account restored", `${r.people} ${r.people === 1 ? "person" : "people"} affected.`);
+      setReason("");
+      onDone();
+    } catch (err) {
+      toast.error("Not changed", errText(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <form onSubmit={(e) => void submit(e)} className={`space-y-2 rounded-xl border p-3 ${suspended ? "border-amber-200 bg-amber-50/50" : "border-rose-200 bg-rose-50/40"}`}>
+      <p className="text-[11.5px] text-slate-700">{suspended ? "This account is suspended: its people cannot sign in or use MUSHIN." : "Suspending stops everyone in this account from signing in or using MUSHIN until it is restored. Nothing is deleted."}</p>
+      <input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={1000} placeholder="Reason (at least 12 characters)" aria-label={suspended ? "Reason to restore" : "Reason to suspend"} className={input} />
+      <button type="submit" disabled={busy || reason.trim().length < 12} className={`w-full rounded-xl px-3 py-2 text-xs font-semibold text-white disabled:opacity-50 ${suspended ? "bg-emerald-700 hover:bg-emerald-800" : "bg-rose-600 hover:bg-rose-700"}`}>{busy ? "Working…" : suspended ? "Restore account" : "Suspend account"}</button>
+    </form>
+  );
+}
+
 export function AccountDrawer({ workspace, role, onClose }: { workspace: StaffWorkspace; role: AdminRole; onClose: () => void }) {
   const qc = useQueryClient();
   const admin = role !== "support";
@@ -152,12 +181,14 @@ export function AccountDrawer({ workspace, role, onClose }: { workspace: StaffWo
           <Section title={`People (${a.members.length})`}>
             <ul className="space-y-1.5">{a.members.map((m) => <li key={m.email} className="flex items-center justify-between rounded-xl border border-slate-200/80 bg-slate-50 p-2.5"><span className="min-w-0 truncate"><span className="font-semibold text-slate-900">{m.name ?? m.email}</span> <span className="text-slate-500">{m.name ? m.email : ""}</span></span><Badge tone={m.role === "owner" ? "slate" : "cyan"}>{m.role}</Badge></li>)}</ul>
           </Section>
+          <AccountHistory h={a.history} />
           <Section title="Recent activity">
             {feed.isPending ? <LoadingBlock lines={3} /> : feed.isError ? <ErrorState body={errText(feed.error)} /> : feed.data.events.length === 0 ? <p className="text-slate-500">No activity recorded.</p> : (
               <ul className="space-y-1.5">{feed.data.events.map((e) => <li key={e.id} className="flex items-center justify-between gap-2 rounded-xl border border-slate-200/80 bg-slate-50 p-2.5"><span className="min-w-0 truncate text-slate-800">{e.actor?.name ?? "Someone"} {e.text}</span><span className="shrink-0 font-mono text-[10px] text-slate-400">{fmtAgo(e.at)}</span></li>)}</ul>
             )}
           </Section>
           <Section title="Add credits"><AddCredits workspaceId={workspace.id} role={role} onDone={refresh} /></Section>
+          <Section title={a.history.suspended ? "Suspended" : "Suspend account"}><SuspendAccount workspaceId={workspace.id} suspended={a.history.suspended} onDone={refresh} /></Section>
           {role === "super_admin" && <Section title="Assign plan"><AssignPlan workspaceId={workspace.id} onDone={refresh} /></Section>}
         </>
       ) : null}

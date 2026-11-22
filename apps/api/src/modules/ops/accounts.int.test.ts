@@ -50,13 +50,15 @@ describe("staff Users and Subscriptions pages (owner, 22 Nov)", () => {
     const ws = (await app.inject({ method: "GET", url: "/v1/me", headers: owner })).json().workspace.id as string;
     const admin = await keyed("admin");
 
+    await ownerQuery(`insert into wp.lists (workspace_id, name, created_by) select '${ws}', 'Eid shortlist', owner_user_id from wp.workspaces where id = '${ws}'`);
     const res = await app.inject({ method: "GET", url: `/admin/v1/ops/workspaces/${ws}/account`, headers: admin });
-    expect(res.statusCode).toBe(200);
+    expect(res.statusCode, res.body).toBe(200);
     const a = res.json();
     expect(a.plan).toMatchObject({ status: "trialing", complimentary: false });
     expect(a.credits.available).toBeGreaterThan(0);
     expect(a.members).toEqual([expect.objectContaining({ email: "ayesha@brand.pk", role: "owner" })]);
     expect(a.ledger[0]).toMatchObject({ kind: "grant", byStaff: false });
+    expect(a.history).toMatchObject({ lists: [expect.objectContaining({ name: "Eid shortlist", creators: 0 })], campaigns: [], searches: { total: 0 }, payments: [], revealedContacts: 0, emailsSent: 0 });
     expect((await app.inject({ method: "GET", url: `/admin/v1/ops/workspaces/${randomUUID()}/account`, headers: admin })).statusCode).toBe(404);
     expect((await app.inject({ method: "GET", url: `/admin/v1/ops/workspaces/${ws}/account`, headers: owner })).statusCode).toBe(401);
 
@@ -71,12 +73,41 @@ describe("staff Users and Subscriptions pages (owner, 22 Nov)", () => {
     const after = (await app.inject({ method: "GET", url: `/admin/v1/ops/workspaces/${ws}/account`, headers: admin })).json();
     expect(after.plan).toMatchObject({ id: "growth", status: "active", complimentary: true });
 
+    // Suspension (owner, 22 Nov): the customer is refused until staff restore the account.
+    const why = { reason: "Payment dispute under review" };
+    expect((await app.inject({ method: "POST", url: `/admin/v1/ops/workspaces/${ws}/suspend`, headers: admin, payload: why })).json()).toEqual({ suspended: true, people: 1 });
+    const refused = await app.inject({ method: "GET", url: "/v1/me", headers: owner });
+    expect(refused.statusCode).toBe(403);
+    expect(refused.json().error.details).toMatchObject({ reason: "account_suspended" });
+    expect((await app.inject({ method: "GET", url: `/admin/v1/ops/workspaces/${ws}/account`, headers: admin })).json().history.suspended).toBe(true);
+    expect((await app.inject({ method: "POST", url: `/admin/v1/ops/workspaces/${ws}/restore`, headers: admin, payload: why })).json()).toEqual({ suspended: false, people: 1 });
+    expect((await app.inject({ method: "GET", url: "/v1/me", headers: owner })).statusCode).toBe(200);
+
+    // Plan terms and credit costs: everyone with Subscriptions reads them; only a Super Admin changes them.
+    const pricing = (await app.inject({ method: "GET", url: "/admin/v1/ops/pricing", headers: admin })).json() as { plans: { id: string; monthlyCredits: number }[]; actions: { action: string; credits: number }[] };
+    expect(pricing.plans.map((p) => p.id)).toEqual(["explorer", "growth", "scale"]);
+    const terms = { monthlyCredits: 13_000, displayMonthlyMinor: 1_390_000, reason: "Owner raised Growth for the launch" };
+    expect((await app.inject({ method: "PUT", url: "/admin/v1/ops/pricing/plans/growth", headers: admin, payload: terms })).statusCode).toBe(403);
+    const changed = (await app.inject({ method: "PUT", url: "/admin/v1/ops/pricing/plans/growth", headers: sup, payload: terms })).json() as typeof pricing;
+    expect(changed.plans.find((p) => p.id === "growth")).toMatchObject({ monthlyCredits: 13_000, displayMonthlyMinor: 1_390_000 });
+    const cost = (await app.inject({ method: "PUT", url: "/admin/v1/ops/pricing/actions/reveal_contact", headers: sup, payload: { credits: 7, reason: "Owner set contact unlocks to 7" } })).json() as typeof pricing;
+    expect(cost.actions.find((a) => a.action === "reveal_contact")?.credits).toBe(7);
+    expect((await app.inject({ method: "PUT", url: "/admin/v1/ops/pricing/actions/no_such", headers: sup, payload: { credits: 7, reason: "This action does not exist" } })).statusCode).toBe(404);
+
+    // System Health (owner, 22 Nov): measured now; nothing defaults to healthy.
+    const hres = await app.inject({ method: "GET", url: "/admin/v1/ops/health", headers: admin });
+    expect(hres.statusCode, hres.body).toBe(200);
+    const health = hres.json() as { checks: { key: string; state: string; detail: string }[] };
+    expect(health.checks.find((c) => c.key === "database")?.state).toBe("ok");
+    expect(health.checks.find((c) => c.key === "migrations")?.detail).toMatch(/migrations applied, latest 00\d\d_/);
+    expect(health.checks.map((c) => c.key)).toEqual(expect.arrayContaining(["search", "worker", "outbox", "jobs", "meilisearch", "email", "payments"]));
+
     const totals = await app.inject({ method: "GET", url: "/admin/v1/ops/subscriptions", headers: admin });
     expect(totals.statusCode).toBe(200);
     expect(totals.json()).toMatchObject({ accounts: 1, withoutPlan: 0, payments: [] });
     expect(totals.json().plans.find((p: { id: string }) => p.id === "growth")).toMatchObject({ accounts: 1, complimentary: 1, paying: 0 });
 
     const audit = await ownerQuery<{ action: string }>(`select action from staff.audit_log order by created_at`);
-    expect(audit.map((e) => e.action)).toEqual(expect.arrayContaining(["ops.account.viewed", "billing.plan.granted"]));
+    expect(audit.map((e) => e.action)).toEqual(expect.arrayContaining(["ops.account.viewed", "billing.plan.granted", "ops.account.suspended", "ops.account.restored"]));
   });
 });

@@ -60,6 +60,8 @@ export function createIdentityService(db: Db, autoTrial: StartTrial | null, test
     const { existing, access } = await db.withUser(identity.userId, async (tx) => ({ existing: await repo.findMembership(tx, identity.userId, requested), access: await repo.userAccess(tx, identity.userId) }));
     // A deleted account stays deleted: signing in again does not bring it (or a fresh workspace) back.
     if (access?.status === "deleted") throw new AppError("FORBIDDEN", "This account was deleted.", { reason: "account_deleted" });
+    // Suspended by MUSHIN staff (owner, 22 Nov): nothing is reachable until staff restore the account.
+    if (access?.status === "suspended") throw new AppError("FORBIDDEN", "This account is suspended. Contact MUSHIN support to restore it.", { reason: "account_suspended" });
     // Two-step sign-in (0091): a session that has not passed the second step gets nothing for a person who turned it on.
     if (access?.mfaEnabled && identity.aal !== "aal2" && !opts?.twoStepExempt) {
       throw new AppError("FORBIDDEN", "Enter the code from your authenticator app to finish signing in.", { reason: "two_step_required" });

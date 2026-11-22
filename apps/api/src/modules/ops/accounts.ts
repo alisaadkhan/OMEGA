@@ -1,7 +1,7 @@
 import { and, desc, eq, gte, notInArray, sql } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { staffAccountSchema, staffPlanGrantResultSchema, staffPlanGrantSchema, staffSubscriptionsSchema } from "@mushin/contracts";
+import { staffAccountSchema, staffPlanGrantResultSchema, staffPlanGrantSchema, staffSubscriptionsSchema, staffSuspendResultSchema, staffSuspendSchema } from "@mushin/contracts";
 import { AppError } from "@mushin/core";
 import { creditLedger, plans, subscriptions, workspaces, type Db } from "@mushin/db";
 import type { PreHandler } from "../../http/types";
@@ -31,6 +31,9 @@ export function registerAccountRoutes(
 
   app.get("/admin/v1/ops/workspaces/:id/account", { preHandler: o.requireStaff("ops.account.read") }, async (req, reply) => {
     const { id } = parseInput(idParams, req.params);
+    // The history is read through the staff function: customer rows are not open to the API's database role.
+    const [h] = await o.db.withSystem((tx) => tx.execute<{ v: unknown }>(sql`select platform.staff_workspace_history(${id}) v`));
+    const history = staffAccountSchema.shape.history.parse(h?.v);
     const since = new Date(o.now().getTime() - 30 * DAY);
     const account = await o.db.withWorkspace(id, async (tx) => {
       const [w] = await tx.select({ id: workspaces.id }).from(workspaces).where(and(eq(workspaces.id, id), eq(workspaces.status, "active")));
@@ -63,6 +66,7 @@ export function registerAccountRoutes(
         credits: { available: balance.available, reserved: balance.reserved, spent30d: Math.max(0, Number(sums?.spent ?? 0)), granted30d: Math.max(0, Number(sums?.granted ?? 0)) },
         ledger: ledger.map((l) => ({ id: l.id, kind: l.kind, action: l.action, amount: l.amount, note: l.note, byStaff: l.staff !== null, createdAt: l.createdAt.toISOString() })),
         members: [] as { name: string | null; email: string; role: string; joinedAt: string }[],
+        history,
       };
     });
     if (!account) throw new AppError("NOT_FOUND", "Account not found");
@@ -71,6 +75,16 @@ export function registerAccountRoutes(
     await audit(req, "ops.account.viewed", { workspaceId: id });
     return sendOk(reply, staffAccountSchema, account);
   });
+
+  for (const [path, suspended] of [["suspend", true], ["restore", false]] as const) {
+    app.post(`/admin/v1/ops/workspaces/:id/${path}`, { preHandler: o.requireStaff("ops.account.suspend") }, async (req, reply) => {
+      const { id } = parseInput(idParams, req.params);
+      const { reason } = parseInput(staffSuspendSchema, req.body);
+      const [r] = await o.db.withSystem((tx) => tx.execute<{ n: number }>(sql`select platform.staff_set_account_suspended(${id}, ${suspended}) n`));
+      await audit(req, suspended ? "ops.account.suspended" : "ops.account.restored", { workspaceId: id, people: r?.n ?? 0, reason });
+      return sendOk(reply, staffSuspendResultSchema, { suspended, people: r?.n ?? 0 });
+    });
+  }
 
   app.post("/admin/v1/ops/workspaces/:id/plan", { preHandler: o.requireStaff("billing.plan.grant") }, async (req, reply) => {
     const { id } = parseInput(idParams, req.params);

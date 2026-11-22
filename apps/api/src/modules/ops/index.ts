@@ -27,6 +27,8 @@ import { recordStaffAudit, type StaffAction, type StaffPrincipal } from "../staf
 import type { BillingService } from "../billing/index";
 import { registerAccountRoutes } from "./accounts";
 import { registerIntegrationRoutes } from "./integrations";
+import { registerPricingRoutes } from "./pricing";
+import { registerHealthRoutes } from "./health";
 
 const idParams = z.object({ id: z.uuid() });
 
@@ -55,6 +57,8 @@ export function createOpsModule(o: { db: Db; requireStaff: (action: StaffAction)
   function register(app: FastifyInstance) {
     if (o.billing) registerAccountRoutes(app, { db: o.db, requireStaff: o.requireStaff, billing: o.billing, now });
     registerIntegrationRoutes(app, { requireStaff: o.requireStaff });
+    registerPricingRoutes(app, { db: o.db, requireStaff: o.requireStaff });
+    registerHealthRoutes(app, { db: o.db, requireStaff: o.requireStaff });
     app.get("/admin/v1/ops/overview", { preHandler: o.requireStaff("ops.overview.read") }, async (_req, reply) =>
       sendOk(reply, staffOverviewSchema, staffOverviewSchema.parse(await json((tx) => tx.execute(sql`select platform.staff_overview() v`)))),
     );
