@@ -23,6 +23,7 @@ export function TwoFactorCard() {
   const [setup, setSetup] = useState<{ secret: string; uri: string } | null>(null);
   const [qr, setQr] = useState<string | null>(null);
   const [code, setCode] = useState("");
+  const [current, setCurrent] = useState("");
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     if (!setup) return setQr(null);
@@ -37,6 +38,7 @@ export function TwoFactorCard() {
       await fn();
       toast.success(ok);
       setCode("");
+      setCurrent("");
       setSetup(null);
       void qc.invalidateQueries({ queryKey: ["admin", "two-factor"] });
     } catch (err) {
@@ -56,8 +58,8 @@ export function TwoFactorCard() {
       setBusy(false);
     }
   };
-  const enable = (e: FormEvent) => { e.preventDefault(); void run(() => adminRequest("/admin/v1/security/two-factor/enable", staffTwoFactorStatusSchema, { method: "POST", body: { code } }), "Two-factor sign-in is on"); };
-  const disable = (e: FormEvent) => { e.preventDefault(); void run(() => adminRequest("/admin/v1/security/two-factor/disable", staffTwoFactorStatusSchema, { method: "POST", body: { code } }), "Two-factor sign-in is off"); };
+  const enable = (e: FormEvent) => { e.preventDefault(); void run(() => adminRequest("/admin/v1/security/two-factor/enable", staffTwoFactorStatusSchema, { method: "POST", body: { code, ...(on ? { currentCode: current } : {}) } }), on ? "New authenticator is on; your other sessions were signed out" : "Two-factor sign-in is on; your other sessions were signed out"); };
+  const disable = (e: FormEvent) => { e.preventDefault(); void run(() => adminRequest("/admin/v1/security/two-factor/disable", staffTwoFactorStatusSchema, { method: "POST", body: { code } }), "Two-factor sign-in is off; your other sessions were signed out"); };
   const on = status.data?.enabled ?? false;
 
   return (
@@ -87,10 +89,11 @@ export function TwoFactorCard() {
                 </ol>
                 <div className="flex flex-wrap items-center gap-2">
                   <input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" placeholder="6-digit code" aria-label="Code from your authenticator app" className={codeInput} autoFocus />
-                  <button type="submit" disabled={busy || code.length !== 6} className="rounded-2xl bg-[#06B6D4] px-4 py-2.5 text-xs font-extrabold text-[#0A0F24] hover:bg-cyan-500 disabled:opacity-50">{busy ? "Checking…" : "Turn on"}</button>
+                  {on && <input value={current} onChange={(e) => setCurrent(e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" placeholder="Code from old phone" aria-label="Current code from your existing authenticator" className={codeInput} />}
+                  <button type="submit" disabled={busy || code.length !== 6 || (on && current.length !== 6)} className="rounded-2xl bg-[#06B6D4] px-4 py-2.5 text-xs font-extrabold text-[#0A0F24] hover:bg-cyan-500 disabled:opacity-50">{busy ? "Checking…" : "Turn on"}</button>
                   <button type="button" onClick={() => setSetup(null)} className="rounded-2xl border border-slate-200 px-3.5 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
                 </div>
-                {on && <p className="text-xs text-slate-500">Your current authenticator keeps working until the new one is turned on.</p>}
+                {on && <p className="text-xs text-slate-500">Also enter a code from your current authenticator. It keeps working until the new one is turned on.</p>}
               </div>
             </form>
           ) : on ? (

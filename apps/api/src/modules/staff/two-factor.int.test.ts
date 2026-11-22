@@ -41,6 +41,10 @@ describe("two-factor sign-in as a personal setting (owner, 22 Nov)", () => {
     expect(totp.statusCode).toBe(200);
     const auth2 = { authorization: `Bearer ${totp.json().accessToken as string}` };
 
+    // Replacing the authenticator needs a code from the current one; the old session signed in without it is ended.
+    const next = (await a.inject({ method: "POST", url: "/admin/v1/security/two-factor/setup", headers: auth2 })).json() as { secret: string };
+    expect((await a.inject({ method: "POST", url: "/admin/v1/security/two-factor/enable", headers: auth2, payload: { code: await generate({ secret: next.secret }) } })).statusCode).toBe(400);
+    expect((await a.inject({ method: "POST", url: "/admin/v1/auth/refresh", headers: { cookie: String(first.headers["set-cookie"]).split(";")[0] } })).statusCode).toBe(401);
     expect((await a.inject({ method: "POST", url: "/admin/v1/security/two-factor/disable", headers: auth2, payload: { code: "123456" } })).statusCode).toBe(401);
     await nextStep();
     const off = await a.inject({ method: "POST", url: "/admin/v1/security/two-factor/disable", headers: auth2, payload: { code: await generate({ secret: setup.secret }) } });

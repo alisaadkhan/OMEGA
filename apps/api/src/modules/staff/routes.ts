@@ -10,7 +10,7 @@ import {
   staffTotpRequestSchema,
 } from "@mushin/contracts";
 import { z } from "zod";
-import { AppError } from "@mushin/core";
+import { AppError, sha256Hex } from "@mushin/core";
 import { bearerToken } from "../../http/bearer";
 import type { PreHandler } from "../../http/types";
 import { parseInput, sendOk } from "../../http/validate";
@@ -120,6 +120,10 @@ export function registerStaffRoutes(app: FastifyInstance, service: StaffService,
   });
 
   // Two-factor sign-in in Settings (owner, 22 Nov): each person sees, sets up, turns on or off their own.
+  const keepHash = (req: FastifyRequest) => {
+    const t = req.cookies[REFRESH_COOKIE];
+    return t ? sha256Hex(t) : undefined;
+  };
   const self = (req: FastifyRequest) => {
     if (!req.staff) throw new AppError("UNAUTHENTICATED", "Admin authentication required");
     return req.staff.staffId;
@@ -131,13 +135,13 @@ export function registerStaffRoutes(app: FastifyInstance, service: StaffService,
     sendOk(reply, staffTwoFactorSetupSchema, await service.startTwoFactorSetup(self(req), metaOf(req))),
   );
   app.post("/admin/v1/security/two-factor/enable", { preHandler: requireStaff("staff.two_factor.manage") }, async (req, reply) => {
-    const { code } = parseInput(staffTwoFactorCodeSchema, req.body);
-    await service.enableTwoFactor(self(req), code, metaOf(req));
+    const body = parseInput(staffTwoFactorCodeSchema.extend({ currentCode: z.string().max(6).optional() }), req.body);
+    await service.enableTwoFactor(self(req), { ...body, keepSessionHash: keepHash(req) }, metaOf(req));
     return sendOk(reply, staffTwoFactorStatusSchema, await service.twoFactorStatus(self(req)));
   });
   app.post("/admin/v1/security/two-factor/disable", { preHandler: requireStaff("staff.two_factor.manage") }, async (req, reply) => {
     const { code } = parseInput(z.object({ code: z.string().max(6).default("") }), req.body);
-    await service.disableTwoFactor(self(req), code, metaOf(req));
+    await service.disableTwoFactor(self(req), code, metaOf(req), keepHash(req));
     return sendOk(reply, staffTwoFactorStatusSchema, await service.twoFactorStatus(self(req)));
   });
 

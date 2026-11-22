@@ -183,28 +183,40 @@ export function createStaffService(o: { db: Db; tokens: StaffTokens; encryptionK
     },
 
     /** Turns two-factor on with the secret being set up, proven by a current code from it. */
-    async enableTwoFactor(staffId: string, code: string, meta: RequestMeta): Promise<void> {
+    async enableTwoFactor(staffId: string, input: { code: string; currentCode?: string; keepSessionHash?: string }, meta: RequestMeta): Promise<void> {
+      const code = input.code;
       const ok = await o.db.withSystem(async (tx) => {
         const staff = await repo.findStaffByIdForUpdate(tx, staffId);
         if (!staff || staff.status !== "active" || !staff.totpPendingEncrypted) return false;
+        if (staff.lockedUntil && staff.lockedUntil > now()) throw tooManyAttempts();
+        // Replacing an active authenticator needs a current code from it (security review, 22 Nov).
+        if (staff.totpEnabled) {
+          const cur = await matchTotp(decryptSecret(staff.totpSecretEncrypted, o.encryptionKey), input.currentCode ?? "", staff.lastTotpStep);
+          if (cur === null || !(await repo.claimTotpStep(tx, staffId, cur))) {
+            await recordFailure(tx, staffId, "bad_totp_rotate", meta);
+            return false;
+          }
+        }
         const step = await matchTotp(decryptSecret(staff.totpPendingEncrypted, o.encryptionKey), code, null);
         if (step === null) {
-          await repo.audit(tx, { staffId, action: "staff.two_factor.enable_failed", ip: meta.ip, requestId: meta.requestId });
+          await recordFailure(tx, staffId, "bad_totp_enable", meta);
           return false;
         }
         await repo.setTwoFactor(tx, staffId, { totpEnabled: true, totpSecretEncrypted: staff.totpPendingEncrypted, totpPendingEncrypted: null });
         await repo.claimTotpStep(tx, staffId, step);
+        await repo.revokeOtherSessions(tx, staffId, input.keepSessionHash ?? null);
         await repo.audit(tx, { staffId, action: "staff.two_factor.enabled", ip: meta.ip, requestId: meta.requestId });
         return true;
       });
-      if (!ok) throw new AppError("VALIDATION_FAILED", "That code does not match the authenticator being set up. Scan the code again and enter the newest 6 digits.");
+      if (!ok) throw new AppError("VALIDATION_FAILED", "A code did not match. Enter the newest 6 digits from the app (and, when replacing an authenticator, from the current one).");
     },
 
     /** Turns two-factor off; while it is on, a current code from the active authenticator is required. */
-    async disableTwoFactor(staffId: string, code: string, meta: RequestMeta): Promise<void> {
+    async disableTwoFactor(staffId: string, code: string, meta: RequestMeta, keepSessionHash?: string): Promise<void> {
       const ok = await o.db.withSystem(async (tx) => {
         const staff = await repo.findStaffByIdForUpdate(tx, staffId);
         if (!staff || staff.status !== "active") return false;
+        if (staff.lockedUntil && staff.lockedUntil > now()) throw tooManyAttempts();
         if (staff.totpEnabled) {
           const step = await matchTotp(decryptSecret(staff.totpSecretEncrypted, o.encryptionKey), code, staff.lastTotpStep);
           if (step === null || !(await repo.claimTotpStep(tx, staffId, step))) {
@@ -213,6 +225,7 @@ export function createStaffService(o: { db: Db; tokens: StaffTokens; encryptionK
           }
         }
         await repo.setTwoFactor(tx, staffId, { totpEnabled: false, totpPendingEncrypted: null });
+        await repo.revokeOtherSessions(tx, staffId, keepSessionHash ?? null);
         await repo.audit(tx, { staffId, action: "staff.two_factor.disabled", ip: meta.ip, requestId: meta.requestId });
         return true;
       });

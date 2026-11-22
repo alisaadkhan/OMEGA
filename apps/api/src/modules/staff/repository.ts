@@ -129,3 +129,9 @@ export async function liveStepUp(tx: SystemTx, staffId: string, stepUpId: string
 export async function setTwoFactor(tx: SystemTx, id: string, patch: { totpEnabled?: boolean; totpSecretEncrypted?: string; totpPendingEncrypted?: string | null }): Promise<void> {
   await tx.update(staffUsers).set({ ...patch, updatedAt: new Date() }).where(eq(staffUsers.id, id));
 }
+
+/** Signs the person out everywhere except the session making the change (two-factor changes, security review 22 Nov). */
+export async function revokeOtherSessions(tx: SystemTx, staffId: string, keepHash: string | null): Promise<void> {
+  await tx.execute(sql`update staff.staff_sessions set revoked_at = now()
+    where staff_id = ${staffId} and revoked_at is null ${keepHash ? sql`and refresh_token_hash <> ${keepHash}` : sql``}`);
+}
