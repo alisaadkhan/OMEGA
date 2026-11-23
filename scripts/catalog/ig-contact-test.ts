@@ -54,7 +54,7 @@ console.error(`business accounts without a contact: ${business.length}; testing 
 
 // 2. One run, capped by Apify at maxUsd.
 let items: Record<string, unknown>[];
-let costUsd: number | null = null;
+let costUsd: number | null;
 if (values.reuse && existsSync(outFile)) {
   ({ items, costUsd } = JSON.parse(readFileSync(outFile, "utf8")));
 } else {

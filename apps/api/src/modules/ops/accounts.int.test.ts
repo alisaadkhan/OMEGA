@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createLogger } from "@mushin/core";
 import { createTestDatabase, ownerQuery, resetTables } from "@mushin/db/testing";
 import { MockPayments } from "@mushin/integrations";
@@ -19,7 +19,21 @@ import { createOpsModule } from "./index";
 const db = createTestDatabase();
 const logger = createLogger({ level: "silent" });
 beforeEach(resetTables);
-afterAll(() => db.close());
+// Plan terms and credit costs survive resetTables (they are seeded): this file changes them, so it puts them back, or
+// later files sharing the test database would see Growth at 13,000 credits and contact unlocks at 7 (found 24 Nov).
+let restorePricing: () => Promise<void> = async () => {};
+beforeAll(async () => {
+  const plans = await ownerQuery<{ id: string; m: number; d: number }>(`select id, monthly_credits m, display_monthly_minor d from platform.plans`);
+  const costs = await ownerQuery<{ action: string; credits: number }>(`select action, credits from platform.credit_action_costs`);
+  restorePricing = async () => {
+    for (const p of plans) await ownerQuery(`update platform.plans set monthly_credits = ${Number(p.m)}, display_monthly_minor = ${Number(p.d)} where id = '${p.id.replace(/[^a-z_]/g, "")}'`);
+    for (const c of costs) await ownerQuery(`update platform.credit_action_costs set credits = ${Number(c.credits)} where action = '${c.action.replace(/[^a-z_]/g, "")}'`);
+  };
+});
+afterAll(async () => {
+  await restorePricing();
+  await db.close();
+});
 
 async function setup() {
   const payments = new MockPayments({ webhookSecret: "h".repeat(40), publicApiUrl: "http://api.test", deliver: async () => {} });
@@ -99,7 +113,7 @@ describe("staff Users and Subscriptions pages (owner, 22 Nov)", () => {
     expect(hres.statusCode, hres.body).toBe(200);
     const health = hres.json() as { checks: { key: string; state: string; detail: string }[] };
     expect(health.checks.find((c) => c.key === "database")?.state).toBe("ok");
-    expect(health.checks.find((c) => c.key === "migrations")?.detail).toMatch(/migrations applied, latest 00\d\d_/);
+    expect(health.checks.find((c) => c.key === "migrations")?.detail).toMatch(/migrations applied, latest \d{4}_/);
     expect(health.checks.map((c) => c.key)).toEqual(expect.arrayContaining(["search", "worker", "outbox", "jobs", "meilisearch", "email", "payments"]));
 
     const totals = await app.inject({ method: "GET", url: "/admin/v1/ops/subscriptions", headers: admin });
