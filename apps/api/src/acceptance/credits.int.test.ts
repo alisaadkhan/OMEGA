@@ -169,7 +169,7 @@ describe("live discovery and reservation accounting (CR)", () => {
     const api = await buildApi();
     const u = await api.person();
     await topUp(api, u.workspaceId, 1_000);
-    const e = await api.discovery.createEstimate(u.ctx, { search: { text: "food vlogger", filters: { niches: [], verifiedOnly: false, hasContact: false, freshOnly: false, ...live } as never }, maxNew: 10 });
+    const e = await api.discovery.createEstimate(u.ctx, { search: { text: "food vlogger creators", filters: { niches: [], verifiedOnly: false, hasContact: false, freshOnly: false, ...live } as never }, maxNew: 10 });
     const out = await Promise.allSettled(Array.from({ length: 5 }, () => api.discovery.start(u.ctx, { kind: "live", estimateId: e.estimateId })));
     const jobs = await owner<{ n: number }>(`select count(*)::int n from wp.discovery_jobs where workspace_id = '${u.workspaceId}'`);
     const holds = await owner<{ n: number; amount: number }>(`select count(*)::int n, coalesce(sum(amount),0)::int amount from wp.credit_reservations where workspace_id = '${u.workspaceId}'`);
@@ -183,7 +183,7 @@ describe("live discovery and reservation accounting (CR)", () => {
     const u = await api.person();
     await topUp(api, u.workspaceId, 1_000);
     const before = await truth(u.workspaceId);
-    const { jobId } = await api.startLive(u.ctx, "food vlogger", live, 10);
+    const { jobId } = await api.startLive(u.ctx, "food vlogger creators", live, 10);
     await api.live.run(jobId, u.workspaceId);
     const job = await api.discovery.get(u.ctx, jobId);
     const rows = await owner<{ kind: string; total: number }>(`select kind, sum(amount)::int total from wp.credit_ledger where workspace_id = '${u.workspaceId}' and reservation_id is not null group by 1 order by 1`);
@@ -203,7 +203,7 @@ describe("live discovery and reservation accounting (CR)", () => {
     const u = await api.person();
     await topUp(api, u.workspaceId, 1_000);
     const before = await truth(u.workspaceId);
-    const { jobId } = await api.startLive(u.ctx, "food vlogger", live, 10);
+    const { jobId } = await api.startLive(u.ctx, "food vlogger creators", live, 10);
     for (let i = 0; i < 3; i++) await api.live.run(jobId, u.workspaceId).catch(() => undefined);
     const job = await api.discovery.get(u.ctx, jobId);
     const after = await truth(u.workspaceId);
@@ -217,7 +217,7 @@ describe("live discovery and reservation accounting (CR)", () => {
     const u = await api.person();
     await topUp(api, u.workspaceId, 1_000);
     const before = await truth(u.workspaceId);
-    const { jobId } = await api.startLive(u.ctx, "food vlogger", live, 10);
+    const { jobId } = await api.startLive(u.ctx, "food vlogger creators", live, 10);
     await owner(`update wp.discovery_jobs set status = 'running', created_at = now() - interval '2 hours' where id = '${jobId}'`);
     const swept = await api.profileRunner.sweepStuck();
     const job = await api.discovery.get(u.ctx, jobId);
@@ -263,8 +263,8 @@ describe("live discovery and reservation accounting (CR)", () => {
     const api = await buildApi();
     const u = await api.person();
     await topUp(api, u.workspaceId, 1_000);
-    await api.startLive(u.ctx, "food vlogger", live, 5);
-    const second = await api.startLive(u.ctx, "fashion stylist", { platform: "instagram", creatorCity: "Karachi" }, 5).catch((e: { code?: string; details?: { reason?: string } }) => `${e.code}:${e.details?.reason}`);
+    await api.startLive(u.ctx, "food vlogger creators", live, 5);
+    const second = await api.startLive(u.ctx, "fashion stylist creators", { platform: "instagram", creatorCity: "Karachi" }, 5).catch((e: { code?: string; details?: { reason?: string } }) => `${e.code}:${e.details?.reason}`);
     const holds = await owner<{ n: number }>(`select count(*)::int n from wp.credit_reservations where workspace_id = '${u.workspaceId}' and status = 'held'`);
     evidence("CR-17", { second, heldReservations: holds[0]?.n });
     expect(second).toBe("CONFLICT:live_run_in_progress");

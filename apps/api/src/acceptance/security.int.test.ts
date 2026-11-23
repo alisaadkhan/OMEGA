@@ -70,7 +70,7 @@ describe("tenant isolation (SEC)", () => {
     const api = await buildApi();
     const a = await api.person();
     const b = await api.person();
-    const { jobId, estimate } = await api.startLive(a.ctx, "food vlogger", { platform: "instagram", creatorCity: "Lahore" }, 5);
+    const { jobId, estimate } = await api.startLive(a.ctx, "food vlogger creators", { platform: "instagram", creatorCity: "Lahore" }, 5);
     const job = await api.app.inject({ method: "GET", url: `/v1/discovery/jobs/${jobId}`, headers: b.headers });
     const results = await api.app.inject({ method: "GET", url: `/v1/discovery/jobs/${jobId}/results`, headers: b.headers });
     const start = await api.discovery.start(b.ctx, { kind: "live", estimateId: estimate.estimateId }).catch((e: { code: string }) => e.code);
@@ -135,13 +135,13 @@ describe("abuse controls and safe failure (SEC)", () => {
   it("SEC-10 paid starts are rate-limited per person (quotes count too): the request after the limit gets 429 and holds nothing", async () => {
     const api = await buildApi({ buckets: { ...generousBuckets, jobs: { limit: 2, windowSeconds: 3600 } } });
     const a = await api.person();
-    const est = async (city: string) => (await api.app.inject({ method: "POST", url: "/v1/discovery/estimates", headers: { ...a.headers, "idempotency-key": randomUUID() }, payload: { search: { text: "food vlogger", filters: { platform: "instagram", creatorCity: city } }, maxNew: 5 } })).json().estimateId as string;
+    const est = async (city: string) => (await api.app.inject({ method: "POST", url: "/v1/discovery/estimates", headers: { ...a.headers, "idempotency-key": randomUUID() }, payload: { search: { text: "food vlogger creators", filters: { platform: "instagram", creatorCity: city } }, maxNew: 5 } })).json().estimateId as string;
     const e1 = await est("Lahore");
     const s1 = await api.app.inject({ method: "POST", url: "/v1/discovery/jobs", headers: { ...a.headers, "idempotency-key": randomUUID() }, payload: { kind: "live", estimateId: e1 } });
     await api.discovery.cancel(a.ctx, s1.json().job.id);
     await api.live.run(s1.json().job.id, a.workspaceId);
     // Quote + start used the two paid-start slots; the next quote is refused before anything is held.
-    const s2 = await api.app.inject({ method: "POST", url: "/v1/discovery/estimates", headers: { ...a.headers, "idempotency-key": randomUUID() }, payload: { search: { text: "food vlogger", filters: { platform: "instagram", creatorCity: "Karachi" } }, maxNew: 5 } });
+    const s2 = await api.app.inject({ method: "POST", url: "/v1/discovery/estimates", headers: { ...a.headers, "idempotency-key": randomUUID() }, payload: { search: { text: "food vlogger creators", filters: { platform: "instagram", creatorCity: "Karachi" } }, maxNew: 5 } });
     const holds = await owner<{ n: number }>(`select count(*)::int n from wp.credit_reservations where workspace_id = '${a.workspaceId}' and status = 'held'`);
     evidence("SEC-10", { first: s1.statusCode, second: s2.statusCode, retryAfter: s2.json().error?.details?.retryAfterSeconds, heldAfter: holds[0]?.n });
     expect(s1.statusCode).toBe(202);

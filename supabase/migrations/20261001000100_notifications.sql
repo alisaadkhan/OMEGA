@@ -149,3 +149,24 @@ grant execute on function platform.notification_emails_claim(integer) to mushin_
 grant execute on function platform.notification_email_done(uuid, boolean, boolean) to mushin_worker;
 grant execute on function platform.notify_user(uuid, uuid, text, text, text, text, text) to mushin_worker;
 grant execute on function platform.notify_account(uuid, text, text, text, text, text) to mushin_worker;
+
+-- Erasing an account (privacy self-service) also erases its notifications: they repeat the person's own requests.
+create or replace function platform.erase_workspace(p_workspace uuid) returns jsonb
+  language plpgsql security definer set search_path = pg_catalog as $$
+declare counts jsonb := '{}'::jsonb; n bigint; t text;
+begin
+  foreach t in array array['notifications', 'data_export_downloads', 'data_exports', 'outreach_emails', 'outreach_events', 'campaign_creators', 'campaigns', 'list_members', 'lists',
+                           'saved_searches', 'support_messages', 'support_attachments', 'support_ticket_reads', 'support_tickets', 'support_access_requests', 'contact_reveals',
+                           'support_ticket_events', 'product_reviews', 'creator_profile_reviews', 'creator_profile_views', 'search_events', 'audience_views', 'audience_jobs', 'discovery_candidates', 'discovery_results', 'discovery_jobs',
+                           'discovery_estimates', 'catalog_search_charges', 'trial_feedback', 'workspace_contacts', 'creator_import_rows',
+                           'creator_imports', 'workspace_invitations', 'workspace_members'] loop
+    execute format('delete from wp.%I where workspace_id = $1', t) using p_workspace;
+    get diagnostics n = row_count;
+    counts := counts || jsonb_build_object(t, n);
+  end loop;
+  delete from platform.idempotency_keys where workspace_id = p_workspace;
+  delete from platform.outbox where workspace_id = p_workspace and published_at is null;
+  update wp.workspaces set status = 'deleted', deleted_at = now(), name = 'Deleted workspace' where id = p_workspace;
+  return counts;
+end
+$$;

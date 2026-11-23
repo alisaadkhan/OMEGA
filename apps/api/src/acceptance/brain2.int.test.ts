@@ -14,7 +14,7 @@ beforeEach(resetTables);
 afterAll(() => expect(externalAttempts).toEqual([]));
 
 const LAHORE = (n: number, prefix = "lhr_food") => Array.from({ length: n }, (_, i) => `${prefix}_${i + 1}`);
-const brief = { text: "food vlogger", filters: { platform: "instagram", creatorCity: "Lahore" } };
+const brief = { text: "food vlogger creators", filters: { platform: "instagram", creatorCity: "Lahore" } };
 type Api = Awaited<ReturnType<typeof buildApi>>;
 
 async function topUp(api: Api, workspaceId: string, amount = 5_000) {
@@ -50,7 +50,7 @@ describe("Brain 2 pipeline (B2)", () => {
     const api = await buildApi();
     const c = await customer(api);
     const before = await api.balance(c.ctx);
-    const err = await api.startLive(c.ctx, "creators", {}).catch((e: unknown) => e);
+    const err = await api.startLive(c.ctx, "creators creators", {}).catch((e: unknown) => e);
     const after = await api.balance(c.ctx);
     evidence("B2-01", { error: (err as { code?: string }).code, before, after });
     expect((err as { code?: string }).code).toMatch(/QUERY_TOO_BROAD|VALIDATION_FAILED/);
@@ -60,8 +60,8 @@ describe("Brain 2 pipeline (B2)", () => {
   it("B2-02 the quote is 50 + 10 per creator from the price table; TikTok in scope adds the 100-credit minimum", async () => {
     const api = await buildApi();
     const c = await customer(api);
-    const ig = await api.discovery.createEstimate(c.ctx, { search: { text: "food vlogger", filters: { niches: [], verifiedOnly: false, hasContact: false, freshOnly: false, platform: "instagram", creatorCity: "Lahore" } }, maxNew: 10 });
-    const tt = await api.discovery.createEstimate(c.ctx, { search: { text: "food vlogger", filters: { niches: [], verifiedOnly: false, hasContact: false, freshOnly: false, platform: "tiktok", creatorCity: "Lahore" } }, maxNew: 5 });
+    const ig = await api.discovery.createEstimate(c.ctx, { search: { text: "food vlogger creators", filters: { niches: [], verifiedOnly: false, hasContact: false, freshOnly: false, platform: "instagram", creatorCity: "Lahore" } }, maxNew: 10 });
+    const tt = await api.discovery.createEstimate(c.ctx, { search: { text: "food vlogger creators", filters: { niches: [], verifiedOnly: false, hasContact: false, freshOnly: false, platform: "tiktok", creatorCity: "Lahore" } }, maxNew: 5 });
     evidence("B2-02", { instagram10: ig, tiktok5: tt });
     expect(ig).toMatchObject({ maxCredits: 150 });
     expect(tt).toMatchObject({ maxCredits: 100, minimumCredits: 100 });
@@ -82,11 +82,11 @@ describe("Brain 2 pipeline (B2)", () => {
     const api = await buildApi();
     const c = await customer(api);
     const other = await customer(api);
-    const e1 = await api.discovery.createEstimate(c.ctx, { search: { text: "food vlogger", filters: { niches: [], verifiedOnly: false, hasContact: false, freshOnly: false, platform: "instagram", creatorCity: "Lahore" } }, maxNew: 5 });
+    const e1 = await api.discovery.createEstimate(c.ctx, { search: { text: "food vlogger creators", filters: { niches: [], verifiedOnly: false, hasContact: false, freshOnly: false, platform: "instagram", creatorCity: "Lahore" } }, maxNew: 5 });
     const foreign = await api.discovery.start(other.ctx, { kind: "live", estimateId: e1.estimateId }).catch((e: { code: string }) => e.code);
     const first = await api.discovery.start(c.ctx, { kind: "live", estimateId: e1.estimateId });
     const again = await api.discovery.start(c.ctx, { kind: "live", estimateId: e1.estimateId });
-    const e2 = await api.discovery.createEstimate(c.ctx, { search: { text: "food blogger", filters: { niches: [], verifiedOnly: false, hasContact: false, freshOnly: false, platform: "instagram", creatorCity: "Karachi" } }, maxNew: 5 });
+    const e2 = await api.discovery.createEstimate(c.ctx, { search: { text: "food blogger creators", filters: { niches: [], verifiedOnly: false, hasContact: false, freshOnly: false, platform: "instagram", creatorCity: "Karachi" } }, maxNew: 5 });
     await owner(`update wp.discovery_estimates set expires_at = now() - interval '1 minute' where id = '${e2.estimateId}'`);
     const expired = await api.discovery.start(c.ctx, { kind: "live", estimateId: e2.estimateId }).catch((e: { code: string }) => e.code);
     const holds = await owner<{ n: number }>(`select count(*)::int n from wp.credit_reservations where workspace_id = '${c.workspaceId}' and status = 'held'`);
@@ -268,7 +268,7 @@ describe("Brain 2 pipeline (B2)", () => {
     const api = await buildApi({ fixtures: { web, scraper } });
     const c = await customer(api);
     const before = await api.balance(c.ctx);
-    const { jobId } = await api.startLive(c.ctx, "food vlogger", { platform: "tiktok", creatorCity: "Karachi" }, 5);
+    const { jobId } = await api.startLive(c.ctx, "food vlogger creators", { platform: "tiktok", creatorCity: "Karachi" }, 5);
     const { job, results } = await runToEnd(api, c.ctx, jobId);
     const trail = await owner<{ stage: string; decision: string; reason: string | null }>(`select stage, decision, reason from wp.discovery_candidates where job_id = '${jobId}'`);
     evidence("B2-16", { outcome: job.outcome, delivered: results.length, charged: job.live?.creditsCharged, trail, before, after: await api.balance(c.ctx) });
@@ -485,9 +485,9 @@ describe("live query variations (VAR-L)", () => {
     const api = await buildApi({ fixtures: { web: web() } });
     const c = await customer(api, 20_000);
     const briefs = [
-      { id: "VAR-L01", text: "food vlogger", filters: { platform: "instagram", creatorCity: "Lahore" } },
-      { id: "VAR-L02", text: "food blogger", filters: { platform: "instagram", creatorCity: "Lahore" } },
-      { id: "VAR-L04", text: "food vlogger", filters: { platform: "instagram", creatorCity: "Lahore" } },
+      { id: "VAR-L01", text: "food vlogger creators", filters: { platform: "instagram", creatorCity: "Lahore" } },
+      { id: "VAR-L02", text: "food blogger creators", filters: { platform: "instagram", creatorCity: "Lahore" } },
+      { id: "VAR-L04", text: "food vlogger creators", filters: { platform: "instagram", creatorCity: "Lahore" } },
     ];
     const seen = new Map<string, string>();
     for (const b of briefs) {
@@ -518,9 +518,9 @@ describe("live query variations (VAR-L)", () => {
   it.fails("VAR-L03 KNOWN DEFECT a Roman Urdu brief (khana, Lahore) delivers the food creators an English brief delivers", async () => {
     const api = await buildApi({ fixtures: { web: web() } });
     const c = await customer(api, 20_000);
-    const en = await api.startLive(c.ctx, "food vlogger", { platform: "instagram", creatorCity: "Lahore" }, 10);
+    const en = await api.startLive(c.ctx, "food vlogger creators", { platform: "instagram", creatorCity: "Lahore" }, 10);
     const ren = await runToEnd(api, c.ctx, en.jobId);
-    const ru = await api.startLive(c.ctx, "khana", { platform: "instagram", creatorCity: "Lahore" }, 10);
+    const ru = await api.startLive(c.ctx, "khana creators", { platform: "instagram", creatorCity: "Lahore" }, 10);
     const rru = await runToEnd(api, c.ctx, ru.jobId);
     const reasons = await owner<{ stage: string; decision: string; reason: string | null; n: number }>(`select stage, decision, reason, count(*)::int n from wp.discovery_candidates where job_id = '${ru.jobId}' group by 1,2,3 order by 4 desc`);
     evidence("VAR-L03", { english: { outcome: ren.job.outcome, delivered: ren.results.length }, romanUrdu: { outcome: rru.job.outcome, delivered: rru.results.length, charged: rru.job.live?.creditsCharged }, romanUrduReasons: reasons });
@@ -530,9 +530,9 @@ describe("live query variations (VAR-L)", () => {
   it("VAR-L05a changed city is a different brief: different provider queries and different creators, no reuse of the Lahore results", async () => {
     const api = await buildApi({ fixtures: { web: web() } });
     const c = await customer(api, 20_000);
-    const a = await api.startLive(c.ctx, "food vlogger", { platform: "instagram", creatorCity: "Lahore" }, 5);
+    const a = await api.startLive(c.ctx, "food vlogger creators", { platform: "instagram", creatorCity: "Lahore" }, 5);
     const ra = await runToEnd(api, c.ctx, a.jobId);
-    const b = await api.startLive(c.ctx, "food vlogger", { platform: "instagram", creatorCity: "Karachi" }, 5);
+    const b = await api.startLive(c.ctx, "food vlogger creators", { platform: "instagram", creatorCity: "Karachi" }, 5);
     const rb = await runToEnd(api, c.ctx, b.jobId);
     evidence("VAR-L05", { lahore: ra.results.map((r) => r.handle), karachi: rb.results.map((r) => r.handle), queries: api.web.calls.map((q) => q.query) });
     expect(rb.results.every((r) => r.handle.startsWith("khi_food"))).toBe(true);
@@ -542,10 +542,10 @@ describe("live query variations (VAR-L)", () => {
   it("VAR-L06 an exact repeat within the cache window reuses cached provider searches (no new web calls) but is a new run", async () => {
     const api = await buildApi({ fixtures: { web: web() } });
     const c = await customer(api, 20_000);
-    const a = await api.startLive(c.ctx, "food vlogger", { platform: "instagram", creatorCity: "Lahore" }, 5);
+    const a = await api.startLive(c.ctx, "food vlogger creators", { platform: "instagram", creatorCity: "Lahore" }, 5);
     await runToEnd(api, c.ctx, a.jobId);
     const calls = api.web.calls.length;
-    const b = await api.startLive(c.ctx, "food vlogger", { platform: "instagram", creatorCity: "Lahore" }, 5);
+    const b = await api.startLive(c.ctx, "food vlogger creators", { platform: "instagram", creatorCity: "Lahore" }, 5);
     const rb = await runToEnd(api, c.ctx, b.jobId);
     evidence("VAR-L06", { firstRunWebCalls: calls, secondRunWebCalls: api.web.calls.length - calls, secondJobDistinct: a.jobId !== b.jobId, secondCharged: rb.job.live?.creditsCharged });
     expect(api.web.calls.length).toBe(calls);
@@ -555,8 +555,8 @@ describe("live query variations (VAR-L)", () => {
   it("VAR-L07 a changed size (5 vs 10) is a different estimate and job, never the cached open job", async () => {
     const api = await buildApi({ fixtures: { web: web() } });
     const c = await customer(api, 20_000);
-    const e5 = await api.discovery.createEstimate(c.ctx, { search: { text: "food vlogger", filters: { niches: [], verifiedOnly: false, hasContact: false, freshOnly: false, platform: "instagram", creatorCity: "Lahore" } }, maxNew: 5 });
-    const e10 = await api.discovery.createEstimate(c.ctx, { search: { text: "food vlogger", filters: { niches: [], verifiedOnly: false, hasContact: false, freshOnly: false, platform: "instagram", creatorCity: "Lahore" } }, maxNew: 10 });
+    const e5 = await api.discovery.createEstimate(c.ctx, { search: { text: "food vlogger creators", filters: { niches: [], verifiedOnly: false, hasContact: false, freshOnly: false, platform: "instagram", creatorCity: "Lahore" } }, maxNew: 5 });
+    const e10 = await api.discovery.createEstimate(c.ctx, { search: { text: "food vlogger creators", filters: { niches: [], verifiedOnly: false, hasContact: false, freshOnly: false, platform: "instagram", creatorCity: "Lahore" } }, maxNew: 10 });
     evidence("VAR-L07", { five: e5.maxCredits, ten: e10.maxCredits, distinct: e5.estimateId !== e10.estimateId });
     expect(e5.maxCredits).toBe(100);
     expect(e10.maxCredits).toBe(150);

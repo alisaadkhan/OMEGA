@@ -143,7 +143,7 @@ describe("performance and resilience (PERF)", () => {
     const p = await live.person();
     await db.withWorkspace(p.workspaceId, (tx) => live.billing.engine.grant(tx, p.workspaceId, { source: "adjustment", amount: 1_000, expiresAt: new Date(Date.now() + 86_400_000), sourceRef: `perf9-${randomUUID()}`, note: "perf" }));
     const t = performance.now();
-    const { jobId } = await live.startLive(p.ctx, "food vlogger", { platform: "instagram", creatorCity: "Lahore" }, 10);
+    const { jobId } = await live.startLive(p.ctx, "food vlogger creators", { platform: "instagram", creatorCity: "Lahore" }, 10);
     const t2 = performance.now();
     await live.live.run(jobId, p.workspaceId);
     const job = await live.discovery.get(p.ctx, jobId);
@@ -157,7 +157,7 @@ describe("performance and resilience (PERF)", () => {
     const p = await failing.person();
     const before = (await failing.balance(p.ctx)).available;
     // A brief no earlier test searched for: the 15-minute search cache is shared, and a cached answer never reaches the provider.
-    const { jobId } = await failing.startLive(p.ctx, "fitness coach", { platform: "instagram", creatorCity: "Multan" }, 5);
+    const { jobId } = await failing.startLive(p.ctx, "fitness coach creators", { platform: "instagram", creatorCity: "Multan" }, 5);
     const t = performance.now();
     let attempts = 0;
     for (; attempts < 5; attempts++) {

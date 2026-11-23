@@ -76,7 +76,7 @@ describe("live discovery under v2 (VAR2-L)", () => {
       const live = await buildApi({ searchProfile: profile, fixtures: { web: webFor(() => handles) } });
       const p = await live.person();
       await db.withWorkspace(p.workspaceId, (tx) => live.billing.engine.grant(tx, p.workspaceId, { source: "adjustment", amount: 5_000, expiresAt: new Date(Date.now() + 86_400_000), sourceRef: `v2k-${randomUUID()}`, note: "acceptance" }));
-      const { jobId } = await live.startLive(p.ctx, "food vlogger", { platform: "instagram", creatorCity: "Lahore" }, 10);
+      const { jobId } = await live.startLive(p.ctx, "food vlogger creators", { platform: "instagram", creatorCity: "Lahore" }, 10);
       await live.live.run(jobId, p.workspaceId);
       const job = await live.discovery.get(p.ctx, jobId);
       const res = (await live.discovery.results(p.ctx, jobId, 0)).results;
@@ -97,7 +97,7 @@ describe("live discovery under v2 (VAR2-L)", () => {
     const live = await buildApi({ searchProfile: "v2", fixtures: { web: webFor(() => handles) } });
     const p = await live.person();
     await db.withWorkspace(p.workspaceId, (tx) => live.billing.engine.grant(tx, p.workspaceId, { source: "adjustment", amount: 5_000, expiresAt: new Date(Date.now() + 86_400_000), sourceRef: `v2l-${randomUUID()}`, note: "acceptance" }));
-    const { jobId } = await live.startLive(p.ctx, "khana", { platform: "instagram", creatorCity: "Lahore" }, 10);
+    const { jobId } = await live.startLive(p.ctx, "khana walay creators", { platform: "instagram", creatorCity: "Lahore" }, 10);
     await live.live.run(jobId, p.workspaceId);
     const job = await live.discovery.get(p.ctx, jobId);
     const results = (await live.discovery.results(p.ctx, jobId, 0)).results;
@@ -118,7 +118,7 @@ describe("live discovery under v2 (VAR2-L)", () => {
     const live = await buildApi({ searchProfile: "v2", fixtures: { web: webFor(() => Object.keys(bios)), scraper: scraperFor((h) => bios[h] ?? null) } });
     const p = await live.person();
     await db.withWorkspace(p.workspaceId, (tx) => live.billing.engine.grant(tx, p.workspaceId, { source: "adjustment", amount: 5_000, expiresAt: new Date(Date.now() + 86_400_000), sourceRef: `v2e-${randomUUID()}`, note: "acceptance" }));
-    const { jobId } = await live.startLive(p.ctx, "street food", { platform: "instagram", creatorCity: "Lahore" }, 10);
+    const { jobId } = await live.startLive(p.ctx, "street food creators", { platform: "instagram", creatorCity: "Lahore" }, 10);
     await live.live.run(jobId, p.workspaceId);
     const stored = await owner<{ handle: string; id: string; city: string | null; country: string | null }>(
       `select pr.handle, c.id, c.city, c.country from gcp.creator_profiles pr join gcp.creators c on c.id = pr.creator_id where pr.handle like 'v2_ev_%' order by 1`,
