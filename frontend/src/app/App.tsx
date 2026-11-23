@@ -108,9 +108,9 @@ function Shell() {
         {route === "landing" && (
           <motion.div key="landing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
             <div className="bg-navy font-display">
-              <LandingNav signedIn={!!user} onPrimary={goPrimary} onLogin={() => setRoute("login")} />
+              <LandingNav signedIn={!!user} onPrimary={() => setRoute(user ? "dashboard" : "free-trial")} onLogin={() => setRoute("login")} />
               <main>
-                <LandingHero onPrimary={goPrimary} />
+                <LandingHero onTrial={() => setRoute("free-trial")} />
                 <LandingFeatures />
                 <LandingPricing onPrimary={goPrimary} onTrial={() => setRoute("free-trial")} />
               </main>

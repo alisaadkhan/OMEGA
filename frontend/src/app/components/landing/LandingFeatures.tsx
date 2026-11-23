@@ -80,11 +80,11 @@ function EvidenceSection() {
   const C = 2 * Math.PI * 50;
   return (
     <div className="mt-28 w-full border-t border-slate-200 pt-20">
-      <SectionHead eyebrow="Evidence First" title="Know exactly who you're paying." body="Every creator shows how well they fit your search, with the evidence behind their location, niche and engagement." />
+      <SectionHead eyebrow="Evidence First" title="Know exactly who you're paying." body="Every creator gets a MUSHIN IQ for your search, with the evidence behind their location, niche and engagement." />
       <div className="mt-14 grid grid-cols-1 items-center gap-8 lg:grid-cols-12">
         <Reveal className="lg:col-span-5">
           <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-200/90 bg-white p-8 text-center shadow-[0_10px_30px_-5px_rgba(0,0,0,0.04)] sm:p-10">
-            <span className="mb-4 text-xs font-bold uppercase tracking-wider text-slate-400">Fit Score</span>
+            <span className="mb-4 text-xs font-bold uppercase tracking-wider text-slate-400">MUSHIN IQ</span>
             <div className="relative flex h-52 w-52 items-center justify-center">
               <svg className="h-full w-full -rotate-90" viewBox="0 0 120 120" aria-hidden>
                 <circle cx="60" cy="60" r="50" fill="transparent" stroke="#E2E8F0" strokeWidth="10" />
@@ -95,7 +95,7 @@ function EvidenceSection() {
                 <span className="mt-0.5 text-xs font-medium text-slate-500">out of 100</span>
               </div>
             </div>
-            <p className="mt-3 max-w-xs text-xs text-slate-500">How closely a creator matches your search: niche, city, platform, audience size and engagement.</p>
+            <p className="mt-3 max-w-xs text-xs text-slate-500">Our score for how well a creator matches your search. It weighs how closely their niche and content match what you typed, how close they are to your filters (city, platform, followers, engagement), their engagement rate, how real their audience looks, and how fresh their figures are.</p>
           </div>
         </Reveal>
         <div className="flex flex-col gap-4 lg:col-span-7">
@@ -195,7 +195,7 @@ function SearchMock() {
                 <span className="text-[11px] text-slate-500">{sub}</span>
               </div>
             </div>
-            <span className="shrink-0 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-extrabold text-emerald-700">Fit {fit}</span>
+            <span className="shrink-0 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-extrabold text-emerald-700">IQ {fit}</span>
           </motion.div>
         ))}
       </div>

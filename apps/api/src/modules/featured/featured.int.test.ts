@@ -43,5 +43,16 @@ describe("featured creators on the customer home page (owner, 22 Nov)", () => {
     expect(names).not.toContain("Possible Minor");
     expect(names.filter((n) => n.startsWith("Bridal"))).toEqual(["Bridal 8", "Bridal 7"]);
     expect(names.indexOf("Huge Low ER")).toBe(names.length - 1);
+
+    // The landing page row (owner, 23 Nov): no sign-in, the same visibility rules, three per niche, no id or contact flag.
+    const pub = await app.inject({ method: "GET", url: "/v1/public/creators/showcase" });
+    expect(pub.statusCode, pub.body).toBe(200);
+    const shown = (pub.json() as { creators: Record<string, unknown>[] }).creators;
+    const shownNames = shown.map((c) => c["displayName"]);
+    expect(shownNames).not.toContain("Possible Minor");
+    expect(shownNames).not.toContain("Odd ER");
+    expect(shownNames.filter((n) => String(n).startsWith("Bridal"))).toEqual(["Bridal 8", "Bridal 7", "Bridal 6"]);
+    expect(shown.every((c) => !("id" in c) && !("hasContact" in c))).toBe(true);
+    expect(pub.headers["cache-control"]).toBe("public, max-age=600");
   });
 });

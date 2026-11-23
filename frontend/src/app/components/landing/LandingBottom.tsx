@@ -98,7 +98,7 @@ const FAQS = [
   { q: "How is a creator's location checked?", a: "MUSHIN only treats a creator as Pakistan-based when there is evidence on the profile, such as a stated location, location tags or a public record, and shows that evidence with its source. It never decides where someone lives from their name, language or appearance." },
   { q: "Which platforms are supported?", a: "Instagram, TikTok and YouTube. Every figure shows when it was observed, and you can refresh a creator's data on demand. YouTube data comes from the official YouTube API." },
   { q: "How do monthly credits work?", a: "Each plan includes monthly credits that reset every billing period, and you can buy top-up credits that never expire. Credits pay for searches, finding new creators, data refreshes and contact reveals, and every action shows its price before you confirm." },
-  { q: "What is the fit score?", a: "A number from 0 to 100 for how closely a creator matches your search: niche, city, platform, audience size and engagement. It is an estimate to help you sort, not a verdict." },
+  { q: "What is the MUSHIN IQ?", a: "A score from 0 to 100 for how well a creator matches your search. It weighs how closely their niche and content match what you typed, how close they are to your filters, their engagement rate, how real their audience looks and how fresh their figures are. It is an estimate to help you sort, not a verdict." },
   { q: "Can creators request removal of their profile?", a: "Yes. Any creator can use the Remove my data page to ask for their profile and contact information to be removed, and the request is reviewed by our team." },
 ];
 

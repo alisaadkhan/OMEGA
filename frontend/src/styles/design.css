@@ -53,3 +53,9 @@
 @media (prefers-reduced-motion: reduce) {
   .animate-float-1, .animate-float-2, .animate-float-3, .skeleton { animation: none !important; }
 }
+
+/* Landing page creator row (owner, 23 Nov): scrolls itself, pauses on hover or keyboard focus, still for reduced motion. */
+@keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.marquee-track { animation: marquee var(--marquee-duration, 60s) linear infinite; }
+.marquee:hover .marquee-track, .marquee:focus-within .marquee-track { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) { .marquee-track { animation: none; } .marquee { overflow-x: auto; } }
