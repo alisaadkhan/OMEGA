@@ -21,13 +21,14 @@
  * claims — in the pilot it called a public-knowledge guess "profile text").
  * Possible minors are skipped. The per-creator output stays out of git (it holds YouTube channel data).
  */
+import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { createLogger, loadWorkerConfig } from "@mushin/core";
 import { createDatabase, createDbProviderCallSink, llmSpendSince } from "@mushin/db";
-import { createLlm } from "@mushin/integrations";
+import { createLlm, ProviderError, type Llm } from "@mushin/integrations";
 import { sql } from "drizzle-orm";
 import postgres from "postgres";
 import { aiReview, lookupWikipedia, prefetchWikipediaTitles, wikipediaQueries, wikipediaRecordTitles, wikipediaTitles, type AiReviewDecision, type WikipediaArticle } from "../../apps/api/src/modules/creators/enrichment/ai-review";
@@ -35,7 +36,7 @@ import { createCreatorIndexer, standardize } from "../../apps/api/src/modules/cr
 import { createBudgetGate } from "./budget";
 
 const { values } = parseArgs({
-  options: { db: { type: "string" }, handles: { type: "string" }, "min-followers": { type: "string", default: "100000" }, cap: { type: "string", default: "15" }, apply: { type: "boolean", default: false }, "rereview-ai": { type: "boolean", default: false }, "wikipedia-only": { type: "boolean", default: false }, "titles-only": { type: "boolean", default: false }, models: { type: "string" }, out: { type: "string" }, concurrency: { type: "string", default: "4" } },
+  options: { db: { type: "string" }, handles: { type: "string" }, "min-followers": { type: "string", default: "100000" }, "llm-dump": { type: "string" }, "llm-answers": { type: "string" }, cap: { type: "string", default: "15" }, apply: { type: "boolean", default: false }, "rereview-ai": { type: "boolean", default: false }, "wikipedia-only": { type: "boolean", default: false }, "titles-only": { type: "boolean", default: false }, models: { type: "string" }, out: { type: "string" }, concurrency: { type: "string", default: "4" } },
 });
 const dbName = values.db ?? "";
 if (!/^mushin_catalog_[a-z0-9_]+$/.test(dbName) || /eval/.test(dbName)) throw new Error("--db must name a local operational catalogue (mushin_catalog_*)");
@@ -53,7 +54,7 @@ const gate = await createBudgetGate(ownerSql, { capUsd, since: new Date("2026-10
 const onlyModels = (values.models ?? "").split(",").map((m) => m.trim()).filter(Boolean);
 const chain = onlyModels.length ? config.llm.filter((p) => onlyModels.some((m) => p.model.includes(m))) : config.llm;
 if (chain.length === 0) throw new Error(`--models ${values.models} matches no configured model`);
-const llm = createLlm(chain, { sink: createDbProviderCallSink(db), logger, budget: { budgetUsd: Math.min(config.llmMonthlyBudgetUsd, capUsd), spentSince: (since) => llmSpendSince(db, since) } });
+const providerLlm = createLlm(chain, { sink: createDbProviderCallSink(db), logger, budget: { budgetUsd: Math.min(config.llmMonthlyBudgetUsd, capUsd), spentSince: (since) => llmSpendSince(db, since) } });
 const root = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const storageRoots = existsSync(join(root, ".catalog-storage")) ? readdirSync(join(root, ".catalog-storage")).map((d) => join(root, ".catalog-storage", d, "raw-payloads")) : [];
 const payload = (key: string | null): unknown => {
@@ -78,7 +79,33 @@ const creators = await db.withSystem((tx) =>
 );
 logger.info({ candidates: creators.length, apply: values.apply }, "ai review start");
 
-const MAX_ATTEMPTS = 8;
+/**
+ * Operator assessment (owner, 23 Nov: "you can do the assessment for now right?", as build.ts since 18 Nov): when every
+ * provider refuses, --llm-dump <file> writes each request (system prompt and the creator's evidence) and saves nothing;
+ * the operator answers them; --llm-answers <file> replays the answers by request hash through the same schema checks
+ * and save path, recorded under the answers' model name ("manual:<who>"). No provider is called in either mode.
+ */
+const requestKey = (feature: string, input: string) => createHash("sha256").update(`${feature}
+${input}`).digest("hex");
+const dumpFile = values["llm-dump"];
+const answers = values["llm-answers"] ? (JSON.parse(readFileSync(values["llm-answers"], "utf8")) as { model: string; answers: Record<string, unknown> }) : null;
+const dumped: { key: string; feature: string; system: string; input: string }[] = [];
+const operator = Boolean(dumpFile || answers);
+const llm: Llm = operator
+  ? {
+      async complete(req) {
+        const key = requestKey(req.feature, req.input);
+        if (answers && key in answers.answers) return { value: req.schema.parse(answers.answers[key]), model: answers.model };
+        if (dumpFile && !dumped.some((d) => d.key === key)) dumped.push({ key, feature: req.feature, system: req.system, input: req.input });
+        throw new ProviderError(false, "provider", "operator answer not available yet");
+      },
+    }
+  : providerLlm;
+process.on("exit", () => {
+  if (dumpFile) writeFileSync(dumpFile, JSON.stringify(dumped, null, 1));
+});
+
+const MAX_ATTEMPTS = operator ? 1 : 8;
 const EXCLUDING = new Set(["CELEBRITY_PUBLIC_FIGURE", "COMPANY_CORPORATE", "BRAND_ACCOUNT", "BUSINESS_STORE", "MEDIA_PUBLICATION", "FAN_PAGE_AGGREGATOR"]);
 const WAIT_MS = 20_000;
 type Result = { id: string; handle: string; platform: string; followers: number; before: { type: string | null; niche: string | null }; decision: AiReviewDecision | null; error?: string; postsRead: number; wikipedia: string[]; wikipediaFailed?: true; skipped?: string };
@@ -186,7 +213,8 @@ async function review(c: Creator): Promise<void> {
 
 // Stop cleanly when the models stay unavailable (e.g. a daily token limit): each failure already waited ~12 minutes,
 // and a rerun picks up only what is left.
-const STOP_AFTER_FAILURES = 4;
+// A dump run fails every creator on purpose (it only records the requests), so it never stops early.
+const STOP_AFTER_FAILURES = dumpFile ? Number.POSITIVE_INFINITY : 4;
 let failuresInARow = 0;
 // Exact titles for every candidate, 20 to a request, before the reviews (lookups then come from this cache).
 const wikiCache = new Map<string, WikipediaArticle | null>();
