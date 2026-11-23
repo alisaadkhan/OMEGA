@@ -1,3 +1,4 @@
+import { creatorTopics, displayNiches } from "../creators/topics";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "@mushin/db";
@@ -27,20 +28,20 @@ export const featuredCreatorsSchema = z.object({ creators: z.array(featuredCreat
  * niche so the row is varied. Free: it is not a search and charges nothing. Engagement outside 0.5–20% is left out as
  * too thin or too unusual to recommend.
  */
-type Row = { id: string; display_name: string; handle: string; platform: string; avatar_url: string | null; city: string | null; niches: string[]; followers: string | null; engagement_rate: number | null; authenticity_score: number | null; verified: boolean; has_contact: boolean };
+type Row = { id: string; display_name: string; handle: string; platform: string; avatar_url: string | null; city: string | null; niches: string[]; followers: string | null; engagement_rate: number | null; authenticity_score: number | null; verified: boolean; has_contact: boolean; tags: string[] };
 
 /** The best customer-visible creators: engagement weighted by authenticity, at most `perNiche` per main niche. */
 async function bestCreators(db: Db, at: number, perNiche: number, limit: number) {
   const rows = await db.withSystem((tx) =>
     tx.execute<Row>(sql`
-      select id, display_name, handle, platform, avatar_url, city, niches, followers, engagement_rate, authenticity_score, verified, has_contact from (
+      select id, display_name, handle, platform, avatar_url, city, niches, tags, followers, engagement_rate, authenticity_score, verified, has_contact from (
         select d.creator_id id, d.display_name, d.primary_handle handle, d.platforms[1] platform, c.avatar_url, d.city, d.niches, d.followers,
-          d.engagement_rate, d.authenticity_score, d.verified, d.has_contact,
+          d.engagement_rate, d.authenticity_score, d.verified, d.has_contact, d.tags,
           d.engagement_rate * coalesce(d.authenticity_score, 70) / 100.0 quality,
           row_number() over (partition by coalesce(d.niches[1], '') order by d.engagement_rate * coalesce(d.authenticity_score, 70) desc) rn
         from gcp.creator_search_documents d join gcp.creators c on c.id = d.creator_id
         where d.eligible and d.eligible_until_epoch > ${at} and ${CREATOR_VISIBLE}
-          and d.engagement_rate between 0.5 and 20 and d.followers >= 10000 and d.platforms[1] in ('instagram', 'tiktok', 'youtube')) t
+          and cardinality(d.niches) > 0 and d.engagement_rate between 0.5 and 20 and d.followers >= 10000 and d.platforms[1] in ('instagram', 'tiktok', 'youtube')) t
       where rn <= ${perNiche} order by quality desc limit ${limit}`),
   );
   return rows.map((r) => ({
@@ -50,7 +51,8 @@ async function bestCreators(db: Db, at: number, perNiche: number, limit: number)
     platform: r.platform as "instagram" | "tiktok" | "youtube",
     avatarUrl: r.avatar_url,
     city: r.city,
-    niches: r.niches ?? [],
+    // The niche line as cards show it: a specific topic replaces its niche ("PUBG", owner 23 Nov).
+    niches: displayNiches(r.niches ?? [], creatorTopics({ niches: r.niches ?? [], displayName: r.display_name, handle: r.handle, tags: r.tags ?? [] })),
     followers: r.followers === null ? null : Number(r.followers),
     engagementRate: r.engagement_rate === null ? null : Number(r.engagement_rate),
     authenticityScore: r.authenticity_score === null ? null : Math.round(Number(r.authenticity_score)),
