@@ -43,7 +43,7 @@ export const maskEmail = (email: string) => {
  * Staff operations (canonical spec pages 20–23). Reads go through the platform.staff_* security-definer functions,
  * which return redacted projections across workspaces; views of one workspace's data and every write are audited.
  */
-export function createOpsModule(o: { db: Db; requireStaff: (action: StaffAction) => PreHandler; billing?: Pick<BillingService, "engine" | "grantComplimentaryPlan">; now?: () => Date }): AppModule {
+export function createOpsModule(o: { db: Db; requireStaff: (action: StaffAction) => PreHandler; billing?: Pick<BillingService, "engine" | "grantComplimentaryPlan">; now?: () => Date; sendNotifications?: () => Promise<unknown> }): AppModule {
   const now = o.now ?? (() => new Date());
   const activity = createActivityService({ db: o.db });
   // The functions return JSON; it is validated against the response contract before it leaves the API.
@@ -173,6 +173,8 @@ export function createOpsModule(o: { db: Db; requireStaff: (action: StaffAction)
         return r?.ok === true;
       });
       if (!done) throw new AppError("NOT_FOUND", "Ticket not found");
+      // The reply or resolution just made a notification (0100): email it now, while the customer is waiting.
+      await o.sendNotifications?.().catch((err: unknown) => req.log.warn({ err }, "notification emails not sent; the daily cron retries"));
       return sendOk(reply, staffTicketDetailSchema, staffTicketDetailSchema.parse(await json((tx) => tx.execute(sql`select platform.staff_ticket(${id}) v`))));
     });
 

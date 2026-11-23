@@ -1,7 +1,7 @@
 import { createLogger, loadWorkerConfig } from "@mushin/core";
+import { createNotificationMailer } from "../../api/src/modules/notifications/index";
 import { createDatabase, createDbProviderCallSink, createDbProviderRunStore, createDbReservationLedger, llmSpendSince, providerPaused, recordAlertEvent, recordWorkerHeartbeat, UNVERIFIED_TLS_WARNING } from "@mushin/db";
 import { createApifyPool, createSharedSpendGuard, reconcileApifyRuns, createYouTubeAudienceSource, createLlm, pausableGuard, pausableLlm, createObjectStorage, RAW_PAYLOAD_BUCKET, createPayments, createProfileScraper, createSearchIndex, createSerperSearch, createYouTubeSearch, MockEmailProvider, ResendEmailProvider } from "@mushin/integrations";
-import { sql } from "drizzle-orm";
 import { createAudienceRunner } from "../../api/src/modules/audience/index";
 import { createBillingService, noAccessCache } from "../../api/src/modules/billing/index";
 import { createContactChecker, createCreatorIndexer, createEnrichmentPipeline, createEraser, createSummaryWriter, getEnrichmentSettings, expireYoutubeApiData, lifecycleSweep, reassessNextBatch, refreshDueYoutube, systemMailResolver } from "../../api/src/modules/creators/index";
@@ -89,21 +89,14 @@ void indexer
   .then((r) => logger.info(r, "search projections reconciled at start-up"))
   .catch((err: unknown) => logger.error({ err }, "start-up search reconcile failed; the nightly reconcile will retry"));
 await pipeline.ensureBuckets().catch((err: unknown) => logger.error({ err }, "could not create the storage buckets"));
-// Customer notification emails: owners and admins of the workspace, unless they turned email notifications off.
-const notifyDeps = {
+// Customer notification emails (0100): the same sender as the API, nudged by each notify.* event.
+const notifyDeps = createNotificationMailer({
+  db,
   provider: config.notifyEmail.mode === "resend" ? new ResendEmailProvider({ apiKey: config.notifyEmail.apiKey }) : config.notifyEmail.mode === "test" ? new MockEmailProvider() : null,
   from: config.notifyEmail.mode === "off" ? "" : config.notifyEmail.from,
   appUrl: config.appUrl,
-  recipients: (workspaceId: string) =>
-    db.withSystem(async (tx) =>
-      (
-        await tx.execute<{ email: string; name: string | null }>(sql`
-          select u.email, u.display_name as name from wp.workspace_members m join wp.users u on u.id = m.user_id
-          where m.workspace_id = ${workspaceId} and m.role in ('owner', 'admin') and u.status = 'active' and u.deleted_at is null
-            and coalesce(u.preferences ->> 'emailNotifications', 'true') <> 'false'`)
-      ).map((r) => ({ email: r.email, name: r.name })),
-    ),
-};
+  logger,
+});
 const worker = await startWorker({
   db,
   boss,

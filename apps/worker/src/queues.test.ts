@@ -56,7 +56,7 @@ describe("billing handlers", () => {
         return { processed: 0 };
       },
     });
-    const dispatch = createDispatcher({ ...handlers, ...notifyHandlers({ provider: null, from: "", appUrl: "http://app.test", recipients: async () => [] }) }, createLogger({ level: "silent" }));
+    const dispatch = createDispatcher({ ...handlers, ...notifyHandlers({ drain: async () => ({ sent: 0, failed: 0 }) }) }, createLogger({ level: "silent" }));
     await dispatch([{ id: "j1", data: job("billing.webhook_received", { webhookEventId: "w1" }) }]);
     await dispatch([{ id: "j2", data: job("billing.job", { job: "expire_lots" }) }]);
     await dispatch([{ id: "j3", data: job("notify.credits_low", {}) }]);

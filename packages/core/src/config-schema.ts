@@ -202,6 +202,10 @@ export const apiSchema = sharedObject
     OUTREACH_EMAIL_MODE: z.enum(["off", "test", "resend"]).default("off"),
     OUTREACH_EMAIL_FROM: z.string().min(3).max(200).optional(),
     RESEND_API_KEY: z.string().min(1).optional(),
+    // Customer notification emails sent by the API (0100: support replies, resolved requests, credits, trial, payments,
+    // finished live searches). Off: the notifications still appear in the bell. "test" sends nothing.
+    NOTIFY_EMAIL_MODE: z.enum(["off", "test", "resend"]).default("off"),
+    NOTIFY_EMAIL_FROM: z.string().min(3).max(200).optional(),
     RESEND_WEBHOOK_SECRET: z.string().regex(/^whsec_[A-Za-z0-9+/=]+$/, "must be the whsec_ signing secret").optional(),
     OUTREACH_EMAIL_SENDS_AUTHORIZED: z.enum(["yes", "no"]).default("no"),
     // The sender's postal address shown in every outreach email footer (commercial email rules require a physical
@@ -213,6 +217,14 @@ export const apiSchema = sharedObject
   })
   .superRefine(checkShared)
   .superRefine((v, ctx) => {
+    if (v.NOTIFY_EMAIL_MODE === "resend") {
+      for (const key of ["RESEND_API_KEY", "NOTIFY_EMAIL_FROM"] as const) {
+        if (!v[key]) ctx.addIssue({ code: "custom", path: [key], message: "required when NOTIFY_EMAIL_MODE=resend" });
+      }
+    }
+    if (v.NOTIFY_EMAIL_MODE === "test" && v.NODE_ENV === "production") {
+      ctx.addIssue({ code: "custom", path: ["NOTIFY_EMAIL_MODE"], message: "test mode delivers nothing and is for development only" });
+    }
     // The in-memory limiter is per process: several API instances would each allow the full limit.
     if (v.NODE_ENV === "production" && v.RATE_LIMIT_STORE === "memory") {
       ctx.addIssue({ code: "custom", path: ["RATE_LIMIT_STORE"], message: "memory is for development and tests only" });

@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { LifeBuoy, Plus, Search, Send } from "lucide-react";
+import { CheckCircle2, LifeBuoy, Plus, Search, Send } from "lucide-react";
 import { ticketDetailSchema, ticketListSchema, ticketSummarySchema, type CreateTicket, type TicketSummary } from "@mushin/contracts";
 import { apiRequest } from "../../api/client";
 import { useAuth } from "../../auth/AuthContext";
@@ -163,20 +163,40 @@ function NewTicket({ onCreated, onCancel }: { onCreated: (id: string) => void; o
   );
 }
 
+/**
+ * One support request as a conversation (owner, 23 Nov): new replies appear on their own while it is open, the newest
+ * message stays in view, and the customer marks it solved or ends it. Support's replies and resolutions also reach the
+ * bell and the inbox (0100).
+ */
 function TicketThread({ id }: { id: string }) {
   const { status } = useAuth();
-  const q = useQuery({ queryKey: ["support", "detail", id], queryFn: () => apiRequest(`/v1/support/tickets/${id}`, ticketDetailSchema), enabled: status === "signedIn" });
+  const q = useQuery({
+    queryKey: ["support", "detail", id],
+    queryFn: () => apiRequest(`/v1/support/tickets/${id}`, ticketDetailSchema),
+    enabled: status === "signedIn",
+    refetchInterval: (query) => (query.state.data && DONE.has(query.state.data.status) ? false : 10_000),
+  });
   const reply = useTicketMutation((body: string) => apiRequest(`/v1/support/tickets/${id}/messages`, ticketDetailSchema, { method: "POST", body: { body } }));
-  const setStatus = useTicketMutation((s: "open" | "closed") => apiRequest(`/v1/support/tickets/${id}`, ticketSummarySchema, { method: "PATCH", body: { status: s } }));
+  const setStatus = useTicketMutation((s: "open" | "resolved" | "closed") => apiRequest(`/v1/support/tickets/${id}`, ticketSummarySchema, { method: "PATCH", body: { status: s } }));
   const toast = useToast();
   const [text, setText] = useState("");
+  const end = useRef<HTMLLIElement>(null);
+  const count = q.data?.thread.length ?? 0;
+  useEffect(() => end.current?.scrollIntoView({ block: "end", behavior: "smooth" }), [count]);
   if (q.isPending) return <div className="p-6"><LoadingBlock lines={5} /></div>;
   if (q.isError) return <div className="p-6"><ErrorState body={q.error instanceof Error ? q.error.message : undefined} onRetry={() => void q.refetch()} /></div>;
   const t = q.data;
   const closed = t.status === "closed";
+  const resolved = t.status === "resolved";
+  const change = (s: "open" | "resolved" | "closed", done: string) =>
+    setStatus.mutate(s, { onSuccess: () => toast.success(done), onError: (err) => toast.error("Couldn't update the request", err instanceof Error ? err.message : undefined) });
+  const send = () => {
+    if (!text.trim() || reply.isPending) return;
+    reply.mutate(text.trim(), { onSuccess: () => setText(""), onError: (err) => toast.error("Couldn't send the reply", err instanceof Error ? err.message : undefined) });
+  };
   return (
-    <section className="flex flex-1 flex-col" aria-label={t.subject}>
-      <header className="flex items-center justify-between gap-3 bg-white px-6 py-4 shadow-[0_1px_4px_rgba(0,0,0,0.02)]">
+    <section className="flex min-h-0 flex-1 flex-col" aria-label={t.subject}>
+      <header className="flex flex-wrap items-center justify-between gap-3 bg-white px-6 py-4 shadow-[0_1px_4px_rgba(0,0,0,0.03)]">
         <div className="min-w-0">
           <div className="flex items-center gap-2.5">
             <h2 className="truncate text-lg font-semibold text-slate-900">{t.subject}</h2>
@@ -184,43 +204,59 @@ function TicketThread({ id }: { id: string }) {
           </div>
           <p className="text-xs text-slate-500">{CATEGORY[t.category]} · opened {relative(t.createdAt)}</p>
         </div>
-        <button onClick={() => setStatus.mutate(closed ? "open" : "closed", { onSuccess: () => toast.success(closed ? "Request reopened" : "Request closed"), onError: (err) => toast.error("Couldn't update the request", err instanceof Error ? err.message : undefined) })} disabled={setStatus.isPending} className="shrink-0 rounded-lg bg-slate-100 px-3 py-1.5 text-[13px] font-medium text-slate-700 transition-colors hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:opacity-50">
-          {closed ? "Reopen" : "Close request"}
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          {closed || resolved ? (
+            <button onClick={() => change("open", "Request reopened")} disabled={setStatus.isPending} className="btn btn-soft">Reopen</button>
+          ) : (
+            <button onClick={() => change("resolved", "Marked as solved")} disabled={setStatus.isPending} className="btn btn-success"><CheckCircle2 className="h-3.5 w-3.5" /> Mark as solved</button>
+          )}
+          {!closed && <button onClick={() => change("closed", "Request ended")} disabled={setStatus.isPending} className="btn btn-outline">End request</button>}
+        </div>
       </header>
-      <ol className="flex-1 space-y-5 overflow-y-auto p-6">
+      {resolved && (
+        <div role="status" className="flex items-center gap-2 border-b border-emerald-100 bg-emerald-50 px-6 py-2.5 text-[12.5px] text-emerald-800">
+          <CheckCircle2 className="h-4 w-4 shrink-0" /> This request is solved. Reply below if anything is still wrong and it opens again.
+        </div>
+      )}
+      <ol className="flex-1 space-y-4 overflow-y-auto bg-slate-50/60 p-6" aria-live="polite">
         {t.thread.map((m) => {
           const staff = m.authorKind === "staff";
           return (
-            <motion.li key={m.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className={`flex flex-col gap-1 ${staff ? "items-start" : "items-end"}`}>
-              <div className={`max-w-lg whitespace-pre-wrap rounded-2xl p-4 text-[13px] leading-relaxed shadow-sm ${staff ? "rounded-tl-sm bg-white text-slate-800" : "rounded-tr-sm bg-[#0A0F24] text-white"}`}>{m.body}</div>
-              <span className="px-1 text-[10px] text-slate-500">{new Date(m.createdAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })} • {m.authorName}{staff ? " (MUSHIN support)" : ""}</span>
+            <motion.li key={m.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className={`flex items-end gap-2.5 ${staff ? "" : "flex-row-reverse"}`}>
+              <span aria-hidden className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${staff ? "bg-[#131b2e] text-[#4cd7f6]" : "bg-cyan-100 text-[#00687a]"}`}>
+                {staff ? "M" : (m.authorName.trim()[0] ?? "Y").toUpperCase()}
+              </span>
+              <div className={`flex max-w-lg flex-col gap-1 ${staff ? "items-start" : "items-end"}`}>
+                <div className={`whitespace-pre-wrap rounded-2xl px-4 py-3 text-[13px] leading-relaxed shadow-sm ${staff ? "rounded-bl-sm bg-white text-slate-800 ring-1 ring-slate-200/70" : "rounded-br-sm bg-[#131b2e] text-white"}`}>{m.body}</div>
+                <span className="px-1 text-[10.5px] text-slate-500">{staff ? "MUSHIN support" : m.authorName} · {new Date(m.createdAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}</span>
+              </div>
             </motion.li>
           );
         })}
+        <li ref={end} aria-hidden className="h-px" />
       </ol>
       <div className="bg-white px-6 pt-3">
         <TicketAttachments base={`/v1/support/tickets/${id}/attachments`} request={apiRequest} canUpload={!closed} queryKey={["support", "attachments", id]} />
       </div>
       {closed ? (
-        <p className="bg-white px-6 py-4 text-xs text-slate-500">This request is closed. Reopen it to reply.</p>
+        <p className="bg-white px-6 py-4 text-xs text-slate-500">This request has ended. Reopen it to write again.</p>
       ) : (
-        <form
-          className="bg-white p-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!text.trim()) return;
-            reply.mutate(text.trim(), { onSuccess: () => { setText(""); toast.success("Reply sent"); }, onError: (err) => toast.error("Couldn't send the reply", err instanceof Error ? err.message : undefined) });
-          }}
-        >
+        <form className="bg-white p-4" onSubmit={(e) => { e.preventDefault(); send(); }}>
           <div className="mb-2"><Alert tone="error">{reply.isError ? (reply.error instanceof Error ? reply.error.message : "Couldn't send the reply.") : null}</Alert></div>
-          <div className="flex flex-col gap-2 rounded-2xl bg-slate-100 p-3 transition-shadow focus-within:shadow-md focus-within:ring-2 focus-within:ring-cyan/30">
-            <textarea rows={3} maxLength={5000} value={text} onChange={(e) => setText(e.target.value)} aria-label="Reply" placeholder="Write a reply…" className="w-full resize-none bg-transparent px-1 text-[13px] text-slate-900 placeholder:text-slate-400 focus:outline-none" />
-            <div className="flex justify-end">
-              <button type="submit" disabled={!text.trim() || reply.isPending} className="inline-flex items-center gap-1.5 rounded-xl bg-[#0A0F24] px-5 py-2 text-[13px] font-semibold text-white shadow-sm transition-all hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-400/50 disabled:opacity-50">
-                {reply.isPending ? "Sending…" : "Send"} <Send className="h-3.5 w-3.5" />
-              </button>
-            </div>
+          <div className="flex items-end gap-2 rounded-2xl bg-slate-100 p-2.5 transition-shadow focus-within:bg-white focus-within:shadow-md focus-within:ring-2 focus-within:ring-cyan-400/40">
+            <textarea
+              rows={2}
+              maxLength={5000}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); send(); } }}
+              aria-label="Reply"
+              placeholder="Write a reply… (Ctrl + Enter to send)"
+              className="max-h-40 min-h-[44px] w-full resize-y bg-transparent px-1.5 py-1 text-[13px] text-slate-900 placeholder:text-slate-400 focus:outline-none"
+            />
+            <button type="submit" disabled={!text.trim() || reply.isPending} className="btn btn-primary shrink-0">
+              {reply.isPending ? "Sending…" : "Send"} <Send className="h-3.5 w-3.5" />
+            </button>
           </div>
         </form>
       )}

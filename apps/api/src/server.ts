@@ -16,6 +16,7 @@ import { createDiscoveryModule, createDiscoveryService } from "./modules/discove
 import { createActivityModule, createActivityService } from "./modules/activity";
 import { createOpsModule } from "./modules/ops";
 import { createFeaturedModule } from "./modules/featured";
+import { createNotificationMailer, createNotificationsModule } from "./modules/notifications";
 import { createCronModule } from "./modules/cron";
 import { createAttachments, createSupportModule, createSupportService } from "./modules/support";
 import { createAnalyticsModule, createAnalyticsService } from "./modules/analytics";
@@ -38,6 +39,14 @@ const config = loadApiConfig(process.env);
 const logger = createLogger({ level: config.logLevel, name: "api" });
 if (!config.databaseCaPem) logger.warn(UNVERIFIED_TLS_WARNING);
 const db = createDatabase(config.databaseUrl, { max: 10, applicationName: "mushin-api", caPem: config.databaseCaPem });
+// Customer notification emails (0100): sent by the API itself, as production runs no background worker.
+const notificationMailer = createNotificationMailer({
+  db,
+  provider: config.notifyEmail.mode === "resend" ? new ResendEmailProvider({ apiKey: config.notifyEmail.apiKey }) : config.notifyEmail.mode === "test" ? new MockEmailProvider() : null,
+  from: config.notifyEmail.mode === "off" ? "" : config.notifyEmail.from,
+  appUrl: config.appUrl,
+  logger,
+});
 
 // Discovery jobs and AI summaries run on the worker: refuse jobs (holding nothing) and report summaries unavailable when
 // its heartbeat is missing or older than the staff console's critical threshold, rather than queueing work nothing will
@@ -182,7 +191,8 @@ const app = await buildApp({
     createActivityModule({ service: createActivityService({ db }) }),
     createSupportModule({ service: createSupportService({ db }), attachments: supportAttachments }),
     createTrialsModule({ service: createTrialService({ db, startTrial: billing.startTrial, onTrialStarted: (id) => accessCache.invalidate(id) }), limiter, requireStaff: staff.requireStaff }),
-    createOpsModule({ db, requireStaff: staff.requireStaff, billing }),
+    createOpsModule({ db, requireStaff: staff.requireStaff, billing, sendNotifications: () => notificationMailer.drain() }),
+    createNotificationsModule({ db }),
     // Daily maintenance through Vercel Cron while production has no worker host (audit 2026-11-17).
     ...(config.cronSecret ? [createCronModule({
       secret: config.cronSecret,
@@ -195,6 +205,7 @@ const app = await buildApp({
       reindex: (ids) => createCreatorIndexer({ db, index: searchIndex, logger, sourcePolicy: config.sourcePolicy }).sync(ids),
       checkAlerts: () => alertNotifier.tick(),
       purgeTrash: () => createEraser({ db, storage: createObjectStorage(config.storage, logger), logger }).purgeTrashed(),
+      sendNotifications: () => notificationMailer.drain(100),
       workerAvailable,
     })] : []),
     createInsightsModule({ db, requireStaff: staff.requireStaff }),

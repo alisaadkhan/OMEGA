@@ -60,7 +60,7 @@ export function Topbar({ credits, view, setView, onOpenCreator, onViewResults, o
             {credits === null ? <span className="text-slate-400" aria-hidden="true">—</span> : <AnimatedNumber value={credits} />} credits
           </span>
         </button>
-        <NotificationCenter />
+        <NotificationCenter onOpenView={setView} />
 
         {/* Who is signed in. Display only: every account action is in the sidebar (owner, 17 Nov). */}
         <div className="flex items-center gap-2.5 pl-1">

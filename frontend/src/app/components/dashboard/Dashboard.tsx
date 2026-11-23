@@ -26,9 +26,15 @@ import { useCampaigns } from "../../api/campaigns";
 import { CreatorProfilePanel, type Creator } from "./CreatorProfilePanel";
 import { REACH_OUT_EVENT, type ReachOut } from "../../lib/reach-out";
 
+/** The page named in a "#/dashboard/<page>" link (notification emails and the bell). */
+export function viewFromHash(hash = typeof window === "undefined" ? "" : window.location.hash): DashView | null {
+  const m = /^#\/dashboard\/([a-z]+)/.exec(hash);
+  return m && (DASH_VIEWS as readonly string[]).includes(m[1] as string) ? (m[1] as DashView) : null;
+}
+
 export function Dashboard({ onExit }: { onExit: () => void }) {
   // After a session expired, signing in again reopens the page that was open (AUTH-08).
-  const [view, setView] = useState<DashView>(() => takeReturnView(DASH_VIEWS) ?? "overview");
+  const [view, setView] = useState<DashView>(() => takeReturnView(DASH_VIEWS) ?? viewFromHash() ?? "overview");
   useEffect(() => rememberCurrentView(view), [view]);
   // Choosing a section in the sidebar always opens its first page, even when it is already the current section
   // (an open list or campaign goes back to the index; design gap G-17).

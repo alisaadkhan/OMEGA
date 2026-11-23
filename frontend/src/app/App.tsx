@@ -42,7 +42,8 @@ function useHashRoute(initial: Route): [Route, (r: Route) => void] {
     if (h === "forgot") return "forgot";
     if (h === "reset-password") return "reset-password";
     if (h === "confirmed") return "confirmed";
-    if (h === "dashboard") return "dashboard";
+    // "dashboard/<page>" opens that dashboard page (links in notifications and emails).
+    if (h === "dashboard" || h.startsWith("dashboard/")) return "dashboard";
     if (h === "remove-my-data") return "remove-my-data";
     if (h === "free-trial") return "free-trial";
     if ((LEGAL_DOCS as readonly string[]).includes(h)) return h as LegalDoc;

@@ -32,7 +32,8 @@ export const createTicketSchema = z.object({ subject: z.string().trim().min(1, "
 export type CreateTicket = z.input<typeof createTicketSchema>;
 export const ticketReplySchema = z.object({ body });
 /** Customers may close a ticket or reopen it. */
-export const ticketCustomerStatusSchema = z.object({ status: z.enum(["open", "closed"]) });
+/** A customer reopens, marks solved ("resolved") or ends ("closed") their own request (owner, 23 Nov). */
+export const ticketCustomerStatusSchema = z.object({ status: z.enum(["open", "resolved", "closed"]) });
 
 // ── Staff (admin console) ──────────────────────────────────────────────────────────────────────────────────────
 const assignee = { assignedStaffId: z.uuid().nullable(), assignedStaffName: z.string().nullable() };

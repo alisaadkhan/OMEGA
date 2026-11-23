@@ -99,7 +99,7 @@ export function createSupportService(deps: { db: Db }) {
         return detailIn(tx, ctx, id);
       });
     },
-    async setStatus(ctx: TenantContext, id: string, status: "open" | "closed"): Promise<TicketSummary> {
+    async setStatus(ctx: TenantContext, id: string, status: "open" | "resolved" | "closed"): Promise<TicketSummary> {
       return deps.db.withTenant(tenant(ctx), async (tx) => {
         const rows = await tx.update(supportTickets).set({ status }).where(and(eq(supportTickets.workspaceId, ctx.workspaceId), eq(supportTickets.id, id))).returning({ id: supportTickets.id });
         if (rows.length === 0) throw new AppError("NOT_FOUND", "Support request not found");

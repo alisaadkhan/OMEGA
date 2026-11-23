@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { approvalSchema, staffTicketDetailSchema, staffTicketListSchema } from "@mushin/contracts";
@@ -12,6 +12,7 @@ import { errText, needsKey, useStepUp } from "./staff-ui";
 
 const STATUS = { open: "Open", in_progress: "In progress", waiting_on_customer: "Waiting on customer", resolved: "Resolved", closed: "Closed" } as const;
 type Status = keyof typeof STATUS;
+const TONE: Record<Status, string> = { open: "bg-cyan-50 text-cyan-800", in_progress: "bg-indigo-50 text-indigo-700", waiting_on_customer: "bg-amber-50 text-amber-800", resolved: "bg-emerald-50 text-emerald-700", closed: "bg-slate-100 text-slate-600" };
 const PRIORITY = { urgent: "Urgent", high: "High", medium: "Medium", low: "Low" } as const;
 type Priority = keyof typeof PRIORITY;
 const PRIORITY_STYLE: Record<Priority, string> = { urgent: "bg-rose-50 text-rose-700 ring-rose-200", high: "bg-amber-50 text-amber-800 ring-amber-200", medium: "bg-slate-100 text-slate-600 ring-slate-200", low: "bg-white text-slate-500 ring-slate-200" };
@@ -60,14 +61,19 @@ export function SupportQueue({ me, canAssignOthers, role }: { me: string; canAss
 function TicketPanel({ id, me, canAssignOthers, role }: { id: string; me: string; canAssignOthers: boolean; role: AdminRole }) {
   const qc = useQueryClient();
   const toast = useToast();
-  const q = useQuery({ queryKey: ["admin", "ticket", id], queryFn: () => adminRequest(`/admin/v1/support/tickets/${id}`, staffTicketDetailSchema) });
+  const q = useQuery({ queryKey: ["admin", "ticket", id], queryFn: () => adminRequest(`/admin/v1/support/tickets/${id}`, staffTicketDetailSchema), refetchInterval: 10_000 });
   const update = useMutation({
     mutationFn: (body: { body?: string; status?: Status }) => adminRequest(`/admin/v1/support/tickets/${id}`, staffTicketDetailSchema, { method: "PATCH", body }),
     onSettled: () => void qc.invalidateQueries({ queryKey: ["admin"] }),
   });
   const [text, setText] = useState("");
   const [note, setNote] = useState("");
-  const [next, setNext] = useState<Status>("waiting_on_customer");
+  const end = useRef<HTMLLIElement>(null);
+  const count = q.data?.messages.length ?? 0;
+  useEffect(() => end.current?.scrollIntoView({ block: "end", behavior: "smooth" }), [count]);
+  /** One click: a reply (optional) and the status it leaves the request in. The customer is notified and emailed (0100). */
+  const act = (status: Status, done: string, body?: string) =>
+    update.mutate({ ...(body ? { body } : {}), status }, { onSuccess: () => { if (body) setText(""); toast.success(done); }, onError: (err) => toast.error("Couldn't update the request", err instanceof Error ? err.message : undefined) });
   const step = useStepUp();
   const staff = useQuery({ queryKey: ["admin", "assignable"], queryFn: () => adminRequest("/admin/v1/staff/assignable", z.object({ staff: z.array(z.object({ id: z.uuid(), name: z.string() })) })), enabled: canAssignOthers });
   const assign = async (assigneeId: string | null) => {
@@ -137,8 +143,23 @@ function TicketPanel({ id, me, canAssignOthers, role }: { id: string; me: string
   return (
     <section className="rounded-2xl border border-slate-200/80 bg-white" aria-label={t.subject}>
       <div className="border-b border-slate-100 px-4 py-3">
-        <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>{t.subject}</div>
-        <div className="text-[11px] text-slate-500">{t.workspaceName} · {t.category} · {STATUS[t.status]}</div>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h3 className="truncate text-[15px] font-bold text-slate-900">{t.subject}</h3>
+              <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-bold ${TONE[t.status]}`}>{STATUS[t.status]}</span>
+            </div>
+            <div className="text-[11.5px] text-slate-500">{t.workspaceName} · {t.category}</div>
+          </div>
+          <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+            {t.status === "resolved" || t.status === "closed" ? (
+              <button type="button" onClick={() => act("open", "Request reopened")} disabled={update.isPending} className="btn btn-soft btn-sm">Reopen</button>
+            ) : (
+              <button type="button" onClick={() => act("resolved", "Marked resolved; the customer was told")} disabled={update.isPending} className="btn btn-success btn-sm">Resolve</button>
+            )}
+            {t.status !== "closed" && <button type="button" onClick={() => act("closed", "Request closed; the customer was told")} disabled={update.isPending} className="btn btn-outline btn-sm">Close</button>}
+          </div>
+        </div>
         <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
           <label>Priority <select value={t.priority} onChange={(e) => void setPriority(e.target.value as Priority)} className="ml-1 rounded-md border border-slate-200 px-1.5 py-0.5">{Object.entries(PRIORITY).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
           <span>Assigned: {t.assignedStaffName ?? "nobody"}</span>
@@ -148,13 +169,24 @@ function TicketPanel({ id, me, canAssignOthers, role }: { id: string; me: string
           )}
         </div>
       </div>
-      <ol className="space-y-3 p-4">
-        {t.messages.map((m) => (
-          <li key={m.id} className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${m.authorKind === "internal" ? "ml-auto border border-dashed border-amber-300 bg-amber-50" : m.authorKind === "staff" ? "ml-auto bg-indigo-50" : "bg-slate-100"}`}>
-            <div className="text-[11px] text-slate-500">{m.authorKind === "internal" && <span className="mr-1 text-amber-800" style={{ fontWeight: 600 }}>Internal note · not visible to the customer ·</span>}<span style={{ fontWeight: 600 }}>{m.authorName}</span> · {new Date(m.createdAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}</div>
-            <p className="mt-0.5 whitespace-pre-wrap">{m.body}</p>
-          </li>
-        ))}
+      <ol className="max-h-[520px] space-y-4 overflow-y-auto bg-slate-50/60 p-4" aria-live="polite">
+        {t.messages.map((m) =>
+          m.authorKind === "internal" ? (
+            <li key={m.id} className="mx-auto max-w-[90%] rounded-xl border border-dashed border-amber-300 bg-amber-50 px-3 py-2 text-[12.5px] text-amber-950">
+              <div className="mb-0.5 text-[10.5px] font-bold text-amber-800">Internal note · only staff see this · {m.authorName} · {new Date(m.createdAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}</div>
+              <p className="whitespace-pre-wrap">{m.body}</p>
+            </li>
+          ) : (
+            <li key={m.id} className={`flex items-end gap-2.5 ${m.authorKind === "staff" ? "flex-row-reverse" : ""}`}>
+              <span aria-hidden className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${m.authorKind === "staff" ? "bg-[#131b2e] text-[#4cd7f6]" : "bg-cyan-100 text-[#00687a]"}`}>{(m.authorName.trim()[0] ?? "?").toUpperCase()}</span>
+              <div className={`flex max-w-[78%] flex-col gap-1 ${m.authorKind === "staff" ? "items-end" : "items-start"}`}>
+                <div className={`whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed shadow-sm ${m.authorKind === "staff" ? "rounded-br-sm bg-[#131b2e] text-white" : "rounded-bl-sm bg-white text-slate-800 ring-1 ring-slate-200/70"}`}>{m.body}</div>
+                <span className="px-1 text-[10.5px] text-slate-500">{m.authorName} · {new Date(m.createdAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}</span>
+              </div>
+            </li>
+          ),
+        )}
+        <li ref={end} aria-hidden className="h-px" />
       </ol>
       <div className="border-t border-slate-100 p-3">
         <TicketAttachments base={`/admin/v1/support/tickets/${id}/attachments`} request={adminRequest} canUpload queryKey={["admin", "ticket-attachments", id]} />
@@ -180,17 +212,22 @@ function TicketPanel({ id, me, canAssignOthers, role }: { id: string; me: string
         <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={5000} aria-label="Internal note" placeholder="Internal note for staff (the customer never sees it)" className="flex-1 rounded-md border border-dashed border-amber-300 bg-amber-50/40 px-2.5 py-1.5 text-xs" />
         <button type="submit" disabled={!note.trim() || addNote.isPending} className="btn btn-warn btn-sm">Add note</button>
       </form>
-      <form
-        className="space-y-2 border-t border-slate-100 p-3"
-        onSubmit={(e) => {
-          e.preventDefault();
-          update.mutate({ ...(text.trim() ? { body: text.trim() } : {}), status: next }, { onSuccess: () => { setText(""); toast.success("Ticket updated"); }, onError: (err) => toast.error("Couldn't update the ticket", err instanceof Error ? err.message : undefined) });
-        }}
-      >
-        <textarea rows={3} maxLength={5000} value={text} onChange={(e) => setText(e.target.value)} aria-label="Reply" placeholder="Reply to the customer (optional when only changing status)" className="w-full rounded-md border border-slate-200 px-2.5 py-1.5 text-sm" />
-        <div className="flex items-center justify-end gap-2 text-xs">
-          <label className="text-slate-600">Set status <select value={next} onChange={(e) => setNext(e.target.value as Status)} className="ml-1 rounded-md border border-slate-200 px-1.5 py-1 text-xs">{Object.entries(STATUS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
-          <button type="submit" disabled={update.isPending} className="btn btn-primary btn-sm" style={{ fontWeight: 600 }}>{text.trim() ? "Send reply" : "Update status"}</button>
+      <form className="border-t border-slate-100 p-3" onSubmit={(e) => { e.preventDefault(); if (text.trim()) act("waiting_on_customer", "Reply sent; the customer was notified", text.trim()); }}>
+        <div className="rounded-2xl bg-slate-100 p-2.5 transition-shadow focus-within:bg-white focus-within:shadow-md focus-within:ring-2 focus-within:ring-cyan-400/40">
+          <textarea
+            rows={3}
+            maxLength={5000}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && text.trim()) { e.preventDefault(); act("waiting_on_customer", "Reply sent; the customer was notified", text.trim()); } }}
+            aria-label="Reply to the customer"
+            placeholder="Reply to the customer… (Ctrl + Enter to send)"
+            className="w-full resize-y bg-transparent px-1.5 py-1 text-[13px] text-slate-900 placeholder:text-slate-400 focus:outline-none"
+          />
+          <div className="mt-1.5 flex flex-wrap items-center justify-end gap-2">
+            <button type="button" disabled={!text.trim() || update.isPending} onClick={() => act("resolved", "Reply sent and request resolved", text.trim())} className="btn btn-success btn-sm">Send and resolve</button>
+            <button type="submit" disabled={!text.trim() || update.isPending} className="btn btn-primary btn-sm">{update.isPending ? "Sending…" : "Send reply"}</button>
+          </div>
         </div>
       </form>
     </section>

@@ -20,6 +20,8 @@ export type CronDeps = {
   checkAlerts?: () => Promise<unknown>;
   /** Erases creators trashed more than 45 days ago (owner, 23 Nov) and returns them. */
   purgeTrash?: () => Promise<string[]>;
+  /** Sends notification emails still waiting (0100): the retry for any a request could not send at once. */
+  sendNotifications?: () => Promise<{ sent: number; failed: number }>;
   /** True while a worker process is running the schedules itself: the cron then does nothing. */
   workerAvailable: () => Promise<boolean>;
 };
@@ -72,6 +74,15 @@ export function createCronModule(d: CronDeps): AppModule {
             d.logger.error({ err, entryPoint: "cron" }, "daily cron: trash purge failed");
           }
         }
+        let notifications: { sent: number; failed: number } | "failed" | "off" = "off";
+        if (d.sendNotifications) {
+          try {
+            notifications = await d.sendNotifications();
+          } catch (err) {
+            notifications = "failed";
+            d.logger.error({ err, entryPoint: "cron" }, "daily cron: notification emails failed");
+          }
+        }
         let alerts: "sent" | "none" | "failed" | "off" = "off";
         if (d.checkAlerts) {
           try {
@@ -81,8 +92,8 @@ export function createCronModule(d: CronDeps): AppModule {
             d.logger.error({ err, entryPoint: "cron" }, "daily cron: alert check failed");
           }
         }
-        d.logger.info({ entryPoint: "cron", billing, youtubeExpired, trashErased, alerts }, "daily cron finished");
-        return reply.send({ billing, youtubeExpired, trashErased, alerts });
+        d.logger.info({ entryPoint: "cron", billing, youtubeExpired, trashErased, alerts, notifications }, "daily cron finished");
+        return reply.send({ billing, youtubeExpired, trashErased, alerts, notifications });
       });
     },
   };

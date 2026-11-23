@@ -158,6 +158,8 @@ export type ApiConfig = {
   llmMonthlyBudgetUsd: number;
   audienceSources: "youtube"[];
   outreachEmail: OutreachEmailConfig;
+  /** Customer notification emails (0100); off = bell only. */
+  notifyEmail: { mode: "off" } | { mode: "test"; from: string } | { mode: "resend"; from: string; apiKey: string };
   /** Incoming-webhook URL for alerts (audit OPS-03); null = logged only. */
   alertWebhookUrl: string | null;
   /** Proxies trusted for X-Forwarded-For (audit SEC-05); empty = none. */
@@ -213,6 +215,12 @@ export function loadApiConfig(env: Env): ApiConfig {
     search: searchFrom(v, v.MEILISEARCH_SEARCH_KEY),
     llm: llmFrom(v),
     audienceSources: [...new Set(v.AUDIENCE_SOURCES)],
+    notifyEmail:
+      v.NOTIFY_EMAIL_MODE === "resend" && v.RESEND_API_KEY && v.NOTIFY_EMAIL_FROM
+        ? { mode: "resend", from: v.NOTIFY_EMAIL_FROM, apiKey: v.RESEND_API_KEY }
+        : v.NOTIFY_EMAIL_MODE === "test"
+          ? { mode: "test", from: v.NOTIFY_EMAIL_FROM ?? "MUSHIN test <notify@test.mushin.invalid>" }
+          : { mode: "off" },
     outreachEmail:
       v.OUTREACH_EMAIL_MODE === "resend" && v.RESEND_API_KEY && v.RESEND_WEBHOOK_SECRET && v.OUTREACH_EMAIL_FROM && v.OUTREACH_POSTAL_ADDRESS
         ? { mode: "resend", from: v.OUTREACH_EMAIL_FROM, apiKey: v.RESEND_API_KEY, webhookSecret: v.RESEND_WEBHOOK_SECRET, postalAddress: v.OUTREACH_POSTAL_ADDRESS }

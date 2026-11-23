@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { DataSourceHistory } from "./DataSourceHistory";
 import { useQueryClient } from "@tanstack/react-query";
 import { staffJobListSchema, staffOverviewSchema, staffAlertsSchema, staffTicketListSchema, staffWorkspaceListSchema } from "@mushin/contracts";
 import { adminRequest } from "../../admin/adminApi";
@@ -81,6 +82,7 @@ export function StaffPortal() {
           <OpsProviders />
           <IntegrationsCard />
           <div className="mt-6"><ProviderControls /></div>
+          <DataSourceHistory />
         </>
       )}
       {current === "checks" && <CreatorChecksPage canEdit={isAdmin} />}
