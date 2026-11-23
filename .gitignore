@@ -39,3 +39,6 @@ certs/
 # Owner catalogue exports (scripts/catalog/export-catalogue.ts): creator contact details and YouTube API data, never committed.
 docs/completion/inventory/MUSHIN_QUALIFIED_CREATORS.*
 docs/completion/inventory/MUSHIN_DISQUALIFIED_ACCOUNTS.*
+
+# Local catalogue working files (raw payloads, crawler cache with contact details): never committed
+.catalog-storage/

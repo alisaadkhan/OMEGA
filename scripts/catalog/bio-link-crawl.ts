@@ -40,12 +40,16 @@ const MAX_BYTES = 1_500_000;
 /** Private, loopback, link-local, CGNAT and other non-public ranges (IPv4 and IPv6). */
 function publicAddress(ip: string): boolean {
   if (isIP(ip) === 4) {
-    const [a = 0, b = 0] = ip.split(".").map(Number);
-    return !(a === 0 || a === 10 || a === 127 || (a === 100 && b >= 64 && b <= 127) || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || a >= 224);
+    const [a = 0, b = 0, c = 0] = ip.split(".").map(Number);
+    // Also the IETF special-purpose ranges (audit 24 Nov): 192.0.0.0/24, the documentation nets, 198.18.0.0/15 benchmarking.
+    return !(a === 0 || a === 10 || a === 127 || (a === 100 && b >= 64 && b <= 127) || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || a >= 224
+      || (a === 192 && b === 0 && (c === 0 || c === 2)) || (a === 198 && (b === 18 || b === 19)) || (a === 198 && b === 51 && c === 100) || (a === 203 && b === 0 && c === 113));
   }
   const v = ip.toLowerCase();
   if (v.startsWith("::ffff:")) return publicAddress(v.slice(7));
-  return !(v === "::" || v === "::1" || v.startsWith("fc") || v.startsWith("fd") || v.startsWith("fe80") || v.startsWith("ff"));
+  // NAT64 (64:ff9b::/96) carries an IPv4 address: check that one. 2001:db8::/32 is documentation only.
+  if (v.startsWith("64:ff9b::")) return publicAddress(v.slice(9));
+  return !(v === "::" || v === "::1" || v.startsWith("fc") || v.startsWith("fd") || /^fe[89ab]/.test(v) || v.startsWith("ff") || v.startsWith("2001:db8:"));
 }
 
 async function safeUrl(u: URL): Promise<boolean> {
