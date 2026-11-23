@@ -77,7 +77,7 @@ export function createFeaturedModule(o: { db: Db; now?: () => Date }): AppModule
         const at = nowSec();
         if (!showcase || at - showcase.at > 600) {
           const rows = await bestCreators(o.db, at, 3, 24);
-          showcase = { at, creators: rows.map(({ id: _id, hasContact: _c, ...rest }) => rest) };
+          showcase = { at, creators: rows.map((r) => showcaseCreatorSchema.parse(r)) };
         }
         void reply.header("cache-control", "public, max-age=600");
         return sendOk(reply, showcaseCreatorsSchema, { creators: showcase.creators });
