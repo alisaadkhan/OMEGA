@@ -68,3 +68,9 @@ export const workspaceInvitations = wp.table("workspace_invitations", {
   expiresAt: ts("expires_at").notNull(),
   createdAt: ts("created_at").notNull().defaultNow(),
 });
+
+/** Accounts staff have suspended (0098): a person is restored only once no account they belong to is suspended. */
+export const workspaceSuspensions = wp.table("workspace_suspensions", {
+  workspaceId: uuid("workspace_id").primaryKey().references(() => workspaces.id, { onDelete: "cascade" }),
+  suspendedAt: ts("suspended_at").notNull().defaultNow(),
+});

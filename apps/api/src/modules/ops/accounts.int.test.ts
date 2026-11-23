@@ -110,4 +110,24 @@ describe("staff Users and Subscriptions pages (owner, 22 Nov)", () => {
     const audit = await ownerQuery<{ action: string }>(`select action from staff.audit_log order by created_at`);
     expect(audit.map((e) => e.action)).toEqual(expect.arrayContaining(["ops.account.viewed", "billing.plan.granted", "ops.account.suspended", "ops.account.restored"]));
   });
+
+  it("keeps a person suspended while any account they belong to is still suspended (security review of 0095, 23 Nov)", async () => {
+    const { app, customer, keyed } = await setup();
+    const a = await customer("both@brand.pk");
+    const b = await customer("other@brand.pk");
+    const wsA = (await app.inject({ method: "GET", url: "/v1/me", headers: a })).json().workspace.id as string;
+    const wsB = (await app.inject({ method: "GET", url: "/v1/me", headers: b })).json().workspace.id as string;
+    await ownerQuery(`insert into wp.workspace_members (workspace_id, user_id, role) select '${wsB}', owner_user_id, 'member' from wp.workspaces where id = '${wsA}'`);
+    const admin = await keyed("admin");
+    const why = { reason: "Payment dispute under review" };
+    const post = async (ws: string, path: string) => (await app.inject({ method: "POST", url: `/admin/v1/ops/workspaces/${ws}/${path}`, headers: admin, payload: why })).json();
+
+    expect(await post(wsA, "suspend")).toEqual({ suspended: true, people: 1 });
+    expect(await post(wsB, "suspend")).toEqual({ suspended: true, people: 1 }); // the shared person is already suspended
+    expect(await post(wsA, "restore")).toEqual({ suspended: false, people: 0 }); // still in suspended account B
+    expect((await app.inject({ method: "GET", url: "/v1/me", headers: a })).statusCode).toBe(403);
+    expect(await post(wsB, "restore")).toEqual({ suspended: false, people: 2 });
+    expect((await app.inject({ method: "GET", url: "/v1/me", headers: a })).statusCode).toBe(200);
+    expect((await app.inject({ method: "GET", url: "/v1/me", headers: b })).statusCode).toBe(200);
+  });
 });
