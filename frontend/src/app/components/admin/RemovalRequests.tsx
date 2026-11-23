@@ -33,7 +33,7 @@ export function RemovalRequests() {
         <h1 className="text-[26px] font-extrabold leading-tight tracking-tight text-slate-900">Data Removals</h1>
         <div className="flex gap-1">
           {(["received", "processed", "rejected"] as const).map((s) => (
-            <button key={s} onClick={() => setStatus(s)} className={`rounded-md px-2.5 py-1 text-xs ${status === s ? "bg-slate-900 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200"}`}>
+            <button key={s} onClick={() => setStatus(s)} className={`tab ${status === s ? "tab-on" : ""}`}>
               {s === "received" ? "Pending" : s === "processed" ? "Approved" : "Rejected"}
             </button>
           ))}
@@ -53,12 +53,12 @@ export function RemovalRequests() {
           {r.staffNote && <p className="mt-2 text-slate-500">Note: {r.staffNote}</p>}
           {r.status === "received" && (
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              <button onClick={() => void approve(r.id, r.creator?.displayName ?? "this request's links")} disabled={act.isPending} className="rounded-md bg-red-600 px-3 py-1.5 text-white hover:bg-red-700 disabled:opacity-50">Approve and erase</button>
+              <button onClick={() => void approve(r.id, r.creator?.displayName ?? "this request's links")} disabled={act.isPending} className="btn btn-danger btn-sm">Approve and erase</button>
               <input value={notes[r.id] ?? ""} onChange={(e) => setNotes((n) => ({ ...n, [r.id]: e.target.value }))} placeholder="Reason for rejecting" className="min-w-[220px] flex-1 rounded-md border border-slate-200 px-2 py-1.5" />
               <button
                 onClick={() => act.mutate({ id: r.id, kind: "reject", note: notes[r.id] ?? "" }, { onSuccess: () => toast.info("Rejected. The creator is visible again."), onError: (e) => toast.error("Couldn't reject", e instanceof Error ? e.message : undefined) })}
                 disabled={act.isPending || (notes[r.id] ?? "").trim().length < 3}
-                className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                className="btn btn-outline btn-sm"
               >
                 Reject
               </button>

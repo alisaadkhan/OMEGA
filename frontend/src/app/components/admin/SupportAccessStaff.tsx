@@ -37,7 +37,7 @@ export function SupportAccessStaff({ initialWorkspaceId }: { initialWorkspaceId?
         <div className="mt-2 flex flex-wrap items-end gap-2">
           <label className="text-slate-600">Account id<input value={workspaceId} onChange={(e) => setWorkspaceId(e.target.value)} className="mt-0.5 block w-80 rounded-md border border-slate-200 px-2 py-1" /></label>
           <label className="flex-1 text-slate-600">Purpose (shown to the customer)<input value={purpose} onChange={(e) => setPurpose(e.target.value)} maxLength={500} placeholder="e.g. Check why your list shows no creators (ticket from 14 Oct)" className="mt-0.5 block w-full rounded-md border border-slate-200 px-2 py-1" /></label>
-          <button type="submit" disabled={ask.isPending || purpose.trim().length < 12 || !/^[0-9a-f-]{36}$/i.test(workspaceId.trim())} className="rounded-md bg-slate-900 px-3 py-1.5 text-white disabled:opacity-50" style={{ fontWeight: 600 }}>Ask for access</button>
+          <button type="submit" disabled={ask.isPending || purpose.trim().length < 12 || !/^[0-9a-f-]{36}$/i.test(workspaceId.trim())} className="btn btn-primary btn-sm" style={{ fontWeight: 600 }}>Ask for access</button>
         </div>
       </form>
       {q.isPending ? <LoadingBlock lines={3} /> : q.isError ? <ErrorState body={errText(q.error)} onRetry={() => void q.refetch()} /> : q.data.requests.length === 0 ? <p className="text-sm text-slate-500">You have not asked for access to any account.</p> : (
@@ -45,8 +45,8 @@ export function SupportAccessStaff({ initialWorkspaceId }: { initialWorkspaceId?
           {q.data.requests.map((r) => (
             <li key={r.id} className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200/80 bg-white px-3 py-2 text-xs">
               <div className="flex-1"><div className="text-slate-900" style={{ fontWeight: 600 }}>Account {r.workspaceId.slice(0, 8)}… · {STATUS[r.status] ?? r.status}</div><div className="text-slate-500">{r.purpose} · asked {when(r.createdAt)}{r.expiresAt ? ` · until ${when(r.expiresAt)}` : ""}</div></div>
-              {r.status === "granted" && <button onClick={() => setViewing(r.id)} className="inline-flex items-center gap-1 rounded-md bg-slate-900 px-2.5 py-1 text-white"><Eye className="h-3 w-3" />Open read-only view</button>}
-              {(r.status === "requested" || r.status === "granted") && <button onClick={() => void adminRequest(`/admin/v1/access-requests/${r.id}/end`, supportAccessSchema, { method: "POST" }).then(() => qc.invalidateQueries({ queryKey: ["admin", "access"] }))} className="rounded-md border border-slate-200 px-2.5 py-1">{r.status === "requested" ? "Withdraw" : "End access"}</button>}
+              {r.status === "granted" && <button onClick={() => setViewing(r.id)} className="btn btn-primary btn-sm"><Eye className="h-3 w-3" />Open read-only view</button>}
+              {(r.status === "requested" || r.status === "granted") && <button onClick={() => void adminRequest(`/admin/v1/access-requests/${r.id}/end`, supportAccessSchema, { method: "POST" }).then(() => qc.invalidateQueries({ queryKey: ["admin", "access"] }))} className="btn btn-outline btn-sm">{r.status === "requested" ? "Withdraw" : "End access"}</button>}
             </li>
           ))}
         </ul>
@@ -68,7 +68,7 @@ function AccessView({ id, onClose }: { id: string; onClose: () => void }) {
         <span style={{ fontWeight: 600 }}>Read-only support access{q.data ? ` to ${q.data.workspace.name}` : ""}</span>
         {q.data?.access.expiresAt && <span>· ends {when(q.data.access.expiresAt)}</span>}
         <span className="opacity-80">· this view is recorded in the audit log</span>
-        <button onClick={() => void end()} className="ml-auto rounded-md bg-white/15 px-2.5 py-1 hover:bg-white/25" style={{ fontWeight: 600 }}>End access</button>
+        <button onClick={() => void end()} className="btn btn-sm ml-auto bg-white/15 text-white hover:bg-white/25" style={{ fontWeight: 600 }}>End access</button>
         <button onClick={onClose} className="rounded-md px-2 py-1 underline">Back</button>
       </div>
       {q.isPending ? <LoadingBlock lines={5} /> : q.isError ? <ErrorState title="Access is not available" body={errText(q.error)} /> : (

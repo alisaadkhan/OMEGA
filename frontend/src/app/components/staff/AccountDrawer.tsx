@@ -63,7 +63,7 @@ function AssignPlan({ workspaceId, onDone }: { workspaceId: string; onDone: () =
         <label className="text-[11px] font-semibold text-slate-600">Months (no payment)<input type="number" min={1} max={24} value={months} onChange={(e) => setMonths(Math.max(1, Math.min(24, Number(e.target.value) || 1)))} className={`mt-1 ${input} tabular-nums`} /></label>
       </div>
       <input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={1000} placeholder="Reason (at least 12 characters)" aria-label="Reason for the plan" className={input} />
-      <button type="submit" disabled={busy || reason.trim().length < 12} className="w-full rounded-xl bg-[#0f172a] px-3 py-2 text-xs font-semibold text-white hover:bg-black disabled:opacity-50">{busy ? "Assigning…" : "Assign complimentary plan"}</button>
+      <button type="submit" disabled={busy || reason.trim().length < 12} className="btn btn-primary w-full">{busy ? "Assigning…" : "Assign complimentary plan"}</button>
       <p className="text-[11px] text-slate-500">Refused when the account already pays through the payment provider. Recorded in the audit log.</p>
     </form>
   );
@@ -102,7 +102,7 @@ function AddCredits({ workspaceId, role, onDone }: { workspaceId: string; role: 
         <label className="text-[11px] font-semibold text-slate-600">Expire after (days)<input type="number" min={1} max={365} value={days} onChange={(e) => setDays(Math.max(1, Math.min(365, Math.round(Number(e.target.value) || 1))))} className={`mt-1 ${input} tabular-nums`} /></label>
       </div>
       <input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={1000} placeholder="Reason (at least 12 characters)" aria-label="Reason for the credits" className={input} />
-      <button type="submit" disabled={busy || reason.trim().length < 12} className="w-full rounded-xl bg-[#0f172a] px-3 py-2 text-xs font-semibold text-white hover:bg-black disabled:opacity-50">{busy ? "Working…" : role === "super_admin" ? "Add credits" : "Request credits (needs a second person)"}</button>
+      <button type="submit" disabled={busy || reason.trim().length < 12} className="btn btn-primary w-full">{busy ? "Working…" : role === "super_admin" ? "Add credits" : "Request credits (needs a second person)"}</button>
     </form>
   );
 }
@@ -130,7 +130,7 @@ function SuspendAccount({ workspaceId, suspended, onDone }: { workspaceId: strin
     <form onSubmit={(e) => void submit(e)} className={`space-y-2 rounded-xl border p-3 ${suspended ? "border-amber-200 bg-amber-50/50" : "border-rose-200 bg-rose-50/40"}`}>
       <p className="text-[11.5px] text-slate-700">{suspended ? "This account is suspended: its people cannot sign in or use MUSHIN." : "Suspending stops everyone in this account from signing in or using MUSHIN until it is restored. Nothing is deleted."}</p>
       <input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={1000} placeholder="Reason (at least 12 characters)" aria-label={suspended ? "Reason to restore" : "Reason to suspend"} className={input} />
-      <button type="submit" disabled={busy || reason.trim().length < 12} className={`w-full rounded-xl px-3 py-2 text-xs font-semibold text-white disabled:opacity-50 ${suspended ? "bg-emerald-700 hover:bg-emerald-800" : "bg-rose-600 hover:bg-rose-700"}`}>{busy ? "Working…" : suspended ? "Restore account" : "Suspend account"}</button>
+      <button type="submit" disabled={busy || reason.trim().length < 12} className={`btn w-full ${suspended ? "btn-success" : "btn-danger"}`}>{busy ? "Working…" : suspended ? "Restore account" : "Suspend account"}</button>
     </form>
   );
 }

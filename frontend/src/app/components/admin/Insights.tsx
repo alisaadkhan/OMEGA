@@ -28,7 +28,7 @@ export function ProductReviews() {
       <p className="mt-1 text-xs text-slate-500">What customers wrote with "Leave a review". Nobody is emailed when one arrives.</p>
       <div className="mt-4 flex gap-1 text-xs">
         {(["new", "reviewed", "archived", ""] as const).map((s) => (
-          <button key={s || "all"} onClick={() => setStatus(s)} aria-pressed={status === s} className={`rounded-md px-2.5 py-1 ${status === s ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"}`}>
+          <button key={s || "all"} onClick={() => setStatus(s)} aria-pressed={status === s} className={`tab ${status === s ? "tab-on" : ""}`}>
             {s ? REVIEW_LABEL[s] : "All"}
           </button>
         ))}
@@ -48,7 +48,7 @@ export function ProductReviews() {
             {r.comment && <p className="mt-2 whitespace-pre-line text-sm text-slate-800">{r.comment}</p>}
             <div className="mt-2 flex gap-2 text-xs">
               {(["reviewed", "archived"] as const).filter((s) => s !== r.status).map((s) => (
-                <button key={s} onClick={() => mark.mutate({ id: r.id, status: s })} className="rounded-md border border-slate-200 px-2 py-1 text-slate-700 hover:bg-slate-50">
+                <button key={s} onClick={() => mark.mutate({ id: r.id, status: s })} className="btn btn-outline btn-sm">
                   Mark {REVIEW_LABEL[s].toLowerCase()}
                 </button>
               ))}

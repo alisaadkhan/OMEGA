@@ -14,6 +14,12 @@ export const staffOverviewSchema = z.object({
   jobs24h: z.record(z.string(), count),
 });
 
+/** Customer use of each feature over the last `days` days (owner Overview design, 23 Nov): counts from the real tables. */
+export const staffFeatureUsageSchema = z.object({
+  days: z.number().int(),
+  features: z.array(z.object({ key: z.string(), label: z.string(), count, accounts: count })),
+});
+
 export const staffJobSchema = z.object({
   id: z.uuid(),
   workspaceId: z.uuid(),

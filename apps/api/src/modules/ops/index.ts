@@ -10,6 +10,7 @@ import {
   staffJobDetailSchema,
   staffJobListSchema,
   staffJobQuerySchema,
+  staffFeatureUsageSchema,
   staffOverviewSchema,
   staffTicketDetailSchema,
   staffTicketListSchema,
@@ -62,6 +63,20 @@ export function createOpsModule(o: { db: Db; requireStaff: (action: StaffAction)
     app.get("/admin/v1/ops/overview", { preHandler: o.requireStaff("ops.overview.read") }, async (_req, reply) =>
       sendOk(reply, staffOverviewSchema, staffOverviewSchema.parse(await json((tx) => tx.execute(sql`select platform.staff_overview() v`)))),
     );
+
+    // Feature adoption for the Overview (owner design, 23 Nov): how many times each customer feature was used in the last
+    // 7 days and by how many accounts. Counts only; nothing about who searched for what.
+    app.get("/admin/v1/ops/feature-usage", { preHandler: o.requireStaff("ops.overview.read") }, async (_req, reply) => {
+      const rows = ((await json((tx) => tx.execute(sql`select platform.staff_feature_usage(7) v`))) ?? []) as { key: string; count: number; accounts: number }[];
+      const LABEL: Record<string, string> = {
+        catalogue_search: "Catalogue search", live_discovery: "Live discovery runs", profile_views: "Creator profiles opened",
+        contact_reveals: "Contacts revealed", campaign_roster: "Creators added to campaigns", outreach_emails: "Outreach emails sent",
+      };
+      return sendOk(reply, staffFeatureUsageSchema, {
+        days: 7,
+        features: rows.map((r) => ({ key: r.key, label: LABEL[r.key] ?? r.key, count: Number(r.count), accounts: Number(r.accounts) })),
+      });
+    });
 
     app.get("/admin/v1/ops/jobs", { preHandler: o.requireStaff("ops.jobs.read") }, async (req, reply) => {
       const q = parseInput(staffJobQuerySchema, req.query);

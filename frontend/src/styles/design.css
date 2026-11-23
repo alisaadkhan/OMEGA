@@ -59,3 +59,44 @@
 .marquee-track { animation: marquee var(--marquee-duration, 60s) linear infinite; }
 .marquee:hover .marquee-track, .marquee:focus-within .marquee-track { animation-play-state: paused; }
 @media (prefers-reduced-motion: reduce) { .marquee-track { animation: none; } .marquee { overflow-x: auto; } }
+
+/*
+ * Staff console buttons (owner, 23 Nov: "make buttons more vibrant, they feel so dry"). One set for every admin page,
+ * in the console's palette: cyan #06B6D4 for the main action, navy #131b2e, rose for destructive, emerald for restoring.
+ * Solid fills with a coloured lift on hover and a 1px press; a visible cyan focus ring for keyboard users.
+ */
+@layer components {
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: .4rem;
+    border-radius: .75rem; padding: .5rem .9rem; font-size: 12px; font-weight: 700; line-height: 1.1;
+    letter-spacing: .005em; white-space: nowrap; cursor: pointer; border: 1px solid transparent;
+    transition: background-color .15s, box-shadow .15s, color .15s, border-color .15s, transform .08s;
+  }
+  .btn:active:not(:disabled) { transform: translateY(1px); }
+  .btn:focus-visible { outline: none; box-shadow: 0 0 0 2px #fff, 0 0 0 4px #06B6D4; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
+  .btn-sm { padding: .32rem .65rem; font-size: 11.5px; border-radius: .6rem; }
+
+  .btn-primary { background: #06B6D4; color: #04222b; box-shadow: 0 1px 0 rgba(255,255,255,.35) inset, 0 4px 12px -4px rgba(6,182,212,.65); }
+  .btn-primary:hover:not(:disabled) { background: #22d3ee; box-shadow: 0 1px 0 rgba(255,255,255,.4) inset, 0 6px 16px -4px rgba(6,182,212,.8); }
+  .btn-dark { background: #131b2e; color: #fff; border-color: rgba(76,215,246,.35); box-shadow: 0 4px 12px -5px rgba(19,27,46,.7); }
+  .btn-dark:hover:not(:disabled) { background: #1d2944; border-color: #4cd7f6; color: #c8f4fd; }
+  .btn-danger { background: #e11d48; color: #fff; box-shadow: 0 4px 12px -4px rgba(225,29,72,.6); }
+  .btn-danger:hover:not(:disabled) { background: #f43f5e; }
+  .btn-success { background: #059669; color: #fff; box-shadow: 0 4px 12px -4px rgba(5,150,105,.6); }
+  .btn-success:hover:not(:disabled) { background: #10b981; }
+  .btn-soft { background: #ecfeff; color: #00687a; border-color: #a5f3fc; }
+  .btn-soft:hover:not(:disabled) { background: #cffafe; border-color: #67e8f9; }
+  .btn-warn { background: #fffbeb; color: #92400e; border-color: #fcd34d; }
+  .btn-warn:hover:not(:disabled) { background: #fef3c7; }
+  .btn-outline { background: #fff; color: #334155; border-color: #e2e8f0; }
+  .btn-outline:hover:not(:disabled) { border-color: #67e8f9; color: #00687a; background: #f0fdff; }
+  .btn-danger-outline { background: #fff; color: #be123c; border-color: #fecdd3; }
+  .btn-danger-outline:hover:not(:disabled) { background: #fff1f2; border-color: #fb7185; }
+
+  /* Filter tabs: the chosen one is navy with a cyan edge, the others white. */
+  .tab { border-radius: 9999px; padding: .38rem .8rem; font-size: 12px; font-weight: 700; border: 1px solid #e2e8f0; background: #fff; color: #475569; transition: all .15s; }
+  .tab:hover { color: #00687a; border-color: #67e8f9; }
+  .tab[aria-pressed="true"], .tab-on { background: #131b2e; color: #fff; border-color: #4cd7f6; box-shadow: 0 3px 10px -4px rgba(19,27,46,.6); }
+  .tab:focus-visible { outline: none; box-shadow: 0 0 0 2px #fff, 0 0 0 4px #06B6D4; }
+}

@@ -36,7 +36,7 @@ export function WorkspaceActivity({ workspace, onClose }: { workspace: { id: str
           <ol className="divide-y divide-slate-100">{events.map((e) => <ActivityRow key={e.id} e={e} />)}</ol>
           {feed.hasNextPage && (
             <div className="border-t border-slate-100 p-3 text-center">
-              <button onClick={() => void feed.fetchNextPage()} disabled={feed.isFetchingNextPage} className="rounded-md border border-slate-200 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+              <button onClick={() => void feed.fetchNextPage()} disabled={feed.isFetchingNextPage} className="btn btn-outline btn-sm">
                 {feed.isFetchingNextPage ? "Loading…" : "Load more"}
               </button>
             </div>

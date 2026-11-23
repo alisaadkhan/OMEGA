@@ -33,7 +33,7 @@ export function OpsAlerts({ canTest = false }: { canTest?: boolean }) {
     <section className="mb-4 rounded-2xl border border-slate-200/80 bg-white p-4 text-xs" aria-label="Alerts">
       <div className="flex items-center justify-between gap-2">
         <div className="text-sm text-slate-900" style={{ fontWeight: 600 }}>Alerts</div>
-        {canTest && <button onClick={() => void sendTest()} disabled={testing} className="min-h-[28px] rounded-md border border-slate-200 px-2.5 text-xs text-slate-700 hover:bg-slate-50 disabled:opacity-50">Send test alert</button>}
+        {canTest && <button onClick={() => void sendTest()} disabled={testing} className="btn btn-outline btn-sm">Send test alert</button>}
       </div>
       {a.alerts.length === 0 ? <p className="mt-1 text-slate-500">No alert threshold is crossed right now. This covers only what is measured below.</p> : (
         <ul className="mt-2 space-y-1">
@@ -121,7 +121,7 @@ export function AuditSearch() {
       <form className="mb-3 flex flex-wrap items-end gap-2 text-xs" onSubmit={(e) => { e.preventDefault(); setBefore(null); setFilters({ action: action.trim(), workspaceId: /^[0-9a-f-]{36}$/i.test(workspaceId.trim()) ? workspaceId.trim() : "" }); }}>
         <label className="text-slate-600">Action starts with<input value={action} onChange={(e) => setAction(e.target.value)} placeholder="e.g. approvals. or support.access" maxLength={80} className="mt-0.5 block w-64 rounded-md border border-slate-200 px-2 py-1" /></label>
         <label className="text-slate-600">Account id<input value={workspaceId} onChange={(e) => setWorkspaceId(e.target.value)} className="mt-0.5 block w-80 rounded-md border border-slate-200 px-2 py-1" /></label>
-        <button type="submit" className="rounded-md bg-slate-900 px-3 py-1.5 text-white">Filter</button>
+        <button type="submit" className="btn btn-primary btn-sm">Filter</button>
       </form>
       {q.isPending ? <LoadingBlock lines={5} /> : q.isError ? <ErrorState body={errText(q.error)} onRetry={() => void q.refetch()} /> : q.data.events.length === 0 ? <p className="text-sm text-slate-500">No events match.</p> : (
         <>

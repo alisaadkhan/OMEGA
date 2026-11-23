@@ -61,9 +61,9 @@ export function StepUpBar({ onSetUp }: { onSetUp: () => void }) {
       <KeyRound className="h-3.5 w-3.5" />
       {s.hasKey ? "Admin actions need your security key." : "Admin actions need a security key. Register one first."}
       {s.hasKey ? (
-        <button onClick={() => void s.confirm()} disabled={s.busy} className="ml-auto rounded-md bg-slate-900 px-2.5 py-1 text-white disabled:opacity-50" style={{ fontWeight: 600 }}>{s.busy ? "Waiting for key…" : "Confirm with security key"}</button>
+        <button onClick={() => void s.confirm()} disabled={s.busy} className="btn btn-dark btn-sm ml-auto">{s.busy ? "Waiting for key…" : "Confirm with security key"}</button>
       ) : (
-        <button onClick={onSetUp} className="ml-auto rounded-md bg-slate-900 px-2.5 py-1 text-white" style={{ fontWeight: 600 }}>Register a security key</button>
+        <button onClick={onSetUp} className="btn btn-dark btn-sm ml-auto">Register a security key</button>
       )}
     </div>
   );
@@ -81,7 +81,7 @@ export function ReasonAction({ label, confirmLabel, onSubmit, destructive, disab
   const step = useStepUp();
   if (!open) {
     return (
-      <button onClick={() => setOpen(true)} disabled={disabled} title={disabled ? disabledReason : undefined} className={`rounded-md border px-2 py-1 text-[11px] disabled:cursor-not-allowed disabled:opacity-50 ${destructive ? "border-red-200 text-red-700 hover:bg-red-50" : "border-slate-200 text-slate-700 hover:bg-slate-50"}`} style={{ fontWeight: 500 }}>
+      <button onClick={() => setOpen(true)} disabled={disabled} title={disabled ? disabledReason : undefined} className={`btn btn-sm ${destructive ? "btn-danger-outline" : "btn-soft"}`}>
         {label}
       </button>
     );
@@ -113,8 +113,8 @@ export function ReasonAction({ label, confirmLabel, onSubmit, destructive, disab
         }
       }}
     >
-      <input autoFocus value={reason} onChange={(e) => setReason(e.target.value)} maxLength={1000} aria-label={`Reason to ${label.toLowerCase()}`} placeholder="Reason (at least 12 characters)" className="w-64 rounded-md border border-slate-200 px-2 py-1 text-[11px]" />
-      <button type="submit" disabled={!ok || busy} className={`rounded-md px-2 py-1 text-[11px] text-white disabled:opacity-50 ${destructive ? "bg-red-600" : "bg-slate-900"}`} style={{ fontWeight: 600 }}>{busy ? "Working…" : confirmLabel}</button>
+      <input autoFocus value={reason} onChange={(e) => setReason(e.target.value)} maxLength={1000} aria-label={`Reason to ${label.toLowerCase()}`} placeholder="Reason (at least 12 characters)" className="w-64 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[11.5px] focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/20" />
+      <button type="submit" disabled={!ok || busy} className={`btn btn-sm ${destructive ? "btn-danger" : "btn-primary"}`}>{busy ? "Working…" : confirmLabel}</button>
       <button type="button" onClick={() => setOpen(false)} className="text-[11px] text-slate-500 hover:underline">Cancel</button>
     </form>
   );

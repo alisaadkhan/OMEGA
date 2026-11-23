@@ -237,7 +237,7 @@ function SettingsTab({ c, onDeleted }: { c: Detail; onDeleted: () => void }) {
           <div className="flex justify-end"><Button icon={Save} disabled={!dirty || budgetBad || !name.trim()} loading={update.isPending} onClick={save}>Save Changes</Button></div>
         </Card>
         <Card className="flex flex-col gap-4 p-5">
-          <div id="cs-notify" className="scroll-mt-24 border-b border-surface-high/60 pb-2"><h2 className="text-lg font-semibold text-on">Notifications</h2><p className="mt-0.5 text-xs text-ink-soft">Reminders appear in the bell and the Activity log.</p></div>
+          <div id="cs-notify" className="scroll-mt-24 border-b border-surface-high/60 pb-2"><h2 className="text-lg font-semibold text-on">Notifications</h2><p className="mt-0.5 text-xs text-ink-soft">Reminders appear in the bell.</p></div>
           <div className="flex items-center justify-between gap-3 rounded-xl bg-surface-low p-3">
             <span className="flex flex-col"><span className="text-[13px] font-medium text-on">Remind me when a creator is due to post</span><span className="text-xs text-ink-soft">On the due date set for each creator, until their content is marked posted.</span></span>
             <Toggle checked={c.notifyPostDue} disabled={update.isPending} label="Remind me when a creator is due to post"

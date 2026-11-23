@@ -27,7 +27,7 @@ export function SupportQueue({ me, canAssignOthers, role }: { me: string; canAss
       <Header title="Tickets" sub="Customer requests, urgent first, then most recent. Replies are signed with your staff name." />
       <div className="mb-3 flex gap-1 text-xs" role="group" aria-label="Filter tickets">
         {(["open", "in_progress", "waiting_on_customer", "resolved", "closed", ""] as const).map((s) => (
-          <button key={s} onClick={() => setStatus(s)} aria-pressed={status === s} className={`rounded-md px-2.5 py-1 ${status === s ? "bg-slate-900 text-white" : "border border-slate-200 text-slate-700"}`}>{s ? STATUS[s] : "All"}</button>
+          <button key={s} onClick={() => setStatus(s)} aria-pressed={status === s} className={`tab ${status === s ? "tab-on" : ""}`}>{s ? STATUS[s] : "All"}</button>
         ))}
         <label className="ml-auto flex items-center gap-1 text-slate-600">Priority
           <select value={priority} onChange={(e) => setPriority(e.target.value as Priority | "")} aria-label="Filter by priority" className="rounded-md border border-slate-200 px-1.5 py-1 text-xs">
@@ -142,7 +142,7 @@ function TicketPanel({ id, me, canAssignOthers, role }: { id: string; me: string
         <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
           <label>Priority <select value={t.priority} onChange={(e) => void setPriority(e.target.value as Priority)} className="ml-1 rounded-md border border-slate-200 px-1.5 py-0.5">{Object.entries(PRIORITY).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
           <span>Assigned: {t.assignedStaffName ?? "nobody"}</span>
-          {t.assignedStaffId !== me && <button onClick={() => void assign(me).catch((err: unknown) => toast.error("Couldn't take the ticket", errText(err)))} className="rounded-md border border-slate-200 px-2 py-0.5 hover:bg-slate-50">Take it</button>}
+          {t.assignedStaffId !== me && <button onClick={() => void assign(me).catch((err: unknown) => toast.error("Couldn't take the ticket", errText(err)))} className="btn btn-outline btn-sm">Take it</button>}
           {canAssignOthers && staff.data && (
             <label>Assign to <select value={t.assignedStaffId ?? ""} onChange={(e) => void assign(e.target.value || null).catch((err: unknown) => toast.error("Couldn't assign the ticket", errText(err)))} className="ml-1 rounded-md border border-slate-200 px-1.5 py-0.5"><option value="">Nobody</option>{staff.data.staff.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
           )}
@@ -171,14 +171,14 @@ function TicketPanel({ id, me, canAssignOthers, role }: { id: string; me: string
           <span className="text-slate-700" style={{ fontWeight: 600 }}>Credits</span>
           <input value={credits} onChange={(e) => setCredits(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))} inputMode="numeric" aria-label="Credits to add" placeholder="Amount" className="w-24 rounded-md border border-slate-200 px-2 py-1.5" />
           <input value={creditReason} onChange={(e) => setCreditReason(e.target.value)} maxLength={1000} aria-label="Reason for the credits" placeholder="Reason, e.g. refund for a failed search (12+ characters)" className="min-w-[220px] flex-1 rounded-md border border-slate-200 px-2 py-1.5" />
-          <button type="submit" disabled={!creditOk || granting} className="rounded-md bg-cyan-700 px-3 py-1.5 text-white hover:bg-cyan-800 disabled:opacity-50" style={{ fontWeight: 600 }}>
+          <button type="submit" disabled={!creditOk || granting} className="btn btn-primary btn-sm" style={{ fontWeight: 600 }}>
             {granting ? "Working…" : role === "super_admin" ? "Add credits" : "Request credits"}
           </button>
         </form>
       )}
       <form className="flex gap-2 border-t border-slate-100 p-3" onSubmit={(e) => { e.preventDefault(); if (note.trim()) addNote.mutate(); }}>
         <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={5000} aria-label="Internal note" placeholder="Internal note for staff (the customer never sees it)" className="flex-1 rounded-md border border-dashed border-amber-300 bg-amber-50/40 px-2.5 py-1.5 text-xs" />
-        <button type="submit" disabled={!note.trim() || addNote.isPending} className="rounded-md border border-amber-300 px-3 py-1.5 text-xs text-amber-900 disabled:opacity-50">Add note</button>
+        <button type="submit" disabled={!note.trim() || addNote.isPending} className="btn btn-warn btn-sm">Add note</button>
       </form>
       <form
         className="space-y-2 border-t border-slate-100 p-3"
@@ -190,7 +190,7 @@ function TicketPanel({ id, me, canAssignOthers, role }: { id: string; me: string
         <textarea rows={3} maxLength={5000} value={text} onChange={(e) => setText(e.target.value)} aria-label="Reply" placeholder="Reply to the customer (optional when only changing status)" className="w-full rounded-md border border-slate-200 px-2.5 py-1.5 text-sm" />
         <div className="flex items-center justify-end gap-2 text-xs">
           <label className="text-slate-600">Set status <select value={next} onChange={(e) => setNext(e.target.value as Status)} className="ml-1 rounded-md border border-slate-200 px-1.5 py-1 text-xs">{Object.entries(STATUS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
-          <button type="submit" disabled={update.isPending} className="rounded-md bg-slate-900 px-3 py-1.5 text-white disabled:opacity-50" style={{ fontWeight: 600 }}>{text.trim() ? "Send reply" : "Update status"}</button>
+          <button type="submit" disabled={update.isPending} className="btn btn-primary btn-sm" style={{ fontWeight: 600 }}>{text.trim() ? "Send reply" : "Update status"}</button>
         </div>
       </form>
     </section>

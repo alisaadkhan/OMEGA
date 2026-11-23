@@ -100,7 +100,7 @@ export function PricingCard({ canEdit }: { canEdit: boolean }) {
           {canEdit && (
             <div className="flex flex-wrap items-center gap-2 lg:col-span-2">
               <input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={1000} placeholder="Reason for the change (at least 12 characters)" aria-label="Reason for the pricing change" className="min-w-[260px] flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[12.5px] focus:border-cyan-600 focus:bg-white focus:outline-none" />
-              <button type="button" disabled={busy || reason.trim().length < 12} onClick={() => void save(q.data)} className="rounded-xl bg-[#0f172a] px-4 py-2 text-xs font-semibold text-white hover:bg-black disabled:opacity-50">{busy ? "Saving…" : "Save pricing"}</button>
+              <button type="button" disabled={busy || reason.trim().length < 12} onClick={() => void save(q.data)} className="btn btn-primary">{busy ? "Saving…" : "Save pricing"}</button>
               <span className="text-[11px] text-slate-500">{fmtNum(q.data.actions.length)} actions · new values apply to the next charge or monthly grant.</span>
             </div>
           )}

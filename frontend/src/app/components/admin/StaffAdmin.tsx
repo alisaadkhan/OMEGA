@@ -32,7 +32,7 @@ export function Approvals({ me, role }: { me: string; role: AdminRole }) {
     <div>
       <Header title="Approvals" sub="High-impact actions wait here until a second staff member decides. Approved requests are carried out once and recorded in the audit log." />
       <div className="mb-3 flex gap-1 text-xs" role="group" aria-label="Filter approvals">
-        {(["pending", ""] as const).map((s) => <button key={s} onClick={() => setStatus(s)} aria-pressed={status === s} className={`rounded-md px-2.5 py-1 ${status === s ? "bg-slate-900 text-white" : "border border-slate-200 text-slate-700"}`}>{s ? "Waiting" : "All"}</button>)}
+        {(["pending", ""] as const).map((s) => <button key={s} onClick={() => setStatus(s)} aria-pressed={status === s} className={`tab ${status === s ? "tab-on" : ""}`}>{s ? "Waiting" : "All"}</button>)}
       </div>
       <CreditCorrectionForm />
       {q.isPending ? <LoadingBlock lines={3} /> : q.isError ? <ErrorState body={errText(q.error)} onRetry={() => void q.refetch()} /> : q.data.approvals.length === 0 ? <p className="text-sm text-slate-500">{status ? "Nothing is waiting for a decision." : "No requests yet."}</p> : (

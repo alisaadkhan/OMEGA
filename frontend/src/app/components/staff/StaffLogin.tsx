@@ -137,7 +137,7 @@ export function StaffLogin({ onSuccess }: { onSuccess: () => void }) {
                   </div>
                 </div>
                 )}
-                <button type="submit" disabled={busy || paused} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#06B6D4] px-5 py-3 text-sm font-extrabold text-[#0A0F24] shadow-sm transition-all hover:bg-cyan-500 active:scale-[0.99] disabled:opacity-50">
+                <button type="submit" disabled={busy || paused} className="btn btn-primary w-full !py-3 !text-sm">
                   {busy ? "Signing in…" : challenge ? <>Verify Code <ArrowRight className="h-4 w-4" /></> : <>Sign In <ArrowRight className="h-4 w-4" /></>}
                 </button>
                 {challenge && (

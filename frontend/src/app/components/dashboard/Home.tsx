@@ -4,13 +4,11 @@ import { motion } from "motion/react";
 import { ArrowRight, Bolt, Bookmark, Compass, FolderPlus, Megaphone, PauseCircle, PlusCircle, Radar, Search, Zap } from "lucide-react";
 import { analyticsSummarySchema } from "@mushin/contracts";
 import { apiRequest } from "../../api/client";
-import { useRecentActivity } from "../../api/activity";
 import { useBillingSummary } from "../../api/billing";
 import { rupees, useCampaigns } from "../../api/campaigns";
 import { useLists } from "../../api/lists";
 import { useAuth } from "../../auth/AuthContext";
 import { Button, Card, CountUp, EASE, Pill, Progress, Skeleton, Stagger, StaggerItem } from "../../ui/kit";
-import { ActivityRow } from "./ActivityRow";
 import type { Creator } from "./CreatorProfilePanel";
 import { FeaturedCreators } from "./FeaturedCreators";
 import type { DashView } from "./Sidebar";
@@ -21,7 +19,7 @@ const monthRange = () => {
   return { from, to: d.toISOString().slice(0, 10) };
 };
 
-/** Dashboard home (owner design 2026-11-16): greeting, quick actions, four metrics, running projects, activity, plan. */
+/** Dashboard home (owner design 2026-11-16): greeting, quick actions, four metrics, running projects and plan (owner, 23 Nov: no activity feed on the customer dashboard). */
 export function Home({ setView, onOpenCampaign, onTour, onOpenCreator }: { setView: (v: DashView) => void; onOpenCampaign: (id: string) => void; onTour: () => void; onOpenCreator: (c: Creator) => void }) {
   const { user, status } = useAuth();
   const summary = useBillingSummary().data;
@@ -129,7 +127,6 @@ export function Home({ setView, onOpenCampaign, onTour, onOpenCreator }: { setVi
         </div>
 
         <div className="flex flex-col gap-4 lg:col-span-5">
-          <RecentActivity />
           <PlanCard setView={setView} />
         </div>
       </section>
@@ -152,24 +149,6 @@ function Metric({ label, icon: Icon, value, sub, accent, loading }: { label: str
   );
 }
 
-function RecentActivity() {
-  const q = useRecentActivity(4);
-  const events = q.data?.events ?? [];
-  return (
-    <Card className="flex flex-col gap-3 p-6 ring-1 ring-surface-top/70">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold tracking-tight text-[#0B112B]">Recent Activity</h3>
-      </div>
-      {q.isPending ? (
-        <div className="space-y-3">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-10" />)}</div>
-      ) : events.length === 0 ? (
-        <p className="py-4 text-center text-xs text-ink-soft">Nothing yet. Shortlists, campaigns and searches will appear here.</p>
-      ) : (
-        <ul className="-mx-2">{events.map((e) => <ActivityRow key={e.id} e={e} />)}</ul>
-      )}
-    </Card>
-  );
-}
 
 function PlanCard({ setView }: { setView: (v: DashView) => void }) {
   const s = useBillingSummary().data;

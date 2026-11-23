@@ -183,7 +183,7 @@ function ProfileTab() {
   const initials = shown.split(/[\s@._-]+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("") || "?";
   return (
     <section className={card}>
-      <CardHeader title="Personal profile" sub="Your name as shown on lists, campaigns and the activity log." />
+      <CardHeader title="Personal profile" sub="Your name as shown on lists and campaigns." />
       <ProfilePhoto initials={initials} shown={shown} avatar={me.data.user.avatarUrl} />
       <form
         className="flex flex-col gap-6"
@@ -374,7 +374,7 @@ function NotificationsTab() {
           <motion.span layout transition={{ type: "spring", stiffness: 500, damping: 32 }} className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow ${on ? "right-0.5" : "left-0.5"}`} />
         </button>
       </div>
-      <p className="mt-4 text-xs text-slate-500">List and campaign changes and outreach appear in the bell and the Activity log.</p>
+      <p className="mt-4 text-xs text-slate-500">Replies from support, finished searches, low credits and account changes appear in the bell.</p>
     </section>
   );
 }

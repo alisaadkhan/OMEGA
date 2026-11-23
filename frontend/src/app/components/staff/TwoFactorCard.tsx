@@ -90,8 +90,8 @@ export function TwoFactorCard() {
                 <div className="flex flex-wrap items-center gap-2">
                   <input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" placeholder="6-digit code" aria-label="Code from your authenticator app" className={codeInput} autoFocus />
                   {on && <input value={current} onChange={(e) => setCurrent(e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" placeholder="Code from old phone" aria-label="Current code from your existing authenticator" className={codeInput} />}
-                  <button type="submit" disabled={busy || code.length !== 6 || (on && current.length !== 6)} className="rounded-2xl bg-[#06B6D4] px-4 py-2.5 text-xs font-extrabold text-[#0A0F24] hover:bg-cyan-500 disabled:opacity-50">{busy ? "Checking…" : "Turn on"}</button>
-                  <button type="button" onClick={() => setSetup(null)} className="rounded-2xl border border-slate-200 px-3.5 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
+                  <button type="submit" disabled={busy || code.length !== 6 || (on && current.length !== 6)} className="btn btn-primary">{busy ? "Checking…" : "Turn on"}</button>
+                  <button type="button" onClick={() => setSetup(null)} className="btn btn-outline">Cancel</button>
                 </div>
                 {on && <p className="text-xs text-slate-500">Also enter a code from your current authenticator. It keeps working until the new one is turned on.</p>}
               </div>
@@ -100,15 +100,15 @@ export function TwoFactorCard() {
             <>
               <form onSubmit={disable} className="flex flex-wrap items-center gap-2">
                 <input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" placeholder="Current code" aria-label="Current code to turn two-factor off" className={codeInput} />
-                <button type="submit" disabled={busy || code.length !== 6} className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-xs font-bold text-rose-700 hover:bg-rose-100 disabled:opacity-50">Turn off</button>
-                <button type="button" onClick={() => void start()} disabled={busy} className="rounded-2xl border border-slate-200 px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">Move to a new phone</button>
+                <button type="submit" disabled={busy || code.length !== 6} className="btn btn-danger-outline">Turn off</button>
+                <button type="button" onClick={() => void start()} disabled={busy} className="btn btn-outline">Move to a new phone</button>
               </form>
               <p className="text-xs text-slate-500">Turning it off needs a current code from your app.</p>
             </>
           ) : (
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-slate-600">Two-factor is off: your password alone signs you in. Turning it on is recommended for staff accounts.</p>
-              <button type="button" onClick={() => void start()} disabled={busy} className="rounded-2xl bg-[#0A0F24] px-5 py-2.5 text-xs font-bold text-white hover:bg-[#161F42] disabled:opacity-50">{busy ? "Preparing…" : "Set up two-factor"}</button>
+              <button type="button" onClick={() => void start()} disabled={busy} className="btn btn-dark">{busy ? "Preparing…" : "Set up two-factor"}</button>
             </div>
           )}
         </div>

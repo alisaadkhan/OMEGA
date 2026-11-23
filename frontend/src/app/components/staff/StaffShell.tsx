@@ -21,7 +21,7 @@ function KeyPill() {
       </span>
     );
   return (
-    <button type="button" onClick={() => void s.confirm()} disabled={s.busy || !s.hasKey} title={s.hasKey ? undefined : "Register a security key in Settings first"} className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-[11px] font-bold text-amber-900 hover:bg-amber-100 disabled:opacity-60">
+    <button type="button" onClick={() => void s.confirm()} disabled={s.busy || !s.hasKey} title={s.hasKey ? undefined : "Register a security key in Settings first"} className="btn btn-warn btn-sm !rounded-full">
       <KeyRound className="h-3.5 w-3.5" /> {s.busy ? "Waiting for key…" : s.hasKey ? "Confirm security key" : "Security key needed"}
     </button>
   );
@@ -55,7 +55,7 @@ function AlertBell({ onOpen }: { onOpen: () => void }) {
             ))}
           </ul>
           <div className="border-t border-slate-100 bg-slate-50 px-4 py-3">
-            <button type="button" onClick={() => { setOpen(false); onOpen(); }} className="w-full rounded-2xl bg-[#0A0F24] px-3 py-2 text-xs font-bold text-white hover:bg-[#161F42]">Open the overview</button>
+            <button type="button" onClick={() => { setOpen(false); onOpen(); }} className="btn btn-dark w-full">Open the overview</button>
           </div>
         </div>
       )}

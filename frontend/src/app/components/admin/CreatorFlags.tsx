@@ -31,7 +31,7 @@ export function CreatorFlags({ canDecide }: { canDecide: boolean }) {
       <Header title="Reported Profiles" sub="Profiles customers reported as wrong. Fix the creator in Catalogue review, then resolve; or exclude it here, or dismiss the report." />
       <div role="tablist" aria-label="Flag status" className="flex gap-2">
         {(["pending", "resolved", "dismissed"] as const).map((s) => (
-          <button key={s} role="tab" aria-selected={status === s} onClick={() => setStatus(s)} className={`rounded-full px-3 py-1 text-xs font-medium ${status === s ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}>
+          <button key={s} role="tab" aria-selected={status === s} onClick={() => setStatus(s)} className={`tab ${status === s ? "tab-on" : ""}`}>
             {s === "pending" ? "Open" : s === "resolved" ? "Resolved" : "Dismissed"} {counts ? `(${counts[s]})` : ""}
           </button>
         ))}
@@ -90,14 +90,14 @@ function FlagRow({ flag, canDecide }: { flag: CreatorFlag; canDecide: boolean })
         <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">
           <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} placeholder="What was done or why (required)" aria-label={`Decision note for ${flag.displayName}`} className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-cyan-400/40" />
           <div className="flex flex-wrap items-center gap-2">
-            <button disabled={!ready} onClick={() => decide.mutate("resolve")} className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-40">Resolve</button>
-            <button disabled={!ready} onClick={() => decide.mutate("dismiss")} className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40">Dismiss</button>
+            <button disabled={!ready} onClick={() => decide.mutate("resolve")} className="btn btn-primary btn-sm">Resolve</button>
+            <button disabled={!ready} onClick={() => decide.mutate("dismiss")} className="btn btn-outline btn-sm">Dismiss</button>
             <span className="ml-auto flex items-center gap-1.5">
               <label htmlFor={`exclude-${flag.id}`} className="text-xs text-slate-500">Exclude as</label>
               <select id={`exclude-${flag.id}`} value={excludeAs} onChange={(e) => setExcludeAs(e.target.value as (typeof STAFF_EXCLUDE_TYPES)[number])} className="rounded-md border border-slate-200 px-1.5 py-1 text-xs">
                 {STAFF_EXCLUDE_TYPES.map((t) => <option key={t} value={t}>{TYPE_LABEL[t]}</option>)}
               </select>
-              <button disabled={!ready} onClick={() => decide.mutate("exclude")} className="rounded-md bg-rose-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-800 disabled:opacity-40">Exclude</button>
+              <button disabled={!ready} onClick={() => decide.mutate("exclude")} className="btn btn-danger btn-sm">Exclude</button>
             </span>
           </div>
         </div>

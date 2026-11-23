@@ -99,6 +99,10 @@ describe("support tickets and staff operations", () => {
       expect((await app.inject({ method: "GET", url, headers: support })).statusCode).toBe(403);
     }
     expect((await app.inject({ method: "GET", url: "/admin/v1/ops/overview", headers: totpAdmin })).statusCode).toBe(200);
+    // Feature adoption on the Overview (owner, 23 Nov): counts per feature over 7 days, for every staff role.
+    const usage = await app.inject({ method: "GET", url: "/admin/v1/ops/feature-usage", headers: support });
+    expect(usage.statusCode, usage.body).toBe(200);
+    expect((usage.json() as { features: { key: string }[] }).features.map((f) => f.key)).toEqual(["catalogue_search", "live_discovery", "profile_views", "contact_reveals", "campaign_roster", "outreach_emails"]);
 
     expect((await app.inject({ method: "GET", url: "/admin/v1/ops/overview", headers: owner })).statusCode).toBe(401);
     expect((await app.inject({ method: "GET", url: "/admin/v1/ops/overview" })).statusCode).toBe(401);

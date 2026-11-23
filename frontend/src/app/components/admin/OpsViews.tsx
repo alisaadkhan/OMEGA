@@ -113,7 +113,7 @@ export function OpsJobs({ canAct = false }: { canAct?: boolean }) {
     <div>
       <Header title="Live Scans" sub="Discovery, add-by-link and refresh jobs across accounts. Opening a job's funnel is recorded in the audit log." />
       <div className="mb-3 flex gap-1 text-xs" role="group" aria-label="Filter jobs">
-        {(["", "open", "failed", "stuck"] as const).map((s) => <button key={s} onClick={() => setStatus(s)} aria-pressed={status === s} className={`rounded-md px-2.5 py-1 ${status === s ? "bg-slate-900 text-white" : "border border-slate-200 text-slate-700"}`}>{s || "All"}</button>)}
+        {(["", "open", "failed", "stuck"] as const).map((s) => <button key={s} onClick={() => setStatus(s)} aria-pressed={status === s} className={`tab ${status === s ? "tab-on" : ""}`}>{s || "All"}</button>)}
       </div>
       {q.isPending ? <LoadingBlock lines={5} /> : q.isError ? <ErrorState body={errorBody(q.error)} onRetry={() => void q.refetch()} /> : q.data.jobs.length === 0 ? <p className="text-sm text-slate-500">No jobs match.</p> : (
         <Table head={["Created", "Account", "Kind", "Status", "Brief / handle", "Found (new)", "Charged / max", "Error", "", ...(canAct ? ["Actions"] : [])]}>
@@ -158,12 +158,12 @@ export function OpsWorkspaces() {
       <Header title="Accounts" sub="Look up an account by name, owner email or id, and open its activity (admins). Emails are masked; searches and activity views are recorded in the audit log." />
       <form className="mb-3 flex gap-2" onSubmit={(e) => { e.preventDefault(); setQuery(q.trim()); }}>
         <input value={q} onChange={(e) => setQ(e.target.value)} maxLength={120} placeholder="Name, email or account id" aria-label="Search accounts" className="w-80 rounded-md border border-slate-200 px-2.5 py-1.5 text-sm" />
-        <button type="submit" className="rounded-md bg-slate-900 px-3 py-1.5 text-xs text-white">Search</button>
+        <button type="submit" className="btn btn-primary btn-sm">Search</button>
       </form>
       {r.isPending ? <LoadingBlock lines={4} /> : r.isError ? <ErrorState body={errorBody(r.error)} onRetry={() => void r.refetch()} /> : r.data.workspaces.length === 0 ? <p className="text-sm text-slate-500">No accounts match.</p> : (
         <Table head={["Account", "Owner", "Members", "Subscription", "Jobs (30 days)", "Open tickets", "Created", ""]}>
           {r.data.workspaces.map((w) => (
-            <tr key={w.id}><td className="px-3 py-2"><div style={{ fontWeight: 600 }}>{w.name}</div><div className="text-[10px] text-slate-500">{w.id}</div></td><td className="px-3 py-2">{w.ownerEmail}</td><td className="px-3 py-2 tabular-nums">{w.members}</td><td className="px-3 py-2">{w.subscriptionStatus ?? "none"}</td><td className="px-3 py-2 tabular-nums">{w.jobs30d}</td><td className="px-3 py-2 tabular-nums">{w.openTickets}</td><td className="px-3 py-2 text-slate-500">{when(w.createdAt)}</td><td className="px-3 py-2"><button onClick={() => setActivityOf({ id: w.id, name: w.name })} className="rounded-md border border-slate-200 px-2 py-1 text-[11px] text-slate-700 hover:bg-slate-50" aria-label={`Activity of ${w.name}`}>Activity</button></td></tr>
+            <tr key={w.id}><td className="px-3 py-2"><div style={{ fontWeight: 600 }}>{w.name}</div><div className="text-[10px] text-slate-500">{w.id}</div></td><td className="px-3 py-2">{w.ownerEmail}</td><td className="px-3 py-2 tabular-nums">{w.members}</td><td className="px-3 py-2">{w.subscriptionStatus ?? "none"}</td><td className="px-3 py-2 tabular-nums">{w.jobs30d}</td><td className="px-3 py-2 tabular-nums">{w.openTickets}</td><td className="px-3 py-2 text-slate-500">{when(w.createdAt)}</td><td className="px-3 py-2"><button onClick={() => setActivityOf({ id: w.id, name: w.name })} className="btn btn-outline btn-sm" aria-label={`Activity of ${w.name}`}>Activity</button></td></tr>
           ))}
         </Table>
       )}
@@ -178,7 +178,7 @@ export function OpsProviders() {
   return (
     <div>
       <Header title="Data Sources" sub="Calls MUSHIN recorded to each external provider, and spend against each cap as the worker last checked it. A provider that does not report its balance shows Not reported." />
-      <div className="mb-3 flex gap-1 text-xs" role="group" aria-label="Window">{[24, 168, 720].map((h) => <button key={h} onClick={() => setHours(h)} aria-pressed={hours === h} className={`rounded-md px-2.5 py-1 ${hours === h ? "bg-slate-900 text-white" : "border border-slate-200 text-slate-700"}`}>{h === 24 ? "24 hours" : h === 168 ? "7 days" : "30 days"}</button>)}</div>
+      <div className="mb-3 flex gap-1 text-xs" role="group" aria-label="Window">{[24, 168, 720].map((h) => <button key={h} onClick={() => setHours(h)} aria-pressed={hours === h} className={`tab ${hours === h ? "tab-on" : ""}`}>{h === 24 ? "24 hours" : h === 168 ? "7 days" : "30 days"}</button>)}</div>
       {q.isPending ? <LoadingBlock lines={4} /> : q.isError ? <ErrorState body={errorBody(q.error)} onRetry={() => void q.refetch()} /> : q.data.providers.length === 0 ? <p className="text-sm text-slate-500">No provider calls recorded in this window. That says nothing about the provider's health.</p> : (
         <Table head={["Provider", "Calls", "Errors", "Error rate", "p95 latency", "Recorded cost (USD)", "Last call", "Last error"]}>
           {q.data.providers.map((p) => (

@@ -30,6 +30,9 @@ describe("billing schema", () => {
     await db.withTenant(ws, (tx) => tx.execute(sql`insert into wp.credit_ledger (workspace_id, amount, kind) values (${ws.workspaceId}, 10, 'reserve')`));
     await expect(db.withTenant(ws, (tx) => tx.execute(sql`update wp.credit_ledger set amount = 99`))).rejects.toSatisfy(dbError(/permission denied/));
     await expect(db.withTenant(ws, (tx) => tx.execute(sql`delete from wp.credit_ledger`))).rejects.toSatisfy(dbError(/permission denied/));
+    // Kept for as long as the account exists, whoever asks (owner, 23 Nov); deleting the account removes it with it.
+    await expect(ownerQuery(`update wp.credit_ledger set amount = 99 where workspace_id = '${ws.workspaceId}'`)).rejects.toSatisfy(dbError(/cannot be changed/));
+    await expect(ownerQuery(`delete from wp.credit_ledger where workspace_id = '${ws.workspaceId}'`)).rejects.toSatisfy(dbError(/kept while the account exists/));
     await expect(
       db.withTenant(ws, (tx) =>
         tx.execute(sql`insert into wp.payments (workspace_id, paddle_transaction_id, kind, amount_minor, currency, status)

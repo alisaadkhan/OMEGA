@@ -65,7 +65,7 @@ export function TrialRequests({ role }: { role: AdminRole }) {
         {owner && (
           <div className="flex gap-1">
             {(["requests", "feedback"] as const).map((t) => (
-              <button key={t} onClick={() => setTab(t)} className={`rounded-md px-2.5 py-1 text-xs ${tab === t ? "bg-slate-900 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200"}`}>{t === "requests" ? "Requests" : "Feedback"}</button>
+              <button key={t} onClick={() => setTab(t)} className={`tab ${tab === t ? "tab-on" : ""}`}>{t === "requests" ? "Requests" : "Feedback"}</button>
             ))}
           </div>
         )}
@@ -75,7 +75,7 @@ export function TrialRequests({ role }: { role: AdminRole }) {
         <>
           <div className="flex gap-1">
             {(Object.keys(STATUS_LABEL) as Status[]).map((s) => (
-              <button key={s} onClick={() => setStatus(s)} className={`rounded-md px-2.5 py-1 text-xs ${status === s ? "bg-slate-900 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200"}`}>{STATUS_LABEL[s]}</button>
+              <button key={s} onClick={() => setStatus(s)} className={`tab ${status === s ? "tab-on" : ""}`}>{STATUS_LABEL[s]}</button>
             ))}
           </div>
           {list.isError && <p className="text-xs text-red-600">{list.error instanceof Error ? list.error.message : "Couldn't load requests."}</p>}
@@ -97,17 +97,17 @@ export function TrialRequests({ role }: { role: AdminRole }) {
               {(r.status === "new" || r.status === "contacted") && (
                 <div className="flex flex-wrap items-center gap-2 pt-1">
                   {r.status === "new" && (
-                    <button onClick={() => contacted.mutate(r.id, { onError: (e) => toast.error("Couldn't update", e instanceof Error ? e.message : undefined) })} className="rounded-md bg-white px-2.5 py-1 ring-1 ring-slate-200 hover:bg-slate-50">Mark as called</button>
+                    <button onClick={() => contacted.mutate(r.id, { onError: (e) => toast.error("Couldn't update", e instanceof Error ? e.message : undefined) })} className="btn btn-outline btn-sm">Mark as called</button>
                   )}
                   {owner && (
                     <>
                       <input aria-label="Account email" placeholder="Email they signed up with" value={emails[r.id] ?? r.email ?? ""} onChange={(e) => setEmails((p) => ({ ...p, [r.id]: e.target.value }))} className="min-w-52 flex-1 rounded-md border border-slate-200 px-2 py-1" />
                       <input aria-label="Note" placeholder="Note (required to reject)" value={notes[r.id] ?? ""} onChange={(e) => setNotes((p) => ({ ...p, [r.id]: e.target.value }))} className="min-w-40 flex-1 rounded-md border border-slate-200 px-2 py-1" />
-                      <button disabled={approve.isPending} onClick={() => void onApprove(r)} className="rounded-md bg-slate-900 px-2.5 py-1 text-white hover:bg-slate-800 disabled:opacity-50">Approve trial</button>
+                      <button disabled={approve.isPending} onClick={() => void onApprove(r)} className="btn btn-success btn-sm">Approve trial</button>
                       <button
                         disabled={reject.isPending || !notes[r.id]?.trim()}
                         onClick={() => reject.mutate({ id: r.id, note: notes[r.id]?.trim() ?? "" }, { onSuccess: () => toast.success("Request rejected"), onError: (e) => toast.error("Couldn't reject", e instanceof Error ? e.message : undefined) })}
-                        className="rounded-md bg-white px-2.5 py-1 text-red-700 ring-1 ring-red-200 hover:bg-red-50 disabled:opacity-50"
+                        className="btn btn-danger-outline btn-sm"
                       >
                         Reject
                       </button>
@@ -124,7 +124,7 @@ export function TrialRequests({ role }: { role: AdminRole }) {
         <>
           <div className="flex items-center justify-between">
             <p className="text-xs text-slate-500">Answers from trial accounts, newest first. Only real customer answers are stored here.</p>
-            <button onClick={downloadCsv} disabled={!feedback.data?.feedback.length} className="rounded-md bg-white px-2.5 py-1 text-xs ring-1 ring-slate-200 hover:bg-slate-50 disabled:opacity-50">Download CSV</button>
+            <button onClick={downloadCsv} disabled={!feedback.data?.feedback.length} className="btn btn-outline btn-sm">Download CSV</button>
           </div>
           {feedback.isError && <p className="text-xs text-red-600">{feedback.error instanceof Error ? feedback.error.message : "Couldn't load feedback."}</p>}
           {feedback.data?.feedback.length === 0 && <p className="text-xs text-slate-500">No feedback yet.</p>}

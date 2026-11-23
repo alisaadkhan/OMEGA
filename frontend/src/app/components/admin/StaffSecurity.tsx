@@ -73,7 +73,7 @@ export function StaffSecurity() {
                   <li key={k.id} className="flex items-center gap-3 px-4 py-2.5 text-xs">
                     <KeyRound className="h-4 w-4 text-slate-500" />
                     <div className="flex-1"><div className="text-slate-900" style={{ fontWeight: 600 }}>{k.nickname}</div><div className="text-slate-500">Added {when(k.createdAt)} · last used {when(k.lastUsedAt)}</div></div>
-                    <button onClick={() => void remove(k.id, k.nickname)} disabled={!step.confirmed || q.data.keys.length === 1} title={q.data.keys.length === 1 ? "Add another key before removing your last one" : !step.confirmed ? "Confirm with a security key first" : undefined} className="rounded-md border border-red-200 px-2 py-1 text-[11px] text-red-700 disabled:cursor-not-allowed disabled:opacity-50">Remove</button>
+                    <button onClick={() => void remove(k.id, k.nickname)} disabled={!step.confirmed || q.data.keys.length === 1} title={q.data.keys.length === 1 ? "Add another key before removing your last one" : !step.confirmed ? "Confirm with a security key first" : undefined} className="btn btn-danger-outline btn-sm">Remove</button>
                   </li>
                 ))}
               </ul>
@@ -85,7 +85,7 @@ export function StaffSecurity() {
                   <label className="text-xs text-slate-600">Enrolment code <input value={enrolmentCode} onChange={(e) => setEnrolmentCode(e.target.value)} required autoComplete="off" spellCheck={false} placeholder="XXXX-XXXX-XXXX-XXXX-XXXX" maxLength={64} className="ml-1 w-56 rounded-md border border-slate-200 px-2 py-1 font-mono text-xs" /></label>
                 )}
                 <label className="text-xs text-slate-600">Name <input value={nickname} onChange={(e) => setNickname(e.target.value)} maxLength={60} className="ml-1 w-48 rounded-md border border-slate-200 px-2 py-1 text-xs" /></label>
-                <button type="submit" disabled={busy || !supported || (q.data.keys.length > 0 && !step.confirmed)} title={q.data.keys.length > 0 && !step.confirmed ? "Confirm with an existing key first" : undefined} className="rounded-md bg-slate-900 px-3 py-1.5 text-xs text-white disabled:cursor-not-allowed disabled:opacity-50" style={{ fontWeight: 600 }}>{busy ? "Touch your key…" : "Add security key"}</button>
+                <button type="submit" disabled={busy || !supported || (q.data.keys.length > 0 && !step.confirmed)} title={q.data.keys.length > 0 && !step.confirmed ? "Confirm with an existing key first" : undefined} className="btn btn-primary btn-sm" style={{ fontWeight: 600 }}>{busy ? "Touch your key…" : "Add security key"}</button>
                 {q.data.keys.length > 0 && !step.confirmed && <span className="text-[11px] text-slate-500">Adding another key needs one of your keys first.</span>}
                 {q.data.keys.length === 0 && <span className="w-full text-[11px] text-slate-500">Your first key needs the one-time enrolment code you were given with your account. A Super Admin can issue a new one if it expired.</span>}
               </form>
