@@ -13,7 +13,12 @@
  * Never trashed by this script (owner, 23 Nov): a creator whose follower count is unknown (refresh it first), a creator
  * whose only problem is that Pakistan is not proven (staff review it; missing evidence is never a deletion reason),
  * creators without a contact, staff-hidden creators and anything already decided by staff.
+ *
+ * A listed set instead (owner cleanup, 23 Nov): --ids <file, one creator id per line> --action trash|ban|restore
+ * --reason "<why>". Ban also puts the creator's profile links on the do-not-re-add list (as Creator Checks does);
+ * restore brings a trashed creator back to active and lifts its ban.
  */
+import { readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { sql } from "drizzle-orm";
 import { createLogger } from "@mushin/core";
@@ -29,7 +34,7 @@ const GROUPS = {
 } as const;
 type Group = keyof typeof GROUPS;
 
-const { values } = parseArgs({ options: { db: { type: "string" }, groups: { type: "string", default: "under_10k,outside_pakistan,inactive,profile_gone" }, apply: { type: "boolean", default: false } } });
+const { values } = parseArgs({ options: { db: { type: "string" }, ids: { type: "string" }, action: { type: "string" }, reason: { type: "string" }, groups: { type: "string", default: "under_10k,outside_pakistan,inactive,profile_gone" }, apply: { type: "boolean", default: false } } });
 const dbName = values.db ?? "";
 if (!/^mushin_catalog_[a-z0-9_]+$/.test(dbName) || /eval/.test(dbName)) throw new Error("--db must name a local operational catalogue (mushin_catalog_*)");
 const groups = (values.groups ?? "").split(",").map((g) => g.trim()).filter(Boolean) as Group[];
@@ -37,6 +42,36 @@ for (const g of groups) if (!(g in GROUPS)) throw new Error(`unknown group ${g};
 
 const db = createDatabase(`postgres://postgres@127.0.0.1:54330/${dbName}`, { max: 2, applicationName: "trash-unqualified" });
 const logger = createLogger({ level: "info", name: "trash-unqualified" });
+
+if (values.ids) {
+  const action = values.action ?? "";
+  if (!["trash", "ban", "restore"].includes(action)) throw new Error("--action must be trash, ban or restore");
+  const why = (values.reason ?? "").trim();
+  if (why.length < 12) throw new Error("--reason needs at least 12 characters");
+  const ids = readFileSync(values.ids, "utf8").split(/\s+/).filter((x) => /^[0-9a-f-]{36}$/.test(x));
+  const done: string[] = [];
+  if (values.apply)
+    for (const id of ids)
+      await db.withSystem(async (tx) => {
+        const r =
+          action === "restore"
+            ? await tx.execute<{ id: string }>(sql`update gcp.creators set status = 'active', trashed_at = null, trashed_by_staff_id = null, trash_reason = null, trash_banned = false, updated_at = now()
+                where id = ${id}::uuid and status = 'trashed' returning id::text`)
+            : await tx.execute<{ id: string }>(sql`update gcp.creators set status = 'trashed', trashed_at = coalesce(trashed_at, now()), trash_reason = ${why}, trash_banned = ${action === "ban"}, updated_at = now()
+                where id = ${id}::uuid and status in ('active', 'trashed') returning id::text`);
+        if (!r[0]) return;
+        if (action === "restore") await tx.execute(sql`select platform.staff_lift_ban(${id}::uuid)`);
+        if (action === "ban")
+          await tx.execute(sql`insert into gcp.creator_suppressions (url_hash, platform, banned_creator_id)
+            select encode(sha256(convert_to(lower(trim(p.canonical_url)), 'UTF8')), 'hex'), p.platform, ${id}::uuid from gcp.creator_profiles p where p.creator_id = ${id}::uuid
+            on conflict (url_hash) do nothing`);
+        done.push(id);
+      });
+  if (done.length) await createCreatorIndexer({ db, index: null, logger }).sync(done);
+  logger.info({ mode: values.apply ? "apply" : "dry-run", action, listed: ids.length, changed: done.length }, "listed creators");
+  await db.close();
+  process.exit(0);
+}
 
 // One group per creator, in the order of the table shown to the owner, so each creator gets the first reason that applies.
 const ORDER: Group[] = ["under_10k", "brand", "outside_pakistan", "inactive", "profile_gone"];
