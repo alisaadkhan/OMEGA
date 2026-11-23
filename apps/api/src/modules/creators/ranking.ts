@@ -1,4 +1,5 @@
 import type { CreatorCard, SearchFilters } from "@mushin/contracts";
+import { creatorTopics, displayNiches } from "./topics";
 import type { SystemTx, TenantTx } from "@mushin/db";
 import * as repo from "./repository";
 import { hasCollabRoute } from "./contact-routes";
@@ -60,6 +61,7 @@ export function toCards(rows: repo.CardRow[], req: { text: string; filters: Sear
         city: r.city,
         country: r.country,
         niches: r.niches,
+        nicheLabels: displayNiches(r.niches, creatorTopics({ niches: r.niches, displayName: r.displayName, handle: r.primaryHandle, tags: r.tags, bios: r.bios ?? [] })),
         nicheSource: r.nicheSource,
         nichePostsAssessed: r.nichePostsAssessed,
         tags: r.tags,

@@ -1,3 +1,4 @@
+import { creatorTopics, displayNiches } from "./topics";
 import {
   searchFiltersSchema,
   searchFiltersShape,
@@ -351,6 +352,7 @@ export function createCreatorsService(deps: CreatorsDeps) {
         country: c.country,
         countrySource: c.countrySource,
         niches: c.niches,
+        nicheLabels: displayNiches(c.niches, creatorTopics({ niches: c.niches, displayName: c.displayName, handle: c.primaryHandle, tags: c.tags, bios: profiles.map((x) => x.bio) })),
         nicheClassification: c.nicheStatus ? { main: c.nicheMain, status: c.nicheStatus, confidence: c.nicheConfidence, source: c.nicheSource, postsAssessed: c.nichePostsAssessed } : null,
         tags: c.tags,
         verified: c.verified,
@@ -373,6 +375,8 @@ export function createCreatorsService(deps: CreatorsDeps) {
           typicalViewsFormat: restrictsDerived(p.platform, policy) ? null : (p.performanceFormat as "reel" | "video" | null),
           engagementSample: restrictsDerived(p.platform, policy) ? null : p.performanceEngagementSample,
           metricsNote: restrictsDerived(p.platform, policy) ? ("policy_restricted" as const) : p.performanceAt === null && p.engagementRate === null ? ("not_collected" as const) : p.medianViews === null && p.engagementRate === null ? ("insufficient_posts" as const) : null,
+          postsPerWeek: restrictsDerived(p.platform, policy) || p.platform === "youtube" ? null : p.postsPerWeek,
+          lastPostAt: p.lastPostAt ? p.lastPostAt.toISOString() : null,
           location: locationOutcome(p.countryStatus, p.bio, p.pakistaniDiaspora),
           ...(({ badge, signals }) => ({ performanceBadge: badge, qualitySignals: signals }))(performanceAssessment(p, { restricted: restrictsDerived(p.platform, policy), now: t })),
           // Emails and phone numbers in the bio stay hidden until this workspace reveals the contacts.

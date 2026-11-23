@@ -170,6 +170,15 @@ function followRatio(p: StandardProfile): Signal | null {
   return { key: "follow_ratio", value: Math.round(ratio * 1000) / 1000, status: status(score), subScore: score, weight: WEIGHTS.follow_ratio, fact };
 }
 
+/** Posts a week across the given posts (newest first); null below two posts. Saved on the profile (0097). */
+export function postsPerWeek(posts: StandardPost[]): number | null {
+  if (posts.length < 2) return null;
+  const newest = posts[0]?.postedAt.getTime() ?? 0;
+  const oldest = posts[posts.length - 1]?.postedAt.getTime() ?? newest;
+  const weeks = Math.max(1 / 7, (newest - oldest) / (7 * DAY));
+  return Math.round(((posts.length - 1) / weeks) * 100) / 100;
+}
+
 function postingRegularity(posts: StandardPost[], now: Date): Signal | null {
   if (posts.length < 2) return null;
   const newest = posts[0]?.postedAt.getTime() ?? now.getTime();

@@ -223,7 +223,7 @@ export function toCreator(c: CreatorCard): Creator {
     avatar: c.avatarUrl ?? initialsAvatar(c.displayName),
     platform: c.platform,
     city: c.city ?? "",
-    niche: c.niches.join(" · "),
+    niche: (c.nicheLabels ?? c.niches).join(" · "),
     nicheNote: c.niches.length > 0 && c.nicheSource === "post_estimated" ? (c.nichePostsAssessed === 0 ? "Estimated niche · AI estimate" : c.platform === "youtube" ? `Estimated niche · Based on ${c.nichePostsAssessed ?? "recent"} recent video titles` : `Estimated niche · Based on tags in ${c.nichePostsAssessed ?? "recent"} recent posts`) : null,
     followers: formatCount(c.followers),
     followersNum: c.followers,

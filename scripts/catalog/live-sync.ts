@@ -23,7 +23,7 @@ const PROFILE_DATA = [
   "engagement_updated_at", "audience_updated_at", "last_scraped_at", "last_post_at", "availability", "availability_checked_at",
   "missing_since", "median_views", "median_engagement_rate", "performance_views_sample", "performance_engagement_sample",
   "performance_format", "performance_from", "performance_to", "performance_at", "post_locations", "verified",
-  "caption_country_evidence",
+  "caption_country_evidence", "posts_per_week", "posting_measured_at",
 ];
 const PROFILE_COUNTRY = ["country", "country_source", "country_status", "country_reason", "country_checked_at", "country_confidence"];
 const CREATOR_DATA = [

@@ -23,7 +23,7 @@ import { captionCountryEvidence, profileCountry, resolveCountry, type ProfileCou
 import { wholeChars } from "./quote";
 import { classifyNiche, pickMain } from "./niche-evidence";
 import type { ExtractedContact, ExtractedLink } from "./links";
-import type { PreviousMetrics, SignalReport } from "./signals";
+import { postsPerWeek, type PreviousMetrics, type SignalReport } from "./signals";
 import type { StandardProfile } from "./standardize";
 
 type Tx = TenantTx | SystemTx;
@@ -206,6 +206,10 @@ export async function saveEnrichment(tx: Tx, i: SaveInput): Promise<{ creatorId:
   // Activity evidence for eligibility: the newest dated public post in this fetch (posts arrive newest first). A fetch
   // without dated posts keeps the earlier date, which still ages out of the activity window.
   const latestPost = p.recentPosts.reduce<Date | null>((max, x) => (max === null || x.postedAt > max ? x.postedAt : max), null);
+  // Content consistency (0097): posts a week over recent non-pinned posts. Not for YouTube (derived figures are restricted
+  // there); a fetch without two dated posts keeps the earlier measurement.
+  const perWeek = p.platform === "youtube" ? null : postsPerWeek(p.recentPosts.filter((x) => !x.isPinned).sort((x, y) => y.postedAt.getTime() - x.postedAt.getTime()));
+  const posting = perWeek === null ? {} : { postsPerWeek: perWeek, postingMeasuredAt: new Date() };
   const metricTimes = { followersUpdatedAt: sql`now()`, engagementUpdatedAt: sql`now()`, audienceUpdatedAt: a ? sql`now()` : sql`${creatorProfiles.audienceUpdatedAt}`, lastScrapedAt: sql`now()` };
 
   if (!existing) {
@@ -256,6 +260,7 @@ export async function saveEnrichment(tx: Tx, i: SaveInput): Promise<{ creatorId:
         audienceUpdatedAt: a ? new Date() : null,
         lastScrapedAt: new Date(),
         lastPostAt: latestPost,
+        ...posting,
         ...performanceColumns(i),
       })
       .returning({ id: creatorProfiles.id });
@@ -280,6 +285,7 @@ export async function saveEnrichment(tx: Tx, i: SaveInput): Promise<{ creatorId:
         bio: p.bio,
         ...metricTimes,
         lastPostAt: latestPost ?? sql`${creatorProfiles.lastPostAt}`,
+        ...posting,
         ...performanceColumns(i),
       })
       .where(eq(creatorProfiles.id, profileId));

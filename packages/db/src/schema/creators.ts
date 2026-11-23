@@ -138,6 +138,9 @@ export const creatorProfiles = gcp.table("creator_profiles", {
   performanceFrom: ts("performance_from"),
   performanceTo: ts("performance_to"),
   performanceAt: ts("performance_at"),
+  /** Posts a week over the recent non-pinned posts of the latest fetch (0097); null below two dated posts. */
+  postsPerWeek: doublePrecision("posts_per_week"),
+  postingMeasuredAt: ts("posting_measured_at"),
   /** Geotag place names of the latest fetched posts (0068). */
   postLocations: text("post_locations").array(),
   /** Pakistani location evidence quoted from recent video descriptions / captions (0087). */

@@ -98,6 +98,8 @@ export const creatorCardSchema = z.object({
   city: z.string().nullable(),
   country: z.string().nullable(),
   niches: z.array(z.string()),
+  /** The niche line as shown: each niche replaced by the creator's specific topics when named ("PUBG · Comedy", owner 23 Nov). */
+  nicheLabels: z.array(z.string()).optional(),
   /** "post_estimated": the card says "Estimated niche · Based on N recent posts". */
   nicheSource: z.enum(["bio_identified", "post_estimated"]).nullable().default(null),
   nichePostsAssessed: z.number().int().nullable().default(null),
@@ -232,6 +234,7 @@ export const creatorProfileSchema = z.object({
   /** Where the shown country comes from (0054): the creator's confirmation, the creator's own bio, or the platform. */
   countrySource: z.enum(["creator_confirmed", "creator_stated", "platform_declared", "public_record", "linked_profile"]).nullable().default(null),
   niches: z.array(z.string()),
+  nicheLabels: z.array(z.string()).optional(),
   /** How the niches were reached (0054): one main niche (plus up to two secondary), variety, or unknown. Null = not yet classified. */
   nicheClassification: z
     .object({
@@ -273,6 +276,9 @@ export const creatorProfileSchema = z.object({
       engagementSample: z.number().int().nullable().default(null),
       /** Why engagement / typical views are missing, when they are: shown instead of a generic "Unavailable". */
       metricsNote: z.enum(["policy_restricted", "not_collected", "insufficient_posts"]).nullable().default(null),
+      /** Content consistency (0097): posts a week over recent posts; null when not measured (and always for YouTube). */
+      postsPerWeek: z.number().nullable().default(null),
+      lastPostAt: z.string().nullable().default(null),
       /** Where this profile is based (master directive Part 4): decided from this profile's own evidence. */
       location: z.enum(["PAKISTAN_CONFIRMED", "NON_PAKISTANI_CONFIRMED", "PAKISTANI_DIASPORA", "UNKNOWN", "CONFLICTING_EVIDENCE"]).default("UNKNOWN"),
       /** elig-3 quality badge (owner decision 2026-11-03): a badge only, never a reason to hide the creator. */

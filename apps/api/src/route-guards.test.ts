@@ -11,6 +11,7 @@ const PUBLIC = new Set([
   "GET /health/live",
   "GET /health/ready",
   "GET /v1/public/plans",
+  "GET /v1/public/creators/showcase", // landing page row: customer-visible creators only, no id or contact flag, cached
   "POST /v1/public/removal-requests", // rate-limited by IP, answers the same whether or not a creator matched
   "POST /v1/public/email-unsubscribe", // signed unsubscribe token
   "POST /v1/public/trial-requests", // rate-limited per address, small body

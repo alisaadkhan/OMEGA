@@ -77,17 +77,23 @@ function missingNote(note: "policy_restricted" | "not_collected" | "insufficient
   return "Likes hidden or too few recent posts";
 }
 
-/** Content consistency from the measured posting rate in the stored assessment (signals.ts posting_regularity). */
-function consistency(evidence: { signal: string; detail: string }[]): { value: string; note: string } {
+/**
+ * Content consistency: the posting rate measured on the profile's latest fetch (0097), else the one in the stored
+ * assessment (signals.ts posting_regularity), else the date of the newest post. YouTube rates are policy restricted.
+ */
+export function consistency(evidence: { signal: string; detail: string }[], profile?: { platform: string; postsPerWeek?: number | null; lastPostAt?: string | null } | null, now = Date.now()): { value: string; note: string } {
+  const level = (n: number) => ({ value: n >= 3 ? "High" : n >= 1 ? "Medium" : "Low", note: `~${n % 1 === 0 ? n : n.toFixed(1)} posts per week` });
+  const idleDays = profile?.lastPostAt ? Math.floor((now - Date.parse(profile.lastPostAt)) / 86_400_000) : null;
+  if (idleDays !== null && idleDays > 90) return { value: "Inactive", note: `No new posts for ${idleDays.toLocaleString()} days` };
+  if (profile?.postsPerWeek !== null && profile?.postsPerWeek !== undefined) return level(profile.postsPerWeek);
   const row = evidence.find((e) => e.signal === "posting_regularity");
-  if (!row) return { value: "—", note: "Not measured yet" };
-  const perWeek = /about ([\d.]+) times? a week/i.exec(row.detail);
-  if (perWeek) {
-    const n = Number(perWeek[1]);
-    return { value: n >= 3 ? "High" : n >= 1 ? "Medium" : "Low", note: `~${n % 1 === 0 ? n : n.toFixed(1)} posts per week` };
-  }
-  const idle = /no new posts for ([\d,]+) days/i.exec(row.detail);
-  return idle ? { value: "Inactive", note: `No new posts for ${idle[1]} days` } : { value: "—", note: row.detail };
+  const perWeek = row ? /about ([\d.]+) times? a week/i.exec(row.detail) : null;
+  if (perWeek) return level(Number(perWeek[1]));
+  const idle = row ? /no new posts for ([\d,]+) days/i.exec(row.detail) : null;
+  if (idle) return { value: "Inactive", note: `No new posts for ${idle[1]} days` };
+  if (idleDays !== null) return { value: idleDays <= 30 ? "Active" : "Occasional", note: idleDays === 0 ? "Posted today" : `Last post ${idleDays} day${idleDays === 1 ? "" : "s"} ago` };
+  if (profile?.platform === "youtube") return { value: "—", note: "Policy restricted for YouTube" };
+  return { value: "—", note: "No recent posts to measure" };
 }
 
 /**
@@ -161,7 +167,8 @@ export function CreatorProfilePanel({ creator, onClose, onGoToCampaigns }: { cre
   const asDrawer = (c: Creator): DrawerCreator => ({ id: c.id, name: p?.displayName ?? c.name, handle: c.handle, avatar: p?.avatarUrl ?? c.avatar, city: p?.city ?? null });
   const engagement = primary?.engagementRate ?? null;
   const location = p ? countryWithSource(p.country, p.countrySource) : null;
-  const niche = p ? (p.nicheClassification?.main ?? p.niches[0] ?? null) : creator?.niche && creator.niche !== "Unknown" ? creator.niche : null;
+  // A specific topic replaces its niche ("PUBG", not "Gaming"; owner, 23 Nov).
+  const niche = p ? ((p.nicheLabels?.length ? p.nicheLabels.slice(0, 2).join(" · ") : null) ?? p.nicheClassification?.main ?? p.niches[0] ?? null) : creator?.niche && creator.niche !== "Unknown" ? creator.niche : null;
   const place = [p?.city, p?.country ? (COUNTRY[p.country] ?? p.country) : null].filter(Boolean).join(", ");
   const verified = primary ? primary.verified : (p?.verified ?? creator?.verified ?? false);
   const auth = p?.authenticity;
@@ -170,7 +177,7 @@ export function CreatorProfilePanel({ creator, onClose, onGoToCampaigns }: { cre
     : auth.status === "assessed"
       ? { value: `${auth.score}%`, note: auth.score >= 80 ? "High human confidence" : auth.score >= 60 ? "Mostly genuine audience" : auth.score >= 40 ? "Mixed signals" : "Likely inflated" }
       : { value: "—", note: auth.status === "restricted" ? "Not assessed for YouTube" : auth.status === "pending" ? "Assessment in progress" : auth.status === "insufficient_data" ? "Not enough posts to assess" : "Not assessed yet" };
-  const steady = consistency(auth?.status === "assessed" ? auth.evidence : []);
+  const steady = consistency(auth?.status === "assessed" ? auth.evidence : [], primary);
   const email = p?.contacts.find((c) => c.kind === "email");
   const phone = p?.contacts.find((c) => c.kind === "phone");
   const contactLine = [email ? (email.value ?? email.masked) : null, phone ? (phone.value ?? phone.masked) : null].filter(Boolean);
