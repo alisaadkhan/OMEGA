@@ -96,7 +96,7 @@ const trailOf = (jobId: string) => ownerQuery<TrailRow>(`select candidate_key, s
 const row = (rows: TrailRow[], handle: string) => rows.find((r) => r.candidate_key === `https://instagram.com/${handle}`);
 
 async function startRun(c: TenantContext, maxNew: 5 | 10 = 10): Promise<string> {
-  const estimate = await discovery.createEstimate(c, { search: { text: "bridal makeup", filters: searchFiltersSchema.parse({ platform: "instagram", creatorCity: "Lahore" }) }, maxNew });
+  const estimate = await discovery.createEstimate(c, { search: { text: "bridal makeup artists", filters: searchFiltersSchema.parse({ platform: "instagram", creatorCity: "Lahore" }) }, maxNew });
   const out = await discovery.start(c, { kind: "live", estimateId: estimate.estimateId });
   if (out.body.status !== "started") throw new Error("expected started");
   return out.body.job.id;
@@ -379,7 +379,7 @@ describe("live runner", () => {
   describe("YouTube-native video search", () => {
     const channels = (...handles: string[]): WebResult[] => handles.map((h) => ({ title: `${h} - Bridal makeup tutorial`, link: `https://www.youtube.com/@${h}`, snippet: "Bridal makeup in Lahore" }));
     async function startYouTube(c: TenantContext): Promise<string> {
-      const estimate = await discovery.createEstimate(c, { search: { text: "bridal makeup", filters: searchFiltersSchema.parse({ platform: "youtube", creatorCity: "Lahore" }) }, maxNew: 5 });
+      const estimate = await discovery.createEstimate(c, { search: { text: "bridal makeup artists", filters: searchFiltersSchema.parse({ platform: "youtube", creatorCity: "Lahore" }) }, maxNew: 5 });
       const out = await discovery.start(c, { kind: "live", estimateId: estimate.estimateId });
       if (out.body.status !== "started") throw new Error("expected started");
       return out.body.job.id;
@@ -400,9 +400,9 @@ describe("live runner", () => {
       const c = await customer();
       const id = await startYouTube(c);
       await runner.run(id, c.workspaceId);
-      expect(asked).toEqual([{ query: "bridal makeup Lahore" }]);
+      expect(asked).toEqual([{ query: "bridal makeup artists Lahore" }]);
       const trail = await ownerQuery<{ candidate_key: string; occurrences: number; query: string }>(`select candidate_key, occurrences, query from wp.discovery_candidates where job_id = '${id}'`);
-      expect(trail.find((r) => r.candidate_key === "https://youtube.com/@native_one")).toMatchObject({ query: "youtube_video: bridal makeup Lahore" });
+      expect(trail.find((r) => r.candidate_key === "https://youtube.com/@native_one")).toMatchObject({ query: "youtube_video: bridal makeup artists Lahore" });
       expect(trail.find((r) => r.candidate_key === "https://youtube.com/@web_one")?.occurrences).toBeGreaterThan(1);
       expect(await discovery.get(c, id)).toMatchObject({ status: "completed" });
     });
@@ -646,7 +646,7 @@ describe("live runner", () => {
       };
       const { runner } = setup({ web: pool(), scraper: capped, extractionMultiplier: { instagram: 2 } });
       const c = await customer();
-      const estimate = await discovery.createEstimate(c, { search: { text: "bridal makeup", filters: searchFiltersSchema.parse({ platform: "instagram", creatorCity: "Lahore" }) }, maxNew: 5 });
+      const estimate = await discovery.createEstimate(c, { search: { text: "bridal makeup artists", filters: searchFiltersSchema.parse({ platform: "instagram", creatorCity: "Lahore" }) }, maxNew: 5 });
       const started = await discovery.start(c, { kind: "live", estimateId: estimate.estimateId });
       if (started.body.status !== "started") throw new Error("expected started");
       const id = started.body.job.id;
@@ -669,7 +669,7 @@ describe("live runner", () => {
       const web = new FixtureWebSearch([...links("locked_1", "locked_2", "open_1", "open_2", "open_3", "open_4"), tt("tok_1"), tt("tok_2"), tt("tok_3"), tt("tok_4"), tt("tok_5")]);
       const { runner } = setup({ web, scraper: mixed, extractionMultiplier: { instagram: 2, tiktok: 1 } });
       const c = await customer();
-      const estimate = await discovery.createEstimate(c, { search: { text: "bridal makeup", filters: searchFiltersSchema.parse({ creatorCity: "Lahore" }) }, maxNew: 5 });
+      const estimate = await discovery.createEstimate(c, { search: { text: "bridal makeup artists", filters: searchFiltersSchema.parse({ creatorCity: "Lahore" }) }, maxNew: 5 });
       const started = await discovery.start(c, { kind: "live", estimateId: estimate.estimateId });
       if (started.body.status !== "started") throw new Error("expected started");
       await runner.run(started.body.job.id, c.workspaceId);
@@ -705,9 +705,9 @@ describe("live runner", () => {
     const web = new FixtureWebSearch([...links("locked_1", "open_1", "open_2"), tt("tok_1"), tt("tok_2"), tt("tok_3")]);
     const { runner } = setup({ web, scraper: mixed });
     const c = await customer();
-    const estimate = await discovery.createEstimate(c, { search: { text: "bridal makeup", filters: searchFiltersSchema.parse({ creatorCity: "Lahore" }) }, maxNew: 5 });
+    const estimate = await discovery.createEstimate(c, { search: { text: "bridal makeup artists", filters: searchFiltersSchema.parse({ creatorCity: "Lahore" }) }, maxNew: 5 });
     expect(estimate).toMatchObject({ maxCredits: 100, minimumCredits: 100 });
-    const igOnly = await discovery.createEstimate(c, { search: { text: "bridal makeup", filters: searchFiltersSchema.parse({ platform: "instagram", creatorCity: "Lahore" }) }, maxNew: 5 });
+    const igOnly = await discovery.createEstimate(c, { search: { text: "bridal makeup artists", filters: searchFiltersSchema.parse({ platform: "instagram", creatorCity: "Lahore" }) }, maxNew: 5 });
     expect(igOnly.minimumCredits).toBeUndefined();
     const started = await discovery.start(c, { kind: "live", estimateId: estimate.estimateId });
     if (started.body.status !== "started") throw new Error("expected started");

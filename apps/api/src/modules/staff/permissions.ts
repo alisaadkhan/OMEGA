@@ -72,13 +72,19 @@ export const STAFF_PERMISSIONS = {
 export type StaffAction = keyof typeof STAFF_PERMISSIONS;
 
 /**
+ * Viewing is not changing (owner, 23 Nov, option b): an Admin or Super Admin opens every admin page with the password
+ * (and two-factor when it is on); the role check still applies. Every change still needs the hardware key.
+ */
+export const isViewOnly = (a: StaffAction): boolean => a.endsWith(".read") || a === "staff.list";
+
+/**
  * Admin and Super Admin actions need a WebAuthn hardware-key step-up in the current session (master pack DOC-029:
  * Support TOTP mandatory, Admin hardware key mandatory). TOTP alone is never treated as hardware-key compliance. The
  * exceptions are the enrolment itself on a TOTP session when no key is registered yet (handled in the WebAuthn
  * routes) and reading one's own security state.
  */
 export const HARDWARE_KEY_ACTIONS: ReadonlySet<StaffAction> = new Set(
-  (Object.keys(STAFF_PERMISSIONS) as StaffAction[]).filter((a) => !(STAFF_PERMISSIONS[a] as readonly string[]).includes("support") && a !== "staff.webauthn.manage"),
+  (Object.keys(STAFF_PERMISSIONS) as StaffAction[]).filter((a) => !(STAFF_PERMISSIONS[a] as readonly string[]).includes("support") && a !== "staff.webauthn.manage" && !isViewOnly(a)),
 );
 
 /**

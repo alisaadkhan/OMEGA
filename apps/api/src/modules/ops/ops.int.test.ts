@@ -93,11 +93,10 @@ describe("support tickets and staff operations", () => {
     const support = await staffToken("support");
     const totpAdmin = await staffToken("admin");
     const admin = await hardwareKeyAdmin();
-    // Admin-only views need a hardware key: a TOTP-only admin session is refused (DOC-029).
+    // Admin-only pages open without the hardware key (owner, 23 Nov: viewing is not changing); Support still cannot.
     for (const url of ["/admin/v1/ops/providers", "/admin/v1/audit"]) {
-      const res = await app.inject({ method: "GET", url, headers: totpAdmin });
-      expect(res.statusCode).toBe(403);
-      expect(res.json()).toMatchObject({ error: { details: { reason: "hardware_key_required" } } });
+      expect((await app.inject({ method: "GET", url, headers: totpAdmin })).statusCode).toBe(200);
+      expect((await app.inject({ method: "GET", url, headers: support })).statusCode).toBe(403);
     }
     expect((await app.inject({ method: "GET", url: "/admin/v1/ops/overview", headers: totpAdmin })).statusCode).toBe(200);
 

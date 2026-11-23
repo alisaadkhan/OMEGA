@@ -64,7 +64,7 @@ describe("live discovery API", () => {
       method: "POST",
       url: "/v1/discovery/estimates",
       headers: { ...auth, "idempotency-key": "live-estimate-0001" },
-      payload: { search: { text: "bridal", filters: { platform: "instagram", creatorCity: "Lahore" } }, maxNew: 5 },
+      payload: { search: { text: "bridal makeup creators", filters: { platform: "instagram", creatorCity: "Lahore" } }, maxNew: 5 },
     });
     expect(estimateResponse.statusCode).toBe(201);
     const estimateId = (estimateResponse.json() as { estimateId: string }).estimateId;

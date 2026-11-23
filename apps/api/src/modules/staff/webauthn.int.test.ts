@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { FastifyInstance } from "fastify";
 import { generateKeyPairSync } from "node:crypto";
 import { generate } from "otplib";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
@@ -12,7 +13,9 @@ import { createStaffTokens, type StaffRole } from "./tokens";
 const db = createTestDatabase();
 const tokens = createStaffTokens("w".repeat(48));
 const staff = createStaffModule({ db, tokens, encryptionKey: Buffer.alloc(32, 7), webauthn: TEST_WEBAUTHN });
-const app = await buildTestApp({ modules: [staff.module, createOpsModule({ db, requireStaff: staff.requireStaff })] });
+// A stand-in for any change that needs the hardware key (viewing pages no longer does, owner 23 Nov).
+const keyProbe = { name: "key-probe", register: (a: FastifyInstance) => { a.get("/admin/v1/key-probe", { preHandler: staff.requireStaff("ops.jobs.retry") }, async () => ({ ok: true })); } };
+const app = await buildTestApp({ modules: [staff.module, createOpsModule({ db, requireStaff: staff.requireStaff }), keyProbe] });
 beforeEach(resetTables);
 afterAll(async () => {
   await app.close();
@@ -49,7 +52,7 @@ const auditActions = async (staffId: string) => (await ownerQuery<{ action: stri
 describe("hardware-key (WebAuthn) step-up for privileged staff actions", () => {
   it("an Admin on TOTP alone is refused; after enrolling a key and stepping up, the admin action works", async () => {
     const admin = await signIn("admin");
-    const refused = await call("GET", "/admin/v1/audit", admin.auth);
+    const refused = await call("GET", "/admin/v1/key-probe", admin.auth);
     expect(refused.statusCode).toBe(403);
     expect(refused.json().error.details).toMatchObject({ reason: "hardware_key_required" });
 
@@ -61,7 +64,7 @@ describe("hardware-key (WebAuthn) step-up for privileged staff actions", () => {
     expect(up.statusCode).toBe(200);
     const strong = bearer(up);
     expect((await call("GET", "/admin/v1/security", strong)).json()).toMatchObject({ factors: ["otp", "hwk"] });
-    expect((await call("GET", "/admin/v1/audit", strong)).statusCode).toBe(200);
+    expect((await call("GET", "/admin/v1/key-probe", strong)).statusCode).toBe(200);
     expect(await auditActions(admin.id)).toEqual(expect.arrayContaining(["staff.login.succeeded", "staff.webauthn.registered", "staff.webauthn.step_up"]));
   });
 
@@ -109,10 +112,10 @@ describe("hardware-key (WebAuthn) step-up for privileged staff actions", () => {
     const support = await signIn("support");
     expect((await call("GET", "/admin/v1/security", support.auth)).json()).toMatchObject({ hardwareKeyRequired: false });
     expect((await call("POST", "/admin/v1/security/keys/options", support.auth)).statusCode).toBe(403);
-    expect((await call("GET", "/admin/v1/audit", support.auth)).statusCode).toBe(403);
+    expect((await call("GET", "/admin/v1/key-probe", support.auth)).statusCode).toBe(403);
     // A forged token claiming a hardware key does not lift a Support role's limits.
     const forged = { authorization: `Bearer ${await tokens.signAccess({ staffId: support.id, role: "support", factors: ["otp", "hwk"] })}` };
-    expect((await call("GET", "/admin/v1/audit", forged)).statusCode).toBe(403);
+    expect((await call("GET", "/admin/v1/key-probe", forged)).statusCode).toBe(403);
   });
 
   it("a suspended account or a changed role stops working at once, even with an unexpired token", async () => {
@@ -120,9 +123,9 @@ describe("hardware-key (WebAuthn) step-up for privileged staff actions", () => {
     const key = softwareKey();
     await enrol(admin.auth, key);
     const strong = bearer(await stepUp(admin.auth, key));
-    expect((await call("GET", "/admin/v1/audit", strong)).statusCode).toBe(200);
+    expect((await call("GET", "/admin/v1/key-probe", strong)).statusCode).toBe(200);
     await ownerQuery(`update staff.staff_users set role = 'support' where id = '${admin.id}'`);
-    expect((await call("GET", "/admin/v1/audit", strong)).statusCode).toBe(401);
+    expect((await call("GET", "/admin/v1/key-probe", strong)).statusCode).toBe(401);
     await ownerQuery(`update staff.staff_users set role = 'admin', status = 'suspended' where id = '${admin.id}'`);
     expect((await call("GET", "/admin/v1/me", strong)).statusCode).toBe(401);
   });
@@ -176,20 +179,20 @@ describe("step-up is proven on the server, not by the token (audit SEC-02)", () 
   it("a token forged with the signing secret and an hwk claim is refused on every hardware-key action", async () => {
     const admin = await signIn("admin");
     const forged = { authorization: `Bearer ${await tokens.signAccess({ staffId: admin.id, role: "admin", factors: ["otp", "hwk"] })}` };
-    const res = await call("GET", "/admin/v1/audit", forged);
+    const res = await call("GET", "/admin/v1/key-probe", forged);
     expect(res.statusCode).toBe(403);
     expect(res.json().error.details).toMatchObject({ reason: "hardware_key_required" });
     expect((await call("GET", "/admin/v1/security", forged)).json()).toMatchObject({ factors: ["otp"] });
     // A made-up step-up id, or another staff member's real one, does not help either.
     const randomId = { authorization: `Bearer ${await tokens.signAccess({ staffId: admin.id, role: "admin", factors: ["otp", "hwk"], stepUpId: randomUUID() })}` };
-    expect((await call("GET", "/admin/v1/audit", randomId)).statusCode).toBe(403);
+    expect((await call("GET", "/admin/v1/key-probe", randomId)).statusCode).toBe(403);
     const other = await signIn("admin");
     const key = softwareKey();
     await enrol(other.auth, key);
     await stepUp(other.auth, key);
     const [row] = await ownerQuery<{ id: string }>(`select id from staff.step_ups where staff_id = '${other.id}'`);
     const borrowed = { authorization: `Bearer ${await tokens.signAccess({ staffId: admin.id, role: "admin", factors: ["otp", "hwk"], stepUpId: row?.id ?? "" })}` };
-    expect((await call("GET", "/admin/v1/audit", borrowed)).statusCode).toBe(403);
+    expect((await call("GET", "/admin/v1/key-probe", borrowed)).statusCode).toBe(403);
   });
 
   it("a step-up proves the key for five minutes, then admin actions ask again (mandate v3 SEC-02)", async () => {
@@ -201,9 +204,9 @@ describe("step-up is proven on the server, not by the token (audit SEC-02)", () 
     expect(row?.s).toBe(300);
     // Shift the step-up back in time, keeping its 5-minute length: 4 minutes old still works, 6 minutes old does not.
     await ownerQuery(`update staff.step_ups set created_at = now() - interval '4 minutes', expires_at = now() + interval '1 minute' where staff_id = '${admin.id}'`);
-    expect((await call("GET", "/admin/v1/audit", strong)).statusCode).toBe(200);
+    expect((await call("GET", "/admin/v1/key-probe", strong)).statusCode).toBe(200);
     await ownerQuery(`update staff.step_ups set created_at = now() - interval '6 minutes', expires_at = now() - interval '1 minute' where staff_id = '${admin.id}'`);
-    const refused = await call("GET", "/admin/v1/audit", strong);
+    const refused = await call("GET", "/admin/v1/key-probe", strong);
     expect(refused.statusCode).toBe(403);
     expect(refused.json().error.details).toMatchObject({ reason: "hardware_key_required" });
     expect((await call("GET", "/admin/v1/security", strong)).json().factors).not.toContain("hwk");
@@ -214,21 +217,21 @@ describe("step-up is proven on the server, not by the token (audit SEC-02)", () 
     const key = softwareKey();
     await enrol(admin.auth, key);
     const strong = bearer(await stepUp(admin.auth, key));
-    expect((await call("GET", "/admin/v1/audit", strong)).statusCode).toBe(200);
+    expect((await call("GET", "/admin/v1/key-probe", strong)).statusCode).toBe(200);
     await ownerQuery(`update staff.step_ups set created_at = now() - interval '1 minute', expires_at = now() - interval '1 second' where staff_id = '${admin.id}'`);
-    expect((await call("GET", "/admin/v1/audit", strong)).statusCode).toBe(403);
+    expect((await call("GET", "/admin/v1/key-probe", strong)).statusCode).toBe(403);
 
     const again = bearer(await stepUp(admin.auth, key));
-    expect((await call("GET", "/admin/v1/audit", again)).statusCode).toBe(200);
+    expect((await call("GET", "/admin/v1/key-probe", again)).statusCode).toBe(200);
     await ownerQuery(`update staff.webauthn_credentials set revoked_at = now() where staff_id = '${admin.id}'`);
-    expect((await call("GET", "/admin/v1/audit", again)).statusCode).toBe(403);
+    expect((await call("GET", "/admin/v1/key-probe", again)).statusCode).toBe(403);
 
     await ownerQuery(`update staff.webauthn_credentials set revoked_at = null where staff_id = '${admin.id}'`);
     const third = bearer(await stepUp(admin.auth, key));
-    expect((await call("GET", "/admin/v1/audit", third)).statusCode).toBe(200);
+    expect((await call("GET", "/admin/v1/key-probe", third)).statusCode).toBe(200);
     const [r] = await ownerQuery<{ v: { sessions: number; stepUps: number } }>(`select staff.revoke_all_sessions('credential rotation 2026-10-16') v`);
     expect(r?.v.sessions).toBeGreaterThan(0);
-    expect((await call("GET", "/admin/v1/audit", third)).statusCode).toBe(403);
+    expect((await call("GET", "/admin/v1/key-probe", third)).statusCode).toBe(403);
     expect(await ownerQuery(`select action from staff.audit_log where action = 'staff.sessions.revoked_all'`)).toHaveLength(1);
     await expect(ownerQuery(`select staff.revoke_all_sessions('short')`)).rejects.toThrow(/reason/);
   });
