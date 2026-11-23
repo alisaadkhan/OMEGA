@@ -68,11 +68,17 @@ export const creators = gcp.table("creators", {
   accountTypeConfidence: text("account_type_confidence"),
   accountTypeEvidence: text("account_type_evidence"),
   accountTypeAssessedAt: ts("account_type_assessed_at"),
-  status: text("status", { enum: ["active", "merged", "removal_requested", "erased", "hidden"] }).notNull().default("active"),
+  status: text("status", { enum: ["active", "merged", "removal_requested", "erased", "hidden", "trashed"] }).notNull().default("active"),
   /** Hidden by staff (0095): kept, but out of every customer view; who, why and when. */
   hiddenByStaffId: uuid("hidden_by_staff_id"),
   hiddenReason: text("hidden_reason"),
   hiddenAt: timestamp("hidden_at", { withTimezone: true, mode: "date" }),
+  /** Trash (0096): out of every customer view, restorable for 45 days, then erased by the daily job. */
+  trashedAt: timestamp("trashed_at", { withTimezone: true, mode: "date" }),
+  trashedByStaffId: uuid("trashed_by_staff_id"),
+  trashReason: text("trash_reason"),
+  /** Banned: its links are on the do-not-re-add list from the moment it was trashed. */
+  trashBanned: boolean("trash_banned").notNull().default(false),
   mergedIntoId: uuid("merged_into_id"),
   lastEnrichedAt: ts("last_enriched_at"),
   minorReason: text("minor_reason"),
@@ -325,6 +331,8 @@ export const creatorSuppressions = gcp.table("creator_suppressions", {
   urlHash: text("url_hash").primaryKey(),
   platform: text("platform", { enum: platformEnum }).notNull(),
   removalRequestId: uuid("removal_request_id"),
+  /** Set when a staff ban put the link here (0096); restoring that creator removes only these rows. */
+  bannedCreatorId: uuid("banned_creator_id"),
   createdAt: ts("created_at").notNull().defaultNow(),
 });
 

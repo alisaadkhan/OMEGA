@@ -9,7 +9,7 @@ import { recordStaffAudit, type StaffPrincipal } from "../staff/index";
 type Meta = { ip: string | null; requestId: string | null };
 const reason = z.string().trim().min(12, "Give a reason of at least 12 characters").max(500);
 
-export const creatorFilterSchema = z.enum(["all", "reported", "country", "minor", "organisation", "assessment", "hidden"]);
+export const creatorFilterSchema = z.enum(["all", "reported", "country", "minor", "organisation", "assessment", "hidden", "trash"]);
 export const creatorListQuerySchema = z.object({ q: z.string().trim().max(80).default(""), filter: creatorFilterSchema.default("all"), offset: z.coerce.number().int().min(0).max(100_000).default(0) });
 
 const profile = z.object({ platform: z.string(), handle: z.string(), url: z.string(), followers: z.number().nullable(), countryStatus: z.string().nullable(), country: z.string().nullable(), countrySource: z.string().nullable(), bio: z.string().nullable(), verified: z.boolean().nullable() });
@@ -23,6 +23,9 @@ export const staffCreatorSchema = z.object({
   publicCountrySource: z.string().nullable(),
   status: z.string(),
   hiddenReason: z.string().nullable(),
+  trashedAt: z.string().nullable(),
+  trashBanned: z.boolean(),
+  trashReason: z.string().nullable(),
   isMinor: z.boolean(),
   minorReason: z.string().nullable(),
   organisationCategory: z.string().nullable(),
@@ -53,6 +56,7 @@ export const creatorEditSchema = z
   })
   .refine((b) => b.displayName !== undefined || b.city !== undefined || b.nicheMain !== undefined || b.accountType !== undefined, { message: "Change at least one field" });
 export const creatorReasonSchema = z.object({ reason });
+export const creatorTrashSchema = z.object({ reason, ban: z.boolean().default(false) });
 
 const PAGE = 50;
 const ORG_TYPES = sql`('CELEBRITY_PUBLIC_FIGURE', 'COMPANY_CORPORATE', 'BRAND_ACCOUNT', 'BUSINESS_STORE', 'MEDIA_PUBLICATION', 'FAN_PAGE_AGGREGATOR')`;
@@ -66,6 +70,7 @@ const WHERE: Record<z.infer<typeof creatorFilterSchema>, ReturnType<typeof sql>>
   assessment: sql`c.status = 'active' and (c.assessment_status is null or c.assessment_status in ('pending', 'insufficient_data'))
     and exists (select 1 from gcp.creator_profiles p where p.creator_id = c.id and p.followers >= 5000)`,
   hidden: sql`c.status = 'hidden'`,
+  trash: sql`c.status = 'trashed'`,
 };
 const FROM = sql`gcp.creators c left join platform.staff_creator_report_counts() r on r.creator_id = c.id left join gcp.creator_search_documents d on d.creator_id = c.id`;
 
@@ -93,7 +98,7 @@ export function createCreatorEditor(deps: { db: Db; reindex: (ids: string[]) => 
       return deps.db.withSystem(async (tx) => {
         const items = await tx.execute<z.infer<typeof staffCreatorSchema>>(sql`
           select c.id, c.display_name as "displayName", c.avatar_url as "avatarUrl", c.city, c.country, c.public_country as "publicCountry",
-            c.public_country_source as "publicCountrySource", c.status, c.hidden_reason as "hiddenReason", c.is_minor as "isMinor", c.minor_reason as "minorReason",
+            c.public_country_source as "publicCountrySource", c.status, c.hidden_reason as "hiddenReason", to_char(c.trashed_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as "trashedAt", c.trash_banned as "trashBanned", c.trash_reason as "trashReason", c.is_minor as "isMinor", c.minor_reason as "minorReason",
             coalesce(c.organisation_category, case when c.account_type in ${ORG_TYPES} then initcap(replace(lower(c.account_type), '_', ' ')) end) as "organisationCategory",
             c.account_type as "accountType", c.niche_main as "nicheMain", c.niches, c.assessment_status as "assessmentStatus",
             coalesce(d.eligible, false) as eligible, coalesce(d.eligibility_reasons, '{}') as "hiddenBecause",
@@ -108,7 +113,7 @@ export function createCreatorEditor(deps: { db: Db; reindex: (ids: string[]) => 
         const [t] = await tx.execute<{ n: number }>(sql`select count(*)::int n from ${FROM} where ${WHERE[q.filter]} and ${nameOrHandle(q.q)}`);
         const [cnt] = await tx.execute<Record<z.infer<typeof creatorFilterSchema>, number>>(sql`select
           ${sql.join(creatorFilterSchema.options.map((f) => sql`(select count(*)::int from ${FROM} where ${WHERE[f]}) as ${sql.identifier(f)}`), sql`, `)}`);
-        return { items: [...items], total: t?.n ?? 0, counts: cnt ?? { all: 0, reported: 0, country: 0, minor: 0, organisation: 0, assessment: 0, hidden: 0 } };
+        return { items: [...items], total: t?.n ?? 0, counts: cnt ?? { all: 0, reported: 0, country: 0, minor: 0, organisation: 0, assessment: 0, hidden: 0, trash: 0 } };
       });
     },
 
@@ -145,6 +150,38 @@ export function createCreatorEditor(deps: { db: Db; reindex: (ids: string[]) => 
         );
         await changed(tx, id, meta);
         await recordStaffAudit(tx, { staffId: staff.staffId, action: hidden ? "catalogue.creator_hidden" : "catalogue.creator_unhidden", metadata: { creatorId: id, reason: why }, ip: meta.ip, requestId: meta.requestId });
+      });
+      await deps.reindex([id]);
+    },
+
+    /**
+     * Trash (owner, 23 Nov): out of every customer view now, restorable for 45 days, then erased by the daily job.
+     * Ban also puts the creator's profile links on the do-not-re-add list at once, so no search or import adds it back.
+     */
+    async trash(staff: StaffPrincipal, id: string, body: z.infer<typeof creatorTrashSchema>, meta: Meta) {
+      await deps.db.withSystem(async (tx) => {
+        await exists(tx, id);
+        await tx.execute(sql`update gcp.creators set status = 'trashed', trashed_at = now(), trashed_by_staff_id = ${staff.staffId}, trash_reason = ${body.reason},
+          trash_banned = ${body.ban}, updated_at = now() where id = ${id}`);
+        if (body.ban)
+          await tx.execute(sql`insert into gcp.creator_suppressions (url_hash, platform, banned_creator_id)
+            select encode(sha256(convert_to(lower(trim(p.canonical_url)), 'UTF8')), 'hex'), p.platform, ${id}::uuid from gcp.creator_profiles p where p.creator_id = ${id}
+            on conflict (url_hash) do nothing`);
+        await changed(tx, id, meta);
+        await recordStaffAudit(tx, { staffId: staff.staffId, action: body.ban ? "catalogue.creator_banned" : "catalogue.creator_trashed", metadata: { creatorId: id, reason: body.reason }, ip: meta.ip, requestId: meta.requestId });
+      });
+      await deps.reindex([id]);
+    },
+
+    /** Restore from Trash within 45 days: the creator is active again and a ban on its links is lifted. */
+    async restore(staff: StaffPrincipal, id: string, why: string, meta: Meta) {
+      await deps.db.withSystem(async (tx) => {
+        const [c] = await tx.execute<{ status: string }>(sql`select status from gcp.creators where id = ${id} for update`);
+        if (!c || c.status !== "trashed") throw new AppError("NOT_FOUND", "This creator is not in Trash.");
+        await tx.execute(sql`select platform.staff_lift_ban(${id}::uuid)`);
+        await tx.execute(sql`update gcp.creators set status = 'active', trashed_at = null, trashed_by_staff_id = null, trash_reason = null, trash_banned = false, updated_at = now() where id = ${id}`);
+        await changed(tx, id, meta);
+        await recordStaffAudit(tx, { staffId: staff.staffId, action: "catalogue.creator_restored", metadata: { creatorId: id, reason: why }, ip: meta.ip, requestId: meta.requestId });
       });
       await deps.reindex([id]);
     },

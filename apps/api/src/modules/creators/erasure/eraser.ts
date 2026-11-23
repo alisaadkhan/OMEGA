@@ -8,6 +8,8 @@ import { suppress, urlHash } from "../suppressions";
 import * as repo from "./repository";
 
 const EMAIL_KEEP_DAYS = 30;
+/** Creators in staff Trash are erased this many days after they were trashed (owner, 23 Nov). */
+export const TRASH_KEEP_DAYS = 45;
 
 /** Spec §7. Every step is safe to repeat: a retry finishes what a crash left. */
 export function createEraser(deps: { db: Db; storage: ObjectStorage | null; logger: Logger; now?: () => Date }) {
@@ -29,7 +31,7 @@ export function createEraser(deps: { db: Db; storage: ObjectStorage | null; logg
   }
 
   /** The erasure itself, for resolved creators and requested links; `request` is null when re-applying a journal. */
-  async function eraseCreators(creatorIds: Set<string>, requested: { platform: CreatorPlatform; canonicalUrl: string }[], r: { id: string; urls: string[] } | null): Promise<void> {
+  async function eraseCreators(creatorIds: Set<string>, requested: { platform: CreatorPlatform; canonicalUrl: string }[], r: { id: string; urls: string[] } | null, opts: { suppress: boolean } = { suppress: true }): Promise<void> {
     const own: { canonicalUrl: string; platform: CreatorPlatform }[] = [];
     const avatars: string[] = [];
     for (const id of creatorIds) {
@@ -57,7 +59,7 @@ export function createEraser(deps: { db: Db; storage: ObjectStorage | null; logg
         await repo.eraseRows(tx, id, []);
       }
       await repo.purgeCachedSearches(tx, entries.map((e) => e.canonicalUrl));
-      await suppress(tx, entries, r?.id ?? null);
+      if (opts.suppress) await suppress(tx, entries, r?.id ?? null);
       // The request keeps only hashes of the links from now on.
       if (r && !r.urls.every((u) => u.startsWith("sha256:"))) {
         await repo.hashUrls(tx, r.id, entries.map((e) => `sha256:${urlHash(e.canonicalUrl)}`));
@@ -93,7 +95,21 @@ export function createEraser(deps: { db: Db; storage: ObjectStorage | null; logg
     return { suppressionsRestored: restored, creatorsErased: found.length };
   }
 
-  return { erase, clearOldEmails, reapplyJournal };
+  /**
+   * Erases creators trashed more than 45 days ago (owner, 23 Nov). A banned creator's links were put on the
+   * do-not-re-add list when it was banned; a creator that was only trashed is not suppressed, so it can be added
+   * again later if it comes to qualify. Returns the creators erased.
+   */
+  async function purgeTrashed(): Promise<string[]> {
+    const cutoff = new Date(now().getTime() - TRASH_KEEP_DAYS * 86_400_000);
+    const due = await deps.db.withSystem((tx) =>
+      tx.execute<{ id: string; banned: boolean }>(sql`select id::text, trash_banned banned from gcp.creators where status = 'trashed' and trashed_at < ${cutoff.toISOString()}::timestamptz order by trashed_at limit 500`),
+    );
+    for (const c of due) await eraseCreators(new Set([c.id]), [], null, { suppress: c.banned });
+    return due.map((c) => c.id);
+  }
+
+  return { erase, clearOldEmails, reapplyJournal, purgeTrashed };
 }
 
 export type Eraser = ReturnType<typeof createEraser>;

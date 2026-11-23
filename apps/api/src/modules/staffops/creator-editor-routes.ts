@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { PreHandler } from "../../http/types";
 import { parseInput, sendOk } from "../../http/validate";
 import type { StaffAction, StaffPrincipal } from "../staff/index";
-import { creatorEditSchema, creatorListQuerySchema, creatorReasonSchema, staffCreatorListSchema, type createCreatorEditor } from "./creator-editor";
+import { creatorEditSchema, creatorListQuerySchema, creatorReasonSchema, creatorTrashSchema, staffCreatorListSchema, type createCreatorEditor } from "./creator-editor";
 
 const idParams = z.object({ id: z.uuid() });
 const ok = z.object({ ok: z.literal(true) });
@@ -28,6 +28,17 @@ export function registerCreatorEditorRoutes(
       return sendOk(reply, ok, { ok: true });
     });
   }
+  // Trash and Ban (owner, 23 Nov): Admins; restorable for 45 days.
+  app.post("/admin/v1/catalogue/creators/:id/trash", { preHandler: o.r("catalogue.review.decide") }, async (req, reply) => {
+    const { id } = parseInput(idParams, req.params);
+    await o.editor.trash(o.staffOf(req), id, parseInput(creatorTrashSchema, req.body), o.meta(req));
+    return sendOk(reply, ok, { ok: true });
+  });
+  app.post("/admin/v1/catalogue/creators/:id/restore", { preHandler: o.r("catalogue.review.decide") }, async (req, reply) => {
+    const { id } = parseInput(idParams, req.params);
+    await o.editor.restore(o.staffOf(req), id, parseInput(creatorReasonSchema, req.body).reason, o.meta(req));
+    return sendOk(reply, ok, { ok: true });
+  });
   app.post("/admin/v1/catalogue/creators/:id/remove", { preHandler: o.r("creators.removal.review") }, async (req, reply) => {
     const { id } = parseInput(idParams, req.params);
     await o.editor.remove(o.staffOf(req), id, parseInput(creatorReasonSchema, req.body).reason, o.meta(req));

@@ -5,13 +5,14 @@ import { adminRequest } from "../../admin/adminApi";
 import { ErrorState, LoadingBlock } from "../dashboard/states";
 import { CreatorInspector } from "./CreatorInspector";
 import { Empty, errText, fmtNum } from "./kit";
-import { FILTER_LABEL, FILTERS, REPORT_REASON, fmtFollowers, staffCreatorListSchema, type Filter, type StaffCreator } from "./creatorTypes";
+import { FILTER_LABEL, FILTERS, REPORT_REASON, TRASH_DAYS, fmtFollowers, staffCreatorListSchema, trashDaysLeft, type Filter, type StaffCreator } from "./creatorTypes";
 
 const PAGE = 50;
 
 /** The line under a creator's name: what needs attention first. */
 function note(c: StaffCreator): string {
   if (c.reports > 0) return `Reported: ${c.reportReasons.map((r) => REPORT_REASON[r] ?? r).join(", ") || "no reason given"}`;
+  if (c.status === "trashed") return `${c.trashBanned ? "Banned" : "In Trash"}: erased in ${trashDaysLeft(c.trashedAt) ?? TRASH_DAYS} days`;
   if (c.status === "hidden") return `Hidden: ${c.hiddenReason ?? "by staff"}`;
   if (c.isMinor) return `Possible minor${c.minorReason ? `: ${c.minorReason}` : ""}`;
   if (c.organisationCategory) return `Looks like an organisation: ${c.organisationCategory}`;

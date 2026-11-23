@@ -22,6 +22,9 @@ export const staffCreatorSchema = z.object({
   publicCountrySource: z.string().nullable(),
   status: z.string(),
   hiddenReason: z.string().nullable(),
+  trashedAt: z.string().nullable(),
+  trashBanned: z.boolean(),
+  trashReason: z.string().nullable(),
   isMinor: z.boolean(),
   minorReason: z.string().nullable(),
   organisationCategory: z.string().nullable(),
@@ -36,11 +39,15 @@ export const staffCreatorSchema = z.object({
   profiles: z.array(profileSchema),
 });
 export type StaffCreator = z.infer<typeof staffCreatorSchema>;
-export const FILTERS = ["all", "reported", "country", "organisation", "minor", "assessment", "hidden"] as const;
+/** Days before a trashed creator is erased (API TRASH_KEEP_DAYS). */
+export const TRASH_DAYS = 45;
+export const trashDaysLeft = (trashedAt: string | null): number | null =>
+  trashedAt === null ? null : Math.max(0, TRASH_DAYS - Math.floor((Date.now() - new Date(trashedAt).getTime()) / 86_400_000));
+export const FILTERS = ["all", "reported", "country", "organisation", "minor", "assessment", "hidden", "trash"] as const;
 export type Filter = (typeof FILTERS)[number];
 export const staffCreatorListSchema = z.object({ items: z.array(staffCreatorSchema), total: z.number(), counts: z.record(z.enum(FILTERS), z.number()) });
 
-export const FILTER_LABEL: Record<Filter, string> = { all: "All", reported: "Reported", country: "Location", organisation: "Brand", minor: "Age", assessment: "Assessment", hidden: "Hidden" };
+export const FILTER_LABEL: Record<Filter, string> = { all: "All", reported: "Reported", country: "Location", organisation: "Brand", minor: "Age", assessment: "Assessment", hidden: "Hidden", trash: "Trash" };
 
 /** The canonical niche taxonomy (API creators/terminology NICHE_TAXONOMY). */
 export const NICHES = ["Bridal", "Fashion", "Beauty", "Tech", "Food", "Travel", "Comedy", "Finance", "Wellness", "Lifestyle", "Education & How-to", "Gaming", "History", "Literature", "Agriculture", "Business & Ecommerce", "Automotive", "Religion", "Music", "News & Commentary", "Sports", "Entertainment", "Real Estate"] as const;

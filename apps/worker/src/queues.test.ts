@@ -166,7 +166,7 @@ describe("live discovery and erasure handlers", () => {
         searchCache: { purge: async () => (calls.push("purge-search"), 0) },
         pipeline: { reassess: async () => "assessed" as const, purgeExpiredPayloads: async () => 0 },
       }),
-      ...erasureHandlers({ eraser: { erase: async (id) => void calls.push(`erase:${id}`), clearOldEmails: async () => (calls.push("purge-emails"), 0) } }),
+      ...erasureHandlers({ eraser: { erase: async (id) => void calls.push(`erase:${id}`), clearOldEmails: async () => (calls.push("purge-emails"), 0), purgeTrashed: async () => (calls.push("purge-trash"), []) } }),
     };
     const dispatch = createDispatcher(handlers, createLogger({ level: "silent" }));
     await dispatch([{ id: "j1", data: job("discovery.live_requested", { jobId: "a" }) }]);

@@ -17,12 +17,16 @@ export function contactCheckHandlers(o: { checker: Pick<ContactChecker, "check">
   };
 }
 
-export function erasureHandlers(o: { eraser: Pick<Eraser, "erase" | "clearOldEmails"> }): HandlerRegistry {
+export function erasureHandlers(o: { eraser: Pick<Eraser, "erase" | "clearOldEmails" | "purgeTrashed"> }): HandlerRegistry {
   return {
     "erasure.creator_requested": async (data, { logger }) => {
       const id = str(data, "removalRequestId");
       await o.eraser.erase(id);
       logger.info({ removalRequestId: id }, "creator erased");
+    },
+    // Staff Trash (owner, 23 Nov): creators trashed more than 45 days ago are erased.
+    "system.purge_trash": async (_d, { logger }) => {
+      logger.info({ erased: (await o.eraser.purgeTrashed()).length }, "trashed creators erased");
     },
     "system.purge_removal_emails": async (_d, { logger }) => {
       logger.info({ cleared: await o.eraser.clearOldEmails() }, "old removal-request emails cleared");

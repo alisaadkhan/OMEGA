@@ -137,6 +137,12 @@ for (const who of ["super1", "support"]) {
     await drawer.getByRole("button", { name: "Close" }).click();
     await open("Subscriptions");
     check("users", "Subscriptions shows the plan distribution from the database", await p.getByRole("region", { name: "Plan distribution" }).isVisible().catch(() => false));
+    // Trash and Ban (owner, 23 Nov): a Trash filter, and Move to Trash / Ban on the selected creator.
+    await open("Creator Checks");
+    await p.getByRole("button", { name: /^Trash/ }).first().waitFor({ timeout: 15000 }).catch(() => {});
+    const trashPill = await p.getByRole("button", { name: /^Trash/ }).first().isVisible().catch(() => false);
+    const trashBtns = (await p.getByRole("button", { name: "Move to Trash" }).count()) > 0 && (await p.getByRole("button", { name: "Ban", exact: true }).count()) > 0;
+    check("creators", "Creator Checks has a Trash filter and Move to Trash / Ban actions", trashPill && trashBtns, `pill=${trashPill} buttons=${trashBtns}`);
     await open("Reported Profiles");
     const flag = p.getByRole("listitem", { name: "Flag on E2E Flagged Shop" });
     await flag.waitFor({ timeout: 20000 }).catch(() => {});

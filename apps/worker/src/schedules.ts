@@ -44,5 +44,6 @@ export const SCHEDULES: Schedule[] = [
   { queue: "system", key: "purge_raw_payloads", cron: "25 3 * * *", data: data("purge_raw_payloads", "system.purge_raw_payloads", {}) },
   { queue: "system", key: "purge_search_cache", cron: "35 3 * * *", data: data("purge_search_cache", "system.purge_search_cache", {}) },
   { queue: "system", key: "purge_removal_emails", cron: "40 3 * * *", data: data("purge_removal_emails", "system.purge_removal_emails", {}) },
+  { queue: "system", key: "purge_trash", cron: "55 3 * * *", data: data("purge_trash", "system.purge_trash", {}) },
   { queue: "system", key: "purge_support_attachments", cron: "45 3 * * *", data: data("purge_support_attachments", "system.purge_support_attachments", {}) },
 ];

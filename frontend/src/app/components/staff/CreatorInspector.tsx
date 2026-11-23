@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
-import { BadgeCheck, EyeOff, ExternalLink, MapPin, Save, ShieldOff, Trash2, UserCheck } from "lucide-react";
+import { BadgeCheck, Ban, EyeOff, ExternalLink, MapPin, RotateCcw, Save, ShieldOff, Trash2, UserCheck } from "lucide-react";
 import { adminRequest } from "../../admin/adminApi";
 import { useConfirm, useToast } from "../../lib/toast";
 import { needsKey, useStepUp } from "../admin/staff-ui";
 import { Badge, errText, fmtNum } from "./kit";
-import { ACCOUNT_TYPES, HIDDEN, NICHES, REPORT_REASON, type StaffCreator } from "./creatorTypes";
+import { ACCOUNT_TYPES, HIDDEN, NICHES, REPORT_REASON, TRASH_DAYS, trashDaysLeft, type StaffCreator } from "./creatorTypes";
 
 const field = "w-full rounded-xl border border-slate-200 bg-[#f7f9fb] px-3.5 py-2.5 text-[13px] font-semibold text-slate-900 focus:border-cyan-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-cyan-600/20";
 const label = "mb-1.5 block text-[10.5px] font-bold uppercase tracking-wider text-slate-500";
@@ -118,7 +118,17 @@ export function CreatorInspector({ c, canEdit }: { c: StaffCreator; canEdit: boo
       </div>
       <p className="mt-1.5 text-[11px] text-slate-500">Never from a name, a face or a language: only from a source you can point to.</p>
 
-      {canEdit ? (
+      {canEdit && c.status === "trashed" ? (
+        <div className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-[13px] text-rose-900">
+          <div className="font-bold">{c.trashBanned ? "Banned and in Trash" : "In Trash"}{trashDaysLeft(c.trashedAt) !== null && ` · erased in ${trashDaysLeft(c.trashedAt)} day${trashDaysLeft(c.trashedAt) === 1 ? "" : "s"}`}</div>
+          {c.trashReason && <p className="mt-1 text-xs">Reason: {c.trashReason}</p>}
+          {c.trashBanned && <p className="mt-1 text-xs">Its profile links are blocked, so no search or import adds it again. Restoring lifts the block.</p>}
+          <label className="mt-3 block"><span className={label}>Reason for restoring</span>
+            <input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} placeholder="e.g. Reached 10k followers" className={`${field} font-normal`} />
+          </label>
+          <button type="button" disabled={busy || needWhy} onClick={() => void run(() => post("/restore", { reason: why }), `${c.displayName} restored`)} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-[#131b2e] px-4 py-2.5 text-[13px] font-semibold text-white hover:bg-black disabled:opacity-50"><RotateCcw className="h-4 w-4" />Restore</button>
+        </div>
+      ) : canEdit ? (
         <>
           <label className="mt-5 block"><span className={label}>Reason for this change (needed for every action)</span>
             <input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} placeholder="e.g. Checked the bio and recent posts by hand" className={`${field} font-normal`} />
@@ -133,16 +143,39 @@ export function CreatorInspector({ c, canEdit }: { c: StaffCreator; canEdit: boo
             ) : (
               <button type="button" disabled={busy || needWhy} onClick={() => void run(() => post("/hide", { reason: why }), "Hidden from customers")} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-[13px] font-semibold text-slate-900 hover:bg-slate-50 disabled:opacity-50"><EyeOff className="h-4 w-4" />Hide from customers</button>
             )}
+            {/* Trash and Ban (owner, 23 Nov): restorable for 45 days, then erased. Ban also stops it ever being added again. */}
             <button
               type="button"
               disabled={busy || needWhy}
               onClick={async () => {
-                if (await confirm({ title: `Remove ${c.displayName} for good?`, body: "Their profiles, contacts and history are erased and they disappear from every list. This cannot be undone.", confirmLabel: "Remove for good", destructive: true }))
-                  void run(() => post("/remove", { reason: why }), `${c.displayName} removed`);
+                if (await confirm({ title: `Move ${c.displayName} to Trash?`, body: `They leave every customer view now. You can restore them from Trash for ${TRASH_DAYS} days; after that they are erased for good.`, confirmLabel: "Move to Trash", destructive: true }))
+                  void run(() => post("/trash", { reason: why, ban: false }), `${c.displayName} moved to Trash`);
               }}
               className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-[13px] font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50"
             >
-              <Trash2 className="h-4 w-4" />Remove
+              <Trash2 className="h-4 w-4" />Move to Trash
+            </button>
+            <button
+              type="button"
+              disabled={busy || needWhy}
+              onClick={async () => {
+                if (await confirm({ title: `Ban ${c.displayName}?`, body: `They go to Trash and their profile links are blocked: no search or import will ever add them again. You can restore them for ${TRASH_DAYS} days; after that they are erased and stay blocked.`, confirmLabel: "Ban", destructive: true }))
+                  void run(() => post("/trash", { reason: why, ban: true }), `${c.displayName} banned`);
+              }}
+              className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-[13px] font-semibold text-white hover:bg-rose-700 disabled:opacity-50"
+            >
+              <Ban className="h-4 w-4" />Ban
+            </button>
+            <button
+              type="button"
+              disabled={busy || needWhy}
+              onClick={async () => {
+                if (await confirm({ title: `Erase ${c.displayName} now?`, body: "For data-removal requests: their profiles, contacts and history are erased at once, with no Trash period. This cannot be undone.", confirmLabel: "Erase now", destructive: true }))
+                  void run(() => post("/remove", { reason: why }), `${c.displayName} erased`);
+              }}
+              className="text-[12px] font-semibold text-rose-700 underline-offset-2 hover:underline disabled:opacity-50"
+            >
+              Erase now (data removal)
             </button>
           </div>
         </>

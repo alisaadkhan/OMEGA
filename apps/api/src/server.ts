@@ -194,6 +194,7 @@ const app = await buildApp({
       },
       reindex: (ids) => createCreatorIndexer({ db, index: searchIndex, logger, sourcePolicy: config.sourcePolicy }).sync(ids),
       checkAlerts: () => alertNotifier.tick(),
+      purgeTrash: () => createEraser({ db, storage: createObjectStorage(config.storage, logger), logger }).purgeTrashed(),
       workerAvailable,
     })] : []),
     createInsightsModule({ db, requireStaff: staff.requireStaff }),

@@ -18,6 +18,8 @@ export type CronDeps = {
    * process), so without this production would never send an alert; the cron runs it once a day at least.
    */
   checkAlerts?: () => Promise<unknown>;
+  /** Erases creators trashed more than 45 days ago (owner, 23 Nov) and returns them. */
+  purgeTrash?: () => Promise<string[]>;
   /** True while a worker process is running the schedules itself: the cron then does nothing. */
   workerAvailable: () => Promise<boolean>;
 };
@@ -59,6 +61,17 @@ export function createCronModule(d: CronDeps): AppModule {
           youtubeExpired = "failed";
           d.logger.error({ err, entryPoint: "cron" }, "daily cron: YouTube retention failed");
         }
+        let trashErased: number | "failed" | "off" = "off";
+        if (d.purgeTrash) {
+          try {
+            const ids = await d.purgeTrash();
+            await d.reindex(ids);
+            trashErased = ids.length;
+          } catch (err) {
+            trashErased = "failed";
+            d.logger.error({ err, entryPoint: "cron" }, "daily cron: trash purge failed");
+          }
+        }
         let alerts: "sent" | "none" | "failed" | "off" = "off";
         if (d.checkAlerts) {
           try {
@@ -68,8 +81,8 @@ export function createCronModule(d: CronDeps): AppModule {
             d.logger.error({ err, entryPoint: "cron" }, "daily cron: alert check failed");
           }
         }
-        d.logger.info({ entryPoint: "cron", billing, youtubeExpired, alerts }, "daily cron finished");
-        return reply.send({ billing, youtubeExpired, alerts });
+        d.logger.info({ entryPoint: "cron", billing, youtubeExpired, trashErased, alerts }, "daily cron finished");
+        return reply.send({ billing, youtubeExpired, trashErased, alerts });
       });
     },
   };
