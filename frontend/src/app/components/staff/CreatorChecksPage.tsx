@@ -5,7 +5,7 @@ import { adminRequest } from "../../admin/adminApi";
 import { ErrorState, LoadingBlock } from "../dashboard/states";
 import { CreatorInspector } from "./CreatorInspector";
 import { Empty, errText, fmtNum } from "./kit";
-import { FILTER_LABEL, FILTERS, REPORT_REASON, TRASH_DAYS, fmtFollowers, staffCreatorListSchema, trashDaysLeft, type Filter, type StaffCreator } from "./creatorTypes";
+import { FILTER_HELP, FILTER_LABEL, FILTERS, REPORT_REASON, TRASH_DAYS, fmtFollowers, staffCreatorListSchema, trashDaysLeft, type Filter, type StaffCreator } from "./creatorTypes";
 
 const PAGE = 50;
 
@@ -26,7 +26,7 @@ function note(c: StaffCreator): string {
  * filter per kind of check and a search; the selected creator opens in the editor on the right.
  */
 export function CreatorChecksPage({ canEdit }: { canEdit: boolean }) {
-  const [filter, setFilter] = useState<Filter>("all");
+  const [filter, setFilter] = useState<Filter>("qualified");
   const [text, setText] = useState("");
   const [q, setQ] = useState("");
   const [offset, setOffset] = useState(0);
@@ -65,19 +65,29 @@ export function CreatorChecksPage({ canEdit }: { canEdit: boolean }) {
         )}
       </div>
 
+      {/* Sub-pages (owner, 23 Nov): who qualifies, who cannot be reached, who does not qualify, then the review queues. */}
+      <nav aria-label="Creator pages" className="mb-4 space-y-2">
+        {[FILTERS.slice(0, 3), FILTERS.slice(3)].map((row, n) => (
+          <div key={n} className="flex flex-wrap items-center gap-1.5">
+            {n === 1 && <span className="mr-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">Review</span>}
+            {row.map((f) => (
+              <button key={f} type="button" aria-pressed={filter === f} onClick={() => { setFilter(f); setOffset(0); setSelected(null); }}
+                className={n === 0
+                  ? `rounded-xl px-4 py-2 text-[13px] font-semibold transition-colors ${filter === f ? "bg-[#131b2e] text-white" : "bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"}`
+                  : `rounded-full px-2.5 py-1 text-[11px] transition-colors ${filter === f ? "bg-[#131b2e] font-bold text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
+                {FILTER_LABEL[f]}{counts ? ` (${fmtNum(counts[f])})` : ""}
+              </button>
+            ))}
+          </div>
+        ))}
+        <p className="text-xs text-slate-500">{FILTER_HELP[filter]}</p>
+      </nav>
       <div className="flex flex-col items-start gap-5 lg:flex-row">
         <section aria-label="Creators" className="flex w-full shrink-0 flex-col overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-[0_1px_8px_rgba(0,0,0,0.03)] lg:w-[380px]">
           <div className="space-y-3 border-b border-slate-100 p-4">
             <div className="relative flex items-center">
               <Search className="pointer-events-none absolute left-3 h-4 w-4 text-slate-500" />
               <input value={text} onChange={(e) => setText(e.target.value)} maxLength={80} placeholder="Search by name or @handle…" aria-label="Search creators" className="w-full rounded-lg bg-slate-100 py-2 pl-9 pr-3 text-[12.5px] text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-black/15" />
-            </div>
-            <div role="group" aria-label="Filter creators" className="flex flex-wrap items-center gap-1.5">
-              {FILTERS.map((f) => (
-                <button key={f} type="button" aria-pressed={filter === f} onClick={() => { setFilter(f); setOffset(0); setSelected(null); }} className={`rounded-full px-2.5 py-1 text-[11px] transition-colors ${filter === f ? "bg-[#131b2e] font-bold text-white" : f === "reported" ? "bg-rose-50 font-semibold text-rose-700 hover:bg-rose-100" : "bg-slate-100 font-semibold text-slate-600 hover:text-slate-900"}`}>
-                  {FILTER_LABEL[f]}{counts ? ` (${fmtNum(counts[f])})` : ""}
-                </button>
-              ))}
             </div>
           </div>
           {list.isPending ? <div className="p-4"><LoadingBlock lines={6} /></div> : list.isError ? <div className="p-4"><ErrorState body={errText(list.error)} onRetry={() => void list.refetch()} /></div> : items.length === 0 ? <div className="p-4"><Empty title="No creator matches" /></div> : (

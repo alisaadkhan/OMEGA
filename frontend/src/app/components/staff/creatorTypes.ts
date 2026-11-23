@@ -43,11 +43,39 @@ export type StaffCreator = z.infer<typeof staffCreatorSchema>;
 export const TRASH_DAYS = 45;
 export const trashDaysLeft = (trashedAt: string | null): number | null =>
   trashedAt === null ? null : Math.max(0, TRASH_DAYS - Math.floor((Date.now() - new Date(trashedAt).getTime()) / 86_400_000));
-export const FILTERS = ["all", "reported", "country", "organisation", "minor", "assessment", "hidden", "trash"] as const;
+export const FILTERS = ["qualified", "unreachable", "unqualified", "refresh", "country", "organisation", "assessment", "minor", "reported", "hidden", "trash", "all"] as const;
 export type Filter = (typeof FILTERS)[number];
 export const staffCreatorListSchema = z.object({ items: z.array(staffCreatorSchema), total: z.number(), counts: z.record(z.enum(FILTERS), z.number()) });
 
-export const FILTER_LABEL: Record<Filter, string> = { all: "All", reported: "Reported", country: "Location", organisation: "Brand", minor: "Age", assessment: "Assessment", hidden: "Hidden", trash: "Trash" };
+export const FILTER_LABEL: Record<Filter, string> = {
+  qualified: "Qualifies",
+  unreachable: "Not reachable",
+  unqualified: "Doesn't qualify",
+  refresh: "Followers to refresh",
+  country: "Location",
+  organisation: "Brand",
+  assessment: "Assessment",
+  minor: "Age",
+  reported: "Reported",
+  hidden: "Hidden",
+  trash: "Trash",
+  all: "All",
+};
+/** What each sub-page holds, shown under the page tabs. */
+export const FILTER_HELP: Record<Filter, string> = {
+  qualified: "Customers can find these creators, and they have an email or phone.",
+  unreachable: "They qualify but have no email or phone yet, so customers cannot contact them.",
+  unqualified: "They do not meet a rule yet: follower count unknown, Pakistan not proven, or a brand page. Review them here.",
+  refresh: "Their follower count is unknown: refresh the numbers before deciding.",
+  country: "Pakistan is not proven for these profiles. Confirm the country with evidence.",
+  organisation: "These look like a brand or organisation. Mark real people as a person.",
+  assessment: "Not assessed yet, or not enough data to assess.",
+  minor: "Possible minors, kept out of customer views until cleared.",
+  reported: "Customers reported something about these creators.",
+  hidden: "Hidden from customers by staff.",
+  trash: "Restorable for 45 days, then erased for good.",
+  all: "Every creator that is not in Trash.",
+};
 
 /** The canonical niche taxonomy (API creators/terminology NICHE_TAXONOMY). */
 export const NICHES = ["Bridal", "Fashion", "Beauty", "Tech", "Food", "Travel", "Comedy", "Finance", "Wellness", "Lifestyle", "Education & How-to", "Gaming", "History", "Literature", "Agriculture", "Business & Ecommerce", "Automotive", "Religion", "Music", "News & Commentary", "Sports", "Entertainment", "Real Estate"] as const;

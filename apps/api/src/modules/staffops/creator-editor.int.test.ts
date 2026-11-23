@@ -10,7 +10,7 @@ import { buildTestApp } from "../../test-support/app";
 import { createTestIssuer } from "../../test-support/keys";
 import { createBillingService, MemoryAccessCache } from "../billing/index";
 import { createEraser } from "../creators/erasure/eraser";
-import { addCreator, TEST_KEY } from "../creators/test-fixtures";
+import { addCreator, addIndexedCreator, TEST_KEY } from "../creators/test-fixtures";
 import { createIdentityModule } from "../identity/index";
 import { createPlatformModule } from "../platform/index";
 import { createStaffModule, createStaffTokens, type StaffRole } from "../staff/index";
@@ -69,7 +69,7 @@ describe("staff creator editor (owner, 22 Nov)", () => {
     await ownerQuery(`insert into wp.creator_profile_reviews (workspace_id, submitted_by, creator_id, source_mode, verdict, reason) values ('${me.workspace.id}', '${me.user.id}', '${reported}', 'db_search', 'invalid', 'not_individual_creator')`);
     const [admin, support] = [await as("admin"), await as("support")];
 
-    const list = (await app.inject({ method: "GET", url: "/admin/v1/catalogue/all", headers: support })).json() as { items: { id: string; reports: number; reportReasons: string[] }[]; counts: { all: number; reported: number } };
+    const list = (await app.inject({ method: "GET", url: "/admin/v1/catalogue/all?filter=all", headers: support })).json() as { items: { id: string; reports: number; reportReasons: string[] }[]; counts: { all: number; reported: number } };
     expect(list.items.map((i) => i.id)).toEqual([reported, big]);
     expect(list.items[0]).toMatchObject({ reports: 1, reportReasons: ["not_individual_creator"] });
     expect(list.counts).toMatchObject({ all: 2, reported: 1 });
@@ -143,5 +143,20 @@ describe("staff creator editor (owner, 22 Nov)", () => {
 
     const audit = await ownerQuery<{ action: string }>(`select action from staff.audit_log`);
     expect(audit.map((a) => a.action)).toEqual(expect.arrayContaining(["catalogue.creator_trashed", "catalogue.creator_banned", "catalogue.creator_restored"]));
+  });
+
+  it("sub-pages: each active creator is on exactly one of Qualifies, Not reachable and Doesn't qualify", async () => {
+    const { app, as } = await setup();
+    const support = await as("support");
+    await addIndexedCreator(db, { displayName: "Qualifies With Email" });
+    await addIndexedCreator(db, { displayName: "Qualifies No Contact", contacts: [] });
+    await addIndexedCreator(db, { displayName: "Too Small", profiles: [{ followers: 2_000 }] });
+    const page = async (filter: string) => ((await app.inject({ method: "GET", url: `/admin/v1/catalogue/all?filter=${filter}`, headers: support })).json() as { items: { displayName: string }[]; counts: Record<string, number> });
+    const def = await page("qualified");
+    expect(def.items.map((i) => i.displayName)).toEqual(["Qualifies With Email"]);
+    expect((await page("unreachable")).items.map((i) => i.displayName)).toEqual(["Qualifies No Contact"]);
+    expect((await page("unqualified")).items.map((i) => i.displayName)).toEqual(["Too Small"]);
+    expect(def.counts).toMatchObject({ qualified: 1, unreachable: 1, unqualified: 1, all: 3 });
+    expect((await app.inject({ method: "GET", url: "/admin/v1/catalogue/all", headers: support })).json().items.map((i: { displayName: string }) => i.displayName)).toEqual(["Qualifies With Email"]);
   });
 });

@@ -143,6 +143,8 @@ for (const who of ["super1", "support"]) {
     const trashPill = await p.getByRole("button", { name: /^Trash/ }).first().isVisible().catch(() => false);
     const trashBtns = (await p.getByRole("button", { name: "Move to Trash" }).count()) > 0 && (await p.getByRole("button", { name: "Ban", exact: true }).count()) > 0;
     check("creators", "Creator Checks has a Trash filter and Move to Trash / Ban actions", trashPill && trashBtns, `pill=${trashPill} buttons=${trashBtns}`);
+    const pages = p.getByRole("navigation", { name: "Creator pages" });
+    check("creators", "Creator Checks opens on Qualifies, with Not reachable and Doesn't qualify sub-pages", await pages.getByRole("button", { name: /^Qualifies/, pressed: true }).isVisible().catch(() => false) && await pages.getByRole("button", { name: /^Not reachable/ }).isVisible() && await pages.getByRole("button", { name: /^Doesn't qualify/ }).isVisible());
     await open("Reported Profiles");
     const flag = p.getByRole("listitem", { name: "Flag on E2E Flagged Shop" });
     await flag.waitFor({ timeout: 20000 }).catch(() => {});

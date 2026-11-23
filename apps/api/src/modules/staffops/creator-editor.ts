@@ -9,8 +9,8 @@ import { recordStaffAudit, type StaffPrincipal } from "../staff/index";
 type Meta = { ip: string | null; requestId: string | null };
 const reason = z.string().trim().min(12, "Give a reason of at least 12 characters").max(500);
 
-export const creatorFilterSchema = z.enum(["all", "reported", "country", "minor", "organisation", "assessment", "hidden", "trash"]);
-export const creatorListQuerySchema = z.object({ q: z.string().trim().max(80).default(""), filter: creatorFilterSchema.default("all"), offset: z.coerce.number().int().min(0).max(100_000).default(0) });
+export const creatorFilterSchema = z.enum(["qualified", "unreachable", "unqualified", "refresh", "all", "reported", "country", "minor", "organisation", "assessment", "hidden", "trash"]);
+export const creatorListQuerySchema = z.object({ q: z.string().trim().max(80).default(""), filter: creatorFilterSchema.default("qualified"), offset: z.coerce.number().int().min(0).max(100_000).default(0) });
 
 const profile = z.object({ platform: z.string(), handle: z.string(), url: z.string(), followers: z.number().nullable(), countryStatus: z.string().nullable(), country: z.string().nullable(), countrySource: z.string().nullable(), bio: z.string().nullable(), verified: z.boolean().nullable() });
 export const staffCreatorSchema = z.object({
@@ -61,6 +61,11 @@ export const creatorTrashSchema = z.object({ reason, ban: z.boolean().default(fa
 const PAGE = 50;
 const ORG_TYPES = sql`('CELEBRITY_PUBLIC_FIGURE', 'COMPANY_CORPORATE', 'BRAND_ACCOUNT', 'BUSINESS_STORE', 'MEDIA_PUBLICATION', 'FAN_PAGE_AGGREGATOR')`;
 const WHERE: Record<z.infer<typeof creatorFilterSchema>, ReturnType<typeof sql>> = {
+  // Sub-pages (owner, 23 Nov): each active creator is on exactly one of the first three.
+  qualified: sql`c.status = 'active' and coalesce(d.eligible, false) and coalesce(d.has_contact, false)`,
+  unreachable: sql`c.status = 'active' and coalesce(d.eligible, false) and not coalesce(d.has_contact, false)`,
+  unqualified: sql`c.status = 'active' and not coalesce(d.eligible, false)`,
+  refresh: sql`c.status = 'active' and not coalesce(d.eligible, false) and 'followers_unknown' = any(d.eligibility_reasons)`,
   all: sql`c.status in ('active', 'hidden')`,
   reported: sql`c.status in ('active', 'hidden') and r.pending > 0`,
   country: sql`c.status = 'active' and exists (select 1 from gcp.creator_profiles p where p.creator_id = c.id and p.followers >= 5000 and p.country_status in ('unknown', 'conflicting'))
@@ -113,7 +118,7 @@ export function createCreatorEditor(deps: { db: Db; reindex: (ids: string[]) => 
         const [t] = await tx.execute<{ n: number }>(sql`select count(*)::int n from ${FROM} where ${WHERE[q.filter]} and ${nameOrHandle(q.q)}`);
         const [cnt] = await tx.execute<Record<z.infer<typeof creatorFilterSchema>, number>>(sql`select
           ${sql.join(creatorFilterSchema.options.map((f) => sql`(select count(*)::int from ${FROM} where ${WHERE[f]}) as ${sql.identifier(f)}`), sql`, `)}`);
-        return { items: [...items], total: t?.n ?? 0, counts: cnt ?? { all: 0, reported: 0, country: 0, minor: 0, organisation: 0, assessment: 0, hidden: 0, trash: 0 } };
+        return { items: [...items], total: t?.n ?? 0, counts: cnt ?? { qualified: 0, unreachable: 0, unqualified: 0, refresh: 0, all: 0, reported: 0, country: 0, minor: 0, organisation: 0, assessment: 0, hidden: 0, trash: 0 } };
       });
     },
 
