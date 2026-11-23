@@ -32,6 +32,7 @@ type Creator = {
   id: string; display_name: string; status: string; merged_into_name: string | null; merged_into_handle: string | null; primary_platform: string; primary_handle: string | null;
   account_type: string | null; account_type_source: string | null; account_type_evidence: string | null; niche_main: string | null; niches: string[]; niche_source: string | null;
   niche_posts_assessed: number | null; country: string | null; country_source: string | null; city: string | null; possible_minor: boolean; eligible: boolean | null; reasons: string[];
+  has_contact: boolean | null; assessment_status: string | null; ai_summary: string | null; trash_reason: string | null; trashed_at: Date | null; trash_banned: boolean | null;
 };
 type Profile = {
   creator_id: string; platform: "instagram" | "tiktok" | "youtube"; handle: string; canonical_url: string; followers: number | null; engagement_rate: number | null; median_views: number | null;
@@ -42,7 +43,8 @@ type Contact = { creator_id: string; kind: "email" | "phone"; value_encrypted: s
 const creators = await sql<Creator[]>`
   select c.id, c.display_name, c.status, m.display_name merged_into_name, m.primary_handle merged_into_handle, c.primary_platform, c.primary_handle,
     c.account_type, c.account_type_source, c.account_type_evidence, c.niche_main, c.niches, c.niche_source, c.niche_posts_assessed, c.country, c.country_source, c.city,
-    (c.is_minor and c.minor_override_by_staff_id is null) possible_minor, d.eligible, coalesce(d.eligibility_reasons, '{}') reasons
+    (c.is_minor and c.minor_override_by_staff_id is null) possible_minor, d.eligible, coalesce(d.eligibility_reasons, '{}') reasons,
+    d.has_contact, c.assessment_status, c.ai_summary, c.trash_reason, c.trashed_at, c.trash_banned
   from gcp.creators c left join gcp.creators m on m.id = c.merged_into_id left join gcp.creator_search_documents d on d.creator_id = c.id
   order by lower(c.display_name), c.id`;
 const profiles = await sql<Profile[]>`
@@ -114,9 +116,20 @@ const maxFollowers = (ps: Profile[]) => {
   return counts.length ? Math.max(...counts) : null;
 };
 
+// The Creator Checks sub-page each account is on (owner, 23 Nov).
+const page = (c: Creator): string =>
+  c.status === "trashed" ? (c.trash_banned ? "Trash (banned)" : "Trash")
+  : c.status === "merged" ? "Merged duplicate"
+  : c.status !== "active" ? "Removed / Hidden"
+  : c.eligible === true ? (c.has_contact ? "Qualifies" : "Not reachable")
+  : "Doesn't qualify";
+const ASSESSMENT_LABEL: Record<string, string> = { assessed: "Assessed", pending: "Pending", insufficient_data: "Not enough data" };
+const assessment = (c: Creator): string => (c.assessment_status ? (ASSESSMENT_LABEL[c.assessment_status] ?? c.assessment_status) : "Not assessed");
+const erasedOn = (c: Creator): string | null => (c.trashed_at ? day(new Date(c.trashed_at.getTime() + 45 * 86_400_000)) : null);
+
 // ---- File 1: qualified (searchable) creators ----
 const QUALIFIED_HEADER = [
-  "Creator Name", "Creator ID", "Account Type", "Classification Source", "Classification Evidence", "Primary Platform", "Connected Platforms",
+  "Creator Name", "Creator ID", "Creator Checks Page", "Assessment", "AI Summary", "Account Type", "Classification Source", "Classification Evidence", "Primary Platform", "Connected Platforms",
   "Instagram Handle", "Instagram URL", "TikTok Handle", "TikTok URL", "YouTube Handle", "YouTube URL",
   "Instagram Followers", "TikTok Followers", "YouTube Subscribers", "Max Followers",
   "Instagram ER % (per follower)", "TikTok ER % (per follower)", "YouTube ER % (per follower)",
@@ -131,7 +144,7 @@ const qualifiedRows: Cell[][] = qualified.map((c) => {
   const k = contactCells(c, ps);
   const on = (pl: string) => profileOn(ps, pl);
   return [
-    c.display_name, c.id, TYPE_LABEL[c.account_type ?? "UNKNOWN"] ?? c.account_type, classification(c), c.account_type_evidence, c.primary_platform, ps.map((p) => p.platform).join(", "),
+    c.display_name, c.id, page(c), assessment(c), c.ai_summary, TYPE_LABEL[c.account_type ?? "UNKNOWN"] ?? c.account_type, classification(c), c.account_type_evidence, c.primary_platform, ps.map((p) => p.platform).join(", "),
     ...PLATFORMS.flatMap((pl) => [on(pl)?.handle ?? null, on(pl)?.canonical_url ?? null]),
     ...PLATFORMS.map((pl) => metric(on(pl), (p) => p.followers)), maxFollowers(ps),
     ...PLATFORMS.map((pl) => metric(on(pl), (p) => p.engagement_rate, 4)),
@@ -152,6 +165,7 @@ const typeCategory = (t: string | null) => (t === "CELEBRITY_PUBLIC_FIGURE" ? "C
 function disqualification(c: Creator, ps: Profile[]): { categories: string[]; reasons: string[] } {
   const main = profileOn(ps, c.primary_platform) ?? ps[0] ?? null;
   if (c.status === "merged") return { categories: ["Merged Duplicate"], reasons: [`Merged into ${c.merged_into_name ?? "another creator"}${c.merged_into_handle ? ` (@${c.merged_into_handle})` : ""}`] };
+  if (c.status === "trashed") return { categories: [c.trash_banned ? "Trash (banned)" : "Trash"], reasons: [`${c.trash_reason ?? "Moved to Trash by staff"}; erased on ${erasedOn(c) ?? "unknown"} unless restored`] };
   if (c.status !== "active") return { categories: ["Removed / Hidden"], reasons: [`Status: ${c.status}`] };
   const categories: string[] = [];
   const reasons: string[] = [];
@@ -179,7 +193,7 @@ function disqualification(c: Creator, ps: Profile[]): { categories: string[]; re
   return { categories, reasons };
 }
 const DISQUALIFIED_HEADER = [
-  "Account / Creator Name", "Creator ID", "Primary Platform", "Handle", "URL", "Disqualification Category", "Exact Reason(s)",
+  "Account / Creator Name", "Creator ID", "Creator Checks Page", "Assessment", "AI Summary", "Primary Platform", "Handle", "URL", "Disqualification Category", "Exact Reason(s)",
   "Account Type", "Classification Source", "Followers / Subscribers (max)", "Engagement Rate % (per follower, main profile)", "Main Niche",
   "Location / Country Status", "Contact Status", "Emails", "Phones", "Contact Sources", "Last Fetched",
 ];
@@ -191,7 +205,7 @@ const disqualifiedRows: Cell[][] = disqualified.map((c) => {
   const k = contactCells(c, ps);
   const location = c.country ? `${c.country}${c.country_source ? ` (${c.country_source})` : ""}${c.city ? `, ${c.city}` : ""}` : "Unknown";
   return [
-    c.display_name, c.id, c.primary_platform, main?.handle ?? c.primary_handle, main?.canonical_url ?? null, d.categories.join("; "), d.reasons.join(" | "),
+    c.display_name, c.id, page(c), assessment(c), c.ai_summary, c.primary_platform, main?.handle ?? c.primary_handle, main?.canonical_url ?? null, d.categories.join("; "), d.reasons.join(" | "),
     TYPE_LABEL[c.account_type ?? "UNKNOWN"] ?? c.account_type, classification(c), maxFollowers(ps), metric(main, (p) => p.engagement_rate, 4), c.niche_main,
     location, k.status, k.emails, k.phones, k.sources, fetched(ps),
   ];
@@ -211,4 +225,4 @@ const tally = (rows: Cell[][], col: number) => rows.reduce<Record<string, number
   for (const c of String(r[col] ?? "").split("; ").filter(Boolean)) m[c] = (m[c] ?? 0) + 1;
   return m;
 }, {});
-console.log(JSON.stringify({ db: dbName, outDir, accounts: creators.length, rows: written, contactsDecrypted: Boolean(key), disqualifiedByCategory: tally(disqualifiedRows, 5) }, null, 1));
+console.log(JSON.stringify({ db: dbName, outDir, accounts: creators.length, rows: written, contactsDecrypted: Boolean(key), disqualifiedByCategory: tally(disqualifiedRows, 8) }, null, 1));
