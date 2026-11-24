@@ -110,7 +110,9 @@ for (const who of ["super1", "support"]) {
     // Admin sections need a security key. Chrome's virtual authenticator stands in for a hardware key (WebAuthn).
     const open = async (name) => { await nav(p).getByRole("button", { name, exact: true }).click(); await p.waitForTimeout(1000); };
     await open("Staff Team");
-    check("security", "without a security key, admin sections ask for one and show no data", await p.getByRole("button", { name: "Security key needed" }).isVisible() && !(await p.getByText(staff.support.email).isVisible().catch(() => false)));
+    // Viewing is not changing (owner, 23 Nov, option b): admin sections open without a key; changes still need one.
+    await p.getByText(staff.support.email).first().waitFor({ timeout: 15000 }).catch(() => {});
+    check("security", "without a security key, admin sections still show their data (viewing needs no key)", await p.getByText(staff.support.email).first().isVisible().catch(() => false));
     const cdp = await ctx.newCDPSession(p);
     await cdp.send("WebAuthn.enable");
     await cdp.send("WebAuthn.addVirtualAuthenticator", { options: { protocol: "ctap2", transport: "usb", hasResidentKey: true, hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true } });
@@ -228,7 +230,8 @@ const after = await (await fetch(`${API}/admin/v1/support/tickets/${staff.fixtur
 check("support", "Support replies and moves the ticket open → in progress → resolved → closed", steps.join(",") === "200:in_progress,200:resolved,200:closed" && after.status === "closed" && after.messages?.some((m) => m.authorKind === "staff" && /checking this creator/.test(m.body)), steps.join(","));
 const adminToken = await apiToken("admin");
 const keyless = await fetch(`${API}/admin/v1/staff`, { headers: { authorization: `Bearer ${adminToken}` } });
-check("security", "an Admin session without a security-key confirmation is refused admin reads (API 403 hardware_key_required)", keyless.status === 403 && (await keyless.json()).error?.details?.reason === "hardware_key_required");
+const keylessWrite = await fetch(`${API}/admin/v1/ops/jobs/00000000-0000-4000-8000-000000000000/retry`, { method: "POST", headers: { authorization: `Bearer ${adminToken}`, "content-type": "application/json" }, body: "{}" });
+check("security", "an Admin without a security-key confirmation reads admin pages (200) but is refused changes (403 hardware_key_required)", keyless.status === 200 && keylessWrite.status === 403 && (await keylessWrite.json()).error?.details?.reason === "hardware_key_required", `${keyless.status}/${keylessWrite.status}`);
 check("health", "no 5xx responses", serverErrors.length === 0, serverErrors.join(" | "));
 check("health", "no uncaught page errors", pageErrors.length === 0, pageErrors.join(" | "));
 await browser.close();

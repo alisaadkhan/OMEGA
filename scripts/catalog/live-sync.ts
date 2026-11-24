@@ -124,8 +124,25 @@ export async function syncExisting(tx: Tx, local: { creators: unknown[]; profile
     from s_creators s where d.id = s.id and s.is_minor and not d.is_minor returning d.id`);
   const hidden = await tx.unsafe(`update gcp.creators d set status = s.status, updated_at = now()
     from s_creators s where d.id = s.id and s.status in ('removal_requested', 'erased') and d.status = 'active' returning d.id`);
+  // Staff Trash and Hide (0095/0096; owner, 24 Nov: "copy the catalogue clean-up"): a creator trashed or hidden locally
+  // is trashed or hidden live with the same reason and date; a ban also puts its live profile links on the do-not-re-add
+  // list. Never the other way: a creator active locally does not restore one trashed or hidden live (a live staff
+  // decision stands).
+  const trashed = await tx.unsafe(`update gcp.creators d set status = 'trashed', trashed_at = coalesce(s.trashed_at, now()), trash_reason = s.trash_reason,
+      trash_banned = coalesce(s.trash_banned, false), updated_at = now()
+    from s_creators s where d.id = s.id and s.status = 'trashed' and d.status in ('active', 'hidden') returning d.id`);
+  const bans = await tx.unsafe(`insert into gcp.creator_suppressions (url_hash, platform, banned_creator_id)
+    select encode(sha256(convert_to(lower(trim(p.canonical_url)), 'UTF8')), 'hex'), p.platform, d.id
+    from gcp.creators d join s_creators s on s.id = d.id join gcp.creator_profiles p on p.creator_id = d.id
+    where d.status = 'trashed' and d.trash_banned and s.trash_banned
+    on conflict (url_hash) do nothing returning url_hash`);
+  const staffHidden = await tx.unsafe(`update gcp.creators d set status = 'hidden', hidden_reason = s.hidden_reason, hidden_at = coalesce(s.hidden_at, now()), updated_at = now()
+    from s_creators s where d.id = s.id and s.status = 'hidden' and d.status = 'active' returning d.id`);
   out["minorsFlagged"] = minors.length;
   out["hidden"] = hidden.length;
+  out["trashed"] = trashed.length;
+  out["bannedLinks"] = bans.length;
+  out["staffHidden"] = staffHidden.length;
   out["mergedLocallyStillActiveLive"] = Number((await tx.unsafe(`select count(*) n from gcp.creators d join s_creators s on s.id = d.id where s.status = 'merged' and d.status = 'active'`))[0]?.["n"]);
 
   // 6. Retention backstop: whatever is older than 30 days in live YouTube data is cleared now (the worker's daily job).

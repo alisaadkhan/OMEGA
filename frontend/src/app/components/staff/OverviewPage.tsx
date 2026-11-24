@@ -22,7 +22,8 @@ const ICON_BG: Record<Accent, string> = {
   indigo: "bg-indigo-50 text-indigo-600",
   emerald: "bg-emerald-50 text-emerald-600",
 };
-const TEXT: Record<Accent, string> = { slate: "text-slate-500", rose: "text-rose-600", amber: "text-amber-600", cyan: "text-[#00687a]", indigo: "text-indigo-600", emerald: "text-emerald-600" };
+// 700 shades: the 600s fail WCAG AA contrast for small text on white (found by the staff e2e a11y check, 24 Nov).
+const TEXT: Record<Accent, string> = { slate: "text-slate-600", rose: "text-rose-700", amber: "text-amber-700", cyan: "text-[#00687a]", indigo: "text-indigo-700", emerald: "text-emerald-700" };
 const BAR: Record<Accent, string> = { slate: "bg-[#0f172a]", rose: "bg-rose-500", amber: "bg-amber-500", cyan: "bg-[#06B6D4]", indigo: "bg-indigo-500", emerald: "bg-emerald-500" };
 const go = (view: string) => () => { window.location.hash = `#/${view}`; };
 
@@ -248,7 +249,7 @@ function QualificationAudit() {
   const q = useQuery({ queryKey: ["admin", "eligibility"], queryFn: () => adminRequest("/admin/v1/ops/eligibility", eligibilityCoverageSchema), refetchInterval: 300_000 });
   const tones: Accent[] = ["slate", "cyan", "amber", "indigo", "rose", "emerald"];
   return (
-    <section aria-label="Catalogue qualification" className="space-y-5 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+    <section aria-label="Creator eligibility coverage" className="space-y-5 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
       {q.isPending ? <LoadingBlock lines={4} /> : q.isError ? <ErrorState body={errText(q.error)} onRetry={() => void q.refetch()} /> : (() => {
         const d = q.data;
         const out = d.total - d.eligible;
@@ -258,7 +259,7 @@ function QualificationAudit() {
             <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
               <div>
                 <h2 className="text-base font-bold text-[#0f172a]">Catalogue qualification audit</h2>
-                <p className="mt-0.5 text-[12.5px] text-slate-500 tabular-nums">{fmtNum(d.total)} creators checked against the {d.policy} rules · {fmtNum(d.eligible)} qualify and appear in search</p>
+                <p className="mt-0.5 text-[12.5px] text-slate-500 tabular-nums">{d.eligible} of {d.total} creators in the search catalogue qualify ({d.policy} rules) and appear in search</p>
               </div>
               <div className="flex items-center gap-2 self-start sm:self-center">
                 <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-extrabold text-emerald-700 tabular-nums">Qualify ({fmtNum(d.eligible)})</span>
@@ -293,6 +294,7 @@ function QualificationAudit() {
 export function OverviewPage({ canTest }: { canTest: boolean }) {
   return (
     <div className="space-y-6">
+      <h1 className="sr-only">Overview</h1>
       <Counters />
       <Budgets />
       <section className="grid grid-cols-1 items-stretch gap-5 xl:grid-cols-12">
