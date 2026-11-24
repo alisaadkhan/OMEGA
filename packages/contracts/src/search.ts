@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { bioLinkSchema } from "./creator-links";
 
 export const creatorPlatformSchema = z.enum(["instagram", "tiktok", "youtube"]);
 /** Owner rule 2026-11-03: under 30 days since the platform profile's last fetch "current", 30 or more "aging", no fetch "unknown". "stale" is kept for older clients only. */
@@ -323,6 +324,11 @@ export const creatorProfileSchema = z.object({
   revealCost: z.number().int(),
   refreshCost: z.number().int(),
   linkedAccounts: z.array(z.object({ platform: z.enum(["instagram", "tiktok", "youtube", "website"]), url: z.string() })),
+  /**
+   * Every link from the bio and About sections plus the creator's own profiles, classified for icons (owner, 24 Nov):
+   * one entry per destination, never shown as raw URLs. Bio links are withheld under minor protection, like linkedAccounts.
+   */
+  bioLinks: z.array(bioLinkSchema).default([]),
   /** Structured contact routes from the creator's public bio and links (owner master directive 2026-11-03, Part 7.6). */
   contactRoutes: z
     .object({

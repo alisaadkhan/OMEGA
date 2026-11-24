@@ -6,6 +6,8 @@ import { adminRequest } from "../../admin/adminApi";
 import { useConfirm, useToast } from "../../lib/toast";
 import { needsKey, useStepUp } from "../admin/staff-ui";
 import { Badge, errText, fmtNum } from "./kit";
+import { bioLinksFrom } from "@mushin/contracts";
+import { CreatorLinkIcons } from "../dashboard/CreatorLinkIcons";
 import { ACCOUNT_TYPES, HIDDEN, NICHES, REPORT_REASON, TRASH_DAYS, trashDaysLeft, type StaffCreator } from "./creatorTypes";
 
 const field = "w-full rounded-xl border border-slate-200 bg-[#f7f9fb] px-3.5 py-2.5 text-[13px] font-semibold text-slate-900 focus:border-cyan-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-cyan-600/20";
@@ -74,6 +76,7 @@ export function CreatorInspector({ c, canEdit }: { c: StaffCreator; canEdit: boo
               {top && <span className="rounded border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-600">{top.platform}</span>}
               {c.status === "hidden" ? <Badge tone="rose" dot>Hidden by staff</Badge> : c.eligible ? <Badge tone="emerald" dot>In customer search</Badge> : <Badge tone="amber" dot>Not in search</Badge>}
             </div>
+            <CreatorLinkIcons links={bioLinksFrom([...c.profiles.map((x) => x.url), ...c.links])} size="sm" className="mt-2" />
             <div className="mt-1 flex flex-wrap items-center gap-2.5 text-[12.5px] text-slate-600">
               {top && <a href={top.url} target="_blank" rel="noreferrer noopener" className="font-medium text-cyan-700 hover:underline">@{top.handle}</a>}
               {top && <span className="font-semibold text-slate-900">{top.followers === null ? "—" : fmtNum(top.followers)} followers</span>}

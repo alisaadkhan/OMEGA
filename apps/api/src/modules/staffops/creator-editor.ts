@@ -38,6 +38,8 @@ export const staffCreatorSchema = z.object({
   reports: z.number().int(),
   reportReasons: z.array(z.string()),
   profiles: z.array(profile),
+  /** Links from the bio and About sections (shown as icons in Creator Checks, owner 24 Nov). */
+  links: z.array(z.string()).default([]),
 });
 export const staffCreatorListSchema = z.object({
   items: z.array(staffCreatorSchema),
@@ -110,7 +112,8 @@ export function createCreatorEditor(deps: { db: Db; reindex: (ids: string[]) => 
             coalesce(r.pending, 0) as reports, coalesce(r.reasons, '{}') as "reportReasons",
             coalesce((select jsonb_agg(jsonb_build_object('platform', p.platform, 'handle', p.handle, 'url', p.canonical_url, 'followers', p.followers, 'countryStatus', p.country_status,
               'country', p.country, 'countrySource', p.country_source, 'bio', left(p.bio, 400), 'verified', p.verified) order by p.followers desc nulls last)
-              from gcp.creator_profiles p where p.creator_id = c.id), '[]'::jsonb) as profiles
+              from gcp.creator_profiles p where p.creator_id = c.id), '[]'::jsonb) as profiles,
+            coalesce((select array_agg(l.url order by l.first_seen_at) from gcp.creator_links l where l.creator_id = c.id), '{}') as links
           from ${FROM}
           where ${WHERE[q.filter]} and ${nameOrHandle(q.q)}
           order by coalesce(r.pending, 0) desc, (select max(p.followers) from gcp.creator_profiles p where p.creator_id = c.id) desc nulls last, c.id

@@ -30,6 +30,7 @@ import { createDatabase, createDbProviderCallSink, createDbProviderRunStore, cre
 import { createLlm, createPayments, createProfileScraper, createSerperSearch, createSharedSpendGuard, createYouTubeSearch, ProviderError, type Llm, type ProfileScraper, type WebSearch } from "@mushin/integrations";
 import postgres from "postgres";
 import { BudgetExhausted, createBudgetGate } from "./budget";
+import { seedMatrix, type SeedPlatform } from "../../apps/api/src/modules/creators/discovery-seeds";
 import { fileStorage } from "./file-storage";
 import { sql } from "drizzle-orm";
 import { createBillingService, noAccessCache } from "../../apps/api/src/modules/billing/index";
@@ -38,7 +39,7 @@ import { createCachedSearch, createDiscoveryRunner, createDiscoveryService, crea
 
 const { positionals, values } = parseArgs({
   allowPositionals: true,
-  options: { handles: { type: "string" }, "missing-avatars": { type: "boolean", default: false }, "min-refs": { type: "string", default: "2" }, manifest: { type: "string" }, db: { type: "string" }, cap: { type: "string", default: "20" }, platform: { type: "string" }, limit: { type: "string" }, niches: { type: "string" }, cities: { type: "string" }, size: { type: "string", default: "10" }, label: { type: "string", default: "main" }, "llm-dump": { type: "string" }, "llm-answers": { type: "string" }, "include-locked": { type: "boolean", default: false } },
+  options: { handles: { type: "string" }, "missing-avatars": { type: "boolean", default: false }, "min-refs": { type: "string", default: "2" }, manifest: { type: "string" }, db: { type: "string" }, cap: { type: "string", default: "20" }, platform: { type: "string" }, limit: { type: "string" }, niches: { type: "string" }, cities: { type: "string" }, size: { type: "string", default: "10" }, label: { type: "string", default: "main" }, "llm-dump": { type: "string" }, "llm-answers": { type: "string" }, "include-locked": { type: "boolean", default: false }, matrix: { type: "boolean", default: false }, offset: { type: "string" } },
 });
 const mode = positionals[0];
 if (mode !== "refresh" && mode !== "discover" && mode !== "reassess" && mode !== "seed" && mode !== "expand" && mode !== "reprocess") throw new Error("usage: build.ts <refresh|discover|reassess|seed|expand> --db <catalogue db> --cap <usd> [--manifest <seed.json>] [--limit n] [--min-refs n]");
@@ -387,9 +388,19 @@ if (mode === "reassess") {
   const cities = (values.cities ?? "Lahore,Karachi,Islamabad,Rawalpindi,Peshawar,Faisalabad,Multan,Quetta").split(",");
   const size = Number(values.size) as LiveRunSize;
   // --platform youtube keeps the grid on free YouTube extraction (Apify account limit reached for the month).
-  const platformFilter = values.platform ?? null;
-  outer: for (const city of cities) {
-    for (const niche of niches) {
+  // --matrix (owner, 24 Nov): the expansion seed matrix instead (16 verticals × cities × regional languages, TikTok and
+  // Instagram first); --offset/--limit take a slice. Cells already built are skipped, so a run resumes where it stopped.
+  // Afterwards run trash-unqualified.ts so new accounts that do not qualify (under 10k, brands, inactive) leave search.
+  type Cell = { city: string | undefined; niche: string; platformFilter: "instagram" | "tiktok" | "youtube" | null };
+  const cells: Cell[] = values.matrix
+    ? seedMatrix(values.platform ? { platforms: [values.platform as SeedPlatform] } : {})
+        .slice(Number(values.offset ?? 0), Number(values.offset ?? 0) + Number(values.limit ?? 100_000))
+        .map((c) => ({ city: c.city ?? undefined, niche: c.text, platformFilter: c.platform }))
+    : cities.flatMap((city) => niches.map((niche) => ({ city, niche, platformFilter: (values.platform ?? null) as Cell["platformFilter"] })));
+  logger.info({ cells: cells.length, matrix: Boolean(values.matrix) }, "discover cells");
+  outer: for (const cell of cells) {
+    const { city, niche, platformFilter } = cell;
+    {
       if ((await spentUsd()) >= capUsd - JOB_HEADROOM_USD) {
         logger.warn({ spent: await spentUsd(), capUsd }, "spend cap reached: stopping");
         break outer;
@@ -403,7 +414,7 @@ if (mode === "reassess") {
         // 2026-10-20: the guard saw 0 of 256 build jobs and a retry re-ran completed cells).
         const earlier = await ownerSql<{ id: string; status: string; workspace_id: string }[]>`
             select j.id, j.status, j.workspace_id from wp.discovery_jobs j join wp.workspaces w on w.id = j.workspace_id
-            where j.kind = 'live' and w.name like 'MUSHIN catalogue build %' and j.search->>'text' = ${niche} and j.search->'filters'->>'creatorCity' = ${city}
+            where j.kind = 'live' and w.name like 'MUSHIN catalogue build %' and j.search->>'text' = ${niche} and j.search->'filters'->>'creatorCity' is not distinct from ${city ?? null}
               and (j.search->'filters'->>'platform') is not distinct from ${platformFilter}
               and ((j.status = 'completed' and j.error_code is null) or (j.status in ('queued', 'running') and j.workspace_id = ${ctx.workspaceId}))
             order by (j.status = 'completed') desc, j.created_at desc limit 1`;
@@ -413,7 +424,7 @@ if (mode === "reassess") {
         }
         let jobId = earlier[0]?.id;
         if (!jobId) {
-          const estimate = await discovery.createEstimate(ctx, { search: { text: niche, filters: searchFiltersSchema.parse({ creatorCity: city, ...(platformFilter ? { platform: platformFilter } : {}) }) }, maxNew: size });
+          const estimate = await discovery.createEstimate(ctx, { search: { text: niche, filters: searchFiltersSchema.parse({ ...(city ? { creatorCity: city } : {}), ...(platformFilter ? { platform: platformFilter } : {}) }) }, maxNew: size });
           const out = await discovery.start(ctx, { kind: "live", estimateId: estimate.estimateId });
           if (out.body.status !== "started") throw new Error(`not started: ${out.body.status}`);
           jobId = out.body.job.id;

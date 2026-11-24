@@ -120,16 +120,20 @@ describe("profile", () => {
 
   it("shows the refresh price, linked accounts, last scrape and pending or insufficient assessments", async () => {
     const id = await addCreator(db, { primaryPlatform: "tiktok", profiles: [{ platform: "tiktok", handle: "tt_one" }] });
-    await ownerQuery(`insert into gcp.creator_links (creator_id, platform, url, source) values ('${id}', 'website', 'https://tt.one', 'bio');
+    await ownerQuery(`insert into gcp.creator_links (creator_id, platform, url, source) values ('${id}', 'website', 'https://tt.one', 'bio'), ('${id}', 'website', 'https://linktr.ee/tt_one', 'bio'), ('${id}', 'website', 'https://wa.me/923001234567', 'bio');
       update gcp.creators set assessment_status = 'pending' where id = '${id}';`);
     const p = await creators.profile(await trialCustomer(), id);
-    expect(p).toMatchObject({ refreshCost: 50, linkedAccounts: [{ platform: "website", url: "https://tt.one" }], authenticity: { status: "pending" } });
+    expect(p).toMatchObject({ refreshCost: 50, linkedAccounts: [{ platform: "website", url: "https://tt.one" }, { platform: "website", url: "https://linktr.ee/tt_one" }, { platform: "website", url: "https://wa.me/923001234567" }], authenticity: { status: "pending" } });
     expect(p.lastScrapedAt).not.toBeNull();
+    // Bio links as icons (owner, 24 Nov): own profile first, then every bio link, classified, never raw text alone.
+    expect(p.bioLinks.map((l) => [l.kind, l.label])).toEqual([["tiktok", "TikTok · @tt_one"], ["website", "tt.one"], ["linktree", "Linktree · @tt_one"], ["whatsapp", "WhatsApp"]]);
     await ownerQuery(`update gcp.creators set assessment_status = 'insufficient_data' where id = '${id}'`);
     expect((await creators.profile(await trialCustomer(), id)).authenticity).toEqual({ status: "insufficient_data" });
     const minor = await addCreator(db, { isMinor: true });
     await ownerQuery(`insert into gcp.creator_links (creator_id, platform, url, source) values ('${minor}', 'website', 'https://minor.example', 'bio')`);
-    expect((await creators.profile(await trialCustomer(), minor)).linkedAccounts).toEqual([]);
+    const mp = await creators.profile(await trialCustomer(), minor);
+    expect(mp.linkedAccounts).toEqual([]);
+    expect(mp.bioLinks.every((l) => l.kind !== "website")).toBe(true);
   });
 });
 

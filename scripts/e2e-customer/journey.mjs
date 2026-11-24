@@ -391,6 +391,13 @@ if (phase === "main") {
   // View details (owner design, 18 Nov) shows the masked contact itself, not an availability label.
   { const txt = await panel.innerText(); const shown = prof.contacts.length ? prof.contacts.some((c) => txt.includes(c.masked)) : txt.includes("No email or mobile listed");
     check("profile", "profile shows the masked direct contact; each contact keeps its source and check state", shown && prof.contacts.every((c) => c.source && c.firstSeenAt && c.status), prof.contactAvailability); }
+  // Bio links as icons (owner, 24 Nov): one icon per link the API returns, each a new-tab link, no raw URL text.
+  {
+    const icons = panel.getByRole("list", { name: "Creator links" }).getByRole("link");
+    const n = await icons.count();
+    const safe = n === 0 || (await icons.evaluateAll((as) => as.every((a) => a.target === "_blank" && a.rel.includes("noopener") && !/https?:\/\//.test(a.textContent ?? ""))));
+    check("profile", "bio and About links show as one icon each, opening in a new tab, never as raw URLs", n === (prof.bioLinks ?? []).length && safe, `${n} icons / ${(prof.bioLinks ?? []).length} links`);
+  }
   await shot(p, "03-profile");
 
   // ── 4. Lists ──

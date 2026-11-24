@@ -14,6 +14,7 @@ import { providerActionsLockedText } from "../../lib/provider-actions";
 import { relative } from "../../lib/time";
 import { useConfirm, useToast } from "../../lib/toast";
 import { CampaignDrawer } from "./CampaignDrawer";
+import { CreatorLinkIcons } from "./CreatorLinkIcons";
 import type { DrawerCreator } from "./ShortlistDrawer";
 import { VerifiedBadge } from "./VerifiedBadge";
 
@@ -236,6 +237,7 @@ export function CreatorProfilePanel({ creator, onClose, onGoToCampaigns }: { cre
                         <h2 id="modal-creator-name" className="truncate text-base font-bold tracking-tight text-slate-900">{p?.displayName ?? creator.name}</h2>
                         {verified && <VerifiedBadge platform={primary?.platform ?? creator.platform} />}
                         <a href={primary?.url ?? PLATFORM_URL[creator.platform](creator.handle)}target="_blank" rel="noreferrer" className="text-xs font-medium text-slate-500 hover:text-cyan-700">@{primary?.handle ?? creator.handle}</a>
+                        {p && p.bioLinks.length > 0 && <CreatorLinkIcons links={p.bioLinks} size="sm" className="mt-1 basis-full" />}
                       </div>
                       <div className="flex items-center gap-1 text-xs text-slate-500">
                         <MapPin aria-hidden className="h-3 w-3 shrink-0" />

@@ -37,6 +37,7 @@ export const staffCreatorSchema = z.object({
   reports: z.number(),
   reportReasons: z.array(z.string()),
   profiles: z.array(profileSchema),
+  links: z.array(z.string()).default([]),
 });
 export type StaffCreator = z.infer<typeof staffCreatorSchema>;
 /** Days before a trashed creator is erased (API TRASH_KEEP_DAYS). */

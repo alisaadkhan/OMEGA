@@ -107,6 +107,9 @@ describe("staff Users and Subscriptions pages (owner, 22 Nov)", () => {
     const cost = (await app.inject({ method: "PUT", url: "/admin/v1/ops/pricing/actions/reveal_contact", headers: sup, payload: { credits: 7, reason: "Owner set contact unlocks to 7" } })).json() as typeof pricing;
     expect(cost.actions.find((a) => a.action === "reveal_contact")?.credits).toBe(7);
     expect((await app.inject({ method: "PUT", url: "/admin/v1/ops/pricing/actions/no_such", headers: sup, payload: { credits: 7, reason: "This action does not exist" } })).statusCode).toBe(404);
+    // Put the shared price list back: per-test resets do not cover pricing, and other suites charge these exact costs.
+    await app.inject({ method: "PUT", url: "/admin/v1/ops/pricing/plans/growth", headers: sup, payload: { monthlyCredits: 12_000, displayMonthlyMinor: 1_290_000, reason: "Restore the seeded Growth terms" } });
+    await app.inject({ method: "PUT", url: "/admin/v1/ops/pricing/actions/reveal_contact", headers: sup, payload: { credits: 5, reason: "Restore the seeded unlock cost" } });
 
     // System Health (owner, 22 Nov): measured now; nothing defaults to healthy.
     const hres = await app.inject({ method: "GET", url: "/admin/v1/ops/health", headers: admin });
