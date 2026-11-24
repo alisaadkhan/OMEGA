@@ -47,7 +47,7 @@ async function recoveryLink() {
   return null;
 }
 
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: true });
+const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: false, args: ["--headless=new"] /* Chrome 132+ has no --headless=old, which playwright-core 1.48 asks for */ });
 try {
   const context = await browser.newContext();
   const page = await context.newPage();

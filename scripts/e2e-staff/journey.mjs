@@ -53,7 +53,7 @@ async function apiToken(who) {
   return (await totp.json()).accessToken;
 }
 
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: true });
+const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: false, args: ["--headless=new"] /* Chrome 132+ has no --headless=old, which playwright-core 1.48 asks for */ });
 const serverErrors = [];
 const pageErrors = [];
 const coverageCards = {};

@@ -74,7 +74,7 @@ const api = async (who, method, path, body, extra = {}) => {
 const session = (who) => ({ access_token: ids[who].token, token_type: "bearer", expires_in: ids[who].exp - Math.floor(Date.now() / 1000), expires_at: ids[who].exp, refresh_token: "e2e-local",
   user: { id: ids[who].sub, aud: "authenticated", role: "authenticated", email: ids[who].email, user_metadata: { full_name: ids[who].name }, app_metadata: {}, email_confirmed_at: who === "unverified" ? null : new Date().toISOString(), created_at: new Date().toISOString() } });
 
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: true });
+const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: false, args: ["--headless=new"] /* Chrome 132+ has no --headless=old, which playwright-core 1.48 asks for */ });
 const consoleErrors = [];
 const serverErrors = [];
 // Campaign member edits refused as stale (409): each one is a lost customer edit unless someone else really edited.

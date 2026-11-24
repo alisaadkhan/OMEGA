@@ -39,7 +39,7 @@ async function openSidebar(p, label) {
   await p.waitForTimeout(1200);
 }
 
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: true });
+const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: false, args: ["--headless=new"] /* Chrome 132+ has no --headless=old, which playwright-core 1.48 asks for */ });
 async function freshPage() {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 950 }, acceptDownloads: true });
   await ctx.addInitScript(([k, v, a, b]) => { localStorage.setItem(k, v); localStorage.setItem(a, "1"); localStorage.setItem(b, "1"); }, [`sb-${ref}-auth-token`, JSON.stringify(session), `mushin.welcomeDismissed.${ids[who].sub}`, `mushin.onboarded.${ids[who].sub}`]);

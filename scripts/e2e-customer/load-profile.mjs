@@ -14,7 +14,7 @@ const NETWORKS = {
 };
 const PAGES = { landing: "/", login: "/#/login", signup: "/#/signup" };
 
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: true });
+const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: false, args: ["--headless=new"] /* Chrome 132+ has no --headless=old, which playwright-core 1.48 asks for */ });
 for (const [netName, net] of Object.entries(NETWORKS)) {
   for (const [pageName, path] of Object.entries(PAGES)) {
     const context = await browser.newContext(net ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } : { viewport: { width: 1366, height: 800 } });

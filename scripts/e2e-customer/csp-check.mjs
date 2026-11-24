@@ -39,7 +39,7 @@ const check = (name, ok, detail = "") => {
   results.push(ok);
   console.log(ok ? "PASS" : "FAIL", "|", name, detail ? `| ${detail}` : "");
 };
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: true });
+const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: false, args: ["--headless=new"] /* Chrome 132+ has no --headless=old, which playwright-core 1.48 asks for */ });
 try {
   const head = await fetch("http://127.0.0.1:4610/");
   check("the page is served with the policy and no-cache", Boolean(head.headers.get("content-security-policy")?.includes("frame-ancestors 'none'")) && head.headers.get("cache-control") === "no-cache");
