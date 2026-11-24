@@ -182,7 +182,9 @@ function TicketThread({ id }: { id: string }) {
   const [text, setText] = useState("");
   const end = useRef<HTMLLIElement>(null);
   const count = q.data?.thread.length ?? 0;
-  useEffect(() => end.current?.scrollIntoView({ block: "end", behavior: "smooth" }), [count]);
+  useEffect(() => {
+    end.current?.scrollIntoView({ block: "end", behavior: "smooth" });
+  }, [count]);
   if (q.isPending) return <div className="p-6"><LoadingBlock lines={5} /></div>;
   if (q.isError) return <div className="p-6"><ErrorState body={q.error instanceof Error ? q.error.message : undefined} onRetry={() => void q.refetch()} /></div>;
   const t = q.data;

@@ -11,7 +11,7 @@ B="${PG_BIN:?set PG_BIN}"
 E="${E2E_OUT:-$(node -p "require('path').join(require('os').tmpdir(), 'mushin-e2e').split(require('path').sep).join('/')")}"
 export E2E_OUT="$E"
 mkdir -p "$E"
-stop() { for f in "$E/api.pid" "$E/worker.pid"; do [ -f "$f" ] && kill "$(cat "$f")" 2>/dev/null; rm -f "$f"; done; sleep 2; }
+stop() { for f in "$E/api.pid" "$E/worker.pid"; do [ -f "$f" ] && { pid="$(cat "$f")"; command -v taskkill >/dev/null 2>&1 && taskkill //PID "$(cat /proc/$pid/winpid 2>/dev/null || echo "$pid")" //T //F >/dev/null 2>&1; kill "$pid" 2>/dev/null; }; rm -f "$f"; done; sleep 2; }
 start() {
   local P=$1
   cd "$REPO" && source "$H/env.sh"

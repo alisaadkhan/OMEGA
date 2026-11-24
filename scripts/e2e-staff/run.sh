@@ -11,7 +11,7 @@ B="${PG_BIN:?set PG_BIN}"
 E="${E2E_STAFF_OUT:-$(node -p "require('path').join(require('os').tmpdir(), 'mushin-e2e-staff').split(require('path').sep).join('/')")}"
 export E2E_STAFF_OUT="$E"
 mkdir -p "$E"
-for f in "$E/api.pid" "$E/worker.pid"; do [ -f "$f" ] && kill "$(cat "$f")" 2>/dev/null; rm -f "$f"; done
+for f in "$E/api.pid" "$E/worker.pid"; do [ -f "$f" ] && { pid="$(cat "$f")"; command -v taskkill >/dev/null 2>&1 && taskkill //PID "$(cat /proc/$pid/winpid 2>/dev/null || echo "$pid")" //T //F >/dev/null 2>&1; kill "$pid" 2>/dev/null; }; rm -f "$f"; done
 "$B/psql" -h localhost -p 54330 -U postgres -d postgres -qAtc "select pg_terminate_backend(pid) from pg_stat_activity where datname = 'mushin_e2e_team'" >/dev/null
 "$B/dropdb" -h localhost -p 54330 -U postgres --if-exists mushin_e2e_team && "$B/createdb" -h localhost -p 54330 -U postgres -T "${E2E_TEMPLATE:-mushin_e2e_synthetic_template}" mushin_e2e_team || exit 1
 cd "$REPO" && source "$H/env.sh"
@@ -23,5 +23,5 @@ node --env-file-if-exists=.env --import tsx apps/worker/src/main.ts > "$E/worker
 for i in $(seq 1 90); do curl -s -m 2 http://localhost:4100/health/ready | grep -q '"database":"ok"' && grep -q "reconciled at start-up" "$E/worker-$LABEL.log" && break; sleep 1; done
 cd "$H" && node journey.mjs "$LABEL"
 STATUS=$?
-for f in "$E/api.pid" "$E/worker.pid"; do [ -f "$f" ] && kill "$(cat "$f")" 2>/dev/null; rm -f "$f"; done
+for f in "$E/api.pid" "$E/worker.pid"; do [ -f "$f" ] && { pid="$(cat "$f")"; command -v taskkill >/dev/null 2>&1 && taskkill //PID "$(cat /proc/$pid/winpid 2>/dev/null || echo "$pid")" //T //F >/dev/null 2>&1; kill "$pid" 2>/dev/null; }; rm -f "$f"; done
 exit $STATUS

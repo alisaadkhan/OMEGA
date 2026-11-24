@@ -27,7 +27,11 @@ for p in $STUB_PORT $VITE_PORT $API_PORT; do
 done
 
 PIDS=()
-cleanup() { for p in "${PIDS[@]}"; do kill "$p" 2>/dev/null; done; }
+# On Windows, killing the bash job leaves its node child running and holding the port (found 24 Nov): stop the tree.
+cleanup() { for p in "${PIDS[@]}"; do
+  if command -v taskkill >/dev/null 2>&1; then taskkill //PID "$(cat /proc/$p/winpid 2>/dev/null || echo "$p")" //T //F >/dev/null 2>&1; fi
+  kill "$p" 2>/dev/null
+done; }
 trap cleanup EXIT
 
 bash "$REPO/scripts/e2e-fixtures/build-template.sh" > "$LOGS/template.log" 2>&1 || { tail -5 "$LOGS/template.log"; echo "template build failed"; exit 1; }

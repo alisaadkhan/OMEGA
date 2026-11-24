@@ -16,7 +16,9 @@ import { ErrorState } from "./states";
  */
 export function Campaigns({ onOpenCreator, onGoToSearch, initialId = null, initialMailFor = null }: { onOpenCreator: (c: Creator) => void; onGoToSearch: () => void; initialId?: string | null; initialMailFor?: string | null }) {
   const [openId, setOpenId] = useState<string | null>(initialId);
-  useEffect(() => setOpenId(initialId), [initialId]);
+  useEffect(() => {
+    setOpenId(initialId);
+  }, [initialId]);
   return (
     <AnimatePresence mode="wait">
       {openId ? (

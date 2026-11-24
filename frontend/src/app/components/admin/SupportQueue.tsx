@@ -70,7 +70,9 @@ function TicketPanel({ id, me, canAssignOthers, role }: { id: string; me: string
   const [note, setNote] = useState("");
   const end = useRef<HTMLLIElement>(null);
   const count = q.data?.messages.length ?? 0;
-  useEffect(() => end.current?.scrollIntoView({ block: "end", behavior: "smooth" }), [count]);
+  useEffect(() => {
+    end.current?.scrollIntoView({ block: "end", behavior: "smooth" });
+  }, [count]);
   /** One click: a reply (optional) and the status it leaves the request in. The customer is notified and emailed (0100). */
   const act = (status: Status, done: string, body?: string) =>
     update.mutate({ ...(body ? { body } : {}), status }, { onSuccess: () => { if (body) setText(""); toast.success(done); }, onError: (err) => toast.error("Couldn't update the request", err instanceof Error ? err.message : undefined) });

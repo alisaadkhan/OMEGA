@@ -18,7 +18,9 @@ export function ChatDrawer({ creator, onClose, onAddToCampaign }: { creator: { i
   const [campaignId, setCampaignId] = useState<string | null>(null);
   const chosen = joined.find((c) => c.id === campaignId) ?? joined[0] ?? null;
 
-  useEffect(() => setCampaignId(null), [creator?.id]);
+  useEffect(() => {
+    setCampaignId(null);
+  }, [creator?.id]);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && !document.querySelector("[role=alertdialog]") && onClose();

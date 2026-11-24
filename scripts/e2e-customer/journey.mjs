@@ -570,7 +570,7 @@ if (phase === "main") {
   const job = sql(`select status || '|' || coalesce(outcome,'') || '|' || credits_charged from wp.discovery_jobs`);
   check("discovery", "provider unavailable: job fails honestly and every credit returns", /^failed\|failed\|0$/.test(job) && after.available === before.available && after.reserved === 0 && /returned/i.test(final), `${job}; ${before.available}→${after.available}`);
   check("discovery", "ledger: reserve and release net to zero", sql(`select coalesce(sum(case when kind='reserve' then amount when kind='release' then -amount else 0 end),0) from wp.credit_ledger where workspace_id = '${ws}' and action = 'find_new'`) === "0");
-  const est = (await api("owner", "POST", "/v1/discovery/estimates", { search: { text: "bridal makeup", filters: { platform: "youtube", creatorCity: "Lahore" } }, maxNew: 5 }, { "idempotency-key": `e2e-est-${label}` })).json;
+  const est = (await api("owner", "POST", "/v1/discovery/estimates", { search: { text: "bridal makeup artists", filters: { platform: "youtube", creatorCity: "Lahore" } }, maxNew: 5 }, { "idempotency-key": `e2e-est-${label}` })).json;
   const s1 = await api("owner", "POST", "/v1/discovery/jobs", { kind: "live", estimateId: est.estimateId }, { "idempotency-key": `e2e-a-${label}` });
   const s2 = await api("owner", "POST", "/v1/discovery/jobs", { kind: "live", estimateId: est.estimateId }, { "idempotency-key": `e2e-b-${label}` });
   if (!s1.json?.job) console.log("DEBUG est", JSON.stringify(est).slice(0, 300), JSON.stringify(s1.json).slice(0, 300));
@@ -635,7 +635,8 @@ if (phase === "main") {
   const tile = /ACTIVE SHORTLISTS\s*1\b/i.test(t) && /\b2 creators saved/.test(t);
   check("dashboard", "dashboard cards equal API and database", tile && t.includes("Eid food push") && sum.outreach.total === 1 && sum.pipeline.byStage.confirmed === 1 && sum.lists.savedCreators === 2, `shortlist tile ${tile} campaign ${t.includes("Eid food push")}; api outreach ${sum.outreach.total} confirmed ${sum.pipeline.byStage.confirmed} saved ${sum.lists.savedCreators}; range ${from}..${today}`);
   const feed = (await api("owner", "GET", "/v1/activity?limit=50")).json.events.map((e) => e.text).join(" | ");
-  check("activity", "activity shows real actions only (feed and dashboard card)", feed.includes(`logged that ${FX.mainName} agreed`) && /created the campaign Eid food push/.test(feed) && /Find New Creators run/.test(t) && !/SSO group sync|auto top-up/.test(t));
+  // Owner, 23 Nov: no activity feed on the customer dashboard; the account history still records real actions (staff view).
+  check("activity", "the account history records real actions only, and the dashboard shows no activity feed", feed.includes(`logged that ${FX.mainName} agreed`) && /created the campaign Eid food push/.test(feed) && !/Recent Activity/i.test(t) && !/SSO group sync|auto top-up/.test(t));
 
   // ── 9. Support ──
   await menu(p, "Support");

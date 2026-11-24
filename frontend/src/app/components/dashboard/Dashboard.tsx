@@ -35,7 +35,9 @@ export function viewFromHash(hash = typeof window === "undefined" ? "" : window.
 export function Dashboard({ onExit }: { onExit: () => void }) {
   // After a session expired, signing in again reopens the page that was open (AUTH-08).
   const [view, setView] = useState<DashView>(() => takeReturnView(DASH_VIEWS) ?? viewFromHash() ?? "overview");
-  useEffect(() => rememberCurrentView(view), [view]);
+  useEffect(() => {
+    rememberCurrentView(view);
+  }, [view]);
   // Choosing a section in the sidebar always opens its first page, even when it is already the current section
   // (an open list or campaign goes back to the index; design gap G-17).
   const [navKey, setNavKey] = useState(0);
