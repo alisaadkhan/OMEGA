@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Check, Crosshair, Eye, Lock, Mail, MapPin, Plus, ShieldCheck, Star, TrendingUp } from "lucide-react";
 import { useBillingSummary } from "../../api/billing";
-import { useCampaigns } from "../../api/campaigns";
+import { useAddToCampaign, useCampaigns, useCreateCampaign } from "../../api/campaigns";
 import { requestReachOut } from "../../lib/reach-out";
 import { useActiveJobs, useStartJob } from "../../api/discovery";
 import { isOpenJob, jobStatusText } from "../../api/discovery-mapping";
@@ -101,6 +101,12 @@ export function consistency(evidence: { signal: string; detail: string }[], prof
  * contact and the two main actions. Every value is the creator's own data; a value MUSHIN does not have shows "—".
  * Closes on Escape or a click outside.
  */
+/** The next free "Untitled N" campaign name: one more than the highest number already used. */
+export function nextUntitled(names: string[]): string {
+  const used = names.map((n) => /^Untitled (\d+)$/.exec(n.trim())?.[1]).filter((x): x is string => x !== undefined).map(Number);
+  return `Untitled ${used.length ? Math.max(...used) + 1 : 1}`;
+}
+
 export function CreatorProfilePanel({ creator, onClose, onGoToCampaigns }: { creator: Creator | null; onClose: () => void; onCompare?: (c: Creator) => void; onGoToCampaigns?: () => void; sourceMode?: "db_search" | "live_discovery" }) {
   const id = creator?.id ?? null;
   const profile = useCreatorProfile(id);
@@ -113,12 +119,30 @@ export function CreatorProfilePanel({ creator, onClose, onGoToCampaigns }: { cre
   const [campaignFor, setCampaignFor] = useState<DrawerCreator[] | null>(null);
   // Reach out opens the campaign's Outreach page for this creator; a creator in no campaign is added to one first.
   const inCampaigns = useCampaigns(id, id !== null);
-  const reachOut = () => {
-    if (!creator) return;
-    const joined = (inCampaigns.data?.campaigns ?? []).filter((c) => c.containsCreator && c.archivedAt === null);
+  const createCampaign = useCreateCampaign();
+  const addToCampaign = useAddToCampaign();
+  const [startingOutreach, setStartingOutreach] = useState(false);
+  /**
+   * Reach out (owner, 24 Nov): a creator already in a campaign opens that campaign's Outreach page; otherwise a new
+   * campaign is made at once, named "Untitled 1", "Untitled 2" and so on, and the creator is added to it.
+   */
+  const reachOut = async () => {
+    if (!creator || startingOutreach) return;
+    const all = inCampaigns.data?.campaigns ?? [];
+    const joined = all.filter((c) => c.containsCreator && c.archivedAt === null);
     if (joined[0]) return requestReachOut({ campaignId: joined[0].id, creatorId: creator.id });
-    toast.info("Add to a campaign first", "Emails to creators are sent from a campaign, so the conversation is kept there.");
-    setCampaignFor([asDrawer(creator)]);
+    setStartingOutreach(true);
+    try {
+      const next = nextUntitled(all.map((c) => c.name));
+      const made = await createCampaign.mutateAsync({ name: next });
+      await addToCampaign.mutateAsync({ id: made.id, creatorIds: [creator.id] });
+      toast.success(`Started ${next}`, "Rename it any time from Campaigns.");
+      requestReachOut({ campaignId: made.id, creatorId: creator.id });
+    } catch (err) {
+      toast.error("Couldn't start the outreach", err instanceof Error ? err.message : undefined);
+    } finally {
+      setStartingOutreach(false);
+    }
   };
   const p = profile.data;
   const primary = p?.profiles.find((x) => x.platform === p.platform) ?? p?.profiles[0];
@@ -284,7 +308,7 @@ export function CreatorProfilePanel({ creator, onClose, onGoToCampaigns }: { cre
                     <div className="flex items-center gap-2 pt-0.5">
                       {/* Reach out (owner, 22 Nov): only for creators MUSHIN holds an email for; sends through a campaign. */}
                       {(email || ["email_and_phone", "email_unverified", "email_verified"].includes(creator.contactAvailability ?? (creator.hasContact ? "email_unverified" : "none"))) && (
-                        <button onClick={() => reachOut()} disabled={blocked !== null} title={blocked ?? undefined} className="flex items-center justify-center gap-1.5 rounded-xl border border-cyan-200 bg-cyan-50 px-3.5 py-2 text-xs font-semibold text-cyan-800 shadow-sm transition-colors hover:bg-cyan-100 disabled:cursor-not-allowed disabled:opacity-50">
+                        <button onClick={() => void reachOut()} disabled={blocked !== null || startingOutreach} title={blocked ?? undefined} className="flex items-center justify-center gap-1.5 rounded-xl border border-cyan-200 bg-cyan-50 px-3.5 py-2 text-xs font-semibold text-cyan-800 shadow-sm transition-colors hover:bg-cyan-100 disabled:cursor-not-allowed disabled:opacity-50">
                           <Mail aria-hidden className="h-3.5 w-3.5" /> <span>Reach out</span>
                         </button>
                       )}
