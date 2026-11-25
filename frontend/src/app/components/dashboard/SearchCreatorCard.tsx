@@ -8,6 +8,7 @@ import type { Creator } from "./CreatorProfilePanel";
 import { ReviewCreatorButton } from "./ReviewCreatorButton";
 import { VerifiedBadge } from "./VerifiedBadge";
 import { EngagementScore } from "./EngagementScore";
+import { PlatformPill } from "./PlatformIcon";
 
 const PLATFORM = {
   instagram: { Icon: Instagram, label: "Instagram", color: "text-rose-300" },
@@ -87,10 +88,7 @@ function SearchCreatorCardView({
               <span className="sr-only">({iqLevel(creator.score).word})</span>
             </span>
           )}
-          <span className="absolute bottom-3 right-3 z-10 inline-flex items-center gap-1 rounded-full border border-white/20 bg-black/70 px-2 py-0.5 text-[10px] font-medium tracking-wide text-white">
-            <plat.Icon aria-hidden className={`h-3 w-3 ${plat.color}`} strokeWidth={2.25} />
-            {plat.label}
-          </span>
+          <PlatformPill platform={creator.platform} className="absolute bottom-3 right-3 z-10" />
         </div>
 
         <div className="flex flex-1 flex-col justify-between p-5">

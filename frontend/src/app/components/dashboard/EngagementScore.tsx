@@ -3,7 +3,7 @@ import { formatEr } from "../../api/search-mapping";
 
 /** Tier colours (owner, 25 Nov): Top 10% / Strong cyan, Typical soft indigo, Low muted slate. */
 const TIER_CHIP: Record<ScoreTier, string> = {
-  top: "bg-[#06B6D4] text-white",
+  top: "bg-cyan-700 text-white",
   strong: "bg-cyan-100 text-cyan-800",
   typical: "bg-indigo-50 text-indigo-700",
   low: "bg-slate-100 text-slate-600",
@@ -26,7 +26,7 @@ export function EngagementScore({ rate, platform, size = "sm" }: { rate: number 
         ) : (
           <span className={`${size === "md" ? "text-[18px]" : "text-lg"} font-bold leading-none tabular-nums text-slate-900`}>
             {score.toFixed(1)}
-            <span className="text-[11px] font-semibold text-slate-400"> / 10</span>
+            <span className="text-[11px] font-semibold text-slate-600"> / 10</span>
           </span>
         )}
         <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ${TIER_CHIP[tier]}`}>{SCORE_TIER_LABEL[tier]}</span>

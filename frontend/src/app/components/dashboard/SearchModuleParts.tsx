@@ -18,22 +18,15 @@ import type { InterpretResponse } from "@mushin/contracts";
 import { extraChips, CITY_FILTER_ENABLED, FILTER_CITIES, type UiFilters, formatEr } from "../../api/search-mapping";
 import { erLevel, iqLevel } from "../../api/levels";
 import { NICHE_GROUPS, nicheGroupLabel } from "../../api/niche-groups";
+import { PlatformIcon as BrandIcon } from "./PlatformIcon";
 
 export type Platform = "all" | "instagram" | "tiktok" | "youtube";
 export type ViewMode = "grid" | "table";
 export type SortKey = "relevance" | "followers" | "engagement" | "freshness";
 
+/** Brand-coloured platform mark (owner, 25 Nov): see PlatformIcon.tsx. */
 export function PlatformIcon({ platform }: { platform: Creator["platform"] }) {
-  const map = {
-    instagram: { Icon: Instagram, bg: "bg-gradient-to-br from-pink-500 to-orange-400" },
-    tiktok: { Icon: Music2, bg: "bg-slate-900" },
-    youtube: { Icon: Youtube, bg: "bg-red-500" },
-  }[platform];
-  return (
-    <span className={`flex h-5 w-5 items-center justify-center rounded-full text-white ring-2 ring-white ${map.bg}`}>
-      <map.Icon className="h-2.5 w-2.5" strokeWidth={2.5} />
-    </span>
-  );
+  return <BrandIcon platform={platform} className="h-5 w-5 rounded-full ring-2 ring-white" />;
 }
 
 const scoreBg = (score: number) => iqLevel(score).chip;
