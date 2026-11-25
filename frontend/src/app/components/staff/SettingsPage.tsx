@@ -3,8 +3,9 @@ import { UserCircle } from "lucide-react";
 import type { AdminUser } from "../../admin/AdminAuthContext";
 import { Card, PageHeader } from "./kit";
 import { TwoFactorCard } from "./TwoFactorCard";
+import { StepUpBar } from "../admin/staff-ui";
 
-const ROLE = { super_admin: "Super Admin", admin: "Admin", support: "Support" } as const;
+const ROLE = { super_admin: "CEO", admin: "Admin", support: "Support" } as const;
 
 /**
  * Settings (owner design, 22 Nov): who is signed in, and the security keys. Name, email and role are set when a Super
@@ -28,7 +29,9 @@ export function SettingsPage({ admin, security }: { admin: AdminUser; security: 
         </dl>
       </Card>
       <TwoFactorCard />
-      {security}
+      {/* Admin actions ask for the key on their own when needed; this confirms it ahead of time (5 minutes). */}
+      <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white"><StepUpBar onSetUp={() => document.getElementById("security-keys")?.scrollIntoView({ behavior: "smooth" })} /></div>
+      <div id="security-keys">{security}</div>
     </div>
   );
 }

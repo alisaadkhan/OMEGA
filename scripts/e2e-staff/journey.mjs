@@ -57,8 +57,8 @@ const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH 
 const serverErrors = [];
 const pageErrors = [];
 const coverageCards = {};
-const ADMIN_ONLY = ["Subscriptions", "Data Sources", "Data Removals", "Approvals", "Staff Team", "Activity & Security"];
-const EVERYONE = ["Overview", "System Health", "Users", "Tickets", "Live Scans", "Creator Checks", "Reported Profiles", "Trials & Stats", "Customer Access", "Settings"];
+const ADMIN_ONLY = ["Stats", "Subscriptions", "Data Sources", "Data Removals", "Approvals", "Staff Team", "Activity & Security"];
+const EVERYONE = ["Overview", "System Health", "Users", "Tickets", "Live Scans", "Creator Checks", "Reported Profiles", "Trials", "Customer Access", "Settings"];
 const nav = (p) => p.getByRole("navigation", { name: "Staff portal" });
 
 // Staff portal (owner, 22 Nov): staff sign in only at /_omega_; the old #/staff and #/admin links show not found.
@@ -96,7 +96,9 @@ for (const who of ["super1", "support"]) {
   await p.getByRole("button", { name: "Verify Code", exact: true }).click();
   await nav(p).waitFor({ timeout: 30000 });
   const role = staff[who].role === "super_admin" ? "Super Admin" : "Support";
-  check("staff", `${role} signs in with password and authenticator code`, await p.getByText(role, { exact: true }).first().isVisible());
+  // The top role is labelled "CEO" in the console (owner, 25 Nov); the server role stays super_admin.
+  const shown = staff[who].role === "super_admin" ? "CEO" : "Support";
+  check("staff", `${role} signs in with password and authenticator code`, await p.getByText(shown, { exact: true }).first().isVisible());
   // Each role lands on its own workspace (owner directive 2026-11-15 §2): Support on the support queue, admins on the overview.
   const landing = who === "support" ? "Tickets" : "Overview";
   await p.getByRole("heading", { name: landing, level: 1 }).waitFor({ timeout: 20000 }).catch(() => {});
@@ -123,8 +125,8 @@ for (const who of ["super1", "support"]) {
     await p.getByText("E2E virtual key").first().waitFor({ timeout: 20000 });
     check("security", "a Super Admin registers a security key in Settings", true);
     check("security", "Settings shows two-factor sign-in as on, with a way to turn it off", await p.getByRole("region", { name: "Two-factor sign-in" }).getByText("On", { exact: true }).isVisible().catch(() => false) && await p.getByRole("button", { name: "Turn off" }).isVisible().catch(() => false));
-    await p.getByRole("button", { name: "Confirm security key" }).click();
-    await p.getByText("Security key confirmed", { exact: true }).waitFor({ timeout: 20000 }).catch(() => {});
+    await p.getByRole("button", { name: "Confirm with security key" }).click();
+    await p.getByText(/Security key confirmed/).first().waitFor({ timeout: 20000 }).catch(() => {});
     await open("Staff Team");
     await p.getByText(staff.support.email).first().waitFor({ timeout: 20000 }).catch(() => {});
     check("security", "after confirming with the key, the staff directory lists every staff account", (await Promise.all(["super1", "super2", "admin", "support"].map((k) => p.getByText(staff[k].email).first().isVisible().catch(() => false)))).every(Boolean));

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
-import { Activity, BarChart3, CheckCircle2, CreditCard, Database, Eye, Flag, LayoutGrid, LifeBuoy, Radar, Settings, Shield, ShieldCheck, Trash2, UserCog, Users, type LucideIcon } from "lucide-react";
+import { Activity, BarChart3, ClipboardList, CheckCircle2, CreditCard, Database, Eye, Flag, LayoutGrid, LifeBuoy, Radar, Settings, Shield, ShieldCheck, Trash2, UserCog, Users, type LucideIcon } from "lucide-react";
 import { creatorFlagListSchema, staffAlertsSchema, staffOverviewSchema } from "@mushin/contracts";
 import type { AdminRole } from "../../admin/AdminAuthContext";
 import { adminRequest } from "../../admin/adminApi";
@@ -9,7 +9,7 @@ import { adminRequest } from "../../admin/adminApi";
 export type StaffView =
   | "overview" | "health" | "users" | "subscriptions" | "tickets" | "scans" | "sources"
   | "checks" | "reports" | "removals"
-  | "approvals" | "staff" | "trials" | "activity" | "access" | "settings";
+  | "stats" | "approvals" | "staff" | "trials" | "activity" | "access" | "settings";
 
 const ALL: AdminRole[] = ["support", "admin", "super_admin"];
 const ADMINS: AdminRole[] = ["admin", "super_admin"];
@@ -33,6 +33,7 @@ export const NAV: { group: string; items: NavItem[] }[] = [
     group: "Creators",
     items: [
       { id: "checks", label: "Creator Checks", icon: ShieldCheck, roles: ALL, badge: "checks" },
+      { id: "stats", label: "Stats", icon: BarChart3, roles: ADMINS },
       { id: "reports", label: "Reported Profiles", icon: Flag, roles: ALL, badge: "reports" },
       { id: "removals", label: "Data Removals", icon: Trash2, roles: ADMINS, badge: "removals" },
     ],
@@ -42,7 +43,7 @@ export const NAV: { group: string; items: NavItem[] }[] = [
     items: [
       { id: "approvals", label: "Approvals", icon: CheckCircle2, roles: ADMINS, badge: "approvals" },
       { id: "staff", label: "Staff Team", icon: UserCog, roles: ADMINS },
-      { id: "trials", label: "Trials & Stats", icon: BarChart3, roles: ALL },
+      { id: "trials", label: "Trials", icon: ClipboardList, roles: ALL },
       { id: "activity", label: "Activity & Security", icon: Shield, roles: ADMINS },
       { id: "access", label: "Customer Access", icon: Eye, roles: ALL },
       { id: "settings", label: "Settings", icon: Settings, roles: ALL },

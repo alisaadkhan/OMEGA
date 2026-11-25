@@ -90,11 +90,11 @@ export function StaffPortal() {
       {current === "removals" && <RemovalRequests />}
       {current === "approvals" && <Approvals me={admin.id} role={role} />}
       {current === "staff" && <StaffDirectory me={admin.id} role={role} />}
-      {current === "trials" && (
+      {current === "trials" && <TrialRequests role={role} />}
+      {current === "stats" && (
         <div className="space-y-8">
-          <TrialRequests role={role} />
-          {isAdmin && <UsageInsights role={role} />}
-          {isAdmin && <ProductReviews />}
+          <UsageInsights role={role} />
+          <ProductReviews />
         </div>
       )}
       {current === "activity" && <AuditSearch />}
