@@ -99,3 +99,37 @@ describe("staff review queue", () => {
     expect(await ownerQuery(`select 1 from wp.creator_profile_reviews`)).toHaveLength(0);
   });
 });
+
+describe("reported profiles auto-hide (owner, 25 Nov, 0106)", () => {
+  const status = async (id: string) => (await ownerQuery<{ status: string; hidden_reason: string | null }>(`select status, hidden_reason from gcp.creators where id = '${id}'`))[0];
+  const flag = (ctx: TenantContext, id: string) => submitCreatorReview(db, ctx, id, { verdict: "invalid", reason: "not_individual_creator", sourceMode: "db_search" });
+
+  it("hides a creator once 3 different accounts report it; one account alone never can", async () => {
+    const creator = await addCreator(db);
+    const a = await customer();
+    await flag(a, creator);
+    await flag(a, creator); // the same account again only updates its open report
+    expect((await status(creator))?.status).toBe("active");
+    await flag(await customer(), creator);
+    expect((await status(creator))?.status).toBe("active");
+    await flag(await customer(), creator);
+    expect(await status(creator)).toEqual({ status: "hidden", hidden_reason: "Hidden automatically: reports from 3 accounts; waiting for staff review" });
+  });
+
+  it("dismissing every report brings it back, and those old reports never hide it again", async () => {
+    const flags = createCreatorFlags({ db });
+    const staff = { staffId: await staffMember(), role: "admin" } as never;
+    const creator = await addCreator(db);
+    for (let i = 0; i < 3; i++) await flag(await customer(), creator);
+    expect((await status(creator))?.status).toBe("hidden");
+    const open = (await flags.list({ status: "pending", offset: 0 })).items.filter((i) => i.creatorId === creator);
+    await flags.decide(staff, open[0]?.id as string, { action: "dismiss", note: "Checked: real creator" }, meta);
+    expect((await status(creator))?.status).toBe("hidden"); // two reports still open
+    for (const f of open.slice(1)) await flags.decide(staff, f.id, { action: "dismiss", note: "Checked: real creator" }, meta);
+    expect(await status(creator)).toEqual({ status: "active", hidden_reason: null });
+    // Two new reports after the review are not enough; the dismissed ones no longer count.
+    await flag(await customer(), creator);
+    await flag(await customer(), creator);
+    expect((await status(creator))?.status).toBe("active");
+  });
+});

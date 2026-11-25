@@ -35,6 +35,13 @@ export function createCreatorFlags(deps: { db: Db }) {
             where id = ${creatorId}`);
           await writeOutbox(tx, { eventType: "creator.changed", aggregateType: "creator", aggregateId: creatorId, workspaceId: null, payload: { creatorId }, requestId: meta.requestId });
         }
+        // Auto-hidden by reports (0106) and now no report left open: dismissing the last one brings the creator back.
+        let restored = false;
+        if (body.action === "dismiss") {
+          const [back] = await tx.execute<{ ok: boolean }>(sql`select platform.staff_restore_auto_hidden(${creatorId}) ok`);
+          restored = back?.ok === true;
+          if (restored) await writeOutbox(tx, { eventType: "creator.changed", aggregateType: "creator", aggregateId: creatorId, workspaceId: null, payload: { creatorId }, requestId: meta.requestId });
+        }
         await recordStaffAudit(tx, { staffId: staff.staffId, action: `catalogue.flag_${body.action}`, metadata: { reviewId: id, creatorId, excludeAs: body.excludeAs ?? null, note: body.note }, ip: meta.ip, requestId: meta.requestId });
         return { status, creatorId };
       });

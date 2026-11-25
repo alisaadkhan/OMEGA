@@ -26,12 +26,20 @@ function note(c: StaffCreator): string {
  * Creator Checks (owner design, 22 Nov): every creator MUSHIN holds, reported ones first and highlighted, with a queue
  * filter per kind of check and a search; the selected creator opens in the editor on the right.
  */
+/** "#checks?q=handle&filter=all" opens one creator (a Reported profiles link, owner 25 Nov). */
+function fromHash(): { q: string; filter: Filter | null } {
+  const p = new URLSearchParams(window.location.hash.split("?")[1] ?? "");
+  const f = p.get("filter");
+  return { q: (p.get("q") ?? "").slice(0, 100), filter: (FILTERS as readonly string[]).includes(f ?? "") ? (f as Filter) : null };
+}
+
 export function CreatorChecksPage({ canEdit }: { canEdit: boolean }) {
-  const [filter, setFilter] = useState<Filter>("qualified");
+  const [start] = useState(fromHash);
+  const [filter, setFilter] = useState<Filter>(start.filter ?? "qualified");
   // One problem at a time inside "Doesn't qualify" (owner, 25 Nov), so each kind is verified together.
   const [problem, setProblem] = useState<string | null>(null);
-  const [text, setText] = useState("");
-  const [q, setQ] = useState("");
+  const [text, setText] = useState(start.q);
+  const [q, setQ] = useState(start.q);
   const [offset, setOffset] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
   useEffect(() => {

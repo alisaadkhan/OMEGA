@@ -84,7 +84,11 @@ function FlagRow({ flag, canDecide }: { flag: CreatorFlag; canDecide: boolean })
         </div>
       </div>
       <p className="mt-2 text-xs text-slate-800"><span className="font-semibold">Reason:</span> {CREATOR_REVIEW_REASON_LABEL[flag.reason]}</p>
-      {flag.note && <p className="mt-1 whitespace-pre-wrap rounded-md bg-slate-50 p-2 text-xs text-slate-700">“{flag.note}”</p>}
+      {flag.note ? <p className="mt-1 whitespace-pre-wrap rounded-md bg-slate-50 p-2 text-xs text-slate-700"><span className="font-semibold">What the customer wrote:</span> “{flag.note}”</p> : <p className="mt-1 text-xs text-slate-500">The customer added no note.</p>}
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        {flag.creatorStatus === "hidden" && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-900">Hidden from customers</span>}
+        <a href={`#checks?filter=all&q=${encodeURIComponent(flag.handle ?? flag.displayName)}`} className="btn btn-violet btn-sm">Open in Creator Checks</a>
+      </div>
       {flag.resolution && <p className="mt-2 text-xs text-slate-500">Decision: {flag.resolution}</p>}
       {canDecide && (
         <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">

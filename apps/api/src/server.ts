@@ -181,7 +181,7 @@ const app = await buildApp({
     staff.module,
     createBillingModule({ service: billing, payments, appUrl: config.appUrl, paymentsOpen: config.paymentsOpen }),
     createCreatorsModule({ service: creators, limiter, removals, requireStaff: staff.requireStaff }),
-    createCreatorReviewsModule({ db, limiter }),
+    createCreatorReviewsModule({ db, limiter, reindex: reindexCreators }),
     createDiscoveryModule({ service: createDiscoveryService({ db, billing, sourcePolicy: config.sourcePolicy, workerAvailable }), limiter }),
     createListsModule({ service: createListsService({ db, sourcePolicy: config.sourcePolicy }) }),
     createImportsModule({ service: createImportsService({ db, encryptionKey: config.dataEncryptionKey }) }),

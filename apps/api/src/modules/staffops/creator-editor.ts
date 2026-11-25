@@ -170,7 +170,7 @@ export function createCreatorEditor(deps: { db: Db; reindex: (ids: string[]) => 
         await tx.execute(
           hidden
             ? sql`update gcp.creators set status = 'hidden', hidden_by_staff_id = ${staff.staffId}, hidden_reason = ${why}, hidden_at = now(), updated_at = now() where id = ${id}`
-            : sql`update gcp.creators set status = 'active', hidden_by_staff_id = null, hidden_reason = null, hidden_at = null, updated_at = now() where id = ${id}`,
+            : sql`update gcp.creators set status = 'active', hidden_by_staff_id = null, hidden_reason = null, hidden_at = null, reports_reviewed_at = now(), updated_at = now() where id = ${id}`,
         );
         await changed(tx, id, meta);
         await recordStaffAudit(tx, { staffId: staff.staffId, action: hidden ? "catalogue.creator_hidden" : "catalogue.creator_unhidden", metadata: { creatorId: id, reason: why }, ip: meta.ip, requestId: meta.requestId });

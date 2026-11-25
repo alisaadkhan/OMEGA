@@ -74,3 +74,44 @@ create or replace function platform.staff_creator_stats(p_days integer, p_limit 
 $$;
 revoke all on function platform.staff_creator_stats(integer, integer) from public;
 grant execute on function platform.staff_creator_stats(integer, integer) to mushin_worker;
+
+-- Reported profiles (owner, 25 Nov: "too many reports -> hide it from customers immediately and send it to review").
+-- Once 3 different accounts have an open report on a creator, the creator is hidden (the same status staff "Hide" uses)
+-- with an "auto" reason, and stays in the Reported profiles queue. Dismissing every report brings it back (API side).
+-- When staff last reviewed this creator's reports (unhide or dismiss): only reports filed after it count again, so a
+-- staff decision is never undone by the same old reports.
+alter table gcp.creators add column if not exists reports_reviewed_at timestamptz;
+
+create or replace function platform.auto_hide_reported_creator() returns trigger
+  language plpgsql security definer set search_path = pg_catalog as $$
+declare n integer;
+begin
+  if new.status <> 'pending' or new.verdict <> 'invalid' then return new; end if;
+  select count(distinct r.workspace_id) into n from wp.creator_profile_reviews r
+    join gcp.creators c on c.id = r.creator_id
+    where r.creator_id = new.creator_id and r.status = 'pending' and r.verdict = 'invalid'
+      and r.created_at > coalesce(c.reports_reviewed_at, '-infinity'::timestamptz);
+  if n >= 3 then
+    update gcp.creators set status = 'hidden', hidden_by_staff_id = null, hidden_at = now(), updated_at = now(),
+      hidden_reason = 'Hidden automatically: reports from ' || n || ' accounts; waiting for staff review'
+      where id = new.creator_id and status = 'active';
+  end if;
+  return new;
+end $$;
+revoke all on function platform.auto_hide_reported_creator() from public;
+drop trigger if exists creator_profile_reviews_auto_hide on wp.creator_profile_reviews;
+create trigger creator_profile_reviews_auto_hide after insert or update of status, verdict on wp.creator_profile_reviews
+  for each row execute function platform.auto_hide_reported_creator();
+
+-- Dismissing the last open report on an auto-hidden creator brings it back (staff-hidden creators are left alone).
+create or replace function platform.staff_restore_auto_hidden(p_creator uuid) returns boolean
+  language sql volatile security definer set search_path = pg_catalog as $$
+  with back as (
+    update gcp.creators c set status = 'active', hidden_reason = null, hidden_at = null, reports_reviewed_at = now(), updated_at = now()
+    where c.id = p_creator and c.status = 'hidden' and c.hidden_by_staff_id is null and c.hidden_reason like 'Hidden automatically:%'
+      and not exists (select 1 from wp.creator_profile_reviews r where r.creator_id = c.id and r.status = 'pending' and r.verdict = 'invalid')
+    returning c.id)
+  select exists (select 1 from back)
+$$;
+revoke all on function platform.staff_restore_auto_hidden(uuid) from public;
+grant execute on function platform.staff_restore_auto_hidden(uuid) to mushin_worker;

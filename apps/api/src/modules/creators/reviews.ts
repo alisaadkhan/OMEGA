@@ -49,7 +49,7 @@ export async function submitCreatorReview(db: Db, ctx: TenantContext, creatorId:
 
 const idParams = z.object({ id: z.uuid() });
 
-export function createCreatorReviewsModule(o: { db: Db; limiter: RateLimiter }): AppModule {
+export function createCreatorReviewsModule(o: { db: Db; limiter: RateLimiter; reindex?: (ids: string[]) => Promise<void> }): AppModule {
   return {
     name: "creator-reviews",
     register: (app, guards) => {
@@ -58,7 +58,13 @@ export function createCreatorReviewsModule(o: { db: Db; limiter: RateLimiter }):
         const ctx = tenantOf(req);
         const r = await o.limiter.limit("lookup", ctx.userId);
         if (!r.allowed) throw rateLimitError(r.retryAfterSeconds);
-        return sendOk(reply, creatorReviewResponseSchema, await submitCreatorReview(o.db, ctx, id, parseInput(creatorReviewRequestSchema, req.body)), 201);
+        const out = await submitCreatorReview(o.db, ctx, id, parseInput(creatorReviewRequestSchema, req.body));
+        // Reports from 3 accounts hide the creator at once (0106 trigger): take it out of search straight away too.
+        if (o.reindex && out.status === "pending") {
+          const [c] = await o.db.withTenant(ctx, (tx) => tx.execute<{ hidden: boolean }>(sql`select status = 'hidden' hidden from gcp.creators where id = ${id}`));
+          if (c?.hidden) await o.reindex([id]).catch((err: unknown) => req.log.warn({ err }, "reindex after auto-hide failed"));
+        }
+        return sendOk(reply, creatorReviewResponseSchema, out, 201);
       });
     },
   };
