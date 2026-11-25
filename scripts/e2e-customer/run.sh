@@ -28,6 +28,8 @@ start main || { stop; exit 1; }
 cd "$H" && node journey.mjs "$LABEL" main
 # Every-button check instead of the rest of the run (owner, 17 Nov): E2E_CLICKALL=1.
 if [ "${E2E_CLICKALL:-}" = 1 ]; then cd "$H" && node clickall.mjs "$LABEL"; stop; exit 0; fi
+# Bounded load check against this disposable stack only (audit 25 Nov): E2E_LOADCHECK=1 [E2E_LOAD_N, E2E_LOAD_C].
+if [ "${E2E_LOADCHECK:-}" = 1 ]; then cd "$H/../.." && node --import tsx scripts/load-check.ts http://localhost:4000 "$E/identities.json" "${E2E_LOAD_N:-200}" "${E2E_LOAD_C:-10}"; stop; exit 0; fi
 # Break-it pass (2026-10-26): new workflows, lost responses, double clicks, cross-workspace ids, concurrent spending.
 cd "$H" && node breakit.mjs "$LABEL"
 stop; start restart || { stop; exit 1; }

@@ -29,10 +29,14 @@ export async function createBudgetGate(sql: postgres.Sql, o: { capUsd: number; s
   await sql`create table if not exists catalog_build.spend_reservations (
     id bigserial primary key, amount numeric(12, 6) not null check (amount >= 0),
     created_at timestamptz not null default now(), expires_at timestamptz not null, released_at timestamptz)`;
+  // One statement, so spend and open reservations come from the same snapshot. Read in two statements, a call that
+  // recorded its cost and released its reservation between them was counted in neither, and one extra request got
+  // past the cap (found 25 Nov: the 20-request race test let a sixth 0.1 call through a 0.5 cap).
   const totals = async (tx: postgres.TransactionSql | postgres.Sql) => {
-    const [s] = await tx<{ v: string }[]>`select coalesce(sum(cost_usd), 0)::text v from platform.provider_calls where created_at >= ${o.since.toISOString()}::timestamptz`;
-    const [r] = await tx<{ v: string }[]>`select coalesce(sum(amount), 0)::text v from catalog_build.spend_reservations where released_at is null and expires_at > now()`;
-    return { spent: Number(s?.v ?? 0), open: Number(r?.v ?? 0) };
+    const [t] = await tx<{ s: string; r: string }[]>`select
+      (select coalesce(sum(cost_usd), 0) from platform.provider_calls where created_at >= ${o.since.toISOString()}::timestamptz)::text s,
+      (select coalesce(sum(amount), 0) from catalog_build.spend_reservations where released_at is null and expires_at > now())::text r`;
+    return { spent: Number(t?.s ?? 0), open: Number(t?.r ?? 0) };
   };
   return {
     async guard(estimateUsd, call) {

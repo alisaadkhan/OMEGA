@@ -369,6 +369,8 @@ if (phase === "main") {
       await chats.first().click();
       const drawer = p.getByRole("dialog", { name: /^Chat with / });
       await drawer.waitFor({ timeout: 10000 });
+      // The panel loads the creator's campaigns first (a spinner); wait for it rather than reading it mid-load.
+      await drawer.getByText(/Add to Campaign|Sent from the campaign|Campaign/).first().waitFor({ timeout: 15000 }).catch(() => {});
       check("search", "Chat opens the outreach email panel (campaign composer or add to a campaign first)", /Add to Campaign|Sent from the campaign|Campaign/.test(await drawer.innerText()));
       await p.keyboard.press("Escape");
     }

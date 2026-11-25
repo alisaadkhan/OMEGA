@@ -219,6 +219,9 @@ describe("interpretation", () => {
     expect(out).toEqual({
       chips: { platform: "instagram", creatorCity: "Lahore", niches: ["Bridal"], followersMin: 50_000, verifiedOnly: false, hasContact: false, freshOnly: false },
       keywords: ["wedding"],
+      // What MUSHIN understood and from where (every chip was stated in the brief); the unknown niche "Crypto" is dropped.
+      followUp: null,
+      understood: { basis: { creatorCity: "stated", followers: "stated", "niche:Bridal": "stated", platform: "stated" }, notFilters: [] },
     });
     expect(llm.calls[0]).toMatchObject({ feature: "search_interpret", ctx: { workspaceId: c.workspaceId, requestId: "req-search" } });
     expect(llm.calls[0]?.input).toContain("<query>");
