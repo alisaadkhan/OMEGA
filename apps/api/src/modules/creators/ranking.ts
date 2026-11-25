@@ -48,7 +48,7 @@ export function toCards(rows: repo.CardRow[], req: { text: string; filters: Sear
       const engagementRate = restricted ? null : r.engagementRate;
       const authenticityScore = restricted ? null : r.authenticityScore;
       const score = fitScore(
-        { textScore: req.text ? (relevance.get(r.id) ?? 0) : null, followers: r.followers, engagementRate, authenticityScore, followersFreshness },
+        { textScore: req.text ? (relevance.get(r.id) ?? 0) : null, followers: r.followers, engagementRate, platform: r.primaryPlatform, authenticityScore, followersFreshness },
         req.filters,
         settings.weights,
       );

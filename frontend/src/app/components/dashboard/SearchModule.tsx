@@ -22,7 +22,7 @@ import {
 import { CreatorProfilePanel, type Creator } from "./CreatorProfilePanel";
 import { AddByLinkDialog } from "./AddByLinkDialog";
 import { Compare } from "./Compare";
-import type { InterpretResponse, SearchFilters, SearchRequest } from "@mushin/contracts";
+import { engagementScore, type InterpretResponse, type SearchFilters, type SearchRequest } from "@mushin/contracts";
 import { useCreateSavedSearch, useCreatorSearch, useDeleteSavedSearch, useInterpret, useSavedSearches } from "../../api/search";
 import { useActionCosts, useBillingSummary } from "../../api/billing";
 import { providerActionsLockedText } from "../../lib/provider-actions";
@@ -79,7 +79,7 @@ type Status = "idle" | "loading" | "streaming" | "results" | "empty" | "error";
 const SORT_LABELS: Record<SortKey, string> = {
   relevance: "Relevance (MUSHIN IQ)",
   followers: "Followers",
-  engagement: "Engagement rate",
+  engagement: "Engagement score",
   freshness: "Data freshness",
 };
 
@@ -172,7 +172,11 @@ export function SearchModule({ liveJobId = null, onGoToCampaigns }: { liveJobId?
   const filtered = useMemo(() => {
     const list = (search.data?.results ?? []).map(searchResultToCreator);
     if (sortKey === "followers") return [...list].sort((a, b) => (a.followersNum === null ? 1 : b.followersNum === null ? -1 : b.followersNum - a.followersNum));
-    if (sortKey === "engagement") return [...list].sort((a, b) => (a.engagement === null ? 1 : b.engagement === null ? -1 : b.engagement - a.engagement));
+    // By the per-platform Engagement Score (owner, 25 Nov), so a YouTube and an Instagram creator compare fairly.
+    if (sortKey === "engagement") {
+      const score = (c: Creator) => engagementScore(c.engagement, c.platform);
+      return [...list].sort((a, b) => { const x = score(a), y = score(b); return x === null ? 1 : y === null ? -1 : y - x; });
+    }
     if (sortKey === "freshness") return [...list].sort((a, b) => FRESH_RANK[a.followersFreshness] - FRESH_RANK[b.followersFreshness]);
     return list; // relevance: the API's fit order
   }, [search.data, sortKey]);

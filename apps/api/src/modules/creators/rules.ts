@@ -1,6 +1,7 @@
 import type { ContactAvailability, CreatorCard, InterpretResponse, SearchFilters } from "@mushin/contracts";
 import { sha256Hex } from "@mushin/core";
 import { CITY_CONCEPTS, cityForms } from "./aliases";
+import { engagementScore, type ScorePlatform } from "@mushin/contracts";
 
 /** City filter values for an exact-match index: every alias form plus the canonical spelling. */
 function cityFilterValues(value: string): string[] {
@@ -18,6 +19,9 @@ export type FitInput = {
   textScore: number | null;
   followers: number | null;
   engagementRate: number | null;
+  /** The rate's platform: engagement counts through the per-platform Engagement Score (owner, 25 Nov), so YouTube,
+   *  Instagram and TikTok compare fairly. Without it the raw rate is used (older callers). */
+  platform?: ScorePlatform;
   authenticityScore: number | null;
   followersFreshness: Freshness;
 };
@@ -58,7 +62,7 @@ export function fitScore(c: FitInput, f: SearchFilters, w: FitWeights): number {
   const weighted =
     w.text * (c.textScore === null ? 1 : clamp01(c.textScore)) +
     w.filters * filterCloseness(f, c.followers, c.engagementRate) +
-    w.engagement * clamp01((c.engagementRate ?? 0) / 10) +
+    w.engagement * (c.platform ? (engagementScore(c.engagementRate, c.platform) ?? 0) / 10 : clamp01((c.engagementRate ?? 0) / 10)) +
     w.authenticity * (c.authenticityScore === null ? 0.5 : clamp01(c.authenticityScore / 100)) +
     w.freshness * FRESH_SCORE[c.followersFreshness];
   return Math.round((100 * weighted) / total);

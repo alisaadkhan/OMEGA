@@ -159,7 +159,7 @@ export function createPostgresCatalogSearch(db: Db): CatalogSearch {
         `);
 
       if (!text) {
-        const rows = await run(null, sql`0`, sql`d.engagement_rate desc nulls last, d.authenticity_score desc nulls last, d.followers desc nulls last, d.creator_id`, limit);
+        const rows = await run(null, sql`0`, sql`platform.engagement_score(d.engagement_rate, c.primary_platform) desc nulls last, d.authenticity_score desc nulls last, d.followers desc nulls last, d.creator_id`, limit);
         return { hits: rows.map((r) => ({ id: r.id, rankingScore: 0 })), total: Number(rows[0]?.exactTotal ?? 0) };
       }
 
