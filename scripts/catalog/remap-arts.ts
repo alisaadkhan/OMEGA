@@ -2,8 +2,11 @@
  * Arts & Design re-map (owner, 25 Nov): creators filed under Education & How-to or Entertainment (or with no niche) whose
  * own name, handle, tags or bio say they do graphic/UI design, video editing or filmmaking, photography, calligraphy or
  * art move to Arts & Design as their main niche. The old main niche stays as the secondary one (a calligraphy teacher
- * is still Education & How-to second). Other main niches (a Bridal wedding photographer) are left as they are. Dry run by
- * default; --apply writes and re-projects the changed creators. Prints names only, never a contact.
+ * is still Education & How-to second). Wedding photographers and videographers keep Bridal as their main niche and gain
+ * Arts & Design as a secondary one (owner, 25 Nov), recognised by their name or handle (photography, videography,
+ * filming) or a bio that calls them a photographer or videographer as a word of its own (a "#weddingphotography" tag or
+ * an "@…photography" credit is not enough). Dry run by default; --apply writes and re-projects the changed creators.
+ * Prints names only, never a contact.
  *
  *   node --env-file=.env --import tsx scripts/catalog/remap-arts.ts --db mushin_catalog_v4 [--apply]
  *   DATABASE_SSL_CA_FILE=prod-ca-2021.crt node --env-file=.env --import tsx scripts/catalog/remap-arts.ts --live --expect-ref yknp [--apply]
@@ -48,17 +51,34 @@ const rows = await db.withSystem((tx) =>
             (select string_agg(p.bio, ' ') from gcp.creator_profiles p where p.creator_id = c.id))) ~ ${ARTS_PATTERN}
     order by c.display_name`),
 );
+// Bridal wedding photographers and videographers: Arts & Design as a secondary niche.
+const PHOTO_NAME = "(photograph|videograph|filming|films)";
+const PHOTO_BIO = "(^|[^#@a-z0-9_.])(photographers?|videographers?|videography|cinematographers?)([^a-z0-9_]|$)";
+const bridal = await db.withSystem((tx) =>
+  tx.execute<Row>(sql`
+    select c.id::text, c.display_name as name, c.niche_main as main, coalesce(c.niches, '{}') as niches
+    from gcp.creators c
+    where c.status <> 'trashed' and c.niche_main = 'Bridal' and not (${ARTS} = any(coalesce(c.niches, '{}')))
+      and (lower(concat_ws(' ', c.display_name, c.primary_handle)) ~ ${PHOTO_NAME}
+        or exists (select 1 from gcp.creator_profiles p where p.creator_id = c.id and (lower(p.handle) ~ ${PHOTO_NAME} or lower(coalesce(p.bio, '')) ~ ${PHOTO_BIO})))
+    order by c.display_name`),
+);
+const secondary = bridal.map((r) => ({ ...r, next: ["Bridal", ARTS, ...r.niches.filter((n) => n !== "Bridal" && n !== ARTS)].slice(0, 3) }));
+for (const c of secondary) logger.info({ creator: c.name, niches: c.next }, "add Arts & Design as secondary");
+
 const changes = rows.map((r) => ({ ...r, next: [ARTS, ...[r.main, ...r.niches].filter((n): n is string => !!n && n !== ARTS)].filter((n, i, a) => a.indexOf(n) === i).slice(0, 3) }));
 for (const c of changes) logger.info({ creator: c.name, from: c.main, niches: c.next }, "re-map");
-logger.info({ target: values.live ? "live" : values.db, mode: values.apply ? "apply" : "dry-run", creators: changes.length }, "Arts & Design re-map");
+logger.info({ target: values.live ? "live" : values.db, mode: values.apply ? "apply" : "dry-run", mainNiche: changes.length, secondaryNiche: secondary.length }, "Arts & Design re-map");
 
-if (values.apply && changes.length > 0) {
+if (values.apply && changes.length + secondary.length > 0) {
   await db.withSystem(async (tx) => {
     for (const c of changes)
       await tx.execute(sql`update gcp.creators set niche_main = ${ARTS}, niches = array[${sql.join(c.next.map((n) => sql`${n}`), sql`, `)}]::text[], niche_status = 'classified',
         niche_confidence = coalesce(niche_confidence, 'medium'), niche_source = coalesce(niche_source, 'bio_identified'), niche_assessed_at = now(), updated_at = now()
         where id = ${c.id}::uuid`);
+    for (const c of secondary)
+      await tx.execute(sql`update gcp.creators set niches = array[${sql.join(c.next.map((n) => sql`${n}`), sql`, `)}]::text[], updated_at = now() where id = ${c.id}::uuid`);
   });
-  await createCreatorIndexer({ db, index: null, logger, sourcePolicy: { youtubeDerivedMetrics: process.env["YOUTUBE_DERIVED_METRICS"] === "on" } }).sync(changes.map((c) => c.id));
+  await createCreatorIndexer({ db, index: null, logger, sourcePolicy: { youtubeDerivedMetrics: process.env["YOUTUBE_DERIVED_METRICS"] === "on" } }).sync([...changes, ...secondary].map((c) => c.id));
 }
 await db.close();

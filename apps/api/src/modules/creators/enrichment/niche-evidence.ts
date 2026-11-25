@@ -162,9 +162,12 @@ export function classifyNiche(o: { displayName: string; bio: string; accountCate
   // the subject is the main niche and Education & How-to the secondary one (owner master directive 2026-11-03).
   const educationTie = bioRank.length === 2 && (bioRank[1]?.[0] === EDUCATION || (bioRank[0]?.[0] === EDUCATION && bioRank[0]?.[1] === bioRank[1]?.[1]));
   if (educationTie && bioRank[0]?.[0] === EDUCATION) [bioRank[0], bioRank[1]] = [bioRank[1] as [string, number], bioRank[0] as [string, number]];
+  // A wedding photographer or videographer is Bridal first, Arts & Design second (owner, 25 Nov).
+  const bridalArts = bioRank.length === 2 && new Set([bioRank[0]?.[0], bioRank[1]?.[0]]).size === 2 && [bioRank[0]?.[0], bioRank[1]?.[0]].every((l) => l === "Bridal" || l === "Arts & Design");
+  if (bridalArts && bioRank[0]?.[0] === "Arts & Design") [bioRank[0], bioRank[1]] = [bioRank[1] as [string, number], bioRank[0] as [string, number]];
   const [b1, s1] = bioRank[0] ?? [null, 0];
   const s2 = bioRank[1]?.[1] ?? 0;
-  const bioClear = b1 !== null && (bioRank.length === 1 || s1 >= 2 * s2 || educationTie);
+  const bioClear = b1 !== null && (bioRank.length === 1 || s1 >= 2 * s2 || educationTie || bridalArts);
   const bioRow = (label: string, status: NicheObservation["status"]): NicheObservation =>
     catLabels.has(label) && !bioLabels.has(label)
       ? { value: label, source: "account_category", status, evidence: `Account category on the platform: ${o.accountCategory}` }

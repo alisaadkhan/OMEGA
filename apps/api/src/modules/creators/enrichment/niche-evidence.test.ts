@@ -53,7 +53,8 @@ describe("niche classification: bio first", () => {
   it("files calligraphy, photography and design under Arts & Design, with a teaching channel's how-to second (owner, 25 Nov)", () => {
     const calligraphy = niche({ bio: "Urdu and Arabic calligraphy tutorials for beginners" });
     expect(calligraphy).toMatchObject({ status: "classified", main: "Arts & Design" });
-    expect(niche({ bio: "Wedding photographer and videographer, Lahore" }).main).toBe("Arts & Design");
+    // A wedding photographer stays Bridal first, with Arts & Design second.
+    expect(niche({ bio: "Wedding photographer and videographer, Lahore" })).toMatchObject({ main: "Bridal", niches: ["Bridal", "Arts & Design"] });
     expect(niche({ bio: "Graphic designer sharing logo design tips" }).main).toBe("Arts & Design");
   });
 

@@ -30,7 +30,8 @@ import { createDatabase, createDbProviderCallSink, createDbProviderRunStore, cre
 import { createLlm, createPayments, createProfileScraper, createSerperSearch, createSharedSpendGuard, createYouTubeSearch, ProviderError, type Llm, type ProfileScraper, type WebSearch } from "@mushin/integrations";
 import postgres from "postgres";
 import { BudgetExhausted, createBudgetGate } from "./budget";
-import { seedMatrix, type SeedPlatform } from "../../apps/api/src/modules/creators/discovery-seeds";
+import { rotationQueries, seedMatrix, type SeedPlatform } from "../../apps/api/src/modules/creators/discovery-seeds";
+import { createYouTubeApi, runYouTubeExpansion } from "./youtube-expand";
 import { fileStorage } from "./file-storage";
 import { sql } from "drizzle-orm";
 import { createBillingService, noAccessCache } from "../../apps/api/src/modules/billing/index";
@@ -39,10 +40,10 @@ import { createCachedSearch, createDiscoveryRunner, createDiscoveryService, crea
 
 const { positionals, values } = parseArgs({
   allowPositionals: true,
-  options: { handles: { type: "string" }, "missing-avatars": { type: "boolean", default: false }, "min-refs": { type: "string", default: "2" }, manifest: { type: "string" }, db: { type: "string" }, cap: { type: "string", default: "20" }, platform: { type: "string" }, limit: { type: "string" }, niches: { type: "string" }, cities: { type: "string" }, size: { type: "string", default: "10" }, label: { type: "string", default: "main" }, "llm-dump": { type: "string" }, "llm-answers": { type: "string" }, "include-locked": { type: "boolean", default: false }, matrix: { type: "boolean", default: false }, offset: { type: "string" }, headroom: { type: "string", default: "1" } },
+  options: { handles: { type: "string" }, "missing-avatars": { type: "boolean", default: false }, "min-refs": { type: "string", default: "2" }, manifest: { type: "string" }, db: { type: "string" }, cap: { type: "string", default: "20" }, platform: { type: "string" }, limit: { type: "string" }, niches: { type: "string" }, cities: { type: "string" }, size: { type: "string", default: "10" }, label: { type: "string", default: "main" }, "llm-dump": { type: "string" }, "llm-answers": { type: "string" }, "include-locked": { type: "boolean", default: false }, matrix: { type: "boolean", default: false }, offset: { type: "string" }, quota: { type: "string", default: "9000" }, featured: { type: "string", default: "150" }, "ingest-limit": { type: "string" }, headroom: { type: "string", default: "1" } },
 });
 const mode = positionals[0];
-if (mode !== "refresh" && mode !== "discover" && mode !== "reassess" && mode !== "seed" && mode !== "expand" && mode !== "reprocess") throw new Error("usage: build.ts <refresh|discover|reassess|seed|expand> --db <catalogue db> --cap <usd> [--manifest <seed.json>] [--limit n] [--min-refs n]");
+if (mode !== "refresh" && mode !== "discover" && mode !== "reassess" && mode !== "seed" && mode !== "expand" && mode !== "reprocess" && mode !== "youtube") throw new Error("usage: build.ts <refresh|discover|reassess|seed|expand|youtube> --db <catalogue db> --cap <usd> [--manifest <seed.json>] [--limit n] [--min-refs n]");
 const dbName = values.db ?? "";
 if (!/^mushin_catalog_[a-z0-9_]+$/.test(dbName)) throw new Error("--db must name a local catalogue database (mushin_catalog_*); the frozen corpus is never a target");
 const capUsd = Number(values.cap);
@@ -312,6 +313,25 @@ if (mode === "reassess") {
     tried.add(h);
     writeFileSync(triedFile, JSON.stringify([...tried]));
   }
+} else if (mode === "youtube") {
+  // $0 YouTube expansion (owner, 25 Nov): YouTube Data API only (no Serper, no Apify). --limit = search queries (an even
+  // rotation over the 16 verticals and cities), --quota = the units this run may use, --featured = how many qualified
+  // YouTube creators' featured channels and About links are read. Then run trash-unqualified.ts.
+  if (!config.scraping.youtubeApiKey) throw new Error("youtube needs YOUTUBE_API_CALLS=on and YOUTUBE_API_KEY");
+  const api = createYouTubeApi({ apiKey: config.scraping.youtubeApiKey, sink, logger });
+  const out = await runYouTubeExpansion({
+    db, api, logger, quotaUnits: Number(values.quota), featuredFrom: Number(values.featured), ...(values["ingest-limit"] ? { maxIngest: Number(values["ingest-limit"]) } : {}),
+    queries: rotationQueries(Number(values.limit ?? 78)),
+    recordedUnits: async () => Number((await db.withSystem((tx) => tx.execute<{ u: string }>(sql`select coalesce(sum(units), 0)::text u from platform.provider_calls where provider = 'youtube' and created_at >= ${started.toISOString()}::timestamptz`)))[0]?.u ?? 0),
+    ingest: async (u) => {
+      const res = await discovery.start(ctx, { kind: "add_by_url", url: u, confirmedCost: 50 });
+      const jobId = res.body.status === "started" ? res.body.job.id : null;
+      if (jobId) await profileRunner.run(jobId, ctx.workspaceId).catch((e: Error) => logger.warn({ err: e.message, url: u }, "youtube ingest attempt failed"));
+      const job = jobId ? await discovery.get(ctx, jobId) : null;
+      return { status: job?.status ?? res.body.status, outcome: job?.outcome ?? null, error: job?.error?.code ?? null };
+    },
+  });
+  report.push(out as unknown as Record<string, unknown>);
 } else if (mode === "reprocess") {
   // Pilot (owner unified plan 2026-11-14, Phase 7): the full enrichment pipeline over each handle's newest stored answer
   // (account type, niche, contacts, location, metrics, AI assessment, photo), exactly as a fetch would save it, with no
@@ -451,7 +471,7 @@ if (mode === "reassess") {
 
 // New profiles can carry a linked creator's country (linked_profile), and a new creator can give its country to profiles
 // already saved: one save sees only itself, so every country is re-decided once after a seed or expand run (≈ 2 s).
-if (mode === "seed" || mode === "expand") {
+if (mode === "seed" || mode === "expand" || mode === "youtube") {
   const ids = [...(await db.withSystem((tx) => tx.execute<{ id: string }>(sql`select id from gcp.creators where status = 'active'`)))].map((r) => r.id);
   let changed = 0;
   for (let i = 0; i < ids.length; i += 500) changed += (await db.withSystem((tx) => bulkRefreshProfileCountries(tx, ids.slice(i, i + 500), { source: "backfill" }))).length;

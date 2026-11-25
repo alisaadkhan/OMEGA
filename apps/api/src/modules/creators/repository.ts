@@ -1,7 +1,7 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { encryptSecret, sha256Hex } from "@mushin/core";
 import { refreshProfileCountries } from "./enrichment/repository";
-import { bareMentions, prefixedHandleUrls } from "./bio-mentions";
+import { prefixedHandleUrls } from "./bio-mentions";
 import {
   audienceViews,
   contactReveals,
@@ -209,36 +209,22 @@ export function linkedAccounts(tx: Tx, creatorId: string) {
 
 /**
  * Profile and bio/About URLs for many creators at once (owner, 24-25 Nov: link icons on the profile and campaign lists):
- * the creator's own profiles, then stored bio links, then @handles from the bio where the platform is certain (named
- * before the handle, or the handle is already a catalogue profile; a bare "@name" is never guessed). As on the
- * profile, a possible minor's bio links and mentions are withheld; their own profile URLs are not.
+ * the creator's own profiles, then stored bio links, then @handles from the bio whose platform is named right before
+ * them ("IG: @name"). A bare "@name" is never turned into a link: its platform would be a guess, and a catalogue match
+ * counts only for the SAME creator (never a collaborator's, manager's or friend's account, owner 25 Nov), whose
+ * profiles are already listed first. As on the profile, a possible minor's bio links are withheld; their own profile
+ * URLs are not.
  */
 export async function bioLinkUrls(tx: Tx, ids: string[]): Promise<Map<string, string[]>> {
   if (ids.length === 0) return new Map();
-  const rows = await tx.execute<{ id: string; own: string[]; links: string[]; handles: string[]; bios: string[]; protected: boolean }>(sql`
+  const rows = await tx.execute<{ id: string; own: string[]; links: string[]; bios: string[]; protected: boolean }>(sql`
     select c.id,
       array(select p.canonical_url from gcp.creator_profiles p where p.creator_id = c.id and p.canonical_url is not null order by p.followers desc nulls last) as own,
       array(select l.url from gcp.creator_links l where l.creator_id = c.id order by l.first_seen_at limit 10) as links,
-      array(select lower(p.handle) from gcp.creator_profiles p where p.creator_id = c.id) as handles,
       array(select p.bio from gcp.creator_profiles p where p.creator_id = c.id and p.bio is not null) as bios,
       (c.is_minor and c.minor_override_by_staff_id is null) as protected
     from gcp.creators c where c.id in ${ids}`);
-  const mentions = new Set<string>();
-  for (const r of rows) if (!r.protected) for (const b of r.bios) for (const h of bareMentions(b)) if (!r.handles.includes(h)) mentions.add(h);
-  const known = new Map<string, string>();
-  if (mentions.size > 0) {
-    const found = await tx.execute<{ handle: string; url: string }>(sql`
-      select distinct on (lower(p.handle)) lower(p.handle) as handle, p.canonical_url as url
-      from gcp.creator_profiles p join gcp.creators c on c.id = p.creator_id
-      where lower(p.handle) in ${[...mentions]} and p.canonical_url is not null and ${VISIBLE}
-      order by lower(p.handle), p.followers desc nulls last`);
-    for (const f of found) known.set(f.handle, f.url);
-  }
-  return new Map(rows.map((r) => {
-    if (r.protected) return [r.id, r.own];
-    const fromBios = r.bios.flatMap((b) => [...prefixedHandleUrls(b), ...bareMentions(b).flatMap((h) => known.get(h) ?? [])]);
-    return [r.id, [...r.own, ...r.links, ...fromBios]];
-  }));
+  return new Map(rows.map((r) => [r.id, r.protected ? r.own : [...r.own, ...r.links, ...r.bios.flatMap(prefixedHandleUrls)]]));
 }
 
 /** Why city, country, niches and languages are known (0052): every observation with its source and status. */

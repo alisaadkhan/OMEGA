@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SEED_CITIES, SEED_VERTICALS, seedMatrix } from "./discovery-seeds";
+import { rotationQueries, SEED_CITIES, SEED_VERTICALS, seedMatrix } from "./discovery-seeds";
 import { NICHE_TAXONOMY } from "./terminology";
 
 describe("catalogue expansion seed matrix (owner, 24 Nov)", () => {
@@ -31,5 +31,17 @@ describe("catalogue expansion seed matrix (owner, 24 Nov)", () => {
 
   it("can be limited to some platforms", () => {
     expect(new Set(seedMatrix({ platforms: ["tiktok"] }).map((c) => c.platform))).toEqual(new Set(["tiktok"]));
+  });
+
+  it("rotates a small wave evenly over all 16 verticals and many cities, Arts & Design included", () => {
+    const q = rotationQueries(78);
+    expect(q).toHaveLength(78);
+    const per = new Map<string, number>();
+    for (const x of q) per.set(x.vertical, (per.get(x.vertical) ?? 0) + 1);
+    expect(per.size).toBe(16);
+    expect(Math.max(...per.values()) - Math.min(...per.values())).toBeLessThanOrEqual(1);
+    expect(new Set(q.map((x) => x.city).filter(Boolean)).size).toBeGreaterThanOrEqual(12);
+    expect(q.some((x) => x.mainNiche === "Arts & Design")).toBe(true);
+    expect(new Set(q.map((x) => x.text)).size).toBe(78);
   });
 });

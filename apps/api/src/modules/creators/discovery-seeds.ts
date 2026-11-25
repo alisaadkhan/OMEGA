@@ -54,3 +54,21 @@ export function seedMatrix(o: { platforms?: readonly SeedPlatform[] } = {}): See
   for (const city of SEED_CITIES) for (const [vertical, subs] of SEED_VERTICALS) for (const sub of subs) push(vertical, sub, city, `${sub[2]} ${city}`);
   return cells;
 }
+
+/**
+ * An even rotation for a small wave (owner, 25 Nov: "~75–80 YouTube searches across all verticals and cities"): round 0
+ * takes each vertical's first sub-niche nationally, every later round the next sub-niche in a different city per
+ * vertical, so n queries cover all 16 verticals about equally and spread over the cities.
+ */
+export function rotationQueries(n: number): { text: string; vertical: string; mainNiche: Main; secondaryNiche: string; city: string | null }[] {
+  const out: { text: string; vertical: string; mainNiche: Main; secondaryNiche: string; city: string | null }[] = [];
+  for (let round = 0; out.length < n && round < 100; round++) {
+    SEED_VERTICALS.forEach(([vertical, subs], v) => {
+      if (out.length >= n) return;
+      const [main, secondary, phrase] = subs[round % subs.length] as [Main, string, string];
+      const city = round === 0 ? null : (SEED_CITIES[(round - 1 + v) % SEED_CITIES.length] ?? null);
+      out.push({ text: `${phrase} ${city ?? "Pakistan"}`, vertical, mainNiche: main, secondaryNiche: secondary, city });
+    });
+  }
+  return out;
+}

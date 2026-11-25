@@ -1,8 +1,8 @@
 /**
- * @handles written in a bio without a link (owner, 25 Nov). A bare "@name" is NOT turned into a URL by guessing the
- * platform (many point to an Instagram account or a manager, not TikTok). Only two cases become a link:
- *   1. the bio names the platform right before it: "IG: @name", "insta - name", "TikTok: @name", "tt @name", "YT: @name";
- *   2. the handle is already a profile in the catalogue (resolved by the caller with `bareMentions`), so its platform is known.
+ * @handles written in a bio without a link (owner, 25 Nov). A bare "@name" is NOT turned into a URL: its platform would
+ * be a guess (many point to an Instagram account or a manager, not TikTok), and a catalogue match counts only when it is
+ * the same creator, whose own profiles are listed anyway. Only a handle whose platform the bio names right before it
+ * becomes a link: "IG: @name", "insta - name", "TikTok: @name", "tt @name", "YT: @name".
  */
 export type MentionPlatform = "instagram" | "tiktok" | "youtube";
 
@@ -35,14 +35,4 @@ export function prefixedHandleUrls(text: string): string[] {
     }
   }
   return out;
-}
-
-/** Every "@name" in the text that is not part of an email address or a URL (for the catalogue lookup). */
-export function bareMentions(text: string): string[] {
-  const out = new Set<string>();
-  for (const m of text.matchAll(/(?<![A-Za-z0-9._%+\-/@])@([A-Za-z0-9._]{2,30})/g)) {
-    const h = clean(m[1] ?? "");
-    if (h) out.add(h.toLowerCase());
-  }
-  return [...out];
 }
