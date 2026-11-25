@@ -101,11 +101,19 @@ export function createCreatorsService(deps: CreatorsDeps) {
    * Usage events (0065). Recorded after the answer is built and never allowed to fail it: an event that cannot be written
    * is logged and dropped. No query text and nothing about the viewer is exposed to staff.
    */
-  async function recordSearch(ctx: TenantContext, e: { backend: "postgres" | "meilisearch"; results: number; complete: boolean; charged: boolean; hasText: boolean; filterCount: number }) {
+  async function recordSearch(
+    ctx: TenantContext,
+    e: { backend: "postgres" | "meilisearch"; results: number; complete: boolean; charged: boolean; hasText: boolean; filterCount: number; filters: SearchFilters },
+  ) {
+    // What was searched for, for the staff Stats page (owner, 25 Nov: most searched niche, platform and follower tier;
+    // 0106). Never the search text: only the chosen filters; null means "any".
+    const f = e.filters;
+    const niches = f.niches.length > 0 ? f.niches : null;
     try {
       await deps.db.withTenant(tenant(ctx), (tx) =>
-        tx.execute(sql`insert into wp.search_events (workspace_id, user_id, backend, results, complete, charged, has_text, filter_count)
-          values (${ctx.workspaceId}, ${ctx.userId}, ${e.backend}, ${e.results}, ${e.complete}, ${e.charged}, ${e.hasText}, ${e.filterCount})`),
+        tx.execute(sql`insert into wp.search_events (workspace_id, user_id, backend, results, complete, charged, has_text, filter_count, niches, platform, min_followers, max_followers)
+          values (${ctx.workspaceId}, ${ctx.userId}, ${e.backend}, ${e.results}, ${e.complete}, ${e.charged}, ${e.hasText}, ${e.filterCount},
+            ${niches === null ? null : sql`array[${sql.join(niches.map((n) => sql`${n}`), sql`, `)}]::text[]`}, ${f.platform ?? null}, ${f.followersMin ?? null}, ${f.followersMax ?? null})`),
       );
     } catch (err) {
       deps.logger.warn({ err }, "search event not recorded");
@@ -188,7 +196,7 @@ export function createCreatorsService(deps: CreatorsDeps) {
     // A new search is its first page; paging, sorting and repeats are the same search.
     if (!req.cursor) {
       const filterCount = Object.values(parsed.data).filter((v) => v !== undefined && v !== null && v !== false && !(Array.isArray(v) && v.length === 0)).length;
-      await recordSearch(ctx, { backend, results: cards.length, complete: hits.length < settings.candidatePool, charged: charge.charged, hasText: q.text.trim().length > 0, filterCount });
+      await recordSearch(ctx, { backend, results: cards.length, complete: hits.length < settings.candidatePool, charged: charge.charged, hasText: q.text.trim().length > 0, filterCount, filters: q.filters });
     }
     return {
       ...charge,

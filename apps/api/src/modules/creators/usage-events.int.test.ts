@@ -32,6 +32,20 @@ const searchEvents = () => ownerQuery<{ results: number; charged: boolean; backe
 const stats = async (fn: string) => (await ownerQuery<{ v: Record<string, unknown> }>(`select platform.${fn} v`))[0]?.v;
 
 describe("usage events", () => {
+  it("EV-05 a search records its chosen filters for the staff Stats page; null means any, and the text is never stored (0106)", async () => {
+    await addCreator(db, { niches: ["Bridal"], profiles: [{ followers: 60_000 }] });
+    await indexer.sync((await ownerQuery<{ id: string }>(`select id from gcp.creators`)).map((r) => r.id));
+    const c = await customer();
+    await creators.search(c, searchRequestSchema.parse({ text: "bridal makeup secret brief", filters: { platform: "instagram", niches: ["Bridal"], followersMin: 10_000, followersMax: 100_000 }, confirmedCost: 50 }));
+    await creators.search(c, req(""));
+    expect(await ownerQuery(`select niches, platform, min_followers, max_followers from wp.search_events order by id`)).toEqual([
+      { niches: ["Bridal"], platform: "instagram", min_followers: 10_000, max_followers: 100_000 },
+      { niches: null, platform: null, min_followers: null, max_followers: null },
+    ]);
+    const cols = await ownerQuery<{ column_name: string }>(`select column_name from information_schema.columns where table_schema = 'wp' and table_name = 'search_events'`);
+    expect(cols.map((x) => x.column_name).filter((n) => /text|query|brief/.test(n) && n !== "has_text")).toEqual([]);
+  });
+
   it("EV-01 a search is recorded once (its first page), with the result count, charge and backend; no query text is stored", async () => {
     for (let i = 0; i < 25; i++) await addCreator(db, { displayName: `Lahore Food ${i}`, niches: ["Food"] });
     await indexer.sync((await ownerQuery<{ id: string }>(`select id from gcp.creators`)).map((r) => r.id));
