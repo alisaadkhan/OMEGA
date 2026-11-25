@@ -69,7 +69,7 @@ function AssignPlan({ workspaceId, onDone }: { workspaceId: string; onDone: () =
   );
 }
 
-function AddCredits({ workspaceId, role, onDone }: { workspaceId: string; role: AdminRole; onDone: () => void }) {
+export function AddCredits({ workspaceId, role, onDone }: { workspaceId: string; role: AdminRole; onDone: () => void }) {
   const keyed = useKeyed();
   const toast = useToast();
   const [amount, setAmount] = useState(500);
@@ -139,7 +139,9 @@ export function AccountDrawer({ workspace, role, onClose }: { workspace: StaffWo
   const qc = useQueryClient();
   const admin = role !== "support";
   const acct = useQuery({ queryKey: ["admin", "account", workspace.id], queryFn: () => adminRequest(`/admin/v1/ops/workspaces/${workspace.id}/account`, staffAccountSchema), enabled: admin });
-  const feed = useQuery({ queryKey: ["admin", "account-activity", workspace.id], queryFn: () => adminRequest(`/admin/v1/ops/workspaces/${workspace.id}/activity?limit=20`, activityFeedSchema), enabled: admin });
+  const [allActivity, setAllActivity] = useState(false);
+  const limit = allActivity ? 100 : 20;
+  const feed = useQuery({ queryKey: ["admin", "account-activity", workspace.id, limit], queryFn: () => adminRequest(`/admin/v1/ops/workspaces/${workspace.id}/activity?limit=${limit}`, activityFeedSchema), enabled: admin });
   const refresh = () => void qc.invalidateQueries({ queryKey: ["admin"] });
   const a = acct.data;
   const plan = a?.plan;
@@ -182,9 +184,12 @@ export function AccountDrawer({ workspace, role, onClose }: { workspace: StaffWo
             <ul className="space-y-1.5">{a.members.map((m) => <li key={m.email} className="flex items-center justify-between rounded-xl border border-slate-200/80 bg-slate-50 p-2.5"><span className="min-w-0 truncate"><span className="font-semibold text-slate-900">{m.name ?? m.email}</span> <span className="text-slate-500">{m.name ? m.email : ""}</span></span><Badge tone={m.role === "owner" ? "slate" : "cyan"}>{m.role}</Badge></li>)}</ul>
           </Section>
           <AccountHistory h={a.history} />
-          <Section title="Recent activity">
+          <Section title={allActivity ? "All activity (latest 100)" : "Recent activity"}>
             {feed.isPending ? <LoadingBlock lines={3} /> : feed.isError ? <ErrorState body={errText(feed.error)} /> : feed.data.events.length === 0 ? <p className="text-slate-500">No activity recorded.</p> : (
-              <ul className="space-y-1.5">{feed.data.events.map((e) => <li key={e.id} className="flex items-center justify-between gap-2 rounded-xl border border-slate-200/80 bg-slate-50 p-2.5"><span className="min-w-0 truncate text-slate-800">{e.actor?.name ?? "Someone"} {e.text}</span><span className="shrink-0 font-mono text-[10px] text-slate-400">{fmtAgo(e.at)}</span></li>)}</ul>
+              <>
+                <ul className="space-y-1.5">{feed.data.events.map((e) => <li key={e.id} className="flex items-center justify-between gap-2 rounded-xl border border-slate-200/80 bg-slate-50 p-2.5"><span className="min-w-0 truncate text-slate-800">{e.actor?.name ?? "Someone"} {e.text}</span><span className="shrink-0 font-mono text-[10px] text-slate-500">{fmtWhen(e.at)}</span></li>)}</ul>
+                {!allActivity && feed.data.events.length >= 20 && <button type="button" onClick={() => setAllActivity(true)} className="btn btn-outline btn-sm mt-2 w-full">Show all activity</button>}
+              </>
             )}
           </Section>
           <Section title="Add credits"><AddCredits workspaceId={workspace.id} role={role} onDone={refresh} /></Section>

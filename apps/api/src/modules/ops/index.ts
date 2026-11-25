@@ -84,7 +84,10 @@ export function createOpsModule(o: { db: Db; requireStaff: (action: StaffAction)
       // Who started each job (owner, 25 Nov), shown to staff with the account and the search.
       const ids = jobs.map((j) => j.id);
       const who = ids.length ? ((await json((tx) => tx.execute(sql`select platform.staff_job_requesters(${`{${ids.join(",")}}`}::uuid[]) v`))) as Record<string, string> | null) : null;
-      return sendOk(reply, staffJobListSchema, { jobs: jobs.map((j) => ({ ...j, requestedBy: who?.[j.id] ?? null })) });
+      // Full email for Admin and Super Admin only (allowlist); every other role sees it masked like the accounts list.
+      const r = staffOf(req).role;
+      const show = (e: string | undefined) => (!e ? null : r === "admin" || r === "super_admin" ? e : `${e.slice(0, 1)}***@${e.split("@")[1] ?? ""}`);
+      return sendOk(reply, staffJobListSchema, { jobs: jobs.map((j) => ({ ...j, requestedBy: show(who?.[j.id]) })) });
     });
 
     app.get("/admin/v1/ops/jobs/:id", { preHandler: o.requireStaff("ops.jobs.read") }, async (req, reply) => {
@@ -134,9 +137,13 @@ export function createOpsModule(o: { db: Db; requireStaff: (action: StaffAction)
 
     app.get("/admin/v1/ops/workspaces", { preHandler: o.requireStaff("ops.workspaces.read") }, async (req, reply) => {
       const { q } = parseInput(staffWorkspaceQuerySchema, req.query);
-      const list = staffWorkspaceListSchema.parse({ workspaces: await json((tx) => tx.execute(sql`select platform.staff_workspaces(${q}) v`)) }).workspaces;
-      if (q) await audit(req, "ops.workspaces.searched", { query: q, results: list.length });
-      // The function already masks the owner email for every staff role.
+      // Admins see full emails and can search by part of an email or a person's id (owner, 25 Nov, 0106); Support keeps
+      // the masked list and exact-email lookup.
+      const role = staffOf(req).role;
+      const full = role === "admin" || role === "super_admin"; // allowlist: a new role never sees full emails by default
+      const fn = full ? sql`platform.staff_workspaces_full(${q})` : sql`platform.staff_workspaces(${q})`;
+      const list = staffWorkspaceListSchema.parse({ workspaces: await json((tx) => tx.execute(sql`select ${fn} v`)) }).workspaces;
+      if (q) await audit(req, "ops.workspaces.searched", { query: q, results: list.length, fullEmails: full });
       return sendOk(reply, staffWorkspaceListSchema, { workspaces: list });
     });
 

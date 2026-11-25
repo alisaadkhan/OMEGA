@@ -5,10 +5,45 @@ import { staffOverviewSchema, staffWorkspaceListSchema, type StaffWorkspace } fr
 import type { AdminRole } from "../../admin/AdminAuthContext";
 import { adminRequest } from "../../admin/adminApi";
 import { ErrorState, LoadingBlock } from "../dashboard/states";
-import { AccountDrawer } from "./AccountDrawer";
-import { Badge, DataTable, Empty, Kpi, PageHeader, Pills, SearchInput, errText, fmtAgo, fmtNum, initials, type Tone } from "./kit";
+import { AccountDrawer, AddCredits } from "./AccountDrawer";
+import { Badge, Card, CardTitle, DataTable, Empty, Kpi, PageHeader, Pills, SearchInput, errText, fmtAgo, fmtNum, initials, type Tone } from "./kit";
 
 type Filter = "all" | "trialing" | "active" | "none";
+
+/**
+ * Give credits by email (owner, 25 Nov: "email is better, less complex"): type a customer's email or user id, pick the
+ * account it belongs to, and add credits there. Admins only (the API shows full emails to Admins).
+ */
+function GiveCredits({ role }: { role: AdminRole }) {
+  const [text, setText] = useState("");
+  const [query, setQuery] = useState("");
+  const [picked, setPicked] = useState<StaffWorkspace | null>(null);
+  useEffect(() => {
+    const t = window.setTimeout(() => setQuery(text.trim()), 350);
+    return () => window.clearTimeout(t);
+  }, [text]);
+  const found = useQuery({ queryKey: ["admin", "workspaces", "give", query], queryFn: () => adminRequest(`/admin/v1/ops/workspaces?q=${encodeURIComponent(query)}`, staffWorkspaceListSchema), enabled: query.length >= 3 });
+  const matches = (found.data?.workspaces ?? []).slice(0, 6);
+  return (
+    <Card label="Give credits">
+      <CardTitle title="Give credits by email" sub="Type the customer's email (or part of it) or their user id, choose the account, then add credits." />
+      <SearchInput value={text} onChange={(v) => { setText(v); setPicked(null); }} placeholder="e.g. farhan@khaadi.com" label="Customer email or user id" />
+      {query.length >= 3 && !picked && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {found.isPending ? <span className="text-xs text-slate-500">Looking…</span> : matches.length === 0 ? <span className="text-xs text-slate-500">No account matches.</span> : matches.map((w) => (
+            <button key={w.id} type="button" onClick={() => setPicked(w)} className="btn btn-soft btn-sm">{w.name} · {w.ownerEmail}</button>
+          ))}
+        </div>
+      )}
+      {picked && (
+        <div className="mt-3 space-y-2">
+          <div className="flex items-center justify-between gap-2 rounded-xl bg-cyan-50 px-3 py-2 text-xs"><span><strong>{picked.name}</strong> · {picked.ownerEmail}</span><button type="button" onClick={() => setPicked(null)} className="btn btn-outline btn-sm">Change</button></div>
+          <AddCredits workspaceId={picked.id} role={role} onDone={() => { setPicked(null); setText(""); }} />
+        </div>
+      )}
+    </Card>
+  );
+}
 const SUB_TONE: Record<string, Tone> = { active: "emerald", trialing: "cyan", past_due: "amber", canceled: "rose", expired: "slate" };
 
 /**
@@ -36,8 +71,9 @@ export function UsersPage({ role }: { role: AdminRole }) {
         <Kpi label="People signed up" value={overview.data ? fmtNum(overview.data.users) : "—"} icon={<UsersIcon className="h-4 w-4" />} hint="Active customer users" />
         <Kpi label="Open tickets" value={overview.data ? fmtNum(overview.data.openTickets) : "—"} icon={<LifeBuoy className="h-4 w-4" />} tone="amber" hint="Waiting on MUSHIN or the customer" />
       </div>
+      {role !== "support" && <GiveCredits role={role} />}
       <section className="flex flex-col justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white p-3.5 shadow-sm xl:flex-row xl:items-center">
-        <div className="min-w-[220px] flex-1"><SearchInput value={text} onChange={setText} placeholder="Search by account name, exact owner email or account id…" label="Search accounts" /></div>
+        <div className="min-w-[220px] flex-1"><SearchInput value={text} onChange={setText} placeholder={role === "support" ? "Search by account name, exact owner email or account id…" : "Search by account name, any part of an email, or an id…"} label="Search accounts" /></div>
         <Pills<Filter> value={filter} onChange={setFilter} label="Filter by subscription" options={[{ id: "all", label: "All" }, { id: "trialing", label: "Trial" }, { id: "active", label: "Subscribed" }, { id: "none", label: "No plan" }]} />
       </section>
       {list.isPending ? <LoadingBlock lines={6} /> : list.isError ? <ErrorState body={errText(list.error)} onRetry={() => void list.refetch()} /> : rows.length === 0 ? <Empty title="No accounts match" body={query ? "Partial email searches are not allowed; use the exact owner email, the account name or its id." : undefined} /> : (

@@ -114,8 +114,8 @@ describe("support tickets and staff operations", () => {
     const bySupport = (await app.inject({ method: "GET", url: "/admin/v1/ops/workspaces?q=ayesha", headers: support })).json() as { workspaces: { ownerEmail: string }[] };
     const byAdmin = (await app.inject({ method: "GET", url: "/admin/v1/ops/workspaces?q=ayesha", headers: admin })).json() as { workspaces: { ownerEmail: string }[] };
     expect(bySupport.workspaces[0]?.ownerEmail).toBe(maskEmail("ayesha@brand.pk"));
-    // Every staff role sees a masked owner email (staff spec: redacted lookup); an exact address still finds the workspace.
-    expect(byAdmin.workspaces[0]?.ownerEmail).toBe(maskEmail("ayesha@brand.pk"));
+    // Support sees a masked owner email; Admins see it in full (owner, 25 Nov: "every user's email visible to admin").
+    expect(byAdmin.workspaces[0]?.ownerEmail).toBe("ayesha@brand.pk");
     const exact = (await app.inject({ method: "GET", url: "/admin/v1/ops/workspaces?q=AYESHA%40brand.pk", headers: support })).json() as { workspaces: unknown[] };
     expect(exact.workspaces).toHaveLength(1);
     expect(((await app.inject({ method: "GET", url: "/admin/v1/ops/workspaces?q=%40brand.pk", headers: support })).json() as { workspaces: unknown[] }).workspaces).toEqual([]);
@@ -182,6 +182,19 @@ describe("support tickets and staff operations", () => {
     expect((await app.inject({ method: "GET", url: "/admin/v1/ops/api-keys", headers: await staffToken("support") })).statusCode).toBe(403);
     const jobs = (await app.inject({ method: "GET", url: "/admin/v1/ops/jobs?status=open", headers: admin })).json() as { jobs: { id: string; requestedBy: string | null }[] };
     expect(jobs.jobs.find((j) => j.id === jobId)?.requestedBy).toBe("keys@brand.pk");
+  });
+
+  it("shows Admins every customer's full email and finds accounts by part of an email; Support keeps masked emails (owner, 25 Nov)", async () => {
+    const { app, customer, staffToken } = await setup();
+    await app.inject({ method: "GET", url: "/v1/me", headers: await customer("farhan@khaadi.pk") });
+    type List = { workspaces: { ownerEmail: string }[] };
+    const admin = await staffToken("admin");
+    const found = (await app.inject({ method: "GET", url: "/admin/v1/ops/workspaces?q=khaadi", headers: admin })).json() as List;
+    expect(found.workspaces.map((w) => w.ownerEmail)).toEqual(["farhan@khaadi.pk"]);
+    const support = await staffToken("support");
+    const masked = (await app.inject({ method: "GET", url: "/admin/v1/ops/workspaces?q=farhan%40khaadi.pk", headers: support })).json() as List;
+    expect(masked.workspaces.map((w) => w.ownerEmail)).toEqual(["f***@khaadi.pk"]);
+    expect(((await app.inject({ method: "GET", url: "/admin/v1/ops/workspaces?q=khaadi", headers: support })).json() as List).workspaces).toEqual([]);
   });
 });
 
