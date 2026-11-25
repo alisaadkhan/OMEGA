@@ -229,31 +229,30 @@ export async function bioLinkUrls(tx: Tx, ids: string[], revealed: ReadonlySet<s
 }
 
 /**
- * Whether a link can carry a phone number, a paid reveal (security review, 25 Nov): a tel:/sms:/whatsapp:/viber: link;
- * a chat host (WhatsApp, Telegram, Signal, Viber); a link shortener (it can redirect to any of these); an Instagram or
- * Facebook redirect to such a link; or any URL holding a run of 9 or more digits anywhere (host, user, path, query or
- * fragment, separators ignored). A link that cannot be parsed counts as carrying one (fail closed).
+ * Whether a link can carry a phone number, a paid reveal (security review, 25 Nov). Fails closed: a link is withheld
+ * before the reveal when it is not plain http(s); cannot be parsed; is on (or below) a chat host (WhatsApp, Telegram,
+ * Signal, Viber...) or a link shortener; names such a host or embeds another URL anywhere (any redirector); or holds 9
+ * or more digits in total anywhere in the URL, digits of every script counted (Urdu and Arabic-Indic digits too).
  */
-const CHAT_HOST = /(^|\.)(wa\.me|wa\.link|whatsapp\.com|whatsapp\.net|t\.me|telegram\.me|telegram\.dog|signal\.me|signal\.group|viber\.com|viber\.click|line\.me|imo\.im)$/;
-const SHORTENER = /^(bit\.ly|tinyurl\.com|cutt\.ly|rb\.gy|t\.co|goo\.gl|shorturl\.at|is\.gd|ow\.ly|tiny\.cc|s\.id|rebrand\.ly|bl\.ink|shorte\.st|v\.gd)$/;
-export function carriesPhone(raw: string, depth = 0): boolean {
+const CHAT = "wa\.me|wa\.link|whatsapp\.com|whatsapp\.net|t\.me|telegram\.me|telegram\.dog|signal\.me|signal\.group|viber\.com|viber\.click|line\.me|imo\.im";
+const SHORT = "bit\.ly|tinyurl\.com|cutt\.ly|rb\.gy|t\.co|goo\.gl|shorturl\.at|is\.gd|ow\.ly|tiny\.cc|s\.id|rebrand\.ly|bl\.ink|shorte\.st|v\.gd";
+const RISKY_HOST = new RegExp(`(^|\.)(${CHAT}|${SHORT})$`);
+const RISKY_INSIDE = new RegExp(`(^|[^a-z0-9-])(${CHAT}|${SHORT})([^a-z0-9-]|$)|https?:|[a-z][a-z0-9+.-]*://`, "i");
+export function carriesPhone(raw: string): boolean {
   let u: URL;
   let whole: string;
   try {
-    const s = raw.trim();
+    const s = raw.trim().normalize("NFKC");
     u = new URL(/^[a-z][a-z0-9+.-]*:/i.test(s) ? s : `https://${s}`);
-    whole = decodeURIComponent(u.href);
+    whole = decodeURIComponent(decodeURIComponent(u.href)).normalize("NFKC");
   } catch {
     return true;
   }
-  if (!/^https?:$/i.test(u.protocol)) return true;
-  const host = u.hostname.toLowerCase().replace(/\.$/, "");
-  if (CHAT_HOST.test(host) || SHORTENER.test(host)) return true;
-  if (/^(l\.instagram\.com|l\.facebook\.com|lm\.facebook\.com)$/.test(host)) {
-    const inner = u.searchParams.get("u");
-    if (!inner || depth >= 2 || carriesPhone(inner, depth + 1)) return true;
-  }
-  return /\d{9,}/.test(whole.replace(/[^a-z0-9]/gi, ""));
+  if (!/^https?:$/i.test(u.protocol) || u.username || u.password) return true;
+  if (RISKY_HOST.test(u.hostname.toLowerCase().replace(/\.$/, ""))) return true;
+  // Everything after the scheme and host: another URL or a chat/shortener host here is a redirect target.
+  if (RISKY_INSIDE.test(whole.slice(u.protocol.length + 2 + u.host.length))) return true;
+  return (whole.match(/\p{Nd}/gu) ?? []).length >= 9;
 }
 
 /** Links shown before the workspace revealed the creator's contacts: none that can carry a phone number. */
