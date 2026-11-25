@@ -3,6 +3,7 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import {
   analyticsWindowSchema,
+  creatorStatsSchema,
   creatorViewStatsSchema,
   productReviewCreatedSchema,
   productReviewCreateSchema,
@@ -82,6 +83,10 @@ export function createInsightsModule(o: { db: Db; requireStaff: (action: StaffAc
     app.get("/admin/v1/analytics/creator-views", { preHandler: r("analytics.read") }, async (req, reply) => {
       const q = parseInput(statsQuery, req.query);
       return sendOk(reply, creatorViewStatsSchema, await fn(creatorViewStatsSchema, sql`select platform.staff_creator_view_stats(${q.days}, ${q.limit}) v`));
+    });
+    app.get("/admin/v1/analytics/creator-stats", { preHandler: r("analytics.read") }, async (req, reply) => {
+      const q = parseInput(statsQuery, req.query);
+      return sendOk(reply, creatorStatsSchema, await fn(creatorStatsSchema, sql`select platform.staff_creator_stats(${q.days}, ${q.limit}) v`));
     });
     app.get("/admin/v1/analytics/searches", { preHandler: r("analytics.read") }, async (req, reply) => {
       const q = parseInput(analyticsWindowSchema, req.query);

@@ -8,6 +8,7 @@ import { useConfirm, useToast } from "../../lib/toast";
 import { csvCell } from "../../lib/csv";
 import { ErrorState, LoadingBlock } from "../dashboard/states";
 import { Empty, PageHeader } from "../staff/kit";
+import { AccountDrawer } from "../staff/AccountDrawer";
 
 type Status = TrialRequest["status"];
 const STATUS_LABEL: Record<Status, string> = { new: "New", contacted: "Contacted", approved: "Approved", rejected: "Rejected" };
@@ -26,6 +27,8 @@ export function TrialRequests({ role }: { role: AdminRole }) {
   const confirm = useConfirm();
   const [emails, setEmails] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
+  // The account a request became (owner, 25 Nov: "assign them a plan and see their usage").
+  const [account, setAccount] = useState<TrialRequest | null>(null);
   const list = useQuery({ queryKey: ["admin", "trials", status], queryFn: () => adminRequest(`/admin/v1/trial-requests?status=${status}`, trialRequestListSchema), enabled: tab === "requests" });
   const feedback = useQuery({ queryKey: ["admin", "trial-feedback"], queryFn: () => adminRequest("/admin/v1/trial-feedback", trialFeedbackListSchema), enabled: owner && tab === "feedback" });
   const refresh = () => void qc.invalidateQueries({ queryKey: ["admin", "trials"] });
@@ -94,6 +97,9 @@ export function TrialRequests({ role }: { role: AdminRole }) {
               </div>
               {r.useCase && <p className="text-slate-600">“{r.useCase}”</p>}
               {r.decidedAt && <p className="text-slate-500">{STATUS_LABEL[r.status]} by {r.decidedBy} on {formatTrialDate(r.decidedAt)}{r.decisionNote ? `: ${r.decisionNote}` : ""}</p>}
+              {r.workspaceId && role !== "support" && (
+                <button type="button" onClick={() => setAccount(r)} className="btn btn-violet btn-sm">Open account: plan, credits and usage</button>
+              )}
               {(r.status === "new" || r.status === "contacted") && (
                 <div className="flex flex-wrap items-center gap-2 pt-1">
                   {r.status === "new" && (
@@ -138,6 +144,14 @@ export function TrialRequests({ role }: { role: AdminRole }) {
             </div>
           ))}
         </>
+      )}
+      {account?.workspaceId && (
+        <AccountDrawer
+          key={account.workspaceId}
+          role={role}
+          onClose={() => setAccount(null)}
+          workspace={{ id: account.workspaceId, name: account.businessName, ownerEmail: account.email ?? "", createdAt: account.decidedAt ?? account.createdAt, members: 1, subscriptionStatus: null, jobs30d: 0, openTickets: 0 }}
+        />
       )}
     </div>
   );

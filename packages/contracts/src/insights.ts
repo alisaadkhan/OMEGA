@@ -69,3 +69,19 @@ export const supportPerformanceSchema = z.object({
   ),
 });
 export type SupportPerformance = z.infer<typeof supportPerformanceSchema>;
+
+/** Stats page (owner, 25 Nov): the creators customers act on most, and what they search for. Counts only. */
+const statCreator = z.object({ creatorId: z.string(), name: z.string(), handle: z.string(), platform: z.string(), niche: z.string().nullable(), count: z.number().int() });
+const statBucket = z.object({ label: z.string(), count: z.number().int() });
+export const creatorStatsSchema = z.object({
+  days: z.number().int(),
+  totals: z.object({ searches: z.number().int(), opened: z.number().int(), listed: z.number().int(), campaigned: z.number().int(), reached: z.number().int() }),
+  mostOpened: z.array(statCreator),
+  mostListed: z.array(statCreator),
+  mostCampaigned: z.array(statCreator),
+  mostReached: z.array(statCreator),
+  byNiche: z.array(statBucket),
+  byPlatform: z.array(statBucket),
+  byTier: z.array(statBucket),
+});
+export type CreatorStats = z.infer<typeof creatorStatsSchema>;

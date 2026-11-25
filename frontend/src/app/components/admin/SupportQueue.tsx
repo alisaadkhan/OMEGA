@@ -19,15 +19,16 @@ const PRIORITY_STYLE: Record<Priority, string> = { urgent: "bg-rose-50 text-rose
 
 /** Support queue (canonical spec page 20): tickets across workspaces; viewing and replying are audited by the API. */
 export function SupportQueue({ me, canAssignOthers, role }: { me: string; canAssignOthers: boolean; role: AdminRole }) {
-  const [status, setStatus] = useState<Status | "">("open");
+  // Every ticket by default, whatever its status (owner, 25 Nov); nothing is ever deleted.
+  const [status, setStatus] = useState<Status | "">("");
   const [openId, setOpenId] = useState<string | null>(null);
   const [priority, setPriority] = useState<Priority | "">("");
   const list = useQuery({ queryKey: ["admin", "tickets", status], queryFn: () => adminRequest(`/admin/v1/support/tickets${status ? `?status=${status}` : ""}`, staffTicketListSchema) });
   return (
     <div>
-      <Header title="Tickets" sub="Customer requests, urgent first, then most recent. Replies are signed with your staff name." />
+      <Header title="Tickets" sub="Every customer request, open or closed, urgent first then most recent. Resolving one closes it for the customer too. Replies are signed with your staff name; you can attach files." />
       <div className="mb-3 flex gap-1 text-xs" role="group" aria-label="Filter tickets">
-        {(["open", "in_progress", "waiting_on_customer", "resolved", "closed", ""] as const).map((s) => (
+        {(["", "open", "in_progress", "waiting_on_customer", "resolved", "closed"] as const).map((s) => (
           <button key={s} onClick={() => setStatus(s)} aria-pressed={status === s} className={`tab ${status === s ? "tab-on" : ""}`}>{s ? STATUS[s] : "All"}</button>
         ))}
         <label className="ml-auto flex items-center gap-1.5 text-[12px] font-semibold text-slate-600">Priority
