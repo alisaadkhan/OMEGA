@@ -71,6 +71,34 @@ describe("customer notifications (owner, 23 Nov; 0100)", () => {
     expect(status.map((s) => s.email_status)).toEqual(["sent", "skipped"]);
   });
 
+  it("tells the account about a trial, a plan MUSHIN gave, a paid plan, payments, staff credits and an undelivered email (0102)", async () => {
+    const c = await customer();
+    const w = c.workspaceId;
+    // Trial approved, then a complimentary plan, then the customer's own paid plan.
+    await ownerQuery(`insert into wp.subscriptions (workspace_id, plan_id, billing_interval, status, trial_ends_at) values ('${w}', 'explorer', 'month', 'trialing', now() + interval '14 days')`);
+    await ownerQuery(`update wp.subscriptions set status = 'active', paddle_subscription_id = 'comp:x1', current_period_end = now() + interval '1 month' where workspace_id = '${w}'`);
+    await ownerQuery(`update wp.subscriptions set plan_id = 'growth', paddle_subscription_id = 'sub_paid_1' where workspace_id = '${w}'`);
+    // A top-up and a subscription charge; a failed transaction row tells nothing here (payment_failed covers it).
+    for (const [id, kind, minor, status] of [["txn_1", "topup", 490000, "completed"], ["txn_2", "subscription", 1290000, "completed"], ["txn_3", "topup", 100, "failed"]] as const)
+      await ownerQuery(`insert into wp.payments (workspace_id, paddle_transaction_id, kind, amount_minor, currency, status) values ('${w}', '${id}', '${kind}', ${minor}, 'PKR', '${status}')`);
+    // Credits staff added notify (the staff note stays internal); a top-up is told by its payment instead.
+    const staff = await staffMember();
+    await ownerQuery(`insert into wp.credit_ledger (workspace_id, amount, kind, actor_staff_id, note) values ('${w}', 1500, 'adjust', '${staff}', 'internal note')`);
+    const n = await bell(c);
+    expect(n.map((x) => x.kind)).toEqual(["trial_started", "plan_assigned", "plan_purchased", "topup_paid", "payment_received", "credits_added"]);
+    expect(n.map((x) => x.title)).toEqual([
+      "Your free trial has started",
+      "MUSHIN added the Starter plan to your account",
+      "Your Growth plan is active",
+      "Your credit top-up went through",
+      "Payment received",
+      "1,500 credits were added to your account",
+    ]);
+    const bodies = await ownerQuery<{ body: string }>(`select body from wp.notifications where workspace_id = '${w}' order by created_at`);
+    expect(bodies.map((b) => b.body).join(" ")).toContain("PKR 4,900.00");
+    expect(bodies.map((b) => b.body).join(" ")).not.toContain("internal note");
+  });
+
   it("lets a person mark their notifications read, and nothing else", async () => {
     const c = await customer();
     await ownerQuery(`insert into platform.outbox (event_type, aggregate_type, aggregate_id, workspace_id, payload) values ('notify.payment_failed', 'workspace', '${c.workspaceId}', '${c.workspaceId}', '{}')`);

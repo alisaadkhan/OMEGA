@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Bell, CheckCheck, CreditCard, LifeBuoy, MailCheck, RefreshCw, Search } from "lucide-react";
+import { AlertTriangle, Bell, CheckCheck, CreditCard, Gift, LifeBuoy, MailCheck, MailX, RefreshCw, Search, Sparkles } from "lucide-react";
 import { markNotificationsReadResultSchema, notificationListSchema, type Notification } from "@mushin/contracts";
 import { apiRequest } from "../../api/client";
 import { useAuth } from "../../auth/AuthContext";
@@ -15,11 +15,20 @@ import { Spinner } from "./states";
  * emailed unless account emails are off. Read state lives on the server, so it follows the person across devices.
  */
 const VIEWS: readonly string[] = ["overview", "search", "lists", "campaigns", "billing", "settings", "support"];
-const iconOf = (kind: string) => (kind.startsWith("ticket_") ? LifeBuoy : kind.startsWith("live_search") ? Search : CreditCard);
+const GOOD = new Set(["live_search_done", "trial_started", "plan_assigned", "plan_purchased", "payment_received", "topup_paid", "credits_added"]);
+const BAD = new Set(["payment_failed", "credits_very_low", "live_search_failed", "trial_expired", "outreach_failed"]);
+const iconOf = (kind: string) =>
+  kind.startsWith("ticket_") ? LifeBuoy
+  : kind.startsWith("live_search") ? Search
+  : kind === "outreach_failed" ? MailX
+  : kind === "plan_assigned" || kind === "credits_added" ? Gift
+  : kind === "trial_started" || kind === "plan_purchased" ? Sparkles
+  : CreditCard;
 const toneOf = (kind: string) =>
-  kind === "payment_failed" || kind === "credits_very_low" || kind === "live_search_failed" || kind === "trial_expired"
-    ? "bg-rose-50 text-rose-600"
-    : kind.startsWith("ticket_") ? "bg-cyan-50 text-[#00687a]" : kind === "live_search_done" ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-700";
+  BAD.has(kind) ? "bg-rose-50 text-rose-600"
+  : kind.startsWith("ticket_") ? "bg-cyan-50 text-[#00687a]"
+  : GOOD.has(kind) ? "bg-emerald-50 text-emerald-600"
+  : "bg-amber-50 text-amber-700";
 const ago = (iso: string) => {
   const s = Math.max(0, (Date.now() - Date.parse(iso)) / 1000);
   if (s < 60) return "just now";
@@ -124,7 +133,7 @@ export function NotificationCenter({ onOpenView }: { onOpenView?: (v: DashView) 
                 <span className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-cyan-50 text-cyan-700"><MailCheck className="h-7 w-7" /></span>
                 <div className="text-[15px] font-semibold text-slate-900">You&apos;re all caught up</div>
                 <p className="mt-1 max-w-[280px] text-xs text-slate-600">
-                  {items.length === 0 ? "Replies from support, finished live searches, low credits and billing notices appear here." : "No unread notifications."}
+                  {items.length === 0 ? "Support replies, finished live searches, your plan, trial, payments and credits, and emails that could not be delivered appear here." : "No unread notifications."}
                 </p>
               </div>
             ) : (
