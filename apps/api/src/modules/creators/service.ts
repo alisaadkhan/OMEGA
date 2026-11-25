@@ -176,9 +176,14 @@ export function createCreatorsService(deps: CreatorsDeps) {
     // Why each creator on this page matched (CAT-005), from the text the projection indexed; ordering is unchanged.
     const page = cards.slice(start, start + settings.pageSize);
     const fields = q.text ? new Map((await deps.db.withTenant(tenant(ctx), (tx) => repo.matchFieldRows(tx, page.map((c) => c.id)))).map((f) => [f.id, f])) : new Map();
+    // Link icons for this page only (owner, 25 Nov), with the profile's rules: phone-bearing links after a reveal.
+    const urls = await deps.db.withTenant(tenant(ctx), async (tx) => {
+      const ids = page.map((c) => c.id);
+      return repo.bioLinkUrls(tx, ids, await repo.revealedCreatorIds(tx, ctx.workspaceId, ids));
+    });
     const results = page.map((c) => {
       const f = fields.get(c.id);
-      return { ...c, matchedOn: f ? matchReasons(q.text, f) : [] };
+      return { ...c, bioLinks: bioLinksFrom(urls.get(c.id) ?? []), matchedOn: f ? matchReasons(q.text, f) : [] };
     });
     // A new search is its first page; paging, sorting and repeats are the same search.
     if (!req.cursor) {

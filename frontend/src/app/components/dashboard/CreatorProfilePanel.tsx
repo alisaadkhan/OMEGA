@@ -19,6 +19,7 @@ import { CampaignDrawer } from "./CampaignDrawer";
 import { CreatorLinkIcons } from "./CreatorLinkIcons";
 import type { DrawerCreator } from "./ShortlistDrawer";
 import { VerifiedBadge } from "./VerifiedBadge";
+import type { BioLink } from "@mushin/contracts";
 
 export type Creator = {
   /** Set on catalogue search cards: why the creator matched the query (CAT-005). */
@@ -38,6 +39,10 @@ export type Creator = {
   followersNum: number | null;
   /** null when unknown or not calculated for the source (e.g. YouTube data under policy review). */
   engagement: number | null;
+  /** Median views per recent post on the main profile (search cards show it for YouTube and TikTok). */
+  typicalViews?: number | null;
+  /** Profile and bio links as icons (search cards, owner 25 Nov). */
+  bioLinks?: BioLink[];
   /** Why engagement is missing on the card: the API's own reason, never assumed from the platform. */
   engagementNote: "policy_restricted" | "insufficient_posts" | null;
   /** null until MUSHIN has assessed the creator (never shown without evidence, SRS §5.5). */

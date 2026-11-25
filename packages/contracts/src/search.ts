@@ -121,6 +121,10 @@ export const creatorCardSchema = z.object({
   fitScore: z.number().int().min(0).max(100),
   fitLabel: fitLabelSchema,
   eligibility: creatorEligibilitySchema,
+  /** The main profile's median views per recent post (owner, 25 Nov: "Typical views" beside ER on YouTube and TikTok). */
+  typicalViews: z.number().int().nullable().default(null),
+  /** Profile and bio links as icons, as on the profile: phone-bearing links only after a reveal; a possible minor's own profiles only. */
+  bioLinks: z.array(bioLinkSchema).default([]),
 });
 export type CreatorCard = z.output<typeof creatorCardSchema>;
 

@@ -229,6 +229,8 @@ export function toCreator(c: CreatorCard): Creator {
     followersNum: c.followers,
     engagement: c.engagementRate, // unknown stays unknown, never 0
     engagementNote: c.engagementNote ?? null,
+    typicalViews: c.typicalViews ?? null,
+    bioLinks: c.bioLinks ?? [],
     authenticity: c.authenticityScore,
     fake: c.fakeFollowerPct,
     score: c.fitScore,

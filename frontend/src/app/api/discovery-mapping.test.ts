@@ -20,6 +20,8 @@ const cardFor = (id: string): CreatorCard => ({
   engagementRate: 1,
   authenticityScore: null,
   fakeFollowerPct: null,
+  typicalViews: null,
+  bioLinks: [],
   hasContact: false,
   contactAvailability: "none",
   followersFreshness: "current",

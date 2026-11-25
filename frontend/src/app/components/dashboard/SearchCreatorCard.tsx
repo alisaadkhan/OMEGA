@@ -9,6 +9,8 @@ import { ReviewCreatorButton } from "./ReviewCreatorButton";
 import { VerifiedBadge } from "./VerifiedBadge";
 import { EngagementScore } from "./EngagementScore";
 import { PlatformPill } from "./PlatformIcon";
+import { CreatorLinkIcons } from "./CreatorLinkIcons";
+import { formatCount } from "../../api/search-mapping";
 
 const PLATFORM = {
   instagram: { Icon: Instagram, label: "Instagram", color: "text-rose-300" },
@@ -51,6 +53,8 @@ function SearchCreatorCardView({
   const noPhoto = creator.avatar.startsWith("data:") || photoFailed;
   const matched = matchSummary(creator.matchedOn);
   const place = [creator.city, creator.niche].filter((x) => x && x !== "Unknown").join(" • ");
+  // Typical views beside engagement for video platforms (owner, 25 Nov).
+  const showViews = creator.platform === "youtube" || creator.platform === "tiktok";
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: Math.min(index, 12) * 0.03, ease: "easeOut" }}>
       <div
@@ -104,9 +108,10 @@ function SearchCreatorCardView({
             </span>
             {creator.nicheNote && <span className="mt-1 block text-[11px] font-medium text-slate-500">{creator.nicheNote}</span>}
           </button>
+          {creator.bioLinks && creator.bioLinks.length > 0 && <CreatorLinkIcons links={creator.bioLinks} size="sm" className="mt-2" />}
 
           <div className="mt-4">
-            <dl className="mb-3 grid grid-cols-2 gap-2 rounded-xl border border-slate-100 bg-slate-50 p-3">
+            <dl className={`mb-3 grid gap-2 rounded-xl border border-slate-100 bg-slate-50 p-3 ${showViews ? "grid-cols-3" : "grid-cols-2"}`}>
               <div>
                 <dt className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">{creator.platform === "youtube" ? "Subscribers" : "Followers"}</dt>
                 <dd className="text-lg font-bold leading-none tabular-nums text-slate-900">{creator.followers}</dd>
@@ -121,6 +126,12 @@ function SearchCreatorCardView({
                   <dd className="text-[11px] font-medium leading-tight text-slate-500" title="Likes are hidden on recent posts, or there are too few recent posts to calculate it.">Likes hidden or too few posts</dd>
                 )}
               </div>
+              {showViews && (
+                <div className="border-l border-slate-200/60 pl-3">
+                  <dt className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Typical views</dt>
+                  <dd className="text-lg font-bold leading-none tabular-nums text-slate-900" title="Median views of recent videos">{creator.typicalViews == null ? "—" : formatCount(creator.typicalViews)}</dd>
+                </div>
+              )}
             </dl>
             {matched && (
               <p className="mb-2 line-clamp-2 text-[11px] leading-4 text-slate-500" data-testid="match-reasons">

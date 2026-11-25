@@ -104,6 +104,18 @@ describe("search", () => {
     await expect(noFallback.search(c, req("Sana"))).rejects.toMatchObject({ code: "PROVIDER_UNAVAILABLE" });
   });
 
+  it("cards carry typical views and link icons; a WhatsApp link (a phone) waits for a reveal (owner, 25 Nov)", async () => {
+    const id = await addCreator(db, { primaryPlatform: "tiktok", profiles: [{ platform: "tiktok", handle: "tt_views" }] });
+    await indexAll([id]);
+    await ownerQuery(`update gcp.creator_profiles set median_views = 41234.6 where creator_id = '${id}';
+      insert into gcp.creator_links (creator_id, platform, url, source) values ('${id}', 'website', 'https://tt-views.pk', 'bio'), ('${id}', 'website', 'https://wa.me/923001234567', 'bio');`);
+    const [card] = (await creators.search(await customer(), req(""))).results;
+    expect(card?.typicalViews).toBe(41235);
+    const urls = card?.bioLinks.map((l) => l.url) ?? [];
+    expect(urls.some((u) => u.includes("tt-views.pk"))).toBe(true);
+    expect(urls.some((u) => u.includes("wa.me"))).toBe(false);
+  });
+
   it("drops creators the index still lists but Postgres hides (possible minors, erased)", async () => {
     const shown = await addCreator(db);
     const minor = await addCreator(db);

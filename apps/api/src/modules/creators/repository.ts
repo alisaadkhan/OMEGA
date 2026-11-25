@@ -78,6 +78,8 @@ export type CardRow = {
   fakeFollowerPct: number | null;
   followers: number | null;
   engagementRate: number | null;
+  /** The main profile's median views per recent post. */
+  medianViews: number | null;
   followersUpdatedAt: Date | null;
   /** Kind and status of each stored contact (never the value). */
   contactStates: { kind: "email" | "phone"; status: string }[];
@@ -97,12 +99,12 @@ export async function cardRows(tx: Tx, ids: string[]): Promise<CardRow[]> {
       exists (select 1 from gcp.creator_profiles vp where vp.creator_id = c.id and vp.verified) as verified,
       c.authenticity_score as "authenticityScore", c.fake_follower_pct as "fakeFollowerPct",
       case when p.platform = 'youtube' and p.followers = 0 then null else p.followers end as followers,
-      p.engagement_rate as "engagementRate", p.followers_updated_at as "followersUpdatedAt",
+      p.engagement_rate as "engagementRate", p.median_views::float8 as "medianViews", p.followers_updated_at as "followersUpdatedAt",
       coalesce((select jsonb_agg(jsonb_build_object('kind', k.kind, 'status', k.status)) from gcp.creator_contacts k where k.creator_id = c.id), '[]'::jsonb) as "contactStates",
       coalesce((select array_agg(b.bio) from gcp.creator_profiles b where b.creator_id = c.id and b.bio is not null), '{}') as bios
     from gcp.creators c
     left join lateral (
-      select pr.platform, pr.followers, pr.engagement_rate, pr.followers_updated_at from gcp.creator_profiles pr
+      select pr.platform, pr.followers, pr.engagement_rate, pr.median_views, pr.followers_updated_at from gcp.creator_profiles pr
       where pr.creator_id = c.id order by (pr.platform = c.primary_platform) desc, pr.followers desc limit 1
     ) p on true
     where c.id in ${ids} and ${VISIBLE}`);

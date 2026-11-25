@@ -152,6 +152,8 @@ describe("search mapping", () => {
       engagementRate: 5.2,
       authenticityScore: null,
       fakeFollowerPct: null,
+      typicalViews: null,
+      bioLinks: [],
       hasContact: true,
       contactAvailability: "email_unverified",
       followersFreshness: "current",

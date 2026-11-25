@@ -71,6 +71,8 @@ export function toCards(rows: repo.CardRow[], req: { text: string; filters: Sear
         engagementNote: engagementRate !== null ? null : restricted ? ("policy_restricted" as const) : ("insufficient_posts" as const),
         authenticityScore,
         fakeFollowerPct: restricted ? null : r.fakeFollowerPct,
+        typicalViews: restricted || r.medianViews === null ? null : Math.round(r.medianViews),
+        bioLinks: [],
         hasContact: isContactable(contactAvailability(r.contactStates)),
         hasEmail: hasUsableEmail(r.contactStates),
         hasPhone: hasUsablePhone(r.contactStates),
