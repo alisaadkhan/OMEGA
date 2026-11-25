@@ -157,6 +157,32 @@ describe("support tickets and staff operations", () => {
     expect(detail.cost.totalUsd).toBeCloseTo(0.00642, 6);
     expect(detail.cost.costPerNewCreatorUsd).toBeCloseTo(0.00321, 6);
   });
+
+  it("lists every API key with its own usage, and each key's requests with the account, person and search (owner, 25 Nov)", async () => {
+    const { app, customer, staffToken } = await setup();
+    const owner = await customer("keys@brand.pk");
+    await app.inject({ method: "GET", url: "/v1/me", headers: owner });
+    const [ws] = await ownerQuery<{ workspace_id: string; user_id: string }>(`select workspace_id, user_id from wp.workspace_members limit 1`);
+    const jobId = randomUUID();
+    await ownerQuery(`insert into wp.discovery_jobs (id, workspace_id, kind, requested_by, status, attempts, cost, credits_charged, search, max_new, search_hash, prices)
+      values ('${jobId}', '${ws?.workspace_id}', 'live', '${ws?.user_id}', 'running', 1, 100, 0, '{"text": "food vloggers in Lahore"}'::jsonb, 10, '${"a".repeat(64)}', '{}'::jsonb)`);
+    await ownerQuery(`insert into platform.provider_calls (provider, operation, model, latency_ms, status, cost_usd, job_id, workspace_id, key_slot) values
+      ('groq', 'search_understanding', 'openai/gpt-oss-20b', 300, 'ok', 0, '${jobId}', '${ws?.workspace_id}', 2),
+      ('groq', 'search_understanding', 'openai/gpt-oss-20b', 300, 'error', 0, '${jobId}', '${ws?.workspace_id}', 2),
+      ('groq', 'creator_assessment', 'openai/gpt-oss-20b', 300, 'ok', 0, null, null, null)`);
+    const admin = await staffToken("admin");
+    const keys = (await app.inject({ method: "GET", url: "/admin/v1/ops/api-keys", headers: admin })).json() as { keys: { key: string; calls24h: number; errors24h: number; activeNow: number; metered: boolean }[] };
+    expect(keys.keys.find((k) => k.key === "groq-1")).toMatchObject({ calls24h: 1, errors24h: 0, metered: true }); // a single-key call counts as key 1
+    expect(keys.keys.find((k) => k.key === "groq-2")).toMatchObject({ calls24h: 2, errors24h: 1, activeNow: 2 });
+    expect(keys.keys.find((k) => k.key === "resend")).toMatchObject({ metered: false });
+    const calls = (await app.inject({ method: "GET", url: "/admin/v1/ops/api-keys/groq-2/calls", headers: admin })).json() as { calls: { userEmail: string | null; job: { search: string | null } | null; account: { name: string } | null }[] };
+    expect(calls.calls).toHaveLength(2);
+    expect(calls.calls[0]).toMatchObject({ userEmail: "keys@brand.pk", job: { search: "food vloggers in Lahore" } });
+    expect((await app.inject({ method: "GET", url: "/admin/v1/ops/api-keys/resend/calls", headers: admin })).statusCode).toBe(404);
+    expect((await app.inject({ method: "GET", url: "/admin/v1/ops/api-keys", headers: await staffToken("support") })).statusCode).toBe(403);
+    const jobs = (await app.inject({ method: "GET", url: "/admin/v1/ops/jobs?status=open", headers: admin })).json() as { jobs: { id: string; requestedBy: string | null }[] };
+    expect(jobs.jobs.find((j) => j.id === jobId)?.requestedBy).toBe("keys@brand.pk");
+  });
 });
 
 describe("a customer's activity history for admins (owner, 17 Nov: the Activity Log is admin-only)", () => {

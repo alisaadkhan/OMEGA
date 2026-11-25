@@ -1,4 +1,4 @@
-import { boolean, integer, jsonb, numeric, pgSchema, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, integer, jsonb, numeric, pgSchema, primaryKey, smallint, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 export const platformSchema = pgSchema("platform");
 const ts = (name: string) => timestamp(name, { withTimezone: true, mode: "date" });
@@ -29,6 +29,7 @@ export const providerCalls = platformSchema.table("provider_calls", {
   latencyMs: integer("latency_ms").notNull(),
   status: text("status", { enum: ["ok", "error"] }).notNull(),
   errorCode: text("error_code"),
+  keySlot: smallint("key_slot"),
   workspaceId: uuid("workspace_id"),
   jobId: text("job_id"),
   requestId: text("request_id"),

@@ -40,6 +40,8 @@ export const staffJobSchema = z.object({
   errorCode: z.string().nullable(),
   errorMessage: z.string().nullable(),
   cancelRequested: z.boolean(),
+  /** The person who started the job (owner, 25 Nov: "which user is running which process"). */
+  requestedBy: z.string().nullable().default(null),
   createdAt: iso,
   startedAt: iso.nullable(),
   finishedAt: iso.nullable(),

@@ -214,6 +214,7 @@ export class OpenAiCompatibleLlm implements Llm {
       .record({
         provider: p.name, operation: req.feature, model: p.model, tokensIn: null, tokensOut: null, units: null, latencyMs: 0, status: "error",
         costUsd: 0, errorCode: "invalid_reply", workspaceId: req.ctx?.workspaceId ?? null, jobId: req.ctx?.jobId ?? null, requestId: req.ctx?.requestId ?? null,
+        keySlot: p.slot ?? null,
       })
       .catch((err: unknown) => this.o.logger.error({ err, provider: p.name }, "failed to record provider call"));
     this.o.logger.warn({ event: "llm_reply_unusable", provider: p.name, model: p.model, feature: req.feature, jobId: req.ctx?.jobId ?? null, requestId: req.ctx?.requestId ?? null }, "LLM reply unusable after one correction");
@@ -231,6 +232,7 @@ export class OpenAiCompatibleLlm implements Llm {
         sink: this.o.sink,
         logger: this.o.logger,
         ctx: req.ctx,
+        keySlot: p.slot ?? null,
         ...(this.o.sleep ? { sleep: this.o.sleep } : {}),
         usage: (r) => ({
           model: p.model,

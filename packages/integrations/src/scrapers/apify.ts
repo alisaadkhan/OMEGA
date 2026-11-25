@@ -155,6 +155,8 @@ export function createApifyPool(o: Omit<ClientOptions, "token"> & { tokens: stri
     throw last;
   };
   return {
+    /** The account (1 = first token) runs start on now, for recording which key served a call (0105). */
+    account: () => current + 1,
     async runActor(...args: Parameters<ReturnType<typeof createApifyClient>["runActor"]>) {
       const [, , opts] = args;
       if (opts?.resumeRunId) return firstThatKnows((c) => c.runActor(...args));

@@ -1,7 +1,11 @@
 import type { FastifyInstance } from "fastify";
-import { staffIntegrationsSchema, type StaffIntegrations } from "@mushin/contracts";
+import { sql } from "drizzle-orm";
+import { z } from "zod";
+import { staffApiCallsSchema, staffApiKeysSchema, staffIntegrationsSchema, type StaffApiKey, type StaffIntegrations } from "@mushin/contracts";
+import { AppError } from "@mushin/core";
+import type { Db } from "@mushin/db";
 import type { PreHandler } from "../../http/types";
-import { sendOk } from "../../http/validate";
+import { parseInput, sendOk } from "../../http/validate";
 import type { StaffAction } from "../staff/index";
 
 type Item = StaffIntegrations["integrations"][number];
@@ -37,7 +41,81 @@ export function integrationsOf(env: Record<string, string | undefined>): StaffIn
   return { integrations: CATALOG.map(({ vars, ...e }) => ({ ...e, configured: vars.some((v) => (env[v] ?? "").trim().length > 0) })) };
 }
 
-export function registerIntegrationRoutes(app: FastifyInstance, o: { requireStaff: (action: StaffAction) => PreHandler; env?: Record<string, string | undefined> }) {
+/** Which recorded calls belong to a catalogue key: provider name, and the key's position for multi-key providers. */
+export function meterOf(key: string): { provider: string; slot: number | null } | null {
+  const m = /^(groq|apify)-(\d)$/.exec(key);
+  if (m) return { provider: m[1] as string, slot: Number(m[2]) };
+  return ["gemini", "openrouter", "ollama", "youtube", "serper", "yepapi"].includes(key) ? { provider: key, slot: null } : null;
+}
+
+type Usage = { provider: string; slot: number; calls24h: string; errors24h: string; calls_month: string; cost_month: string; active_now: string; last_at: string | null; last_error: string | null };
+
+export function registerIntegrationRoutes(app: FastifyInstance, o: { requireStaff: (action: StaffAction) => PreHandler; db?: Db; env?: Record<string, string | undefined> }) {
+  const db = o.db;
+  if (db) {
+    app.get("/admin/v1/ops/api-keys", { preHandler: o.requireStaff("ops.providers.read") }, async (_req, reply) => {
+      const usage = await db.withSystem((tx) =>
+        tx.execute<Usage>(sql`
+          select provider, coalesce(key_slot, 1)::int slot,
+            count(*) filter (where created_at >= now() - interval '24 hours') calls24h,
+            count(*) filter (where created_at >= now() - interval '24 hours' and status = 'error') errors24h,
+            count(*) calls_month, coalesce(sum(cost_usd), 0) cost_month,
+            count(*) filter (where created_at >= now() - interval '10 minutes') active_now,
+            max(created_at) last_at,
+            (array_agg(error_code order by created_at desc) filter (where status = 'error'))[1] last_error
+          from platform.provider_calls where created_at >= date_trunc('month', now()) group by 1, 2`),
+      );
+      const quota = await db.withSystem((tx) =>
+        tx.execute<{ provider: string; quota_used: string | null; quota_limit: string | null; quota_unit: string | null }>(sql`select provider, quota_used, quota_limit, quota_unit from platform.provider_status`),
+      );
+      const keys: StaffApiKey[] = integrationsOf(o.env ?? process.env).integrations.map((i) => {
+        const meter = meterOf(i.key);
+        const rows = meter ? usage.filter((u) => u.provider === meter.provider && (meter.slot === null || u.slot === meter.slot)) : [];
+        const sum = (f: keyof Usage) => rows.reduce((a, r) => a + Number(r[f] ?? 0), 0);
+        const last = rows.map((r) => r.last_at).filter((x): x is string => !!x).sort().at(-1) ?? null;
+        const q = meter ? quota.find((x) => x.provider === meter.provider && x.quota_used !== null && x.quota_limit !== null) : undefined;
+        return {
+          ...i,
+          metered: meter !== null,
+          calls24h: sum("calls24h"),
+          errors24h: sum("errors24h"),
+          callsMonth: sum("calls_month"),
+          costMonthUsd: Math.round(sum("cost_month") * 10_000) / 10_000,
+          lastCallAt: last ? new Date(last).toISOString() : null,
+          lastErrorCode: rows.find((r) => r.last_error)?.last_error ?? null,
+          activeNow: sum("active_now"),
+          quota: q && meter?.slot === null ? { used: Number(q.quota_used), limit: Number(q.quota_limit), unit: q.quota_unit ?? "" } : null,
+        };
+      });
+      return sendOk(reply, staffApiKeysSchema, { keys });
+    });
+
+    // The requests made through one key: who (account, person) and what (the job and its search), newest first.
+    app.get("/admin/v1/ops/api-keys/:key/calls", { preHandler: o.requireStaff("ops.providers.read") }, async (req, reply) => {
+      const { key } = parseInput(z.object({ key: z.string().max(40) }), req.params);
+      const { limit } = parseInput(z.object({ limit: z.coerce.number().int().min(1).max(500).default(100) }), req.query);
+      const meter = meterOf(key);
+      if (!meter) throw new AppError("NOT_FOUND", "MUSHIN does not record requests for this service");
+      type Row = { at: string; operation: string; model: string | null; status: "ok" | "error"; errorCode: string | null; costUsd: number; latencyMs: number; workspaceId: string | null; workspaceName: string | null; userEmail: string | null; jobId: string | null; jobKind: string | null; jobStatus: string | null; jobSearch: string | null; jobTarget: string | null };
+      const [res] = await db.withSystem((tx) => tx.execute<{ v: Row[] }>(sql`select platform.staff_api_calls(${meter.provider}, ${meter.slot}, ${limit}) v`));
+      return sendOk(reply, staffApiCallsSchema, {
+        key,
+        calls: (res?.v ?? []).map((r) => ({
+          at: new Date(r.at).toISOString(),
+          operation: r.operation,
+          model: r.model,
+          status: r.status,
+          errorCode: r.errorCode,
+          costUsd: Number(r.costUsd),
+          latencyMs: r.latencyMs,
+          account: r.workspaceId ? { id: r.workspaceId, name: r.workspaceName ?? "" } : null,
+          userEmail: r.userEmail,
+          job: r.jobId ? { id: r.jobId, kind: r.jobKind ?? "", status: r.jobStatus ?? "", search: r.jobSearch, target: r.jobTarget } : null,
+        })),
+      });
+    });
+  }
+
   app.get("/admin/v1/ops/integrations", { preHandler: o.requireStaff("ops.providers.read") }, async (_req, reply) =>
     sendOk(reply, staffIntegrationsSchema, integrationsOf(o.env ?? process.env)),
   );

@@ -11,6 +11,8 @@ export type InstrumentOptions<T> = {
   sink: ProviderCallSink;
   logger: Logger;
   ctx?: CallContext;
+  /** Which key served the call (1 = first); a function when failover picks the key during the call. */
+  keySlot?: number | null | (() => number | null);
   usage?: (result: T) => Usage;
   isRetryable?: (err: unknown) => boolean;
   sleep?: (ms: number) => Promise<void>;
@@ -138,6 +140,7 @@ async function record<T>(
       workspaceId: opts.ctx?.workspaceId ?? null,
       jobId: opts.ctx?.jobId ?? null,
       requestId: opts.ctx?.requestId ?? null,
+      keySlot: typeof opts.keySlot === "function" ? opts.keySlot() : (opts.keySlot ?? null),
       ...part,
     });
   } catch (err) {

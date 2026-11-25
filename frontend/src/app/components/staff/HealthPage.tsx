@@ -4,6 +4,7 @@ import { adminRequest } from "../../admin/adminApi";
 import { ErrorState, LoadingBlock } from "../dashboard/states";
 import { OpsAlerts } from "../admin/OpsControls";
 import { Badge, Card, PageHeader, errText, fmtWhen, type Tone } from "./kit";
+import { ApiKeysPanel } from "./ApiKeysPanel";
 
 const healthSchema = z.object({
   checks: z.array(z.object({ key: z.string(), name: z.string(), state: z.enum(["ok", "warning", "down", "not_set"]), detail: z.string() })),
@@ -44,6 +45,7 @@ export function HealthPage({ canTest }: { canTest: boolean }) {
           ))}
         </div>
       )}
+      <ApiKeysPanel />
       <OpsAlerts canTest={canTest} />
     </div>
   );

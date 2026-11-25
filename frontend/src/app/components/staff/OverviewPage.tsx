@@ -6,6 +6,7 @@ import { adminRequest } from "../../admin/adminApi";
 import { ErrorState, LoadingBlock } from "../dashboard/states";
 import { OpsAlerts } from "../admin/OpsControls";
 import { Card, Empty, errText, fmtAgo, fmtNum } from "./kit";
+import { ApiKeysPanel } from "./ApiKeysPanel";
 
 /**
  * Overview (owner design, 23 Nov): four counters, provider budgets, feature use, the live job stream and the catalogue
@@ -212,7 +213,7 @@ function LiveStream() {
                 return (
                   <tr key={j.id} className="hover:bg-slate-50/90">
                     <td className="whitespace-nowrap py-3 pr-2 text-[11px] text-slate-400 tabular-nums">{fmtAgo(j.createdAt)}</td>
-                    <td className="whitespace-nowrap px-2 py-3 font-bold text-slate-800">{j.workspaceName}</td>
+                    <td className="px-2 py-3"><div className="whitespace-nowrap font-bold text-slate-800">{j.workspaceName}</div>{j.requestedBy && <div className="max-w-[180px] truncate text-[10.5px] text-slate-500">{j.requestedBy}</div>}</td>
                     <td className="whitespace-nowrap px-2 py-3">
                       <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10.5px] font-bold ${j.status === "failed" ? "border-rose-200 bg-rose-50 text-rose-700" : k.cls}`}>{k.label}{j.status !== "completed" ? ` · ${j.status}` : ""}</span>
                     </td>
@@ -296,6 +297,7 @@ export function OverviewPage({ canTest }: { canTest: boolean }) {
     <div className="space-y-6">
       <h1 className="sr-only">Overview</h1>
       <Counters />
+      <ApiKeysPanel />
       <Budgets />
       <section className="grid grid-cols-1 items-stretch gap-5 xl:grid-cols-12">
         <div className="xl:col-span-6"><FeatureUse /></div>

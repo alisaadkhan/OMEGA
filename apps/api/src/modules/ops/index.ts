@@ -57,7 +57,7 @@ export function createOpsModule(o: { db: Db; requireStaff: (action: StaffAction)
 
   function register(app: FastifyInstance) {
     if (o.billing) registerAccountRoutes(app, { db: o.db, requireStaff: o.requireStaff, billing: o.billing, now });
-    registerIntegrationRoutes(app, { requireStaff: o.requireStaff });
+    registerIntegrationRoutes(app, { requireStaff: o.requireStaff, db: o.db });
     registerPricingRoutes(app, { db: o.db, requireStaff: o.requireStaff });
     registerHealthRoutes(app, { db: o.db, requireStaff: o.requireStaff });
     app.get("/admin/v1/ops/overview", { preHandler: o.requireStaff("ops.overview.read") }, async (_req, reply) =>
@@ -80,8 +80,11 @@ export function createOpsModule(o: { db: Db; requireStaff: (action: StaffAction)
 
     app.get("/admin/v1/ops/jobs", { preHandler: o.requireStaff("ops.jobs.read") }, async (req, reply) => {
       const q = parseInput(staffJobQuerySchema, req.query);
-      const jobs = await json((tx) => tx.execute(sql`select platform.staff_jobs(${q.status ?? null}, ${q.limit}) v`));
-      return sendOk(reply, staffJobListSchema, staffJobListSchema.parse({ jobs }));
+      const jobs = staffJobListSchema.parse({ jobs: await json((tx) => tx.execute(sql`select platform.staff_jobs(${q.status ?? null}, ${q.limit}) v`)) }).jobs;
+      // Who started each job (owner, 25 Nov), shown to staff with the account and the search.
+      const ids = jobs.map((j) => j.id);
+      const who = ids.length ? ((await json((tx) => tx.execute(sql`select platform.staff_job_requesters(${`{${ids.join(",")}}`}::uuid[]) v`))) as Record<string, string> | null) : null;
+      return sendOk(reply, staffJobListSchema, { jobs: jobs.map((j) => ({ ...j, requestedBy: who?.[j.id] ?? null })) });
     });
 
     app.get("/admin/v1/ops/jobs/:id", { preHandler: o.requireStaff("ops.jobs.read") }, async (req, reply) => {

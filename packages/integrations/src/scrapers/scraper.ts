@@ -123,6 +123,7 @@ export function createProfileScraper(o: Options): ProfileScraper {
         retries: 0,
         sink: o.sink,
         logger: o.logger,
+        keySlot: () => apify.account(),
         ctx: req.ctx,
         usage: (r: { items: unknown[]; costUsd: number }) => ({ model: actor, units: r.items.length, costUsd: alreadyPaid ? 0 : r.costUsd }),
       },

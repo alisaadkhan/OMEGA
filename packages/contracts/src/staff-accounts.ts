@@ -70,6 +70,47 @@ export const staffIntegrationsSchema = z.object({
 });
 export type StaffIntegrations = z.infer<typeof staffIntegrationsSchema>;
 
+/**
+ * Every API key with what it did (owner, 25 Nov: "I should see all APIs ... with their current process, and when I open
+ * one, which user ran which process and what they searched"). Usage is per key where the provider has several.
+ */
+export const staffApiKeySchema = z.object({
+  key: z.string(),
+  group: z.enum(["AI", "Creator data", "Search", "Email", "Payments", "Platform"]),
+  name: z.string(),
+  purpose: z.string(),
+  role: z.enum(["primary", "backup"]),
+  configured: z.boolean(),
+  /** Whether calls through this key are recorded (only services MUSHIN calls per request are). */
+  metered: z.boolean(),
+  calls24h: count,
+  errors24h: count,
+  callsMonth: count,
+  costMonthUsd: z.number(),
+  lastCallAt: z.string().nullable(),
+  lastErrorCode: z.string().nullable(),
+  /** Calls in the last 10 minutes: the key is in use right now. */
+  activeNow: count,
+  quota: z.object({ used: z.number(), limit: z.number(), unit: z.string() }).nullable(),
+});
+export const staffApiKeysSchema = z.object({ keys: z.array(staffApiKeySchema) });
+export type StaffApiKey = z.infer<typeof staffApiKeySchema>;
+
+export const staffApiCallSchema = z.object({
+  at: z.string(),
+  operation: z.string(),
+  model: z.string().nullable(),
+  status: z.enum(["ok", "error"]),
+  errorCode: z.string().nullable(),
+  costUsd: z.number(),
+  latencyMs: z.number().int(),
+  account: z.object({ id: z.string(), name: z.string() }).nullable(),
+  userEmail: z.string().nullable(),
+  job: z.object({ id: z.string(), kind: z.string(), status: z.string(), search: z.string().nullable(), target: z.string().nullable() }).nullable(),
+});
+export const staffApiCallsSchema = z.object({ key: z.string(), calls: z.array(staffApiCallSchema) });
+export type StaffApiCall = z.infer<typeof staffApiCallSchema>;
+
 export const staffSuspendSchema = z.object({ reason: z.string().trim().min(12).max(1000) });
 export const staffSuspendResultSchema = z.object({ suspended: z.boolean(), people: count });
 
