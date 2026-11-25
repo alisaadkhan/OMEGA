@@ -23,6 +23,7 @@ import { SettingsPage } from "./SettingsPage";
 import { StaffLogin } from "./StaffLogin";
 import { StaffShell } from "./StaffShell";
 import { SubscriptionsPage } from "./SubscriptionsPage";
+import { StatsPage } from "./StatsPage";
 import { UsersPage } from "./UsersPage";
 
 export function StaffPortal() {
@@ -93,6 +94,7 @@ export function StaffPortal() {
       {current === "trials" && <TrialRequests role={role} />}
       {current === "stats" && (
         <div className="space-y-8">
+          <StatsPage />
           <UsageInsights role={role} />
           <ProductReviews />
         </div>
