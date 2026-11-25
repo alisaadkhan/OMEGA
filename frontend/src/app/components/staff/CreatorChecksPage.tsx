@@ -5,7 +5,7 @@ import { adminRequest } from "../../admin/adminApi";
 import { ErrorState, LoadingBlock } from "../dashboard/states";
 import { CreatorInspector } from "./CreatorInspector";
 import { Empty, errText, fmtNum } from "./kit";
-import { FILTER_HELP, FILTER_LABEL, FILTERS, REPORT_REASON, TRASH_DAYS, fmtFollowers, staffCreatorListSchema, trashDaysLeft, type Filter, type StaffCreator } from "./creatorTypes";
+import { FILTER_HELP, FILTER_LABEL, FILTERS, problemLabel, REPORT_REASON, TRASH_DAYS, fmtFollowers, staffCreatorListSchema, trashDaysLeft, type Filter, type StaffCreator } from "./creatorTypes";
 
 const PAGE = 50;
 
@@ -16,6 +16,7 @@ function note(c: StaffCreator): string {
   if (c.status === "hidden") return `Hidden: ${c.hiddenReason ?? "by staff"}`;
   if (c.isMinor) return `Possible minor${c.minorReason ? `: ${c.minorReason}` : ""}`;
   if (c.organisationCategory) return `Looks like an organisation: ${c.organisationCategory}`;
+  if (!c.eligible && c.hiddenBecause.length) return `Doesn't qualify: ${c.hiddenBecause.map(problemLabel).join(", ")}`;
   const p = c.profiles[0];
   if (p && (p.countryStatus === "unknown" || p.countryStatus === "conflicting")) return `Country ${p.countryStatus}`;
   return [c.nicheMain, c.city].filter(Boolean).join(" · ") || (c.eligible ? "In customer search" : "Not in customer search");
@@ -27,6 +28,8 @@ function note(c: StaffCreator): string {
  */
 export function CreatorChecksPage({ canEdit }: { canEdit: boolean }) {
   const [filter, setFilter] = useState<Filter>("qualified");
+  // One problem at a time inside "Doesn't qualify" (owner, 25 Nov), so each kind is verified together.
+  const [problem, setProblem] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [q, setQ] = useState("");
   const [offset, setOffset] = useState(0);
@@ -36,8 +39,8 @@ export function CreatorChecksPage({ canEdit }: { canEdit: boolean }) {
     return () => window.clearTimeout(t);
   }, [text]);
   const list = useQuery({
-    queryKey: ["admin", "creators", filter, q, offset],
-    queryFn: () => adminRequest(`/admin/v1/catalogue/all?filter=${filter}&q=${encodeURIComponent(q)}&offset=${offset}`, staffCreatorListSchema),
+    queryKey: ["admin", "creators", filter, problem, q, offset],
+    queryFn: () => adminRequest(`/admin/v1/catalogue/all?filter=${filter}${problem ? `&problem=${problem}` : ""}&q=${encodeURIComponent(q)}&offset=${offset}`, staffCreatorListSchema),
     placeholderData: keepPreviousData,
   });
   const items = list.data?.items ?? [];
@@ -45,6 +48,8 @@ export function CreatorChecksPage({ canEdit }: { canEdit: boolean }) {
   const pages = Math.max(1, Math.ceil((list.data?.total ?? 0) / PAGE));
   const page = Math.floor(offset / PAGE) + 1;
   const counts = list.data?.counts;
+  const problems = Object.entries(list.data?.problems ?? {}).sort((a, b) => b[1] - a[1]);
+  const pickProblem = (r: string | null) => { setProblem(r); setOffset(0); setSelected(null); };
 
   return (
     <div>
@@ -71,7 +76,7 @@ export function CreatorChecksPage({ canEdit }: { canEdit: boolean }) {
           <div key={n} className="flex flex-wrap items-center gap-1.5">
             {n === 1 && <span className="mr-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">Review</span>}
             {row.map((f) => (
-              <button key={f} type="button" aria-pressed={filter === f} onClick={() => { setFilter(f); setOffset(0); setSelected(null); }}
+              <button key={f} type="button" aria-pressed={filter === f} onClick={() => { setFilter(f); setProblem(null); setOffset(0); setSelected(null); }}
                 className={n === 0
                   ? `rounded-xl px-4 py-2 text-[13px] font-semibold transition-colors ${filter === f ? "bg-[#131b2e] text-white" : "bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"}`
                   : `rounded-full px-2.5 py-1 text-[11px] transition-colors ${filter === f ? "bg-[#131b2e] font-bold text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
@@ -80,7 +85,22 @@ export function CreatorChecksPage({ canEdit }: { canEdit: boolean }) {
             ))}
           </div>
         ))}
-        <p className="text-xs text-slate-500">{FILTER_HELP[filter]}</p>
+        {filter === "unqualified" && problems.length > 0 && (
+          <div role="group" aria-label="Problems" className="flex flex-wrap items-center gap-1.5 rounded-xl bg-amber-50/70 p-2 ring-1 ring-amber-200/70">
+            <span className="mr-1 px-1 text-[10px] font-bold uppercase tracking-wider text-amber-800">Problem</span>
+            <button type="button" aria-pressed={problem === null} onClick={() => pickProblem(null)}
+              className={`rounded-full px-2.5 py-1 text-[11px] transition-colors ${problem === null ? "bg-amber-600 font-bold text-white" : "bg-white text-amber-900 ring-1 ring-amber-200 hover:bg-amber-100"}`}>
+              Every problem{counts ? ` (${fmtNum(counts.unqualified)})` : ""}
+            </button>
+            {problems.map(([r, n]) => (
+              <button key={r} type="button" aria-pressed={problem === r} onClick={() => pickProblem(r)}
+                className={`rounded-full px-2.5 py-1 text-[11px] transition-colors ${problem === r ? "bg-amber-600 font-bold text-white" : "bg-white text-amber-900 ring-1 ring-amber-200 hover:bg-amber-100"}`}>
+                {problemLabel(r)} ({fmtNum(n)})
+              </button>
+            ))}
+          </div>
+        )}
+        <p className="text-xs text-slate-500">{problem ? `Only creators whose problem is: ${problemLabel(problem).toLowerCase()}. Fix the detail in the editor, or move them to Trash.` : FILTER_HELP[filter]}</p>
       </nav>
       <div className="flex flex-col items-start gap-5 lg:flex-row">
         <section aria-label="Creators" className="flex w-full shrink-0 flex-col overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-[0_1px_8px_rgba(0,0,0,0.03)] lg:w-[380px]">

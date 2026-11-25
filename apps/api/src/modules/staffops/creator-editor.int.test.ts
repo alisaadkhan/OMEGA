@@ -159,4 +159,18 @@ describe("staff creator editor (owner, 22 Nov)", () => {
     expect(def.counts).toMatchObject({ qualified: 1, unreachable: 1, unqualified: 1, all: 3 });
     expect((await app.inject({ method: "GET", url: "/admin/v1/catalogue/all", headers: support })).json().items.map((i: { displayName: string }) => i.displayName)).toEqual(["Qualifies With Email"]);
   });
+
+  it("problem categories (owner, 25 Nov): Doesn't qualify is counted per problem and narrows to one problem at a time", async () => {
+    const { app, as } = await setup();
+    const support = await as("support");
+    await addIndexedCreator(db, { displayName: "Qualifies With Email" });
+    await addIndexedCreator(db, { displayName: "Too Small", profiles: [{ followers: 2_000 }] });
+    const get = async (qs: string) => app.inject({ method: "GET", url: `/admin/v1/catalogue/all?${qs}`, headers: support });
+    const all = (await get("filter=unqualified")).json() as { problems: Record<string, number> };
+    expect(all.problems).toMatchObject({ below_follower_minimum: 1 });
+    const one = (await get("filter=unqualified&problem=below_follower_minimum")).json() as { items: { displayName: string }[]; total: number };
+    expect([one.items.map((i) => i.displayName), one.total]).toEqual([["Too Small"], 1]);
+    expect(((await get("filter=unqualified&problem=country_unknown")).json() as { total: number }).total).toBe(0);
+    expect((await get("filter=unqualified&problem=x' or 1=1--")).statusCode).toBe(400);
+  });
 });

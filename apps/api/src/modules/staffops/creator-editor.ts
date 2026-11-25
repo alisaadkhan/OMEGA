@@ -10,7 +10,13 @@ type Meta = { ip: string | null; requestId: string | null };
 const reason = z.string().trim().min(12, "Give a reason of at least 12 characters").max(500);
 
 export const creatorFilterSchema = z.enum(["qualified", "unreachable", "unqualified", "refresh", "all", "reported", "country", "minor", "organisation", "assessment", "hidden", "trash"]);
-export const creatorListQuerySchema = z.object({ q: z.string().trim().max(80).default(""), filter: creatorFilterSchema.default("qualified"), offset: z.coerce.number().int().min(0).max(100_000).default(0) });
+export const creatorListQuerySchema = z.object({
+  q: z.string().trim().max(80).default(""),
+  filter: creatorFilterSchema.default("qualified"),
+  /** One problem (an eligibility reason) to review on its own (owner, 25 Nov: "categories of creators based on problem"). */
+  problem: z.string().regex(/^[a-z_]{3,40}$/).optional(),
+  offset: z.coerce.number().int().min(0).max(100_000).default(0),
+});
 
 const profile = z.object({ platform: z.string(), handle: z.string(), url: z.string(), followers: z.number().nullable(), countryStatus: z.string().nullable(), country: z.string().nullable(), countrySource: z.string().nullable(), bio: z.string().nullable(), verified: z.boolean().nullable() });
 export const staffCreatorSchema = z.object({
@@ -45,6 +51,8 @@ export const staffCreatorListSchema = z.object({
   items: z.array(staffCreatorSchema),
   total: z.number().int(),
   counts: z.record(creatorFilterSchema, z.number().int()),
+  /** Creators that do not qualify, counted per problem; a creator with two problems counts under both. */
+  problems: z.record(z.string(), z.number().int()).default({}),
 });
 
 /** What staff may change on a creator; each change needs a reason and is audited. */
@@ -102,6 +110,7 @@ export function createCreatorEditor(deps: { db: Db; reindex: (ids: string[]) => 
 
   return {
     async list(q: z.infer<typeof creatorListQuerySchema>): Promise<z.infer<typeof staffCreatorListSchema>> {
+      const where = q.problem ? sql`${WHERE[q.filter]} and ${q.problem} = any(d.eligibility_reasons)` : WHERE[q.filter];
       return deps.db.withSystem(async (tx) => {
         const items = await tx.execute<z.infer<typeof staffCreatorSchema>>(sql`
           select c.id, c.display_name as "displayName", c.avatar_url as "avatarUrl", c.city, c.country, c.public_country as "publicCountry",
@@ -115,13 +124,15 @@ export function createCreatorEditor(deps: { db: Db; reindex: (ids: string[]) => 
               from gcp.creator_profiles p where p.creator_id = c.id), '[]'::jsonb) as profiles,
             coalesce((select array_agg(l.url order by l.first_seen_at) from gcp.creator_links l where l.creator_id = c.id), '{}') as links
           from ${FROM}
-          where ${WHERE[q.filter]} and ${nameOrHandle(q.q)}
+          where ${where} and ${nameOrHandle(q.q)}
           order by coalesce(r.pending, 0) desc, (select max(p.followers) from gcp.creator_profiles p where p.creator_id = c.id) desc nulls last, c.id
           limit ${PAGE} offset ${q.offset}`);
-        const [t] = await tx.execute<{ n: number }>(sql`select count(*)::int n from ${FROM} where ${WHERE[q.filter]} and ${nameOrHandle(q.q)}`);
+        const [t] = await tx.execute<{ n: number }>(sql`select count(*)::int n from ${FROM} where ${where} and ${nameOrHandle(q.q)}`);
         const [cnt] = await tx.execute<Record<z.infer<typeof creatorFilterSchema>, number>>(sql`select
           ${sql.join(creatorFilterSchema.options.map((f) => sql`(select count(*)::int from ${FROM} where ${WHERE[f]}) as ${sql.identifier(f)}`), sql`, `)}`);
-        return { items: [...items], total: t?.n ?? 0, counts: cnt ?? { qualified: 0, unreachable: 0, unqualified: 0, refresh: 0, all: 0, reported: 0, country: 0, minor: 0, organisation: 0, assessment: 0, hidden: 0, trash: 0 } };
+        const problems = await tx.execute<{ r: string; n: number }>(sql`
+          select r, count(*)::int n from (select d.eligibility_reasons rs from ${FROM} where ${WHERE.unqualified}) x, unnest(x.rs) r group by r`);
+        return { items: [...items], total: t?.n ?? 0, problems: Object.fromEntries(problems.map((p) => [p.r, p.n])), counts: cnt ?? { qualified: 0, unreachable: 0, unqualified: 0, refresh: 0, all: 0, reported: 0, country: 0, minor: 0, organisation: 0, assessment: 0, hidden: 0, trash: 0 } };
       });
     },
 

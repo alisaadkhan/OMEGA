@@ -46,7 +46,7 @@ export const trashDaysLeft = (trashedAt: string | null): number | null =>
   trashedAt === null ? null : Math.max(0, TRASH_DAYS - Math.floor((Date.now() - new Date(trashedAt).getTime()) / 86_400_000));
 export const FILTERS = ["qualified", "unreachable", "unqualified", "refresh", "country", "organisation", "assessment", "minor", "reported", "hidden", "trash", "all"] as const;
 export type Filter = (typeof FILTERS)[number];
-export const staffCreatorListSchema = z.object({ items: z.array(staffCreatorSchema), total: z.number(), counts: z.record(z.enum(FILTERS), z.number()) });
+export const staffCreatorListSchema = z.object({ items: z.array(staffCreatorSchema), total: z.number(), counts: z.record(z.enum(FILTERS), z.number()), problems: z.record(z.string(), z.number()).default({}) });
 
 export const FILTER_LABEL: Record<Filter, string> = {
   qualified: "Qualifies",
@@ -117,6 +117,12 @@ export const HIDDEN: Record<string, string> = {
   country_conflicting: "conflicting country",
   country_not_pakistan: "not in Pakistan",
   country_stale: "country evidence out of date",
+};
+
+/** A problem as a category name ("Country unknown"); an unknown code is shown readable rather than hidden. */
+export const problemLabel = (r: string) => {
+  const t = HIDDEN[r] ?? r.replace(/_/g, " ");
+  return t.charAt(0).toUpperCase() + t.slice(1);
 };
 
 export const fmtFollowers = (n: number | null) => (n === null ? "—" : n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1_000 ? `${Math.round(n / 1_000)}K` : String(n));
