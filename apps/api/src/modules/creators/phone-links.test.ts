@@ -7,7 +7,7 @@ describe("links that can carry a phone number stay behind the paid reveal (secur
       "https://wa.me/923001234567", "wa.me/923001234567", "https://api.whatsapp.com/send?phone=923001234567", "https://WA.LINK/abc",
       "https://t.me/+923001234567", "tel:+923001234567", "sms:03001234567", "whatsapp://send?phone=92300", "viber://chat?number=923001234567",
       "https://l.instagram.com/?u=https%3A%2F%2Fwa.me%2F923001234567", "https://linktr.ee/ali?call=0300-1234567", "https://example.pk/contact/0300%201234567",
-      "http://[bad", "https://%zz",
+      "http://[bad", "https://%zz", "https://example.pk/#0300-123-4567", "https://923001234567.example.pk/", "https://telegram.me/+923001234567", "https://signal.me/#p/+923001234567", "https://bit.ly/3abcde", "ftp://files.example.pk/x",
     ]) expect(carriesPhone(l), l).toBe(true);
   });
 

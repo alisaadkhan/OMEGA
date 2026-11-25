@@ -229,32 +229,31 @@ export async function bioLinkUrls(tx: Tx, ids: string[], revealed: ReadonlySet<s
 }
 
 /**
- * Whether a link can carry a phone number, a paid reveal (security review, 25 Nov): a tel:/sms:/whatsapp:/viber: link,
- * a WhatsApp or Telegram chat link, or any URL whose path or query holds a run of 9 or more digits, also behind an
- * Instagram or Facebook redirect. A link that cannot be parsed counts as carrying one (fail closed).
+ * Whether a link can carry a phone number, a paid reveal (security review, 25 Nov): a tel:/sms:/whatsapp:/viber: link;
+ * a chat host (WhatsApp, Telegram, Signal, Viber); a link shortener (it can redirect to any of these); an Instagram or
+ * Facebook redirect to such a link; or any URL holding a run of 9 or more digits anywhere (host, user, path, query or
+ * fragment, separators ignored). A link that cannot be parsed counts as carrying one (fail closed).
  */
+const CHAT_HOST = /(^|\.)(wa\.me|wa\.link|whatsapp\.com|whatsapp\.net|t\.me|telegram\.me|telegram\.dog|signal\.me|signal\.group|viber\.com|viber\.click|line\.me|imo\.im)$/;
+const SHORTENER = /^(bit\.ly|tinyurl\.com|cutt\.ly|rb\.gy|t\.co|goo\.gl|shorturl\.at|is\.gd|ow\.ly|tiny\.cc|s\.id|rebrand\.ly|bl\.ink|shorte\.st|v\.gd)$/;
 export function carriesPhone(raw: string, depth = 0): boolean {
   let u: URL;
+  let whole: string;
   try {
     const s = raw.trim();
     u = new URL(/^[a-z][a-z0-9+.-]*:/i.test(s) ? s : `https://${s}`);
+    whole = decodeURIComponent(u.href);
   } catch {
     return true;
   }
-  if (/^(tel|sms|whatsapp|viber|callto):$/i.test(u.protocol)) return true;
+  if (!/^https?:$/i.test(u.protocol)) return true;
   const host = u.hostname.toLowerCase().replace(/\.$/, "");
-  if (/(^|\.)(wa\.me|wa\.link|whatsapp\.com|t\.me)$/.test(host)) return true;
-  if (depth < 2 && /^(l\.instagram\.com|l\.facebook\.com|lm\.facebook\.com)$/.test(host)) {
+  if (CHAT_HOST.test(host) || SHORTENER.test(host)) return true;
+  if (/^(l\.instagram\.com|l\.facebook\.com|lm\.facebook\.com)$/.test(host)) {
     const inner = u.searchParams.get("u");
-    if (inner && carriesPhone(inner, depth + 1)) return true;
+    if (!inner || depth >= 2 || carriesPhone(inner, depth + 1)) return true;
   }
-  let rest: string;
-  try {
-    rest = decodeURIComponent(`${u.pathname}${u.search}`);
-  } catch {
-    return true;
-  }
-  return /\d{9,}/.test(rest.replace(/[\s().+-]/g, ""));
+  return /\d{9,}/.test(whole.replace(/[^a-z0-9]/gi, ""));
 }
 
 /** Links shown before the workspace revealed the creator's contacts: none that can carry a phone number. */
