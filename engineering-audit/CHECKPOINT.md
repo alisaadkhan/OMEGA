@@ -1,3 +1,17 @@
+# Checkpoint (25 Nov 2026)
+
+## State
+- Live DB through 0100; GitHub branch at b12d136. Local commits since: b62e74e, 07c860b (problem categories), 55935bd
+  (budget race fix, test updates) and another session's commits; push awaits the owner.
+- Tests: integration 802 pass (one profile test in another session's uncommitted work); staff e2e 57/57; customer
+  e2e 118/118; load check within targets.
+
+## Remaining
+1. Professional UI polish of admin/customer/landing pages beyond the Overview (no owner designs for the others).
+2. Search: "pubg" returns a platform account and off-topic gaming channels (T-035).
+3. Split the five source files over 500 lines (refactor, low risk, not urgent).
+
+--- previous checkpoint ---
 # Checkpoint (end of session 24 Nov 2026)
 
 Resume from here. Records: NIGHTLY_BASELINE.md, NIGHTLY_PROGRESS.md (task log), NIGHTLY_DECISIONS.md,
