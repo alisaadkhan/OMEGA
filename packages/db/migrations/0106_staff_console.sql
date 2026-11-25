@@ -76,7 +76,7 @@ revoke all on function platform.staff_creator_stats(integer, integer) from publi
 grant execute on function platform.staff_creator_stats(integer, integer) to mushin_worker;
 
 -- Reported profiles (owner, 25 Nov: "too many reports -> hide it from customers immediately and send it to review").
--- Once 3 different accounts have an open report on a creator, the creator is hidden (the same status staff "Hide" uses)
+-- Once 3 different subscribed accounts have an open report on a creator, the creator is hidden (the same status staff "Hide" uses)
 -- with an "auto" reason, and stays in the Reported profiles queue. Dismissing every report brings it back (API side).
 -- When staff last reviewed this creator's reports (unhide or dismiss): only reports filed after it count again, so a
 -- staff decision is never undone by the same old reports.
@@ -90,7 +90,10 @@ begin
   select count(distinct r.workspace_id) into n from wp.creator_profile_reviews r
     join gcp.creators c on c.id = r.creator_id
     where r.creator_id = new.creator_id and r.status = 'pending' and r.verdict = 'invalid'
-      and r.created_at > coalesce(c.reports_reviewed_at, '-infinity'::timestamptz);
+      and r.created_at > coalesce(c.reports_reviewed_at, '-infinity'::timestamptz)
+      -- Only accounts on an active or approved-trial plan count: free sign-ups are cheap to make in bulk, so they can
+      -- report (staff still see it) but cannot take a creator down (security review, 25 Nov).
+      and exists (select 1 from wp.subscriptions s where s.workspace_id = r.workspace_id and s.status in ('active', 'trialing'));
   if n >= 3 then
     update gcp.creators set status = 'hidden', hidden_by_staff_id = null, hidden_at = now(), updated_at = now(),
       hidden_reason = 'Hidden automatically: reports from ' || n || ' accounts; waiting for staff review'

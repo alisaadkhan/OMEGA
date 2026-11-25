@@ -91,6 +91,14 @@ const WHERE: Record<z.infer<typeof creatorFilterSchema>, ReturnType<typeof sql>>
 // review each one myself"). A proven non-Pakistan country is not here: that is a decided fact, not a missing one.
 export const LOCATION_ONLY = "location_only";
 const ONLY_LOCATION = sql`cardinality(d.eligibility_reasons) > 0 and d.eligibility_reasons <@ array['country_unknown', 'country_conflicting', 'country_stale']::text[]`;
+// Creators who qualify but miss something (owner, 25 Nov: "categories for creators that qualify but are missing info,
+// they still qualify"). They stay searchable; these are only staff to-do lists.
+export const GAPS: Record<string, ReturnType<typeof sql>> = {
+  gap_niche: sql`c.niche_main is null`,
+  gap_city: sql`c.city is null`,
+  gap_contact: sql`not coalesce(d.has_contact, false)`,
+  gap_assessment: sql`(c.assessment_status is null or c.assessment_status <> 'assessed')`,
+};
 const FROM = sql`gcp.creators c left join platform.staff_creator_report_counts() r on r.creator_id = c.id left join gcp.creator_search_documents d on d.creator_id = c.id`;
 
 function nameOrHandle(text: string) {
@@ -114,7 +122,9 @@ export function createCreatorEditor(deps: { db: Db; reindex: (ids: string[]) => 
 
   return {
     async list(q: z.infer<typeof creatorListQuerySchema>): Promise<z.infer<typeof staffCreatorListSchema>> {
-      const where = !q.problem ? WHERE[q.filter] : q.problem === LOCATION_ONLY ? sql`${WHERE[q.filter]} and ${ONLY_LOCATION}` : sql`${WHERE[q.filter]} and ${q.problem} = any(d.eligibility_reasons)`;
+      const gap = q.problem ? GAPS[q.problem] : undefined;
+      const where = !q.problem ? WHERE[q.filter] : gap ? sql`${WHERE[q.filter]} and ${gap}` : q.problem === LOCATION_ONLY ? sql`${WHERE[q.filter]} and ${ONLY_LOCATION}` : sql`${WHERE[q.filter]} and ${q.problem} = any(d.eligibility_reasons)`;
+      const gapBase = q.filter === "unreachable" ? WHERE.unreachable : WHERE.qualified;
       return deps.db.withSystem(async (tx) => {
         const items = await tx.execute<z.infer<typeof staffCreatorSchema>>(sql`
           select c.id, c.display_name as "displayName", c.avatar_url as "avatarUrl", c.city, c.country, c.public_country as "publicCountry",
@@ -136,7 +146,8 @@ export function createCreatorEditor(deps: { db: Db; reindex: (ids: string[]) => 
           ${sql.join(creatorFilterSchema.options.map((f) => sql`(select count(*)::int from ${FROM} where ${WHERE[f]}) as ${sql.identifier(f)}`), sql`, `)}`);
         const problems = await tx.execute<{ r: string; n: number }>(sql`
           select r, count(*)::int n from (select d.eligibility_reasons rs from ${FROM} where ${WHERE.unqualified}) x, unnest(x.rs) r group by r
-          union all select ${LOCATION_ONLY}, count(*)::int from ${FROM} where ${WHERE.unqualified} and ${ONLY_LOCATION}`);
+          union all select ${LOCATION_ONLY}, count(*)::int from ${FROM} where ${WHERE.unqualified} and ${ONLY_LOCATION}
+          ${sql.join(Object.entries(GAPS).map(([k, g]) => sql`union all select ${k}, count(*)::int from ${FROM} where ${gapBase} and ${g}`), sql` `)}`);
         return { items: [...items], total: t?.n ?? 0, problems: Object.fromEntries(problems.map((p) => [p.r, p.n])), counts: cnt ?? { qualified: 0, unreachable: 0, unqualified: 0, refresh: 0, all: 0, reported: 0, country: 0, minor: 0, organisation: 0, assessment: 0, hidden: 0, trash: 0 } };
       });
     },

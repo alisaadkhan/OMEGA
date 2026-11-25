@@ -103,16 +103,23 @@ describe("staff review queue", () => {
 describe("reported profiles auto-hide (owner, 25 Nov, 0106)", () => {
   const status = async (id: string) => (await ownerQuery<{ status: string; hidden_reason: string | null }>(`select status, hidden_reason from gcp.creators where id = '${id}'`))[0];
   const flag = (ctx: TenantContext, id: string) => submitCreatorReview(db, ctx, id, { verdict: "invalid", reason: "not_individual_creator", sourceMode: "db_search" });
+  const subscribed = async () => {
+    const ctx = await customer();
+    await ownerQuery(`insert into wp.subscriptions (workspace_id, status) values ('${ctx.workspaceId}', 'active')`);
+    return ctx;
+  };
 
   it("hides a creator once 3 different accounts report it; one account alone never can", async () => {
     const creator = await addCreator(db);
-    const a = await customer();
+    const a = await subscribed();
+    for (let i = 0; i < 3; i++) await flag(await customer(), creator); // free accounts never hide a creator
+    expect((await status(creator))?.status).toBe("active");
     await flag(a, creator);
     await flag(a, creator); // the same account again only updates its open report
     expect((await status(creator))?.status).toBe("active");
-    await flag(await customer(), creator);
+    await flag(await subscribed(), creator);
     expect((await status(creator))?.status).toBe("active");
-    await flag(await customer(), creator);
+    await flag(await subscribed(), creator);
     expect(await status(creator)).toEqual({ status: "hidden", hidden_reason: "Hidden automatically: reports from 3 accounts; waiting for staff review" });
   });
 
@@ -120,7 +127,7 @@ describe("reported profiles auto-hide (owner, 25 Nov, 0106)", () => {
     const flags = createCreatorFlags({ db });
     const staff = { staffId: await staffMember(), role: "admin" } as never;
     const creator = await addCreator(db);
-    for (let i = 0; i < 3; i++) await flag(await customer(), creator);
+    for (let i = 0; i < 3; i++) await flag(await subscribed(), creator);
     expect((await status(creator))?.status).toBe("hidden");
     const open = (await flags.list({ status: "pending", offset: 0 })).items.filter((i) => i.creatorId === creator);
     await flags.decide(staff, open[0]?.id as string, { action: "dismiss", note: "Checked: real creator" }, meta);
@@ -128,8 +135,8 @@ describe("reported profiles auto-hide (owner, 25 Nov, 0106)", () => {
     for (const f of open.slice(1)) await flags.decide(staff, f.id, { action: "dismiss", note: "Checked: real creator" }, meta);
     expect(await status(creator)).toEqual({ status: "active", hidden_reason: null });
     // Two new reports after the review are not enough; the dismissed ones no longer count.
-    await flag(await customer(), creator);
-    await flag(await customer(), creator);
+    await flag(await subscribed(), creator);
+    await flag(await subscribed(), creator);
     expect((await status(creator))?.status).toBe("active");
   });
 });

@@ -8,6 +8,7 @@ import { Empty, errText, fmtNum } from "./kit";
 import { FILTER_HELP, FILTER_LABEL, FILTERS, problemLabel, REPORT_REASON, TRASH_DAYS, fmtFollowers, staffCreatorListSchema, trashDaysLeft, type Filter, type StaffCreator } from "./creatorTypes";
 
 const PAGE = 50;
+const GAP_LABEL: Record<string, string> = { gap_niche: "Niche not identified", gap_city: "City not known", gap_contact: "Not reachable (no email or phone)", gap_assessment: "Not assessed yet" };
 
 /** The line under a creator's name: what needs attention first. */
 function note(c: StaffCreator): string {
@@ -57,7 +58,8 @@ export function CreatorChecksPage({ canEdit }: { canEdit: boolean }) {
   const page = Math.floor(offset / PAGE) + 1;
   const counts = list.data?.counts;
   // "Only location unproven" first: the owner reviews these one by one (25 Nov); then the rest, most common first.
-  const problems = Object.entries(list.data?.problems ?? {}).filter(([, n]) => n > 0).sort((a, b) => Number(b[0] === "location_only") - Number(a[0] === "location_only") || b[1] - a[1]);
+  const gaps = Object.entries(list.data?.problems ?? {}).filter(([r, n]) => r.startsWith("gap_") && n > 0 && !(filter === "unreachable" && r === "gap_contact"));
+  const problems = Object.entries(list.data?.problems ?? {}).filter(([r, n]) => n > 0 && !r.startsWith("gap_")).sort((a, b) => Number(b[0] === "location_only") - Number(a[0] === "location_only") || b[1] - a[1]);
   const pickProblem = (r: string | null) => { setProblem(r); setOffset(0); setSelected(null); };
 
   return (
@@ -109,7 +111,22 @@ export function CreatorChecksPage({ canEdit }: { canEdit: boolean }) {
             ))}
           </div>
         )}
-        <p className="text-xs text-slate-500">{problem ? `Only creators whose problem is: ${problemLabel(problem).toLowerCase()}. Fix the detail in the editor, or move them to Trash.` : FILTER_HELP[filter]}</p>
+        {(filter === "qualified" || filter === "unreachable") && gaps.length > 0 && (
+          <div role="group" aria-label="Missing information" className="flex flex-wrap items-center gap-1.5 rounded-xl bg-cyan-50/70 p-2 ring-1 ring-cyan-200/70">
+            <span className="mr-1 px-1 text-[10px] font-bold uppercase tracking-wider text-cyan-800">Still qualifies, but missing</span>
+            <button type="button" aria-pressed={problem === null} onClick={() => pickProblem(null)}
+              className={`rounded-full px-2.5 py-1 text-[11px] transition-colors ${problem === null ? "bg-cyan-700 font-bold text-white" : "bg-white text-cyan-900 ring-1 ring-cyan-200 hover:bg-cyan-100"}`}>
+              Everyone
+            </button>
+            {gaps.map(([r, n]) => (
+              <button key={r} type="button" aria-pressed={problem === r} onClick={() => pickProblem(r)}
+                className={`rounded-full px-2.5 py-1 text-[11px] transition-colors ${problem === r ? "bg-cyan-700 font-bold text-white" : "bg-white text-cyan-900 ring-1 ring-cyan-200 hover:bg-cyan-100"}`}>
+                {GAP_LABEL[r] ?? r} ({fmtNum(n)})
+              </button>
+            ))}
+          </div>
+        )}
+        <p className="text-xs text-slate-500">{problem?.startsWith("gap_") ? `They qualify and customers can find them. Missing: ${(GAP_LABEL[problem] ?? problem).toLowerCase()}. Add it in the editor.` : problem ? `Only creators whose problem is: ${problemLabel(problem).toLowerCase()}. Fix the detail in the editor, or move them to Trash.` : FILTER_HELP[filter]}</p>
       </nav>
       <div className="flex flex-col items-start gap-5 lg:flex-row">
         <section aria-label="Creators" className="flex w-full shrink-0 flex-col overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-[0_1px_8px_rgba(0,0,0,0.03)] lg:w-[380px]">
