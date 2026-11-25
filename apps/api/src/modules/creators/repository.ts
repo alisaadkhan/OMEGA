@@ -225,12 +225,41 @@ export async function bioLinkUrls(tx: Tx, ids: string[], revealed: ReadonlySet<s
       array(select p.bio from gcp.creator_profiles p where p.creator_id = c.id and p.bio is not null) as bios,
       (c.is_minor and c.minor_override_by_staff_id is null) as protected
     from gcp.creators c where c.id in ${ids}`);
-  return new Map(rows.map((r) => [r.id, r.protected ? r.own : [...r.own, ...withoutPhoneLinks(r.links, revealed.has(r.id)), ...r.bios.flatMap(prefixedHandleUrls)]]));
+  return new Map(rows.map((r) => [r.id, r.protected ? r.own : [...r.own, ...withoutPhoneLinks([...r.links, ...r.bios.flatMap(prefixedHandleUrls)], revealed.has(r.id))]]));
 }
 
-/** Links that carry a phone number (WhatsApp chat links): shown only after the workspace revealed the creator's contacts. */
+/**
+ * Whether a link can carry a phone number, a paid reveal (security review, 25 Nov): a tel:/sms:/whatsapp:/viber: link,
+ * a WhatsApp or Telegram chat link, or any URL whose path or query holds a run of 9 or more digits, also behind an
+ * Instagram or Facebook redirect. A link that cannot be parsed counts as carrying one (fail closed).
+ */
+export function carriesPhone(raw: string, depth = 0): boolean {
+  let u: URL;
+  try {
+    const s = raw.trim();
+    u = new URL(/^[a-z][a-z0-9+.-]*:/i.test(s) ? s : `https://${s}`);
+  } catch {
+    return true;
+  }
+  if (/^(tel|sms|whatsapp|viber|callto):$/i.test(u.protocol)) return true;
+  const host = u.hostname.toLowerCase().replace(/\.$/, "");
+  if (/(^|\.)(wa\.me|wa\.link|whatsapp\.com|t\.me)$/.test(host)) return true;
+  if (depth < 2 && /^(l\.instagram\.com|l\.facebook\.com|lm\.facebook\.com)$/.test(host)) {
+    const inner = u.searchParams.get("u");
+    if (inner && carriesPhone(inner, depth + 1)) return true;
+  }
+  let rest: string;
+  try {
+    rest = decodeURIComponent(`${u.pathname}${u.search}`);
+  } catch {
+    return true;
+  }
+  return /\d{9,}/.test(rest.replace(/[\s().+-]/g, ""));
+}
+
+/** Links shown before the workspace revealed the creator's contacts: none that can carry a phone number. */
 export function withoutPhoneLinks<T extends string | { url: string }>(links: readonly T[], revealed: boolean): T[] {
-  return revealed ? [...links] : links.filter((l) => !/^(https?:\/\/)?((www|api|web|chat)\.)?(wa\.me|wa\.link|whatsapp\.com)(\/|$)/i.test(typeof l === "string" ? l : l.url));
+  return revealed ? [...links] : links.filter((l) => !carriesPhone(typeof l === "string" ? l : l.url));
 }
 
 /** Which of these creators the workspace has revealed contacts for. */
