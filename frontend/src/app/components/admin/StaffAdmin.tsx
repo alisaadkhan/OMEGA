@@ -7,6 +7,7 @@ import { useToast } from "../../lib/toast";
 import { ErrorState, LoadingBlock } from "../dashboard/states";
 import { Header } from "./OpsViews";
 import { ReasonAction, errText } from "./staff-ui";
+import { Empty } from "../staff/kit";
 
 const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" }) : "—");
 const ACTION_LABEL: Record<Approval["action"], string> = { "credits.grant": "Credit correction", "staff.role.change": "Staff role change", "staff.suspend": "Staff suspension" };
@@ -35,7 +36,7 @@ export function Approvals({ me, role }: { me: string; role: AdminRole }) {
         {(["pending", ""] as const).map((s) => <button key={s} onClick={() => setStatus(s)} aria-pressed={status === s} className={`tab ${status === s ? "tab-on" : ""}`}>{s ? "Waiting" : "All"}</button>)}
       </div>
       <CreditCorrectionForm />
-      {q.isPending ? <LoadingBlock lines={3} /> : q.isError ? <ErrorState body={errText(q.error)} onRetry={() => void q.refetch()} /> : q.data.approvals.length === 0 ? <p className="text-sm text-slate-500">{status ? "Nothing is waiting for a decision." : "No requests yet."}</p> : (
+      {q.isPending ? <LoadingBlock lines={3} /> : q.isError ? <ErrorState body={errText(q.error)} onRetry={() => void q.refetch()} /> : q.data.approvals.length === 0 ? <Empty title={status ? "Nothing is waiting for a decision" : "No requests yet"} body="Credit corrections and other high-impact actions appear here for a second staff member." /> : (
         <ul className="space-y-2">
           {q.data.approvals.map((a) => {
             const mine = a.requestedBy.id === me;

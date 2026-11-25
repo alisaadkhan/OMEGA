@@ -30,8 +30,8 @@ export function SupportQueue({ me, canAssignOthers, role }: { me: string; canAss
         {(["open", "in_progress", "waiting_on_customer", "resolved", "closed", ""] as const).map((s) => (
           <button key={s} onClick={() => setStatus(s)} aria-pressed={status === s} className={`tab ${status === s ? "tab-on" : ""}`}>{s ? STATUS[s] : "All"}</button>
         ))}
-        <label className="ml-auto flex items-center gap-1 text-slate-600">Priority
-          <select value={priority} onChange={(e) => setPriority(e.target.value as Priority | "")} aria-label="Filter by priority" className="rounded-md border border-slate-200 px-1.5 py-1 text-xs">
+        <label className="ml-auto flex items-center gap-1.5 text-[12px] font-semibold text-slate-600">Priority
+          <select value={priority} onChange={(e) => setPriority(e.target.value as Priority | "")} aria-label="Filter by priority" className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-200">
             <option value="">All</option>
             {Object.entries(PRIORITY).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
           </select>

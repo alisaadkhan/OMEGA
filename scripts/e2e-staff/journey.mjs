@@ -174,6 +174,8 @@ for (const who of ["super1", "support"]) {
     // A toast caught mid-fade is reported at partial opacity; scan the settled page.
     for (const b of await p.getByRole("button", { name: "Dismiss" }).all()) await b.click().catch(() => {});
     await p.waitForTimeout(400);
+    // E2E_SHOTS=1: a full-page screenshot of every section, for design review (audit 25 Nov).
+    if (process.env.E2E_SHOTS === "1") await p.screenshot({ path: join(out, `shot-${role}-${name.replace(/[^a-z0-9]+/gi, "_")}.png`), fullPage: true }).catch(() => {});
     const found = await axeFindings(p);
     check("a11y", `${role} › ${name}: no serious or critical WCAG 2.2 A/AA issues`, found.length === 0, found.join(" | "));
   }

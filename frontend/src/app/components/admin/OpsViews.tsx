@@ -3,18 +3,20 @@ import { useQuery } from "@tanstack/react-query";
 import { eligibilityCoverageSchema, providerUsageSchema, staffAuditListSchema, staffJobDetailSchema, staffJobListSchema, staffOverviewSchema, staffWorkspaceListSchema } from "@mushin/contracts";
 import { adminRequest } from "../../admin/adminApi";
 import { ErrorState, LoadingBlock } from "../dashboard/states";
+import { PageHeader } from "../staff/kit";
 import { JobActions } from "./OpsControls";
 import { WorkspaceActivity } from "./WorkspaceActivity";
 
 /** Staff operations views (canonical spec pages 20–23): instrumented values only, never a default "healthy". */
 const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" }) : "—");
-export function Header({ title, sub }: { title: string; sub: string }) {
-  return (
-    <div className="mb-6">
-      <h1 className="text-[26px] font-extrabold leading-tight tracking-tight text-slate-900">{title}</h1>
-      <p className="mt-1 text-[13px] text-slate-500">{sub}</p>
-    </div>
-  );
+// Every page carries the same header as the Overview (owner design): a section label, the title and one line.
+const SECTION: Record<string, string> = {
+  "Operations overview": "System", "Live Scans": "Operations", "Data Sources": "Operations", Tickets: "Support", "Customer Access": "Support",
+  Accounts: "Customers", "Reported Profiles": "Creators", Approvals: "Governance", "Staff Team": "Governance",
+  "Activity & Security": "Governance", "Audit log": "Governance", Security: "Account & Security",
+};
+export function Header({ title, sub, actions }: { title: string; sub: string; actions?: React.ReactNode }) {
+  return <PageHeader eyebrow={SECTION[title]} title={title} sub={sub} actions={actions} />;
 }
 const Table = ({ head, children }: { head: string[]; children: React.ReactNode }) => (
   <div className="overflow-x-auto rounded-2xl border border-slate-200/80 bg-white">

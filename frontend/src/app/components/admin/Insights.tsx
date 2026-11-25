@@ -7,6 +7,8 @@ import { adminRequest } from "../../admin/adminApi";
 import { useToast } from "../../lib/toast";
 import { errText } from "./staff-ui";
 
+const PLATFORM_NAME: Record<string, string> = { youtube: "YouTube", instagram: "Instagram", tiktok: "TikTok" };
+
 type ReviewStatus = "new" | "reviewed" | "archived";
 const REVIEW_LABEL: Record<ReviewStatus, string> = { new: "New", reviewed: "Reviewed", archived: "Archived" };
 const date = (iso: string) => new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Karachi" });
@@ -23,8 +25,8 @@ export function ProductReviews() {
     onError: (e) => toast.error("Couldn't update the review", errText(e)),
   });
   return (
-    <section aria-label="Reviews">
-      <h1 className="text-slate-900" style={{ fontSize: 18, fontWeight: 600 }}>Reviews</h1>
+    <section aria-label="Reviews" className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
+      <h2 className="text-[16px] font-bold text-slate-900">Reviews</h2>
       <p className="mt-1 text-xs text-slate-500">What customers wrote with "Leave a review". Nobody is emailed when one arrives.</p>
       <div className="mt-4 flex gap-1 text-xs">
         {(["new", "reviewed", "archived", ""] as const).map((s) => (
@@ -71,7 +73,7 @@ function ViewTable({ title, rows }: { title: string; rows: { creatorId: string; 
           <thead className="text-left text-slate-500"><tr><th className="py-1">Creator</th><th>Platform</th><th className="text-right">Views</th>{rows[0]?.uniqueViewers !== undefined && <th className="text-right">People</th>}</tr></thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.creatorId} className="border-t border-slate-100"><td className="py-1 text-slate-800">{r.displayName}</td><td className="text-slate-600">{r.platform}</td><td className="text-right">{r.views}</td>{r.uniqueViewers !== undefined && <td className="text-right">{r.uniqueViewers}</td>}</tr>
+              <tr key={r.creatorId} className="border-t border-slate-100"><td className="py-1 text-slate-800">{r.displayName}</td><td className="text-slate-600">{PLATFORM_NAME[r.platform] ?? r.platform}</td><td className="text-right">{r.views}</td>{r.uniqueViewers !== undefined && <td className="text-right">{r.uniqueViewers}</td>}</tr>
             ))}
           </tbody>
         </table>
@@ -93,18 +95,18 @@ export function UsageInsights({ role }: { role: AdminRole }) {
   const v: CreatorViewStats | undefined = views.data;
   const s = searches.data;
   return (
-    <section aria-label="Usage">
+    <section aria-label="Usage" className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
       <div className="flex items-center justify-between">
-        <h1 className="text-slate-900" style={{ fontSize: 18, fontWeight: 600 }}>Usage</h1>
+        <h2 className="text-[16px] font-bold text-slate-900">Usage</h2>
         <label className="text-xs text-slate-600">
           Last{" "}
-          <select value={days} onChange={(e) => setDays(Number(e.target.value))} className="rounded-md border border-slate-200 px-1 py-0.5">
+          <select value={days} onChange={(e) => setDays(Number(e.target.value))} className="rounded-lg border border-slate-200 px-1.5 py-1 focus:outline-none focus:ring-2 focus:ring-cyan-200">
             {[7, 30, 90].map((d) => <option key={d} value={d}>{d} days</option>)}
           </select>
         </label>
       </div>
 
-      <h2 className="mt-5 text-sm text-slate-900" style={{ fontWeight: 600 }}>Creator profiles opened</h2>
+      <h3 className="mt-5 text-[13.5px] font-bold text-slate-900">Creator profiles opened</h3>
       <p className="text-xs text-slate-500">A view is a customer opening a creator's profile; the same person reopening it within 30 minutes counts once. {since(v?.trackedSince)}</p>
       {views.isError && <p className="mt-2 text-sm text-rose-700">{errText(views.error)}</p>}
       {v && (
@@ -113,9 +115,9 @@ export function UsageInsights({ role }: { role: AdminRole }) {
             {(["youtube", "instagram", "tiktok"] as const).map((p) => {
               const b = v.byPlatform.find((x) => x.platform === p);
               return (
-                <div key={p} className="rounded-lg border border-slate-200 p-2">
-                  <div className="text-slate-500">{p}</div>
-                  <div className="text-slate-900" style={{ fontWeight: 600 }}>{b?.views ?? 0} views</div>
+                <div key={p} className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{PLATFORM_NAME[p]}</div>
+                  <div className="mt-0.5 text-[18px] font-extrabold tabular-nums text-slate-900">{b?.views ?? 0} <span className="text-xs font-semibold text-slate-500">views</span></div>
                   <div className="text-slate-500">{b?.uniqueViewers ?? 0} people · {b?.creatorsViewed ?? 0} creators</div>
                 </div>
               );
@@ -128,7 +130,7 @@ export function UsageInsights({ role }: { role: AdminRole }) {
         </>
       )}
 
-      <h2 className="mt-6 text-sm text-slate-900" style={{ fontWeight: 600 }}>Catalogue searches</h2>
+      <h3 className="mt-6 text-[13.5px] font-bold text-slate-900">Catalogue searches</h3>
       <p className="text-xs text-slate-500">One search is counted once, however many pages are opened. {since(s?.trackedSince)}</p>
       {searches.isError && <p className="mt-2 text-sm text-rose-700">{errText(searches.error)}</p>}
       {s && (
@@ -139,7 +141,7 @@ export function UsageInsights({ role }: { role: AdminRole }) {
 
       {role === "super_admin" && (
         <>
-          <h2 className="mt-6 text-sm text-slate-900" style={{ fontWeight: 600 }}>Support performance</h2>
+          <h3 className="mt-6 text-[13.5px] font-bold text-slate-900">Support performance</h3>
           <p className="text-xs text-slate-500">Medians over requests opened in the window. {perf.data?.historySince ? `History since ${date(perf.data.historySince)}.` : "No history yet."}</p>
           {perf.isError && <p className="mt-2 text-sm text-rose-700">{errText(perf.error)}</p>}
           {perf.data && (

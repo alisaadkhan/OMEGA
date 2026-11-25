@@ -6,6 +6,9 @@ import { useToast } from "../../lib/toast";
 import { ErrorState, LoadingBlock } from "../dashboard/states";
 import { Header } from "./OpsViews";
 import { ReasonAction, errText } from "./staff-ui";
+import { Empty } from "../staff/kit";
+
+const PROVIDER_NAME: Record<string, string> = { apify: "Apify", llm: "AI models", serper: "Serper", youtube: "YouTube", yepapi: "YepAPI" };
 
 const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" }) : "—");
 
@@ -62,7 +65,7 @@ export function ProviderControls() {
   const set = async (provider: string, paused: boolean, reason: string) => {
     await adminRequest(`/admin/v1/ops/provider-controls/${provider}`, providerControlListSchema, { method: "PUT", body: { paused, reason } });
     void qc.invalidateQueries({ queryKey: ["admin"] });
-    toast.success(paused ? `${provider} paused` : `${provider} resumed`);
+    toast.success(paused ? `${PROVIDER_NAME[provider] ?? provider} paused` : `${PROVIDER_NAME[provider] ?? provider} resumed`);
   };
   return (
     <section className="mb-4 rounded-2xl border border-slate-200/80 bg-white p-4 text-xs" aria-label="Provider controls">
@@ -72,8 +75,8 @@ export function ProviderControls() {
         <ul className="mt-2 divide-y divide-slate-100">
           {q.data.providers.map((p) => (
             <li key={p.provider} className="flex flex-wrap items-center gap-2 py-2">
-              <span className="w-20 text-slate-900" style={{ fontWeight: 600 }}>{p.provider}</span>
-              <span className={`rounded-full px-2 py-0.5 text-[10px] ${p.paused ? "bg-amber-100 text-amber-900" : "bg-slate-100 text-slate-700"}`}>{p.paused ? "paused" : "running"}</span>
+              <span className="w-28 font-semibold text-slate-900">{PROVIDER_NAME[p.provider] ?? p.provider}</span>
+              <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10.5px] font-bold ${p.paused ? "border-amber-200 bg-amber-50 text-amber-800" : "border-emerald-200 bg-emerald-50 text-emerald-700"}`}><span aria-hidden className={`h-1.5 w-1.5 rounded-full ${p.paused ? "bg-amber-500" : "bg-emerald-500"}`} />{p.paused ? "Paused" : "Running"}</span>
               <span className="flex-1 text-slate-500">{p.changedBy ? `${p.paused ? "Paused" : "Resumed"} by ${p.changedBy}, ${when(p.changedAt)}${p.reason ? `: ${p.reason}` : ""}` : "Never changed"}</span>
               {p.controllable ? <ReasonAction label={p.paused ? "Resume" : "Pause"} confirmLabel={p.paused ? "Resume" : "Pause provider"} destructive={!p.paused} onSubmit={(reason) => set(p.provider, !p.paused, reason)} /> : <span className="text-slate-500">Not pausable from the console</span>}
             </li>
@@ -118,12 +121,12 @@ export function AuditSearch() {
   return (
     <div>
       <Header title="Activity & Security" sub="Every staff sign-in and action, newest first. The history is append-only; nothing here can edit it." />
-      <form className="mb-3 flex flex-wrap items-end gap-2 text-xs" onSubmit={(e) => { e.preventDefault(); setBefore(null); setFilters({ action: action.trim(), workspaceId: /^[0-9a-f-]{36}$/i.test(workspaceId.trim()) ? workspaceId.trim() : "" }); }}>
-        <label className="text-slate-600">Action starts with<input value={action} onChange={(e) => setAction(e.target.value)} placeholder="e.g. approvals. or support.access" maxLength={80} className="mt-0.5 block w-64 rounded-md border border-slate-200 px-2 py-1" /></label>
-        <label className="text-slate-600">Account id<input value={workspaceId} onChange={(e) => setWorkspaceId(e.target.value)} className="mt-0.5 block w-80 rounded-md border border-slate-200 px-2 py-1" /></label>
+      <form className="mb-4 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200/90 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.03)]" onSubmit={(e) => { e.preventDefault(); setBefore(null); setFilters({ action: action.trim(), workspaceId: /^[0-9a-f-]{36}$/i.test(workspaceId.trim()) ? workspaceId.trim() : "" }); }}>
+        <label className="text-[10.5px] font-bold uppercase tracking-wider text-slate-500">Action starts with<input value={action} onChange={(e) => setAction(e.target.value)} placeholder="e.g. approvals. or support.access" maxLength={80} className="w-64 mt-1 block rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[12.5px] font-normal normal-case tracking-normal text-slate-900 placeholder:text-slate-400 focus:border-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-200" /></label>
+        <label className="text-[10.5px] font-bold uppercase tracking-wider text-slate-500">Account id<input value={workspaceId} onChange={(e) => setWorkspaceId(e.target.value)} placeholder="Account UUID" className="w-80 max-w-full mt-1 block rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[12.5px] font-normal normal-case tracking-normal text-slate-900 placeholder:text-slate-400 focus:border-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-200" /></label>
         <button type="submit" className="btn btn-primary btn-sm">Filter</button>
       </form>
-      {q.isPending ? <LoadingBlock lines={5} /> : q.isError ? <ErrorState body={errText(q.error)} onRetry={() => void q.refetch()} /> : q.data.events.length === 0 ? <p className="text-sm text-slate-500">No events match.</p> : (
+      {q.isPending ? <LoadingBlock lines={5} /> : q.isError ? <ErrorState body={errText(q.error)} onRetry={() => void q.refetch()} /> : q.data.events.length === 0 ? <Empty title="No events match" body="Change the filter, or clear it to see every event." /> : (
         <>
           <div className="overflow-x-auto rounded-2xl border border-slate-200/80 bg-white">
             <table className="w-full text-left text-xs">

@@ -4,6 +4,8 @@ import { z } from "zod";
 import { staffRemovalListSchema } from "@mushin/contracts";
 import { adminRequest } from "../../admin/adminApi";
 import { useConfirm, useToast } from "../../lib/toast";
+import { ErrorState, LoadingBlock } from "../dashboard/states";
+import { Empty, PageHeader } from "../staff/kit";
 
 type Status = "received" | "processed" | "rejected";
 
@@ -28,9 +30,8 @@ export function RemovalRequests() {
   }
 
   return (
-    <div className="space-y-4 p-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-[26px] font-extrabold leading-tight tracking-tight text-slate-900">Data Removals</h1>
+    <div className="space-y-4">
+      <PageHeader eyebrow="Creators" title="Data Removals" sub="Creators asking to be removed. Approving erases them for good and blocks their links; every decision is in the audit log." actions={
         <div className="flex gap-1">
           {(["received", "processed", "rejected"] as const).map((s) => (
             <button key={s} onClick={() => setStatus(s)} className={`tab ${status === s ? "tab-on" : ""}`}>
@@ -38,13 +39,14 @@ export function RemovalRequests() {
             </button>
           ))}
         </div>
-      </div>
-      {list.isError && <p className="text-xs text-red-600">{list.error instanceof Error ? list.error.message : "Couldn't load requests."}</p>}
-      {list.data?.requests.length === 0 && <p className="text-xs text-slate-500">No requests here.</p>}
+      } />
+      {list.isPending && <LoadingBlock lines={4} />}
+      {list.isError && <ErrorState body={list.error instanceof Error ? list.error.message : undefined} onRetry={() => void list.refetch()} />}
+      {list.data?.requests.length === 0 && <Empty title={status === "received" ? "No removal requests waiting" : "Nothing here yet"} body="New requests from the public removal form appear here." />}
       {list.data?.requests.map((r) => (
-        <div key={r.id} className="rounded-lg border border-slate-200 bg-white p-4 text-xs">
+        <div key={r.id} className="rounded-2xl border border-slate-200/90 bg-white p-5 text-xs shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-slate-900" style={{ fontWeight: 600 }}>{r.creator ? `${r.creator.displayName} (@${r.creator.handle}, ${r.creator.platform})` : "No matching creator in MUSHIN"}</span>
+            <span className="text-[13px] font-bold text-slate-900">{r.creator ? `${r.creator.displayName} (@${r.creator.handle}, ${r.creator.platform})` : "No matching creator in MUSHIN"}</span>
             <span className="text-slate-400">{new Date(r.createdAt).toLocaleString()}</span>
             {r.emailMasked && <span className="ml-auto text-slate-500">{r.emailMasked}</span>}
           </div>
@@ -54,7 +56,7 @@ export function RemovalRequests() {
           {r.status === "received" && (
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <button onClick={() => void approve(r.id, r.creator?.displayName ?? "this request's links")} disabled={act.isPending} className="btn btn-danger btn-sm">Approve and erase</button>
-              <input value={notes[r.id] ?? ""} onChange={(e) => setNotes((n) => ({ ...n, [r.id]: e.target.value }))} placeholder="Reason for rejecting" className="min-w-[220px] flex-1 rounded-md border border-slate-200 px-2 py-1.5" />
+              <input value={notes[r.id] ?? ""} onChange={(e) => setNotes((n) => ({ ...n, [r.id]: e.target.value }))} placeholder="Reason for rejecting" className="min-w-[220px] flex-1 rounded-lg border border-slate-200 px-2.5 py-1.5 focus:border-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-200" />
               <button
                 onClick={() => act.mutate({ id: r.id, kind: "reject", note: notes[r.id] ?? "" }, { onSuccess: () => toast.info("Rejected. The creator is visible again."), onError: (e) => toast.error("Couldn't reject", e instanceof Error ? e.message : undefined) })}
                 disabled={act.isPending || (notes[r.id] ?? "").trim().length < 3}
