@@ -1,4 +1,5 @@
 import {
+  bioLinksFrom,
   searchFiltersSchema,
   type CampaignCreator,
   type CampaignDetail,
@@ -12,7 +13,7 @@ import {
 } from "@mushin/contracts";
 import { AppError, type TenantContext } from "@mushin/core";
 import type { Db, TenantTx } from "@mushin/db";
-import { ineligibleCreatorIds, ineligibleError, rankCards, requestContactCheck, type SourcePolicy } from "../creators/index";
+import { bioLinkUrls, ineligibleCreatorIds, ineligibleError, rankCards, requestContactCheck, type SourcePolicy } from "../creators/index";
 import * as repo from "./repository";
 
 /** `planLimits` reads the workspace's plan entitlements (billing `getAccess`); required so the limit is enforced here. */
@@ -79,6 +80,7 @@ export function createCampaignsService(deps: CampaignsDeps) {
       const rows = await repo.members(tx, ctx.workspaceId, id);
       const cards = new Map((await rankCards(tx, rows.map((r) => r.creatorId), searchFiltersSchema.parse({}), now(), deps.sourcePolicy)).map((c) => [c.id, c]));
       const latest = await repo.latestOutreach(tx, ctx.workspaceId, id);
+      const urls = await bioLinkUrls(tx, rows.map((r) => r.creatorId));
       const creators: CampaignCreator[] = rows.flatMap((r) => {
         const card = cards.get(r.creatorId);
         if (!card) return []; // hidden since being added
@@ -97,6 +99,7 @@ export function createCampaignsService(deps: CampaignsDeps) {
           addedAt: r.addedAt.toISOString(),
           updatedAt: r.updatedAt.toISOString(),
           lastOutreach: last ? toEvent(last) : null,
+          bioLinks: bioLinksFrom(urls.get(r.creatorId) ?? []),
         }];
       });
       return { ...summary, creators };

@@ -29,6 +29,8 @@ const COOKING = ["cooking", "cook", "cooks", "recipe", "recipes", "home cooking"
 export const NICHE_TAXONOMY = [
   "Bridal", "Fashion", "Beauty", "Tech", "Food", "Travel", "Comedy", "Finance", "Wellness", "Lifestyle", "Education & How-to", "Gaming", "History",
   "Literature", "Agriculture", "Business & Ecommerce", "Automotive", "Religion", "Music", "News & Commentary", "Sports", "Entertainment", "Real Estate",
+  // Owner, 25 Nov: design, photography, editing, calligraphy and art are their own niche, not Education or Entertainment.
+  "Arts & Design",
 ] as const;
 
 export const NICHES_V2: readonly Concept[] = [
@@ -61,6 +63,7 @@ export const NICHES_V2: readonly Concept[] = [
   niche("news", "News & Commentary", ["journalist", "journalism", "reporter", "anchor", "news anchor", "correspondent", "investigative journalist", "news", "breaking news", "current affairs", "politics", "political", "political analysis", "khabar", "khabrain", "خبر", "خبریں", "siyasat", "سیاست", "talk show"]),
   niche("sports", "Sports", ["sports", "sport", "cricket", "کرکٹ", "football", "psl", "hockey", "kabaddi", "wrestling", "match highlights", "khel", "کھیل"]),
   niche("entertainment", "Entertainment", ["entertainment", "showbiz", "drama", "dramas", "ڈرامہ", "ڈرامے", "movie", "movies", "film", "films", "فلم", "celebrity", "celebrities"]),
+  niche("arts", "Arts & Design", ["graphic design", "graphic designer", "graphic designers", "graphic designing", "ui ux", "ui/ux", "ux design", "ui design", "logo design", "photography", "photographer", "photographers", "videography", "videographer", "video editing", "video editor", "filmmaking", "filmmaker", "cinematography", "calligraphy", "calligrapher", "khattati", "خطاطی", "digital art", "digital artist", "illustration", "illustrator", "painting", "paintings", "painter", "artwork", "artworks", "fine art", "sketching", "drawing", "drawings", "art tutorial", "مصوری", "فوٹوگرافی"]),
   niche("real_estate", "Real Estate", ["real estate", "property", "properties", "plots", "land plot", "housing society", "zameen", "پراپرٹی", "پلاٹ"]),
 ];
 

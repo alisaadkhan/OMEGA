@@ -135,6 +135,16 @@ describe("profile", () => {
     expect(mp.linkedAccounts).toEqual([]);
     expect(mp.bioLinks.every((l) => l.kind !== "website")).toBe(true);
   });
+
+  it("links a bio @handle only when the platform is named or the handle is a catalogue profile (owner, 25 Nov)", async () => {
+    await addCreator(db, { profiles: [{ platform: "instagram", handle: "watch_by_ali" }] });
+    const id = await addCreator(db, { profiles: [{ platform: "youtube", handle: "AliFilms" }] });
+    await ownerQuery(`update gcp.creator_profiles set bio = 'TikTok: @ali_shorts | also @watch_by_ali | managed by @some_agency' where creator_id = '${id}'`);
+    const p = await creators.profile(await trialCustomer(), id);
+    const labels = p.bioLinks.map((l) => l.label);
+    expect(labels).toEqual(expect.arrayContaining(["TikTok · @ali_shorts", "Instagram · @watch_by_ali"]));
+    expect(labels.join(" ")).not.toContain("some_agency"); // a bare @handle the catalogue does not know is never guessed
+  });
 });
 
 // Audience data lives in the audience module (audience.int.test.ts): legacy LLM demographics are never shown.

@@ -39,7 +39,7 @@ import { createCachedSearch, createDiscoveryRunner, createDiscoveryService, crea
 
 const { positionals, values } = parseArgs({
   allowPositionals: true,
-  options: { handles: { type: "string" }, "missing-avatars": { type: "boolean", default: false }, "min-refs": { type: "string", default: "2" }, manifest: { type: "string" }, db: { type: "string" }, cap: { type: "string", default: "20" }, platform: { type: "string" }, limit: { type: "string" }, niches: { type: "string" }, cities: { type: "string" }, size: { type: "string", default: "10" }, label: { type: "string", default: "main" }, "llm-dump": { type: "string" }, "llm-answers": { type: "string" }, "include-locked": { type: "boolean", default: false }, matrix: { type: "boolean", default: false }, offset: { type: "string" } },
+  options: { handles: { type: "string" }, "missing-avatars": { type: "boolean", default: false }, "min-refs": { type: "string", default: "2" }, manifest: { type: "string" }, db: { type: "string" }, cap: { type: "string", default: "20" }, platform: { type: "string" }, limit: { type: "string" }, niches: { type: "string" }, cities: { type: "string" }, size: { type: "string", default: "10" }, label: { type: "string", default: "main" }, "llm-dump": { type: "string" }, "llm-answers": { type: "string" }, "include-locked": { type: "boolean", default: false }, matrix: { type: "boolean", default: false }, offset: { type: "string" }, headroom: { type: "string", default: "1" } },
 });
 const mode = positionals[0];
 if (mode !== "refresh" && mode !== "discover" && mode !== "reassess" && mode !== "seed" && mode !== "expand" && mode !== "reprocess") throw new Error("usage: build.ts <refresh|discover|reassess|seed|expand> --db <catalogue db> --cap <usd> [--manifest <seed.json>] [--limit n] [--min-refs n]");
@@ -194,8 +194,12 @@ const spentUsd = async () => {
   const s = await gate.status();
   return s.spent + s.open;
 };
-/** Below this headroom no new job is started (one live run can reserve up to ~USD 1 in flight). */
-const JOB_HEADROOM_USD = 1;
+/**
+ * Below this headroom no new job is started (one live run can reserve up to ~USD 1 in flight). --headroom lowers it for
+ * a small capped test (owner, 25 Nov: "$1.00 to verify the TikTok flow"): the gate still refuses any call past --cap,
+ * so a job that runs out mid-way fails honestly rather than overspending.
+ */
+const JOB_HEADROOM_USD = Math.max(0, Number(values.headroom));
 const report: Record<string, unknown>[] = [];
 const ctx = await buildWorkspace();
 

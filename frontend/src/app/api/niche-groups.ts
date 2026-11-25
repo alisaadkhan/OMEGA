@@ -14,6 +14,7 @@ export const NICHE_GROUPS = [
   { label: "Fashion & Beauty", niches: ["Fashion", "Beauty", "Bridal"] },
   { label: "Travel", niches: ["Travel"] },
   { label: "Education & Finance", niches: ["Education & How-to", "Finance", "Business & Ecommerce", "Real Estate"] },
+  { label: "Arts & Design", niches: ["Arts & Design"] },
   { label: "Fitness & Health", niches: ["Wellness"] },
   { label: "Sports", niches: ["Sports"] },
   { label: "News & Commentary", niches: ["News & Commentary"] },

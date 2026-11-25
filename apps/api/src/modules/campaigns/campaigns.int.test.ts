@@ -107,6 +107,22 @@ describe("campaigns", () => {
     expect((await campaigns.detail(c, k.id)).creatorCount).toBe(1);
   });
 
+  it("lists each member's profile and bio links as icons, withholding a possible minor's bio links (owner, 25 Nov)", async () => {
+    const c = await customer();
+    const k = await campaigns.create(c, { ...base, name: "Links" });
+    const a = await addCreator(db, { displayName: "Ali Eats" });
+    const minor = await addCreator(db, { displayName: "Young One" });
+    await ownerQuery(`insert into gcp.creator_links (creator_id, platform, url, source) values ('${a}', 'website', 'https://linktr.ee/alieats', 'bio'), ('${a}', 'website', 'https://wa.me/923001234567', 'bio'), ('${minor}', 'website', 'https://minor.example', 'bio')`);
+    await campaigns.addCreators(c, k.id, [a, minor]);
+    // Flagged as a possible minor after joining the campaign: their bio links are no longer listed.
+    await ownerQuery(`update gcp.creators set is_minor = true where id = '${minor}'`);
+    const d = await campaigns.detail(c, k.id);
+    const kinds = (id: string) => d.creators.find((x) => x.creator.id === id)?.bioLinks.map((l) => l.kind) ?? [];
+    expect(kinds(a)).toEqual(expect.arrayContaining(["linktree", "whatsapp"]));
+    expect(kinds(a).length).toBeGreaterThanOrEqual(3); // the creator's own profile comes first
+    expect(kinds(minor)).not.toContain("website");
+  });
+
   it("logs manual outreach (append-only), names who logged it and refuses future dates", async () => {
     const c = await customer();
     await ownerQuery(`update wp.users set display_name = 'Ayesha Ops' where id = '${c.userId}'`);

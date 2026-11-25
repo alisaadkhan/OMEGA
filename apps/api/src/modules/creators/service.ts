@@ -412,7 +412,7 @@ export function createCreatorsService(deps: CreatorsDeps) {
         refreshCost: refreshCost[refreshActionFor(c.primaryPlatform)],
         // Links can lead to a possible minor as directly as a contact can (SRS §5.5).
         linkedAccounts: links,
-        bioLinks: bioLinksFrom([...profiles.map((x) => x.canonicalUrl), ...links.map((l) => l.url)]),
+        bioLinks: bioLinksFrom((await repo.bioLinkUrls(tx, [id])).get(id) ?? []),
         // Minor protection hides routes like links; bios are the creator's own public text.
         contactRoutes: isMinorProtected(c) ? null : contactRoutes({ bios: profiles.map((x) => maskBioContacts(x.bio ?? "")), links, contactKinds: contacts.map((k) => k.kind), ownHandles: profiles.map((x) => x.handle) }),
         lastScrapedAt: iso(primary?.lastScrapedAt ?? null),

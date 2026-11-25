@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { creatorCardSchema } from "./search";
+import { bioLinkSchema } from "./creator-links";
 
 const iso = z.iso.datetime();
 const day = z.iso.date();
@@ -100,6 +101,8 @@ export const campaignCreatorSchema = z.object({
   addedAt: iso,
   updatedAt: iso,
   lastOutreach: outreachEventSchema.nullable(),
+  /** The creator's profiles and bio/About links, drawn as icons (owner, 25 Nov). */
+  bioLinks: z.array(bioLinkSchema).default([]),
 });
 export type CampaignCreator = z.output<typeof campaignCreatorSchema>;
 export const campaignDetailSchema = campaignSummarySchema.extend({ creators: z.array(campaignCreatorSchema) });

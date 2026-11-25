@@ -11,6 +11,7 @@ import { Alert, Button, Drawer, EASE, EmptyState, Segmented } from "../../ui/kit
 import { cn } from "../ui/utils";
 import { PLATFORM_NAME, STAGE_LABEL } from "./Campaigns";
 import type { Creator } from "./CreatorProfilePanel";
+import { CreatorLinkIcons } from "./CreatorLinkIcons";
 import { VerifiedBadge } from "./VerifiedBadge";
 
 const STAGES: PipelineStage[] = ["identified", "contacted", "negotiating", "confirmed"];
@@ -38,6 +39,7 @@ function useMemberChange(campaignId: string) {
 function Who({ m, onOpen }: { m: Member; onOpen: () => void }) {
   const card = toCreator(m.creator);
   return (
+    <div className="flex min-w-0 flex-col gap-1.5">
     <button onClick={onOpen} className="flex items-center gap-3 rounded text-left focus:outline-none focus:ring-2 focus:ring-cyan/40">
       <img src={card.avatar} alt="" onError={avatarFallback(m.creator.displayName)} className="h-10 w-10 shrink-0 rounded-full bg-surface-high object-cover shadow-sm" />
       <span className="flex min-w-0 flex-col">
@@ -49,6 +51,8 @@ function Who({ m, onOpen }: { m: Member; onOpen: () => void }) {
         {!m.creator.eligibility.eligible && <span className="text-[11px] text-amber-800" data-testid="member-ineligible">{ineligibleText(m.creator.eligibility)} · kept in this campaign</span>}
       </span>
     </button>
+    {m.bioLinks.length > 0 && <CreatorLinkIcons links={m.bioLinks} size="sm" className="pl-[52px]" />}
+    </div>
   );
 }
 

@@ -79,7 +79,7 @@ export const FILTER_HELP: Record<Filter, string> = {
 };
 
 /** The canonical niche taxonomy (API creators/terminology NICHE_TAXONOMY). */
-export const NICHES = ["Bridal", "Fashion", "Beauty", "Tech", "Food", "Travel", "Comedy", "Finance", "Wellness", "Lifestyle", "Education & How-to", "Gaming", "History", "Literature", "Agriculture", "Business & Ecommerce", "Automotive", "Religion", "Music", "News & Commentary", "Sports", "Entertainment", "Real Estate"] as const;
+export const NICHES = ["Bridal", "Fashion", "Beauty", "Tech", "Food", "Travel", "Comedy", "Finance", "Wellness", "Lifestyle", "Education & How-to", "Gaming", "History", "Literature", "Agriculture", "Business & Ecommerce", "Automotive", "Religion", "Music", "News & Commentary", "Sports", "Entertainment", "Real Estate", "Arts & Design"] as const;
 
 export const ACCOUNT_TYPES: { id: string; label: string }[] = [
   { id: "INDIVIDUAL_CREATOR", label: "Individual creator (a person)" },

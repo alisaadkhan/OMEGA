@@ -9,8 +9,8 @@ const rep = (xs: string[], n = 12) => Array.from({ length: n }, (_, i) => xs[i %
 const niche = (o: { name?: string; bio?: string; category?: string | null; posts?: string[]; ai?: string[]; followers?: number | null }) =>
   classifyNiche({ displayName: o.name ?? "Creator", bio: o.bio ?? "", accountCategory: o.category ?? null, posts: o.posts ?? [], aiNiches: o.ai ?? [], followers: o.followers === undefined ? 250_000 : o.followers });
 
-// The canonical labels seeded by migration 0054 (platform.niches).
-const TAXONOMY = ["Bridal", "Fashion", "Beauty", "Tech", "Food", "Travel", "Comedy", "Finance", "Wellness", "Lifestyle", "Education & How-to", "Gaming", "History", "Literature", "Agriculture", "Business & Ecommerce", "Automotive", "Religion", "Music", "News & Commentary", "Sports", "Entertainment", "Real Estate"];
+// The canonical labels seeded by migrations 0054 and 0101 (platform.niches).
+const TAXONOMY = ["Bridal", "Fashion", "Beauty", "Tech", "Food", "Travel", "Comedy", "Finance", "Wellness", "Lifestyle", "Education & How-to", "Gaming", "History", "Literature", "Agriculture", "Business & Ecommerce", "Automotive", "Religion", "Music", "News & Commentary", "Sports", "Entertainment", "Real Estate", "Arts & Design"];
 
 describe("one niche taxonomy", () => {
   it("maps every niche concept to exactly one label of the canonical list", () => {
@@ -48,6 +48,13 @@ describe("niche classification: bio first", () => {
     const nameOnly = niche({ name: "Lahore Food Diaries" });
     expect(nameOnly).toMatchObject({ status: "unknown", niches: [] });
     expect(nameOnly.observations).toEqual([expect.objectContaining({ value: "Food", source: "display_name", status: "weak" })]);
+  });
+
+  it("files calligraphy, photography and design under Arts & Design, with a teaching channel's how-to second (owner, 25 Nov)", () => {
+    const calligraphy = niche({ bio: "Urdu and Arabic calligraphy tutorials for beginners" });
+    expect(calligraphy).toMatchObject({ status: "classified", main: "Arts & Design" });
+    expect(niche({ bio: "Wedding photographer and videographer, Lahore" }).main).toBe("Arts & Design");
+    expect(niche({ bio: "Graphic designer sharing logo design tips" }).main).toBe("Arts & Design");
   });
 
   it("keeps a recipe channel's how-to titles as Food, and how-to on its own as Education & How-to", () => {
