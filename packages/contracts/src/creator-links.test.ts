@@ -36,6 +36,12 @@ describe("creator bio links (owner, 24 Nov)", () => {
     for (const junk of ["", "not a link", "javascript:alert(1)", "mailto:a@b.co", "https://localhost/x", "ftp://files.example.com"]) expect(classifyLink(junk)).toBeNull();
   });
 
+  it("never throws on a creator-written link with broken percent-encoding (one bad link must not fail a search page)", () => {
+    expect(() => classifyLink("https://x.com/%E0%A4%A")).not.toThrow();
+    expect(() => bioLinksFrom(["https://instagram.com/%E0%A4%A", "https://alieats.pk"])).not.toThrow();
+    expect(bioLinksFrom(["https://instagram.com/%E0%A4%A", "https://alieats.pk"]).map((l) => l.url)).toContain("https://alieats.pk");
+  });
+
   it("keeps one entry per destination across platforms and spellings", () => {
     const links = bioLinksFrom(["https://www.instagram.com/ali/", "http://instagram.com/ali", "linktr.ee/ali", "https://LINKTR.EE/ali/", "https://wa.me/923001234567", "https://alieats.pk"]);
     expect(links.map((l) => l.kind)).toEqual(["instagram", "linktree", "whatsapp", "website"]);

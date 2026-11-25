@@ -68,13 +68,22 @@ function parse(raw: string): URL | null {
 }
 
 /** One link → its kind, a clean https URL, the tooltip label and the handle when the URL names one. Null for junk. */
+/** A creator-written path segment; malformed percent-encoding ("%E0%A4%A") stays as written instead of throwing. */
+function safeDecode(s: string): string {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return s;
+  }
+}
+
 export function classifyLink(raw: string): BioLink | null {
   const u = parse(raw);
   if (!u || !/\.[a-z]{2,}$/i.test(u.hostname)) return null;
   const host = u.hostname.toLowerCase().replace(/^(www|m|mobile)\./, "");
   const rule = HOSTS.find((h) => h.test.test(host));
   const kind: LinkKind = rule?.kind ?? "website";
-  const first = decodeURIComponent(u.pathname.split("/").filter(Boolean)[0] ?? "");
+  const first = safeDecode(u.pathname.split("/").filter(Boolean)[0] ?? "");
   let handle: string | null = null;
   if (rule?.handleAt === "at-path" && first.startsWith("@")) handle = first.slice(1);
   else if (rule?.handleAt === "path" && first && !NOT_A_HANDLE.has(first.toLowerCase())) handle = first.replace(/^@/, "");
