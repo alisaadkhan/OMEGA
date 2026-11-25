@@ -102,7 +102,7 @@ function ToastViewport({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id:
               exit={{ opacity: 0, x: 40, scale: 0.96, transition: { duration: 0.18 } }}
               transition={{ type: "spring", stiffness: 380, damping: 32 }}
               role={t.level === "error" ? "alert" : "status"}
-              className={`pointer-events-auto flex w-80 items-start gap-3 rounded-2xl border border-white/10 bg-[#0A0F24]/90 p-3.5 text-white shadow-2xl backdrop-blur-md ring-1 ${c.ring}`}
+              className={`pointer-events-auto flex w-80 items-start gap-3 rounded-2xl border border-white/10 bg-[#0A0F24]/[0.97] p-3.5 text-white shadow-2xl ring-1 ${c.ring}`}
             >
               <c.icon className={`mt-0.5 h-4 w-4 flex-shrink-0 ${c.iconColor}`} strokeWidth={2} />
               <div className="min-w-0 flex-1">
@@ -188,7 +188,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                 state.resolve(false);
                 setState(null);
               }}
-              className="fixed inset-0 z-[90] bg-slate-900/40 backdrop-blur-sm"
+              className="fixed inset-0 z-[90] bg-slate-900/50"
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 8 }}

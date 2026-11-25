@@ -35,7 +35,7 @@ export function LegalGate() {
   // has recorded it, so nobody reaches the app before the acceptance is stored.
   if (!needed || !legal || (accept.isPending && autoTried.current)) return null;
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-[60] flex items-center justify-center bg-navy/50 px-4 backdrop-blur-sm">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-[60] flex items-center justify-center bg-navy/60 px-4">
       <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }} role="dialog" aria-modal="true" aria-labelledby="legal-gate-title" className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
         <h2 id="legal-gate-title" className="text-slate-900" style={{ fontSize: 18, fontWeight: 700 }}>Before you continue</h2>
         <p className="mt-2 text-sm text-slate-600">Please read and accept MUSHIN's Terms of Service and Privacy Policy (version {legal.currentVersion}, drafts pending legal review).</p>

@@ -33,7 +33,7 @@ export function WelcomeModal({ open, onStart, onSkip }: { open: boolean; onStart
   return (
     <AnimatePresence>
       {open && (
-        <motion.div className="fixed inset-0 z-[80] flex items-center justify-center bg-navy/60 p-4 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+        <motion.div className="fixed inset-0 z-[80] flex items-center justify-center bg-navy/70 p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
           <motion.div role="dialog" aria-modal="true" aria-labelledby="welcome-title" initial={{ opacity: 0, scale: 0.92, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96 }} transition={{ duration: 0.4, ease: EASE }} className="relative w-full max-w-[490px] overflow-hidden rounded-2xl bg-white p-6 shadow-2xl sm:p-8">
             <div aria-hidden className="pointer-events-none absolute -top-16 left-1/2 h-48 w-48 -translate-x-1/2 rounded-full bg-cyan-soft/20 blur-2xl" />
             <div className="relative flex flex-col items-center text-center">
@@ -135,7 +135,7 @@ export function Tour({ open, onClose }: { open: boolean; onClose: () => void }) 
               {["-left-1.5 -top-1.5 border-l-2 border-t-2", "-right-1.5 -top-1.5 border-r-2 border-t-2", "-bottom-1.5 -left-1.5 border-b-2 border-l-2", "-bottom-1.5 -right-1.5 border-b-2 border-r-2"].map((c) => <span key={c} className={cn("absolute h-3 w-3 border-cyan-soft", c)} />)}
             </motion.div>
           )}
-          <div className="fixed left-1/2 top-5 z-[81] flex -translate-x-1/2 items-center gap-2 rounded-full bg-ink/90 px-4 py-2 shadow-2xl backdrop-blur-md">
+          <div className="fixed left-1/2 top-5 z-[81] flex -translate-x-1/2 items-center gap-2 rounded-full bg-ink px-4 py-2 shadow-2xl">
             <Navigation className="h-4 w-4 text-cyan-soft" />
             <span className="mr-2 text-[10px] font-semibold uppercase tracking-wider text-cyan-soft">Walkthrough</span>
             {STEPS.map((_, k) => (

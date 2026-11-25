@@ -213,9 +213,10 @@ export function linkedAccounts(tx: Tx, creatorId: string) {
  * them ("IG: @name"). A bare "@name" is never turned into a link: its platform would be a guess, and a catalogue match
  * counts only for the SAME creator (never a collaborator's, manager's or friend's account, owner 25 Nov), whose
  * profiles are already listed first. As on the profile, a possible minor's bio links are withheld; their own profile
- * URLs are not.
+ * URLs are not. A WhatsApp link carries the phone number, a paid reveal: it is listed only for creators in `revealed`
+ * (the workspace has revealed their contacts).
  */
-export async function bioLinkUrls(tx: Tx, ids: string[]): Promise<Map<string, string[]>> {
+export async function bioLinkUrls(tx: Tx, ids: string[], revealed: ReadonlySet<string>): Promise<Map<string, string[]>> {
   if (ids.length === 0) return new Map();
   const rows = await tx.execute<{ id: string; own: string[]; links: string[]; bios: string[]; protected: boolean }>(sql`
     select c.id,
@@ -224,7 +225,19 @@ export async function bioLinkUrls(tx: Tx, ids: string[]): Promise<Map<string, st
       array(select p.bio from gcp.creator_profiles p where p.creator_id = c.id and p.bio is not null) as bios,
       (c.is_minor and c.minor_override_by_staff_id is null) as protected
     from gcp.creators c where c.id in ${ids}`);
-  return new Map(rows.map((r) => [r.id, r.protected ? r.own : [...r.own, ...r.links, ...r.bios.flatMap(prefixedHandleUrls)]]));
+  return new Map(rows.map((r) => [r.id, r.protected ? r.own : [...r.own, ...withoutPhoneLinks(r.links, revealed.has(r.id)), ...r.bios.flatMap(prefixedHandleUrls)]]));
+}
+
+/** Links that carry a phone number (WhatsApp chat links): shown only after the workspace revealed the creator's contacts. */
+export function withoutPhoneLinks<T extends string | { url: string }>(links: readonly T[], revealed: boolean): T[] {
+  return revealed ? [...links] : links.filter((l) => !/^(https?:\/\/)?((www|api|web|chat)\.)?(wa\.me|wa\.link|whatsapp\.com)(\/|$)/i.test(typeof l === "string" ? l : l.url));
+}
+
+/** Which of these creators the workspace has revealed contacts for. */
+export async function revealedCreatorIds(tx: TenantTx, workspaceId: string, ids: string[]): Promise<Set<string>> {
+  if (ids.length === 0) return new Set();
+  const rows = await tx.execute<{ id: string }>(sql`select distinct creator_id as id from wp.contact_reveals where workspace_id = ${workspaceId} and creator_id in ${ids}`);
+  return new Set(rows.map((r) => r.id));
 }
 
 /** Why city, country, niches and languages are known (0052): every observation with its source and status. */

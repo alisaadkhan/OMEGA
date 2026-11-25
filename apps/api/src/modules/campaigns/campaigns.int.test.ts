@@ -118,8 +118,10 @@ describe("campaigns", () => {
     await ownerQuery(`update gcp.creators set is_minor = true where id = '${minor}'`);
     const d = await campaigns.detail(c, k.id);
     const kinds = (id: string) => d.creators.find((x) => x.creator.id === id)?.bioLinks.map((l) => l.kind) ?? [];
-    expect(kinds(a)).toEqual(expect.arrayContaining(["linktree", "whatsapp"]));
-    expect(kinds(a).length).toBeGreaterThanOrEqual(3); // the creator's own profile comes first
+    expect(kinds(a)).toContain("linktree");
+    expect(kinds(a)).not.toContain("whatsapp"); // carries the phone number: only after a paid reveal
+    expect(JSON.stringify(d)).not.toContain("923001234567");
+    expect(kinds(a).length).toBeGreaterThanOrEqual(2); // the creator's own profile comes first
     expect(kinds(minor)).not.toContain("website");
   });
 

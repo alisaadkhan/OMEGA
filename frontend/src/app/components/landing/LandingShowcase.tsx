@@ -74,7 +74,7 @@ export function LandingShowcase() {
   const creators = q.data?.creators ?? [];
   if (q.isError || (q.isSuccess && creators.length === 0)) return null;
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-navy-2/90 py-6 shadow-2xl backdrop-blur-md sm:py-8">
+    <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-navy-2 py-6 shadow-2xl sm:py-8">
       <div className="mb-5 flex flex-wrap items-end justify-between gap-2 px-6 sm:px-8">
         <div>
           <h2 className="text-base font-bold text-white sm:text-lg">Creators on MUSHIN right now</h2>

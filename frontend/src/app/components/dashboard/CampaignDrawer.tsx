@@ -111,7 +111,7 @@ export function CampaignDrawer({ open, creators, onClose, onGoToCampaigns }: { o
     <AnimatePresence>
       {open && (
         <>
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} onClick={onClose} className="fixed inset-0 z-[60] bg-[#0b1c30]/40 backdrop-blur-sm" />
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} onClick={onClose} className="fixed inset-0 z-[60] bg-[#0b1c30]/50" />
           <motion.aside
             initial={{ x: "100%" }}
             animate={{ x: 0 }}

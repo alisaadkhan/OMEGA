@@ -33,7 +33,7 @@ export function LandingNav({ signedIn, onPrimary, onLogin }: { signedIn: boolean
     return () => window.removeEventListener("scroll", on);
   }, []);
   return (
-    <header className={cn("sticky top-0 z-50 w-full border-b backdrop-blur-xl transition-all duration-300", scrolled ? "border-white/10 bg-navy/90 shadow-[0_8px_30px_rgba(0,0,0,0.25)]" : "border-white/5 bg-navy/70")}>
+    <header className={cn("sticky top-0 z-50 w-full border-b transition-[background-color,box-shadow,border-color] duration-300", scrolled ? "border-white/10 bg-navy/[0.97] shadow-[0_8px_30px_rgba(0,0,0,0.25)]" : "border-white/5 bg-navy/90")}>
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6 sm:px-8">
         <a href="#/" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); }} aria-label="MUSHIN home">
           <Brand />
@@ -78,11 +78,10 @@ export function LandingNav({ signedIn, onPrimary, onLogin }: { signedIn: boolean
 /** "Apply for Early Access" opens the 14-day trial call-back form (owner, 23 Nov). */
 export function LandingHero({ onTrial }: { onTrial: () => void }) {
   const { scrollY } = useScroll();
-  const glowY = useTransform(scrollY, [0, 600], [0, 120]);
   const mockY = useTransform(scrollY, [0, 600], [0, -40]);
   return (
     <div className="relative w-full overflow-hidden bg-navy text-white">
-      <motion.div aria-hidden style={{ y: glowY }} className="pointer-events-none absolute -top-40 left-1/2 h-[450px] w-[900px] -translate-x-1/2 rounded-full bg-cyan/[0.12] blur-[140px]" />
+      <div aria-hidden className="pointer-events-none absolute -top-64 left-1/2 h-[700px] w-[1200px] -translate-x-1/2" style={{ backgroundImage: "radial-gradient(closest-side, rgba(6,182,212,0.14), transparent)" }} />
       <div aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.07]" style={{ backgroundImage: "linear-gradient(to right,#fff 1px,transparent 1px),linear-gradient(to bottom,#fff 1px,transparent 1px)", backgroundSize: "56px 56px", maskImage: "radial-gradient(ellipse at 50% 20%, black 30%, transparent 70%)" }} />
       <section className="relative z-10 mx-auto flex max-w-7xl flex-col items-center px-6 pb-24 pt-16 text-center sm:px-8 sm:pt-24">
         <motion.span initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: EASE }} className="mb-6 inline-flex items-center gap-2 rounded-full border border-cyan/30 bg-cyan/10 px-3.5 py-1.5 text-xs font-semibold text-cyan-300">

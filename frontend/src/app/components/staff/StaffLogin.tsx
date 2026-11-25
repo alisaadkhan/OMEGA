@@ -25,8 +25,8 @@ function Backdrop() {
           maskImage: "radial-gradient(circle at 50% 50%, black 35%, transparent 82%)",
         }}
       />
-      <div className="omega-orb absolute -left-24 -top-28 h-[480px] w-[480px] rounded-full bg-[#06B6D4]/15 blur-[110px]" style={{ animation: "omegaOrb 18s ease-in-out infinite" }} />
-      <div className="omega-orb absolute -bottom-32 -right-24 h-[520px] w-[520px] rounded-full bg-indigo-500/20 blur-[125px]" style={{ animation: "omegaOrb 22s ease-in-out infinite reverse" }} />
+      <div className="omega-orb absolute -left-52 -top-56 h-[700px] w-[700px]" style={{ animation: "omegaOrb 18s ease-in-out infinite", backgroundImage: "radial-gradient(closest-side, rgba(6,182,212,0.17), transparent)" }} />
+      <div className="omega-orb absolute -bottom-64 -right-56 h-[780px] w-[780px]" style={{ animation: "omegaOrb 22s ease-in-out infinite reverse", backgroundImage: "radial-gradient(closest-side, rgba(99,102,241,0.22), transparent)" }} />
     </div>
   );
 }

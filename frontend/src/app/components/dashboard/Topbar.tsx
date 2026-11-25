@@ -38,7 +38,7 @@ export function Topbar({ credits, view, setView, onOpenCreator, onViewResults, o
   const go = (v: DashView) => setView(v);
 
   return (
-    <div className="sticky top-0 z-30 flex h-16 items-center justify-between gap-2 bg-surface/85 px-3 shadow-[0_1px_8px_rgba(0,0,0,0.04)] backdrop-blur-xl sm:px-8">
+    <div className="sticky top-0 z-30 flex h-16 items-center justify-between gap-2 bg-surface/[0.97] px-3 shadow-[0_1px_8px_rgba(0,0,0,0.04)] sm:px-8">
       <div className="flex min-w-0 items-center gap-2 md:hidden">
         <button onClick={onOpenNav} aria-label="Open navigation" className="rounded-md p-2 text-slate-700 hover:bg-slate-100">
           <Menu className="h-5 w-5" strokeWidth={1.75} />

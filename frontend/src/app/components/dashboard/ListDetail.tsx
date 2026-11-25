@@ -196,7 +196,7 @@ export function ListDetail({ id, onBack, onOpenCreator, onGoToSearch }: { id: st
 
       <AnimatePresence>
         {selected.size > 0 && (
-          <motion.div initial={{ opacity: 0, y: 40, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 40, scale: 0.96 }} transition={{ type: "spring", stiffness: 380, damping: 30 }} role="region" aria-label="Selected creators" className="fixed bottom-6 left-1/2 z-30 flex max-w-[calc(100vw-2rem)] -translate-x-1/2 flex-wrap items-center gap-5 rounded-2xl bg-ink/95 px-5 py-2 text-white shadow-2xl backdrop-blur-xl">
+          <motion.div initial={{ opacity: 0, y: 40, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 40, scale: 0.96 }} transition={{ type: "spring", stiffness: 380, damping: 30 }} role="region" aria-label="Selected creators" className="fixed bottom-6 left-1/2 z-30 flex max-w-[calc(100vw-2rem)] -translate-x-1/2 flex-wrap items-center gap-5 rounded-2xl bg-ink px-5 py-2 text-white shadow-2xl">
             <div className="flex items-center gap-2">
               <span className="flex -space-x-2 overflow-hidden">
                 {chosen.slice(0, 3).map((m) => <img key={m.creator.id} src={toCreator(m.creator).avatar} alt="" onError={avatarFallback(m.creator.displayName)} className="h-7 w-7 rounded-full object-cover ring-2 ring-ink" />)}

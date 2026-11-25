@@ -29,9 +29,9 @@ export function AuthShell({
       >
         {/* Three soft orbs drifting slowly (owner design 2026-11-16); "reduce motion" stops them. */}
         <div aria-hidden className="pointer-events-none fixed inset-0 overflow-hidden">
-          <div className="animate-float-1 absolute -top-40 left-1/2 h-[540px] w-[540px] -translate-x-1/2 rounded-full bg-cyan-soft/25 blur-[100px]" />
-          <div className="animate-float-2 absolute -right-16 top-36 h-[420px] w-[420px] rounded-full bg-[#dae2fd]/40 blur-[90px]" />
-          <div className="animate-float-3 absolute -bottom-24 -left-20 h-[460px] w-[460px] rounded-full bg-cyan-pale/30 blur-[110px]" />
+          <div className="animate-float-1 absolute -top-60 left-1/2 h-[760px] w-[760px] -translate-x-1/2" style={{ backgroundImage: "radial-gradient(closest-side, rgba(87,223,254,0.28), transparent)" }} />
+          <div className="animate-float-2 absolute -right-40 top-20 h-[620px] w-[620px]" style={{ backgroundImage: "radial-gradient(closest-side, rgba(218,226,253,0.45), transparent)" }} />
+          <div className="animate-float-3 absolute -bottom-48 -left-44 h-[680px] w-[680px]" style={{ backgroundImage: "radial-gradient(closest-side, rgba(172,237,255,0.34), transparent)" }} />
         </div>
         <div className="relative mx-auto flex min-h-screen w-full max-w-[480px] flex-col justify-center px-4 py-10 sm:px-6">
           <motion.div

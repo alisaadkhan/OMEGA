@@ -12,30 +12,33 @@ export async function apiRequest<S extends z.ZodType>(
   init: { method?: string; body?: unknown; idempotencyKey?: string } = {},
 ): Promise<z.output<S>> {
   const { data } = await supabase.auth.getSession();
-  const headers: Record<string, string> = { accept: "application/json" };
-  if (data.session) headers["authorization"] = `Bearer ${data.session.access_token}`;
-  if (init.body !== undefined) headers["content-type"] = "application/json";
-  if (init.idempotencyKey) headers["idempotency-key"] = init.idempotencyKey;
+  const send = async (token: string | null): Promise<Response> => {
+    const headers: Record<string, string> = { accept: "application/json" };
+    if (token) headers["authorization"] = `Bearer ${token}`;
+    if (init.body !== undefined) headers["content-type"] = "application/json";
+    if (init.idempotencyKey) headers["idempotency-key"] = init.idempotencyKey;
+    if (workspace) headers["x-workspace-id"] = workspace;
+    try {
+      return await fetch(`/api${path}`, { method: init.method ?? "GET", headers, body: init.body === undefined ? undefined : JSON.stringify(init.body) });
+    } catch {
+      throw new ApiError("NETWORK", "Can't reach the server. Check your connection and try again.", 0, null);
+    }
+  };
   const workspace = selectedWorkspace();
-  if (workspace) headers["x-workspace-id"] = workspace;
-
-  let res: Response;
-  try {
-    res = await fetch(`/api${path}`, {
-      method: init.method ?? "GET",
-      headers,
-      body: init.body === undefined ? undefined : JSON.stringify(init.body),
-    });
-  } catch {
-    throw new ApiError("NETWORK", "Can't reach the server. Check your connection and try again.", 0, null);
+  let res = await send(data.session?.access_token ?? null);
+  // A refused token is usually only an hour-old access token whose background refresh was late (a sleeping laptop, a
+  // throttled background tab): refresh once and retry. People stay signed in until they sign out (owner, 25 Nov); only
+  // a refresh the Auth server refuses (signed out elsewhere, account removed) ends the session (AUTH-08).
+  if (res.status === 401 && data.session) {
+    const refreshed = await supabase.auth.refreshSession().catch(() => null);
+    const token = refreshed?.data.session?.access_token;
+    if (token) res = await send(token);
+    if (!token || res.status === 401) {
+      markSessionExpired();
+      void supabase.auth.signOut({ scope: "local" });
+    }
   }
   await guardWorkspace(res, workspace);
-  // The API refused a token this tab still holds: the session is over. Sign out here so the app shows Sign in with the
-  // expiry notice, instead of failing request after request (AUTH-08).
-  if (res.status === 401 && data.session) {
-    markSessionExpired();
-    void supabase.auth.signOut({ scope: "local" });
-  }
   return readApiResponse(res, schema);
 }
 

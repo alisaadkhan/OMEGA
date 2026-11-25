@@ -59,7 +59,7 @@ export function Compare({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm"
+            className="fixed inset-0 z-40 bg-slate-900/50"
           />
           <motion.div
             initial={{ opacity: 0, y: 16 }}

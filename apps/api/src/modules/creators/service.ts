@@ -411,10 +411,11 @@ export function createCreatorsService(deps: CreatorsDeps) {
         revealCost,
         refreshCost: refreshCost[refreshActionFor(c.primaryPlatform)],
         // Links can lead to a possible minor as directly as a contact can (SRS §5.5).
-        linkedAccounts: links,
-        bioLinks: bioLinksFrom((await repo.bioLinkUrls(tx, [id])).get(id) ?? []),
+        // A WhatsApp link carries the phone number: listed only once the workspace has revealed the contacts.
+        linkedAccounts: repo.withoutPhoneLinks(links, revealed),
+        bioLinks: bioLinksFrom((await repo.bioLinkUrls(tx, [id], revealed ? new Set([id]) : new Set())).get(id) ?? []),
         // Minor protection hides routes like links; bios are the creator's own public text.
-        contactRoutes: isMinorProtected(c) ? null : contactRoutes({ bios: profiles.map((x) => maskBioContacts(x.bio ?? "")), links, contactKinds: contacts.map((k) => k.kind), ownHandles: profiles.map((x) => x.handle) }),
+        contactRoutes: isMinorProtected(c) ? null : contactRoutes({ bios: profiles.map((x) => maskBioContacts(x.bio ?? "")), links: repo.withoutPhoneLinks(links, revealed), contactKinds: contacts.map((k) => k.kind), ownHandles: profiles.map((x) => x.handle) }),
         lastScrapedAt: iso(primary?.lastScrapedAt ?? null),
         minorProtected: isMinorProtected(c),
         // Something worth revealing: not only addresses shown not to work.

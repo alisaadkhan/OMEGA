@@ -141,7 +141,7 @@ function LandingCta({ onTrial, onPrimary }: { onTrial: () => void; onPrimary: ()
   return (
     <Reveal className="w-full">
       <div id="beta-cta" className="relative mx-auto mt-24 w-full max-w-4xl overflow-hidden rounded-3xl border border-cyan/30 bg-gradient-to-b from-navy-2 to-[#0D132D] p-8 text-center shadow-2xl sm:p-14">
-        <div aria-hidden className="pointer-events-none absolute -top-20 left-1/2 h-96 w-96 -translate-x-1/2 animate-pulse rounded-full bg-cyan/15 blur-[100px]" style={{ animationDuration: "4s" }} />
+        <div aria-hidden className="pointer-events-none absolute -top-40 left-1/2 h-[36rem] w-[36rem] -translate-x-1/2 animate-pulse" style={{ animationDuration: "4s", backgroundImage: "radial-gradient(closest-side, rgba(6,182,212,0.18), transparent)" }} />
         <span className="relative rounded-full border border-cyan/30 bg-cyan-950/60 px-3.5 py-1.5 text-xs font-bold uppercase tracking-widest text-cyan-400">Scale with Precision</span>
         <h2 className="relative mt-4 font-display text-3xl font-extrabold tracking-tight text-white sm:text-5xl">Ready to work with evidence?</h2>
         <p className="relative mx-auto mt-4 max-w-xl text-sm leading-relaxed text-slate-300 sm:text-base">Join Pakistani brands and marketing teams finding the right creator partners.</p>

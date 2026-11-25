@@ -14,7 +14,7 @@ export { createCreatorIndexer } from "./indexer";
 export type { CreatorIndexer } from "./indexer";
 export { createSummaryWriter } from "./summaries";
 export type { SummaryWriter } from "./summaries";
-export { bioLinkUrls, ineligibleCreatorIds, insertCreator, isVisibleCreator, lockedForWorkspace } from "./repository";
+export { bioLinkUrls, ineligibleCreatorIds, insertCreator, isVisibleCreator, lockedForWorkspace, revealedCreatorIds } from "./repository";
 export { countryLocked, creatorEligibility, DEFAULT_ELIGIBILITY, ELIGIBILITY_VERSION, ineligibleError, MIN_FOLLOWERS, profileEligibility, type EligibilityProfile } from "./eligibility";
 export type { NewCreator, NewProfile } from "./repository";
 

@@ -976,7 +976,7 @@ function ResultsTable({
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white">
       <table className="w-full text-sm">
-        <thead className="sticky top-0 bg-slate-50/80 backdrop-blur">
+        <thead className="sticky top-0 bg-slate-50">
           <tr className="text-left text-[10px] uppercase tracking-wider text-slate-500">
             <th className="w-8 py-3 pl-4" />
             <th className="py-3" style={{ fontWeight: 600 }}>Creator</th>
@@ -1197,7 +1197,7 @@ function AdvancedFilterDrawer(props: {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             onClick={onClose}
-            className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm"
+            className="fixed inset-0 z-40 bg-slate-900/50"
           />
           <motion.aside
             initial={{ x: "100%" }}

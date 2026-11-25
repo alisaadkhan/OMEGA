@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import { motion } from "motion/react";
 import { ArrowRight, Ban, Bookmark, Check, Clock, Instagram, Mail, MapPin, MessageCircle, Music2, Phone, Star, Youtube } from "lucide-react";
 import { CONTACT_AVAILABILITY_TEXT, initialsAvatar, matchSummary, formatEr } from "../../api/search-mapping";
@@ -19,7 +19,7 @@ const PLATFORM = {
  * headline figures, the honesty markers (why it matched, freshness, contact) and the actions. Every value is the
  * creator's stored record; an unknown figure shows as "—", never as zero.
  */
-export function SearchCreatorCard({
+function SearchCreatorCardView({
   creator,
   index,
   selected,
@@ -73,20 +73,20 @@ export function SearchCreatorCard({
             aria-checked={selected}
             onClick={onSelect}
             aria-label={`Select ${creator.name}`}
-            className={`absolute left-3 top-3 z-10 flex h-7 w-7 items-center justify-center rounded-lg border shadow-sm backdrop-blur-md transition-colors focus:outline-none focus:ring-2 focus:ring-[#06B6D4] ${
-              selected ? "border-[#0A0F24] bg-[#0A0F24] text-white" : "border-white/50 bg-white/70 text-transparent hover:bg-white/90"
+            className={`absolute left-3 top-3 z-10 flex h-7 w-7 items-center justify-center rounded-lg border shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-[#06B6D4] ${
+              selected ? "border-[#0A0F24] bg-[#0A0F24] text-white" : "border-white/60 bg-white/85 text-transparent hover:bg-white"
             }`}
           >
             <Check aria-hidden className="h-4 w-4" strokeWidth={3} />
           </button>
           {creator.score > 0 && (
-            <span className="absolute right-3 top-3 z-10 inline-flex items-center gap-1 rounded-full border border-white/20 bg-slate-900/60 px-2.5 py-1 text-xs font-semibold tracking-wide text-white shadow-sm backdrop-blur-md" title="MUSHIN IQ: how well this creator matches your search (0-100). It is a match score, not an authenticity rating.">
+            <span className="absolute right-3 top-3 z-10 inline-flex items-center gap-1 rounded-full border border-white/20 bg-slate-900/80 px-2.5 py-1 text-xs font-semibold tracking-wide text-white shadow-sm" title="MUSHIN IQ: how well this creator matches your search (0-100). It is a match score, not an authenticity rating.">
               <Star aria-hidden className={`h-3 w-3 ${iqLevel(creator.score).dot}`} />
               IQ {creator.score}
               <span className="sr-only">({iqLevel(creator.score).word})</span>
             </span>
           )}
-          <span className="absolute bottom-3 right-3 z-10 inline-flex items-center gap-1 rounded-full border border-white/20 bg-black/50 px-2 py-0.5 text-[10px] font-medium tracking-wide text-white backdrop-blur-md">
+          <span className="absolute bottom-3 right-3 z-10 inline-flex items-center gap-1 rounded-full border border-white/20 bg-black/70 px-2 py-0.5 text-[10px] font-medium tracking-wide text-white">
             <plat.Icon aria-hidden className={`h-3 w-3 ${plat.color}`} strokeWidth={2.25} />
             {plat.label}
           </span>
@@ -165,3 +165,9 @@ export function SearchCreatorCard({
     </motion.div>
   );
 }
+
+/**
+ * Memoised (owner, 25 Nov: lag): selecting one card no longer re-renders every card on the page. The callbacks are
+ * fresh arrows on each parent render but only call state setters, so a card re-renders only when what it shows changes.
+ */
+export const SearchCreatorCard = memo(SearchCreatorCardView, (a, b) => a.creator === b.creator && a.selected === b.selected && a.index === b.index && a.sourceMode === b.sourceMode);
