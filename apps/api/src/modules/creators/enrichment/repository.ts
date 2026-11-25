@@ -125,7 +125,7 @@ export type SaveInput = {
   profile: StandardProfile;
   canonicalUrl: string;
   payloadId: string;
-  metrics: { engagementRate: number | null; avgLikes: number | null; avgComments: number | null; avgViews: number | null };
+  metrics: { engagementRate: number | null; engagementPerView?: number | null; avgLikes: number | null; avgComments: number | null; avgViews: number | null };
   report: SignalReport;
   assessment: { value: Assessment; model: string } | null;
   /** Scheduled source refresh (YouTube retention): keep the current assessment and request no new one. */
@@ -251,6 +251,7 @@ export async function saveEnrichment(tx: Tx, i: SaveInput): Promise<{ creatorId:
         following: p.following,
         posts: p.posts,
         engagementRate: i.metrics.engagementRate,
+        engagementPerView: i.metrics.engagementPerView ?? null,
         avgLikes: i.metrics.avgLikes,
         avgComments: i.metrics.avgComments,
         avgViews: i.metrics.avgViews,
@@ -279,6 +280,7 @@ export async function saveEnrichment(tx: Tx, i: SaveInput): Promise<{ creatorId:
         following: p.following,
         posts: p.posts,
         engagementRate: i.metrics.engagementRate,
+        engagementPerView: i.metrics.engagementPerView ?? null,
         avgLikes: i.metrics.avgLikes,
         avgComments: i.metrics.avgComments,
         avgViews: i.metrics.avgViews,

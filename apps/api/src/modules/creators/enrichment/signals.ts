@@ -83,11 +83,27 @@ export function followerEngagement(p: StandardProfile): { rate: number | null; s
     .sort((a, b) => b.postedAt.getTime() - a.postedAt.getTime())
     .slice(0, ENGAGEMENT_SAMPLE);
   if (usable.length < ENGAGEMENT_MIN_SAMPLE) return { rate: null, sample: usable.length };
-  const pct = median(usable.map((x) => (((x.likes as number) + (x.comments ?? 0)) / followers) * 100));
+  // TikTok counts shares too (owner, 25 Nov): (likes + comments + shares) / followers; other platforms report none.
+  const pct = median(usable.map((x) => (((x.likes as number) + (x.comments ?? 0) + (x.shares ?? 0)) / followers) * 100));
   // A typical post engaging more people than follow the account means the follower figure is hidden or wrong (a YouTube
   // channel reporting 1 subscriber): not measurable per follower, so null, never capped to 100% (the column allows 0–100).
   if (pct > 100) return { rate: null, sample: usable.length };
   return { rate: engagementPercent(pct), sample: usable.length };
+}
+
+/**
+ * Engagement per view (%), TikTok (owner, 25 Nov): (likes + comments + shares) / plays per video, the median over the same
+ * latest non-pinned posts with likes and plays. Shown next to the per-follower rate and typical views; never used for
+ * sorting or filters (those stay per follower on every platform). Null under ${ENGAGEMENT_MIN_SAMPLE} usable posts.
+ */
+export function engagementPerView(p: StandardProfile): number | null {
+  const usable = p.recentPosts
+    .filter((x) => !x.isPinned && x.likes !== null && x.likes > 0 && (x.views ?? 0) > 0)
+    .sort((a, b) => b.postedAt.getTime() - a.postedAt.getTime())
+    .slice(0, ENGAGEMENT_SAMPLE);
+  if (usable.length < ENGAGEMENT_MIN_SAMPLE) return null;
+  const pct = median(usable.map((x) => (((x.likes as number) + (x.comments ?? 0) + (x.shares ?? 0)) / (x.views as number)) * 100));
+  return pct > 100 ? null : engagementPercent(pct);
 }
 
 /** Stored engagement rate (%): the follower-based median above. */
@@ -107,12 +123,13 @@ export function engagementPercent(pct: number): number | null {
 }
 
 /** Stored profile metrics (rounded). */
-export function profileMetrics(p: StandardProfile): { engagementRate: number | null; avgLikes: number | null; avgComments: number | null; avgViews: number | null } {
+export function profileMetrics(p: StandardProfile): { engagementRate: number | null; engagementPerView: number | null; avgLikes: number | null; avgComments: number | null; avgViews: number | null } {
   const posts = engaged(p.recentPosts);
-  if (posts.length === 0) return { engagementRate: null, avgLikes: null, avgComments: null, avgViews: null };
+  if (posts.length === 0) return { engagementRate: null, engagementPerView: null, avgLikes: null, avgComments: null, avgViews: null };
   const withViews = posts.filter((x) => (x.views ?? 0) > 0);
   return {
     engagementRate: storedEngagementRate(p),
+    engagementPerView: p.platform === "tiktok" ? engagementPerView(p) : null,
     avgLikes: Math.round(mean(posts.map((x) => x.likes ?? 0))),
     avgComments: Math.round(mean(posts.map((x) => x.comments ?? 0))),
     avgViews: withViews.length ? Math.round(mean(withViews.map((x) => x.views ?? 0))) : null,

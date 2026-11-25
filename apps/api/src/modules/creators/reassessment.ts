@@ -7,7 +7,7 @@ import { hasCollabRoute } from "./contact-routes";
 import { classifyAccountType } from "./account-type";
 import { contentPerformance } from "./eligibility-v3";
 import { standardize } from "./enrichment/standardize";
-import { storedEngagementRate } from "./enrichment/signals";
+import { storedEngagementRate, engagementPerView } from "./enrichment/signals";
 import { captionCountryEvidence } from "./enrichment/country-evidence";
 import { bulkRefreshProfileCountries } from "./enrichment/repository";
 
@@ -66,7 +66,7 @@ export async function reassessCreators(db: Db, creatorIds: string[], readPayload
       where c.status = 'active' and c.id in (select jsonb_array_elements_text(${JSON.stringify(creatorIds)}::jsonb)::uuid)`),
   );
   const accounts: { id: string; type: string; source: string | null; confidence: string | null; evidence: string | null }[] = [];
-  const perf: { id: string; mv: number | null; mer: number | null; vs: number; es: number; fmt: string; f: string | null; t: string | null; er: number | null }[] = [];
+  const perf: { id: string; mv: number | null; mer: number | null; vs: number; es: number; fmt: string; f: string | null; t: string | null; er: number | null; epv: number | null }[] = [];
   const contacts: { creator_id: string; kind: string; enc: string; hash: string; masked: string; trust: string; source: string }[] = [];
   const links: { creator_id: string; platform: string; url: string; source: string }[] = [];
   const ticks: { id: string; v: boolean }[] = [];
@@ -94,7 +94,7 @@ export async function reassessCreators(db: Db, creatorIds: string[], readPayload
     }
     if (std?.kind === "ok" && (r.platform !== "youtube" || o.youtubeDerived)) {
       const p = contentPerformance(std.profile, { youtubeDerived: o.youtubeDerived ?? false });
-      if (p) perf.push({ id: r.profile_id, mv: p.medianViews, mer: p.medianEngagementRate, vs: p.viewsSample, es: p.engagementSample, fmt: p.format, f: p.sampleFrom?.toISOString() ?? null, t: p.sampleTo?.toISOString() ?? null, er: storedEngagementRate(std.profile) });
+      if (p) perf.push({ id: r.profile_id, mv: p.medianViews, mer: p.medianEngagementRate, vs: p.viewsSample, es: p.engagementSample, fmt: p.format, f: p.sampleFrom?.toISOString() ?? null, t: p.sampleTo?.toISOString() ?? null, er: storedEngagementRate(std.profile), epv: std.profile.platform === "tiktok" ? engagementPerView(std.profile) : null });
       // Owner directive 2026-11-15 (§1): the answer was read but holds nothing to measure per follower (hidden or zero
       // subscribers, no liked posts): an older per-view rate must not stay behind (found: 4 YouTube channels).
       else noRate.push(r.profile_id);
@@ -125,9 +125,9 @@ export async function reassessCreators(db: Db, creatorIds: string[], readPayload
       const mv = sql`case when ${keepViews} then p.median_views else u.mv::integer end`;
       const vs = sql`case when ${keepViews} then p.performance_views_sample else u.vs::smallint end`;
       const res = await tx.execute(sql`
-        update gcp.creator_profiles p set engagement_rate = u.er, median_views = ${mv}, median_engagement_rate = u.mer, performance_views_sample = ${vs}, performance_engagement_sample = u.es, performance_format = u.fmt, performance_from = u.f::timestamptz, performance_to = u.t::timestamptz, performance_at = now(), updated_at = now()
-        from jsonb_to_recordset(${JSON.stringify(perf)}::jsonb) as u(id uuid, mv double precision, mer double precision, vs integer, es integer, fmt text, f text, t text, er double precision)
-        where p.id = u.id and exists (select 1 from gcp.creators c where c.id = p.creator_id and c.status = 'active') and (p.engagement_rate, p.median_views, p.median_engagement_rate, p.performance_views_sample, p.performance_engagement_sample) is distinct from (u.er, ${mv}, u.mer, ${vs}, u.es::smallint)`);
+        update gcp.creator_profiles p set engagement_rate = u.er, engagement_per_view = u.epv, median_views = ${mv}, median_engagement_rate = u.mer, performance_views_sample = ${vs}, performance_engagement_sample = u.es, performance_format = u.fmt, performance_from = u.f::timestamptz, performance_to = u.t::timestamptz, performance_at = now(), updated_at = now()
+        from jsonb_to_recordset(${JSON.stringify(perf)}::jsonb) as u(id uuid, mv double precision, mer double precision, vs integer, es integer, fmt text, f text, t text, er double precision, epv double precision)
+        where p.id = u.id and exists (select 1 from gcp.creators c where c.id = p.creator_id and c.status = 'active') and (p.engagement_rate, p.engagement_per_view, p.median_views, p.median_engagement_rate, p.performance_views_sample, p.performance_engagement_sample) is distinct from (u.er, u.epv, ${mv}, u.mer, ${vs}, u.es::smallint)`);
       changed += res.count ?? 0;
     }
     if (noRate.length) {

@@ -96,7 +96,7 @@ export function ResultsTable({
                 </div>
               </td>
               <td className="py-3 text-right tabular-nums text-slate-700">{c.followers}</td>
-              <td className="py-3 text-right tabular-nums">{c.engagement === null ? <span className="text-slate-500">—</span> : <span className={`rounded px-1.5 py-0.5 font-semibold ${erLevel(c.engagement).chip}`} title={`${erLevel(c.engagement).word} engagement`}>{formatEr(c.engagement)}</span>}</td>
+              <td className="py-3 text-right tabular-nums">{c.engagement === null ? <span className="text-slate-500">—</span> : <span className={`rounded px-1.5 py-0.5 font-semibold ${erLevel(c.engagement, c.platform).chip}`} title={`${erLevel(c.engagement, c.platform).word} engagement`}>{formatEr(c.engagement)}</span>}</td>
               <td className="py-3 text-right tabular-nums text-slate-700">{c.authenticity ?? "—"}</td>
               <td className="py-3 pr-4 text-right">
                 <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] ${scoreBg(c.score)}`} style={{ fontWeight: 600 }}>

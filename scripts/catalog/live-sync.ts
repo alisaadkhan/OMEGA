@@ -19,7 +19,7 @@ const CHUNK = 500;
 export const YT_CUTOFF = "now() - interval '30 days'";
 
 const PROFILE_DATA = [
-  "followers", "following", "posts", "engagement_rate", "avg_likes", "avg_comments", "avg_views", "bio", "followers_updated_at",
+  "followers", "following", "posts", "engagement_rate", "engagement_per_view", "avg_likes", "avg_comments", "avg_views", "bio", "followers_updated_at",
   "engagement_updated_at", "audience_updated_at", "last_scraped_at", "last_post_at", "availability", "availability_checked_at",
   "missing_since", "median_views", "median_engagement_rate", "performance_views_sample", "performance_engagement_sample",
   "performance_format", "performance_from", "performance_to", "performance_at", "post_locations", "verified",

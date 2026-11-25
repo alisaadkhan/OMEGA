@@ -372,6 +372,7 @@ export function createCreatorsService(deps: CreatorsDeps) {
           avgComments: restrictsDerived(p.platform, policy) ? null : p.avgComments,
           avgViews: restrictsDerived(p.platform, policy) ? null : p.avgViews,
           typicalViews: restrictsDerived(p.platform, policy) || p.medianViews === null ? null : Math.round(p.medianViews),
+          engagementPerView: p.platform === "tiktok" ? (p.engagementPerView ?? null) : null,
           typicalViewsSample: restrictsDerived(p.platform, policy) ? null : p.performanceViewsSample,
           typicalViewsFormat: restrictsDerived(p.platform, policy) ? null : (p.performanceFormat as "reel" | "video" | null),
           engagementSample: restrictsDerived(p.platform, policy) ? null : p.performanceEngagementSample,

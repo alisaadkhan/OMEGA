@@ -115,9 +115,9 @@ function SearchCreatorCardView({
               <div className="border-l border-slate-200/60 pl-3">
                 <dt className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Eng. rate</dt>
                 {creator.engagement !== null ? (
-                  <dd className={`flex items-baseline gap-1.5 text-lg font-bold leading-none tabular-nums ${erLevel(creator.engagement).text}`}>
+                  <dd className={`flex items-baseline gap-1.5 text-lg font-bold leading-none tabular-nums ${erLevel(creator.engagement, creator.platform).text}`}>
                     {formatEr(creator.engagement)}
-                    <span className={`rounded px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${erLevel(creator.engagement).chip}`}>{erLevel(creator.engagement).word}</span>
+                    <span className={`rounded px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${erLevel(creator.engagement, creator.platform).chip}`}>{erLevel(creator.engagement, creator.platform).word}</span>
                   </dd>
                 ) : creator.engagementNote === "policy_restricted" ? (
                   <dd className="text-[11px] font-medium leading-tight text-slate-500" title="YouTube's API rules don't allow MUSHIN to calculate engagement for YouTube channels.">Not available for YouTube</dd>

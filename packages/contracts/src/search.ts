@@ -263,6 +263,8 @@ export const creatorProfileSchema = z.object({
       following: z.number().int().nullable(),
       posts: z.number().int().nullable(),
       engagementRate: z.number().nullable(),
+      /** TikTok: (likes + comments + shares) / plays, % (owner, 25 Nov); null on other platforms or when not measured. */
+      engagementPerView: z.number().nullable().default(null),
       avgLikes: z.number().int().nullable(),
       avgComments: z.number().int().nullable(),
       avgViews: z.number().int().nullable(),

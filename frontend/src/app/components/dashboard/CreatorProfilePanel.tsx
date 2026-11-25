@@ -9,6 +9,7 @@ import { isOpenJob, jobStatusText } from "../../api/discovery-mapping";
 import { countryWithSource } from "../../api/evidence-mapping";
 import { useCreatorProfile, useRevealContact } from "../../api/search";
 import { avatarFallback, formatCount, formatEr } from "../../api/search-mapping";
+import { erLevel, perViewLevel } from "../../api/levels";
 import { blockedReasonFor } from "../../lib/eligibility";
 import { providerActionsLockedText } from "../../lib/provider-actions";
 import { relative } from "../../lib/time";
@@ -274,7 +275,14 @@ export function CreatorProfilePanel({ creator, onClose, onGoToCampaigns }: { cre
                   <>
                     <div className="grid grid-cols-2 gap-2">
                       <Tile label={shownPlatform === "youtube" ? "Subscribers" : "Followers"} value={formatCount(primary?.followers ?? creator.followersNum)} note={primary?.freshness.followers === "aging" || primary?.freshness.followers === "stale" ? "Fetched 30+ days ago" : `On ${PLATFORM_NAME[shownPlatform]}`} />
-                      <Tile label="Engagement rate" accent value={engagement === null ? "—" : formatEr(engagement)} note={engagement === null ? missingNote(primary?.metricsNote ?? null) : `Median of ${primary?.engagementSample ?? "recent"} recent posts`} icon={engagement === null ? undefined : TrendingUp} />
+                      <Tile label="Engagement rate" accent value={engagement === null ? "—" : formatEr(engagement)} level={engagement === null ? undefined : erLevel(engagement, shownPlatform)} note={engagement === null ? missingNote(primary?.metricsNote ?? null) : `Per follower · median of ${primary?.engagementSample ?? "recent"} posts`} icon={engagement === null ? undefined : TrendingUp} />
+                      {/* Video reach next to engagement (owner, 25 Nov): typical views, and for TikTok engagement per view. */}
+                      {shownPlatform !== "instagram" && (
+                        <Tile label="Typical views" value={primary?.typicalViews == null ? "—" : formatCount(primary.typicalViews)} note={primary?.typicalViews == null ? "Not enough recent videos" : `Median of ${primary.typicalViewsSample ?? "recent"} videos`} />
+                      )}
+                      {shownPlatform === "tiktok" && (
+                        <Tile label="Engagement per view" accent value={primary?.engagementPerView == null ? "—" : formatEr(primary.engagementPerView)} level={primary?.engagementPerView == null ? undefined : perViewLevel(primary.engagementPerView)} note="Likes, comments and shares per play" />
+                      )}
                       <Tile label="Audience authenticity" value={authenticity.value} valueIcon={auth?.status === "assessed"} note={authenticity.note} />
                       <Tile label="Content consistency" value={steady.value} note={steady.note} />
                     </div>
@@ -330,13 +338,14 @@ export function CreatorProfilePanel({ creator, onClose, onGoToCampaigns }: { cre
   );
 }
 
-function Tile({ label, value, note, accent = false, valueIcon = false, icon: Icon }: { label: string; value: string; note: string; accent?: boolean; valueIcon?: boolean; icon?: typeof TrendingUp }) {
+function Tile({ label, value, note, accent = false, valueIcon = false, icon: Icon, level }: { label: string; value: string; note: string; accent?: boolean; valueIcon?: boolean; icon?: typeof TrendingUp; level?: { word: string; chip: string } }) {
   return (
     <div className="flex flex-col justify-between rounded-xl bg-slate-50 px-3.5 py-2">
       <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{label}</div>
       <div className="my-0.5 flex items-baseline gap-1.5">
         <span className={`text-[18px] font-bold tabular-nums ${accent ? "text-cyan-700" : "text-slate-900"}`}>{value}</span>
         {valueIcon && <ShieldCheck aria-hidden className="h-3.5 w-3.5 shrink-0 text-[#06B6D4]" />}
+        {level && <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ${level.chip}`}>{level.word}</span>}
       </div>
       <div className={`flex items-center gap-1 text-xs ${Icon ? "font-medium text-cyan-700" : "text-slate-500"}`}>
         {Icon && <Icon aria-hidden className="h-3.5 w-3.5" />}

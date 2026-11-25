@@ -7,6 +7,8 @@ export type StandardPost = {
   likes: number | null;
   comments: number | null;
   views: number | null;
+  /** TikTok shareCount (owner, 25 Nov: part of TikTok engagement); absent on other platforms. */
+  shares?: number | null;
   isVideo: boolean;
   isPinned: boolean;
   caption: string;
@@ -203,6 +205,7 @@ function tiktok(handle: string, raw: unknown, maxPosts: number): StandardizeResu
       likes: count(v["diggCount"]),
       comments: count(v["commentCount"]),
       views: count(v["playCount"]),
+      shares: count(v["shareCount"]),
       isVideo: true,
       isPinned: v["isPinned"] === true,
       caption: cleanText(v["text"], LIMITS.caption),

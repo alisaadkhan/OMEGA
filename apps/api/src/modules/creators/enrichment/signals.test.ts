@@ -103,7 +103,7 @@ describe("signals", () => {
   it("derives profile metrics and tiers", () => {
     expect(profileMetrics(profile())).toMatchObject({ avgViews: 18_000 });
     expect(profileMetrics(profile()).engagementRate).toBeCloseTo(2.97, 1);
-    expect(profileMetrics(profile({ recentPosts: [] }))).toEqual({ engagementRate: null, avgLikes: null, avgComments: null, avgViews: null });
+    expect(profileMetrics(profile({ recentPosts: [] }))).toEqual({ engagementRate: null, engagementPerView: null, avgLikes: null, avgComments: null, avgViews: null });
     expect([tierOf(5_000), tierOf(10_000), tierOf(250_000), tierOf(3_000_000)]).toEqual(["under 10K", "10K–100K", "100K–1M", "1M+"]);
     expect(tierOf(null)).toBe("unknown");
   });
@@ -168,5 +168,27 @@ describe("engagementPercent (master directive §4.1: never a misleading 0%)", ()
     expect(engagementPercent(0.000001)).toBe(0.0001);
     expect(engagementPercent(0)).toBeNull(); // likes hidden on every post: not measurable, not 0%
     expect(engagementPercent(Number.NaN)).toBeNull();
+  });
+});
+
+describe("TikTok engagement (owner, 25 Nov)", () => {
+  // @jannatmirza-shaped: 25.6M followers, ~430k plays, ~53k likes, ~800 comments, ~700 shares per video.
+  const tiktok = profile({
+    platform: "tiktok",
+    followers: 25_600_000,
+    recentPosts: Array.from({ length: 6 }, (_, i) => ({ ...post(i * 2, 53_200, 808, 428_900), shares: 697 })),
+  });
+
+  it("counts shares in TikTok's per-follower rate: (likes + comments + shares) / followers", () => {
+    expect(profileMetrics(tiktok).engagementRate).toBeCloseTo(((53_200 + 808 + 697) / 25_600_000) * 100, 2);
+  });
+
+  it("measures engagement per view for TikTok only: (likes + comments + shares) / plays", () => {
+    expect(profileMetrics(tiktok).engagementPerView).toBeCloseTo(((53_200 + 808 + 697) / 428_900) * 100, 2);
+    expect(profileMetrics(profile()).engagementPerView).toBeNull();
+  });
+
+  it("leaves engagement per view unknown without enough videos that show plays", () => {
+    expect(profileMetrics(profile({ platform: "tiktok", recentPosts: [post(1, 100, 1, null), post(2, 100, 1, null), post(3, 100, 1, null)] })).engagementPerView).toBeNull();
   });
 });

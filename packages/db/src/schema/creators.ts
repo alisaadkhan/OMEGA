@@ -99,6 +99,8 @@ export const creatorProfiles = gcp.table("creator_profiles", {
   following: integer("following"),
   posts: integer("posts"),
   engagementRate: doublePrecision("engagement_rate"),
+  /** TikTok engagement per view (%), 0103. */
+  engagementPerView: doublePrecision("engagement_per_view"),
   avgLikes: integer("avg_likes"),
   avgComments: integer("avg_comments"),
   avgViews: integer("avg_views"),
