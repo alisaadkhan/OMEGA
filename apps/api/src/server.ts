@@ -17,6 +17,7 @@ import { createActivityModule, createActivityService } from "./modules/activity"
 import { createOpsModule } from "./modules/ops";
 import { createFeaturedModule } from "./modules/featured";
 import { createNotificationMailer, createNotificationsModule } from "./modules/notifications";
+import { createStaffMailer } from "./modules/staffops/staff-notifications";
 import { createCronModule } from "./modules/cron";
 import { createAttachments, createSupportModule, createSupportService } from "./modules/support";
 import { createAnalyticsModule, createAnalyticsService } from "./modules/analytics";
@@ -47,6 +48,22 @@ const notificationMailer = createNotificationMailer({
   appUrl: config.appUrl,
   logger,
 });
+// Staff notification emails (0106): new users, subscriptions, trial forms, tickets and reports. Sent while staff use the
+// console, at the start of write requests (at most every 20 s, without waiting, while that request keeps the function
+// alive) and by the daily cron as the retry.
+const staffMailer = createStaffMailer({
+  db,
+  provider: config.notifyEmail.mode === "resend" ? new ResendEmailProvider({ apiKey: config.notifyEmail.apiKey }) : config.notifyEmail.mode === "test" ? new MockEmailProvider() : null,
+  from: config.notifyEmail.mode === "off" ? "" : config.notifyEmail.from,
+  appUrl: config.appUrl,
+  logger,
+});
+let staffMailAt = 0;
+const staffMailHook = async (req: { method: string }) => {
+  if (req.method === "GET" || req.method === "OPTIONS" || Date.now() - staffMailAt < 20_000) return;
+  staffMailAt = Date.now();
+  void staffMailer.drain(10).catch((err: unknown) => logger.warn({ err }, "staff mailer drain failed"));
+};
 
 // Discovery jobs and AI summaries run on the worker: refuse jobs (holding nothing) and report summaries unavailable when
 // its heartbeat is missing or older than the staff console's critical threshold, rather than queueing work nothing will
@@ -205,16 +222,20 @@ const app = await buildApp({
       reindex: (ids) => createCreatorIndexer({ db, index: searchIndex, logger, sourcePolicy: config.sourcePolicy }).sync(ids),
       checkAlerts: () => alertNotifier.tick(),
       purgeTrash: () => createEraser({ db, storage: createObjectStorage(config.storage, logger), logger }).purgeTrashed(),
-      sendNotifications: () => notificationMailer.drain(100),
+      sendNotifications: async () => {
+        const a = await notificationMailer.drain(100);
+        const b = await staffMailer.drain(100).catch(() => ({ sent: 0, failed: 0 }));
+        return { sent: a.sent + b.sent, failed: a.failed + b.failed };
+      },
       workerAvailable,
     })] : []),
     createInsightsModule({ db, requireStaff: staff.requireStaff }),
     createFeaturedModule({ db }),
-    createStaffOpsModule({ db, billing, creators: staffCreators, attachments: supportAttachments, requireStaff: staff.requireStaff, createStaffAccount: staff.createStaffAccount, alerts: { notifier: alertNotifier, channel: config.alertWebhookUrl ? "webhook" : "log" } }),
+    createStaffOpsModule({ db, billing, creators: staffCreators, attachments: supportAttachments, requireStaff: staff.requireStaff, createStaffAccount: staff.createStaffAccount, alerts: { notifier: alertNotifier, channel: config.alertWebhookUrl ? "webhook" : "log" }, staffMailer }),
     createAudienceModule({ service: createAudienceService({ db, billing, sources: config.audienceSources }), limiter }),
   ],
   readiness,
-  onRequestHooks: [ipRateLimitHook(limiter)],
+  onRequestHooks: [ipRateLimitHook(limiter), staffMailHook],
 });
 
 const shutdown = async (signal: string) => {

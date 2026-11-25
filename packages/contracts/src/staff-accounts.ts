@@ -132,3 +132,19 @@ export const staffPricingSchema = z.object({
 export type StaffPricing = z.infer<typeof staffPricingSchema>;
 export const staffPlanTermsSchema = z.object({ monthlyCredits: z.number().int().min(0).max(1_000_000), displayMonthlyMinor: z.number().int().min(0).max(1_000_000_000), reason: z.string().trim().min(12).max(1000) });
 export const staffActionCostSchema = z.object({ credits: z.number().int().min(0).max(100_000), reason: z.string().trim().min(12).max(1000) });
+
+/** Staff bell (owner, 25 Nov): new users, subscriptions, trial forms, tickets, profile reports, creators to review. */
+export const staffNotificationSchema = z.object({
+  id: z.uuid(),
+  kind: z.enum(["new_user", "subscription", "trial_request", "ticket", "profile_report", "creator_review"]),
+  title: z.string(),
+  body: z.string(),
+  /** Console page to open, e.g. "#tickets". */
+  link: z.string().nullable(),
+  createdAt: z.iso.datetime(),
+  read: z.boolean(),
+});
+export type StaffNotification = z.infer<typeof staffNotificationSchema>;
+export const staffNotificationListSchema = z.object({ notifications: z.array(staffNotificationSchema), unread: z.number().int().nonnegative(), emailOn: z.boolean() });
+export const staffNotificationReadSchema = z.object({ ids: z.array(z.uuid()).min(1).max(100).optional() });
+export const staffNotificationEmailSchema = z.object({ on: z.boolean() });

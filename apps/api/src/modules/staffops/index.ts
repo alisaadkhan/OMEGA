@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import { registerStaffNotificationRoutes, type StaffMailer } from "./staff-notifications";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import {
@@ -70,6 +71,8 @@ export function createStaffOpsModule(o: {
   createStaffAccount: (input: { email: string; name: string; role: "support" }) => Promise<{ id: string; password: string; totpSecret: string; totpUri: string }>;
   /** Alert delivery (audit OPS-03); its channel is "webhook" when ALERT_WEBHOOK_URL is set, otherwise the log. */
   alerts?: { notifier: Pick<AlertNotifier, "sendTest">; channel: "webhook" | "log" };
+  /** Staff notification emails (0106), sent while the console is open and after every write request. */
+  staffMailer?: StaffMailer;
   /**
    * Creator changes reach search at once (owner, 22 Nov: no worker runs in production): `reindex` re-projects the
    * creators into search, `remove` erases one through the removal process. Without them the outbox carries the change.
@@ -217,6 +220,7 @@ export function createStaffOpsModule(o: {
       return sendOk(reply, z.object({ cleared: z.literal(true) }), out);
     });
     if (editor) registerCreatorEditorRoutes(app, { editor, r, staffOf, meta });
+    registerStaffNotificationRoutes(app, { db: o.db, r, staffOf, mailer: o.staffMailer });
     // Customer flags on creator profiles (owner directive 2026-11-15 §3, 0090).
     app.get("/admin/v1/catalogue/flags", { preHandler: r("catalogue.review.read") }, async (req, reply) =>
       sendOk(reply, creatorFlagListSchema, await flags.list(parseInput(creatorFlagQuerySchema, req.query))),

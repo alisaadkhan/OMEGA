@@ -30,6 +30,8 @@ export const STAFF_PERMISSIONS = {
   "trials.contact": ALL,
   // Catalogue review queue (owner directive 2026-11-03): everyone can look; deciding a country or a minor flag is Admin.
   "catalogue.review.read": ALL,
+  // Each staff member's own bell and email setting (owner, 25 Nov). What they see is filtered by role in the query.
+  "staff.notifications.read": ALL,
   // Admin (operations) and above. These require a hardware-key step-up (HARDWARE_KEY_ACTIONS).
   "staff.webauthn.manage": ADMIN,
   "creators.removal.review": ADMIN,

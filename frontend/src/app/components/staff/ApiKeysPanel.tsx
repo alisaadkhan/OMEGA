@@ -21,7 +21,7 @@ function KeyCard({ k, onOpen }: { k: StaffApiKey; onOpen: () => void }) {
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
           <Badge tone={state.tone}>{state.text}</Badge>
-          {k.role === "backup" && <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Backup</span>}
+          {k.role === "backup" && <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Backup</span>}
         </div>
       </div>
       {k.metered ? (
@@ -73,7 +73,7 @@ function CallsDrawer({ k, onClose }: { k: StaffApiKey; onClose: () => void }) {
                 <span className="rounded-md bg-indigo-50 px-1.5 py-0.5 font-semibold text-indigo-700">{c.operation.replaceAll("_", " ")}</span>
                 {c.job && <span className="rounded-md bg-cyan-50 px-1.5 py-0.5 font-semibold text-cyan-800">{c.job.kind.replaceAll("_", " ")} · {c.job.status}</span>}
                 {c.model && <span className="text-slate-500">{c.model}</span>}
-                <span className="text-slate-400">{c.latencyMs} ms{c.costUsd > 0 ? ` · $${c.costUsd.toFixed(4)}` : ""}</span>
+                <span className="text-slate-500">{c.latencyMs} ms{c.costUsd > 0 ? ` · $${c.costUsd.toFixed(4)}` : ""}</span>
               </div>
               {(c.job?.search || c.job?.target) && <p className="mt-1.5 text-[12px] text-slate-700">{c.job.search ? <>Searched: <strong>“{c.job.search}”</strong></> : <>Added: <strong>{c.job.target}</strong></>}</p>}
             </li>

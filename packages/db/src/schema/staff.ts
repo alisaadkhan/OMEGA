@@ -13,6 +13,7 @@ export const staffUsers = staffSchema.table("staff_users", {
   totpEnabled: boolean("totp_enabled").notNull().default(true),
   /** A secret being set up, not yet proven with a code (0094). */
   totpPendingEncrypted: text("totp_pending_encrypted"),
+  notifyEmail: boolean("notify_email").notNull().default(true),
   role: text("role", { enum: ["support", "admin", "super_admin"] }).notNull(),
   status: text("status", { enum: ["active", "disabled", "suspended"] }).notNull().default("active"),
   failedLoginCount: integer("failed_login_count").notNull().default(0),

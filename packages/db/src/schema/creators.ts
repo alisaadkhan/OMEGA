@@ -73,6 +73,8 @@ export const creators = gcp.table("creators", {
   hiddenByStaffId: uuid("hidden_by_staff_id"),
   hiddenReason: text("hidden_reason"),
   hiddenAt: timestamp("hidden_at", { withTimezone: true, mode: "date" }),
+  // When staff last reviewed this creator's customer reports (0106): only reports filed later can auto-hide it again.
+  reportsReviewedAt: timestamp("reports_reviewed_at", { withTimezone: true, mode: "date" }),
   /** Trash (0096): out of every customer view, restorable for 45 days, then erased by the daily job. */
   trashedAt: timestamp("trashed_at", { withTimezone: true, mode: "date" }),
   trashedByStaffId: uuid("trashed_by_staff_id"),
