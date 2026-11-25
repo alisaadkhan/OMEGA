@@ -48,7 +48,8 @@ export function CreatorChecksPage({ canEdit }: { canEdit: boolean }) {
   const pages = Math.max(1, Math.ceil((list.data?.total ?? 0) / PAGE));
   const page = Math.floor(offset / PAGE) + 1;
   const counts = list.data?.counts;
-  const problems = Object.entries(list.data?.problems ?? {}).sort((a, b) => b[1] - a[1]);
+  // "Only location unproven" first: the owner reviews these one by one (25 Nov); then the rest, most common first.
+  const problems = Object.entries(list.data?.problems ?? {}).filter(([, n]) => n > 0).sort((a, b) => Number(b[0] === "location_only") - Number(a[0] === "location_only") || b[1] - a[1]);
   const pickProblem = (r: string | null) => { setProblem(r); setOffset(0); setSelected(null); };
 
   return (

@@ -165,12 +165,16 @@ describe("staff creator editor (owner, 22 Nov)", () => {
     const support = await as("support");
     await addIndexedCreator(db, { displayName: "Qualifies With Email" });
     await addIndexedCreator(db, { displayName: "Too Small", profiles: [{ followers: 2_000 }] });
+    await addIndexedCreator(db, { displayName: "Country Unproven", country: null, confirmedCountry: null, city: null, profiles: [{ bio: "Makeup artist" }] });
     const get = async (qs: string) => app.inject({ method: "GET", url: `/admin/v1/catalogue/all?${qs}`, headers: support });
     const all = (await get("filter=unqualified")).json() as { problems: Record<string, number> };
     expect(all.problems).toMatchObject({ below_follower_minimum: 1 });
     const one = (await get("filter=unqualified&problem=below_follower_minimum")).json() as { items: { displayName: string }[]; total: number };
     expect([one.items.map((i) => i.displayName), one.total]).toEqual([["Too Small"], 1]);
-    expect(((await get("filter=unqualified&problem=country_unknown")).json() as { total: number }).total).toBe(0);
+    expect(((await get("filter=unqualified&problem=country_unknown")).json() as { total: number }).total).toBe(1);
     expect((await get("filter=unqualified&problem=x' or 1=1--")).statusCode).toBe(400);
+    // Only location unproven (owner, 25 Nov): every rule met except proof of Pakistan; a too-small creator is not here.
+    expect(all.problems).toMatchObject({ location_only: 1 });
+    expect(((await get("filter=unqualified&problem=location_only")).json() as { items: { displayName: string }[] }).items.map((i) => i.displayName)).toEqual(["Country Unproven"]);
   });
 });

@@ -87,6 +87,10 @@ const WHERE: Record<z.infer<typeof creatorFilterSchema>, ReturnType<typeof sql>>
   hidden: sql`c.status = 'hidden'`,
   trash: sql`c.status = 'trashed'`,
 };
+// Creators who meet every rule except proof of Pakistan (owner, 25 Nov: "they qualify, the problem is location; I will
+// review each one myself"). A proven non-Pakistan country is not here: that is a decided fact, not a missing one.
+export const LOCATION_ONLY = "location_only";
+const ONLY_LOCATION = sql`cardinality(d.eligibility_reasons) > 0 and d.eligibility_reasons <@ array['country_unknown', 'country_conflicting', 'country_stale']::text[]`;
 const FROM = sql`gcp.creators c left join platform.staff_creator_report_counts() r on r.creator_id = c.id left join gcp.creator_search_documents d on d.creator_id = c.id`;
 
 function nameOrHandle(text: string) {
@@ -110,7 +114,7 @@ export function createCreatorEditor(deps: { db: Db; reindex: (ids: string[]) => 
 
   return {
     async list(q: z.infer<typeof creatorListQuerySchema>): Promise<z.infer<typeof staffCreatorListSchema>> {
-      const where = q.problem ? sql`${WHERE[q.filter]} and ${q.problem} = any(d.eligibility_reasons)` : WHERE[q.filter];
+      const where = !q.problem ? WHERE[q.filter] : q.problem === LOCATION_ONLY ? sql`${WHERE[q.filter]} and ${ONLY_LOCATION}` : sql`${WHERE[q.filter]} and ${q.problem} = any(d.eligibility_reasons)`;
       return deps.db.withSystem(async (tx) => {
         const items = await tx.execute<z.infer<typeof staffCreatorSchema>>(sql`
           select c.id, c.display_name as "displayName", c.avatar_url as "avatarUrl", c.city, c.country, c.public_country as "publicCountry",
@@ -131,7 +135,8 @@ export function createCreatorEditor(deps: { db: Db; reindex: (ids: string[]) => 
         const [cnt] = await tx.execute<Record<z.infer<typeof creatorFilterSchema>, number>>(sql`select
           ${sql.join(creatorFilterSchema.options.map((f) => sql`(select count(*)::int from ${FROM} where ${WHERE[f]}) as ${sql.identifier(f)}`), sql`, `)}`);
         const problems = await tx.execute<{ r: string; n: number }>(sql`
-          select r, count(*)::int n from (select d.eligibility_reasons rs from ${FROM} where ${WHERE.unqualified}) x, unnest(x.rs) r group by r`);
+          select r, count(*)::int n from (select d.eligibility_reasons rs from ${FROM} where ${WHERE.unqualified}) x, unnest(x.rs) r group by r
+          union all select ${LOCATION_ONLY}, count(*)::int from ${FROM} where ${WHERE.unqualified} and ${ONLY_LOCATION}`);
         return { items: [...items], total: t?.n ?? 0, problems: Object.fromEntries(problems.map((p) => [p.r, p.n])), counts: cnt ?? { qualified: 0, unreachable: 0, unqualified: 0, refresh: 0, all: 0, reported: 0, country: 0, minor: 0, organisation: 0, assessment: 0, hidden: 0, trash: 0 } };
       });
     },

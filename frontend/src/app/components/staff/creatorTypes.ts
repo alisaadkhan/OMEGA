@@ -117,6 +117,7 @@ export const HIDDEN: Record<string, string> = {
   country_conflicting: "conflicting country",
   country_not_pakistan: "not in Pakistan",
   country_stale: "country evidence out of date",
+  location_only: "only location unproven",
 };
 
 /** A problem as a category name ("Country unknown"); an unknown code is shown readable rather than hidden. */
