@@ -203,7 +203,8 @@ export function linkedAccounts(tx: Tx, creatorId: string) {
     .select({ platform: creatorLinks.platform, url: creatorLinks.url })
     .from(creatorLinks)
     .where(eq(creatorLinks.creatorId, creatorId))
-    .orderBy(creatorLinks.firstSeenAt)
+    // Links saved together share a timestamp: the address breaks the tie so the order never changes between reads.
+    .orderBy(creatorLinks.firstSeenAt, creatorLinks.url)
     .limit(10);
 }
 
@@ -221,7 +222,7 @@ export async function bioLinkUrls(tx: Tx, ids: string[], revealed: ReadonlySet<s
   const rows = await tx.execute<{ id: string; own: string[]; links: string[]; bios: string[]; protected: boolean }>(sql`
     select c.id,
       array(select p.canonical_url from gcp.creator_profiles p where p.creator_id = c.id and p.canonical_url is not null order by p.followers desc nulls last) as own,
-      array(select l.url from gcp.creator_links l where l.creator_id = c.id order by l.first_seen_at limit 10) as links,
+      array(select l.url from gcp.creator_links l where l.creator_id = c.id order by l.first_seen_at, l.url limit 10) as links,
       array(select p.bio from gcp.creator_profiles p where p.creator_id = c.id and p.bio is not null) as bios,
       (c.is_minor and c.minor_override_by_staff_id is null) as protected
     from gcp.creators c where c.id in ${ids}`);

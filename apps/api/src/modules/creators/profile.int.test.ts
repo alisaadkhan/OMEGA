@@ -123,11 +123,11 @@ describe("profile", () => {
     await ownerQuery(`insert into gcp.creator_links (creator_id, platform, url, source) values ('${id}', 'website', 'https://tt.one', 'bio'), ('${id}', 'website', 'https://linktr.ee/tt_one', 'bio'), ('${id}', 'website', 'https://wa.me/923001234567', 'bio');
       update gcp.creators set assessment_status = 'pending' where id = '${id}';`);
     const p = await creators.profile(await trialCustomer(), id);
-    // The WhatsApp link carries the phone number, a paid reveal: not listed before the workspace reveals the contacts.
-    expect(p).toMatchObject({ refreshCost: 50, linkedAccounts: [{ platform: "website", url: "https://tt.one" }, { platform: "website", url: "https://linktr.ee/tt_one" }], authenticity: { status: "pending" } });
+    // Links saved together are listed by address (a fixed order). The WhatsApp link carries the phone number, a paid reveal: not listed before the workspace reveals the contacts.
+    expect(p).toMatchObject({ refreshCost: 50, linkedAccounts: [{ platform: "website", url: "https://linktr.ee/tt_one" }, { platform: "website", url: "https://tt.one" }], authenticity: { status: "pending" } });
     expect(p.lastScrapedAt).not.toBeNull();
     // Bio links as icons (owner, 24 Nov): own profile first, then every bio link, classified, never raw text alone.
-    expect(p.bioLinks.map((l) => [l.kind, l.label])).toEqual([["tiktok", "TikTok · @tt_one"], ["website", "tt.one"], ["linktree", "Linktree · @tt_one"]]);
+    expect(p.bioLinks.map((l) => [l.kind, l.label])).toEqual([["tiktok", "TikTok · @tt_one"], ["linktree", "Linktree · @tt_one"], ["website", "tt.one"]]);
     expect(JSON.stringify(p)).not.toContain("923001234567");
     await ownerQuery(`update gcp.creators set assessment_status = 'insufficient_data' where id = '${id}'`);
     expect((await creators.profile(await trialCustomer(), id)).authenticity).toEqual({ status: "insufficient_data" });
