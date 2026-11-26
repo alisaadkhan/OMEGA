@@ -353,7 +353,8 @@ describe("consented, read-only support access", () => {
 
     const view = (await call("GET", `/admin/v1/access-requests/${req.id}/view`, support.h)).json();
     expect(view).toMatchObject({ workspace: { id: workspaceId }, lists: [], campaigns: [], access: { status: "granted" } });
-    expect(JSON.stringify(view)).not.toMatch(/balance|ledger|budget|fee|email/i);
+    // Ids are random hex and can spell "fee" by chance: drop them before looking for money or contact fields.
+    expect(JSON.stringify(view).replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, "")).not.toMatch(/balance|ledger|budget|fee|email/i);
     expect((await call("GET", `/admin/v1/access-requests/${req.id}/view`, colleague.h)).statusCode).toBe(404); // granted to one person only
     expect((await audit("support.access.viewed"))[0]).toMatchObject({ staff_id: support.id, workspace_id: workspaceId });
 
