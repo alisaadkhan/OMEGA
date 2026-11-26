@@ -73,6 +73,10 @@ export default defineConfig(({ mode }) => {
       dedupe: ['zod', 'react', 'react-dom'],
     },
     server: {
+      // Browser test runs (scripts/e2e/run-suite.sh sets MUSHIN_E2E_FROZEN=1): no hot reload and no file watching, so an
+      // edit saved in the repository mid-run can't swap modules under the running app (a second React context copy
+      // was reported as "useAuth must be used within AuthProvider", 25 Nov).
+      ...(process.env.MUSHIN_E2E_FROZEN === '1' ? { hmr: false, watch: null } : {}),
       proxy: {
         '/api': {
           target: `http://localhost:${apiPort}`,

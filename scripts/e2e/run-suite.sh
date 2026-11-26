@@ -37,7 +37,7 @@ trap cleanup EXIT
 bash "$REPO/scripts/e2e-fixtures/build-template.sh" > "$LOGS/template.log" 2>&1 || { tail -5 "$LOGS/template.log"; echo "template build failed"; exit 1; }
 node "$STUB" > "$LOGS/stub-$SUITE.log" 2>&1 & PIDS+=($!)
 # The browser signs in against the local stub only; supabase-js keeps the session under sb-localhost-auth-token.
-( cd "$REPO/frontend" && PORT=$API_PORT VITE_SUPABASE_URL="http://localhost:$STUB_PORT" VITE_SUPABASE_PUBLISHABLE_KEY="e2e-publishable-key-not-a-secret" \
+( cd "$REPO/frontend" && MUSHIN_E2E_FROZEN=1 PORT=$API_PORT VITE_SUPABASE_URL="http://localhost:$STUB_PORT" VITE_SUPABASE_PUBLISHABLE_KEY="e2e-publishable-key-not-a-secret" \
   exec node node_modules/vite/bin/vite.js --port $VITE_PORT --strictPort ) > "$LOGS/vite-$SUITE.log" 2>&1 & PIDS+=($!)
 export E2E_SUPABASE_REF=localhost
 for i in $(seq 1 60); do busy $STUB_PORT && busy $VITE_PORT && break; sleep 1; done
