@@ -217,9 +217,18 @@ create trigger staff_notify_creator_review after update of status on gcp.creator
 create or replace function platform.staff_notification_emails_claim(p_limit integer)
   returns table (notification_id uuid, staff_id uuid, email text, name text, title text, body text, link text)
   language sql volatile security definer set search_path = pg_catalog as $$
-  with picked as (
+  -- Checked again at send time: a staff member disabled, demoted or who turned email off since is never emailed.
+  with dropped as (
+    update staff.notification_emails e set status = 'failed'
+    from staff.notifications n, staff.staff_users s
+    where n.id = e.notification_id and s.id = e.staff_id and e.status in ('pending', 'sending')
+      and not (s.status = 'active' and s.notify_email and (n.audience = 'all' or s.role in ('admin', 'super_admin')))
+    returning e.notification_id),
+  picked as (
     select e.notification_id, e.staff_id from staff.notification_emails e join staff.notifications n on n.id = e.notification_id
+      join staff.staff_users s on s.id = e.staff_id
     where (e.status = 'pending' or (e.status = 'sending' and e.claimed_at < now() - interval '10 minutes')) and e.attempts < 5
+      and s.status = 'active' and s.notify_email and (n.audience = 'all' or s.role in ('admin', 'super_admin'))
       and n.created_at > now() - interval '7 days'
     order by n.created_at limit least(greatest(p_limit, 1), 100) for update of e skip locked),
   claimed as (

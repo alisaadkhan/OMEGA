@@ -1,51 +1,13 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Bell, LogOut, Menu, Search, X } from "lucide-react";
-import { staffAlertsSchema } from "@mushin/contracts";
+import { LogOut, Menu, Search, X } from "lucide-react";
 import type { AdminUser } from "../../admin/AdminAuthContext";
-import { adminRequest } from "../../admin/adminApi";
 import { StepUpProvider } from "../admin/staff-ui";
 import { LogoMark } from "../landing/Logo";
 import { NAV, useNavBadges, type StaffView } from "./nav";
+import { NotificationBell } from "./NotificationBell";
 
 /** Display labels only (owner, 25 Nov: the top role reads "CEO"); the server role stays super_admin. */
 const ROLE_LABEL = { super_admin: "CEO", admin: "Admin", support: "Support" } as const;
-
-/** The bell lists the alert thresholds crossed right now (the staff alerts endpoint); nothing else is invented. */
-function AlertBell({ onOpen }: { onOpen: () => void }) {
-  const [open, setOpen] = useState(false);
-  const q = useQuery({ queryKey: ["admin", "alerts"], queryFn: () => adminRequest("/admin/v1/ops/alerts", staffAlertsSchema), refetchInterval: 60_000 });
-  const alerts = q.data?.alerts ?? [];
-  return (
-    <div className="relative">
-      <button type="button" onClick={() => setOpen(!open)} aria-label={`Alerts${alerts.length ? ` (${alerts.length})` : ""}`} aria-expanded={open} className="relative flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-700 hover:border-cyan-300 hover:bg-cyan-50/70 hover:text-cyan-700">
-        <Bell className="h-4 w-4" />
-        {alerts.length > 0 && <span className="absolute -right-1 -top-1 flex h-[19px] min-w-[19px] items-center justify-center rounded-full bg-[#06B6D4] px-1 text-[10.5px] font-extrabold text-[#0A0F24] ring-2 ring-white tabular-nums">{alerts.length}</span>}
-      </button>
-      {open && (
-        <div className="absolute right-0 z-50 mt-2.5 w-[340px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_40px_-12px_rgba(10,15,36,0.18)]">
-          <div className="flex items-center justify-between bg-[#0A0F24] px-4 py-3.5 text-white">
-            <span className="text-sm font-bold">Alerts</span>
-            <span className="rounded-full border border-cyan-500/30 bg-cyan-500/20 px-2 py-0.5 text-[10.5px] font-bold text-cyan-300">{alerts.length} active</span>
-          </div>
-          <ul className="max-h-[340px] divide-y divide-slate-100 overflow-y-auto">
-            {q.isPending ? <li className="px-4 py-6 text-center text-xs text-slate-500">Loading…</li> : alerts.length === 0 ? (
-              <li className="px-4 py-8 text-center"><p className="text-xs font-bold text-slate-800">No alert threshold is crossed</p><p className="mt-0.5 text-[11.5px] text-slate-500">This covers only what the console measures.</p></li>
-            ) : alerts.map((a) => (
-              <li key={a.key} className="flex items-start gap-3 px-4 py-3.5">
-                <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${a.severity === "critical" ? "bg-rose-500" : "bg-amber-500"}`} />
-                <div><div className="text-xs font-bold text-slate-900">{a.severity === "critical" ? "Critical" : "Warning"}</div><p className="mt-0.5 text-[11.5px] leading-relaxed text-slate-600">{a.message}</p></div>
-              </li>
-            ))}
-          </ul>
-          <div className="border-t border-slate-100 bg-slate-50 px-4 py-3">
-            <button type="button" onClick={() => { setOpen(false); onOpen(); }} className="btn btn-dark w-full">Open the overview</button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 /** ⌘K / Ctrl+K: jump to any section the signed-in role can open. */
 function CommandPalette({ items, onGo, onClose }: { items: { id: StaffView; label: string }[]; onGo: (v: StaffView) => void; onClose: () => void }) {
@@ -135,7 +97,7 @@ export function StaffShell({ admin, view, onView, onSignOut, children }: { admin
               <button type="button" onClick={() => setMenu(true)} aria-label="Open menu" className="rounded-lg p-2 text-[#131b2e] hover:bg-slate-100 lg:hidden">{menu ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}</button>
             </div>
             <div className="flex items-center gap-2.5 sm:gap-3">
-              <AlertBell onOpen={() => go("overview")} />
+              <NotificationBell onOverview={() => go("overview")} />
               <div className="hidden items-center gap-2.5 border-l border-slate-200 pl-3 sm:flex">
                 <div className="text-right leading-tight"><div className="text-xs font-bold text-slate-900">{admin.name}</div><div className="text-[10.5px] font-medium text-slate-500">{ROLE_LABEL[admin.role]}</div></div>
               </div>

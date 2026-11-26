@@ -78,4 +78,16 @@ describe("staff notifications (owner, 25 Nov, 0106)", () => {
     expect(provider.sent.map((m) => [m.to, m.subject])).toEqual([[admin.email, "[MUSHIN staff] New user signed up"]]);
     expect(await mailer.drain()).toEqual({ sent: 0, failed: 0 });
   });
+
+  it("never emails a staff member disabled after the notification was made", async () => {
+    const { token } = await setup();
+    const gone = await token("admin");
+    await ownerQuery(`insert into wp.users (id, email, display_name) values (gen_random_uuid(), 'sara@brand.pk', 'Sara')`);
+    await ownerQuery(`update staff.staff_users set status = 'disabled' where email = '${gone.email}'`);
+    const provider = new MockEmailProvider();
+    const mailer = createStaffMailer({ db, provider, from: "MUSHIN <alerts@mushin.pk>", appUrl: "https://app.test", logger });
+    expect(await mailer.drain()).toEqual({ sent: 0, failed: 0 });
+    expect(provider.sent).toEqual([]);
+    expect(await ownerQuery(`select status from staff.notification_emails`)).toEqual([{ status: "failed" }]);
+  });
 });

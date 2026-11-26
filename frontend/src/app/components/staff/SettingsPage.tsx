@@ -4,6 +4,7 @@ import type { AdminUser } from "../../admin/AdminAuthContext";
 import { Card, PageHeader } from "./kit";
 import { TwoFactorCard } from "./TwoFactorCard";
 import { StepUpBar } from "../admin/staff-ui";
+import { NotificationEmailToggle } from "./NotificationBell";
 
 const ROLE = { super_admin: "CEO", admin: "Admin", support: "Support" } as const;
 
@@ -28,6 +29,7 @@ export function SettingsPage({ admin, security }: { admin: AdminUser; security: 
           <div><dt className="text-xs font-bold text-slate-700">Work email</dt><dd className="mt-1.5 rounded-2xl border border-slate-200 bg-[#F8FAFC] px-4 py-2.5 text-sm font-medium text-slate-900">{admin.email}</dd></div>
         </dl>
       </Card>
+      <NotificationEmailToggle />
       <TwoFactorCard />
       {/* Admin actions ask for the key on their own when needed; this confirms it ahead of time (5 minutes). */}
       <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white"><StepUpBar onSetUp={() => document.getElementById("security-keys")?.scrollIntoView({ behavior: "smooth" })} /></div>
