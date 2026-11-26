@@ -3,6 +3,7 @@ import { Bookmark, CreditCard, LayoutDashboard, LifeBuoy, LogOut, Megaphone, Sea
 import { useBillingSummary } from "../../api/billing";
 import { useAuth } from "../../auth/AuthContext";
 import { OPEN_REVIEW_EVENT } from "./LeaveReview";
+import { useNotifications } from "../../api/notifications";
 
 /**
  * Primary navigation (owner design 2026-11-16): dark navy panel with Discover, Account and Insights groups, an animated
@@ -31,6 +32,8 @@ type Props = { view: DashView; setView: (v: DashView) => void; onExit?: () => vo
 
 export function Sidebar({ view, setView, onExit }: Props) {
   const plan = useBillingSummary().data;
+  // Pages with unread notifications are highlighted with their count (owner, 26 Nov); opening one clears it.
+  const unread = useNotifications().data?.unreadByView ?? {};
   const { logout } = useAuth();
   const foot = "flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-steel transition-colors hover:bg-ink hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/60";
   return (
@@ -48,17 +51,25 @@ export function Sidebar({ view, setView, onExit }: Props) {
               <span className="px-3 text-[10px] font-semibold uppercase tracking-wider text-steel-2">{g.title}</span>
               {g.items.map((it) => {
                 const active = view === it.id;
+                const count = active ? 0 : (unread[it.id] ?? 0);
                 return (
                   <button
                     key={it.id}
                     data-tour={it.tour}
                     onClick={() => setView(it.id)}
                     aria-current={active ? "page" : undefined}
-                    className={`relative flex items-center gap-2 rounded-lg px-3 py-2 text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/60 ${active ? "font-semibold text-cyan-soft" : "text-mist hover:bg-ink hover:text-white"}`}
+                    aria-describedby={count > 0 ? `nav-new-${it.id}` : undefined}
+                    className={`relative flex items-center gap-2 rounded-lg px-3 py-2 text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/60 ${active ? "font-semibold text-cyan-soft" : count > 0 ? "bg-cyan-500/10 font-semibold text-white ring-1 ring-cyan-400/30 hover:bg-ink" : "text-mist hover:bg-ink hover:text-white"}`}
                   >
                     {active && <motion.span layoutId="nav-active" className="absolute inset-0 rounded-lg bg-ink ring-1 ring-white/5" transition={{ type: "spring", stiffness: 420, damping: 34 }} />}
                     <it.icon aria-hidden className="relative h-[18px] w-[18px]" strokeWidth={1.75} />
                     <span className="relative">{it.label}</span>
+                    {count > 0 && (
+                      <span aria-hidden="true" id={`nav-new-${it.id}`} data-testid={`nav-badge-${it.id}`} className="relative ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-cyan-400 px-1.5 text-[10.5px] font-extrabold tabular-nums text-[#0A0F24]">
+                        {count > 99 ? "99+" : count}
+                        <span className="sr-only"> new {count === 1 ? "notification" : "notifications"}</span>
+                      </span>
+                    )}
                   </button>
                 );
               })}

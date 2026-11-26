@@ -25,6 +25,7 @@ import { useLists } from "../../api/lists";
 import { useCampaigns } from "../../api/campaigns";
 import { CreatorProfilePanel, type Creator } from "./CreatorProfilePanel";
 import { REACH_OUT_EVENT, type ReachOut } from "../../lib/reach-out";
+import { useMarkNotificationsRead, useNotifications } from "../../api/notifications";
 
 /** The page named in a "#/dashboard/<page>" link (notification emails and the bell). */
 export function viewFromHash(hash = typeof window === "undefined" ? "" : window.location.hash): DashView | null {
@@ -38,6 +39,13 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
   useEffect(() => {
     rememberCurrentView(view);
   }, [view]);
+  // Opening a page marks its notifications read, which clears its sidebar badge (owner, 26 Nov).
+  const pageUnread = useNotifications().data?.unreadByView[view] ?? 0;
+  const markRead = useMarkNotificationsRead();
+  const markPageRead = markRead.mutate;
+  useEffect(() => {
+    if (pageUnread > 0) markPageRead({ view });
+  }, [view, pageUnread, markPageRead]);
   // Choosing a section in the sidebar always opens its first page, even when it is already the current section
   // (an open list or campaign goes back to the index; design gap G-17).
   const [navKey, setNavKey] = useState(0);

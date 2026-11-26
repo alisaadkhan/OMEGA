@@ -5,7 +5,8 @@ import { createLogger, type TenantContext } from "@mushin/core";
 import { createTestDatabase, createTestWorkspace, dbError, ownerQuery, resetTables } from "@mushin/db/testing";
 import { MockEmailProvider } from "@mushin/integrations";
 import { createSupportService } from "../support/index";
-import { createNotificationMailer } from "./index";
+import { buildTestApp } from "../../test-support/app";
+import { createNotificationMailer, createNotificationsModule } from "./index";
 
 const db = createTestDatabase();
 const support = createSupportService({ db });
@@ -21,6 +22,13 @@ const staffUpdate = (id: string, staffId: string, body: string | null, status: s
 // What the bell shows: the person's own notifications in their own workspace (RLS).
 const bell = (c: TenantContext) =>
   db.withTenant({ userId: c.userId, workspaceId: c.workspaceId }, (tx) => tx.execute<{ kind: string; title: string; link: string | null; read_at: string | null }>(sql`select kind, title, link, read_at from wp.notifications order by created_at`));
+
+/** The notifications routes with a guard that signs every request in as the given customer. */
+const notificationsApp = (c: TenantContext) =>
+  buildTestApp({
+    guards: { customer: async (req) => void (req.tenant = c), idempotent: async () => {} },
+    modules: [createNotificationsModule({ db })],
+  });
 
 describe("customer notifications (owner, 23 Nov; 0100)", () => {
   it("a staff reply and a resolution notify the person who asked; internal notes and their own closing do not", async () => {
@@ -97,6 +105,22 @@ describe("customer notifications (owner, 23 Nov; 0100)", () => {
     const bodies = await ownerQuery<{ body: string }>(`select body from wp.notifications where workspace_id = '${w}' order by created_at`);
     expect(bodies.map((b) => b.body).join(" ")).toContain("PKR 4,900.00");
     expect(bodies.map((b) => b.body).join(" ")).not.toContain("internal note");
+  });
+
+  it("counts unread per page, and marks read by id or by page through the API (owner, 26 Nov)", async () => {
+    const c = await customer();
+    for (const e of ["notify.payment_failed", "notify.credits_low", "notify.discovery_job_finished"])
+      await ownerQuery(`insert into platform.outbox (event_type, aggregate_type, aggregate_id, workspace_id, payload) values ('${e}', 'workspace', '${c.workspaceId}', '${c.workspaceId}', '{}')`);
+    const app = await notificationsApp(c);
+    const list = async () => (await app.inject({ method: "GET", url: "/v1/notifications" })).json() as { unread: number; unreadByView: Record<string, number>; notifications: { id: string; view: string | null }[] };
+    expect((await list()).unreadByView).toEqual({ billing: 2, search: 1 });
+    // One id (the bell's click) and then a page (opening Billing).
+    const searchOne = (await list()).notifications.find((n) => n.view === "search")?.id;
+    expect((await app.inject({ method: "POST", url: "/v1/notifications/read", payload: { ids: [searchOne] } })).statusCode).toBe(200);
+    expect((await list()).unreadByView).toEqual({ billing: 2 });
+    expect((await app.inject({ method: "POST", url: "/v1/notifications/read", payload: { view: "billing" } })).statusCode).toBe(200);
+    expect(await list()).toMatchObject({ unread: 0, unreadByView: {} });
+    expect((await app.inject({ method: "POST", url: "/v1/notifications/read", payload: { view: "../x" } })).statusCode).toBe(400);
   });
 
   it("lets a person mark their notifications read, and nothing else", async () => {

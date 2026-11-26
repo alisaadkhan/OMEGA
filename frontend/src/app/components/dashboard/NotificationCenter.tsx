@@ -1,10 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Bell, CheckCheck, CreditCard, Gift, LifeBuoy, MailCheck, MailX, RefreshCw, Search, Sparkles } from "lucide-react";
-import { markNotificationsReadResultSchema, notificationListSchema, type Notification } from "@mushin/contracts";
-import { apiRequest } from "../../api/client";
-import { useAuth } from "../../auth/AuthContext";
+import type { Notification } from "@mushin/contracts";
+import { useMarkNotificationsRead, useNotifications } from "../../api/notifications";
 import { useToast } from "../../lib/toast";
 import type { DashView } from "./Sidebar";
 import { Spinner } from "./states";
@@ -41,14 +39,9 @@ export function NotificationCenter({ onOpenView }: { onOpenView?: (v: DashView) 
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<"all" | "unread">("all");
   const ref = useRef<HTMLDivElement>(null);
-  const { status } = useAuth();
   const toast = useToast();
-  const qc = useQueryClient();
-  const q = useQuery({ queryKey: ["notifications"], queryFn: () => apiRequest("/v1/notifications", notificationListSchema), enabled: status === "signedIn", refetchInterval: 60_000 });
-  const read = useMutation({
-    mutationFn: (ids?: string[]) => apiRequest("/v1/notifications/read", markNotificationsReadResultSchema, { method: "POST", body: ids ? { ids } : {} }),
-    onSettled: () => void qc.invalidateQueries({ queryKey: ["notifications"] }),
-  });
+  const q = useNotifications();
+  const read = useMarkNotificationsRead();
   const items = q.data?.notifications ?? [];
   const unread = q.data?.unread ?? 0;
   const shown = tab === "unread" ? items.filter((n) => !n.read) : items;
@@ -66,7 +59,7 @@ export function NotificationCenter({ onOpenView }: { onOpenView?: (v: DashView) 
   }, [open]);
 
   const openOne = (n: Notification) => {
-    if (!n.read) read.mutate([n.id]);
+    if (!n.read) read.mutate({ ids: [n.id] });
     if (n.view && VIEWS.includes(n.view) && onOpenView) {
       onOpenView(n.view as DashView);
       setOpen(false);

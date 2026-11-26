@@ -640,6 +640,21 @@ if (phase === "main") {
   // Owner, 23 Nov: no activity feed on the customer dashboard; the account history still records real actions (staff view).
   check("activity", "the account history records real actions only, and the dashboard shows no activity feed", feed.includes(`logged that ${FX.mainName} agreed`) && /created the campaign Eid food push/.test(feed) && !/Recent Activity/i.test(t) && !/SSO group sync|auto top-up/.test(t));
 
+  // Owner, 26 Nov: a page with unread notifications is highlighted with its count; opening it clears the count.
+  {
+    sql(`insert into platform.outbox (event_type, aggregate_type, aggregate_id, workspace_id, payload) values ('notify.credits_low', 'workspace', '${ws}', '${ws}', '{"available": 120}')`);
+    // Earlier steps may have left billing notifications unread too: the badge shows them all. Each owner and admin has
+    // their own copy, and opening a page reads only the signed-in person's.
+    const expected = sql(`select count(*) from wp.notifications where workspace_id = '${ws}' and user_id = '${ids.owner.sub}' and link = '#/dashboard/billing' and read_at is null`);
+    await p.reload();
+    const badge = p.getByTestId("nav-badge-billing");
+    const shown = (await badge.waitFor({ timeout: 70_000 }).then(() => badge.innerText()).catch(() => "")).trim();
+    await menu(p, "Credits & Billing");
+    await p.waitForTimeout(2500);
+    const cleared = (await p.getByTestId("nav-badge-billing").count()) === 0 && sql(`select count(*) from wp.notifications where workspace_id = '${ws}' and user_id = '${ids.owner.sub}' and link = '#/dashboard/billing' and read_at is null`) === "0";
+    check("notifications", "a page with unread notifications shows its count in the sidebar; opening the page clears it", Number(expected) > 0 && shown.startsWith(expected) && cleared, `badge "${shown}" expected ${expected}, cleared ${cleared}`);
+  }
+
   // ── 9. Support ──
   await menu(p, "Support");
   await p.getByRole("button", { name: "New Ticket" }).click(); // redesign 2026-11-16

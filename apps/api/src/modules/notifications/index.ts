@@ -62,7 +62,10 @@ export function createNotificationsModule(o: { db: Db }): AppModule {
           const rows = await tx.execute<{ id: string; kind: string; title: string; body: string; link: string | null; created_at: string; read_at: string | null }>(sql`
             select id, kind, title, body, link, created_at, read_at from wp.notifications order by created_at desc limit 30`);
           const [u] = await tx.execute<{ n: number }>(sql`select count(*)::int n from wp.notifications where read_at is null`);
-          return { rows, unread: u?.n ?? 0 };
+          const byView = await tx.execute<{ v: string; n: number }>(sql`
+            select substring(link from '^#/dashboard/([a-z]+)$') v, count(*)::int n from wp.notifications
+            where read_at is null and link is not null group by 1 having substring(link from '^#/dashboard/([a-z]+)$') is not null`);
+          return { rows, unread: u?.n ?? 0, byView };
         });
         const notifications: Notification[] = out.rows.map((r) => ({
           id: r.id,
@@ -73,13 +76,17 @@ export function createNotificationsModule(o: { db: Db }): AppModule {
           createdAt: new Date(r.created_at).toISOString(),
           read: r.read_at !== null,
         }));
-        return sendOk(reply, notificationListSchema, { notifications, unread: out.unread });
+        return sendOk(reply, notificationListSchema, { notifications, unread: out.unread, unreadByView: Object.fromEntries(out.byView.map((b) => [b.v, b.n])) });
       });
       app.post("/v1/notifications/read", { preHandler: guards.customer }, async (req, reply) => {
         const t = tenantOf(req);
-        const { ids } = parseInput(markNotificationsReadSchema, req.body ?? {});
+        const { ids, view } = parseInput(markNotificationsReadSchema, req.body ?? {});
         await o.db.withTenant({ userId: t.userId, workspaceId: t.workspaceId }, (tx) =>
-          tx.execute(ids ? sql`update wp.notifications set read_at = now() where read_at is null and id = any(${ids}::uuid[])` : sql`update wp.notifications set read_at = now() where read_at is null`),
+          tx.execute(
+            ids ? sql`update wp.notifications set read_at = now() where read_at is null and id in (${sql.join(ids.map((i) => sql`${i}::uuid`), sql`, `)})`
+            : view ? sql`update wp.notifications set read_at = now() where read_at is null and link = ${`#/dashboard/${view}`}`
+            : sql`update wp.notifications set read_at = now() where read_at is null`,
+          ),
         );
         return sendOk(reply, markNotificationsReadResultSchema, { ok: true as const });
       });
