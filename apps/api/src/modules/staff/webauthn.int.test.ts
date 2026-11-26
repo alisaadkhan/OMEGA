@@ -14,7 +14,12 @@ const db = createTestDatabase();
 const tokens = createStaffTokens("w".repeat(48));
 const staff = createStaffModule({ db, tokens, encryptionKey: Buffer.alloc(32, 7), webauthn: TEST_WEBAUTHN });
 // A stand-in for any change that needs the hardware key (viewing pages no longer does, owner 23 Nov).
-const keyProbe = { name: "key-probe", register: (a: FastifyInstance) => { a.get("/admin/v1/key-probe", { preHandler: staff.requireStaff("ops.jobs.retry") }, async () => ({ ok: true })); } };
+const keyProbe = { name: "key-probe", register: (a: FastifyInstance) => {
+  a.get("/admin/v1/key-probe", { preHandler: staff.requireStaff("ops.jobs.retry") }, async () => ({ ok: true }));
+  // Creator Checks changes (owner decision, 26 Nov): no hardware key, still Admin or CEO only.
+  a.get("/admin/v1/creator-probe", { preHandler: staff.requireStaff("catalogue.review.decide") }, async () => ({ ok: true }));
+  a.get("/admin/v1/suspend-probe", { preHandler: staff.requireStaff("ops.account.suspend") }, async () => ({ ok: true }));
+} };
 const app = await buildTestApp({ modules: [staff.module, createOpsModule({ db, requireStaff: staff.requireStaff }), keyProbe] });
 beforeEach(resetTables);
 afterAll(async () => {
@@ -172,6 +177,19 @@ describe("first-key enrolment needs a one-time code issued out of band (audit SE
     expect(JSON.stringify(await ownerQuery(`select * from staff.enrolment_codes`))).not.toContain(replaced.code);
     const support = await signIn("support");
     expect(support.code).toBeNull();
+  });
+});
+
+describe("Creator Checks without the security key (owner decision, 26 Nov)", () => {
+  it("an Admin signed in with two-factor changes creators without the key, but customer and money actions still need it; Support is still refused", async () => {
+    const admin = await signIn("admin");
+    expect((await call("GET", "/admin/v1/creator-probe", admin.auth)).statusCode).toBe(200);
+    const suspend = await call("GET", "/admin/v1/suspend-probe", admin.auth);
+    expect(suspend.statusCode).toBe(403);
+    expect(suspend.json().error.details).toMatchObject({ reason: "hardware_key_required" });
+    expect((await call("GET", "/admin/v1/key-probe", admin.auth)).statusCode).toBe(403);
+    const support = await signIn("support");
+    expect((await call("GET", "/admin/v1/creator-probe", support.auth)).statusCode).toBe(403);
   });
 });
 

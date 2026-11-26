@@ -87,8 +87,18 @@ export const isViewOnly = (a: StaffAction): boolean => a.endsWith(".read") || a 
  * exceptions are the enrolment itself on a TOTP session when no key is registered yet (handled in the WebAuthn
  * routes) and reading one's own security state.
  */
+/**
+ * Creator Checks work without the hardware key (owner decision, 26 Nov: "remove the security key" for creator checks):
+ * editing, hiding, trashing and restoring creators, and deciding country, brand, age and customer reports. It is still
+ * Admin or CEO only, behind sign-in with two-factor, and every change is audited. Nothing about customers, money or staff
+ * is in here.
+ */
+export const NO_KEY_ACTIONS: ReadonlySet<StaffAction> = new Set<StaffAction>(["catalogue.review.decide"]);
+
 export const HARDWARE_KEY_ACTIONS: ReadonlySet<StaffAction> = new Set(
-  (Object.keys(STAFF_PERMISSIONS) as StaffAction[]).filter((a) => !(STAFF_PERMISSIONS[a] as readonly string[]).includes("support") && a !== "staff.webauthn.manage" && !isViewOnly(a)),
+  (Object.keys(STAFF_PERMISSIONS) as StaffAction[]).filter(
+    (a) => !(STAFF_PERMISSIONS[a] as readonly string[]).includes("support") && a !== "staff.webauthn.manage" && !isViewOnly(a) && !NO_KEY_ACTIONS.has(a),
+  ),
 );
 
 /**
