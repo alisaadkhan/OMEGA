@@ -13,6 +13,7 @@ Statuses: AWAITING APPROVAL / BLOCKED. Newest at the bottom of each section.
 | AP-03 | Turn on notification emails in production: `NOTIFY_EMAIL_MODE=resend`, `NOTIFY_EMAIL_FROM`, `RESEND_API_KEY` on Vercel | Secrets / production configuration (I cannot read or set Vercel env) | Owner sets the three variables, with a verified sending domain in Resend | Without them the bell still shows every notification; emails wait (dropped after 7 days) |
 | AP-04 (DONE 24 Nov) | Copy the 23 Nov catalogue cleanup to live (87 trashed and banned, 5 merges, 180 restored; owner decided 23 Nov to keep the 176 restored) | Live data write | Owner: "sync the catalogue cleanup to live" | Dry run of the live sync can be prepared and shown first |
 | AP-05 (DONE 24 Nov) | Live contact correction (111 `+0` phones to `+92`, 6 repeats, 3 typo emails) | Live data write of personal data | Owner approval; I will dry-run first | Done locally already |
+| AP-09 | Apply migrations 0101–0106 to live, then push 23 commits from both sessions (staff console, customer notifications, engagement score, search cards, fixes) | Production database and deploy | Owner says "push" | Everything validated locally (T-047) |
 
 ## Infrastructure and spend
 
