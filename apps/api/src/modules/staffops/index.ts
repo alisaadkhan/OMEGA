@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import { registerStaffAvatarRoutes } from "./staff-avatar";
 import { registerStaffNotificationRoutes, type StaffMailer } from "./staff-notifications";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
@@ -221,6 +222,7 @@ export function createStaffOpsModule(o: {
     });
     if (editor) registerCreatorEditorRoutes(app, { editor, r, staffOf, meta });
     registerStaffNotificationRoutes(app, { db: o.db, r, staffOf, mailer: o.staffMailer });
+    registerStaffAvatarRoutes(app, { db: o.db, r, staffOf });
     // Customer flags on creator profiles (owner directive 2026-11-15 §3, 0090).
     app.get("/admin/v1/catalogue/flags", { preHandler: r("catalogue.review.read") }, async (req, reply) =>
       sendOk(reply, creatorFlagListSchema, await flags.list(parseInput(creatorFlagQuerySchema, req.query))),

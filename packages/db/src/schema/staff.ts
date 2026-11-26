@@ -14,6 +14,7 @@ export const staffUsers = staffSchema.table("staff_users", {
   /** A secret being set up, not yet proven with a code (0094). */
   totpPendingEncrypted: text("totp_pending_encrypted"),
   notifyEmail: boolean("notify_email").notNull().default(true),
+  avatar: text("avatar"),
   role: text("role", { enum: ["support", "admin", "super_admin"] }).notNull(),
   status: text("status", { enum: ["active", "disabled", "suspended"] }).notNull().default("active"),
   failedLoginCount: integer("failed_login_count").notNull().default(0),

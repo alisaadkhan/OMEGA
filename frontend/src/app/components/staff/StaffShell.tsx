@@ -5,6 +5,7 @@ import { StepUpProvider } from "../admin/staff-ui";
 import { LogoMark } from "../landing/Logo";
 import { NAV, useNavBadges, type StaffView } from "./nav";
 import { NotificationBell } from "./NotificationBell";
+import { StaffAvatar } from "./StaffAvatar";
 
 /** Display labels only (owner, 25 Nov: the top role reads "CEO"); the server role stays super_admin. */
 const ROLE_LABEL = { super_admin: "CEO", admin: "Admin", support: "Support" } as const;
@@ -82,7 +83,7 @@ export function StaffShell({ admin, view, onView, onSignOut, children }: { admin
           <div className="m-2.5 flex shrink-0 items-center justify-between rounded-xl border border-slate-800 bg-[#0b1c30] p-3">
             <div className="flex min-w-0 items-center gap-2.5">
               <div className="relative shrink-0">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 text-xs font-bold text-white">{admin.name.trim().split(/\s+/).map((p) => p[0]).join("").slice(0, 2).toUpperCase()}</div>
+                <StaffAvatar name={admin.name} />
                 <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-[#0b1c30]" />
               </div>
               <div className="min-w-0"><div className="truncate text-xs font-semibold text-white">{admin.name}</div><div className="truncate text-[10.5px] text-slate-300">{admin.email}</div></div>

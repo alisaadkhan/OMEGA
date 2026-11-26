@@ -247,3 +247,7 @@ revoke all on function platform.staff_notification_emails_claim(integer) from pu
 revoke all on function platform.staff_notification_email_done(uuid, uuid, boolean, boolean) from public;
 grant execute on function platform.staff_notification_emails_claim(integer) to mushin_worker;
 grant execute on function platform.staff_notification_email_done(uuid, uuid, boolean, boolean) to mushin_worker;
+
+-- Staff profile photo (owner, 25 Nov): a small PNG, JPEG or WebP data URL (resized to 160 px in the browser; the API checks
+-- the bytes). Never SVG, so no script can ride in an image.
+alter table staff.staff_users add column if not exists avatar text check (avatar is null or (length(avatar) <= 210000 and avatar ~ '^data:image/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$'));
