@@ -87,6 +87,23 @@ export function NotificationBell({ onOverview }: { onOverview: () => void }) {
   );
 }
 
+/**
+ * Unread notifications per console page, for the sidebar (owner, 26 Nov: "that page should be highlighted with the
+ * number"). Being on a page reads its notifications, so its highlight clears once you have seen it.
+ */
+export function usePageNotifications(view: string): Record<string, number> {
+  const qc = useQueryClient();
+  const list = useQuery({ queryKey: ["admin", "staff-notifications"], queryFn: () => adminRequest("/admin/v1/notifications", staffNotificationListSchema), refetchInterval: 30_000 });
+  const here = list.data?.byPage[view] ?? 0;
+  useEffect(() => {
+    if (!here) return;
+    void adminRequest("/admin/v1/notifications/read", null, { method: "POST", body: { page: view } })
+      .then(() => qc.invalidateQueries({ queryKey: ["admin", "staff-notifications"] }))
+      .catch(() => undefined);
+  }, [view, here, qc]);
+  return list.data?.byPage ?? {};
+}
+
 /** Settings: email me about these (each staff member's own choice; the bell always shows them). */
 export function NotificationEmailToggle() {
   const qc = useQueryClient();

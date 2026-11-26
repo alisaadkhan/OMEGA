@@ -4,7 +4,7 @@ import type { AdminUser } from "../../admin/AdminAuthContext";
 import { StepUpProvider } from "../admin/staff-ui";
 import { LogoMark } from "../landing/Logo";
 import { NAV, useNavBadges, type StaffView } from "./nav";
-import { NotificationBell } from "./NotificationBell";
+import { NotificationBell, usePageNotifications } from "./NotificationBell";
 import { StaffAvatar } from "./StaffAvatar";
 
 /** Display labels only (owner, 25 Nov: the top role reads "CEO"); the server role stays super_admin. */
@@ -37,6 +37,7 @@ export function StaffShell({ admin, view, onView, onSignOut, children }: { admin
   const [menu, setMenu] = useState(false);
   const [palette, setPalette] = useState(false);
   const badges = useNavBadges(admin.role);
+  const fresh = usePageNotifications(view);
   const groups = useMemo(() => NAV.map((g) => ({ ...g, items: g.items.filter((i) => i.roles.includes(admin.role)) })).filter((g) => g.items.length > 0), [admin.role]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -68,10 +69,11 @@ export function StaffShell({ admin, view, onView, onSignOut, children }: { admin
                     {g.items.map((i) => {
                       const active = view === i.id;
                       const n = i.badge ? badges[i.badge] : undefined;
+                      const isNew = !active ? (fresh[i.id] ?? 0) : 0;
                       return (
-                        <button key={i.id} type="button" onClick={() => go(i.id)} aria-label={i.label} title={n ? `${i.label}: ${n} waiting` : undefined} aria-current={active ? "page" : undefined} className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-xs transition-colors ${active ? "bg-[#e6e8ea] font-bold text-[#131b2e]" : "font-medium text-slate-300 hover:bg-slate-800/50 hover:text-white"}`}>
+                        <button key={i.id} type="button" onClick={() => go(i.id)} aria-label={isNew ? `${i.label}, ${isNew} new` : i.label} title={isNew ? `${i.label}: ${isNew} new` : n ? `${i.label}: ${n} waiting` : undefined} aria-current={active ? "page" : undefined} className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-xs transition-colors ${active ? "bg-[#e6e8ea] font-bold text-[#131b2e]" : isNew ? "bg-cyan-500/15 font-bold text-white ring-1 ring-cyan-400/60 hover:bg-cyan-500/25" : "font-medium text-slate-300 hover:bg-slate-800/50 hover:text-white"}`}>
                           <span className="flex items-center gap-2.5"><i.icon className={`h-4 w-4 ${active ? "text-[#131b2e]" : ""}`} strokeWidth={2} />{i.label}</span>
-                          {n ? <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums ${active ? "bg-[#131b2e] text-white" : i.badge === "reports" || i.badge === "removals" ? "bg-rose-500/25 text-rose-300" : "bg-cyan-500/20 text-cyan-300"}`}>{n}</span> : null}
+                          {isNew ? <span className="animate-pulse rounded-full bg-cyan-400 px-1.5 py-0.5 text-[10px] font-extrabold tabular-nums text-[#0A0F24]">{isNew} new</span> : n ? <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums ${active ? "bg-[#131b2e] text-white" : i.badge === "reports" || i.badge === "removals" ? "bg-rose-500/25 text-rose-300" : "bg-cyan-500/20 text-cyan-300"}`}>{n}</span> : null}
                         </button>
                       );
                     })}

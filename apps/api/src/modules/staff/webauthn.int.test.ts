@@ -190,6 +190,11 @@ describe("Creator Checks without the security key (owner decision, 26 Nov)", () 
     expect((await call("GET", "/admin/v1/key-probe", admin.auth)).statusCode).toBe(403);
     const support = await signIn("support");
     expect((await call("GET", "/admin/v1/creator-probe", support.auth)).statusCode).toBe(403);
+    // A password-only session (two-factor off) cannot.
+    const passwordOnly = { authorization: `Bearer ${await tokens.signAccess({ staffId: admin.id, role: "admin", factors: [] })}` };
+    const refused = await call("GET", "/admin/v1/creator-probe", passwordOnly);
+    expect(refused.statusCode).toBe(403);
+    expect(refused.json().error.details).toMatchObject({ reason: "two_factor_required" });
   });
 });
 

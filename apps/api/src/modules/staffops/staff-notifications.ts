@@ -78,18 +78,25 @@ export function registerStaffNotificationRoutes(
         where ${audience(p)} and n.created_at > now() - interval '30 days'
           and not exists (select 1 from staff.notification_reads r where r.notification_id = n.id and r.staff_id = ${p.staffId})`);
       const [me] = await tx.execute<{ on: boolean }>(sql`select notify_email "on" from staff.staff_users where id = ${p.staffId}`);
-      return { rows, unread: u?.n ?? 0, emailOn: me?.on ?? true };
+      const pages = await tx.execute<{ page: string; n: number }>(sql`
+        select substring(n.link from '^#([a-z]+)') page, count(*)::int n from staff.notifications n
+        where ${audience(p)} and n.link is not null and n.created_at > now() - interval '30 days'
+          and not exists (select 1 from staff.notification_reads r where r.notification_id = n.id and r.staff_id = ${p.staffId})
+        group by 1`);
+      return { rows, unread: u?.n ?? 0, emailOn: me?.on ?? true, byPage: Object.fromEntries(pages.filter((x) => x.page).map((x) => [x.page, x.n])) };
     });
     return sendOk(reply, staffNotificationListSchema, {
       notifications: out.rows.map((r) => ({ id: r.id, kind: r.kind, title: r.title, body: r.body, link: r.link, createdAt: new Date(r.created_at).toISOString(), read: r.read })),
       unread: out.unread,
       emailOn: out.emailOn,
+      byPage: out.byPage,
     });
   });
   app.post("/admin/v1/notifications/read", { preHandler: o.r("staff.notifications.read") }, async (req, reply) => {
     const p = o.staffOf(req);
-    const { ids } = parseInput(staffNotificationReadSchema, req.body ?? {});
-    const only = ids ? sql`and n.id in (${sql.join(ids.map((i) => sql`${i}::uuid`), sql`, `)})` : sql``;
+    const { ids, page } = parseInput(staffNotificationReadSchema, req.body ?? {});
+    // Opening a page reads its notifications ("#tickets", "#users?…"); ids read single ones; neither reads all.
+    const only = ids ? sql`and n.id in (${sql.join(ids.map((i) => sql`${i}::uuid`), sql`, `)})` : page ? sql`and substring(n.link from '^#([a-z]+)') = ${page}` : sql``;
     await o.db.withSystem((tx) =>
       tx.execute(sql`insert into staff.notification_reads (staff_id, notification_id)
         select ${p.staffId}, n.id from staff.notifications n where ${audience(p)} ${only} on conflict do nothing`),

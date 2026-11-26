@@ -41,7 +41,7 @@ async function setup() {
   return { app, token };
 }
 
-type List = { notifications: { kind: string; title: string; body: string; link: string | null; read: boolean }[]; unread: number; emailOn: boolean };
+type List = { byPage?: Record<string, number>; notifications: { kind: string; title: string; body: string; link: string | null; read: boolean }[]; unread: number; emailOn: boolean };
 
 describe("staff notifications (owner, 25 Nov, 0106)", () => {
   it("notifies on a new user, trial form and ticket; Support sees tickets only; reading clears the count", async () => {
@@ -57,6 +57,10 @@ describe("staff notifications (owner, 25 Nov, 0106)", () => {
     expect(seen.notifications.map((n) => n.kind).sort()).toEqual(["new_user", "ticket", "trial_request"]);
     expect(seen.notifications.find((n) => n.kind === "new_user")).toMatchObject({ title: "New user signed up", body: "nida@brand.pk", link: "#users" });
     expect(seen.unread).toBe(3);
+    expect(seen.byPage).toEqual({ users: 1, trials: 1, tickets: 1 });
+    // Opening a page reads only that page's notifications.
+    expect((await app.inject({ method: "POST", url: "/admin/v1/notifications/read", headers: admin.headers, payload: { page: "tickets" } })).statusCode).toBe(204);
+    expect(((await app.inject({ method: "GET", url: "/admin/v1/notifications", headers: admin.headers })).json() as List & { byPage: Record<string, number> }).byPage).toEqual({ users: 1, trials: 1 });
     const bySupport = (await app.inject({ method: "GET", url: "/admin/v1/notifications", headers: support.headers })).json() as List;
     expect(bySupport.notifications.map((n) => n.kind)).toEqual(["ticket"]);
 

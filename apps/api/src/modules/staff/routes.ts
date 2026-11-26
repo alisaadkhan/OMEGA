@@ -14,7 +14,7 @@ import { AppError, sha256Hex } from "@mushin/core";
 import { bearerToken } from "../../http/bearer";
 import type { PreHandler } from "../../http/types";
 import { parseInput, sendOk } from "../../http/validate";
-import { can, HARDWARE_KEY_ACTIONS, type StaffAction } from "./permissions";
+import { can, HARDWARE_KEY_ACTIONS, NO_KEY_ACTIONS, type StaffAction } from "./permissions";
 import { SESSION_DAYS, type RequestMeta, type StaffService } from "./service";
 import type { StaffPrincipal, StaffTokens } from "./tokens";
 
@@ -75,6 +75,10 @@ export function createRequireStaff(
       if (!can(principal.role, action)) throw new AppError("FORBIDDEN", "You do not have permission to do this");
       if (HARDWARE_KEY_ACTIONS.has(action) && !principal.factors.includes("hwk")) {
         throw new AppError("FORBIDDEN", "This action needs your security key. Confirm with it, then try again.", { reason: "hardware_key_required" });
+      }
+      // Without the key, Creator Checks changes still need a two-factor sign-in, never a password alone (security review).
+      if (NO_KEY_ACTIONS.has(action) && !principal.factors.includes("otp") && !principal.factors.includes("hwk")) {
+        throw new AppError("FORBIDDEN", "Turn on two-factor sign-in in Settings to change creators.", { reason: "two_factor_required" });
       }
       req.staff = principal;
     };

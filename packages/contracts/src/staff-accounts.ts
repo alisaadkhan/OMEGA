@@ -145,6 +145,12 @@ export const staffNotificationSchema = z.object({
   read: z.boolean(),
 });
 export type StaffNotification = z.infer<typeof staffNotificationSchema>;
-export const staffNotificationListSchema = z.object({ notifications: z.array(staffNotificationSchema), unread: z.number().int().nonnegative(), emailOn: z.boolean() });
-export const staffNotificationReadSchema = z.object({ ids: z.array(z.uuid()).min(1).max(100).optional() });
+export const staffNotificationListSchema = z.object({
+  notifications: z.array(staffNotificationSchema),
+  unread: z.number().int().nonnegative(),
+  emailOn: z.boolean(),
+  /** Unread per console page, e.g. { tickets: 2 }: the sidebar highlights those pages with the number (owner, 26 Nov). */
+  byPage: z.record(z.string(), z.number().int().nonnegative()).default({}),
+});
+export const staffNotificationReadSchema = z.object({ ids: z.array(z.uuid()).min(1).max(100).optional(), page: z.string().regex(/^[a-z]{2,20}$/).optional() });
 export const staffNotificationEmailSchema = z.object({ on: z.boolean() });
