@@ -31,6 +31,7 @@ function row(id: string, displayName: string, primaryHandle: string, strong: boo
     fakeFollowerPct: null,
     followers: 100_000,
     engagementRate: strong ? 9 : 0.5,
+    medianViews: null,
     followersUpdatedAt: strong ? now : null,
     contactStates: [],
     bios: [],
