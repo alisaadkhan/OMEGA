@@ -48,6 +48,14 @@ const webhook = (svc: ReturnType<typeof service>, id: string, type: string, mess
 };
 
 describe("outreach email: who may send what", () => {
+  it("adding creators to a campaign (and a revealed, valid email) sends nothing on its own; only an explicit send does", async () => {
+    const s = await setup();
+    const more = await addIndexedCreator(db);
+    await campaigns.addCreators(s.ctx, s.campaignId, [more]);
+    expect(provider.sent).toEqual([]);
+    expect(await ownerQuery<{ n: number }>(`select count(*)::int n from wp.outreach_emails`)).toEqual([{ n: 0 }]);
+  });
+
   it("is refused when the server has no provider, and when the plan does not include it", async () => {
     const s = await setup();
     await expect(service({ off: true }).send(s.ctx, s.campaignId, s.creatorId, email(s.contactId), key())).rejects.toMatchObject({ details: { reason: "outreach_email_unavailable" } });
