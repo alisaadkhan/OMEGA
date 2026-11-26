@@ -12,7 +12,8 @@ describe("links that can carry a phone number stay behind the paid reveal (secur
   });
 
   it("keeps ordinary profile and website links", () => {
-    for (const l of ["https://www.instagram.com/ali.eats", "https://linktr.ee/alieats", "https://alieats.pk/menu", "https://youtube.com/@AliEats", "https://www.tiktok.com/@ali_eats"])
+    // Look-alike hosts are not chat or shortener hosts: the host lists match dots literally (26 Nov), not any character.
+    for (const l of ["https://www.instagram.com/ali.eats", "https://linktr.ee/alieats", "https://alieats.pk/menu", "https://youtube.com/@AliEats", "https://www.tiktok.com/@ali_eats", "https://brit.co/", "https://www.brit.co/home"])
       expect(carriesPhone(l), l).toBe(false);
   });
 

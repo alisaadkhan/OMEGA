@@ -237,9 +237,12 @@ export async function bioLinkUrls(tx: Tx, ids: string[], revealed: ReadonlySet<s
  * Signal, Viber...) or a link shortener; names such a host or embeds another URL anywhere (any redirector); or holds 9
  * or more digits in total anywhere in the URL, digits of every script counted (Urdu and Arabic-Indic digits too).
  */
-const CHAT = "wa\.me|wa\.link|whatsapp\.com|whatsapp\.net|t\.me|telegram\.me|telegram\.dog|signal\.me|signal\.group|viber\.com|viber\.click|line\.me|imo\.im";
-const SHORT = "bit\.ly|tinyurl\.com|cutt\.ly|rb\.gy|t\.co|goo\.gl|shorturl\.at|is\.gd|ow\.ly|tiny\.cc|s\.id|rebrand\.ly|bl\.ink|shorte\.st|v\.gd";
-const RISKY_HOST = new RegExp(`(^|\.)(${CHAT}|${SHORT})$`);
+// Host lists as written; each dot is escaped for the regex here ("wa\.me" in a plain string is just "wa.me", whose dot
+// then matched any character: found by lint, 26 Nov).
+const hostAlternation = (hosts: string[]) => hosts.map((h) => h.replace(/\./g, "\\.")).join("|");
+const CHAT = hostAlternation(["wa.me", "wa.link", "whatsapp.com", "whatsapp.net", "t.me", "telegram.me", "telegram.dog", "signal.me", "signal.group", "viber.com", "viber.click", "line.me", "imo.im"]);
+const SHORT = hostAlternation(["bit.ly", "tinyurl.com", "cutt.ly", "rb.gy", "t.co", "goo.gl", "shorturl.at", "is.gd", "ow.ly", "tiny.cc", "s.id", "rebrand.ly", "bl.ink", "shorte.st", "v.gd"]);
+const RISKY_HOST = new RegExp(`(^|\\.)(${CHAT}|${SHORT})$`);
 const RISKY_INSIDE = new RegExp(`(^|[^a-z0-9-])(${CHAT}|${SHORT})([^a-z0-9-]|$)|https?:|[a-z][a-z0-9+.-]*://`, "i");
 export function carriesPhone(raw: string): boolean {
   let u: URL;
